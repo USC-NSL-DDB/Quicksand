@@ -1,0 +1,99 @@
+diff --git a/include/spdk/nvme.h b/include/spdk/nvme.h
+index c741ef606..b1593a82c 100644
+--- a/include/spdk/nvme.h
++++ b/include/spdk/nvme.h
+@@ -1013,6 +1013,20 @@ void spdk_nvme_ctrlr_register_aer_callback(struct spdk_nvme_ctrlr *ctrlr,
+  */
+ struct spdk_nvme_qpair;
+ 
++
++/**
++ * Setup qpair for use with shenango
++ *
++ * @qpair - the qpair to setup
++ * @cq_head_out - used to return the memory address of the internal completion
++ * queue head variable
++ * @shadow_ptr - address of memory location that SPDK will update when advancing
++ * cq_head
++ */
++void nvme_setup_shenango(struct spdk_nvme_qpair *qpair, uint32_t **cq_head_out,
++	                     uint32_t *shadow_ptr);
++
++
+ /**
+  * Signature for the callback function invoked when a timeout is detected on a
+  * request.
+diff --git a/lib/nvme/nvme_pcie.c b/lib/nvme/nvme_pcie.c
+index 312c4a411..bed686934 100644
+--- a/lib/nvme/nvme_pcie.c
++++ b/lib/nvme/nvme_pcie.c
+@@ -190,6 +190,9 @@ struct nvme_pcie_qpair {
+ 		volatile uint32_t *cq_eventidx;
+ 	} shadow_doorbell;
+ 
++	uint32_t cq_head_nowrap;
++	volatile uint32_t *shadow_head;
++
+ 	/*
+ 	 * Fields below this point should not be touched on the normal I/O path.
+ 	 */
+@@ -962,6 +965,8 @@ nvme_pcie_qpair_reset(struct spdk_nvme_qpair *qpair)
+ 
+ 	/* all head/tail vals are set to 0 */
+ 	pqpair->last_sq_tail = pqpair->sq_tail = pqpair->sq_head = pqpair->cq_head = 0;
++	pqpair->cq_head_nowrap = pqpair->num_entries;
++	*pqpair->shadow_head = pqpair->num_entries;
+ 
+ 	/*
+ 	 * First time through the completion queue, HW will set phase
+@@ -1113,6 +1118,9 @@ nvme_pcie_qpair_construct(struct spdk_nvme_qpair *qpair,
+ 		TAILQ_INSERT_HEAD(&pqpair->free_tr, tr, tq_list);
+ 	}
+ 
++	/* map shadow_head to to cq_head_nowrap for init */
++	pqpair->shadow_head = &pqpair->cq_head_nowrap;
++
+ 	nvme_pcie_qpair_reset(qpair);
+ 
+ 	return 0;
+@@ -2286,6 +2294,11 @@ nvme_pcie_qpair_process_completions(struct spdk_nvme_qpair *qpair, uint32_t max_
+ 		}
+ 	}
+ 
++	/* update CQ head visible to runtime and iokernel */
++	pqpair->cq_head_nowrap += num_completions;
++	*pqpair->shadow_head = pqpair->cq_head_nowrap;
++
++
+ 	if (num_completions > 0) {
+ 		nvme_pcie_qpair_ring_cq_doorbell(qpair);
+ 	}
+@@ -2314,6 +2327,15 @@ nvme_pcie_qpair_process_completions(struct spdk_nvme_qpair *qpair, uint32_t max_
+ 	return num_completions;
+ }
+ 
++void nvme_setup_shenango(struct spdk_nvme_qpair *qpair, uint32_t **cq_head_out,
++	                     uint32_t *shadow_ptr)
++{
++	struct nvme_pcie_qpair *pqpair = nvme_pcie_qpair(qpair);
++	*cq_head_out = &pqpair->cq_head_nowrap;
++	pqpair->shadow_head = shadow_ptr;
++	*pqpair->shadow_head = pqpair->cq_head_nowrap;
++}
++
+ const struct spdk_nvme_transport_ops pcie_ops = {
+ 	.name = "PCIE",
+ 	.type = SPDK_NVME_TRANSPORT_PCIE,
+diff --git a/scripts/setup.sh b/scripts/setup.sh
+index baafe15e1..fea070a87 100755
+--- a/scripts/setup.sh
++++ b/scripts/setup.sh
+@@ -716,7 +716,7 @@ if [ $(uname) = Linux ]; then
+ 	: ${NRHUGE=$(( (HUGEMEM + HUGEPGSZ_MB - 1) / HUGEPGSZ_MB ))}
+ 
+ 	if [ "$mode" == "config" ]; then
+-		configure_linux
++		configure_linux_pci
+ 	elif [ "$mode" == "cleanup" ]; then
+ 		cleanup_linux
+ 	elif [ "$mode" == "reset" ]; then
