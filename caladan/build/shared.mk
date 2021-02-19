@@ -11,10 +11,10 @@ include $(ROOT_PATH)/build/config
 INC = -I$(ROOT_PATH)/inc
 FLAGS  = -g -Wall -D_GNU_SOURCE $(INC)
 LDFLAGS = -T $(ROOT_PATH)/base/base.ld
-LD      = gcc
-CC      = gcc
-LDXX	= g++
-CXX	= g++
+LD      = gcc-9
+CC      = gcc-9
+LDXX	= g++-9
+CXX	= g++-9
 AR      = ar
 SPARSE  = sparse
 
