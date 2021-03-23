@@ -1,6 +1,9 @@
 #!/bin/bash
 
 cd caladan
-./patch.sh
 ./build.sh
+cd ..
+make clean
+make -j
+
 
