@@ -1,0 +1,60 @@
+#include <functional>
+#include <utility>
+
+extern "C" {
+#include <base/assert.h>
+}
+
+namespace nu {
+
+template <typename K, typename V, typename Allocator, size_t NPartitions>
+template <typename K1>
+size_t ThreadSafeHashMap<K, V, Allocator, NPartitions>::partitioner(K1 &&k) {
+  return std::hash<K>{}(std::forward<K1>(k)) % NPartitions;
+}
+
+template <typename K, typename V, typename Allocator, size_t NPartitions>
+template <typename K1>
+V &ThreadSafeHashMap<K, V, Allocator, NPartitions>::get(K1 &&k) {
+  auto idx = partitioner(std::forward<K1>(k));
+  rt::ScopedLock<rt::Spin> lock(&spins_[idx]);
+  return maps_[idx][std::forward<K1>(k)];
+}
+
+template <typename K, typename V, typename Allocator, size_t NPartitions>
+template <typename K1, typename V1>
+void ThreadSafeHashMap<K, V, Allocator, NPartitions>::put(K1 &&k, V1 &&v) {
+  auto idx = partitioner(std::forward<K1>(k));
+  rt::ScopedLock<rt::Spin> lock(&spins_[idx]);
+  maps_[idx].emplace(std::forward<K1>(k), std::forward<V1>(v));
+}
+
+template <typename K, typename V, typename Allocator, size_t NPartitions>
+template <typename K1>
+bool ThreadSafeHashMap<K, V, Allocator, NPartitions>::remove(K1 &&k) {
+  auto idx = partitioner(std::forward<K1>(k));
+  rt::ScopedLock<rt::Spin> lock(&spins_[idx]);
+  return maps_[idx].erase(std::forward<K1>(k));
+}
+
+template <typename K, typename V, typename Allocator, size_t NPartitions>
+template <typename K1>
+bool ThreadSafeHashMap<K, V, Allocator, NPartitions>::contains(K1 &&k) {
+  auto idx = partitioner(std::forward<K1>(k));
+  rt::ScopedLock<rt::Spin> lock(&spins_[idx]);
+  return maps_[idx].contains(std::forward<K1>(k));
+}
+
+template <typename K, typename V, typename Allocator, size_t NPartitions>
+template <typename K1>
+V ThreadSafeHashMap<K, V, Allocator, NPartitions>::get_and_remove(K1 &&k) {
+  auto idx = partitioner(std::forward<K1>(k));
+  rt::ScopedLock<rt::Spin> lock(&spins_[idx]);
+  auto iter = maps_[idx].find(std::forward<K1>(k));
+  BUG_ON(iter == maps_[idx].end());
+  auto v = std::move(iter->second);
+  maps_[idx].erase(iter);
+  return v;
+}
+
+} // namespace nu

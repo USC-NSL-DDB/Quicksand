@@ -677,6 +677,8 @@ static __always_inline thread_t *__thread_create(void)
 	th->main_thread = false;
 	th->last_cpu = myk()->curr_cpu;
 	th->run_start_tsc = UINT64_MAX;
+	th->tlsvar = 0;
+	th->migration = false;
 
 	return th;
 }
@@ -699,6 +701,8 @@ thread_t *thread_create(thread_fn_t fn, void *arg)
 	th->tf.rbp = (uint64_t)0; /* just in case base pointers are enabled */
 	th->tf.rip = (uint64_t)fn;
 	th->stack_busy = false;
+	if (__self)
+		th->tlsvar = __self->tlsvar;
 	gc_register_thread(th);
 	return th;
 }
@@ -897,3 +901,7 @@ int sched_init(void)
 
 	return 0;
 }
+
+void thread_mark_migration(thread_t *th) { th->migration = true; }
+
+void thread_unmark_migration(thread_t *th) { th->migration = false; }

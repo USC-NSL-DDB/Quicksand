@@ -43,6 +43,8 @@ struct cpu_record cpu_map[NCPU] __attribute__((aligned(CACHE_LINE_SIZE)));
 /* the file descriptor for the ksched module */
 static int ksched_fd;
 
+__thread volatile unsigned int __curr_cpu;
+
 static struct kthread *allock(void)
 {
 	struct kthread *k;
@@ -102,7 +104,7 @@ static __always_inline void kthread_yield_to_iokernel(void)
 		s = ioctl(ksched_fd, KSCHED_IOC_PARK, 0);
 	}
 
-	k->curr_cpu = s;
+	__curr_cpu = k->curr_cpu = s;
 	if (k->curr_cpu != last_core)
 		STAT(CORE_MIGRATIONS)++;
 	store_release(&cpu_map[s].recent_kthread, k);
@@ -244,7 +246,7 @@ void kthread_wait_to_attach(void)
 	s = ioctl(ksched_fd, KSCHED_IOC_START, 0);
 	BUG_ON(s < 0);
 
-	k->curr_cpu = s;
+	__curr_cpu = k->curr_cpu = s;
 	store_release(&cpu_map[s].recent_kthread, k);
 
 	/* attach the kthread for the first time */

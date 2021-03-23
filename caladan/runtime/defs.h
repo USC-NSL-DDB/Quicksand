@@ -111,6 +111,7 @@ struct thread {
 	struct list_node	gc_link;
 	unsigned int		onk;
 #endif
+	bool                    migration;
 };
 
 typedef void (*runtime_fn_t)(void);
@@ -123,7 +124,6 @@ extern void __jmp_thread_direct(struct thread_tf *oldtf,
 extern void __jmp_runtime(struct thread_tf *tf, runtime_fn_t fn,
 			  void *stack);
 extern void __jmp_runtime_nosave(runtime_fn_t fn, void *stack) __noreturn;
-
 
 /*
  * Stack support

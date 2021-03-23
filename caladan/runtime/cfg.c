@@ -18,6 +18,8 @@ int arp_static_count = 0;
 struct cfg_arp_static_entry static_entries[MAX_ARP_STATIC_ENTRIES];
 int preferred_socket = 0;
 
+static uint32_t cfg_ip;
+
 /*
  * Configuration Options
  */
@@ -94,6 +96,10 @@ static int parse_host_ip(const char *name, const char *val)
 		log_err("IP address can't be local subnet");
 		return -EINVAL;
 	}
+
+	if (!strcmp(name, "host_addr"))
+		cfg_ip = *addr;
+
 
 	return 0;
 }
@@ -428,3 +434,5 @@ out:
 	fclose(f);
 	return ret;
 }
+
+uint32_t get_cfg_ip(void) { return cfg_ip; }

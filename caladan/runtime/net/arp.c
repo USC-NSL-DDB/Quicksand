@@ -383,6 +383,14 @@ int arp_init_late(void)
 		insert_entry(e, idx);
 	}
 
+	e = create_entry(netcfg.addr);
+	if (!e)
+		return -ENOMEM;
+	idx = hash_ip(netcfg.addr);
+	e->eth = netcfg.mac;
+	e->state = ARP_STATE_STATIC;
+	insert_entry(e, idx);
+
 	spin_unlock_np(&arp_lock);
 
 	return thread_spawn(arp_worker, NULL);

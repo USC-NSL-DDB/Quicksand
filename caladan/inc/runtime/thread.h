@@ -23,6 +23,8 @@ extern void thread_park_and_unlock_np(spinlock_t *l);
 extern void thread_ready(thread_t *thread);
 extern thread_t *thread_create(thread_fn_t fn, void *arg);
 extern thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
+extern void thread_mark_migration(thread_t *thread);
+extern void thread_unmark_migration(thread_t *thread);
 
 extern __thread thread_t *__self;
 extern __thread unsigned int kthread_idx;

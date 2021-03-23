@@ -8,6 +8,7 @@
 
 extern __thread volatile unsigned int preempt_cnt;
 extern __thread volatile bool preempt_cede;
+extern __thread volatile unsigned int __curr_cpu;
 extern void preempt(void);
 
 #define PREEMPT_NOT_PENDING	(1 << 31)
@@ -94,7 +95,7 @@ static inline void assert_preempt_disabled(void)
  */
 static inline void clear_preempt_needed(void)
 {
-	preempt_cnt |= PREEMPT_NOT_PENDING;
+	preempt_cnt = preempt_cnt | PREEMPT_NOT_PENDING;
 }
 
 /**
@@ -107,3 +108,10 @@ static inline void clear_preempt_cede_needed(void)
 	preempt_cede = false;
 }
 
+static inline unsigned int get_cpu(void)
+{
+	preempt_disable();
+        return __curr_cpu;
+}
+
+static inline void put_cpu(void) { preempt_enable(); }

@@ -11,4 +11,6 @@ struct netaddr {
 	uint16_t port;
 };
 
+extern uint32_t get_cfg_ip(void);
+
 extern int str_to_netaddr(const char *str, struct netaddr *addr);
