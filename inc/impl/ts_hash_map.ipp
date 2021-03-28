@@ -47,14 +47,17 @@ bool ThreadSafeHashMap<K, V, Allocator, NPartitions>::contains(K1 &&k) {
 
 template <typename K, typename V, typename Allocator, size_t NPartitions>
 template <typename K1>
-V ThreadSafeHashMap<K, V, Allocator, NPartitions>::get_and_remove(K1 &&k) {
+bool ThreadSafeHashMap<K, V, Allocator, NPartitions>::try_get_and_remove(K1 &&k,
+                                                                         V *v) {
   auto idx = partitioner(std::forward<K1>(k));
   rt::ScopedLock<rt::Spin> lock(&spins_[idx]);
   auto iter = maps_[idx].find(std::forward<K1>(k));
-  BUG_ON(iter == maps_[idx].end());
-  auto v = std::move(iter->second);
+  if (iter == maps_[idx].end()) {
+    return false;
+  }
+  *v = std::move(iter->second);
   maps_[idx].erase(iter);
-  return v;
+  return true;
 }
 
 } // namespace nu

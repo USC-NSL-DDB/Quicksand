@@ -74,6 +74,7 @@ struct thread_tf {
 	uint64_t rax;	/* holds return value */
 	uint64_t rip;	/* instruction pointer */
 	uint64_t rsp;	/* stack pointer */
+	uint64_t stack_protector;
 };
 
 #define ARG0(tf)        ((tf)->rdi)
@@ -94,6 +95,12 @@ enum {
 	THREAD_STATE_SLEEPING,
 };
 
+enum {
+	NO_MIGRATION = 0,
+	MIGRATING,
+	MIGRATED,
+};
+
 struct stack;
 
 struct thread {
@@ -107,11 +114,12 @@ struct thread {
 	uint64_t		run_start_tsc;
 	uint64_t		ready_tsc;
 	uint64_t		tlsvar;
+	void                    *obj_stack_base;
 #ifdef GC
 	struct list_node	gc_link;
 	unsigned int		onk;
 #endif
-	bool                    migration;
+	uint8_t                 migration_state;
 };
 
 typedef void (*runtime_fn_t)(void);
@@ -412,7 +420,9 @@ struct kthread {
 	spinlock_t		timer_lock;
 	unsigned int		timern;
 	struct timer_idx	*timers;
-	unsigned long		pad2[6];
+	bool                    pausing_migrating_ths;
+	struct list_head        migrating_ths;
+	unsigned long           pad2[3];
 
 	/* 9th cache-line, storage nvme queues */
 	struct storage_q		storage_q;
@@ -476,6 +486,7 @@ extern uint64_t cfg_qdelay_us;
 
 extern void kthread_park(bool voluntary);
 extern void kthread_wait_to_attach(void);
+extern void kthread_yield_all_cores(void);
 
 struct cpu_record {
 	struct kthread *recent_kthread;

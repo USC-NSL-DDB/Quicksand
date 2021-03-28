@@ -11,7 +11,14 @@ extern "C" {
 
 namespace nu {
 
-enum ControllerRPC_t { REGISTER_NODE, ALLOCATE_OBJ, DESTROY_OBJ, RESOLVE_OBJ };
+enum ControllerRPC_t {
+  REGISTER_NODE,
+  ALLOCATE_OBJ,
+  DESTROY_OBJ,
+  RESOLVE_OBJ,
+  GET_MIGRATION_DEST,
+  UPDATE_LOCATION,
+};
 
 struct RPCReqRegisterNode {
   Node node;
@@ -46,6 +53,23 @@ struct RPCRespResolveObj {
   netaddr addr;
 } __attribute__((packed));
 
+struct RPCReqUpdateLocation {
+  RemObjID id;
+  netaddr obj_srv_addr;
+} __attribute__((packed));
+
+struct RPCRespUpdateLocation {
+} __attribute__((packed));
+
+struct RPCReqGetMigrationDest {
+  Resource resource;
+} __attribute__((packed));
+
+struct RPCRespGetMigrationDest {
+  bool empty;
+  netaddr addr;
+} __attribute__((packed));
+
 class ControllerServer {
 public:
   constexpr static uint32_t kTCPListenBackLog = 64;
@@ -63,5 +87,7 @@ private:
   bool handle_allocate_obj(tcpconn_t *c);
   bool handle_destroy_obj(tcpconn_t *c);
   bool handle_resolve_obj(tcpconn_t *c);
+  bool handle_get_migration_dest(tcpconn_t *c);
+  bool handle_update_location(tcpconn_t *c);
 };
 } // namespace nu

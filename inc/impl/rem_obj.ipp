@@ -30,19 +30,44 @@ void serialize(std::stringstream *output, S1s &&... states) {
 }
 
 template <typename T>
+tcpconn_t *RemObj<T>::purge_old_conns(RemObjID id, tcpconn_t *old_conn) {
+  tcpconn_t *conn;
+  auto old_srv_addr = tcp_remote_addr(old_conn);
+  do {
+    BUG_ON(tcp_shutdown(old_conn, SHUT_RDWR) < 0);
+    tcp_close(old_conn);
+    conn = Runtime::rem_obj_conn_mgr->get_conn(id);
+    old_conn = conn;
+  } while (tcp_remote_addr(conn) == old_srv_addr);
+  return conn;
+}
+
+template <typename T>
 template <typename RetT>
 RetT RemObj<T>::invoke_remote(RemObjID id, const std::stringstream &states_ss) {
-  auto conn = Runtime::rem_obj_conn_mgr->get_conn(id);
+  tcpconn_t *conn;
 
+  conn = Runtime::rem_obj_conn_mgr->get_conn(id);
+retry:
   auto states_str = states_ss.str();
   uint64_t states_size = states_str.size();
   tcp_write2_until(conn, &states_size, sizeof(states_size), states_str.data(),
                    states_size);
 
-  uint64_t ret_size;
-  tcp_read_until(conn, &ret_size, sizeof(ret_size));
-  std::string ret_str(ret_size, '\0');
-  tcp_read_until(conn, ret_str.data(), ret_size);
+  ObjRPCRespHdr hdr;
+  tcp_read_until(conn, &hdr, sizeof(hdr));
+
+  if (unlikely(hdr.rc == CLIENT_RETRY)) {
+    conn = purge_old_conns(id, conn);
+    goto retry;
+  }
+
+  std::string ret_str(hdr.payload_size, '\0');
+  tcp_read_until(conn, ret_str.data(), hdr.payload_size);
+
+  if (unlikely(hdr.rc == FORWARDED)) {
+    conn = purge_old_conns(id, conn);
+  }
 
   Runtime::rem_obj_conn_mgr->put_conn(id, conn);
 
@@ -61,9 +86,7 @@ template <typename T> RemObj<T>::RemObj(RemObjID id) : id_(id) {
 
 template <typename T>
 RemObj<T>::RemObj(RemObjID id, Future<void> &&construct)
-    : id_(id), construct_(std::move(construct)) {
-  inc_ref_cnt();
-}
+    : id_(id), construct_(std::move(construct)) {}
 
 template <typename T> RemObj<T>::~RemObj() {
   if (construct_) {
@@ -179,9 +202,10 @@ template <typename T> void RemObj<T>::inc_ref_cnt() {
 }
 
 template <typename T> void RemObj<T>::dec_ref_cnt() {
-  auto inc_future =
-      std::move(Runtime::obj_inflight_inc_cnts->get_and_remove(id_));
-  inc_future.get();
+  RuntimeFuture<void> inc_future;
+  if (Runtime::obj_inflight_inc_cnts->try_get_and_remove(id_, &inc_future)) {
+    inc_future.get();
+  }
   auto *dec_promise = update_ref_cnt(-1);
   Runtime::rcu_lock.lock();
   rt::Thread([=]() {
@@ -193,7 +217,7 @@ template <typename T> void RemObj<T>::dec_ref_cnt() {
 
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
   auto *args_ss = new std::stringstream();
-  auto *handler = ObjServer::update_ref_cnt;
+  auto *handler = ObjServer::update_ref_cnt<T>;
   serialize(args_ss, handler, id_, delta);
   return Promise<void>::create<RuntimeAllocator<Promise<void>>>(
       [&, args_ss, id = id_] {

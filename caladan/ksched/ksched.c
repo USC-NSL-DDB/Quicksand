@@ -39,6 +39,8 @@
 #define CORE_PERF_GLOBAL_CTRL_ENABLE_PMC_0 (0x1)
 #define CORE_PERF_GLOBAL_CTRL_ENABLE_PMC_1 (0x2)
 
+#define YIELD_SIGNAL                       SIGUSR2
+
 /* the character device that provides the ksched IOCTL interface */
 static struct cdev ksched_cdev;
 
@@ -55,6 +57,8 @@ struct ksched_percpu {
 
 /* per-cpu data to coordinate context switching and signal delivery */
 static DEFINE_PER_CPU(struct ksched_percpu, kp);
+
+static cpumask_t all_cores_mask = CPU_MASK_ALL;
 
 /**
  * ksched_measure_pmc - read a performance counter
@@ -348,6 +352,29 @@ static long ksched_intr(struct ksched_intr_req __user *ureq)
 	return 0;
 }
 
+static void do_yield_all(void *unused)
+{
+	struct ksched_percpu *p;
+	int cpu;
+
+	cpu = get_cpu();
+	p = this_cpu_ptr(&kp);
+
+        if (local_read(&p->busy) && p->running_task)
+		send_sig(YIELD_SIGNAL, p->running_task, 0);
+
+	put_cpu();
+}
+
+static long ksched_yield_all(void)
+{
+	if (unlikely(!capable(CAP_SYS_ADMIN)))
+		return -EACCES;
+  
+	smp_call_function_many(&all_cores_mask, do_yield_all, NULL, false);
+	return 0;
+}
+
 static long
 ksched_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -364,6 +391,8 @@ ksched_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return ksched_park();
 	case KSCHED_IOC_INTR:
 		return ksched_intr((void __user *)arg);
+	case KSCHED_IOC_YIELD_ALL:
+		return ksched_yield_all();
 	default:
 		break;
 	}

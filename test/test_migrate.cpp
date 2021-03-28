@@ -5,75 +5,58 @@
 #include <vector>
 
 extern "C" {
+#include <base/time.h>
 #include <net/ip.h>
 #include <runtime/runtime.h>
 }
 
+#include "monitor.hpp"
 #include "rem_obj.hpp"
 #include "runtime.hpp"
 
 using namespace nu;
 
+constexpr static int kMagic = 0xDEADBEEF;
+
 Runtime::Mode mode;
 
-class Obj {};
-
-void do_work() {
-  bool passed = true;
-
-  std::vector<int> a{1, 2, 3, 4};
-  std::vector<int> b{5, 6, 7, 8};
-
-  auto rem_obj = RemObj<Obj>::create();
-  auto rem_a_ptr_future = rem_obj.run_async(
-      +[](Obj &_, std::vector<int> &a_vec) {
-        auto *rem_a_ptr = new std::vector<int>();
-        *rem_a_ptr = a_vec;
-        return rem_a_ptr;
-      },
-      a);
-  auto rem_b_ptr_future = rem_obj.run_async(
-      +[](Obj &_, std::vector<int> &b_vec) {
-        auto *rem_b_ptr = new std::vector<int>();
-        *rem_b_ptr = b_vec;
-        return rem_b_ptr;
-      },
-      b);
-  auto rem_a_ptr = rem_a_ptr_future.get();
-  auto rem_b_ptr = rem_b_ptr_future.get();
-  auto c = rem_obj.run(
-      +[](Obj &_, std::vector<int> *rem_a_ptr, std::vector<int> *rem_b_ptr) {
-        std::vector<int> rem_c;
-        for (size_t i = 0; i < rem_a_ptr->size(); i++) {
-          rem_c.push_back(rem_a_ptr->at(i) + rem_b_ptr->at(i));
-        }
-        return rem_c;
-      },
-      rem_a_ptr, rem_b_ptr);
-
-  for (size_t i = 0; i < a.size(); i++) {
-    if (c[i] != a[i] + b[i]) {
-      passed = false;
-      break;
-    }
+namespace nu {
+class Test {
+public:
+  int run() {
+    // Should be printed at the initial server node.
+    std::cout << "I am here" << std::endl;
+    Resource resource = {.cores = 0, .mem_mbs = 1000};
+    // Mock a resource pressure which will be detected by the nu::Monitor
+    // instance very quickly.
+    Runtime::monitor->mock_set_pressure(resource);
+    // Ensure that the migration happens before the function returns.
+    delay_us(1000 * 1000);
+    // Should be printed at the new server node.
+    std::cout << "I am here" << std::endl;
+    return kMagic;
   }
-
-  if (passed) {
-    std::cout << "Passed" << std::endl;
-  } else {
-    std::cout << "Failed" << std::endl;
-  }
-}
+};
+} // namespace nu
 
 void _main(void *args) {
   std::cout << "Running " << __FILE__ "..." << std::endl;
+  bool passed = true;
 
   netaddr remote_ctrl_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 3), .port = 8000};
   auto runtime = Runtime::init(/* local_obj_srv_port = */ 8001,
                                /* local_migra_ldr_port = */ 8002,
                                /* remote_ctrl_addr = */ remote_ctrl_addr,
                                /* mode = */ mode);
-  do_work();
+
+  auto rem_obj = RemObj<Test>::create();
+  passed = (rem_obj.run(&Test::run) == kMagic);
+
+  if (passed) {
+    std::cout << "Passed" << std::endl;
+  } else {
+    std::cout << "Failed" << std::endl;
+  }
 }
 
 int main(int argc, char **argv) {

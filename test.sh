@@ -25,9 +25,13 @@ function run_test {
     disown -r
     sleep 3
 
-    run_server_prog $BIN >/dev/null 2>&1 &
+    run_server_prog $BIN 1 >/dev/null 2>&1 &
     disown -r
     sleep 3
+
+    run_server_prog $BIN 2 >/dev/null 2>&1 &
+    disown -r
+    sleep 3    
 
     run_client_prog $BIN 2>/dev/null | grep -q "Passed"
     ret=$?

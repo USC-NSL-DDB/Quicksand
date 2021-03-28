@@ -9,7 +9,7 @@ extern "C" {
 
 namespace nu {
 
-std::function<tcpconn_t *(RemObjID id)> RemObjConnManager::creator_ =
+std::function<tcpconn_t *(RemObjID)> RemObjConnManager::creator_ =
     [](RemObjID id) {
       auto optional = Runtime::controller_client->resolve_obj(id);
       BUG_ON(!optional);

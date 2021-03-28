@@ -40,8 +40,9 @@ struct ksched_shm_cpu {
 };
 
 #define KSCHED_MAGIC		0xF0
-#define KSCHED_IOC_MAXNR	3
+#define KSCHED_IOC_MAXNR	4
 
 #define KSCHED_IOC_START	_IO(KSCHED_MAGIC, 1)
 #define KSCHED_IOC_PARK		_IO(KSCHED_MAGIC, 2)
 #define KSCHED_IOC_INTR		_IOW(KSCHED_MAGIC, 3, struct ksched_intr_req)
+#define KSCHED_IOC_YIELD_ALL	_IO(KSCHED_MAGIC, 4)

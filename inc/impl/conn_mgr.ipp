@@ -22,7 +22,7 @@ template <typename Key> ConnectionManager<Key>::~ConnectionManager() {
 	auto conn = stack.top();
         stack.pop();
         if (conn) {
-          tcp_abort(conn);
+	  BUG_ON(tcp_shutdown(conn, SHUT_RDWR) < 0);
           tcp_close(conn);
         }
       }

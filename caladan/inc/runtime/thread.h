@@ -23,8 +23,6 @@ extern void thread_park_and_unlock_np(spinlock_t *l);
 extern void thread_ready(thread_t *thread);
 extern thread_t *thread_create(thread_fn_t fn, void *arg);
 extern thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
-extern void thread_mark_migration(thread_t *thread);
-extern void thread_unmark_migration(thread_t *thread);
 
 extern __thread thread_t *__self;
 extern __thread unsigned int kthread_idx;
@@ -46,7 +44,6 @@ inline thread_t *thread_self(void)
 extern uint64_t get_uthread_specific(void);
 extern void set_uthread_specific(uint64_t val);
 
-
 /*
  * High-level routines, use this API most of the time.
  */
@@ -54,3 +51,17 @@ extern void set_uthread_specific(uint64_t val);
 extern void thread_yield(void);
 extern int thread_spawn(thread_fn_t fn, void *arg);
 extern void thread_exit(void) __noreturn;
+
+extern void thread_mark_migrating(thread_t *thread);
+extern void thread_unmark_migrating(void);
+extern void thread_mark_migrated(thread_t *thread);
+extern bool thread_is_migrating(void);
+extern bool thread_is_migrated(void);
+extern void thread_set_obj_stack(void *stack_base);
+extern void thread_unset_obj_stack(void);
+extern void thread_get_obj_stack(thread_t *th, void **base, void **top);
+extern void *thread_get_trap_frame(thread_t *th, size_t *size);
+extern void pause_migrating_threads(void);
+extern void resume_migrated_thread(void *tf, uint64_t tlsvar);
+extern void gc_migrated_threads(void);
+extern uint64_t thread_get_runtime_stack_base(void);

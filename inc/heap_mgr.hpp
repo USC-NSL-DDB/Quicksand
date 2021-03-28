@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <list>
 #include <memory>
 #include <unordered_set>
 
@@ -21,10 +23,15 @@ class SlabAllocator;
 template <typename T> class RuntimeAllocator;
 
 struct HeapHeader {
-  RCULock rcu_lock;
-  bool migrating;
+  // Migration related.
   std::unique_ptr<ThreadSafeHashSet<thread_t *, RuntimeAllocator<thread_t *>>>
       threads;
+
+  // Ref cnt related.
+  rt::Spin spin;
+  int ref_cnt;
+
+  // Heap mem allocator.
   SlabAllocator slab;
 };
 
@@ -33,13 +40,22 @@ public:
   constexpr static uint64_t kHeapSize = 0x40000000ULL;
 
   HeapManager();
-  void allocate(void *heap_base);
-  void free(void *heap_base);
+  static void allocate(void *heap_base);
+  static void deallocate(void *heap_base);
+  void insert(void *heap_base);
+  bool contains(void *heap_base);
+  bool remove(void *heap_base);
+  void rcu_lock();
+  void rcu_unlock();
+  void rcu_synchronize();
   SlabAllocator *get_slab(void *heap_base);
-  std::vector<void *> pick_heaps(const Pressure &pressure);
+  std::list<void *> pick_heaps(const Resource &pressure);
 
 private:
   std::unique_ptr<ThreadSafeHashSet<void *, RuntimeAllocator<void *>>>
       heap_statuses_;
+  RCULock rcu_lock_;
 };
 } // namespace nu
+
+#include "impl/heap_mgr.ipp"

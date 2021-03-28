@@ -1,6 +1,7 @@
 extern "C" {
 #include <asm/atomic.h>
 #include <base/assert.h>
+#include <base/compiler.h>
 #include <runtime/preempt.h>
 #include <runtime/thread.h>
 }
@@ -21,6 +22,7 @@ inline void RCULock::lock() {
 }
 
 inline void RCULock::unlock() {
+  barrier();
   int core = get_cpu();
   Cnt cnt;
   cnt.raw = aligned_cnts_[core].cnt.raw;

@@ -2,12 +2,9 @@
 
 #include <cstdint>
 
-namespace nu {
+#include "defs.hpp"
 
-struct Pressure {
-  // TODO: add cpu pressure.
-  uint32_t mem_mbs;
-};
+namespace nu {
 
 class Monitor {
 public:
@@ -15,13 +12,13 @@ public:
 
   Monitor();
   ~Monitor();
-  void run_loop_async();
-  void mock_set_pressure(Pressure pressure);
+  void run_loop();
+  void mock_set_pressure(Resource pressure);
 
 private:
-  Pressure mock_pressure_;
+  Resource mock_pressure_;
   bool stopped_;
 
-  Pressure detect_pressure();
+  Resource detect_pressure();
 };
 } // namespace nu

@@ -41,7 +41,7 @@ __thread unsigned int kthread_idx;
 /* Map of cpu to kthread */
 struct cpu_record cpu_map[NCPU] __attribute__((aligned(CACHE_LINE_SIZE)));
 /* the file descriptor for the ksched module */
-static int ksched_fd;
+int ksched_fd;
 
 __thread volatile unsigned int __curr_cpu;
 
@@ -57,6 +57,7 @@ static struct kthread *allock(void)
 	memset(k, 0, sizeof(*k));
 	spin_lock_init(&k->lock);
 	list_head_init(&k->rq_overflow);
+	list_head_init(&k->migrating_ths);
 	mbufq_init(&k->txpktq_overflow);
 	mbufq_init(&k->txcmdq_overflow);
 	spin_lock_init(&k->timer_lock);
@@ -266,4 +267,9 @@ int kthread_init(void)
 	if (ksched_fd < 0)
 		return -errno;
 	return 0;
+}
+
+void kthread_yield_all_cores(void)
+{
+	BUG_ON(ioctl(ksched_fd, KSCHED_IOC_YIELD_ALL, 0) < 0);
 }

@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 
@@ -18,7 +19,7 @@ public:
   template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
   template <typename K1> bool remove(K1 &&k);
   template <typename K1> bool contains(K1 &&k);
-  template <typename K1> V get_and_remove(K1 &&k);
+  template <typename K1> bool try_get_and_remove(K1 &&k, V *v);
 
 private:
   using Hash = std::hash<K>;

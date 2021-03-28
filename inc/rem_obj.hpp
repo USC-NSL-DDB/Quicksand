@@ -1,5 +1,9 @@
 #pragma once
 
+extern "C" {
+#include <runtime/tcp.h>
+}
+
 #include <cereal/archives/binary.hpp>
 #include <cstdint>
 
@@ -46,6 +50,7 @@ private:
   Promise<void> *update_ref_cnt(int delta);
   template <typename RetT>
   static RetT invoke_remote(RemObjID id, const std::stringstream &states_ss);
+  static tcpconn_t *purge_old_conns(RemObjID id, tcpconn_t *old_conn);
 };
 
 template <typename T> union MethodPtr {

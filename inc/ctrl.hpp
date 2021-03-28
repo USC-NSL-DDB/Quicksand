@@ -24,13 +24,9 @@ struct VAddrRange {
 };
 
 struct Node {
-  netaddr addr;
   // TODO: add other informations, e.g., free mem size.
-};
-
-struct NodeWithConn {
-  Node node;
-  tcpconn_t *obj_srv_conn;
+  netaddr obj_srv_addr;
+  netaddr migra_ldr_addr;
 };
 
 class Controller {
@@ -42,19 +38,21 @@ public:
 
   Controller();
   ~Controller();
-  void register_node(Node node);
+  void register_node(const Node &node);
   std::optional<std::pair<RemObjID, VAddrRange>> allocate_obj();
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);
+  std::optional<netaddr> get_migration_dest(uint32_t requestor_ip,
+                                            Resource resource);
+  void update_location(RemObjID id, netaddr obj_srv_addr);
 
 private:
   std::stack<VAddrRange> free_ranges_;
   std::unordered_map<RemObjID, std::pair<VAddrRange, netaddr>> objs_map_;
-  std::list<NodeWithConn> nodes_;
-  std::list<NodeWithConn>::iterator nodes_iter_;
+  std::list<Node> nodes_;
+  std::list<Node>::iterator nodes_iter_;
   rt::Spin spin_;
 
-  NodeWithConn select_node_for_obj();
-  void construct_obj_on_node(void *heap_base, NodeWithConn node);
+  Node select_node_for_obj();
 };
 } // namespace nu

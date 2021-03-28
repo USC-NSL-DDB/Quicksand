@@ -25,14 +25,9 @@ Controller::Controller() {
 
 Controller::~Controller() {}
 
-void Controller::register_node(Node node) {
-  NodeWithConn node_with_conn;
-  node_with_conn.node = node;
-  netaddr laddr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
-  BUG_ON(tcp_dial(laddr, node.addr, &node_with_conn.obj_srv_conn));
-
+void Controller::register_node(const Node &node) {
   rt::ScopedLock<rt::Spin> lock(&spin_);
-  nodes_.push_back(node_with_conn);
+  nodes_.push_back(node);
 }
 
 std::optional<std::pair<RemObjID, VAddrRange>> Controller::allocate_obj() {
@@ -45,7 +40,7 @@ std::optional<std::pair<RemObjID, VAddrRange>> Controller::allocate_obj() {
   auto id = range.start;
   free_ranges_.pop();
   auto node = select_node_for_obj();
-  objs_map_.emplace(id, std::make_pair(range, node.node.addr));
+  objs_map_.emplace(id, std::make_pair(range, node.obj_srv_addr));
   return std::make_pair(id, range);
 }
 
@@ -76,13 +71,33 @@ std::optional<netaddr> Controller::resolve_obj(RemObjID id) {
   }
 }
 
-NodeWithConn Controller::select_node_for_obj() {
+Node Controller::select_node_for_obj() {
   // TODO: adopt a more sophisticated mechanism once we've added more fields to
   BUG_ON(nodes_.empty());
   if (unlikely(nodes_iter_ == nodes_.end())) {
     nodes_iter_ = nodes_.begin();
   }
   return *nodes_iter_++;
+}
+
+std::optional<netaddr> Controller::get_migration_dest(uint32_t requestor_ip,
+                                                      Resource resource) {
+  rt::ScopedLock<rt::Spin> lock(&spin_);
+  // TODO: choose the dest node based on resource requirement.
+  for (auto &node : nodes_) {
+    if (node.migra_ldr_addr.ip != requestor_ip) {
+      return node.migra_ldr_addr;
+    }
+  }
+  return std::nullopt;
+}
+
+void Controller::update_location(RemObjID id, netaddr obj_srv_addr) {
+  rt::ScopedLock<rt::Spin> lock(&spin_);
+
+  auto iter = objs_map_.find(id);
+  BUG_ON(iter == objs_map_.end());
+  iter->second.second = obj_srv_addr;
 }
 
 } // namespace nu

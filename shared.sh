@@ -48,7 +48,7 @@ function run_client_prog {
 }
 
 function run_server_prog {
-    sudo stdbuf -o0 sh -c "$1 $ROOT_PATH/conf/server1 SRV"
+    sudo stdbuf -o0 sh -c "$1 $ROOT_PATH/conf/server$2 SRV"
 }
 
 function run_controller_prog {

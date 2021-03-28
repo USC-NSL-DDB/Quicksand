@@ -12,8 +12,7 @@ public:
   RemObjConnManager();
 
 private:
-  static std::function<tcpconn_t *(RemObjID id)> creator_;
+  static std::function<tcpconn_t *(RemObjID)> creator_;
 };
 
 } // namespace nu
-

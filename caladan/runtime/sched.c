@@ -40,6 +40,8 @@ static __thread uint64_t last_tsc;
 /* used to force timer and network processing after a timeout */
 static __thread uint64_t last_watchdog_tsc;
 
+static bool pausing_migrating_ths = false;
+
 /**
  * In inc/runtime/thread.h, this function is declared inline (rather than static
  * inline) so that it is accessible to the Rust bindings. As a result, it must
@@ -58,7 +60,6 @@ void set_uthread_specific(uint64_t val)
 	BUG_ON(!__self);
 	__self->tlsvar = val;
 }
-
 
 /**
  * cores_have_affinity - returns true if two cores have cache affinity
@@ -193,6 +194,9 @@ static bool steal_work(struct kthread *l, struct kthread *r)
 	assert_spin_lock_held(&l->lock);
 	assert(l->rq_head == 0 && l->rq_tail == 0);
 
+	if (ACCESS_ONCE(pausing_migrating_ths) &&
+	    ACCESS_ONCE(r->pausing_migrating_ths))
+		return false;
 	if (!work_available(r))
 		return false;
 	if (!spin_try_lock(&r->lock))
@@ -286,6 +290,52 @@ static __noinline struct thread *do_watchdog(struct kthread *l)
 	return NULL;
 }
 
+static void pop_migrating_threads(void)
+{
+	struct kthread *l = myk();
+	thread_t *th;
+	thread_t sentinel;
+	uint32_t i, avail, num_popped = 0;
+
+	assert_spin_lock_held(&myk()->lock);
+	avail = load_acquire(&l->rq_head) - l->rq_tail;
+	for (i = 0; i < avail; i++) {
+		th = l->rq[l->rq_tail++ % RUNTIME_RQ_SIZE];
+		if (th->migration_state == MIGRATING) {
+			num_popped++;
+			list_add_tail(&l->migrating_ths, &th->link);
+		} else {
+			l->rq[l->rq_head % RUNTIME_RQ_SIZE] = th;
+	                ACCESS_ONCE(l->rq_head)++;
+		}
+        }
+
+	if (unlikely(!list_empty(&l->rq_overflow))) {
+	        list_add_tail(&l->rq_overflow, &sentinel.link);
+		while ((th = list_pop(&l->rq_overflow, thread_t, link)) !=
+		       &sentinel) {
+			if (th->migration_state == MIGRATING) {
+				num_popped++;
+				list_add_tail(&l->migrating_ths, &th->link);
+			} else {
+				list_add_tail(&l->rq_overflow, &th->link);
+			}
+		}
+	}
+
+	ACCESS_ONCE(l->q_ptrs->rq_tail) += num_popped;
+}
+
+static inline void handle_migration(void)
+{
+	struct kthread *l = myk();
+	if (ACCESS_ONCE(pausing_migrating_ths) &&
+	    ACCESS_ONCE(l->pausing_migrating_ths)) {
+		pop_migrating_threads();
+		ACCESS_ONCE(l->pausing_migrating_ths) = false;
+	}
+}
+
 /* the main scheduler routine, decides what to run next */
 static __noreturn __noinline void schedule(void)
 {
@@ -321,6 +371,8 @@ static __noreturn __noinline void schedule(void)
 	ACCESS_ONCE(l->q_ptrs->rcu_gen) += 1;
 	assert((l->rcu_gen & 0x1) == 0x0);
 
+	handle_migration();
+
 #ifdef GC
 	if (unlikely(get_gc_gen() != l->local_gc_gen))
 		gc_kthread_report(l);
@@ -348,6 +400,7 @@ static __noreturn __noinline void schedule(void)
 	l->rq_head = l->rq_tail = 0;
 
 again:
+	handle_migration();
 	/* then check for local softirqs */
 	th = softirq_run_thread(l, RUNTIME_SOFTIRQ_LOCAL_BUDGET);
 	if (th) {
@@ -453,6 +506,8 @@ static __always_inline void enter_schedule(thread_t *myth)
 	spin_lock(&k->lock);
 	now = rdtsc();
 
+	handle_migration();
+
 	/* slow path: switch from the uthread stack to the runtime stack */
 	if (k->rq_head == k->rq_tail ||
 #ifdef GC
@@ -533,12 +588,20 @@ void thread_park_and_unlock_np(spinlock_t *l)
 void thread_yield(void)
 {
 	struct kthread *k;
-	thread_t *myth = thread_self();
+	thread_t *myth;
+	bool in_obj_env;
 
-	/* check for softirqs */
-	softirq_run(RUNTIME_SOFTIRQ_LOCAL_BUDGET);
+	preempt_disable();
+	in_obj_env = (__self->obj_stack_base != NULL);
+	preempt_enable();
+
+	if (in_obj_env) {
+		/* check for softirqs */
+		softirq_run(RUNTIME_SOFTIRQ_LOCAL_BUDGET);
+	}
 
 	k = getk();
+	myth = thread_self();
 
 	assert(myth->state == THREAD_STATE_RUNNING);
 	myth->state = THREAD_STATE_SLEEPING;
@@ -678,7 +741,8 @@ static __always_inline thread_t *__thread_create(void)
 	th->last_cpu = myk()->curr_cpu;
 	th->run_start_tsc = UINT64_MAX;
 	th->tlsvar = 0;
-	th->migration = false;
+	th->obj_stack_base = NULL;
+	th->migration_state = NO_MIGRATION;
 
 	return th;
 }
@@ -902,6 +966,91 @@ int sched_init(void)
 	return 0;
 }
 
-void thread_mark_migration(thread_t *th) { th->migration = true; }
+void thread_mark_migrating(thread_t *th) { th->migration_state = MIGRATING; }
 
-void thread_unmark_migration(thread_t *th) { th->migration = false; }
+void thread_mark_migrated(thread_t *th) { th->migration_state = MIGRATED; }
+
+bool thread_is_migrated(void)
+{
+	return __self->migration_state == MIGRATED;
+}
+
+bool thread_is_migrating(void)
+{
+	return __self->migration_state == MIGRATING;
+}
+
+void pause_migrating_threads(void)
+{
+	int i;
+
+	ACCESS_ONCE(pausing_migrating_ths) = true;
+	for (i = 0; i < nrks; i++) {
+		ACCESS_ONCE(ks[i]->pausing_migrating_ths) = true;
+	}
+
+	kthread_yield_all_cores();
+	spin_lock(&myk()->lock);
+	handle_migration();
+	spin_unlock(&myk()->lock);
+retry:
+	for (i = 0; i < nrks; i++)
+		if (!ACCESS_ONCE(ks[i]->parked) &&
+		    ACCESS_ONCE(ks[i]->pausing_migrating_ths))
+			goto retry;
+	ACCESS_ONCE(pausing_migrating_ths) = false;
+}
+
+void thread_set_obj_stack(void *stack_base)
+{
+	__self->obj_stack_base = stack_base;
+}
+
+void thread_unset_obj_stack(void)
+{
+	__self->obj_stack_base = NULL;
+}
+
+void thread_get_obj_stack(thread_t *th, void **base, void **top)
+{
+	BUG_ON(!th->obj_stack_base);
+	*base = th->obj_stack_base;
+	*top = (void *)th->tf.rsp;
+}
+
+void *thread_get_trap_frame(thread_t *th, size_t *size)
+{
+	*size = sizeof(struct thread_tf);
+	return &th->tf;
+}
+
+void resume_migrated_thread(void *tf, uint64_t tlsvar)
+{
+	thread_t *th = __thread_create();
+	BUG_ON(!th);
+	th->tlsvar = tlsvar;
+	th->tf = *((struct thread_tf *)tf);
+	th->migration_state = MIGRATED;
+	thread_ready(th);
+}
+
+void gc_migrated_threads(void)
+{
+	int i;
+	thread_t *th;
+
+	for (i = 0; i < nrks; i++) {
+		while ((th = list_pop(&ks[i]->migrating_ths, thread_t, link))) {
+			if (th->migration_state == MIGRATED) {
+				stack_free(th->stack);
+				tcache_free(&perthread_get(thread_pt), th);
+			} else
+				BUG();
+		}
+	}
+}
+
+uint64_t thread_get_runtime_stack_base(void)
+{
+	return (uint64_t)(&__self->stack->usable[STACK_PTR_SIZE - 1]);
+}

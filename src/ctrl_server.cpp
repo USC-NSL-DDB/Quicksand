@@ -30,8 +30,11 @@ bool ControllerServer::handle_one_req(ControllerRPC_t rpc_type, tcpconn_t *c) {
     return handle_destroy_obj(c);
   case RESOLVE_OBJ:
     return handle_resolve_obj(c);
+  case GET_MIGRATION_DEST:
+    return handle_get_migration_dest(c);
+  case UPDATE_LOCATION:
+    return handle_update_location(c);
   default:
-    return false;
     BUG();
   }
 }
@@ -46,6 +49,8 @@ void ControllerServer::handle_reqs(tcpconn_t *c) {
       break;
     }
   }
+  BUG_ON(tcp_shutdown(c, SHUT_RDWR) < 0);
+  tcp_close(c);
 }
 
 bool ControllerServer::handle_register_node(tcpconn_t *c) {
@@ -96,8 +101,35 @@ bool ControllerServer::handle_resolve_obj(tcpconn_t *c) {
     resp.empty = false;
     resp.addr = *addr;
   } else {
-    resp.empty = false;
+    resp.empty = true;
   }
   return tcp_write_until(c, &resp, sizeof(resp));
 }
+
+bool ControllerServer::handle_update_location(tcpconn_t *c) {
+  RPCReqUpdateLocation req;
+  RPCRespUpdateLocation resp;
+  if (!tcp_read_until(c, &req, sizeof(req))) {
+    return false;
+  }
+  ctrl_.update_location(req.id, req.obj_srv_addr);
+  return tcp_write_until(c, &resp, sizeof(resp));
+}
+
+bool ControllerServer::handle_get_migration_dest(tcpconn_t *c) {
+  RPCReqGetMigrationDest req;
+  RPCRespGetMigrationDest resp;
+  if (!tcp_read_until(c, &req, sizeof(req))) {
+    return false;
+  }
+  auto addr = ctrl_.get_migration_dest(tcp_remote_addr(c).ip, req.resource);
+  if (addr) {
+    resp.empty = false;
+    resp.addr = *addr;
+  } else {
+    resp.empty = true;
+  }
+  return tcp_write_until(c, &resp, sizeof(resp));
+}
+  
 } // namespace nu

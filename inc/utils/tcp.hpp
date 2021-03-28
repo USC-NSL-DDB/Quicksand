@@ -10,6 +10,8 @@ extern "C" {
 namespace nu {
 
 bool tcp_read_until(tcpconn_t *c, void *buf, size_t expect);
+bool tcp_read2_until(tcpconn_t *c, void *buf_0, size_t expect_0, void *buf_1,
+                     size_t expect_1);
 bool tcp_write_until(tcpconn_t *c, const void *buf, size_t expect);
 bool tcp_write2_until(tcpconn_t *c, const void *buf_0, size_t expect_0,
                       const void *buf_1, size_t expect_1);

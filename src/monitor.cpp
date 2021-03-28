@@ -13,21 +13,23 @@ Monitor::Monitor() : stopped_(false) {}
 
 Monitor::~Monitor() { stopped_ = true; }
 
-void Monitor::run_loop_async() {
-  rt::Thread([&] {
-    while (ACCESS_ONCE(stopped_)) {
-      timer_sleep(kPollIntervalUs);
-      auto pressure = detect_pressure();
+void Monitor::run_loop() {
+  while (!ACCESS_ONCE(stopped_)) {
+    timer_sleep(kPollIntervalUs);
+    auto pressure = detect_pressure();
+    if (!pressure.empty()) {
       auto heaps = Runtime::heap_manager->pick_heaps(pressure);
       Runtime::migrator->migrate(heaps);
+      Resource empty = {.cores = 0, .mem_mbs = 0};
+      mock_set_pressure(empty);
     }
-  });
+  }
 }
 
-void Monitor::mock_set_pressure(Pressure pressure) {
+void Monitor::mock_set_pressure(Resource pressure) {
   mock_pressure_ = pressure;
 }
 
-Pressure Monitor::detect_pressure() { return mock_pressure_; }
+Resource Monitor::detect_pressure() { return mock_pressure_; }
 
 } // namespace nu

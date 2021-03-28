@@ -12,29 +12,31 @@
 .text
 
 /* arguments registers (can be clobbered) */
-#define RDI	(0)
-#define RSI	(8)
-#define RDX	(16)
-#define RCX	(24)
-#define R8	(32)
-#define R9	(40)
+#define RDI	        (0)
+#define RSI	        (8)
+#define RDX	        (16)
+#define RCX	        (24)
+#define R8	        (32)
+#define R9	        (40)
 
 /* temporary registers (can be clobbered) */
-#define R10	(48)
-#define R11	(56)
+#define R10             (48)
+#define R11             (56)
 
 /* callee-saved registers (can not be clobbered) */
-#define RBX	(64)
-#define RBP	(72)
-#define R12	(80)
-#define R13	(88)
-#define R14	(96)
-#define R15	(104)
+#define RBX             (64)
+#define RBP             (72)
+#define R12             (80)
+#define R13             (88)
+#define R14             (96)
+#define R15             (104)
 
 /* special-purpose registers */
-#define RAX	(112)	/* return code */
-#define RIP	(120)	/* instruction pointer */
-#define RSP	(128)	/* stack pointer */
+#define RAX             (112)	/* return code */
+#define RIP             (120)	/* instruction pointer */
+#define RSP             (128)	/* stack pointer */
+
+#define STACK_PROTECTOR (136)	/* stack pointer */
 
 /**
  * __jmp_thread - executes a thread from the runtime
@@ -48,6 +50,7 @@
 .globl __jmp_thread
 .type __jmp_thread, @function
 __jmp_thread:
+
 	/* restore callee regs */
 	movq    RBX(%rdi), %rbx
 	movq    RBP(%rdi), %rbp
@@ -55,6 +58,9 @@ __jmp_thread:
 	movq    R13(%rdi), %r13
 	movq    R14(%rdi), %r14
 	movq    R15(%rdi), %r15
+
+	movq    STACK_PROTECTOR(%rdi), %r8
+	movq    %r8, %fs:0x28
 
 	/* restore ip and stack */
 	movq    RSP(%rdi), %rsp
@@ -112,12 +118,18 @@ __jmp_thread_direct:
 	movq    %r14, R14(%rdi)
 	movq    %r15, R15(%rdi)
 
+	movq    %fs:0x28, %r8
+	movq    %r8, STACK_PROTECTOR(%rdi)
+
 	/* restore ip and stack */
 	movq    RSP(%rsi), %rsp
 	movq    RIP(%rsi), %rcx
 
 	/* clear the stack busy flag */
 	movl	$0, (%rdx)
+
+	movq    STACK_PROTECTOR(%rsi), %r8
+	movq    %r8, %fs:0x28
 
 	/* restore callee regs */
 	movq    RBX(%rsi), %rbx
@@ -179,6 +191,9 @@ __jmp_runtime:
 	movq    %r8, RIP(%rdi)
 	leaq    8(%rsp), %r8
 	movq    %r8, RSP(%rdi)
+
+	movq    %fs:0x28, %r8
+	movq    %r8, STACK_PROTECTOR(%rdi)
 
 	/* jump into runtime function */
 	movq    %rdx, %rsp

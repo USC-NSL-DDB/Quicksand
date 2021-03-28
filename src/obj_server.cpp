@@ -7,6 +7,7 @@
 extern "C" {
 #include <base/assert.h>
 #include <net/ip.h>
+#include <runtime/net.h>
 #include <runtime/tcp.h>
 }
 #include "thread.h"
@@ -20,10 +21,6 @@ extern "C" {
 
 namespace nu {
 
-ThreadSafeHashMap<RemObjID, int,
-                  RuntimeAllocator<std::pair<const RemObjID, int>>>
-    obj_ref_cnts;
-
 ObjServer::ObjServer() {}
 
 ObjServer::~ObjServer() {
@@ -36,8 +33,14 @@ ObjServer::~ObjServer() {
 ObjServer::ObjServer(uint16_t port) { init(port); }
 
 void ObjServer::init(uint16_t port) {
+  port_ = port;
   netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
   BUG_ON(tcp_listen(addr, kTCPListenBackLog, &tcp_queue_) != 0);
+}
+
+netaddr ObjServer::get_addr() const {
+  netaddr addr = {.ip = get_cfg_ip(), .port = port_};
+  return addr;
 }
 
 void ObjServer::run_loop() {
@@ -57,38 +60,29 @@ void ObjServer::handle_reqs(tcpconn_t *c) {
     if (!tcp_read_until(c, args_str.data(), len)) {
       break;
     }
+
     std::stringstream args_ss(std::move(args_str));
     cereal::BinaryInputArchive ia(args_ss);
     GenericHandler handler;
     ia >> handler;
 
-    std::stringstream ret_ss;
-    cereal::BinaryOutputArchive oa(ret_ss);
-    handler(ia, oa);
-
-    auto ret_str = ret_ss.str();
-    uint64_t ret_size = ret_str.size();
-    if (!tcp_write2_until(c, &ret_size, sizeof(ret_size), ret_str.data(),
-                          ret_size)) {
-      break;
-    }
+    handler(ia, c);
   }
+  BUG_ON(tcp_shutdown(c, SHUT_RDWR) < 0);
+  tcp_close(c);
 }
 
-void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
-                               cereal::BinaryOutputArchive &oa) {
-  RemObjID id;
-  ia >> id;
-  int delta;
-  ia >> delta;
-  auto &cnt = obj_ref_cnts.get(id);
-  cnt += delta;
-  if (cnt == 0) {
-    auto *heap_base = to_heap_base(id);
-    auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-    heap_header->~HeapHeader();
-    Runtime::heap_manager->free(heap_base);
-    obj_ref_cnts.remove(id);
+void ObjServer::send_rpc_resp(std::stringstream &ss, tcpconn_t *rpc_conn) {
+  ObjRPCRespHdr hdr;
+  auto str = ss.str();
+  hdr.payload_size = str.size();
+
+  if (unlikely(thread_is_migrated())) {
+    hdr.rc = FORWARDED;
+    Runtime::migrator->forward_to_original_server(hdr, str.data(), rpc_conn);
+  } else {
+    hdr.rc = OK;
+    tcp_write2_until(rpc_conn, &hdr, sizeof(hdr), str.data(), hdr.payload_size);
   }
 }
 
