@@ -22,7 +22,7 @@ bool run_with_size(uint64_t obj_size, uint64_t class_size) {
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 
-  auto slab = SlabAllocator(buf, kBufSize);
+  auto slab = SlabAllocator(0, buf, kBufSize);
   uint64_t count = kBufSize / class_size;
   if (slab.get_base() != buf) {
     return false;
@@ -68,7 +68,7 @@ bool run_more_than_buf_size() {
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 
-  auto slab = SlabAllocator(buf, kBufSize);
+  auto slab = SlabAllocator(0, buf, kBufSize);
   if (slab.allocate(kBufSize - sizeof(PtrHeader) + 1) != nullptr) {
     return false;
   }

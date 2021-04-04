@@ -26,6 +26,7 @@ retry:
       goto retry;
     }
   }
+  barrier();
   sync_barrier_ = false;
 }
 

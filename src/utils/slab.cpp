@@ -12,13 +12,15 @@ inline uint64_t bsr_64(uint64_t a) {
 
 SlabAllocator::SlabAllocator() noexcept {}
 
-SlabAllocator::SlabAllocator(void *buf, uint64_t len) noexcept {
-  init(buf, len);
+SlabAllocator::SlabAllocator(uint16_t sentinel, void *buf,
+                             uint64_t len) noexcept {
+  init(sentinel, buf, len);
 }
 
 SlabAllocator::~SlabAllocator() noexcept {}
 
-void SlabAllocator::init(void *buf, uint64_t len) noexcept {
+void SlabAllocator::init(uint16_t sentinel, void *buf, uint64_t len) noexcept {
+  sentinel_ = sentinel;
   start_ = reinterpret_cast<const uint8_t *>(buf);
   end_ = start_ + len;
   cur_ = const_cast<uint8_t *>(start_);
@@ -52,7 +54,7 @@ void *SlabAllocator::allocate(size_t size) noexcept {
   if (ret) {
     auto *hdr = reinterpret_cast<PtrHeader *>(ret);
     hdr->size = size;
-    hdr->sentinel = PtrHeader::kSentinel;
+    hdr->sentinel = sentinel_;
     ret = reinterpret_cast<uint8_t *>(ret) + sizeof(PtrHeader);
   }
   return ret;
@@ -64,7 +66,7 @@ void SlabAllocator::free(const void *ptr) noexcept {
   auto *hdr = reinterpret_cast<PtrHeader *>(reinterpret_cast<uintptr_t>(ptr) -
                                             sizeof(PtrHeader));
   auto size = hdr->size;
-  BUG_ON(hdr->sentinel != PtrHeader::kSentinel);
+  BUG_ON(hdr->sentinel != sentinel_);
   ptr = hdr;
   auto slab_shift = get_slab_shift(size);
   if (likely(slab_shift < kMaxSlabClassShift)) {

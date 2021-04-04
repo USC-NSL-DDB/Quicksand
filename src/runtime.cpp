@@ -40,7 +40,8 @@ void Runtime::init_runtime_heap() {
                         MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED, -1, 0);
   BUG_ON(mmap_addr != addr);
   BUG_ON(madvise(mmap_addr, kRuntimeHeapSize, MADV_HUGEPAGE) != 0);
-  runtime_slab.init(mmap_addr, kRuntimeHeapSize);
+  uint16_t sentinel = 0x1;
+  runtime_slab.init(sentinel, mmap_addr, kRuntimeHeapSize);
 }
 
 void Runtime::init_as_controller(netaddr remote_ctrl_addr) {

@@ -9,9 +9,9 @@
 extern "C" {
 #include <runtime/thread.h>
 }
+#include <sync.h>
 
 #include "defs.hpp"
-#include "sync.h"
 #include "utils/rcu_lock.hpp"
 #include "utils/slab.hpp"
 #include "utils/ts_hash_set.hpp"
@@ -20,12 +20,23 @@ namespace nu {
 
 struct Pressure;
 class SlabAllocator;
+class Mutex;
+class CondVar;
+class Time;
 template <typename T> class RuntimeAllocator;
 
 struct HeapHeader {
+  ~HeapHeader();
+
   // Migration related.
   std::unique_ptr<ThreadSafeHashSet<thread_t *, RuntimeAllocator<thread_t *>>>
       threads;
+  std::unique_ptr<ThreadSafeHashSet<Mutex *, RuntimeAllocator<Mutex *>>>
+      mutexes;
+  std::unique_ptr<ThreadSafeHashSet<CondVar *, RuntimeAllocator<CondVar *>>>
+      condvars;
+  std::unique_ptr<Time> time;
+  bool migratable;
 
   // Ref cnt related.
   rt::Spin spin;

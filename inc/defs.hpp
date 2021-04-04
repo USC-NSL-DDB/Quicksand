@@ -9,7 +9,11 @@ struct Resource {
   bool empty() const { return cores == 0 && mem_mbs == 0; }
 };
 
-constexpr static uint64_t kNumCores = 48;
+#ifndef NCORES
+#error Must indicate number of CPU cores
+#endif
+
+constexpr static uint64_t kNumCores = NCORES;
 constexpr static uint64_t kCacheLineBytes = 64;
 constexpr static uint64_t kStackSize = 128 << 10;
 constexpr static uint64_t kStackAlignment = 16;

@@ -59,6 +59,9 @@ private:
   friend class RemObjConnManager;
   friend class Monitor;
   friend class Migrator;
+  friend class Mutex;
+  friend class CondVar;
+  friend class Time;
   template <typename T> friend class RemObj;
   template <typename T> friend class RuntimeDeleter;
 
@@ -75,9 +78,12 @@ private:
   template <typename Cls, typename Fn, typename... As>
   static void __run_within_obj_env(SlabAllocator *slab, uint64_t obj_stack_base,
                                    Cls *obj_ptr, Fn fn, As &&... args);
+  static void switch_to_obj_heap(void *obj_ptr);
+  static void switch_to_runtime_heap();
+  static HeapHeader *get_obj_heap_header();
   static void migration_enable();
   static void migration_disable();
-  
+
   template <typename T, typename... Args>
   static T *new_on_runtime_heap(Args &&... args);
   template <typename T> static void delete_on_runtime_heap(T *ptr);

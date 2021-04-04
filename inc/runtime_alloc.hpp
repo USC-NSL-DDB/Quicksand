@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sstream>
+
 namespace nu {
 
 template <typename T> class RuntimeAllocator {
@@ -33,6 +35,10 @@ public:
   template <typename U> void destroy(U *p) noexcept;
   std::size_t max_size() const noexcept;
 };
+
+using RuntimeStringStream =
+    std::basic_stringstream<char, std::char_traits<char>,
+                            RuntimeAllocator<char>>;
 
 template <class T>
 bool operator==(const RuntimeAllocator<T> &x,

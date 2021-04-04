@@ -37,13 +37,13 @@ template <typename Deleter> Future<void, Deleter> Promise<void>::get_future() {
 template <typename T> void Promise<T>::set_ready() {
   rt::ScopedLock<rt::Mutex> l(&mutex_);
   ready_ = true;
-  cv_.Signal();
+  cv_.SignalAll();
 }
 
 inline void Promise<void>::set_ready() {
   rt::ScopedLock<rt::Mutex> l(&mutex_);
   ready_ = true;
-  cv_.Signal();
+  cv_.SignalAll();
 }
 
 template <typename T> T *Promise<T>::data() { return &t_; }

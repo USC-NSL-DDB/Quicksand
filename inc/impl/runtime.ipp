@@ -1,9 +1,9 @@
 #include <utility>
 
 extern "C" {
-#include <base/stddef.h>
 #include <base/assert.h>
 #include <base/compiler.h>
+#include <base/stddef.h>
 #include <net/ip.h>
 #include <runtime/tcp.h>
 }
@@ -32,35 +32,41 @@ switch_to_runtime_stack(uint64_t old_rsp) {
   thread_unset_obj_stack();
 }
 
-inline void switch_to_obj_heap(void *obj_ptr) {
+inline void Runtime::switch_to_obj_heap(void *obj_ptr) {
   auto slab_base = reinterpret_cast<uint64_t>(obj_ptr) - sizeof(PtrHeader);
   auto *heap_header = reinterpret_cast<HeapHeader *>(slab_base) - 1;
   set_uthread_specific(reinterpret_cast<uint64_t>(&heap_header->slab));
 }
 
-inline void switch_to_runtime_heap() { set_uthread_specific(0); }
+inline void Runtime::switch_to_runtime_heap() { set_uthread_specific(0); }
+
+inline HeapHeader *Runtime::get_obj_heap_header() {
+  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
+  if (!obj_slab) {
+    return nullptr;
+  }
+  auto *heap_header = container_of(obj_slab, HeapHeader, slab);
+  return heap_header;
+}
 
 inline void Runtime::migration_enable() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
-  auto *heap_header = container_of(obj_slab, HeapHeader, slab);
-  BUG_ON(!obj_slab);
-
+  auto *heap_header = get_obj_heap_header();
+  BUG_ON(!heap_header);
   heap_header->threads->put(thread_self());
-  heap_manager->rcu_unlock();  
+  heap_manager->rcu_unlock();
 }
 
 inline void Runtime::migration_disable() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
-  BUG_ON(!obj_slab);
-  auto *heap_header = container_of(obj_slab, HeapHeader, slab);
+  auto *heap_header = get_obj_heap_header();
+  BUG_ON(!heap_header);
   void *heap_base = heap_header;
 
   heap_manager->rcu_lock();
   if (unlikely(!heap_manager->contains(heap_base))) {
-    while (unlikely(thread_is_migrating())) {
+    heap_manager->rcu_unlock();
+    while (unlikely(!thread_is_migrated())) {
       thread_yield();
     }
-    BUG_ON(!thread_is_migrated());
     heap_manager->rcu_lock();
   }
   heap_header->threads->remove(thread_self());
@@ -103,7 +109,7 @@ Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
   auto old_rsp = switch_to_obj_stack(aligned_obj_top);
 
   __run_within_obj_env<Cls>(slab, obj_stack_base, obj_ptr, fn,
-                          std::forward<As>(args)...);
+                            std::forward<As>(args)...);
 
   switch_to_runtime_stack(old_rsp);
   slab->free(reinterpret_cast<void *>(obj_stack_base));

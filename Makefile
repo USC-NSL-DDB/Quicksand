@@ -3,8 +3,10 @@ CALADAN_PATH=caladan
 ROOT_PATH=caladan
 include $(CALADAN_PATH)/build/shared.mk
 
+NCORES = $(shell nproc)
+
 INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched
-override CXXFLAGS += -std=gnu++2a -fconcepts -Wno-subobject-linkage
+override CXXFLAGS += -std=gnu++2a -fconcepts -Wno-subobject-linkage -DNCORES=$(NCORES)
 override LDFLAGS += -lboost_system
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
@@ -28,9 +30,15 @@ test_pass_obj_src = test/test_pass_obj.cpp
 test_pass_obj_obj = $(test_pass_obj_src:.cpp=.o)
 test_migrate_src = test/test_migrate.cpp
 test_migrate_obj = $(test_migrate_src:.cpp=.o)
+test_lock_src = test/test_lock.cpp
+test_lock_obj = $(test_lock_src:.cpp=.o)
+test_condvar_src = test/test_condvar.cpp
+test_condvar_obj = $(test_condvar_src:.cpp=.o)
+test_time_src = test/test_time.cpp
+test_time_obj = $(test_time_src:.cpp=.o)
 
 all: libservless.a bin/test_slab bin/test_closure bin/test_method bin/test_multi_objs \
-bin/test_pass_obj bin/test_migrate
+bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time
 
 libservless.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -52,6 +60,12 @@ bin/test_pass_obj: $(test_pass_obj_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_pass_obj_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS) -lrt
 bin/test_migrate: $(test_migrate_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_migrate_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS) -lrt
+bin/test_lock: $(test_lock_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_lock_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS) -lrt
+bin/test_condvar: $(test_condvar_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_condvar_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS) -lrt
+bin/test_time: $(test_time_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_time_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS) -lrt
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)

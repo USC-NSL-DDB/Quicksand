@@ -23,10 +23,12 @@ public:
   void put_conn(Key k, tcpconn_t *conn);
 
 private:
-  using Val = std::stack<tcpconn_t *>;
+  using Val =
+      std::stack<tcpconn_t *,
+                 std::deque<tcpconn_t *, RuntimeAllocator<tcpconn_t *>>>;
   using Hash = std::hash<Key>;
   using KeyEqual = std::equal_to<Key>;
-  using Allocator = nu::RuntimeAllocator<std::pair<const Key, Val>>;
+  using Allocator = RuntimeAllocator<std::pair<const Key, Val>>;
   std::unordered_map<Key, Val, Hash, KeyEqual, Allocator>
       cached_conns_[kNumCores];
   std::function<tcpconn_t *(Key)> creator_;

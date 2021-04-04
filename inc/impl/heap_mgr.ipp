@@ -1,13 +1,18 @@
 #include <sys/mman.h>
 
 #include "runtime_alloc.hpp"
+#include "time.hpp"
 
 namespace nu {
+
+inline HeapHeader::~HeapHeader() {}
 
 inline HeapManager::HeapManager()
     : heap_statuses_(new decltype(heap_statuses_)::element_type()) {}
 
 inline void HeapManager::deallocate(void *heap_base) {
+  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  heap_header->~HeapHeader();
   BUG_ON(munmap(heap_base, kHeapSize) == -1);
 }
 

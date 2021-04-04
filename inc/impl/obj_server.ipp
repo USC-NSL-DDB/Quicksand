@@ -28,7 +28,13 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
 
   std::tuple<std::decay_t<As>...> args;
   std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
-  std::apply([&](const As &... args) { new (obj_space) Cls(args...); }, args);
+  std::apply(
+      [&](const As &... args) {
+        Runtime::switch_to_obj_heap(obj_space);
+        new (obj_space) Cls(args...);
+        Runtime::switch_to_runtime_heap();
+      },
+      args);
 
   barrier();
   Runtime::heap_manager->insert(base);
@@ -45,9 +51,13 @@ void ObjServer::__update_ref_cnt(Cls &obj, tcpconn_t *rpc_conn,
   heap_header->spin.Unlock();
 
   if (latest_cnt == 0) {
-    heap_header->~HeapHeader();
+    *deallocate = true;
     obj.~Cls();
-    *deallocate = Runtime::heap_manager->remove(heap_header);
+    if (unlikely(!Runtime::heap_manager->remove(heap_header))) {
+      while (unlikely(!thread_is_migrated())) {
+        thread_yield();
+      }
+    }
   }
 
   std::stringstream ret_ss;
@@ -64,8 +74,8 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
 
   auto *heap_base = to_heap_base(id);
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-  bool deallocate = false;
 
+  bool deallocate = false;
   bool client_retry = !Runtime::run_within_obj_env<Cls>(
       heap_base, __update_ref_cnt<Cls>, rpc_conn, heap_header, delta,
       &deallocate);
@@ -76,6 +86,7 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
   }
 
   if (deallocate) {
+    Runtime::heap_manager->rcu_synchronize();
     Runtime::heap_manager->deallocate(heap_base);
   }
 }
@@ -156,7 +167,7 @@ void ObjServer::method_handler(cereal::BinaryInputArchive &ia,
       heap_base, __method_handler<Cls, RetT, MdPtr, A1s...>, ia, rpc_conn);
 
   if (unlikely(client_retry)) {
-    send_rpc_client_retry(rpc_conn); 
+    send_rpc_client_retry(rpc_conn);
   }
 }
 

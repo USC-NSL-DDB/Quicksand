@@ -445,7 +445,8 @@ static __noinline void __tcp_rx_conn(tcpconn_t *c, struct mbuf *m, uint32_t ack,
 	if (len > 0 &&
 	    (c->pcb.state == TCP_STATE_ESTABLISHED ||
 	     c->pcb.state == TCP_STATE_FIN_WAIT1 ||
-	     c->pcb.state == TCP_STATE_FIN_WAIT2)) {
+	     c->pcb.state == TCP_STATE_FIN_WAIT2 ||
+	     c->pcb.state == TCP_STATE_CLOSE_WAIT)) {
 		bool wake = false;
 		m->seg_end = seq + len;
 

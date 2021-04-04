@@ -16,7 +16,6 @@ extern "C" {
 namespace nu {
 
 struct PtrHeader {
-  constexpr static uint16_t kSentinel = 0xBE;
   uint64_t size : 48;
   uint64_t sentinel : 16;
 };
@@ -27,9 +26,9 @@ public:
   constexpr static uint64_t kMinSlabClassShift = 5;  // 32 B.
 
   SlabAllocator() noexcept;
-  SlabAllocator(void *buf, size_t len) noexcept;
+  SlabAllocator(uint16_t sentinel, void *buf, size_t len) noexcept;
   ~SlabAllocator() noexcept;
-  void init(void *buf, size_t len) noexcept;
+  void init(uint16_t sentinel, void *buf, size_t len) noexcept;
   void *allocate(size_t size) noexcept;
   void free(const void *ptr) noexcept;
   void *get_base() const noexcept;
@@ -37,11 +36,12 @@ public:
   size_t get_remaining() const noexcept;
 
 private:
-  rt::Spin spin_;
+  uint16_t sentinel_;
   const uint8_t *start_;
   const uint8_t *end_;
   uint8_t *cur_;
   void *slab_entries_[kMaxSlabClassShift];
+  rt::Spin spin_;
 
   uint32_t get_slab_shift(uint64_t size) noexcept;
 };

@@ -6,8 +6,10 @@ extern "C" {
 #include <runtime/thread.h>
 }
 
+#include "cond_var.hpp"
 #include "heap_mgr.hpp"
 #include "monitor.hpp"
+#include "mutex.hpp"
 #include "runtime.hpp"
 #include "runtime_alloc.hpp"
 
@@ -19,10 +21,18 @@ void HeapManager::allocate(void *heap_base) {
   BUG_ON(mmap_addr != heap_base);
   BUG_ON(madvise(mmap_addr, kHeapSize, MADV_HUGEPAGE) != 0);
   auto *heap_header = new (heap_base) HeapHeader();
-  heap_header->ref_cnt = 0;
   heap_header->threads.reset(
       new decltype(heap_header->threads)::element_type());
-  heap_header->slab.init(heap_header + 1, kHeapSize - sizeof(HeapHeader));
+  heap_header->mutexes.reset(
+      new decltype(heap_header->mutexes)::element_type());
+  heap_header->condvars.reset(
+      new decltype(heap_header->condvars)::element_type());
+  heap_header->time.reset(new decltype(heap_header->time)::element_type());
+  heap_header->migratable = true;
+  heap_header->ref_cnt = 0;
+  uint16_t sentinel = reinterpret_cast<uint64_t>(heap_base) / kHeapSize;
+  heap_header->slab.init(sentinel, heap_header + 1,
+                         kHeapSize - sizeof(HeapHeader));
 }
 
 std::list<void *> HeapManager::pick_heaps(const Resource &pressure) {

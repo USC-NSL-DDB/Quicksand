@@ -1,0 +1,30 @@
+#pragma once
+
+extern "C" {
+#include <runtime/sync.h>
+}
+
+namespace nu {
+
+class Mutex;
+
+class CondVar {
+public:
+  CondVar();
+  CondVar(const CondVar &) = delete;
+  CondVar &operator=(const CondVar &) = delete;
+  ~CondVar();
+  void wait(Mutex *mutex);
+  void signal();
+  void signal_all();
+
+private:
+  condvar_t condvar_;
+  friend class Migrator;
+
+  list_head *get_waiters();
+};
+
+} // namespace nu
+
+#include "impl/cond_var.ipp"

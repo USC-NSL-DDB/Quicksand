@@ -17,6 +17,8 @@
 
 #include "defs.h"
 
+const int thread_link_offset = offsetof(struct thread, link);
+
 /* the current running thread, or NULL if there isn't one */
 __thread thread_t *__self;
 /* a pointer to the top of the per-kthread (TLS) runtime stack */
@@ -580,6 +582,11 @@ void thread_park_and_unlock_np(spinlock_t *l)
 	enter_schedule(myth);
 }
 
+static inline bool thread_in_obj_env(void)
+{
+	return __self->obj_stack_base != NULL;
+}
+
 /**
  * thread_yield - yields the currently running thread
  *
@@ -589,13 +596,8 @@ void thread_yield(void)
 {
 	struct kthread *k;
 	thread_t *myth;
-	bool in_obj_env;
 
-	preempt_disable();
-	in_obj_env = (__self->obj_stack_base != NULL);
-	preempt_enable();
-
-	if (in_obj_env) {
+	if (!thread_in_obj_env()) {
 		/* check for softirqs */
 		softirq_run(RUNTIME_SOFTIRQ_LOCAL_BUDGET);
 	}
@@ -740,7 +742,10 @@ static __always_inline thread_t *__thread_create(void)
 	th->main_thread = false;
 	th->last_cpu = myk()->curr_cpu;
 	th->run_start_tsc = UINT64_MAX;
-	th->tlsvar = 0;
+	if (__self)
+		th->tlsvar = __self->tlsvar;
+	else
+		th->tlsvar = 0;
 	th->obj_stack_base = NULL;
 	th->migration_state = NO_MIGRATION;
 
@@ -765,8 +770,6 @@ thread_t *thread_create(thread_fn_t fn, void *arg)
 	th->tf.rbp = (uint64_t)0; /* just in case base pointers are enabled */
 	th->tf.rip = (uint64_t)fn;
 	th->stack_busy = false;
-	if (__self)
-		th->tlsvar = __self->tlsvar;
 	gc_register_thread(th);
 	return th;
 }
@@ -975,11 +978,6 @@ bool thread_is_migrated(void)
 	return __self->migration_state == MIGRATED;
 }
 
-bool thread_is_migrating(void)
-{
-	return __self->migration_state == MIGRATING;
-}
-
 void pause_migrating_threads(void)
 {
 	int i;
@@ -1024,14 +1022,15 @@ void *thread_get_trap_frame(thread_t *th, size_t *size)
 	return &th->tf;
 }
 
-void resume_migrated_thread(void *tf, uint64_t tlsvar)
+thread_t *create_migrated_thread(void *tf, uint64_t tlsvar)
 {
 	thread_t *th = __thread_create();
 	BUG_ON(!th);
 	th->tlsvar = tlsvar;
 	th->tf = *((struct thread_tf *)tf);
 	th->migration_state = MIGRATED;
-	thread_ready(th);
+	th->stack_busy = false;
+	return th;
 }
 
 void gc_migrated_threads(void)

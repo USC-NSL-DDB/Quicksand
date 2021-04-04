@@ -133,7 +133,7 @@ template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() const {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  using closure_states_checker[[maybe_unused]] =
+  using closure_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), states...));
 
   if (construct_) {
@@ -163,7 +163,7 @@ RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
-  using md_args_checker[[maybe_unused]] =
+  using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(args...));
 
   if (construct_) {
@@ -211,18 +211,24 @@ template <typename T> void RemObj<T>::dec_ref_cnt() {
   rt::Thread([=]() {
     dec_promise->template get_future<RuntimeDeleter<Promise<void>>>().get();
     Runtime::rcu_lock.unlock();
-  })
-      .Detach();
+  }).Detach();
 }
 
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
   auto *args_ss = new std::stringstream();
   auto *handler = ObjServer::update_ref_cnt<T>;
   serialize(args_ss, handler, id_, delta);
+  auto *heap_manager = Runtime::heap_manager.get();
+  if (heap_manager) {
+    heap_manager->rcu_lock();
+  }
   return Promise<void>::create<RuntimeAllocator<Promise<void>>>(
-      [&, args_ss, id = id_] {
-        std::unique_ptr<std::stringstream> gc(args_ss);
+      [&, args_ss, id = id_, heap_manager] {
         invoke_remote<void>(id, *args_ss);
+        delete args_ss;
+        if (heap_manager) {
+          heap_manager->rcu_unlock();
+        }
       });
 }
 } // namespace nu
