@@ -16,16 +16,25 @@
 #include "waitq.h"
 
 /* adjustable constants */
-#define TCP_MSS	(ETH_MTU - sizeof(struct ip_hdr) - sizeof(struct tcp_hdr))
-#define TCP_WIN	((65535 / TCP_MSS) * TCP_MSS)
-#define TCP_ACK_TIMEOUT (10 * ONE_MS)
-#define TCP_CONNECT_TIMEOUT (5 * ONE_SECOND) /* FIXME */
-#define TCP_OOQ_ACK_TIMEOUT (300 * ONE_MS)
-#define TCP_TIME_WAIT_TIMEOUT (1 * ONE_SECOND) /* FIXME: should be 8 minutes */
-#define TCP_RETRANSMIT_TIMEOUT (300 * ONE_MS) /* FIXME: should be dynamic */
+#define TCP_MIN_MSS		88
+#define TCP_WIN			0x1FFFF
+#define TCP_ACK_TIMEOUT		(10 * ONE_MS)
+#define TCP_CONNECT_TIMEOUT	(5 * ONE_SECOND) /* FIXME */
+#define TCP_OOQ_ACK_TIMEOUT	(300 * ONE_MS)
+#define TCP_TIME_WAIT_TIMEOUT	(1 * ONE_SECOND) /* FIXME: should be 8 minutes */
+#define TCP_RETRANSMIT_TIMEOUT	(300 * ONE_MS) /* FIXME: should be dynamic */
 #define TCP_FAST_RETRANSMIT_THRESH 3
-#define TCP_OOO_MAX_SIZE 2048
-#define TCP_RETRANSMIT_BATCH 16
+#define TCP_OOO_MAX_SIZE	2048
+#define TCP_RETRANSMIT_BATCH	16
+
+/**
+ * tcp_calculate_mss - given an ethernet MTU, returns the TCP MSS
+ * @mtu: the ethernet mtu
+ */
+static inline unsigned int tcp_calculate_mss(unsigned int mtu)
+{
+	return mtu - sizeof(struct ip_hdr) - sizeof(struct tcp_hdr);
+}
 
 /* connecion states (RFC 793 Section 3.2) */
 enum {
@@ -53,6 +62,8 @@ struct tcp_pcb {
 	uint32_t	snd_wl1;	/* last window update - seq number */
 	uint32_t	snd_wl2;	/* last window update - ack number */
 	uint32_t	iss;		/* initial send sequence number */
+	uint32_t	snd_wscale;	/* the send window scale */
+	uint32_t	snd_mss;	/* the send max segment size */
 
 	/* receive sequence variables (RFC 793 Section 3.2) */
 	union {
@@ -64,6 +75,8 @@ struct tcp_pcb {
 	};
 	uint32_t	rcv_up;		/* receive urgent pointer */
 	uint32_t	irs;		/* initial receive sequence number */
+	uint32_t	rcv_wscale;	/* the receive window scale */
+	uint32_t	rcv_mss;	/* the send max segment size */
 };
 
 /* the TCP connection struct */
@@ -75,6 +88,7 @@ struct tcpconn {
 	spinlock_t		lock;
 	struct kref		ref;
 	int			err; /* error code for read(), write(), etc. */
+	uint32_t		winmax; /* initial receive window size */
 
 	/* ingress path */
 	unsigned int		rx_closed:1;
@@ -89,22 +103,22 @@ struct tcpconn {
 	unsigned int		tx_exclusive:1;
 	waitq_t			tx_wq;
 	uint32_t		tx_last_ack;
-	uint16_t		tx_last_win;
+	uint32_t		tx_last_win;
 	struct mbuf		*tx_pending;
 	struct list_head	txq;
 	bool			do_fast_retransmit;
 	uint32_t		fast_retransmit_last_ack;
 
 	/* timeouts */
-	uint64_t next_timeout;
-	bool			ack_delayed;
-	bool			rcv_wnd_full;
+	uint64_t 		next_timeout;
 	uint64_t		ack_ts;
 	union {
 		uint64_t		time_wait_ts;
 		uint64_t		attach_ts;
 	};
+	bool			ack_delayed;
 	int			rep_acks;
+	int			acks_delayed_cnt;
 };
 
 extern tcpconn_t *tcp_conn_alloc(void);
@@ -141,6 +155,15 @@ static inline void tcp_conn_put(tcpconn_t *c)
 	kref_put(&c->ref, tcp_conn_release_ref);
 }
 
+#define TCP_OPTION_MSS		BIT(0)
+#define TCP_OPTION_WSCALE	BIT(1)
+
+struct tcp_options {
+	int		opt_en;
+	uint16_t	mss;
+	uint8_t		wscale;
+};
+
 
 /*
  * ingress path
@@ -159,7 +182,8 @@ extern int tcp_tx_raw_rst(struct netaddr laddr, struct netaddr raddr,
 extern int tcp_tx_raw_rst_ack(struct netaddr laddr, struct netaddr raddr,
 			      tcp_seq seq, tcp_seq ack);
 extern int tcp_tx_ack(tcpconn_t *c);
-extern int tcp_tx_ctl(tcpconn_t *c, uint8_t flags);
+extern int tcp_tx_ctl(tcpconn_t *c, uint8_t flags,
+		      const struct tcp_options *opts);
 extern ssize_t tcp_tx_send(tcpconn_t *c, const void *buf, size_t len,
 			   bool push);
 extern void tcp_tx_retransmit(tcpconn_t *c);

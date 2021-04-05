@@ -221,6 +221,25 @@ static int parse_mac_address(const char *name, const char *val)
 	return ret;
 }
 
+static int parse_mtu(const char *num, const char *val)
+{
+	long tmp;
+	int ret;
+
+	ret = str_to_long(val, &tmp);
+	if (ret)
+		return ret;
+
+	if (tmp < 0 || tmp > ETH_MAX_MTU) {
+		log_err("MTU must be positive and <= %d, got %ld",
+			ETH_MAX_MTU, tmp);
+		return -EINVAL;
+	}
+
+	eth_mtu = tmp;
+	return 0;
+}
+
 static int parse_watchdog_flag(const char *name, const char *val)
 {
 	disable_watchdog = true;
@@ -314,12 +333,12 @@ static int parse_enable_directpath(const char *name, const char *val)
 static int parse_enable_gc(const char *name, const char *val)
 {
 #ifdef GC
-        cfg_gc_enabled = true;
-        return 0;
+	panic("GC support is currently broken");
+	cfg_gc_enabled = true;
+	return 0;
 #else
-        log_err("cfg: cannot enable GC, "
-                "please recompile with GC support");
-        return -EINVAL;
+	log_err("cfg: cannot enable GC, please recompile with GC support");
+	return -EINVAL;
 #endif
 }
 
@@ -343,6 +362,7 @@ static const struct cfg_handler cfg_handlers[] = {
 	{ "host_netmask", parse_host_ip, true },
 	{ "host_gateway", parse_host_ip, true },
 	{ "host_mac", parse_mac_address, false },
+	{ "host_mtu", parse_mtu, false },
 	{ "runtime_kthreads", parse_runtime_kthreads, true },
 	{ "runtime_spinning_kthreads", parse_runtime_spinning_kthreads, false },
 	{ "runtime_guaranteed_kthreads", parse_runtime_guaranteed_kthreads,
