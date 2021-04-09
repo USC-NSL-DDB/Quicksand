@@ -237,8 +237,10 @@ void Migrator::migrate(std::list<void *> heaps) {
 void *Migrator::load_heap(tcpconn_t *c, rt::Mutex *loader_mutex) {
   HeapHeader *heap_header;
   int obj_ref_cnt;
-  tcp_read2_until(c, &heap_header, sizeof(heap_header), &obj_ref_cnt,
-                  sizeof(obj_ref_cnt));
+  if (!tcp_read2_until(c, &heap_header, sizeof(heap_header), &obj_ref_cnt,
+                       sizeof(obj_ref_cnt))) {
+    return nullptr;
+  }
   // Only allows one loading at a time.
   loader_mutex->Lock();
   Runtime::heap_manager->allocate(heap_header);
@@ -350,6 +352,10 @@ void Migrator::load_threads(tcpconn_t *c, HeapHeader *heap_header) {
 void Migrator::load(tcpconn_t *c) {
   while (true) {
     auto *heap_base = load_heap(c, &loader_mutex_);
+    if (!heap_base) {
+      continue;
+    }
+
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
     loader_conn_ = c;
 
