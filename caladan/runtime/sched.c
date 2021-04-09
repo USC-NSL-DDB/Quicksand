@@ -590,11 +590,6 @@ void thread_park_and_preempt_enable(void)
 	enter_schedule(curth);
 }
 
-static inline bool thread_in_obj_env(void)
-{
-	return __self->obj_stack_base != NULL;
-}
-
 /**
  * thread_yield - yields the currently running thread
  *
@@ -603,10 +598,8 @@ static inline bool thread_in_obj_env(void)
 void thread_yield(void)
 {
 	thread_t *curth;
-	if (!thread_in_obj_env()) {
-		/* check for softirqs */
-		softirq_run();
-	}
+
+	softirq_run();
 	preempt_disable();
 	curth = thread_self();
 	curth->thread_ready = false;
