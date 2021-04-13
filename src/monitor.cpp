@@ -9,7 +9,8 @@ extern "C" {
 
 namespace nu {
 
-Monitor::Monitor() : stopped_(false) {}
+Monitor::Monitor()
+  : mock_pressure_({.cores = 0, .mem_mbs = 0}), stopped_(false) {}
 
 Monitor::~Monitor() { stopped_ = true; }
 

@@ -37,7 +37,7 @@ public:
 
 bool around_one_second(uint64_t us) {
   std::cout << us << std::endl;
-  return abs(static_cast<int64_t>(us) - 1000 * 1000) < 1000;
+  return abs(static_cast<int64_t>(us) - 1000 * 1000) < 5000;
 }
 
 void do_work() {

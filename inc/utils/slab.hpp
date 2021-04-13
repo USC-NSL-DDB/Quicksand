@@ -2,16 +2,19 @@
 
 #include <cstdint>
 #include <functional>
+#include <limits>
+#include <stack>
 #include <string>
 #include <string_view>
 #include <type_traits>
 
 extern "C" {
 #include <base/compiler.h>
+#include <runtime/preempt.h>
 }
-#include "sync.h"
+#include <sync.h>
 
-// TODO: add per-core cache.
+#include "defs.hpp"
 
 namespace nu {
 
@@ -22,8 +25,9 @@ struct PtrHeader {
 
 class SlabAllocator {
 public:
-  constexpr static uint64_t kMaxSlabClassShift = 35; // 32 GB.
+  constexpr static uint64_t kMaxSlabClassShift = 32; // 4 GB.
   constexpr static uint64_t kMinSlabClassShift = 5;  // 32 B.
+  constexpr static uint64_t kPerCoreCacheSize = 31;
 
   SlabAllocator() noexcept;
   SlabAllocator(uint16_t sentinel, void *buf, size_t len) noexcept;
@@ -36,11 +40,21 @@ public:
   size_t get_remaining() const noexcept;
 
 private:
+  struct alignas(kCacheLineBytes) CoreCache {
+    using CntType = uint8_t;
+    CntType cnts[kMaxSlabClassShift];
+    // TODO: make these as linkedlists.
+    void *entries[kMaxSlabClassShift][kPerCoreCacheSize + 1];
+  };
+  static_assert(std::numeric_limits<CoreCache::CntType>::max() >=
+                kPerCoreCacheSize);
+
   uint16_t sentinel_;
   const uint8_t *start_;
   const uint8_t *end_;
   uint8_t *cur_;
   void *slab_entries_[kMaxSlabClassShift];
+  CoreCache core_caches_[kNumCores];
   rt::Spin spin_;
 
   uint32_t get_slab_shift(uint64_t size) noexcept;

@@ -49,29 +49,6 @@ inline HeapHeader *Runtime::get_obj_heap_header() {
   return heap_header;
 }
 
-inline void Runtime::migration_enable() {
-  auto *heap_header = get_obj_heap_header();
-  BUG_ON(!heap_header);
-  heap_header->threads->put(thread_self());
-  heap_manager->rcu_unlock();
-}
-
-inline void Runtime::migration_disable() {
-  auto *heap_header = get_obj_heap_header();
-  BUG_ON(!heap_header);
-  void *heap_base = heap_header;
-
-  heap_manager->rcu_lock();
-  if (unlikely(!heap_manager->contains(heap_base))) {
-    heap_manager->rcu_unlock();
-    while (unlikely(!thread_is_migrated())) {
-      thread_yield();
-    }
-    heap_manager->rcu_lock();
-  }
-  heap_header->threads->remove(thread_self());
-}
-
 template <typename Cls, typename Fn, typename... As>
 void __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer")))
@@ -83,7 +60,7 @@ Runtime::__run_within_obj_env(SlabAllocator *slab, uint64_t obj_stack_base,
     auto runtime_stack_base = thread_get_runtime_stack_base();
     switch_to_runtime_stack(runtime_stack_base);
     slab->free(reinterpret_cast<void *>(obj_stack_base));
-    heap_manager->rcu_unlock();
+    heap_manager->rcu_reader_unlock();
     thread_exit();
   }
 }
@@ -92,9 +69,9 @@ Runtime::__run_within_obj_env(SlabAllocator *slab, uint64_t obj_stack_base,
 template <typename Cls, typename Fn, typename... As>
 bool __attribute__((optimize("no-omit-frame-pointer")))
 Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
-  heap_manager->rcu_lock();
+  heap_manager->rcu_reader_lock();
   if (unlikely(!heap_manager->contains(heap_base))) {
-    heap_manager->rcu_unlock();
+    heap_manager->rcu_reader_unlock();
     return false;
   }
   auto *slab = heap_manager->get_slab(heap_base);
@@ -114,7 +91,7 @@ Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
   switch_to_runtime_stack(old_rsp);
   slab->free(reinterpret_cast<void *>(obj_stack_base));
   switch_to_runtime_heap();
-  heap_manager->rcu_unlock();
+  heap_manager->rcu_reader_unlock();
 
   return true;
 }

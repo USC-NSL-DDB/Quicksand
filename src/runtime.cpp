@@ -33,6 +33,7 @@ std::unique_ptr<ThreadSafeHashMap<
     RemObjID, RuntimeFuture<void>,
     RuntimeAllocator<std::pair<const RemObjID, RuntimeFuture<void>>>>>
     Runtime::obj_inflight_inc_cnts;
+std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
 
 void Runtime::init_runtime_heap() {
   auto addr = reinterpret_cast<void *>(Controller::kMaxVAddr);
@@ -44,14 +45,14 @@ void Runtime::init_runtime_heap() {
   runtime_slab.init(sentinel, mmap_addr, kRuntimeHeapSize);
 }
 
-void Runtime::init_as_controller(netaddr remote_ctrl_addr) {
-  controller_server.reset(new ControllerServer(remote_ctrl_addr.port));
+void Runtime::init_as_controller(netaddr ctrl_server_addr) {
+  controller_server.reset(new ControllerServer(ctrl_server_addr.port));
   controller_server->run_loop();
 }
 
 void Runtime::init_as_server(uint16_t local_obj_srv_port,
                              uint16_t local_migra_ldr_port,
-                             netaddr remote_ctrl_addr) {
+                             netaddr ctrl_server_addr) {
   obj_server.reset(new decltype(obj_server)::element_type(local_obj_srv_port));
   rt::Thread obj_srv_thread([&] { obj_server->run_loop(); });
   migrator.reset(new decltype(migrator)::element_type());
@@ -59,38 +60,40 @@ void Runtime::init_as_server(uint16_t local_obj_srv_port,
       [&] { migrator->run_loader_loop(local_migra_ldr_port); });
   heap_manager.reset(new decltype(heap_manager)::element_type());
   controller_client.reset(new decltype(controller_client)::element_type(
-      local_obj_srv_port, local_migra_ldr_port, remote_ctrl_addr));
+      local_obj_srv_port, local_migra_ldr_port, ctrl_server_addr));
   obj_inflight_inc_cnts.reset(
       new decltype(obj_inflight_inc_cnts)::element_type());
   rem_obj_conn_mgr.reset(new decltype(rem_obj_conn_mgr)::element_type());
   monitor.reset(new decltype(monitor)::element_type());
   rt::Thread monitor_thread([&] { monitor->run_loop(); });
+  archive_pool.reset(new decltype(archive_pool)::element_type());
 
   obj_srv_thread.Join();
 }
 
-void Runtime::init_as_client(netaddr remote_ctrl_addr) {
+void Runtime::init_as_client(netaddr ctrl_server_addr) {
   controller_client.reset(
-      new decltype(controller_client)::element_type(remote_ctrl_addr));
+      new decltype(controller_client)::element_type(ctrl_server_addr));
   obj_inflight_inc_cnts.reset(
       new decltype(obj_inflight_inc_cnts)::element_type());
   rem_obj_conn_mgr.reset(new decltype(rem_obj_conn_mgr)::element_type());
+  archive_pool.reset(new decltype(archive_pool)::element_type());
 }
 
 Runtime::Runtime(uint16_t local_obj_srv_port, uint16_t local_migra_ldr_port,
-                 netaddr remote_ctrl_addr, Mode mode) {
+                 netaddr ctrl_server_addr, Mode mode) {
   init_runtime_heap();
   active_runtime = true;
 
   switch (mode) {
   case CONTROLLER:
-    init_as_controller(remote_ctrl_addr);
+    init_as_controller(ctrl_server_addr);
     break;
   case SERVER:
-    init_as_server(local_obj_srv_port, local_migra_ldr_port, remote_ctrl_addr);
+    init_as_server(local_obj_srv_port, local_migra_ldr_port, ctrl_server_addr);
     break;
   case CLIENT:
-    init_as_client(remote_ctrl_addr);
+    init_as_client(ctrl_server_addr);
     break;
   default:
     BUG();
@@ -99,15 +102,15 @@ Runtime::Runtime(uint16_t local_obj_srv_port, uint16_t local_migra_ldr_port,
 
 std::unique_ptr<Runtime> Runtime::init(uint16_t local_obj_srv_port,
                                        uint16_t local_migra_ldr_port,
-                                       netaddr remote_ctrl_addr, Mode mode) {
+                                       netaddr ctrl_server_addr, Mode mode) {
   BUG_ON(active_runtime);
   auto runtime_ptr = new Runtime(local_obj_srv_port, local_migra_ldr_port,
-                                 remote_ctrl_addr, mode);
+                                 ctrl_server_addr, mode);
   return std::unique_ptr<Runtime>(runtime_ptr);
 }
 
 Runtime::~Runtime() {
-  rcu_lock.synchronize();
+  rcu_lock.writer_sync();
   obj_server.reset();
   controller_client.reset();
   heap_manager.reset();
@@ -115,8 +118,49 @@ Runtime::~Runtime() {
   monitor.reset();
   migrator.reset();
   obj_inflight_inc_cnts.reset();
+  archive_pool.reset();
   barrier();
   active_runtime = false;
+}
+
+// TODO: make the rcu lock to be per-heap instead of being global.
+void Runtime::migration_enable() {
+  auto *heap_header = get_obj_heap_header();
+  if (!heap_header) {
+    return;
+  }
+  heap_header->threads->put(thread_self());
+  heap_manager->rcu_reader_unlock();
+}
+
+void Runtime::migration_disable() {
+  auto *heap_header = get_obj_heap_header();
+  if (!heap_header) {
+    return;
+  }
+  void *heap_base = heap_header;
+
+  heap_manager->rcu_reader_lock();
+  if (unlikely(!heap_manager->contains(heap_base))) {
+    heap_manager->rcu_reader_unlock();
+    while (unlikely(!thread_is_migrated())) {
+      thread_yield();
+    }
+    heap_manager->rcu_reader_lock();
+  }
+  heap_header->threads->remove(thread_self());
+}
+
+void Runtime::reserve_ctrl_server_conns(uint32_t num) {
+  controller_client->reserve_conns(num);
+}
+
+void Runtime::reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr) {
+  rem_obj_conn_mgr->reserve_conns(num, obj_server_addr);
+}
+
+void Runtime::reserve_migration_conns(uint32_t num, netaddr dest_server_addr) {
+  migrator->reserve_conns(num, dest_server_addr);
 }
 
 } // namespace nu

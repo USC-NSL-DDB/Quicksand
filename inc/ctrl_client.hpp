@@ -15,9 +15,12 @@ namespace nu {
 
 class ControllerConnManager {
 public:
+  constexpr static uint32_t kNumPerCoreCachedConns = 1;
+
   ControllerConnManager(netaddr remote_ctrl_addr);
   tcpconn_t *get_conn();
   void put_conn(tcpconn_t *conn);
+  void reserve_conns(uint32_t num);
 
 private:
   std::function<tcpconn_t *(bool unused)> creator_;
@@ -35,6 +38,7 @@ public:
   std::optional<netaddr> resolve_obj(RemObjID id);
   std::optional<netaddr> get_migration_dest(Resource resource);
   void update_location(RemObjID id, netaddr obj_srv_addr);
+  void reserve_conns(uint32_t num);
 
 private:
   ControllerConnManager conn_mgr_;

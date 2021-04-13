@@ -19,6 +19,7 @@ extern "C" {
 #include "heap_mgr.hpp"
 #include "migrator.hpp"
 #include "mutex.hpp"
+#include "obj_conn_mgr.hpp"
 #include "obj_server.hpp"
 #include "runtime.hpp"
 #include "runtime_alloc.hpp"
@@ -35,7 +36,7 @@ std::function<tcpconn_t *(netaddr)> MigratorConnManager::creator_ =
     };
 
 MigratorConnManager::MigratorConnManager()
-    : ConnectionManager<netaddr>(creator_) {}
+    : ConnectionManager<netaddr>(creator_, kNumPerCoreCachedConns) {}
 
 Migrator::~Migrator() { BUG(); }
 
@@ -110,7 +111,7 @@ void Migrator::transmit_condvars(
 
 void Migrator::transmit_time(tcpconn_t *c, HeapHeader *heap_header,
                              std::unordered_set<thread_t *> *time_threads) {
-  uint64_t migrator_tsc = rdtsc();
+  uint64_t migrator_tsc = rdtsc() - start_tsc;
   int64_t sum_tsc = migrator_tsc + heap_header->time->offset_tsc_;
 
   const auto &timer_entries_list = heap_header->time->entries_;
@@ -164,8 +165,9 @@ void Migrator::forward_to_client(uint32_t num_rpcs,
     tcp_read_until(conn_to_new_server, payload.get(), hdr.payload_size);
     tcp_write2_until(conn_to_client, &hdr, sizeof(hdr), payload.get(),
                      hdr.payload_size);
-    BUG_ON(tcp_shutdown(conn_to_client, SHUT_RDWR) < 0);
-    tcp_close(conn_to_client);
+    rt::Thread([&, conn_to_client] {
+      Runtime::obj_server->handle_reqs(conn_to_client);
+    }).Detach();
   }
 }
 
@@ -206,7 +208,7 @@ void Migrator::migrate(std::list<void *> heaps) {
       iter = heaps.erase(iter);
       continue;
     }
-    Runtime::heap_manager->rcu_synchronize();
+    Runtime::heap_manager->rcu_writer_sync();
     resource.mem_mbs += heap_header->slab.get_usage() >> 20;
     auto all_threads = heap_header->threads->all_keys();
     for (auto thread : all_threads) {
@@ -319,7 +321,8 @@ void Migrator::load_time(tcpconn_t *c, HeapHeader *heap_header) {
   size_t num_entries;
   tcp_read2_until(c, &sum_tsc, sizeof(sum_tsc), &num_entries,
                   sizeof(num_entries));
-  time->offset_tsc_ = sum_tsc - rdtsc();
+  auto loader_tsc = rdtsc() - start_tsc;
+  time->offset_tsc_ = sum_tsc - loader_tsc;
 
   auto timer_entries = std::make_unique<timer_entry *[]>(num_entries);
   tcp_read_until(c, timer_entries.get(), sizeof(timer_entry *) * num_entries);
@@ -393,6 +396,10 @@ void Migrator::forward_to_original_server(const ObjRPCRespHdr &hdr,
   if (--remaining_forwarding_cnts_ == 0) {
     loader_done_forwarding_.Signal();
   }
+}
+
+void Migrator::reserve_conns(uint32_t num, netaddr dest_server_addr) {
+  conn_mgr_.reserve_conns(dest_server_addr, num);
 }
 
 } // namespace nu

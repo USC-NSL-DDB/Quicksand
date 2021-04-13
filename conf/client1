@@ -2,7 +2,7 @@ host_addr 18.18.1.2
 host_netmask 255.255.255.0
 host_gateway 18.8.1.1
 host_mac 1E:CF:16:43:AF:94
-runtime_kthreads 18
+runtime_kthreads 22
 runtime_guaranteed_kthreads 0
 runtime_spinning_kthreads 0
 enable_directpath 1

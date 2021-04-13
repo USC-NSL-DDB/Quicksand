@@ -32,10 +32,10 @@ inline bool HeapManager::remove(void *heap_base) {
   return heap_statuses_->remove(heap_base);
 }
 
-inline void HeapManager::rcu_lock() { rcu_lock_.lock(); }
+inline void HeapManager::rcu_reader_lock() { rcu_lock_.reader_lock(); }
 
-inline void HeapManager::rcu_unlock() { rcu_lock_.unlock(); }
+inline void HeapManager::rcu_reader_unlock() { rcu_lock_.reader_unlock(); }
 
-inline void HeapManager::rcu_synchronize() { rcu_lock_.synchronize(); }
+inline void HeapManager::rcu_writer_sync() { rcu_lock_.writer_sync(); }
 
 } // namespace nu

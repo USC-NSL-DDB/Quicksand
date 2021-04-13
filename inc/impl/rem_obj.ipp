@@ -18,65 +18,58 @@ extern "C" {
 #include "runtime_alloc.hpp"
 #include "runtime_deleter.hpp"
 #include "utils/future.hpp"
+#include "utils/netaddr.hpp"
 #include "utils/promise.hpp"
 #include "utils/tcp.hpp"
 
 namespace nu {
 
 template <typename... S1s>
-void serialize(std::stringstream *output, S1s &&... states) {
-  cereal::BinaryOutputArchive oa(*output);
-  ((oa << std::forward<S1s>(states)), ...);
-}
-
-template <typename T>
-tcpconn_t *RemObj<T>::purge_old_conns(RemObjID id, tcpconn_t *old_conn) {
-  tcpconn_t *conn;
-  auto old_srv_addr = tcp_remote_addr(old_conn);
-  do {
-    BUG_ON(tcp_shutdown(old_conn, SHUT_RDWR) < 0);
-    tcp_close(old_conn);
-    conn = Runtime::rem_obj_conn_mgr->get_conn(id);
-    old_conn = conn;
-  } while (tcp_remote_addr(conn) == old_srv_addr);
-  return conn;
+void serialize(cereal::BinaryOutputArchive *oa, S1s &&... states) {
+  ((*oa << std::forward<S1s>(states)), ...);
 }
 
 template <typename T>
 template <typename RetT>
-RetT RemObj<T>::invoke_remote(RemObjID id, const std::stringstream &states_ss) {
+RetT RemObj<T>::invoke_remote(RemObjID id, auto *states_ss) {
   tcpconn_t *conn;
 
-  conn = Runtime::rem_obj_conn_mgr->get_conn(id);
 retry:
-  auto states_str = states_ss.str();
-  uint64_t states_size = states_str.size();
-  tcp_write2_until(conn, &states_size, sizeof(states_size), states_str.data(),
+  conn = Runtime::rem_obj_conn_mgr->get_conn(id);
+  auto states_view = states_ss->view();
+  uint64_t states_size = states_ss->tellp();
+
+  tcp_write2_until(conn, &states_size, sizeof(states_size), states_view.data(),
                    states_size);
 
   ObjRPCRespHdr hdr;
   tcp_read_until(conn, &hdr, sizeof(hdr));
 
   if (unlikely(hdr.rc == CLIENT_RETRY)) {
-    conn = purge_old_conns(id, conn);
+    Runtime::rem_obj_conn_mgr->update_addr(id, tcp_remote_addr(conn));
+    Runtime::rem_obj_conn_mgr->put_conn(conn);
     goto retry;
+  } else if (unlikely(hdr.rc == FORWARDED)) {
+    Runtime::rem_obj_conn_mgr->update_addr(id, tcp_remote_addr(conn));
   }
 
-  std::string ret_str(hdr.payload_size, '\0');
-  tcp_read_until(conn, ret_str.data(), hdr.payload_size);
-
-  if (unlikely(hdr.rc == FORWARDED)) {
-    conn = purge_old_conns(id, conn);
+  auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
+  auto &[ret_ss, ia] = *ia_sstream;
+  if (unlikely(ret_ss.view().size() < hdr.payload_size)) {
+    ret_ss.str(std::string(hdr.payload_size, '\0'));
   }
+  tcp_read_until(conn, const_cast<char *>(ret_ss.view().data()),
+                 hdr.payload_size);
 
-  Runtime::rem_obj_conn_mgr->put_conn(id, conn);
+  Runtime::rem_obj_conn_mgr->put_conn(conn);
 
   if constexpr (!std::is_same<RetT, void>::value) {
-    std::stringstream ret_ss(std::move(ret_str));
-    cereal::BinaryInputArchive ia(ret_ss);
     RetT ret;
     ia >> ret;
+    Runtime::archive_pool->put_ia_sstream(ia_sstream);
     return ret;
+  } else {
+    Runtime::archive_pool->put_ia_sstream(ia_sstream);
   }
 }
 
@@ -109,13 +102,17 @@ RemObj<T> RemObj<T>::create(As &&... args) {
   BUG_ON(!optional);
   auto [id, range] = *optional;
 
-  auto *args_ss = new std::stringstream();
-  auto *handler = ObjServer::construct_obj<T, As...>;
-  serialize(args_ss, handler, to_heap_base(id), std::forward<As>(args)...);
+  Runtime::migration_disable();
 
-  auto *construct_promise = Promise<void>::create([args_ss, id]() {
-    std::unique_ptr<std::stringstream> gc(args_ss);
-    invoke_remote<void>(id, *args_ss);
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  auto *handler = ObjServer::construct_obj<T, As...>;
+  serialize(&oa_sstream->oa, handler, to_heap_base(id),
+            std::forward<As>(args)...);
+
+  auto *construct_promise = Promise<void>::create([id, oa_sstream]() {
+    invoke_remote<void>(id, &oa_sstream->ss);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+    Runtime::migration_enable();
   });
   return RemObj(id, std::move(construct_promise->get_future()));
 }
@@ -124,7 +121,11 @@ template <typename T> RemObj<T> RemObj<T>::attach(Cap cap) {
   return RemObj<T>(cap.id);
 }
 
-template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() const {
+template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() {
+  if (construct_) {
+    construct_.get();
+  }
+
   Cap cap;
   cap.id = id_;
   return cap;
@@ -140,15 +141,22 @@ Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
     construct_.get();
   }
 
-  auto *states_ss = new std::stringstream();
+  Runtime::migration_disable();
+
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler = ObjServer::closure_handler<T, RetT, decltype(fn), S1s...>;
-  serialize(states_ss, handler, id_, fn, std::forward<S1s>(states)...);
-  auto *promise = Promise<RetT>::create([&, states_ss] {
-    std::unique_ptr<std::stringstream> gc(states_ss);
+  serialize(&oa_sstream->oa, handler, id_, fn, std::forward<S1s>(states)...);
+
+  auto *promise = Promise<RetT>::create([&, oa_sstream] {
     if constexpr (!std::is_same<RetT, void>::value) {
-      return invoke_remote<RetT>(id_, *states_ss);
+      auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
+      Runtime::archive_pool->put_oa_sstream(oa_sstream);
+      Runtime::migration_enable();
+      return ret;
     } else {
-      invoke_remote<void>(id_, *states_ss);
+      invoke_remote<void>(id_, &oa_sstream->ss);
+      Runtime::archive_pool->put_oa_sstream(oa_sstream);
+      Runtime::migration_enable();
     }
   });
   return promise->get_future();
@@ -157,7 +165,29 @@ Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  return run_async(fn, std::forward<S1s>(states)...).get();
+  using closure_states_checker [[maybe_unused]] =
+      decltype(fn(std::declval<T &>(), states...));
+
+  if (construct_) {
+    construct_.get();
+  }
+
+  Runtime::migration_disable();
+
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  auto *handler = ObjServer::closure_handler<T, RetT, decltype(fn), S1s...>;
+  serialize(&oa_sstream->oa, handler, id_, fn, std::forward<S1s>(states)...);
+
+  if constexpr (!std::is_same<RetT, void>::value) {
+    auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+    Runtime::migration_enable();
+    return ret;
+  } else {
+    invoke_remote<void>(id_, &oa_sstream->ss);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+    Runtime::migration_enable();
+  }
 }
 
 template <typename T>
@@ -173,17 +203,23 @@ Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
 
-  auto *args_ss = new std::stringstream();
+  Runtime::migration_disable();
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler =
       ObjServer::method_handler<T, RetT, decltype(method_ptr), A1s...>;
-  serialize(args_ss, handler, id_, method_ptr.raw, std::forward<A1s>(args)...);
+  serialize(&oa_sstream->oa, handler, id_, method_ptr.raw,
+            std::forward<A1s>(args)...);
 
-  auto *promise = Promise<RetT>::create([&, args_ss] {
-    std::unique_ptr<std::stringstream> gc(args_ss);
+  auto *promise = Promise<RetT>::create([&, oa_sstream] {
     if constexpr (!std::is_same<RetT, void>::value) {
-      return invoke_remote<RetT>(id_, *args_ss);
+      auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
+      Runtime::archive_pool->put_oa_sstream(oa_sstream);
+      Runtime::migration_enable();
+      return ret;
     } else {
-      invoke_remote<void>(id_, *args_ss);
+      invoke_remote<void>(id_, &oa_sstream->ss);
+      Runtime::archive_pool->put_oa_sstream(oa_sstream);
+      Runtime::migration_enable();
     }
   });
   return promise->get_future();
@@ -191,8 +227,35 @@ Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-RetT RemObj<T>::run(RetT (T::*fn)(A0s...), A1s &&... args) {
-  return run_async(fn, std::forward<A1s>(args)...).get();
+RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
+  using md_args_checker [[maybe_unused]] =
+      decltype((std::declval<T>().*(md))(args...));
+
+  if (construct_) {
+    construct_.get();
+  }
+
+  MethodPtr<decltype(md)> method_ptr;
+  method_ptr.ptr = md;
+
+  Runtime::migration_disable();
+
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  auto *handler =
+      ObjServer::method_handler<T, RetT, decltype(method_ptr), A1s...>;
+  serialize(&oa_sstream->oa, handler, id_, method_ptr.raw,
+            std::forward<A1s>(args)...);
+
+  if constexpr (!std::is_same<RetT, void>::value) {
+    auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+    Runtime::migration_enable();
+    return ret;
+  } else {
+    invoke_remote<void>(id_, &oa_sstream->ss);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+    Runtime::migration_enable();
+  }
 };
 
 template <typename T> void RemObj<T>::inc_ref_cnt() {
@@ -207,28 +270,25 @@ template <typename T> void RemObj<T>::dec_ref_cnt() {
     inc_future.get();
   }
   auto *dec_promise = update_ref_cnt(-1);
-  Runtime::rcu_lock.lock();
+  Runtime::rcu_lock.reader_lock();
   rt::Thread([=]() {
     dec_promise->template get_future<RuntimeDeleter<Promise<void>>>().get();
-    Runtime::rcu_lock.unlock();
+    Runtime::rcu_lock.reader_unlock();
   }).Detach();
 }
 
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
-  auto *args_ss = new std::stringstream();
+  Runtime::migration_disable();
+
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler = ObjServer::update_ref_cnt<T>;
-  serialize(args_ss, handler, id_, delta);
-  auto *heap_manager = Runtime::heap_manager.get();
-  if (heap_manager) {
-    heap_manager->rcu_lock();
-  }
+  serialize(&oa_sstream->oa, handler, id_, delta);
+
   return Promise<void>::create<RuntimeAllocator<Promise<void>>>(
-      [&, args_ss, id = id_, heap_manager] {
-        invoke_remote<void>(id, *args_ss);
-        delete args_ss;
-        if (heap_manager) {
-          heap_manager->rcu_unlock();
-        }
+      [&, id = id_, oa_sstream] {
+        invoke_remote<void>(id, &oa_sstream->ss);
+        Runtime::archive_pool->put_oa_sstream(oa_sstream);
+        Runtime::migration_enable();
       });
 }
 } // namespace nu

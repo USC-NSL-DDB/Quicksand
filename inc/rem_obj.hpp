@@ -29,7 +29,7 @@ public:
   ~RemObj();
   template <typename... As> static RemObj create(As &&... args);
   static RemObj attach(Cap cap);
-  Cap get_cap() const;
+  Cap get_cap();
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>
@@ -37,10 +37,12 @@ public:
   template <typename RetT, typename... A0s, typename... A1s>
   Future<RetT> run_async(RetT (T::*md)(A0s...), A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
-  RetT run(RetT (T::*fn)(A0s...), A1s &&... args);
+  RetT run(RetT (T::*md)(A0s...), A1s &&... args);
 
 private:
   RemObjID id_;
+ // DBG
+public:
   Future<void> construct_;
 
   RemObj(RemObjID id);
@@ -49,7 +51,7 @@ private:
   void dec_ref_cnt();
   Promise<void> *update_ref_cnt(int delta);
   template <typename RetT>
-  static RetT invoke_remote(RemObjID id, const std::stringstream &states_ss);
+  static RetT invoke_remote(RemObjID id, auto *states_ss);
   static tcpconn_t *purge_old_conns(RemObjID id, tcpconn_t *old_conn);
 };
 

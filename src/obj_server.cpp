@@ -56,34 +56,26 @@ void ObjServer::handle_reqs(tcpconn_t *c) {
     if (!tcp_read_until(c, &len, sizeof(len))) {
       break;
     }
-    std::string args_str(len, '\0');
-    if (!tcp_read_until(c, args_str.data(), len)) {
+
+    // TODO: gc them when the thread gets migrated.
+    auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
+    auto &[args_ss, ia] = *ia_sstream;
+
+    if (unlikely(args_ss.view().size() < len)) {
+      args_ss.str(std::string(len, '\0'));
+    }
+    if (!tcp_read_until(c, const_cast<char *>(args_ss.view().data()), len)) {
       break;
     }
 
-    std::stringstream args_ss(std::move(args_str));
-    cereal::BinaryInputArchive ia(args_ss);
     GenericHandler handler;
     ia >> handler;
-
     handler(ia, c);
+
+    Runtime::archive_pool->put_ia_sstream(ia_sstream);
   }
   BUG_ON(tcp_shutdown(c, SHUT_RDWR) < 0);
   tcp_close(c);
-}
-
-void ObjServer::send_rpc_resp(std::stringstream &ss, tcpconn_t *rpc_conn) {
-  ObjRPCRespHdr hdr;
-  auto str = ss.str();
-  hdr.payload_size = str.size();
-
-  if (unlikely(thread_is_migrated())) {
-    hdr.rc = FORWARDED;
-    Runtime::migrator->forward_to_original_server(hdr, str.data(), rpc_conn);
-  } else {
-    hdr.rc = OK;
-    tcp_write2_until(rpc_conn, &hdr, sizeof(hdr), str.data(), hdr.payload_size);
-  }
 }
 
 } // namespace nu

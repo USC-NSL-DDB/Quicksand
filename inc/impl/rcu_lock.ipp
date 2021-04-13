@@ -8,7 +8,7 @@ extern "C" {
 
 namespace nu {
 
-inline void RCULock::lock() {
+inline void RCULock::reader_lock() {
   while (unlikely(ACCESS_ONCE(sync_barrier_))) {
     thread_yield();
   }
@@ -21,7 +21,7 @@ inline void RCULock::lock() {
   put_cpu();
 }
 
-inline void RCULock::unlock() {
+inline void RCULock::reader_unlock() {
   barrier();
   int core = get_cpu();
   Cnt cnt;

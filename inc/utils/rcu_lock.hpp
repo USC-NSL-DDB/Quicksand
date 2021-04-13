@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 #include "defs.hpp"
 
@@ -8,9 +9,11 @@ namespace nu {
 
 class RCULock {
 public:
-  void lock();
-  void unlock();
-  void synchronize();
+  void reader_lock();
+  void reader_unlock();
+  void writer_sync();
+  void writer_sync_fn(const std::function<void(void)> &fn);
+  void writer_sync_fn(std::function<void(void)> &&fn);
 
 private:
   union Cnt {
@@ -28,6 +31,8 @@ private:
 
   bool sync_barrier_;
   AlignedCnt aligned_cnts_[kNumCores];
+
+  template <typename Fn> void write_sync_general(Fn &&fn);
 };
 } // namespace nu
 

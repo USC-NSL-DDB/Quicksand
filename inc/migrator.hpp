@@ -14,14 +14,7 @@ extern "C" {
 
 #include "conn_mgr.hpp"
 #include "utils/slab.hpp"
-
-bool operator==(netaddr x, netaddr y);
-
-namespace std {
-template <> struct hash<netaddr> {
-  std::size_t operator()(const netaddr &k) const;
-};
-} // namespace std
+#include "utils/netaddr.hpp"
 
 namespace nu {
 
@@ -29,6 +22,8 @@ struct ObjRPCRespHdr;
 
 class MigratorConnManager : public ConnectionManager<netaddr> {
 public:
+  constexpr static uint32_t kNumPerCoreCachedConns = 1;
+
   MigratorConnManager();
 
 private:
@@ -42,6 +37,7 @@ public:
   void migrate(std::list<void *> heaps);
   void forward_to_original_server(const ObjRPCRespHdr &hdr, const void *payload,
                                   tcpconn_t *conn_to_client);
+  void reserve_conns(uint32_t num, netaddr dest_server_addr);
 
 private:
   constexpr static uint32_t kTCPListenBackLog = 64;
@@ -74,4 +70,3 @@ private:
 };
 } // namespace nu
 
-#include "impl/migrator.ipp"

@@ -8,6 +8,7 @@ extern "C" {
 }
 
 #include "defs.hpp"
+#include "utils/archive_pool.hpp"
 #include "utils/future.hpp"
 #include "utils/rcu_lock.hpp"
 #include "utils/slab.hpp"
@@ -38,7 +39,10 @@ public:
   ~Runtime();
   static std::unique_ptr<Runtime> init(uint16_t local_obj_srv_port,
                                        uint16_t local_migra_ldr_port,
-                                       netaddr remote_ctrl_addr, Mode mode);
+                                       netaddr ctrl_server_addr, Mode mode);
+  static void reserve_ctrl_server_conns(uint32_t num);
+  static void reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr);
+  static void reserve_migration_conns(uint32_t num, netaddr dest_server_addr);
 
 private:
   static RCULock rcu_lock;
@@ -52,6 +56,7 @@ private:
       RemObjID, RuntimeFuture<void>,
       RuntimeAllocator<std::pair<const RemObjID, RuntimeFuture<void>>>>>
       obj_inflight_inc_cnts;
+  static std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> archive_pool;
 
   friend class Test;
   friend class ObjServer;
@@ -66,13 +71,13 @@ private:
   template <typename T> friend class RuntimeDeleter;
 
   Runtime(uint16_t local_obj_srv_port, uint16_t local_migra_ldr_port,
-          netaddr remote_ctrl_addr, Mode mode);
+          netaddr ctrl_server_addr, Mode mode);
   static void init_runtime_heap();
-  static void init_as_controller(netaddr remote_ctrl_addr);
+  static void init_as_controller(netaddr ctrl_server_addr);
   static void init_as_server(uint16_t local_obj_srv_port,
                              uint16_t local_migra_ldr_port,
-                             netaddr remote_ctrl_addr);
-  static void init_as_client(netaddr remote_ctrl_addr);
+                             netaddr ctrl_server_addr);
+  static void init_as_client(netaddr ctrl_server_addr);
   template <typename Cls, typename Fn, typename... As>
   static bool run_within_obj_env(void *heap_base, Fn fn, As &&... args);
   template <typename Cls, typename Fn, typename... As>

@@ -14,7 +14,7 @@ using namespace nu;
 constexpr static uint64_t kBufSize = (4ULL << 30);
 constexpr static uint64_t kMinSlabClassSize =
     (1ULL << SlabAllocator::kMinSlabClassShift);
-constexpr static uint64_t kMaxSlabClassSize = (1ULL << 30);
+constexpr static uint64_t kMaxSlabClassSize = (1ULL << 27);
 
 static_assert(kBufSize >= kMaxSlabClassSize);
 
@@ -22,31 +22,27 @@ bool run_with_size(uint64_t obj_size, uint64_t class_size) {
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 
-  auto slab = SlabAllocator(0, buf, kBufSize);
+  auto slab = std::make_unique<SlabAllocator>(0, buf, kBufSize);
   uint64_t count = kBufSize / class_size;
-  if (slab.get_base() != buf) {
+  if (slab->get_base() != buf) {
     return false;
   }
 
   for (uint64_t i = 0; i < count; i++) {
-    if (slab.get_usage() != i * class_size ||
-        slab.get_remaining() != kBufSize - i * class_size) {
-      return false;
-    }
-    if (slab.allocate(obj_size) != buf + i * class_size + sizeof(PtrHeader)) {
+    if (slab->allocate(obj_size) != buf + i * class_size + sizeof(PtrHeader)) {
       return false;
     }
   }
-  if (slab.allocate(obj_size) != nullptr) {
+  if (slab->allocate(obj_size) != nullptr) {
     return false;
   }
 
-  slab.free(buf + sizeof(PtrHeader));
-  slab.free(buf + class_size + sizeof(PtrHeader));
-  if (slab.allocate(obj_size) != buf + class_size + sizeof(PtrHeader)) {
+  slab->free(buf + sizeof(PtrHeader));
+  slab->free(buf + class_size + sizeof(PtrHeader));
+  if (slab->allocate(obj_size) != buf + class_size + sizeof(PtrHeader)) {
     return false;
   }
-  if (slab.allocate(obj_size) != buf + sizeof(PtrHeader)) {
+  if (slab->allocate(obj_size) != buf + sizeof(PtrHeader)) {
     return false;
   }
 
@@ -68,8 +64,8 @@ bool run_more_than_buf_size() {
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 
-  auto slab = SlabAllocator(0, buf, kBufSize);
-  if (slab.allocate(kBufSize - sizeof(PtrHeader) + 1) != nullptr) {
+  auto slab = std::make_unique<SlabAllocator>(0, buf, kBufSize);
+  if (slab->allocate(kBufSize - sizeof(PtrHeader) + 1) != nullptr) {
     return false;
   }
   return true;

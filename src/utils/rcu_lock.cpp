@@ -2,7 +2,7 @@
 
 namespace nu {
 
-void RCULock::synchronize() {
+template <typename Fn> void RCULock::write_sync_general(Fn &&fn) {
   sync_barrier_ = true;
   barrier();
 
@@ -26,8 +26,23 @@ retry:
       goto retry;
     }
   }
+
+  fn();
+
   barrier();
   sync_barrier_ = false;
+}
+
+void RCULock::writer_sync() {
+  write_sync_general([] {});
+}
+
+void RCULock::writer_sync_fn(const std::function<void(void)> &fn) {
+  write_sync_general(fn);
+}
+
+void RCULock::writer_sync_fn(std::function<void(void)> &&fn) {
+  write_sync_general(fn);
 }
 
 } // namespace nu

@@ -8,19 +8,24 @@
 extern "C" {
 #include <runtime/tcp.h>
 }
+#include <sync.h>
 
 #include "defs.hpp"
 #include "runtime_alloc.hpp"
+#include "utils/cached_pool.hpp"
 
 namespace nu {
 
 template <typename Key> class ConnectionManager {
 public:
-  ConnectionManager(const std::function<tcpconn_t *(Key)> &creator);
-  ConnectionManager(std::function<tcpconn_t *(Key)> &&creator);
+  ConnectionManager(const std::function<tcpconn_t *(Key)> &creator,
+                    uint32_t per_core_cache_size);
+  ConnectionManager(std::function<tcpconn_t *(Key)> &&creator,
+                    uint32_t per_core_cache_size);
   ~ConnectionManager();
   tcpconn_t *get_conn(Key k);
   void put_conn(Key k, tcpconn_t *conn);
+  void reserve_conns(Key k, uint32_t num);
 
 private:
   using Val =
@@ -31,7 +36,10 @@ private:
   using Allocator = RuntimeAllocator<std::pair<const Key, Val>>;
   std::unordered_map<Key, Val, Hash, KeyEqual, Allocator>
       cached_conns_[kNumCores];
+  std::unordered_map<Key, Val, Hash, KeyEqual, Allocator> global_conns_;
+  rt::Spin global_spin_;
   std::function<tcpconn_t *(Key)> creator_;
+  uint32_t per_core_cache_size_;
 };
 } // namespace nu
 

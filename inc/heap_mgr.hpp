@@ -12,6 +12,7 @@ extern "C" {
 #include <sync.h>
 
 #include "defs.hpp"
+#include "utils/rcu_hash_set.hpp"
 #include "utils/rcu_lock.hpp"
 #include "utils/slab.hpp"
 #include "utils/ts_hash_set.hpp"
@@ -36,6 +37,7 @@ struct HeapHeader {
   std::unique_ptr<ThreadSafeHashSet<CondVar *, RuntimeAllocator<CondVar *>>>
       condvars;
   std::unique_ptr<Time> time;
+
   bool migratable;
 
   // Ref cnt related.
@@ -56,15 +58,14 @@ public:
   void insert(void *heap_base);
   bool contains(void *heap_base);
   bool remove(void *heap_base);
-  void rcu_lock();
-  void rcu_unlock();
-  void rcu_synchronize();
+  void rcu_reader_lock();
+  void rcu_reader_unlock();
+  void rcu_writer_sync();
   SlabAllocator *get_slab(void *heap_base);
   std::list<void *> pick_heaps(const Resource &pressure);
 
 private:
-  std::unique_ptr<ThreadSafeHashSet<void *, RuntimeAllocator<void *>>>
-      heap_statuses_;
+  std::unique_ptr<RCUHashSet<void *, RuntimeAllocator<void *>>> heap_statuses_;
   RCULock rcu_lock_;
 };
 } // namespace nu

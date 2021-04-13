@@ -47,7 +47,7 @@ private:
   tcpqueue_t *tcp_queue_;
   friend class Migrator;
 
-  static void send_rpc_resp(std::stringstream &ss, tcpconn_t *rpc_conn);
+  static void send_rpc_resp(auto &ss, tcpconn_t *rpc_conn);
   static void send_rpc_client_retry(tcpconn_t *rpc_conn);
   void handle_reqs(tcpconn_t *rpc_conn);
   template <typename Cls>

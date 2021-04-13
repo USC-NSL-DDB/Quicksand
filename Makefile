@@ -6,17 +6,17 @@ include $(CALADAN_PATH)/build/shared.mk
 NCORES = $(shell nproc)
 
 INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched
-override CXXFLAGS += -std=gnu++2a -fconcepts -Wno-subobject-linkage -DNCORES=$(NCORES)
+override CXXFLAGS += -Wno-subobject-linkage -DNCORES=$(NCORES)
 override LDFLAGS += -lboost_system
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
 
+lib_src = $(wildcard src/*.cpp) $(wildcard src/utils/*.cpp)
+lib_obj = $(lib_src:.cpp=.o)
+
 src = $(lib_src)
 obj = $(src:.cpp=.o)
 dep = $(obj:.o=.d)
-
-lib_src = $(wildcard src/*.cpp) $(wildcard src/utils/*.cpp)
-lib_obj = $(lib_src:.cpp=.o)
 
 test_closure_src = test/test_closure.cpp
 test_closure_obj = $(test_closure_src:.cpp=.o)
@@ -37,8 +37,16 @@ test_condvar_obj = $(test_condvar_src:.cpp=.o)
 test_time_src = test/test_time.cpp
 test_time_obj = $(test_time_src:.cpp=.o)
 
+bench_rpc_lat_src = bench/bench_rpc_lat.cpp
+bench_rpc_lat_obj = $(bench_rpc_lat_src:.cpp=.o)
+bench_rpc_tput_src = bench/bench_rpc_tput.cpp
+bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
+bench_tcp_tput_src = bench/bench_tcp_tput.cpp
+bench_tcp_tput_obj = $(bench_tcp_tput_src:.cpp=.o)
+
 all: libservless.a bin/test_slab bin/test_closure bin/test_method bin/test_multi_objs \
-bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time
+bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
+bin/bench_rpc_lat bin/bench_rpc_tput bin/bench_tcp_tput
 
 libservless.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -67,10 +75,17 @@ bin/test_condvar: $(test_condvar_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 bin/test_time: $(test_time_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_time_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS) -lrt
 
+bin/bench_rpc_lat: $(bench_rpc_lat_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_rpc_lat_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS) -lrt
+bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS) -lrt
+bin/bench_tcp_tput: $(bench_tcp_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_tcp_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS) -lrt
+
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)
 endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) src/*.o src/utils/*.o test/*.o bin/* lib*.a
+	rm -f $(dep) src/*.o src/utils/*.o test/*.o bench/*.o bin/* lib*.a

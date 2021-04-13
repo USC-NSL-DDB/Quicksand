@@ -16,7 +16,6 @@ namespace nu {
 template <typename Cls, typename... As>
 void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
                               tcpconn_t *rpc_conn) {
-  std::stringstream ret_ss;
   void *base;
   ia >> base;
 
@@ -39,7 +38,9 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   barrier();
   Runtime::heap_manager->insert(base);
 
-  send_rpc_resp(ret_ss, rpc_conn);
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  send_rpc_resp(oa_sstream->ss, rpc_conn);
+  Runtime::archive_pool->put_oa_sstream(oa_sstream);
 }
 
 template <typename Cls>
@@ -60,8 +61,9 @@ void ObjServer::__update_ref_cnt(Cls &obj, tcpconn_t *rpc_conn,
     }
   }
 
-  std::stringstream ret_ss;
-  send_rpc_resp(ret_ss, rpc_conn);
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  send_rpc_resp(oa_sstream->ss, rpc_conn);
+  Runtime::archive_pool->put_oa_sstream(oa_sstream);
 }
 
 template <typename Cls>
@@ -86,7 +88,7 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
   }
 
   if (deallocate) {
-    Runtime::heap_manager->rcu_synchronize();
+    Runtime::heap_manager->rcu_writer_sync();
     Runtime::heap_manager->deallocate(heap_base);
   }
 }
@@ -94,8 +96,7 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 void ObjServer::__closure_handler(Cls &obj, cereal::BinaryInputArchive &ia,
                                   tcpconn_t *rpc_conn) {
-  std::stringstream ret_ss;
-  cereal::BinaryOutputArchive oa(ret_ss);
+  decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
 
   FnPtr fn;
   ia >> fn;
@@ -106,14 +107,18 @@ void ObjServer::__closure_handler(Cls &obj, cereal::BinaryInputArchive &ia,
   Runtime::migration_enable();
   if constexpr (std::is_same<RetT, void>::value) {
     std::apply([&](auto &&... states) { fn(obj, states...); }, states);
+    Runtime::migration_disable();
+    oa_sstream = Runtime::archive_pool->get_oa_sstream();
   } else {
     auto ret = std::apply([&](auto &&... states) { return fn(obj, states...); },
                           states);
-    oa << ret;
+    Runtime::migration_disable();
+    oa_sstream = Runtime::archive_pool->get_oa_sstream();
+    oa_sstream->oa << ret;
   }
-  Runtime::migration_disable();
 
-  send_rpc_resp(ret_ss, rpc_conn);
+  send_rpc_resp(oa_sstream->ss, rpc_conn);
+  Runtime::archive_pool->put_oa_sstream(oa_sstream);
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
@@ -134,8 +139,7 @@ void ObjServer::closure_handler(cereal::BinaryInputArchive &ia,
 template <typename Cls, typename RetT, typename MdPtr, typename... A1s>
 void ObjServer::__method_handler(Cls &obj, cereal::BinaryInputArchive &ia,
                                  tcpconn_t *rpc_conn) {
-  std::stringstream ret_ss;
-  cereal::BinaryOutputArchive oa(ret_ss);
+  decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
 
   MdPtr md;
   ia >> md.raw;
@@ -146,14 +150,18 @@ void ObjServer::__method_handler(Cls &obj, cereal::BinaryInputArchive &ia,
   Runtime::migration_enable();
   if constexpr (std::is_same<RetT, void>::value) {
     std::apply([&](auto &&... args) { (obj.*(md.ptr))(args...); }, args);
+    Runtime::migration_disable();
+    oa_sstream = Runtime::archive_pool->get_oa_sstream();
   } else {
     auto ret = std::apply(
         [&](auto &&... args) { return (obj.*(md.ptr))(args...); }, args);
-    oa << ret;
+    Runtime::migration_disable();
+    oa_sstream = Runtime::archive_pool->get_oa_sstream();
+    oa_sstream->oa << ret;
   }
-  Runtime::migration_disable();
 
-  send_rpc_resp(ret_ss, rpc_conn);
+  send_rpc_resp(oa_sstream->ss, rpc_conn);
+  Runtime::archive_pool->put_oa_sstream(oa_sstream);
 }
 
 template <typename Cls, typename RetT, typename MdPtr, typename... A1s>
@@ -176,6 +184,21 @@ inline void ObjServer::send_rpc_client_retry(tcpconn_t *rpc_conn) {
   hdr.rc = CLIENT_RETRY;
   hdr.payload_size = 0;
   tcp_write_until(rpc_conn, &hdr, sizeof(hdr));
+}
+
+void ObjServer::send_rpc_resp(auto &ss, tcpconn_t *rpc_conn) {
+  ObjRPCRespHdr hdr;
+  auto view = ss.view();
+  hdr.payload_size = ss.tellp();
+
+  if (unlikely(thread_is_migrated())) {
+    hdr.rc = FORWARDED;
+    Runtime::migrator->forward_to_original_server(hdr, view.data(), rpc_conn);
+  } else {
+    hdr.rc = OK;
+    tcp_write2_until(rpc_conn, &hdr, sizeof(hdr), view.data(),
+                     hdr.payload_size);
+  }
 }
 
 } // namespace nu

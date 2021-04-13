@@ -17,7 +17,7 @@ ControllerConnManager::ControllerConnManager(netaddr remote_ctrl_addr)
                0);
         return tcp_conn;
       }),
-      mgr_(creator_) {}
+      mgr_(creator_, kNumPerCoreCachedConns) {}
 
 inline tcpconn_t *ControllerConnManager::get_conn() {
   return mgr_.get_conn(false);
@@ -25,6 +25,10 @@ inline tcpconn_t *ControllerConnManager::get_conn() {
 
 inline void ControllerConnManager::put_conn(tcpconn_t *conn) {
   mgr_.put_conn(false, conn);
+}
+
+inline void ControllerConnManager::reserve_conns(uint32_t num) {
+  mgr_.reserve_conns(false, num);
 }
 
 ControllerClient::ControllerClient(netaddr remote_ctrl_addr)
@@ -125,5 +129,7 @@ void ControllerClient::update_location(RemObjID id, netaddr obj_srv_addr) {
   tcp_read_until(c, &resp, sizeof(resp));
   conn_mgr_.put_conn(c);
 }
+
+void ControllerClient::reserve_conns(uint32_t num) { conn_mgr_.reserve_conns(num); }
 
 } // namespace nu
