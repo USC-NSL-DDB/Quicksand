@@ -17,3 +17,5 @@ bool tcp_write2_until(tcpconn_t *c, const void *buf_0, size_t expect_0,
                       const void *buf_1, size_t expect_1);
 
 } // namespace nu
+
+#include "impl/tcp.ipp"

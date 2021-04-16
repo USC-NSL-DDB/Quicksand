@@ -20,42 +20,18 @@ RemObjConnManager::RemObjConnManager()
           kNumPerCoreCachedConns) {}
 
 netaddr RemObjConnManager::get_addr(RemObjID id) {
-  auto &id_map_entry = id_map_.get_or_emplace(id);
-  if (unlikely(!load_acquire(&id_map_entry.valid))) {
-    rt::ScopedLock<rt::Mutex> lock(&id_map_entry.mutex);
-    if (!id_map_entry.valid) {
-      auto optional_addr = Runtime::controller_client->resolve_obj(id);
-      BUG_ON(!optional_addr);
-      IDMapEntry::Addr addr;
-      addr.addr = *optional_addr;
-      id_map_entry.addr.raw = addr.raw; // Guaranteed to be atomic.
-      store_release(&id_map_entry.valid, true);
-    }
+  auto *addr = id_map_.get(id);
+
+  if (unlikely(!addr)) {
+    auto optional_addr = Runtime::controller_client->resolve_obj(id);
+    BUG_ON(!optional_addr);
+    id_map_.put_if_not_exists(id, *optional_addr);
+    return *optional_addr;
   }
-  return id_map_entry.addr.addr;
+
+  return *addr;
 }
 
-void RemObjConnManager::update_addr(RemObjID id, netaddr old_addr) {
-  auto &id_map_entry = id_map_.get(id);
-  if (id_map_entry.addr.addr == old_addr) {
-    rt::ScopedLock<rt::Mutex> lock(&id_map_entry.mutex);
-    if (likely(id_map_entry.addr.addr == old_addr)) {
-      id_map_entry.valid = false;
-    retry:
-      auto optional_addr = Runtime::controller_client->resolve_obj(id);
-      BUG_ON(!optional_addr);
-      if (unlikely(*optional_addr == old_addr)) {
-        timer_sleep(kUpdateAddrRetryUs);
-        goto retry;
-      }
-      IDMapEntry::Addr addr;
-      addr.addr = *optional_addr;
-      id_map_entry.addr.raw = addr.raw; // Guaranteed to be atomic.
-      store_release(&id_map_entry.valid, true);
-    }
-  }
-}
+void RemObjConnManager::update_addr(RemObjID id) { id_map_.remove(id); }
 
 } // namespace nu
-
-

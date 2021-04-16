@@ -12,7 +12,6 @@ extern "C" {
 #include "utils/future.hpp"
 #include "utils/rcu_lock.hpp"
 #include "utils/slab.hpp"
-#include "utils/ts_hash_map.hpp"
 
 namespace nu {
 
@@ -52,10 +51,6 @@ private:
   static std::unique_ptr<RemObjConnManager> rem_obj_conn_mgr;
   static std::unique_ptr<Migrator> migrator;
   static std::unique_ptr<Monitor> monitor;
-  static std::unique_ptr<ThreadSafeHashMap<
-      RemObjID, RuntimeFuture<void>,
-      RuntimeAllocator<std::pair<const RemObjID, RuntimeFuture<void>>>>>
-      obj_inflight_inc_cnts;
   static std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> archive_pool;
 
   friend class Test;

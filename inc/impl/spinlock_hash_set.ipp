@@ -9,13 +9,13 @@ namespace nu {
 
 template <typename K, typename Allocator, size_t NPartitions>
 template <typename K1>
-size_t ThreadSafeHashSet<K, Allocator, NPartitions>::partitioner(K1 &&k) {
+size_t SpinlockHashSet<K, Allocator, NPartitions>::partitioner(K1 &&k) {
   return std::hash<K>{}(std::forward<K1>(k)) % NPartitions;
 }
 
 template <typename K, typename Allocator, size_t NPartitions>
 template <typename K1>
-void ThreadSafeHashSet<K, Allocator, NPartitions>::put(K1 &&k) {
+void SpinlockHashSet<K, Allocator, NPartitions>::put(K1 &&k) {
   auto idx = partitioner(std::forward<K1>(k));
   rt::ScopedLock<rt::Spin> lock(&spins_[idx].spin);
   sets_[idx].emplace(std::forward<K1>(k));
@@ -23,7 +23,7 @@ void ThreadSafeHashSet<K, Allocator, NPartitions>::put(K1 &&k) {
 
 template <typename K, typename Allocator, size_t NPartitions>
 template <typename K1>
-bool ThreadSafeHashSet<K, Allocator, NPartitions>::remove(K1 &&k) {
+bool SpinlockHashSet<K, Allocator, NPartitions>::remove(K1 &&k) {
   auto idx = partitioner(std::forward<K1>(k));
   rt::ScopedLock<rt::Spin> lock(&spins_[idx].spin);
   return sets_[idx].erase(std::forward<K1>(k));
@@ -31,7 +31,7 @@ bool ThreadSafeHashSet<K, Allocator, NPartitions>::remove(K1 &&k) {
 
 template <typename K, typename Allocator, size_t NPartitions>
 template <typename K1>
-bool ThreadSafeHashSet<K, Allocator, NPartitions>::contains(K1 &&k) {
+bool SpinlockHashSet<K, Allocator, NPartitions>::contains(K1 &&k) {
   auto idx = partitioner(std::forward<K1>(k));
   rt::ScopedLock<rt::Spin> lock(&spins_[idx].spin);
   return sets_[idx].contains(std::forward<K1>(k));
@@ -39,7 +39,7 @@ bool ThreadSafeHashSet<K, Allocator, NPartitions>::contains(K1 &&k) {
 
 template <typename K, typename Allocator, size_t NPartitions>
 std::vector<K, Allocator>
-ThreadSafeHashSet<K, Allocator, NPartitions>::all_keys() {
+SpinlockHashSet<K, Allocator, NPartitions>::all_keys() {
   std::vector<K, Allocator> keys;
   for (size_t i = 0; i < NPartitions; i++) {
     rt::ScopedLock<rt::Spin> lock(&spins_[i].spin);
@@ -51,7 +51,7 @@ ThreadSafeHashSet<K, Allocator, NPartitions>::all_keys() {
 }
 
 template <typename K, typename Allocator, size_t NPartitions>
-void ThreadSafeHashSet<K, Allocator, NPartitions>::for_each(
+void SpinlockHashSet<K, Allocator, NPartitions>::for_each(
     const std::function<bool(const K &)> &fn) {
   for (size_t i = 0; i < NPartitions; i++) {
     rt::ScopedLock<rt::Spin> lock(&spins_[i].spin);

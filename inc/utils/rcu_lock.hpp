@@ -12,8 +12,6 @@ public:
   void reader_lock();
   void reader_unlock();
   void writer_sync();
-  void writer_sync_fn(const std::function<void(void)> &fn);
-  void writer_sync_fn(std::function<void(void)> &&fn);
 
 private:
   union Cnt {

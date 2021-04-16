@@ -11,10 +11,10 @@ include $(ROOT_PATH)/build/config
 INC = -I$(ROOT_PATH)/inc
 FLAGS  = -g -Wall -D_GNU_SOURCE $(INC)
 LDFLAGS = -T $(ROOT_PATH)/base/base.ld
-LD      = gcc-10
-CC      = gcc-10
-LDXX	= g++-10
-CXX	= g++-10
+LD      = gcc-11
+CC      = gcc-11
+LDXX	= g++-11
+CXX	= g++-11
 AR      = ar
 SPARSE  = sparse
 
@@ -36,7 +36,7 @@ LDFLAGS += -rdynamic
 else
 FLAGS += -DNDEBUG -O3
 ifeq ($(CONFIG_OPTIMIZE),y)
-FLAGS += -march=native -flto -ffast-math
+FLAGS += -march=native -ffast-math
 else
 FLAGS += -mssse3
 endif
@@ -61,8 +61,8 @@ INC += $(MLX5_INC)
 FLAGS += -DDIRECTPATH
 endif
 
-CFLAGS = -std=gnu11 $(FLAGS)
-CXXFLAGS = -std=gnu++11 $(FLAGS)
+CFLAGS = $(FLAGS)
+CXXFLAGS = -std=gnu++20 $(FLAGS)
 
 # handy for debugging
 print-%  : ; @echo $* = $($*) 

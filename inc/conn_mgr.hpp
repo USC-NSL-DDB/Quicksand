@@ -30,7 +30,7 @@ public:
 private:
   using Val =
       std::stack<tcpconn_t *,
-                 std::deque<tcpconn_t *, RuntimeAllocator<tcpconn_t *>>>;
+                 std::vector<tcpconn_t *, RuntimeAllocator<tcpconn_t *>>>;
   using Hash = std::hash<Key>;
   using KeyEqual = std::equal_to<Key>;
   using Allocator = RuntimeAllocator<std::pair<const Key, Val>>;

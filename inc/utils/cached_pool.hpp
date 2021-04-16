@@ -24,7 +24,7 @@ public:
 private:
   using RebindAlloc =
       std::allocator_traits<Allocator>::template rebind_alloc<T *>;
-  using ItemStack = std::stack<T *, std::deque<T *, RebindAlloc>>;
+  using ItemStack = std::stack<T *, std::vector<T *, RebindAlloc>>;
 
   std::function<T *(void)> new_fn_;
   std::function<void(T *)> delete_fn_;

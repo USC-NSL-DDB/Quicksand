@@ -25,6 +25,15 @@ constexpr netaddr server_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 4),
 
 bool server_mode;
 
+uint8_t server_buf0[8];
+uint8_t server_buf1[32];
+uint8_t server_buf2[16];
+uint8_t server_buf3[4];
+uint8_t client_buf0[8];
+uint8_t client_buf1[32];
+uint8_t client_buf2[16];
+uint8_t client_buf3[4];
+
 struct AlignedCnt {
   uint32_t cnt;
   uint8_t pads[kCacheLineBytes - sizeof(cnt)];
@@ -34,11 +43,10 @@ AlignedCnt cnts[kNumThreads];
 
 void server_fn(tcpconn_t *c) {
   while (true) {
-    uint8_t buf0[24];
-    BUG_ON(!tcp_read_until(c, buf0, sizeof(buf0)));
-    uint8_t buf1[16];
-    uint8_t buf2[8];
-    BUG_ON(!tcp_write2_until(c, buf1, sizeof(buf1), buf2, sizeof(buf2)));
+    BUG_ON(!tcp_read_until(c, server_buf0, sizeof(server_buf0)));
+    BUG_ON(!tcp_read_until(c, server_buf1, sizeof(server_buf1)));
+    BUG_ON(!tcp_write2_until(c, server_buf2, sizeof(server_buf2), server_buf3,
+                             sizeof(server_buf3)));
   }
 }
 
@@ -59,12 +67,10 @@ void do_client() {
       BUG_ON(tcp_dial(local_addr, server_addr, &c) != 0);
 
       while (true) {
-        uint8_t buf0[24];
-        BUG_ON(!tcp_write_until(c, buf0, sizeof(buf0)));
-        uint8_t buf1[16];
-        uint8_t buf2[8];
-        BUG_ON(!tcp_read_until(c, buf1, sizeof(buf1)));
-        BUG_ON(!tcp_read_until(c, buf2, sizeof(buf2)));
+        BUG_ON(!tcp_write2_until(c, client_buf0, sizeof(client_buf0),
+                                 client_buf1, sizeof(client_buf1)));
+        BUG_ON(!tcp_read_until(c, client_buf2, sizeof(client_buf2)));
+        BUG_ON(!tcp_read_until(c, client_buf3, sizeof(client_buf3)));
         cnts[tid].cnt++;
       }
     }).Detach();
@@ -124,3 +130,4 @@ wrong_args:
   std::cerr << "usage: [cfg_file] CLT/SRV" << std::endl;
   return -EINVAL;
 }
+

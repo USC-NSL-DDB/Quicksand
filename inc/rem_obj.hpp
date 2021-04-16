@@ -8,9 +8,9 @@ extern "C" {
 #include <cstdint>
 
 #include "defs.hpp"
+#include "runtime_deleter.hpp"
 #include "utils/future.hpp"
 #include "utils/promise.hpp"
-#include "utils/ts_hash_map.hpp"
 
 namespace nu {
 
@@ -41,9 +41,8 @@ public:
 
 private:
   RemObjID id_;
- // DBG
-public:
   Future<void> construct_;
+  Future<void, RuntimeDeleter<nu::Promise<void>>> inc_ref_;
 
   RemObj(RemObjID id);
   RemObj(RemObjID id, Future<void> &&construct);

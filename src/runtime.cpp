@@ -29,10 +29,6 @@ std::unique_ptr<ControllerClient> Runtime::controller_client;
 std::unique_ptr<RemObjConnManager> Runtime::rem_obj_conn_mgr;
 std::unique_ptr<Migrator> Runtime::migrator;
 std::unique_ptr<Monitor> Runtime::monitor;
-std::unique_ptr<ThreadSafeHashMap<
-    RemObjID, RuntimeFuture<void>,
-    RuntimeAllocator<std::pair<const RemObjID, RuntimeFuture<void>>>>>
-    Runtime::obj_inflight_inc_cnts;
 std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
 
 void Runtime::init_runtime_heap() {
@@ -61,8 +57,6 @@ void Runtime::init_as_server(uint16_t local_obj_srv_port,
   heap_manager.reset(new decltype(heap_manager)::element_type());
   controller_client.reset(new decltype(controller_client)::element_type(
       local_obj_srv_port, local_migra_ldr_port, ctrl_server_addr));
-  obj_inflight_inc_cnts.reset(
-      new decltype(obj_inflight_inc_cnts)::element_type());
   rem_obj_conn_mgr.reset(new decltype(rem_obj_conn_mgr)::element_type());
   monitor.reset(new decltype(monitor)::element_type());
   rt::Thread monitor_thread([&] { monitor->run_loop(); });
@@ -74,8 +68,6 @@ void Runtime::init_as_server(uint16_t local_obj_srv_port,
 void Runtime::init_as_client(netaddr ctrl_server_addr) {
   controller_client.reset(
       new decltype(controller_client)::element_type(ctrl_server_addr));
-  obj_inflight_inc_cnts.reset(
-      new decltype(obj_inflight_inc_cnts)::element_type());
   rem_obj_conn_mgr.reset(new decltype(rem_obj_conn_mgr)::element_type());
   archive_pool.reset(new decltype(archive_pool)::element_type());
 }
@@ -117,7 +109,6 @@ Runtime::~Runtime() {
   rem_obj_conn_mgr.reset();
   monitor.reset();
   migrator.reset();
-  obj_inflight_inc_cnts.reset();
   archive_pool.reset();
   barrier();
   active_runtime = false;

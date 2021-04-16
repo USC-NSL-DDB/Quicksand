@@ -82,8 +82,6 @@ void *SlabAllocator::allocate(size_t size) noexcept {
 }
 
 void SlabAllocator::free(const void *_ptr) noexcept {
-  rt::ScopedLock<rt::Spin> lock(&spin_);
-
   auto ptr = const_cast<void *>(_ptr);
   auto *hdr = reinterpret_cast<PtrHeader *>(reinterpret_cast<uintptr_t>(ptr) -
                                             sizeof(PtrHeader));
@@ -99,6 +97,7 @@ void SlabAllocator::free(const void *_ptr) noexcept {
     cached_entries[cnt++] = ptr;
 
     if (unlikely(cnt >= kPerCoreCacheSize)) {
+      rt::ScopedLock<rt::Spin> lock(&spin_);
       auto &slab_head = slab_entries_[slab_shift];
       while (cnt > kPerCoreCacheSize / 2) {
         auto old_head = slab_head;

@@ -6,13 +6,13 @@
 #include <utility>
 #include <vector>
 
-#include "sync.h"
+#include <sync.h>
 
 namespace nu {
 
 template <typename K, typename Allocator = std::allocator<K>,
-          size_t NPartitions = 67>
-class ThreadSafeHashSet {
+          size_t NPartitions = 29>
+class SpinlockHashSet {
 public:
   template <typename K1> void put(K1 &&k);
   template <typename K1> bool remove(K1 &&k);
@@ -35,4 +35,4 @@ private:
 };
 } // namespace nu
 
-#include "impl/ts_hash_set.ipp"
+#include "impl/spinlock_hash_set.ipp"

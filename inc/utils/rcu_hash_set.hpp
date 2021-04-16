@@ -12,8 +12,7 @@
 
 namespace nu {
 
-template <typename K, typename Allocator = std::allocator<K>,
-          size_t NPartitions = 67>
+template <typename K, typename Allocator = std::allocator<K>>
 class RCUHashSet {
 public:
   template <typename K1> void put(K1 &&k);
@@ -25,19 +24,11 @@ private:
   using Hash = std::hash<K>;
   using KeyEqual = std::equal_to<K>;
 
-  struct alignas(kCacheLineBytes) AlignedSpin {
-    rt::Spin spin;
-  };
-  struct alignas(kCacheLineBytes) AlignedRCU {
-    RCULock rcu;
-  };
-
-  std::unordered_set<K, Hash, KeyEqual, Allocator> sets_[NPartitions];
-  AlignedSpin spins_[NPartitions];
-  AlignedRCU rcus_[NPartitions];
-
-  template <typename K1> size_t partitioner(K1 &&k);
+  std::unordered_set<K, Hash, KeyEqual, Allocator> set_;
+  rt::Mutex mutex_;
+  RCULock rcu_;
+  bool writer_barrier_ = false;
 };
-} // namespace nu
+} // namespace nun
 
 #include "impl/rcu_hash_set.ipp"

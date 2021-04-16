@@ -6,14 +6,14 @@
 #include <unordered_map>
 #include <utility>
 
-#include "sync.h"
+#include <sync.h>
 
 namespace nu {
 
 template <typename K, typename V,
           typename Allocator = std::allocator<std::pair<const K, V>>,
-          size_t NPartitions = 67>
-class ThreadSafeHashMap {
+          size_t NPartitions = 29>
+class SpinlockHashMap {
 public:
   template <typename K1> V &get(K1 &&k);
   template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
@@ -38,4 +38,4 @@ private:
 };
 } // namespace nu
 
-#include "impl/ts_hash_map.ipp"
+#include "impl/spinlock_hash_map.ipp"

@@ -61,8 +61,7 @@ Promise<T> *Promise<T>::create(const std::function<T()> &func) {
   rt::Thread([promise, func = std::move(func)] {
     *promise->data() = func();
     promise->set_ready();
-  })
-      .Detach();
+  }).Detach();
   return promise;
 }
 
@@ -75,8 +74,7 @@ Promise<T> *Promise<T>::create(std::function<T()> &&func) {
   rt::Thread([promise, func = std::move(func)] {
     *promise->data() = func();
     promise->set_ready();
-  })
-      .Detach();
+  }).Detach();
   return promise;
 }
 
@@ -88,8 +86,7 @@ Promise<void> *Promise<void>::create(const std::function<void()> &func) {
   rt::Thread([promise, func = std::move(func)] {
     func();
     promise->set_ready();
-  })
-      .Detach();
+  }).Detach();
   return promise;
 }
 
@@ -101,8 +98,7 @@ Promise<void> *Promise<void>::create(std::function<void()> &&func) {
   rt::Thread([promise, func = std::move(func)] {
     func();
     promise->set_ready();
-  })
-      .Detach();
+  }).Detach();
   return promise;
 }
 } // namespace nu

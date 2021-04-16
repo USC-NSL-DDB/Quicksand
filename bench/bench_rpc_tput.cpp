@@ -16,8 +16,7 @@ extern "C" {
 using namespace nu;
 using namespace std;
 
-constexpr static uint32_t kNumThreads = 5;
-constexpr static uint32_t kQueueDepth = 32;
+constexpr static uint32_t kNumThreads = 300;
 Runtime::Mode mode;
 
 struct AlignedCnt {
@@ -39,16 +38,10 @@ void do_work() {
 
   for (uint32_t i = 0; i < kNumThreads; i++) {
     rt::Thread([&, tid = i] {
-      int idx = 0;
-      Future<int> futures[kQueueDepth];
-      for (uint32_t i = 0; i < kQueueDepth; i++) {
-        futures[i] = std::move(rem_obj.run_async(&Obj::foo));
-      }
       while (true) {
-        futures[idx].get();
+        auto ret = rem_obj.run(&Obj::foo);
+        ACCESS_ONCE(ret);
         cnts[tid].cnt++;
-        futures[idx] = std::move(rem_obj.run_async(&Obj::foo));
-        idx = (idx + 1) % kQueueDepth;
       }
     }).Detach();
   }

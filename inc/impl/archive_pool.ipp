@@ -9,27 +9,27 @@ ArchivePool<Allocator>::ArchivePool(uint32_t per_core_cache_size)
     : ia_pool_(
           [] {
             IAAllocator allocator;
-            auto *ia_sstream = allocator.allocate(sizeof(IASStream));
+            auto *ia_sstream = allocator.allocate(1);
             new (ia_sstream) IASStream();
             return ia_sstream;
           },
           [](IASStream *ia_sstream) {
             IAAllocator allocator;
             ia_sstream->~IASStream();
-            allocator.deallocate(ia_sstream, sizeof(IASStream));
+            allocator.deallocate(ia_sstream, 1);
           },
           per_core_cache_size),
       oa_pool_(
           [] {
             OAAllocator allocator;
-            auto *oa_sstream = allocator.allocate(sizeof(OASStream));
+            auto *oa_sstream = allocator.allocate(1);
             new (oa_sstream) OASStream();
             return oa_sstream;
           },
           [](OASStream *oa_sstream) {
             OAAllocator allocator;
             oa_sstream->~OASStream();
-            allocator.deallocate(oa_sstream, sizeof(OASStream));
+            allocator.deallocate(oa_sstream, 1);
           },
           per_core_cache_size) {}
 

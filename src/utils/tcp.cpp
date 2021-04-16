@@ -1,12 +1,11 @@
+#include <cstdint>
+#include <cstring>
+
 #include "utils/tcp.hpp"
 
 namespace nu {
 
-bool tcp_read_until(tcpconn_t *c, void *buf, size_t expect) {
-  if (unlikely(!expect)) {
-    return true;
-  }
-
+bool __tcp_read_until(tcpconn_t *c, void *buf, size_t expect) {
   ssize_t s_real = tcp_read(c, reinterpret_cast<uint8_t *>(buf), expect);
   if (unlikely(s_real <= 0)) {
     return false;
@@ -26,16 +25,8 @@ bool tcp_read_until(tcpconn_t *c, void *buf, size_t expect) {
   return true;
 }
 
-bool tcp_read2_until(tcpconn_t *c, void *buf_0, size_t expect_0, void *buf_1,
+bool __tcp_read2_until(tcpconn_t *c, void *buf_0, size_t expect_0, void *buf_1,
                      size_t expect_1) {
-  if (unlikely(expect_0 + expect_1 == 0)) {
-    return true;
-  } else if (unlikely(expect_0 == 0)) {
-    return tcp_read_until(c, buf_1, expect_1);
-  } else if (unlikely(expect_1 == 0)) {
-    return tcp_read_until(c, buf_0, expect_0);
-  }
-
   iovec iovecs[2];
   iovecs[0] = {.iov_base = const_cast<void *>(buf_0), .iov_len = expect_0};
   iovecs[1] = {.iov_base = const_cast<void *>(buf_1), .iov_len = expect_1};
@@ -67,11 +58,7 @@ bool tcp_read2_until(tcpconn_t *c, void *buf_0, size_t expect_0, void *buf_1,
   return true;
 }
 
-bool tcp_write_until(tcpconn_t *c, const void *buf, size_t expect) {
-  if (unlikely(!expect)) {
-    return true;
-  }
-
+bool __tcp_write_until(tcpconn_t *c, const void *buf, size_t expect) {
   ssize_t s_real = tcp_write(c, reinterpret_cast<const uint8_t *>(buf), expect);
   if (unlikely(s_real < 0)) {
     return false;
@@ -91,16 +78,8 @@ bool tcp_write_until(tcpconn_t *c, const void *buf, size_t expect) {
   return true;
 }
 
-bool tcp_write2_until(tcpconn_t *c, const void *buf_0, size_t expect_0,
-                      const void *buf_1, size_t expect_1) {
-  if (unlikely(expect_0 + expect_1 == 0)) {
-    return true;
-  } else if (unlikely(expect_0 == 0)) {
-    return tcp_write_until(c, buf_1, expect_1);
-  } else if (unlikely(expect_1 == 0)) {
-    return tcp_write_until(c, buf_0, expect_0);
-  }
-
+bool __tcp_write2_until(tcpconn_t *c, const void *buf_0, size_t expect_0,
+                        const void *buf_1, size_t expect_1) {
   iovec iovecs[2];
   iovecs[0] = {.iov_base = const_cast<void *>(buf_0), .iov_len = expect_0};
   iovecs[1] = {.iov_base = const_cast<void *>(buf_1), .iov_len = expect_1};

@@ -8,7 +8,7 @@ namespace nu {
 
 class Monitor {
 public:
-  constexpr static uint32_t kPollIntervalUs = 2;
+  constexpr static uint32_t kPollIntervalUs = 100;
 
   Monitor();
   ~Monitor();

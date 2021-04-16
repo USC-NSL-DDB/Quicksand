@@ -46,11 +46,11 @@ retry:
   tcp_read_until(conn, &hdr, sizeof(hdr));
 
   if (unlikely(hdr.rc == CLIENT_RETRY)) {
-    Runtime::rem_obj_conn_mgr->update_addr(id, tcp_remote_addr(conn));
+    Runtime::rem_obj_conn_mgr->update_addr(id);
     Runtime::rem_obj_conn_mgr->put_conn(conn);
     goto retry;
   } else if (unlikely(hdr.rc == FORWARDED)) {
-    Runtime::rem_obj_conn_mgr->update_addr(id, tcp_remote_addr(conn));
+    Runtime::rem_obj_conn_mgr->update_addr(id);
   }
 
   auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
@@ -259,15 +259,13 @@ RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
 };
 
 template <typename T> void RemObj<T>::inc_ref_cnt() {
-  auto future =
-      update_ref_cnt(1)->template get_future<RuntimeDeleter<Promise<void>>>();
-  Runtime::obj_inflight_inc_cnts->put(id_, std::move(future));
+  inc_ref_ = std::move(
+      update_ref_cnt(1)->template get_future<RuntimeDeleter<Promise<void>>>());
 }
 
 template <typename T> void RemObj<T>::dec_ref_cnt() {
-  RuntimeFuture<void> inc_future;
-  if (Runtime::obj_inflight_inc_cnts->try_get_and_remove(id_, &inc_future)) {
-    inc_future.get();
+  if (inc_ref_) {
+    inc_ref_.get();
   }
   auto *dec_promise = update_ref_cnt(-1);
   Runtime::rcu_lock.reader_lock();

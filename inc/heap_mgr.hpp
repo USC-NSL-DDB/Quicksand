@@ -15,7 +15,7 @@ extern "C" {
 #include "utils/rcu_hash_set.hpp"
 #include "utils/rcu_lock.hpp"
 #include "utils/slab.hpp"
-#include "utils/ts_hash_set.hpp"
+#include "utils/refcount_hash_set.hpp"
 
 namespace nu {
 
@@ -30,11 +30,10 @@ struct HeapHeader {
   ~HeapHeader();
 
   // Migration related.
-  std::unique_ptr<ThreadSafeHashSet<thread_t *, RuntimeAllocator<thread_t *>>>
+  std::unique_ptr<RefcountHashSet<thread_t *, RuntimeAllocator<thread_t *>>>
       threads;
-  std::unique_ptr<ThreadSafeHashSet<Mutex *, RuntimeAllocator<Mutex *>>>
-      mutexes;
-  std::unique_ptr<ThreadSafeHashSet<CondVar *, RuntimeAllocator<CondVar *>>>
+  std::unique_ptr<RefcountHashSet<Mutex *, RuntimeAllocator<Mutex *>>> mutexes;
+  std::unique_ptr<RefcountHashSet<CondVar *, RuntimeAllocator<CondVar *>>>
       condvars;
   std::unique_ptr<Time> time;
 
