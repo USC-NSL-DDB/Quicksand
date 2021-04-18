@@ -54,7 +54,7 @@ void _main(void *args) {
 
   netaddr remote_ctrl_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 3), .port = 8000};
   auto runtime = Runtime::init(/* local_obj_srv_port = */ 8001,
-                               /* local_migra_ldr_port = */ 8002,
+                               /* local_migrator_port = */ 8002,
                                /* remote_ctrl_addr = */ remote_ctrl_addr,
                                /* mode = */ mode);
 

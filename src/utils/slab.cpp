@@ -10,6 +10,25 @@ inline uint64_t bsr_64(uint64_t a) {
   return ret;
 }
 
+inline void *pop(void **head_p) {
+  auto old_head = *head_p;
+  *head_p = *reinterpret_cast<void **>(old_head);
+  return old_head;
+}
+
+inline void push(void **head_p, void *item) {
+  auto *old_head = *head_p;
+  *head_p = item;
+  *reinterpret_cast<void **>(item) = old_head;
+}
+
+inline uint32_t get_cache_size(uint32_t size) {
+  int cache_size =
+      static_cast<int>(SlabAllocator::kMaxCacheSize) -
+      size / (SlabAllocator::kCacheSizeCutoff / SlabAllocator::kMaxCacheSize);
+  return std::max(1, cache_size);
+}
+
 SlabAllocator::SlabAllocator() noexcept {}
 
 SlabAllocator::SlabAllocator(uint16_t sentinel, void *buf,
@@ -24,7 +43,7 @@ void SlabAllocator::init(uint16_t sentinel, void *buf, uint64_t len) noexcept {
   start_ = reinterpret_cast<const uint8_t *>(buf);
   end_ = start_ + len;
   cur_ = const_cast<uint8_t *>(start_);
-  memset(slab_entries_, 0, sizeof(slab_entries_));
+  memset(slab_heads_, 0, sizeof(slab_heads_));
   memset(core_caches_, 0, sizeof(core_caches_));
 }
 
@@ -41,33 +60,43 @@ void *SlabAllocator::allocate(size_t size) noexcept {
     int cpu = get_cpu();
     auto &cache = core_caches_[cpu];
     auto &cnt = cache.cnts[slab_shift];
-    auto &cached_entries = cache.entries[slab_shift];
+    auto **cached_head = &cache.heads[slab_shift];
     if (cnt) {
-      ret = cached_entries[--cnt];
+      ret = pop(cached_head);
+      --cnt;
     }
 
     if (unlikely(!ret)) {
       rt::ScopedLock<rt::Spin> lock(&spin_);
-      auto &slab_head = slab_entries_[slab_shift];
-      while (slab_head && cnt <= kPerCoreCacheSize) {
-        cached_entries[cnt++] = slab_head;
-        slab_head = *reinterpret_cast<void **>(slab_head);
+      auto **slab_head = &slab_heads_[slab_shift];
+      auto cache_size = get_cache_size(size);
+      while (*slab_head && cnt < cache_size) {
+        push(cached_head, pop(slab_head));
+        cnt++;
       }
-      auto start = cnt;
-      while (cnt <= kPerCoreCacheSize) {
-        // Other system components assume allocation happens in the FIFO order.
-        cached_entries[kPerCoreCacheSize - (cnt++ - start)] = cur_;
-        cur_ += (1ULL << (slab_shift + 1));
 
-	if (unlikely(cur_ > end_)) {
-	  --cnt;
-          if (unlikely(!cnt)) {
-            return nullptr;
-	  }
-          break;
+      // The first allocation (i.e., the root obj allocation) must happen at the
+      // beginning of the slab region.
+      auto remaining = cache_size - cnt;
+      if (remaining) {
+        auto slab_size = (1ULL << (slab_shift + 1));
+        cur_ += slab_size * remaining;
+        auto tmp = cur_;
+        for (uint32_t i = 0; i < remaining; i++) {
+          tmp -= slab_size;
+          if (unlikely(tmp + slab_size > end_)) {
+            continue;
+          }
+          push(cached_head, tmp);
+          cnt++;
+        }
+        if (unlikely(!cnt)) {
+          return nullptr;
         }
       }
-      ret = cached_entries[--cnt];
+
+      ret = pop(cached_head);
+      --cnt;
     }
     put_cpu();
   }
@@ -93,16 +122,17 @@ void SlabAllocator::free(const void *_ptr) noexcept {
     int cpu = get_cpu();
     auto &cache = core_caches_[cpu];
     auto &cnt = cache.cnts[slab_shift];
-    auto &cached_entries = cache.entries[slab_shift];
-    cached_entries[cnt++] = ptr;
+    auto **cached_head = &cache.heads[slab_shift];
+    push(cached_head, ptr);
+    cnt++;
 
-    if (unlikely(cnt >= kPerCoreCacheSize)) {
+    auto cache_size = get_cache_size(size);
+    if (unlikely(cnt > cache_size)) {
       rt::ScopedLock<rt::Spin> lock(&spin_);
-      auto &slab_head = slab_entries_[slab_shift];
-      while (cnt > kPerCoreCacheSize / 2) {
-        auto old_head = slab_head;
-        slab_head = cached_entries[--cnt];
-        *reinterpret_cast<void **>(slab_head) = old_head;
+      auto **slab_head = &slab_heads_[slab_shift];
+      while (cnt > cache_size / 2 && cnt > 1) {
+        push(slab_head, pop(cached_head));
+        --cnt;
       }
     }
     put_cpu();

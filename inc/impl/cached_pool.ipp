@@ -48,11 +48,11 @@ template <typename T, typename Allocator> T *CachedPool<T, Allocator>::get() {
   if (unlikely(!item)) {
     rt::ScopedLock<rt::Spin> lock(&global_spin_);
     put_cpu();
-    while (!global_.empty() && local.size() <= per_core_cache_size_) {
+    while (!global_.empty() && local.size() < per_core_cache_size_) {
       local.push(global_.top());
       global_.pop();
     }
-    while (local.size() <= per_core_cache_size_) {
+    while (local.size() < per_core_cache_size_) {
       local.push(new_fn_());
     }
     item = local.top();
@@ -70,9 +70,9 @@ void CachedPool<T, Allocator>::put(T *item) {
   auto &local = locals_[cpu];
   local.push(item);
 
-  if (unlikely(local.size() >= per_core_cache_size_)) {
+  if (unlikely(local.size() > per_core_cache_size_)) {
     rt::ScopedLock<rt::Spin> lock(&global_spin_);
-    while (local.size() > per_core_cache_size_ / 2) {
+    while (local.size() > per_core_cache_size_ / 2 && local.size() > 1) {
       global_.push(local.top());
       local.pop();
     }

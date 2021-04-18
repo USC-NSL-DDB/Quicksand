@@ -20,7 +20,6 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   ia >> base;
 
   Runtime::heap_manager->allocate(base);
-  reinterpret_cast<HeapHeader *>(base)->ref_cnt = 1;
 
   auto *slab = Runtime::heap_manager->get_slab(base);
   auto obj_space = slab->allocate(sizeof(Cls));

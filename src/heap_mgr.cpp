@@ -16,10 +16,17 @@ extern "C" {
 namespace nu {
 
 void HeapManager::allocate(void *heap_base) {
-  auto mmap_addr = mmap(heap_base, kHeapSize, PROT_READ | PROT_WRITE,
-                        MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED, -1, 0);
+  mmap(heap_base);
+  setup(heap_base);
+}
+
+void HeapManager::mmap(void *heap_base) {
+  auto mmap_addr = ::mmap(heap_base, kHeapSize, PROT_READ | PROT_WRITE,
+                          MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED, -1, 0);
   BUG_ON(mmap_addr != heap_base);
-  BUG_ON(madvise(mmap_addr, kHeapSize, MADV_HUGEPAGE) != 0);
+}
+
+void HeapManager::setup(void *heap_base) {
   auto *heap_header = new (heap_base) HeapHeader();
   heap_header->threads.reset(
       new decltype(heap_header->threads)::element_type());
@@ -29,7 +36,7 @@ void HeapManager::allocate(void *heap_base) {
       new decltype(heap_header->condvars)::element_type());
   heap_header->time.reset(new decltype(heap_header->time)::element_type());
   heap_header->migratable = true;
-  heap_header->ref_cnt = 0;
+  heap_header->ref_cnt = 1;
   uint16_t sentinel = reinterpret_cast<uint64_t>(heap_base) / kHeapSize;
   heap_header->slab.init(sentinel, heap_header + 1,
                          kHeapSize - sizeof(HeapHeader));

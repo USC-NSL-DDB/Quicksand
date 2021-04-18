@@ -35,12 +35,12 @@ ControllerClient::ControllerClient(netaddr remote_ctrl_addr)
     : conn_mgr_(remote_ctrl_addr) {}
 
 ControllerClient::ControllerClient(uint16_t local_obj_srv_port,
-                                   uint16_t local_migra_ldr_port,
+                                   uint16_t local_migrator_port,
                                    netaddr remote_ctrl_addr)
     : conn_mgr_(remote_ctrl_addr) {
   Node node;
   node.obj_srv_addr = {.ip = get_cfg_ip(), .port = local_obj_srv_port};
-  node.migra_ldr_addr = {.ip = get_cfg_ip(), .port = local_migra_ldr_port};
+  node.migrator_addr = {.ip = get_cfg_ip(), .port = local_migrator_port};
   register_node(node);
 }
 
@@ -130,6 +130,8 @@ void ControllerClient::update_location(RemObjID id, netaddr obj_srv_addr) {
   conn_mgr_.put_conn(c);
 }
 
-void ControllerClient::reserve_conns(uint32_t num) { conn_mgr_.reserve_conns(num); }
+void ControllerClient::reserve_conns(uint32_t num) {
+  conn_mgr_.reserve_conns(num);
+}
 
 } // namespace nu

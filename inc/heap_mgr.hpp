@@ -36,7 +36,6 @@ struct HeapHeader {
   std::unique_ptr<RefcountHashSet<CondVar *, RuntimeAllocator<CondVar *>>>
       condvars;
   std::unique_ptr<Time> time;
-
   bool migratable;
 
   // Ref cnt related.
@@ -53,6 +52,8 @@ public:
 
   HeapManager();
   static void allocate(void *heap_base);
+  static void mmap(void *heap_base);
+  static void setup(void *heap_base);
   static void deallocate(void *heap_base);
   void insert(void *heap_base);
   bool contains(void *heap_base);

@@ -9,9 +9,7 @@ extern "C" {
 #include <net/ip.h>
 #include <runtime/timer.h>
 }
-#include "thread.h"
-#define __user
-#include "ksched.h"
+#include <thread.h>
 
 #include "cond_var.hpp"
 #include "ctrl_client.hpp"
@@ -40,32 +38,104 @@ MigratorConnManager::MigratorConnManager()
 
 Migrator::~Migrator() { BUG(); }
 
-void Migrator::run_loader_loop(uint16_t loader_port) {
-  rt::Thread([&]() {
-    netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = loader_port};
-    BUG_ON(tcp_listen(addr, kTCPListenBackLog, &loader_tcp_queue_) != 0);
-    tcpconn_t *c;
-    while (tcp_accept(loader_tcp_queue_, &c) == 0) {
-      rt::Thread([&, c] { load(c); }).Detach();
-    }
-  }).Detach();
+inline void Migrator::handle_load(tcpconn_t *c) { load(c); }
+
+void Migrator::handle_reserve_conns(tcpconn_t *c) {
+  RPCReqReserveConns req;
+  BUG_ON(!tcp_read_until(c, &req, sizeof(req)));
+  reserve_conns(req.num, req.dest_server_addr);
 }
 
-void Migrator::transmit_heap(tcpconn_t *c, HeapHeader *heap_header) {
+void Migrator::handle_copy(tcpconn_t *c) {
+  RPCReqCopy req;
+  BUG_ON(!tcp_read_until(c, &req, sizeof(req)));
+  BUG_ON(
+      !tcp_read_until(c, reinterpret_cast<uint8_t *>(req.start_addr), req.len));
+  req.wg->Done();
+}
+
+void Migrator::run_loop(uint16_t port) {
+  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
+  BUG_ON(tcp_listen(addr, kTCPListenBackLog, &tcp_queue_) != 0);
+  tcpconn_t *c;
+  while (tcp_accept(tcp_queue_, &c) == 0) {
+    rt::Thread([&, c] {
+      while (true) {
+        uint8_t type;
+        auto ret = tcp_read_until(c, &type, sizeof(type));
+        if (unlikely(!ret)) {
+          break;
+        }
+
+        switch (type) {
+        case LOAD:
+          handle_load(c);
+          break;
+        case RESERVE_CONNS:
+          handle_reserve_conns(c);
+          break;
+        case COPY:
+          handle_copy(c);
+          break;
+        default:
+          BUG();
+        }
+      }
+    }).Detach();
+  }
+}
+
+void Migrator::parallel_transmit_heap(netaddr dest_addr, rt::WaitGroup *wg,
+                                      uint64_t start_addr, uint64_t len) {
+  std::vector<rt::Thread> threads;
+  threads.reserve(kTransmitHeapNumThreads);
+
+  for (uint32_t i = 0; i < kTransmitHeapNumThreads; i++) {
+    threads.emplace_back([&, tid = i] {
+      auto conn = conn_mgr_.get_conn(dest_addr);
+      uint8_t type = COPY;
+      RPCReqCopy req;
+      auto per_thread_len = (len - 1) / kTransmitHeapNumThreads + 1;
+      req.start_addr = start_addr + tid * per_thread_len;
+      req.len = (tid != kTransmitHeapNumThreads - 1)
+                    ? per_thread_len
+                    : start_addr + len - req.start_addr;
+      req.wg = wg;
+      BUG_ON(!tcp_write2_until(conn, &type, sizeof(type), &req, sizeof(req)));
+      BUG_ON(!tcp_write_until(conn, reinterpret_cast<uint8_t *>(req.start_addr),
+                              req.len));
+      conn_mgr_.put_conn(dest_addr, conn);
+    });
+  }
+  for (auto &thread : threads) {
+    thread.Join();
+  }
+}
+
+void Migrator::transmit_heap(tcpconn_t *c, netaddr dest_addr,
+                             HeapHeader *heap_header) {
+  uint8_t type = LOAD;
+  BUG_ON(!tcp_write_until(c, &type, sizeof(type)));
   int obj_ref_cnt = heap_header->ref_cnt;
-  tcp_write2_until(c, &heap_header, sizeof(heap_header), &obj_ref_cnt,
-                   sizeof(obj_ref_cnt));
+  BUG_ON(!tcp_write2_until(c, &heap_header, sizeof(heap_header), &obj_ref_cnt,
+                           sizeof(obj_ref_cnt)));
   const auto &slab = heap_header->slab;
-  tcp_write_until(c, &slab, sizeof(slab));
-  tcp_write_until(c, slab.get_base(), slab.get_usage());
+  auto start_addr = reinterpret_cast<uint64_t>(&slab);
+  auto len = (reinterpret_cast<intptr_t>(slab.get_base()) -
+              reinterpret_cast<intptr_t>(&slab)) +
+             slab.get_usage();
+  uint8_t ack;
+  rt::WaitGroup *wg;
+  BUG_ON(!tcp_read2_until(c, &ack, sizeof(ack), &wg, sizeof(wg)));
+  parallel_transmit_heap(dest_addr, wg, start_addr, len);
 }
 
 void Migrator::transmit_mutexes(tcpconn_t *c, HeapHeader *heap_header,
                                 std::unordered_set<thread_t *> *mutex_threads) {
   auto mutexes = heap_header->mutexes->all_keys();
   size_t num_mutexes = mutexes.size();
-  tcp_write2_until(c, &num_mutexes, sizeof(num_mutexes), mutexes.data(),
-                   num_mutexes * sizeof(Mutex *));
+  BUG_ON(!tcp_write2_until(c, &num_mutexes, sizeof(num_mutexes), mutexes.data(),
+                           num_mutexes * sizeof(Mutex *)));
 
   for (auto mutex : mutexes) {
     std::vector<thread_t *> ths;
@@ -77,7 +147,7 @@ void Migrator::transmit_mutexes(tcpconn_t *c, HeapHeader *heap_header,
       mutex_threads->emplace(th);
     }
     size_t num_threads = ths.size();
-    tcp_write_until(c, &num_threads, sizeof(num_threads));
+    BUG_ON(!tcp_write_until(c, &num_threads, sizeof(num_threads)));
     for (auto th : ths) {
       transmit_one_thread(c, th);
     }
@@ -89,8 +159,8 @@ void Migrator::transmit_condvars(
     std::unordered_set<thread_t *> *condvar_threads) {
   auto condvars = heap_header->condvars->all_keys();
   size_t num_condvars = condvars.size();
-  tcp_write2_until(c, &num_condvars, sizeof(num_condvars), condvars.data(),
-                   num_condvars * sizeof(CondVar *));
+  BUG_ON(!tcp_write2_until(c, &num_condvars, sizeof(num_condvars),
+                           condvars.data(), num_condvars * sizeof(CondVar *)));
 
   for (auto condvar : condvars) {
     std::vector<thread_t *> ths;
@@ -102,7 +172,7 @@ void Migrator::transmit_condvars(
       condvar_threads->emplace(th);
     }
     size_t num_threads = ths.size();
-    tcp_write_until(c, &num_threads, sizeof(num_threads));
+    BUG_ON(!tcp_write_until(c, &num_threads, sizeof(num_threads)));
     for (auto th : ths) {
       transmit_one_thread(c, th);
     }
@@ -111,19 +181,19 @@ void Migrator::transmit_condvars(
 
 void Migrator::transmit_time(tcpconn_t *c, HeapHeader *heap_header,
                              std::unordered_set<thread_t *> *time_threads) {
-  uint64_t migrator_tsc = rdtsc() - start_tsc;
+  uint64_t migrator_tsc = rdtscp(nullptr) - start_tsc;
   int64_t sum_tsc = migrator_tsc + heap_header->time->offset_tsc_;
 
   const auto &timer_entries_list = heap_header->time->entries_;
   size_t num_entries = timer_entries_list.size();
-  tcp_write2_until(c, &sum_tsc, sizeof(sum_tsc), &num_entries,
-                   sizeof(num_entries));
+  BUG_ON(!tcp_write2_until(c, &sum_tsc, sizeof(sum_tsc), &num_entries,
+                           sizeof(num_entries)));
 
   auto timer_entries_arr = std::make_unique<timer_entry *[]>(num_entries);
   std::copy(timer_entries_list.begin(), timer_entries_list.end(),
             timer_entries_arr.get());
-  tcp_write_until(c, timer_entries_arr.get(),
-                  sizeof(timer_entry *) * num_entries);
+  BUG_ON(!tcp_write_until(c, timer_entries_arr.get(),
+                          sizeof(timer_entry *) * num_entries));
 
   for (size_t i = 0; i < num_entries; i++) {
     auto *entry = timer_entries_arr[i];
@@ -136,19 +206,20 @@ void Migrator::transmit_time(tcpconn_t *c, HeapHeader *heap_header,
 void Migrator::transmit_one_thread(tcpconn_t *c, thread_t *thread) {
   size_t tf_size;
   auto *tf = thread_get_trap_frame(thread, &tf_size);
-  tcp_write_until(c, tf, tf_size);
+  BUG_ON(!tcp_write_until(c, tf, tf_size));
   void *stack_range[2];
   thread_get_obj_stack(thread, &stack_range[1], &stack_range[0]);
-  tcp_write2_until(c, stack_range, sizeof(stack_range), stack_range[0],
-                   reinterpret_cast<uintptr_t>(stack_range[1]) -
-                       reinterpret_cast<uintptr_t>(stack_range[0]) + 1);
+  BUG_ON(!tcp_write2_until(c, stack_range, sizeof(stack_range), stack_range[0],
+                           reinterpret_cast<uintptr_t>(stack_range[1]) -
+                               reinterpret_cast<uintptr_t>(stack_range[0]) +
+                               1));
   thread_mark_migrated(thread);
 }
 
 void Migrator::transmit_threads(tcpconn_t *c,
                                 const std::vector<thread_t *> &threads) {
   uint64_t num_threads = threads.size();
-  tcp_write_until(c, &num_threads, sizeof(num_threads));
+  BUG_ON(!tcp_write_until(c, &num_threads, sizeof(num_threads)));
   for (auto thread : threads) {
     transmit_one_thread(c, thread);
   }
@@ -159,12 +230,13 @@ void Migrator::forward_to_client(uint32_t num_rpcs,
   for (size_t i = 0; i < num_rpcs; i++) {
     tcpconn_t *conn_to_client;
     ObjRPCRespHdr hdr;
-    tcp_read2_until(conn_to_new_server, &conn_to_client, sizeof(conn_to_client),
-                    &hdr, sizeof(hdr));
+    BUG_ON(!tcp_read2_until(conn_to_new_server, &conn_to_client,
+                            sizeof(conn_to_client), &hdr, sizeof(hdr)));
     auto payload = std::make_unique<uint8_t[]>(hdr.payload_size);
-    tcp_read_until(conn_to_new_server, payload.get(), hdr.payload_size);
-    tcp_write2_until(conn_to_client, &hdr, sizeof(hdr), payload.get(),
-                     hdr.payload_size);
+    BUG_ON(
+        !tcp_read_until(conn_to_new_server, payload.get(), hdr.payload_size));
+    BUG_ON(!tcp_write2_until(conn_to_client, &hdr, sizeof(hdr), payload.get(),
+                             hdr.payload_size));
     rt::Thread([&, conn_to_client] {
       Runtime::obj_server->handle_reqs(conn_to_client);
     }).Detach();
@@ -175,7 +247,7 @@ void Migrator::transmit_and_forward(netaddr dest_addr, void *heap_base) {
   auto conn = conn_mgr_.get_conn(dest_addr);
 
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-  transmit_heap(conn, heap_header);
+  transmit_heap(conn, dest_addr, heap_header);
 
   std::unordered_set<thread_t *> blocked_threads;
   transmit_mutexes(conn, heap_header, &blocked_threads);
@@ -221,6 +293,7 @@ void Migrator::migrate(std::list<void *> heaps) {
   auto optional_dest_addr =
       Runtime::controller_client->get_migration_dest(resource);
   BUG_ON(!optional_dest_addr);
+
   std::vector<rt::Thread> threads;
   for (auto heap : heaps) {
     threads.emplace_back(
@@ -245,11 +318,15 @@ void *Migrator::load_heap(tcpconn_t *c, rt::Mutex *loader_mutex) {
   }
   // Only allows one loading at a time.
   loader_mutex->Lock();
-  Runtime::heap_manager->allocate(heap_header);
-  auto &slab = heap_header->slab;
-  tcp_read_until(c, &slab, sizeof(slab));
-  tcp_read_until(c, slab.get_base(), slab.get_usage());
+  Runtime::heap_manager->mmap(heap_header);
+  uint8_t ack;
+  rt::WaitGroup wg(kTransmitHeapNumThreads);
+  auto *wg_p = &wg;
+  BUG_ON(!tcp_write2_until(c, &ack, sizeof(ack), &wg_p, sizeof(wg_p)));
+  Runtime::heap_manager->setup(heap_header);
   heap_header->ref_cnt = obj_ref_cnt;
+  wg.Wait();
+
   return heap_header;
 }
 
@@ -259,20 +336,20 @@ thread_t *Migrator::load_one_thread(tcpconn_t *c, HeapHeader *heap_header) {
   size_t tf_size;
   thread_get_trap_frame(thread_self(), &tf_size);
   auto tf = std::make_unique<uint8_t[]>(tf_size);
-  tcp_read_until(c, tf.get(), tf_size);
+  BUG_ON(!tcp_read_until(c, tf.get(), tf_size));
   void *stack_range[2];
-  tcp_read_until(c, stack_range, sizeof(stack_range));
-  tcp_read_until(c, stack_range[0],
-                 reinterpret_cast<uintptr_t>(stack_range[1]) -
-                     reinterpret_cast<uintptr_t>(stack_range[0]) + 1);
+  BUG_ON(!tcp_read_until(c, stack_range, sizeof(stack_range)));
+  BUG_ON(!tcp_read_until(c, stack_range[0],
+                         reinterpret_cast<uintptr_t>(stack_range[1]) -
+                             reinterpret_cast<uintptr_t>(stack_range[0]) + 1));
   return create_migrated_thread(tf.get(), tlsvar);
 }
 
 void Migrator::load_mutexes(tcpconn_t *c, HeapHeader *heap_header) {
   size_t num_mutexes;
-  tcp_read_until(c, &num_mutexes, sizeof(num_mutexes));
+  BUG_ON(!tcp_read_until(c, &num_mutexes, sizeof(num_mutexes)));
   auto mutexes = std::make_unique<Mutex *[]>(num_mutexes);
-  tcp_read_until(c, mutexes.get(), num_mutexes * sizeof(Mutex *));
+  BUG_ON(!tcp_read_until(c, mutexes.get(), num_mutexes * sizeof(Mutex *)));
 
   for (size_t i = 0; i < num_mutexes; i++) {
     auto mutex = mutexes[i];
@@ -281,7 +358,7 @@ void Migrator::load_mutexes(tcpconn_t *c, HeapHeader *heap_header) {
     auto *waiters = mutex->get_waiters();
     list_head_init(waiters);
     size_t num_threads;
-    tcp_read_until(c, &num_threads, sizeof(num_threads));
+    BUG_ON(!tcp_read_until(c, &num_threads, sizeof(num_threads)));
     for (size_t j = 0; j < num_threads; j++) {
       auto *th = load_one_thread(c, heap_header);
       auto *th_link = reinterpret_cast<list_node *>(
@@ -293,9 +370,9 @@ void Migrator::load_mutexes(tcpconn_t *c, HeapHeader *heap_header) {
 
 void Migrator::load_condvars(tcpconn_t *c, HeapHeader *heap_header) {
   size_t num_condvars;
-  tcp_read_until(c, &num_condvars, sizeof(num_condvars));
+  BUG_ON(!tcp_read_until(c, &num_condvars, sizeof(num_condvars)));
   auto condvars = std::make_unique<CondVar *[]>(num_condvars);
-  tcp_read_until(c, condvars.get(), num_condvars * sizeof(CondVar *));
+  BUG_ON(!tcp_read_until(c, condvars.get(), num_condvars * sizeof(CondVar *)));
 
   for (size_t i = 0; i < num_condvars; i++) {
     auto condvar = condvars[i];
@@ -304,7 +381,7 @@ void Migrator::load_condvars(tcpconn_t *c, HeapHeader *heap_header) {
     auto *waiters = condvar->get_waiters();
     list_head_init(waiters);
     size_t num_threads;
-    tcp_read_until(c, &num_threads, sizeof(num_threads));
+    BUG_ON(!tcp_read_until(c, &num_threads, sizeof(num_threads)));
     for (size_t j = 0; j < num_threads; j++) {
       auto *th = load_one_thread(c, heap_header);
       auto *th_link = reinterpret_cast<list_node *>(
@@ -319,13 +396,14 @@ void Migrator::load_time(tcpconn_t *c, HeapHeader *heap_header) {
 
   int64_t sum_tsc;
   size_t num_entries;
-  tcp_read2_until(c, &sum_tsc, sizeof(sum_tsc), &num_entries,
-                  sizeof(num_entries));
-  auto loader_tsc = rdtsc() - start_tsc;
+  BUG_ON(!tcp_read2_until(c, &sum_tsc, sizeof(sum_tsc), &num_entries,
+                          sizeof(num_entries)));
+  auto loader_tsc = rdtscp(nullptr) - start_tsc;
   time->offset_tsc_ = sum_tsc - loader_tsc;
 
   auto timer_entries = std::make_unique<timer_entry *[]>(num_entries);
-  tcp_read_until(c, timer_entries.get(), sizeof(timer_entry *) * num_entries);
+  BUG_ON(!tcp_read_until(c, timer_entries.get(),
+                         sizeof(timer_entry *) * num_entries));
 
   for (size_t i = 0; i < num_entries; i++) {
     auto *entry = timer_entries[i];
@@ -343,7 +421,8 @@ void Migrator::load_time(tcpconn_t *c, HeapHeader *heap_header) {
 
 void Migrator::load_threads(tcpconn_t *c, HeapHeader *heap_header) {
   uint64_t num_threads;
-  tcp_read_until(c, &num_threads, sizeof(num_threads));
+  BUG_ON(!tcp_read_until(c, &num_threads, sizeof(num_threads)));
+
   ACCESS_ONCE(remaining_forwarding_cnts_) = num_threads;
 
   for (uint64_t i = 0; i < num_threads; i++) {
@@ -353,44 +432,42 @@ void Migrator::load_threads(tcpconn_t *c, HeapHeader *heap_header) {
 }
 
 void Migrator::load(tcpconn_t *c) {
-  while (true) {
-    auto *heap_base = load_heap(c, &loader_mutex_);
-    if (!heap_base) {
-      continue;
-    }
-
-    auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-    loader_conn_ = c;
-
-    load_mutexes(c, heap_header);
-    load_condvars(c, heap_header);
-    load_time(c, heap_header);
-
-    load_threads(c, heap_header);
-
-    ACCESS_ONCE(heap_header->migratable) = false;
-    Runtime::heap_manager->insert(heap_base);
-    Runtime::controller_client->update_location(
-        to_obj_id(heap_base), Runtime::obj_server->get_addr());
-
-    forwarding_mutex_.Lock();
-    while (ACCESS_ONCE(remaining_forwarding_cnts_)) {
-      loader_done_forwarding_.Wait(&forwarding_mutex_);
-    }
-
-    ACCESS_ONCE(heap_header->migratable) = true;
-    forwarding_mutex_.Unlock();
-    loader_mutex_.Unlock();
+  auto *heap_base = load_heap(c, &loader_mutex_);
+  if (!heap_base) {
+    return;
   }
+
+  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  loader_conn_ = c;
+
+  load_mutexes(c, heap_header);
+  load_condvars(c, heap_header);
+  load_time(c, heap_header);
+
+  load_threads(c, heap_header);
+
+  ACCESS_ONCE(heap_header->migratable) = false;
+  Runtime::heap_manager->insert(heap_base);
+  Runtime::controller_client->update_location(to_obj_id(heap_base),
+                                              Runtime::obj_server->get_addr());
+
+  forwarding_mutex_.Lock();
+  while (ACCESS_ONCE(remaining_forwarding_cnts_)) {
+    loader_done_forwarding_.Wait(&forwarding_mutex_);
+  }
+
+  ACCESS_ONCE(heap_header->migratable) = true;
+  forwarding_mutex_.Unlock();
+  loader_mutex_.Unlock();
 }
 
 void Migrator::forward_to_original_server(const ObjRPCRespHdr &hdr,
                                           const void *payload,
                                           tcpconn_t *conn_to_client) {
   rt::ScopedLock<rt::Mutex> lock(&forwarding_mutex_);
-  tcp_write2_until(loader_conn_, &conn_to_client, sizeof(conn_to_client), &hdr,
-                   sizeof(hdr));
-  tcp_write_until(loader_conn_, payload, hdr.payload_size);
+  BUG_ON(!tcp_write2_until(loader_conn_, &conn_to_client,
+                           sizeof(conn_to_client), &hdr, sizeof(hdr)));
+  BUG_ON(!tcp_write_until(loader_conn_, payload, hdr.payload_size));
 
   barrier();
   if (--remaining_forwarding_cnts_ == 0) {

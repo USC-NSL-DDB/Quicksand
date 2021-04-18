@@ -37,7 +37,7 @@ public:
 
   ~Runtime();
   static std::unique_ptr<Runtime> init(uint16_t local_obj_srv_port,
-                                       uint16_t local_migra_ldr_port,
+                                       uint16_t local_migrator_port,
                                        netaddr ctrl_server_addr, Mode mode);
   static void reserve_ctrl_server_conns(uint32_t num);
   static void reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr);
@@ -65,12 +65,12 @@ private:
   template <typename T> friend class RemObj;
   template <typename T> friend class RuntimeDeleter;
 
-  Runtime(uint16_t local_obj_srv_port, uint16_t local_migra_ldr_port,
+  Runtime(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
           netaddr ctrl_server_addr, Mode mode);
   static void init_runtime_heap();
   static void init_as_controller(netaddr ctrl_server_addr);
   static void init_as_server(uint16_t local_obj_srv_port,
-                             uint16_t local_migra_ldr_port,
+                             uint16_t local_migrator_port,
                              netaddr ctrl_server_addr);
   static void init_as_client(netaddr ctrl_server_addr);
   template <typename Cls, typename Fn, typename... As>

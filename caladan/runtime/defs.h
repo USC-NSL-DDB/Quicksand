@@ -414,6 +414,7 @@ struct kthread {
 	bool			directpath_busy;
 	bool			timer_busy;
 	bool			storage_busy;
+	char                    pad2[12];
 
 	/* 9th cache-line, storage nvme queues */
 	struct storage_q	storage_q;

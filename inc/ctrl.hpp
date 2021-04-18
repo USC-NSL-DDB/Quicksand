@@ -26,7 +26,8 @@ struct VAddrRange {
 struct Node {
   // TODO: add other informations, e.g., free mem size.
   netaddr obj_srv_addr;
-  netaddr migra_ldr_addr;
+  netaddr migrator_addr;
+  tcpconn_t *migrator_conn;
 };
 
 class Controller {
@@ -38,7 +39,7 @@ public:
 
   Controller();
   ~Controller();
-  void register_node(const Node &node);
+  void register_node(Node &node);
   std::optional<std::pair<RemObjID, VAddrRange>> allocate_obj();
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);
@@ -51,7 +52,7 @@ private:
   std::unordered_map<RemObjID, std::pair<VAddrRange, netaddr>> objs_map_;
   std::list<Node> nodes_;
   std::list<Node>::iterator nodes_iter_;
-  rt::Spin spin_;
+  rt::Mutex mutex_;
 
   Node select_node_for_obj();
 };

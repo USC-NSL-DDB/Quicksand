@@ -30,7 +30,7 @@ private:
 class ControllerClient {
 public:
   ControllerClient(netaddr remote_ctrl_addr);
-  ControllerClient(uint16_t local_obj_srv_port, uint16_t local_migra_ldr_port,
+  ControllerClient(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
                    netaddr remote_ctrl_addr);
   void register_node(const Node &node);
   std::optional<std::pair<RemObjID, VAddrRange>> allocate_obj();
@@ -44,4 +44,3 @@ private:
   ControllerConnManager conn_mgr_;
 };
 } // namespace nu
-

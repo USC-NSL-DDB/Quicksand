@@ -59,7 +59,8 @@ bool ControllerServer::handle_register_node(tcpconn_t *c) {
   if (!tcp_read_until(c, &req, sizeof(req))) {
     return false;
   }
-  ctrl_.register_node(req.node);
+  auto node = req.node;
+  ctrl_.register_node(node);
   return tcp_write_until(c, &resp, sizeof(resp));
 }
 

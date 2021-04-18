@@ -38,10 +38,6 @@ bool run_with_size(uint64_t obj_size, uint64_t class_size) {
   }
 
   slab->free(buf + sizeof(PtrHeader));
-  slab->free(buf + class_size + sizeof(PtrHeader));
-  if (slab->allocate(obj_size) != buf + class_size + sizeof(PtrHeader)) {
-    return false;
-  }
   if (slab->allocate(obj_size) != buf + sizeof(PtrHeader)) {
     return false;
   }

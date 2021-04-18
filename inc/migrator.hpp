@@ -10,7 +10,7 @@ extern "C" {
 #include <runtime/net.h>
 #include <runtime/tcp.h>
 }
-#include "sync.h"
+#include <sync.h>
 
 #include "conn_mgr.hpp"
 #include "utils/slab.hpp"
@@ -30,10 +30,26 @@ private:
   static std::function<tcpconn_t *(netaddr)> creator_;
 };
 
+enum MigratorRPC_t { LOAD, RESERVE_CONNS, COPY };
+
+struct RPCReqReserveConns {
+  uint32_t num;
+  netaddr dest_server_addr;
+} __attribute__((packed));
+
+struct RPCReqCopy {
+  uint64_t start_addr;
+  uint64_t len;
+  rt::WaitGroup *wg;
+} __attribute__((packed));
+
 class Migrator {
 public:
+  constexpr static uint32_t kDefaultNumReservedConns = 32;
+  constexpr static uint32_t kTransmitHeapNumThreads = 6;
+
   ~Migrator();
-  void run_loader_loop(uint16_t loader_port);
+  void run_loop(uint16_t port);
   void migrate(std::list<void *> heaps);
   void forward_to_original_server(const ObjRPCRespHdr &hdr, const void *payload,
                                   tcpconn_t *conn_to_client);
@@ -42,15 +58,20 @@ public:
 private:
   constexpr static uint32_t kTCPListenBackLog = 64;
   MigratorConnManager conn_mgr_;
-  tcpqueue_t *loader_tcp_queue_;
+  tcpqueue_t *tcp_queue_;
   tcpconn_t *loader_conn_;
   rt::Mutex loader_mutex_;
   uint32_t remaining_forwarding_cnts_;
   rt::Mutex forwarding_mutex_;
   rt::CondVar loader_done_forwarding_;
 
+  void handle_load(tcpconn_t *c);
+  void handle_reserve_conns(tcpconn_t *c);
+  void handle_copy(tcpconn_t *c);
   void transmit_and_forward(netaddr dest_addr, void *heap_base);
-  void transmit_heap(tcpconn_t *c, HeapHeader *heap_header);
+  void transmit_heap(tcpconn_t *c, netaddr dest_addr, HeapHeader *heap_header);
+  void parallel_transmit_heap(netaddr dest_addr, rt::WaitGroup *wg,
+                              uint64_t start_addr, uint64_t len);
   void transmit_mutexes(tcpconn_t *c, HeapHeader *heap_header,
                         std::unordered_set<thread_t *> *mutex_threads);
   void transmit_condvars(tcpconn_t *c, HeapHeader *heap_header,

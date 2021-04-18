@@ -22,12 +22,14 @@ struct PtrHeader {
   uint64_t size : 48;
   uint64_t sentinel : 16;
 };
+static_assert(kPtrHeaderSize == sizeof(PtrHeader));
 
 class SlabAllocator {
 public:
   constexpr static uint64_t kMaxSlabClassShift = 32; // 4 GB.
   constexpr static uint64_t kMinSlabClassShift = 5;  // 32 B.
-  constexpr static uint64_t kPerCoreCacheSize = 31;
+  constexpr static uint64_t kMaxCacheSize = 32;
+  constexpr static uint64_t kCacheSizeCutoff = 1024;
 
   SlabAllocator() noexcept;
   SlabAllocator(uint16_t sentinel, void *buf, size_t len) noexcept;
@@ -43,17 +45,16 @@ private:
   struct alignas(kCacheLineBytes) CoreCache {
     using CntType = uint8_t;
     CntType cnts[kMaxSlabClassShift];
-    // TODO: make these as linkedlists.
-    void *entries[kMaxSlabClassShift][kPerCoreCacheSize + 1];
+    void *heads[kMaxSlabClassShift];
   };
   static_assert(std::numeric_limits<CoreCache::CntType>::max() >=
-                kPerCoreCacheSize);
+                kMaxCacheSize);
 
   uint16_t sentinel_;
   const uint8_t *start_;
   const uint8_t *end_;
   uint8_t *cur_;
-  void *slab_entries_[kMaxSlabClassShift];
+  void *slab_heads_[kMaxSlabClassShift];
   CoreCache core_caches_[kNumCores];
   rt::Spin spin_;
 

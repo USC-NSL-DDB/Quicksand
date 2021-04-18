@@ -15,7 +15,7 @@ public:
   bool try_lock();
 
 private:
-  rt::Spin spinlock_;
+  spinlock_t spinlock_;
 };
 } // namespace nu
 

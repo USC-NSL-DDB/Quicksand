@@ -47,16 +47,15 @@ void Runtime::init_as_controller(netaddr ctrl_server_addr) {
 }
 
 void Runtime::init_as_server(uint16_t local_obj_srv_port,
-                             uint16_t local_migra_ldr_port,
+                             uint16_t local_migrator_port,
                              netaddr ctrl_server_addr) {
   obj_server.reset(new decltype(obj_server)::element_type(local_obj_srv_port));
   rt::Thread obj_srv_thread([&] { obj_server->run_loop(); });
   migrator.reset(new decltype(migrator)::element_type());
-  rt::Thread migrator_thread(
-      [&] { migrator->run_loader_loop(local_migra_ldr_port); });
+  rt::Thread migrator_thread([&] { migrator->run_loop(local_migrator_port); });
   heap_manager.reset(new decltype(heap_manager)::element_type());
   controller_client.reset(new decltype(controller_client)::element_type(
-      local_obj_srv_port, local_migra_ldr_port, ctrl_server_addr));
+      local_obj_srv_port, local_migrator_port, ctrl_server_addr));
   rem_obj_conn_mgr.reset(new decltype(rem_obj_conn_mgr)::element_type());
   monitor.reset(new decltype(monitor)::element_type());
   rt::Thread monitor_thread([&] { monitor->run_loop(); });
@@ -72,7 +71,7 @@ void Runtime::init_as_client(netaddr ctrl_server_addr) {
   archive_pool.reset(new decltype(archive_pool)::element_type());
 }
 
-Runtime::Runtime(uint16_t local_obj_srv_port, uint16_t local_migra_ldr_port,
+Runtime::Runtime(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
                  netaddr ctrl_server_addr, Mode mode) {
   init_runtime_heap();
   active_runtime = true;
@@ -82,7 +81,7 @@ Runtime::Runtime(uint16_t local_obj_srv_port, uint16_t local_migra_ldr_port,
     init_as_controller(ctrl_server_addr);
     break;
   case SERVER:
-    init_as_server(local_obj_srv_port, local_migra_ldr_port, ctrl_server_addr);
+    init_as_server(local_obj_srv_port, local_migrator_port, ctrl_server_addr);
     break;
   case CLIENT:
     init_as_client(ctrl_server_addr);
@@ -93,10 +92,10 @@ Runtime::Runtime(uint16_t local_obj_srv_port, uint16_t local_migra_ldr_port,
 }
 
 std::unique_ptr<Runtime> Runtime::init(uint16_t local_obj_srv_port,
-                                       uint16_t local_migra_ldr_port,
+                                       uint16_t local_migrator_port,
                                        netaddr ctrl_server_addr, Mode mode) {
   BUG_ON(active_runtime);
-  auto runtime_ptr = new Runtime(local_obj_srv_port, local_migra_ldr_port,
+  auto runtime_ptr = new Runtime(local_obj_srv_port, local_migrator_port,
                                  ctrl_server_addr, mode);
   return std::unique_ptr<Runtime>(runtime_ptr);
 }
@@ -143,15 +142,21 @@ void Runtime::migration_disable() {
 }
 
 void Runtime::reserve_ctrl_server_conns(uint32_t num) {
-  controller_client->reserve_conns(num);
+  if (controller_client) {
+    controller_client->reserve_conns(num);
+  }
 }
 
 void Runtime::reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr) {
-  rem_obj_conn_mgr->reserve_conns(num, obj_server_addr);
+  if (rem_obj_conn_mgr) {
+    rem_obj_conn_mgr->reserve_conns(num, obj_server_addr);
+  }
 }
 
 void Runtime::reserve_migration_conns(uint32_t num, netaddr dest_server_addr) {
-  migrator->reserve_conns(num, dest_server_addr);
+  if (migrator) {
+    migrator->reserve_conns(num, dest_server_addr);
+  }
 }
 
 } // namespace nu
