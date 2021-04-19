@@ -15,7 +15,7 @@ extern "C" {
 namespace nu {
 
 Controller::Controller() {
-  for (uint64_t vaddr = kMinVAddr; vaddr < kMaxVAddr;
+  for (uint64_t vaddr = kMinVAddr; vaddr + HeapManager::kHeapSize <= kMaxVAddr;
        vaddr += HeapManager::kHeapSize) {
     VAddrRange range = {.start = vaddr, .end = vaddr + HeapManager::kHeapSize};
     free_ranges_.push(range);

@@ -297,7 +297,7 @@ void Migrator::migrate(std::list<void *> heaps) {
   std::vector<rt::Thread> threads;
   for (auto heap : heaps) {
     threads.emplace_back(
-        [&] { transmit_and_forward(*optional_dest_addr, heap); });
+        [&, heap] { transmit_and_forward(*optional_dest_addr, heap); });
   }
   for (auto &thread : threads) {
     thread.Join();
@@ -427,6 +427,7 @@ void Migrator::load_threads(tcpconn_t *c, HeapHeader *heap_header) {
 
   for (uint64_t i = 0; i < num_threads; i++) {
     auto *th = load_one_thread(c, heap_header);
+    heap_header->threads->put(th);
     thread_ready(th);
   }
 }
@@ -438,18 +439,21 @@ void Migrator::load(tcpconn_t *c) {
   }
 
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  ACCESS_ONCE(heap_header->migratable) = false;
   loader_conn_ = c;
 
   load_mutexes(c, heap_header);
   load_condvars(c, heap_header);
   load_time(c, heap_header);
 
-  load_threads(c, heap_header);
-
-  ACCESS_ONCE(heap_header->migratable) = false;
   Runtime::heap_manager->insert(heap_base);
-  Runtime::controller_client->update_location(to_obj_id(heap_base),
-                                              Runtime::obj_server->get_addr());
+
+  rt::Thread([heap_base] {
+    Runtime::controller_client->update_location(
+        to_obj_id(heap_base), Runtime::obj_server->get_addr());
+  }).Detach();
+
+  load_threads(c, heap_header);
 
   forwarding_mutex_.Lock();
   while (ACCESS_ONCE(remaining_forwarding_cnts_)) {

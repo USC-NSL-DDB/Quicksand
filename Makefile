@@ -47,11 +47,13 @@ bench_tcp_lat_src = bench/bench_tcp_lat.cpp
 bench_tcp_lat_obj = $(bench_tcp_lat_src:.cpp=.o)
 bench_thread_src = bench/bench_thread.cpp
 bench_thread_obj = $(bench_thread_src:.cpp=.o)
+bench_migrate_src = bench/bench_migrate.cpp
+bench_migrate_obj = $(bench_migrate_src:.cpp=.o)
 
 all: libservless.a bin/test_slab bin/test_closure bin/test_method bin/test_multi_objs \
 bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
 bin/bench_rpc_lat bin/bench_rpc_tput bin/bench_tcp_tput bin/bench_tcp_lat \
-bin/bench_thread
+bin/bench_thread bin/bench_migrate
 
 libservless.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -90,6 +92,8 @@ bin/bench_tcp_lat: $(bench_tcp_lat_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_tcp_lat_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_thread: $(bench_thread_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_thread_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_migrate: $(bench_migrate_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_migrate_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)
