@@ -1,12 +1,13 @@
 CALADAN_PATH=caladan
 
-ROOT_PATH=caladan
+ROOT_PATH=$(CALADAN_PATH)
 include $(CALADAN_PATH)/build/shared.mk
 
 NCORES = $(shell nproc)
 
 INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/
 override CXXFLAGS += -Wno-subobject-linkage -DNCORES=$(NCORES)
+override LDFLAGS += -Lglibc/build/install/lib
 override LDFLAGS += -static -static-libstdc++ -static-libgcc -lpthread
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
@@ -36,6 +37,10 @@ test_condvar_src = test/test_condvar.cpp
 test_condvar_obj = $(test_condvar_src:.cpp=.o)
 test_time_src = test/test_time.cpp
 test_time_obj = $(test_time_src:.cpp=.o)
+test_sync_hash_map_src = test/test_sync_hash_map.cpp
+test_sync_hash_map_obj = $(test_sync_hash_map_src:.cpp=.o)
+test_dis_hash_table_src = test/test_dis_hash_table.cpp
+test_dis_hash_table_obj = $(test_dis_hash_table_src:.cpp=.o)
 
 bench_rpc_lat_src = bench/bench_rpc_lat.cpp
 bench_rpc_lat_obj = $(bench_rpc_lat_src:.cpp=.o)
@@ -49,11 +54,14 @@ bench_thread_src = bench/bench_thread.cpp
 bench_thread_obj = $(bench_thread_src:.cpp=.o)
 bench_migrate_src = bench/bench_migrate.cpp
 bench_migrate_obj = $(bench_migrate_src:.cpp=.o)
+bench_dis_hash_table_src = bench/bench_dis_hash_table.cpp
+bench_dis_hash_table_obj = $(bench_dis_hash_table_src:.cpp=.o)
 
 all: libservless.a bin/test_slab bin/test_closure bin/test_method bin/test_multi_objs \
 bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
 bin/bench_rpc_lat bin/bench_rpc_tput bin/bench_tcp_tput bin/bench_tcp_lat \
-bin/bench_thread bin/bench_migrate
+bin/bench_thread bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
+bin/bench_dis_hash_table
 
 libservless.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -81,6 +89,10 @@ bin/test_condvar: $(test_condvar_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_condvar_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_time: $(test_time_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_time_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_sync_hash_map: $(test_sync_hash_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_sync_hash_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_dis_hash_table: $(test_dis_hash_table_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_dis_hash_table_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_lat: $(bench_rpc_lat_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_lat_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
@@ -94,6 +106,8 @@ bin/bench_thread: $(bench_thread_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_thread_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_migrate: $(bench_migrate_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_migrate_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_dis_hash_table: $(bench_dis_hash_table_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_dis_hash_table_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)

@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <functional>
 
+#include <sync.h>
+
 #include "defs.hpp"
 
 namespace nu {
@@ -31,7 +33,7 @@ private:
   AlignedCnt aligned_cnts_[kNumCores];
 
   template <typename Fn> void write_sync_general(Fn &&fn);
+  void detect_sync_barrier();
 };
 } // namespace nu
 
-#include "impl/rcu_lock.ipp"

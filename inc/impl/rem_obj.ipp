@@ -39,11 +39,11 @@ retry:
   auto states_view = states_ss->view();
   uint64_t states_size = states_ss->tellp();
 
-  tcp_write2_until(conn, &states_size, sizeof(states_size), states_view.data(),
-                   states_size);
+  BUG_ON(!tcp_write2_until(conn, &states_size, sizeof(states_size),
+                           states_view.data(), states_size));
 
   ObjRPCRespHdr hdr;
-  tcp_read_until(conn, &hdr, sizeof(hdr));
+  BUG_ON(!tcp_read_until(conn, &hdr, sizeof(hdr)));
 
   if (unlikely(hdr.rc == CLIENT_RETRY)) {
     Runtime::rem_obj_conn_mgr->update_addr(id);
@@ -58,8 +58,8 @@ retry:
   if (unlikely(ret_ss.view().size() < hdr.payload_size)) {
     ret_ss.str(std::string(hdr.payload_size, '\0'));
   }
-  tcp_read_until(conn, const_cast<char *>(ret_ss.view().data()),
-                 hdr.payload_size);
+  BUG_ON(!tcp_read_until(conn, const_cast<char *>(ret_ss.view().data()),
+                         hdr.payload_size));
 
   Runtime::rem_obj_conn_mgr->put_conn(conn);
 
@@ -77,6 +77,8 @@ template <typename T> RemObj<T>::RemObj(RemObjID id) : id_(id) {
   inc_ref_cnt();
 }
 
+template <typename T> RemObj<T>::RemObj() : id_(kNullRemObjID) {}
+
 template <typename T>
 RemObj<T>::RemObj(RemObjID id, Future<void> &&construct)
     : id_(id), construct_(std::move(construct)) {}
@@ -85,19 +87,36 @@ template <typename T> RemObj<T>::~RemObj() {
   if (construct_) {
     construct_.get();
   }
-  dec_ref_cnt();
+  if (id_ != kNullRemObjID) {
+    dec_ref_cnt();
+  }
 }
 
-template <typename T> RemObj<T>::RemObj(RemObj<T> &&o) : id_(o.id_) {}
+template <typename T> RemObj<T>::RemObj(RemObj<T> &&o) : id_(o.id_) {
+  o.id_ = kNullRemObjID;
+}
 
 template <typename T> RemObj<T> &RemObj<T>::operator=(RemObj<T> &&o) {
   id_ = o.id_;
+  o.id_ = kNullRemObjID;
   return *this;
 }
 
 template <typename T>
 template <typename... As>
 RemObj<T> RemObj<T>::create(As &&... args) {
+  return general_create(/* pinned = */ false, std::forward<As>(args)...);
+}
+
+template <typename T>
+template <typename... As>
+RemObj<T> RemObj<T>::create_pinned(As &&... args) {
+  return general_create(/* pinned = */ true, std::forward<As>(args)...);
+}
+
+template <typename T>
+template <typename... As>
+RemObj<T> RemObj<T>::general_create(bool pinned, As &&... args) {
   auto optional = Runtime::controller_client->allocate_obj();
   BUG_ON(!optional);
   auto [id, range] = *optional;
@@ -106,7 +125,7 @@ RemObj<T> RemObj<T>::create(As &&... args) {
 
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler = ObjServer::construct_obj<T, As...>;
-  serialize(&oa_sstream->oa, handler, to_heap_base(id),
+  serialize(&oa_sstream->oa, handler, to_heap_base(id), pinned,
             std::forward<As>(args)...);
 
   auto *construct_promise = Promise<void>::create([id, oa_sstream]() {

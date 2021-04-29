@@ -1,5 +1,9 @@
 #pragma once
 
+extern "C" {
+#include <runtime/sync.h>
+}
+
 namespace nu {
 class Mutex {
 public:
@@ -7,9 +11,9 @@ public:
   Mutex(const Mutex &) = delete;
   Mutex &operator=(const Mutex &) = delete;
   ~Mutex();
-  void lock();
-  void unlock();
-  bool try_lock();
+  void Lock();
+  void Unlock();
+  bool TryLock();
 
 private:
   mutex_t mutex_;

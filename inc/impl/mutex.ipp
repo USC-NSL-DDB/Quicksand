@@ -19,11 +19,11 @@ inline Mutex::~Mutex() {
   assert(!mutex_held(&mutex_));
 }
 
-inline void Mutex::lock() { mutex_lock(&mutex_); }
+inline void Mutex::Lock() { mutex_lock(&mutex_); }
 
-inline void Mutex::unlock() { mutex_unlock(&mutex_); }
+inline void Mutex::Unlock() { mutex_unlock(&mutex_); }
 
-inline bool Mutex::try_lock() { return mutex_try_lock(&mutex_); }
+inline bool Mutex::TryLock() { return mutex_try_lock(&mutex_); }
 
 inline list_head *Mutex::get_waiters() { return &mutex_.waiters; }
 

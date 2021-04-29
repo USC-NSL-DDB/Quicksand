@@ -17,9 +17,10 @@ template <typename Cls, typename... As>
 void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
                               tcpconn_t *rpc_conn) {
   void *base;
-  ia >> base;
+  bool pinned;
+  ia >> base >> pinned;
 
-  Runtime::heap_manager->allocate(base);
+  Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
 
   auto *slab = Runtime::heap_manager->get_slab(base);
   auto obj_space = slab->allocate(sizeof(Cls));

@@ -29,10 +29,10 @@ public:
   void do_work() { delay_us(100 * 1000); }
 
   void mutex() {
-    mutex_.lock();
+    mutex_.Lock();
     do_work();
     cnt_++;
-    mutex_.unlock();
+    mutex_.Unlock();
   }
 
   void migrate() {

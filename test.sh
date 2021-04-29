@@ -36,7 +36,7 @@ function run_test {
     run_client_prog $BIN 2>/dev/null | grep -q "Passed"
     ret=$?
 
-    kill_process $1
+    kill_process test_
     sleep 3
     return $ret
 }

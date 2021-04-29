@@ -14,8 +14,8 @@ extern "C" {
 #include "defs.hpp"
 #include "utils/rcu_hash_set.hpp"
 #include "utils/rcu_lock.hpp"
-#include "utils/slab.hpp"
 #include "utils/refcount_hash_set.hpp"
+#include "utils/slab.hpp"
 
 namespace nu {
 
@@ -51,9 +51,9 @@ public:
   constexpr static uint64_t kHeapSize = 0x40000000ULL;
 
   HeapManager();
-  static void allocate(void *heap_base);
+  static void allocate(void *heap_base, bool migratable);
   static void mmap(void *heap_base);
-  static void setup(void *heap_base);
+  static void setup(void *heap_base, bool migratable, bool skip_slab);
   static void deallocate(void *heap_base);
   void insert(void *heap_base);
   bool contains(void *heap_base);
@@ -65,7 +65,8 @@ public:
   std::list<void *> pick_heaps(const Resource &pressure);
 
 private:
-  std::unique_ptr<RCUHashSet<void *, RuntimeAllocator<void *>>> heap_statuses_;
+  std::unique_ptr<RCUHashSet<HeapHeader *, RuntimeAllocator<HeapHeader *>>>
+      heap_statuses_;
   RCULock rcu_lock_;
 };
 } // namespace nu

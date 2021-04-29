@@ -26,8 +26,10 @@ public:
   RemObj &operator=(const RemObj &) = delete;
   RemObj(RemObj &&);
   RemObj &operator=(RemObj &&);
+  RemObj();
   ~RemObj();
   template <typename... As> static RemObj create(As &&... args);
+  template <typename... As> static RemObj create_pinned(As &&... args);
   static RemObj attach(Cap cap);
   Cap get_cap();
   template <typename RetT, typename... S0s, typename... S1s>
@@ -52,6 +54,8 @@ private:
   template <typename RetT>
   static RetT invoke_remote(RemObjID id, auto *states_ss);
   static tcpconn_t *purge_old_conns(RemObjID id, tcpconn_t *old_conn);
+  template <typename... As>
+  static RemObj general_create(bool pinned, As &&... args);
 };
 
 template <typename T> union MethodPtr {

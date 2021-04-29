@@ -30,19 +30,19 @@ public:
   }
 
   void consume() {
-    mutex_.lock();
+    mutex_.Lock();
     while (ACCESS_ONCE(credits_) == 0) {
       condvar_.wait(&mutex_);
     }
     credits_--;
-    mutex_.unlock();
+    mutex_.Unlock();
   }
 
   void produce() {
-    mutex_.lock();
+    mutex_.Lock();
     credits_++;
     condvar_.signal();
-    mutex_.unlock();
+    mutex_.Unlock();
   }
 
   void migrate() {

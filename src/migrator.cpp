@@ -319,11 +319,12 @@ void *Migrator::load_heap(tcpconn_t *c, rt::Mutex *loader_mutex) {
   // Only allows one loading at a time.
   loader_mutex->Lock();
   Runtime::heap_manager->mmap(heap_header);
-  uint8_t ack;
+  uint8_t ack = true;
   rt::WaitGroup wg(kTransmitHeapNumThreads);
   auto *wg_p = &wg;
   BUG_ON(!tcp_write2_until(c, &ack, sizeof(ack), &wg_p, sizeof(wg_p)));
-  Runtime::heap_manager->setup(heap_header);
+  Runtime::heap_manager->setup(heap_header, /* migratable = */ true,
+                               /* skip_slab = */ true);
   heap_header->ref_cnt = obj_ref_cnt;
   wg.Wait();
 

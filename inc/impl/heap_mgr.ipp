@@ -21,15 +21,15 @@ inline SlabAllocator *HeapManager::get_slab(void *heap_base) {
 }
 
 inline void HeapManager::insert(void *heap_base) {
-  heap_statuses_->put(heap_base);
+  heap_statuses_->put(reinterpret_cast<HeapHeader *>(heap_base));
 }
 
 inline bool HeapManager::contains(void *heap_base) {
-  return heap_statuses_->contains(heap_base);
+  return heap_statuses_->contains(reinterpret_cast<HeapHeader *>(heap_base));
 }
 
 inline bool HeapManager::remove(void *heap_base) {
-  return heap_statuses_->remove(heap_base);
+  return heap_statuses_->remove(reinterpret_cast<HeapHeader *>(heap_base));
 }
 
 inline void HeapManager::rcu_reader_lock() { rcu_lock_.reader_lock(); }

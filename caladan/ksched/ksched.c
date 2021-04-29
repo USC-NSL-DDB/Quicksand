@@ -372,7 +372,7 @@ static long ksched_yield_all(void)
 		return -EACCES;
   
 	smp_call_function_many(&all_cores_mask, do_yield_all, NULL, false);
-	return 0;
+	return smp_processor_id();
 }
 
 static long

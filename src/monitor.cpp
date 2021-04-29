@@ -9,6 +9,8 @@ extern "C" {
 
 namespace nu {
 
+// TODO: use real signals.
+
 Monitor::Monitor()
   : mock_pressure_({.cores = 0, .mem_mbs = 0}), stopped_(false) {}
 
@@ -20,7 +22,9 @@ void Monitor::run_loop() {
     auto pressure = detect_pressure();
     if (!pressure.empty()) {
       auto heaps = Runtime::heap_manager->pick_heaps(pressure);
-      Runtime::migrator->migrate(heaps);
+      if (!heaps.empty()) {
+        Runtime::migrator->migrate(heaps);
+      }
       Resource empty = {.cores = 0, .mem_mbs = 0};
       mock_set_pressure(empty);
     }
