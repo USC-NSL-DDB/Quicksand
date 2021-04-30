@@ -3,8 +3,8 @@
 #pragma once
 
 extern "C" {
-#include <base/stddef.h>
 #include <base/lock.h>
+#include <base/stddef.h>
 #include <runtime/sync.h>
 }
 
@@ -59,11 +59,10 @@ class Mutex {
 };
 
 // RAII lock support (works with both Spin and Mutex).
-template<typename L> class ScopedLock {
+template <typename L>
+class ScopedLock {
  public:
-  explicit ScopedLock(L *lock) : lock_(lock) {
-    lock_->Lock();
-  }
+  explicit ScopedLock(L *lock) : lock_(lock) { lock_->Lock(); }
   ~ScopedLock() { lock_->Unlock(); }
 
  private:
@@ -126,4 +125,4 @@ class WaitGroup {
   WaitGroup& operator=(const WaitGroup&) = delete;
 };
 
-} // namespace rt
+}  // namespace rt
