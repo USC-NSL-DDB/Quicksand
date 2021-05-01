@@ -48,7 +48,7 @@ static bool is_snd_full(tcpconn_t *c)
 	assert_spin_lock_held(&c->lock);
 
 	/* allow one extra byte for zero window probing */
-	return wraps_lte(c->pcb.snd_una + c->pcb.snd_wnd + 1, c->pcb.snd_nxt);
+	return wraps_lte(c->pcb.snd_una + c->pcb.snd_wnd, c->pcb.snd_nxt);
 }
 
 /* see reset generation (RFC 793) */

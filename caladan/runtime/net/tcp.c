@@ -908,7 +908,7 @@ static int tcp_write_wait(tcpconn_t *c, size_t *winlen)
 	/* block until there is an actionable event */
 	while (!c->tx_closed &&
 	       (c->pcb.state < TCP_STATE_ESTABLISHED || c->tx_exclusive ||
-		wraps_lte(c->pcb.snd_una + c->pcb.snd_wnd + 1, c->pcb.snd_nxt))) {
+		wraps_lte(c->pcb.snd_una + c->pcb.snd_wnd, c->pcb.snd_nxt))) {
 		waitq_wait(&c->tx_wq, &c->lock);
 	}
 
@@ -922,7 +922,7 @@ static int tcp_write_wait(tcpconn_t *c, size_t *winlen)
 	c->tx_exclusive = true;
 
 	/* an extra byte allows for window probing */
-	*winlen = c->pcb.snd_una + c->pcb.snd_wnd - c->pcb.snd_nxt + 1;
+	*winlen = c->pcb.snd_una + c->pcb.snd_wnd - c->pcb.snd_nxt;
 	c->acks_delayed_cnt = 0;
 	c->ack_delayed = false;
 	spin_unlock_np(&c->lock);
