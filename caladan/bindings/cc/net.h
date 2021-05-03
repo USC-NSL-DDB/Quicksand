@@ -8,6 +8,8 @@ extern "C" {
 #include <runtime/udp.h>
 }
 
+#include <span>
+
 namespace rt {
 
 class NetConn {
@@ -74,8 +76,8 @@ class UdpConn : public NetConn {
   UdpConn(udpconn_t *c) : c_(c) {}
 
   // disable move and copy.
-  UdpConn(const UdpConn&) = delete;
-  UdpConn& operator=(const UdpConn&) = delete;
+  UdpConn(const UdpConn &) = delete;
+  UdpConn &operator=(const UdpConn &) = delete;
 
   udpconn_t *c_;
 };
@@ -157,19 +159,29 @@ class TcpConn : public NetConn {
   }
 
   // Reads exactly a vector of bytes from the TCP stream.
-  ssize_t ReadvFull(const iovec *iov, int iovcnt) {
-    if (__builtin_constant_p(iovcnt)) {
-      if (iovcnt == 1) return ReadFull(iov[0].iov_base, iov[0].iov_len);
+  ssize_t ReadvFull(std::span<const iovec> iov) {
+    if (__builtin_constant_p(iov.size())) {
+      if (iov.size() == 1) return ReadFull(iov[0].iov_base, iov[0].iov_len);
     }
-    return ReadvFullRaw(iov, iovcnt);
+    return ReadvFullRaw(iov);
+  }
+
+  // Writes exactly a vector of bytes to the TCP stream.
+  ssize_t WritevFull(std::span<const iovec> iov) {
+    if (__builtin_constant_p(iov.size())) {
+      if (iov.size() == 1) return WriteFull(iov[0].iov_base, iov[0].iov_len);
+    }
+    return WritevFullRaw(iov);
+  }
+
+  // Reads exactly a vector of bytes from the TCP stream.
+  ssize_t ReadvFull(const iovec *iov, int iovcnt) {
+    return ReadvFull({iov, static_cast<size_t>(iovcnt)});
   }
 
   // Writes exactly a vector of bytes to the TCP stream.
   ssize_t WritevFull(const iovec *iov, int iovcnt) {
-    if (__builtin_constant_p(iovcnt)) {
-      if (iovcnt == 1) return WriteFull(iov[0].iov_base, iov[0].iov_len);
-    }
-    return WritevFullRaw(iov, iovcnt);
+    return WritevFull({iov, static_cast<size_t>(iovcnt)});
   }
 
   // Gracefully shutdown the TCP connection.
@@ -181,11 +193,11 @@ class TcpConn : public NetConn {
   TcpConn(tcpconn_t *c) : c_(c) {}
 
   // disable move and copy.
-  TcpConn(const TcpConn&) = delete;
-  TcpConn& operator=(const TcpConn&) = delete;
+  TcpConn(const TcpConn &) = delete;
+  TcpConn &operator=(const TcpConn &) = delete;
 
-  ssize_t WritevFullRaw(const iovec *iov, int iovcnt);
-  ssize_t ReadvFullRaw(const iovec *iov, int iovcnt);
+  ssize_t WritevFullRaw(std::span<const iovec> iov);
+  ssize_t ReadvFullRaw(std::span<const iovec> iov);
 
   tcpconn_t *c_;
 };
@@ -218,8 +230,8 @@ class TcpQueue {
   TcpQueue(tcpqueue_t *q) : q_(q) {}
 
   // disable move and copy.
-  TcpQueue(const TcpQueue&) = delete;
-  TcpQueue& operator=(const TcpQueue&) = delete;
+  TcpQueue(const TcpQueue &) = delete;
+  TcpQueue &operator=(const TcpQueue &) = delete;
 
   tcpqueue_t *q_;
 };
