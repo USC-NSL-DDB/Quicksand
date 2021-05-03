@@ -21,8 +21,10 @@ void HeapManager::allocate(void *heap_base, bool migratable) {
 }
 
 void HeapManager::mmap(void *heap_base) {
+  preempt_disable();
   auto mmap_addr = ::mmap(heap_base, kHeapSize, PROT_READ | PROT_WRITE,
                           MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED, -1, 0);
+  preempt_enable();
   BUG_ON(mmap_addr != heap_base);
 }
 

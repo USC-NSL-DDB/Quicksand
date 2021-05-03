@@ -10,8 +10,8 @@ template <typename K, typename V, typename Hash = std::hash<K>,
           typename KeyEqual = std::equal_to<K>>
 class DistributedHashTable {
 public:
-  constexpr static uint32_t kNumShards = 256;
-  constexpr static uint32_t kNumBucketsPerShard = 262144;
+  constexpr static uint32_t kNumShards = 512;
+  constexpr static uint32_t kNumBucketsPerShard = 131072;
 
   DistributedHashTable();
   template <typename K1> std::optional<V> get(K1 &&k);
@@ -21,7 +21,7 @@ public:
   template <typename K1, typename V1> Future<void> put_async(K1 &&k, V1 &&v);
   template <typename K1> Future<bool> remove_async(K1 &&k);
 
-public:
+private:
   using HashTableShard =
       SyncHashMap<kNumBucketsPerShard, K, V, Hash, std::equal_to<K>,
                   std::allocator<std::pair<const K, V>>, SpinLock>;

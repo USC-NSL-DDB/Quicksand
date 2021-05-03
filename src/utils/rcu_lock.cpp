@@ -28,7 +28,6 @@ void RCULock::reader_lock() {
 }
 
 void RCULock::reader_unlock() {
-  barrier();
   int core = get_cpu();
   Cnt cnt;
   cnt.raw = aligned_cnts_[core].cnt.raw;
@@ -36,7 +35,6 @@ void RCULock::reader_unlock() {
   cnt.data.ver++;
   aligned_cnts_[core].cnt.data = cnt.data;
   put_cpu();
-  detect_sync_barrier();
 }
 
 void RCULock::writer_sync() {

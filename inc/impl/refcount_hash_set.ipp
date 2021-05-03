@@ -12,7 +12,11 @@ template <typename K, typename Allocator>
 template <typename K1>
 void RefcountHashSet<K, Allocator>::put(K1 &&k) {
   int cpu = get_cpu();
-  ref_counts_[cpu][k]++;
+  auto &map = ref_counts_[cpu];
+  auto iter = map.try_emplace(k, 0).first;
+  if (++iter->second == 0) {
+    map.erase(iter);
+  }
   put_cpu();
 }
 
@@ -20,7 +24,11 @@ template <typename K, typename Allocator>
 template <typename K1>
 void RefcountHashSet<K, Allocator>::remove(K1 &&k) {
   int cpu = get_cpu();
-  ref_counts_[cpu][k]--;
+  auto &map = ref_counts_[cpu];
+  auto iter = map.try_emplace(k, 0).first;
+  if (--iter->second == 0) {
+    map.erase(iter);
+  }
   put_cpu();
 }
 

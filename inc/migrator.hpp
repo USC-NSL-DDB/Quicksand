@@ -46,7 +46,7 @@ struct RPCReqCopy {
 class Migrator {
 public:
   constexpr static uint32_t kDefaultNumReservedConns = 32;
-  constexpr static uint32_t kTransmitHeapNumThreads = 6;
+  constexpr static uint32_t kTransmitHeapNumThreads = 5;
 
   ~Migrator();
   void run_loop(uint16_t port);

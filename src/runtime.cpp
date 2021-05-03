@@ -33,8 +33,10 @@ std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
 
 void Runtime::init_runtime_heap() {
   auto addr = reinterpret_cast<void *>(Controller::kMaxVAddr);
+  preempt_disable();
   auto mmap_addr = mmap(addr, kRuntimeHeapSize, PROT_READ | PROT_WRITE,
                         MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED, -1, 0);
+  preempt_enable();
   BUG_ON(mmap_addr != addr);
   BUG_ON(madvise(mmap_addr, kRuntimeHeapSize, MADV_HUGEPAGE) != 0);
   uint16_t sentinel = 0x1;
@@ -111,6 +113,9 @@ Runtime::~Runtime() {
   archive_pool.reset();
   barrier();
   active_runtime = false;
+  preempt_disable();
+  munmap(runtime_slab.get_base(), kRuntimeHeapSize);
+  preempt_enable();
 }
 
 // TODO: make the rcu lock to be per-heap instead of being global.

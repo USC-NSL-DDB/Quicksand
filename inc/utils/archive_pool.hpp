@@ -28,7 +28,7 @@ public:
     OASStream() : ss(std::string(kSStreamBufSize, '\0')), oa(ss) {}
   };
 
-  ArchivePool(uint32_t per_core_cache_size = 32);
+  ArchivePool(uint32_t per_core_cache_size = 4);
   IASStream *get_ia_sstream();
   void put_ia_sstream(IASStream *ia_sstream);
   OASStream *get_oa_sstream();

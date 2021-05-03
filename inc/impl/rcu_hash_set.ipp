@@ -31,11 +31,14 @@ bool RCUHashSet<K, Allocator>::remove(K1 &&k) {
 template <typename K, typename Allocator>
 template <typename K1>
 bool RCUHashSet<K, Allocator>::contains(K1 &&k) {
+retry:
   rcu_.reader_lock();
-  while (unlikely(ACCESS_ONCE(writer_barrier_))) {
+  if (unlikely(ACCESS_ONCE(writer_barrier_))) {
     rcu_.reader_unlock();
-    thread_yield();
-    rcu_.reader_lock();
+    while (unlikely(ACCESS_ONCE(writer_barrier_))) {
+      thread_yield();
+    }
+    goto retry;
   }
   auto ret = set_.contains(std::forward<K1>(k));
   rcu_.reader_unlock();
@@ -45,11 +48,14 @@ bool RCUHashSet<K, Allocator>::contains(K1 &&k) {
 template <typename K, typename Allocator>
 void RCUHashSet<K, Allocator>::for_each(
     const std::function<bool(const K &)> &fn) {
+retry:
   rcu_.reader_lock();
-  while (unlikely(ACCESS_ONCE(writer_barrier_))) {
+  if (unlikely(ACCESS_ONCE(writer_barrier_))) {
     rcu_.reader_unlock();
-    thread_yield();
-    rcu_.reader_lock();
+    while (unlikely(ACCESS_ONCE(writer_barrier_))) {
+      thread_yield();
+    }
+    goto retry;
   }
   for (const auto &k : set_) {
     if (!fn(k)) {

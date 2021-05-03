@@ -21,7 +21,7 @@ constexpr static uint64_t kCacheLineBytes = 64;
 constexpr static uint64_t kPtrHeaderSize = 8;
 constexpr static uint64_t kStackAlignment = 16;
 constexpr static uint64_t kStackSize =
-    (128 << 10) - kPtrHeaderSize - kStackAlignment;
+    (32 << 10) - kPtrHeaderSize - kStackAlignment;
 
 inline void *to_heap_base(RemObjID id) { return reinterpret_cast<void *>(id); }
 inline RemObjID to_obj_id(void *heap_base) {

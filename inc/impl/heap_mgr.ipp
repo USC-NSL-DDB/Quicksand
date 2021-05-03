@@ -13,7 +13,9 @@ inline HeapManager::HeapManager()
 inline void HeapManager::deallocate(void *heap_base) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
   heap_header->~HeapHeader();
+  preempt_disable();
   BUG_ON(munmap(heap_base, kHeapSize) == -1);
+  preempt_enable();
 }
 
 inline SlabAllocator *HeapManager::get_slab(void *heap_base) {

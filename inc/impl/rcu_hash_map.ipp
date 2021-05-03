@@ -10,11 +10,14 @@ namespace nu {
 template <typename K, typename V, typename Allocator>
 template <typename K1>
 V *RCUHashMap<K, V, Allocator>::get(K1 &&k) {
+retry:
   rcu_.reader_lock();
-  while (unlikely(ACCESS_ONCE(writer_barrier_))) {
+  if (unlikely(ACCESS_ONCE(writer_barrier_))) {
     rcu_.reader_unlock();
-    thread_yield();
-    rcu_.reader_lock();
+    while (unlikely(ACCESS_ONCE(writer_barrier_))) {
+      thread_yield();
+    }
+    goto retry;
   }
   auto iter = map_.find(std::forward<K1>(k));
   V *ret;
