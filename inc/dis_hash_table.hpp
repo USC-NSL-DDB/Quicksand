@@ -25,6 +25,7 @@ private:
   using HashTableShard =
       SyncHashMap<kNumBucketsPerShard, K, V, Hash, std::equal_to<K>,
                   std::allocator<std::pair<const K, V>>, SpinLock>;
+  friend class Test;
 
   uint32_t get_shard_idx(uint64_t key_hash);
 

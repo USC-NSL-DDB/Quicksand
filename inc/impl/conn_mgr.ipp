@@ -34,14 +34,16 @@ retry:
   if (unlikely(!conn)) {
     global_spin_.Lock();
     auto &global = global_conns_[k];
-    while (!global.empty() && cached_conns.size() < per_core_cache_size_) {
+    auto expected_size =
+        std::max(static_cast<uint32_t>(1), per_core_cache_size_);
+    while (!global.empty() && cached_conns.size() < expected_size) {
       cached_conns.push(global.top());
       global.pop();
     }
-    if (unlikely(cached_conns.size() < per_core_cache_size_)) {
+    if (unlikely(cached_conns.size() < expected_size)) {
       global_spin_.Unlock();
       put_cpu();
-      reserve_conns(k, per_core_cache_size_);
+      reserve_conns(k, expected_size);
       goto retry;
     }
     global_spin_.Unlock();
@@ -62,8 +64,7 @@ void ConnectionManager<Key>::put_conn(Key k, tcpconn_t *conn) {
   if (unlikely(cached_conns.size() > per_core_cache_size_)) {
     rt::ScopedLock<rt::Spin> lock(&global_spin_);
     auto &global = global_conns_[k];
-    while (cached_conns.size() > per_core_cache_size_ / 2 &&
-           cached_conns.size() > 1) {
+    while (cached_conns.size() > (per_core_cache_size_ + 1) / 2) {
       global.push(cached_conns.top());
       cached_conns.pop();
     }

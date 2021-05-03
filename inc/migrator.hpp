@@ -22,8 +22,6 @@ struct ObjRPCRespHdr;
 
 class MigratorConnManager : public ConnectionManager<netaddr> {
 public:
-  constexpr static uint32_t kNumPerCoreCachedConns = 1;
-
   MigratorConnManager();
 
 private:
@@ -46,7 +44,7 @@ struct RPCReqCopy {
 class Migrator {
 public:
   constexpr static uint32_t kDefaultNumReservedConns = 32;
-  constexpr static uint32_t kTransmitHeapNumThreads = 5;
+  constexpr static uint32_t kTransmitHeapNumThreads = 3;
 
   ~Migrator();
   void run_loop(uint16_t port);

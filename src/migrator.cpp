@@ -34,7 +34,7 @@ std::function<tcpconn_t *(netaddr)> MigratorConnManager::creator_ =
     };
 
 MigratorConnManager::MigratorConnManager()
-    : ConnectionManager<netaddr>(creator_, kNumPerCoreCachedConns) {}
+    : ConnectionManager<netaddr>(creator_, 0) {}
 
 Migrator::~Migrator() { BUG(); }
 
@@ -316,6 +316,7 @@ void *Migrator::load_heap(tcpconn_t *c, rt::Mutex *loader_mutex) {
                        sizeof(obj_ref_cnt))) {
     return nullptr;
   }
+
   // Only allows one loading at a time.
   loader_mutex->Lock();
   Runtime::heap_manager->mmap(heap_header);
