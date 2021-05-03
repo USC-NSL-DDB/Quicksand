@@ -1,57 +1,56 @@
 #include "net.h"
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
-#include <algorithm>
 
 namespace {
 
-bool PullIOV(struct iovec **iovp, int *iovcntp, size_t n) {
-  struct iovec *iov = *iovp;
-  int iovcnt = *iovcntp, i;
+size_t SumIOV(std::span<const iovec> iov) {
+  size_t len = 0;
+  for (const iovec &e : iov) {
+    len += e.iov_len;
+  }
+  return len;
+}
 
-  for (i = 0; i < iovcnt; ++i) {
-    if (n < iov[i].iov_len) {
-      iov[i].iov_base = reinterpret_cast<char *>(iov[i].iov_base) + n;
-      iov[i].iov_len -= n;
-      *iovp = &iov[i];
-      *iovcntp -= i;
-      return true;
+std::span<iovec> PullIOV(std::span<iovec> iov, size_t n) {
+  for (auto it = iov.begin(); it < iov.end(); ++it) {
+    if (n < it->iov_len) {
+      (*it).iov_base = reinterpret_cast<char *>(it->iov_base) + n;
+      (*it).iov_len -= n;
+      return {it, iov.end()};
     }
-    n -= iov[i].iov_len;
+    n -= it->iov_len;
   }
 
   assert(n == 0);
-  return false;
-}
-
-size_t SumIOV(const iovec *iov, int iovcnt) {
-  size_t len = 0;
-  for (int i = 0; i < iovcnt; ++i) len += iov[i].iov_len;
-  return len;
+  return {};
 }
 
 }  // namespace
 
 namespace rt {
 
-ssize_t TcpConn::WritevFullRaw(const iovec *iov, int iovcnt) {
+ssize_t TcpConn::WritevFullRaw(std::span<const iovec> iov) {
   // first try to send without copying the vector
-  ssize_t n = tcp_writev(c_, iov, iovcnt);
+  ssize_t n = tcp_writev(c_, iov.data(), iov.size());
   if (n < 0) return n;
   assert(n > 0);
 
   // sum total length and check if everything was transfered
-  size_t total = SumIOV(iov, iovcnt);
+  size_t total = SumIOV(iov);
   if (static_cast<size_t>(n) == total) return n;
 
   // partial transfer occurred, send the rest
   size_t len = n;
-  std::unique_ptr<iovec[]> v = std::unique_ptr<iovec[]>{new iovec[iovcnt]};
-  iovec *iovp = v.get();
-  std::copy_n(iov, iovcnt, iovp);
-  while (PullIOV(&iovp, &iovcnt, n)) {
-    n = tcp_writev(c_, iovp, iovcnt);
+  iovec v[iov.size()];
+  std::copy(iov.begin(), iov.end(), v);
+  std::span<iovec> s(v, iov.size());
+  while (true) {
+    s = PullIOV(s, n);
+    if (s.empty()) break;
+    n = tcp_writev(c_, s.data(), s.size());
     if (n < 0) return n;
     assert(n > 0);
     len += n;
@@ -61,22 +60,24 @@ ssize_t TcpConn::WritevFullRaw(const iovec *iov, int iovcnt) {
   return len;
 }
 
-ssize_t TcpConn::ReadvFullRaw(const iovec *iov, int iovcnt) {
+ssize_t TcpConn::ReadvFullRaw(std::span<const iovec> iov) {
   // first try to receive without copying the vector
-  ssize_t n = tcp_readv(c_, iov, iovcnt);
+  ssize_t n = tcp_readv(c_, iov.data(), iov.size());
   if (n <= 0) return n;
 
   // sum total length and check if everything was transfered
-  size_t total = SumIOV(iov, iovcnt);
+  size_t total = SumIOV(iov);
   if (static_cast<size_t>(n) == total) return n;
 
   // partial transfer occurred, receive the rest
   size_t len = n;
-  std::unique_ptr<iovec[]> v = std::unique_ptr<iovec[]>{new iovec[iovcnt]};
-  iovec *iovp = v.get();
-  std::copy_n(iov, iovcnt, iovp);
-  while (PullIOV(&iovp, &iovcnt, n)) {
-    n = tcp_readv(c_, iovp, iovcnt);
+  iovec v[iov.size()];
+  std::copy(iov.begin(), iov.end(), v);
+  std::span<iovec> s(v, iov.size());
+  while (true) {
+    s = PullIOV(s, n);
+    if (s.empty()) break;
+    n = tcp_readv(c_, s.data(), s.size());
     if (n <= 0) return n;
     len += n;
   }
