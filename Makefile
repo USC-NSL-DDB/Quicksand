@@ -56,12 +56,14 @@ bench_migrate_src = bench/bench_migrate.cpp
 bench_migrate_obj = $(bench_migrate_src:.cpp=.o)
 bench_dis_hash_table_src = bench/bench_dis_hash_table.cpp
 bench_dis_hash_table_obj = $(bench_dis_hash_table_src:.cpp=.o)
+bench_fake_migration_src = bench/bench_fake_migration.cpp
+bench_fake_migration_obj = $(bench_fake_migration_src:.cpp=.o)
 
 all: libservless.a bin/test_slab bin/test_closure bin/test_method bin/test_multi_objs \
 bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
 bin/bench_rpc_lat bin/bench_rpc_tput bin/bench_tcp_tput bin/bench_tcp_lat \
 bin/bench_thread bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
-bin/bench_dis_hash_table
+bin/bench_dis_hash_table bin/bench_fake_migration
 
 libservless.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -108,6 +110,8 @@ bin/bench_migrate: $(bench_migrate_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_migrate_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_dis_hash_table: $(bench_dis_hash_table_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_dis_hash_table_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_fake_migration: $(bench_fake_migration_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_fake_migration_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)

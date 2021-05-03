@@ -1,7 +1,9 @@
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <numeric>
 #include <random>
+#include <signal.h>
 #include <utility>
 #include <vector>
 
@@ -21,9 +23,17 @@ extern "C" {
 using namespace nu;
 
 Runtime::Mode mode;
+bool stop = false;
 
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
+constexpr double kLoadFactor = 0.25;
+constexpr uint32_t kNumThreads = 100;
+constexpr uint32_t kNumRecordsTotal = 400 << 20;
+constexpr uint32_t kNumRecordsPerCore = kNumRecordsTotal / kNumCores;
+constexpr double kTargetMOPS = 2;
+constexpr uint32_t kPrintIntervalUS = 100 * 1000;
+constexpr uint32_t kMigrationTriggeredIdx = 5;
 
 struct Key {
   char data[kKeyLen];
@@ -41,31 +51,49 @@ struct Val {
   template <class Archive> void serialize(Archive &ar) { ar(data); }
 };
 
-constexpr auto kFarmHashKeytoU64 = [](const Key &key) {
-  return util::Hash64(key.data, kKeyLen);
-};
-
-using DSHashTable = DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
-constexpr double kLoadFactor = 0.25;
-constexpr size_t kNumPairs =
-    DSHashTable::kNumShards * DSHashTable::kNumBucketsPerShard * kLoadFactor;
-constexpr uint32_t kNumThreads = 100;
-
-struct alignas(kCacheLineBytes) AlignedCnt {
-  uint64_t cnt;
-};
-
 namespace nu {
+
 class Test {
 public:
-  Test(int x) {}
+  constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
+    return util::Hash64(key.data, kKeyLen);
+  };
+  using DSHashTable =
+      DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
+  constexpr static size_t kNumPairs =
+      DSHashTable::kNumShards * DSHashTable::kNumBucketsPerShard * kLoadFactor;
+
+  Test(uint32_t pressure_mem_mbs) : pressure_mem_mbs_(pressure_mem_mbs) {}
+
   int migrate() {
-    Resource resource = {.cores = 0, .mem_mbs = 1};
+    Resource resource = {.cores = 0, .mem_mbs = pressure_mem_mbs_};
     Runtime::monitor->mock_set_pressure(resource);
+    Runtime::monitor->mock_set_continuous();
     return 0;
   }
+
+  void print_addrs() {
+    std::cout << reinterpret_cast<uintptr_t>(
+                     ObjServer::construct_obj<DSHashTable::HashTableShard>)
+              << std::endl;
+    std::cout << reinterpret_cast<uintptr_t>(
+                     ObjServer::construct_obj<Test, int>)
+              << std::endl;
+    auto md_ptr_0 = &DSHashTable::HashTableShard::template get_with_hash<Key>;
+    std::cout << *reinterpret_cast<unsigned long *>(&md_ptr_0) << std::endl;
+    auto md_ptr_1 =
+        &DSHashTable::HashTableShard::template put_with_hash<Key, Val>;
+    std::cout << *reinterpret_cast<unsigned long *>(&md_ptr_1) << std::endl;
+    auto md_ptr_2 = &Test::migrate;
+    std::cout << *reinterpret_cast<unsigned long *>(&md_ptr_2) << std::endl;
+  }
+
+private:
+  uint32_t pressure_mem_mbs_;
 };
 } // namespace nu
+
+void sigint_handler(int sig) { ACCESS_ONCE(stop) = true; }
 
 void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
   for (uint32_t i = 0; i < len; i++) {
@@ -73,14 +101,14 @@ void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
   }
 }
 
-void init(DSHashTable *hash_table, std::vector<Key> *keys) {
+void init(Test::DSHashTable *hash_table, std::vector<Key> *keys) {
   std::vector<rt::Thread> threads;
   for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back([&, tid = i] {
       std::random_device rd;
       std::mt19937 mt(rd());
       std::uniform_int_distribution<int> dist('A', 'z');
-      auto num_pairs = kNumPairs / kNumThreads;
+      auto num_pairs = Test::kNumPairs / kNumThreads;
       for (size_t j = 0; j < num_pairs; j++) {
         Key key;
         Val val;
@@ -96,50 +124,110 @@ void init(DSHashTable *hash_table, std::vector<Key> *keys) {
   }
 }
 
-void benchmark(DSHashTable *hash_table, std::vector<Key> *keys,
+struct alignas(kCacheLineBytes) AlignedCnt {
+  uint64_t cnt;
+};
+
+void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
                RemObj<nu::Test> *test) {
-  AlignedCnt aligned_cnts[kNumThreads];
+  std::vector<std::pair<uint64_t, uint64_t>> records[kNumCores];
+  for (uint32_t i = 0; i < kNumCores; i++) {
+    records[i].reserve(kNumRecordsPerCore);
+  }
+
+  AlignedCnt aligned_cnts[kNumCores];
   memset(aligned_cnts, 0, sizeof(aligned_cnts));
 
+  std::vector<rt::Thread> threads;
+
   for (uint32_t i = 0; i < kNumThreads; i++) {
-    rt::Thread([&, tid = i] {
+    threads.emplace_back([&, tid = i] {
+      auto target_mops = kTargetMOPS / kNumThreads;
+      uint64_t target_cycles_per_op = cycles_per_us / target_mops;
+      uint64_t target_next_op_tsc = rdtsc();
+
       while (true) {
         for (const auto &k : keys[tid]) {
+          if (unlikely(ACCESS_ONCE(stop))) {
+            return;
+          }
+
+          auto tsc = rdtsc();
+          if (tsc < target_next_op_tsc) {
+            timer_sleep((target_next_op_tsc - tsc) / cycles_per_us);
+          }
+          target_next_op_tsc += target_cycles_per_op;
+
+          auto start_tsc = rdtsc();
           hash_table->get(k);
-          ACCESS_ONCE(aligned_cnts[tid].cnt) = aligned_cnts[tid].cnt + 1;
+          auto end_tsc = rdtsc();
+
+          int cpu_id = get_cpu();
+          if (unlikely(records[cpu_id].size() == kNumRecordsPerCore)) {
+            ACCESS_ONCE(stop) = true;
+            put_cpu();
+            return;
+          }
+          records[cpu_id].push_back(
+              std::make_pair(start_tsc, end_tsc - start_tsc));
+          ACCESS_ONCE(aligned_cnts[cpu_id].cnt) = aligned_cnts[cpu_id].cnt + 1;
+          put_cpu();
         }
       }
-    }).Detach();
+    });
   }
 
   auto old_us = microtime();
   auto old_sum = 0;
-  while (true) {
-    test->run(&nu::Test::migrate);
-    timer_sleep(1000 * 1000);
+
+  int idx = 0;
+
+  while (!ACCESS_ONCE(stop)) {
+    if (idx++ == kMigrationTriggeredIdx) {
+      test->run(&Test::migrate);
+    }
+
+    timer_sleep(kPrintIntervalUS);
+
     auto cur_us = microtime();
     uint64_t cur_sum = 0;
-    for (uint32_t i = 0; i < kNumThreads; i++) {
+    for (uint32_t i = 0; i < kNumCores; i++) {
       cur_sum += ACCESS_ONCE(aligned_cnts[i].cnt);
     }
     auto diff_sum = cur_sum - old_sum;
     auto diff_us = cur_us - old_us;
     auto mops = static_cast<double>(diff_sum) / diff_us;
+
     preempt_disable();
-    std::cout << "mops = " << mops << ", sum = " << diff_sum
-              << " , us = " << diff_us << std::endl;
+    std::cout << "mops = " << mops << ", diff_sum = " << diff_sum
+              << " , diff_us = " << diff_us << std::endl;
     preempt_enable();
     old_us = cur_us;
     old_sum = cur_sum;
   }
+
+  for (auto &thread : threads) {
+    thread.Join();
+  }
+
+  std::vector<std::pair<uint64_t, uint64_t>> all_records;
+  for (uint32_t i = 0; i < kNumCores; i++) {
+    all_records.insert(all_records.end(), records[i].begin(), records[i].end());
+  }
+  sort(all_records.begin(), all_records.end());
+  std::ofstream ofs("records");
+  for (auto [start, duration] : all_records) {
+    ofs << start << " " << duration << std::endl;
+    ;
+  }
 }
 
 void do_work() {
-  DSHashTable hash_table;
+  Test::DSHashTable hash_table;
   std::vector<Key> keys[kNumThreads];
 
   std::cout << "start initing..." << std::endl;
-  auto test = RemObj<nu::Test>::create_pinned(0);
+  auto test = RemObj<nu::Test>::create_pinned(1);
   init(&hash_table, keys);
   std::cout << "start benchmarking..." << std::endl;
   benchmark(&hash_table, keys, &test);
@@ -157,6 +245,8 @@ void _main(void *args) {
 }
 
 int main(int argc, char **argv) {
+  signal(SIGINT, sigint_handler);
+
   int ret;
   std::string mode_str;
 

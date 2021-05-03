@@ -14,7 +14,10 @@ namespace nu {
 Monitor::Monitor()
   : mock_pressure_({.cores = 0, .mem_mbs = 0}), stopped_(false) {}
 
-Monitor::~Monitor() { stopped_ = true; }
+Monitor::~Monitor() {
+  stopped_ = true;
+  continuous_ = false;
+}
 
 void Monitor::run_loop() {
   while (!ACCESS_ONCE(stopped_)) {
@@ -25,8 +28,10 @@ void Monitor::run_loop() {
       if (!heaps.empty()) {
         Runtime::migrator->migrate(heaps);
       }
-      Resource empty = {.cores = 0, .mem_mbs = 0};
-      mock_set_pressure(empty);
+      if (!continuous_) {
+        Resource empty = {.cores = 0, .mem_mbs = 0};
+        mock_set_pressure(empty);
+      }
     }
   }
 }
@@ -34,6 +39,10 @@ void Monitor::run_loop() {
 void Monitor::mock_set_pressure(Resource pressure) {
   mock_pressure_ = pressure;
 }
+
+void Monitor::mock_set_continuous() { continuous_ = true; }
+
+void Monitor::mock_clear_continuous() { continuous_ = false; }
 
 Resource Monitor::detect_pressure() { return mock_pressure_; }
 
