@@ -61,7 +61,7 @@ Runtime::__run_within_obj_env(SlabAllocator *slab, uint64_t obj_stack_base,
     switch_to_runtime_stack(runtime_stack_base);
     slab->free(reinterpret_cast<void *>(obj_stack_base));
     heap_manager->rcu_reader_unlock();
-    thread_exit();
+    rt::Exit();
   }
 }
 

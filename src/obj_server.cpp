@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <memory>
 #include <sstream>
 #include <tuple>
 #include <type_traits>
@@ -25,8 +26,7 @@ ObjServer::ObjServer() {}
 
 ObjServer::~ObjServer() {
   if (tcp_queue_) {
-    tcp_qshutdown(tcp_queue_);
-    tcp_qclose(tcp_queue_);
+    tcp_queue_->Shutdown();
   }
 }
 
@@ -35,7 +35,10 @@ ObjServer::ObjServer(uint16_t port) { init(port); }
 void ObjServer::init(uint16_t port) {
   port_ = port;
   netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
-  BUG_ON(tcp_listen(addr, kTCPListenBackLog, &tcp_queue_) != 0);
+
+  auto *tcp_queue = rt::TcpQueue::Listen(addr, kTCPListenBackLog);
+  BUG_ON(!tcp_queue);
+  tcp_queue_.reset(tcp_queue);
 }
 
 netaddr ObjServer::get_addr() const {
@@ -44,16 +47,18 @@ netaddr ObjServer::get_addr() const {
 }
 
 void ObjServer::run_loop() {
-  tcpconn_t *c;
-  while (tcp_accept(tcp_queue_, &c) == 0) {
+  rt::TcpConn *c;
+  while ((c = tcp_queue_->Accept())) {
     rt::Thread([&, c]() { handle_reqs(c); }).Detach();
   }
 }
 
-void ObjServer::handle_reqs(tcpconn_t *c) {
+void ObjServer::handle_reqs(rt::TcpConn *c) {
+  std::unique_ptr<rt::TcpConn> gc(c);
+
   while (true) {
     uint64_t len;
-    if (!tcp_read_until(c, &len, sizeof(len))) {
+    if (c->ReadFull(&len, sizeof(len)) <= 0) {
       break;
     }
 
@@ -64,7 +69,7 @@ void ObjServer::handle_reqs(tcpconn_t *c) {
     if (unlikely(args_ss.view().size() < len)) {
       args_ss.str(std::string(len, '\0'));
     }
-    if (!tcp_read_until(c, const_cast<char *>(args_ss.view().data()), len)) {
+    if (c->ReadFull(const_cast<char *>(args_ss.view().data()), len) <= 0) {
       break;
     }
 
@@ -74,8 +79,8 @@ void ObjServer::handle_reqs(tcpconn_t *c) {
 
     Runtime::archive_pool->put_ia_sstream(ia_sstream);
   }
-  BUG_ON(tcp_shutdown(c, SHUT_RDWR) < 0);
-  tcp_close(c);
+
+  BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
 }
 
 } // namespace nu

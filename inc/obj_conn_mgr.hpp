@@ -5,23 +5,23 @@
 extern "C" {
 #include <runtime/net.h>
 }
+#include <net.h>
 #include <sync.h>
 
 #include "conn_mgr.hpp"
 #include "defs.hpp"
-#include "utils/rcu_hash_map.hpp"
 #include "utils/netaddr.hpp"
+#include "utils/rcu_hash_map.hpp"
 
 namespace nu {
 
 class RemObjConnManager {
 public:
   constexpr static uint32_t kNumPerCoreCachedConns = 8;
-  constexpr static uint32_t kUpdateAddrRetryUs = 100;
 
   RemObjConnManager();
-  tcpconn_t *get_conn(RemObjID id);
-  void put_conn(tcpconn_t *conn);
+  rt::TcpConn *get_conn(RemObjID id);
+  void put_conn(rt::TcpConn *conn);
   void update_addr(RemObjID id);
   void reserve_conns(uint32_t num, netaddr obj_server_addr);
 

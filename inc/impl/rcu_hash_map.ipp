@@ -4,6 +4,7 @@
 extern "C" {
 #include <base/assert.h>
 }
+#include <thread.h>
 
 namespace nu {
 
@@ -15,7 +16,7 @@ retry:
   if (unlikely(ACCESS_ONCE(writer_barrier_))) {
     rcu_.reader_unlock();
     while (unlikely(ACCESS_ONCE(writer_barrier_))) {
-      thread_yield();
+      rt::Yield();
     }
     goto retry;
   }
@@ -33,7 +34,7 @@ retry:
 template <typename K, typename V, typename Allocator>
 template <typename K1, typename V1>
 void RCUHashMap<K, V, Allocator>::put(K1 &&k, V1 &&v) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);  
+  rt::ScopedLock<rt::Mutex> lock(&mutex_);
   ACCESS_ONCE(writer_barrier_) = true;
   rcu_.writer_sync();
   map_.emplace(std::forward<K1>(k), std::forward<V1>(v));

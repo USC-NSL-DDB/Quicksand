@@ -6,6 +6,7 @@
 extern "C" {
 #include <runtime/runtime.h>
 }
+#include <runtime.h>
 
 #include "utils/slab.hpp"
 
@@ -72,15 +73,6 @@ bool run() {
          run_more_than_buf_size();
 }
 
-void _main(void *args) {
-  std::cout << "Running " << __FILE__ "..." << std::endl;
-  if (run()) {
-    std::cout << "Passed" << std::endl;
-  } else {
-    std::cout << "Failed" << std::endl;
-  }
-}
-
 int main(int argc, char **argv) {
   int ret;
 
@@ -89,7 +81,15 @@ int main(int argc, char **argv) {
     return -EINVAL;
   }
 
-  ret = runtime_init(argv[1], _main, NULL);
+  ret = rt::RuntimeInit(std::string(argv[1]), [] {
+    std::cout << "Running " << __FILE__ "..." << std::endl;
+    if (run()) {
+      std::cout << "Passed" << std::endl;
+    } else {
+      std::cout << "Failed" << std::endl;
+    }
+  });
+
   if (ret) {
     std::cerr << "failed to start runtime" << std::endl;
     return ret;

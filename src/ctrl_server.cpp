@@ -10,17 +10,20 @@ namespace nu {
 
 ControllerServer::ControllerServer(uint16_t port) {
   netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
-  BUG_ON(tcp_listen(addr, kTCPListenBackLog, &tcp_queue_) != 0);
+  auto tcp_queue = rt::TcpQueue::Listen(addr, kTCPListenBackLog);
+  BUG_ON(!tcp_queue);
+  tcp_queue_.reset(tcp_queue);
 }
 
 void ControllerServer::run_loop() {
-  tcpconn_t *c;
-  while (tcp_accept(tcp_queue_, &c) == 0) {
+  rt::TcpConn *c;
+  while ((c = tcp_queue_->Accept())) {
     rt::Thread([&, c]() { handle_reqs(c); }).Detach();
   }
 }
 
-bool ControllerServer::handle_one_req(ControllerRPC_t rpc_type, tcpconn_t *c) {
+bool ControllerServer::handle_one_req(ControllerRPC_t rpc_type,
+                                      rt::TcpConn *c) {
   switch (rpc_type) {
   case REGISTER_NODE:
     return handle_register_node(c);
@@ -39,35 +42,37 @@ bool ControllerServer::handle_one_req(ControllerRPC_t rpc_type, tcpconn_t *c) {
   }
 }
 
-void ControllerServer::handle_reqs(tcpconn_t *c) {
+void ControllerServer::handle_reqs(rt::TcpConn *c) {
+  std::unique_ptr<rt::TcpConn> gc(c);
+
   while (true) {
     ControllerRPC_t rpc_type;
-    if (!tcp_read_until(c, &rpc_type, sizeof(rpc_type))) {
+    if (c->ReadFull(&rpc_type, sizeof(rpc_type)) <= 0) {
       break;
     }
     if (!handle_one_req(rpc_type, c)) {
       break;
     }
   }
-  BUG_ON(tcp_shutdown(c, SHUT_RDWR) < 0);
-  tcp_close(c);
+
+  BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
 }
 
-bool ControllerServer::handle_register_node(tcpconn_t *c) {
+bool ControllerServer::handle_register_node(rt::TcpConn *c) {
   RPCReqRegisterNode req;
   RPCRespRegisterNode resp;
-  if (!tcp_read_until(c, &req, sizeof(req))) {
+  if (c->ReadFull(&req, sizeof(req)) <= 0) {
     return false;
   }
   auto node = req.node;
   ctrl_.register_node(node);
-  return tcp_write_until(c, &resp, sizeof(resp));
+  return c->WriteFull(&resp, sizeof(resp)) > 0;
 }
 
-bool ControllerServer::handle_allocate_obj(tcpconn_t *c) {
+bool ControllerServer::handle_allocate_obj(rt::TcpConn *c) {
   RPCReqAllocateObj req;
   RPCRespAllocateObj resp;
-  if (!tcp_read_until(c, &req, sizeof(req))) {
+  if (c->ReadFull(&req, sizeof(req)) <= 0) {
     return false;
   }
   auto optional = ctrl_.allocate_obj();
@@ -78,23 +83,23 @@ bool ControllerServer::handle_allocate_obj(tcpconn_t *c) {
   } else {
     resp.empty = true;
   }
-  return tcp_write_until(c, &resp, sizeof(resp));
+  return c->WriteFull(&resp, sizeof(resp)) > 0;
 }
 
-bool ControllerServer::handle_destroy_obj(tcpconn_t *c) {
+bool ControllerServer::handle_destroy_obj(rt::TcpConn *c) {
   RPCReqDestroyObj req;
   RPCRespDestroyObj resp;
-  if (!tcp_read_until(c, &req, sizeof(req))) {
+  if (c->ReadFull(&req, sizeof(req)) <= 0) {
     return false;
   }
   ctrl_.destroy_obj(req.id);
-  return tcp_write_until(c, &resp, sizeof(resp));
+  return c->WriteFull(&resp, sizeof(resp)) > 0;
 }
 
-bool ControllerServer::handle_resolve_obj(tcpconn_t *c) {
+bool ControllerServer::handle_resolve_obj(rt::TcpConn *c) {
   RPCReqResolveObj req;
   RPCRespResolveObj resp;
-  if (!tcp_read_until(c, &req, sizeof(req))) {
+  if (c->ReadFull(&req, sizeof(req)) <= 0) {
     return false;
   }
   auto addr = ctrl_.resolve_obj(req.id);
@@ -104,33 +109,33 @@ bool ControllerServer::handle_resolve_obj(tcpconn_t *c) {
   } else {
     resp.empty = true;
   }
-  return tcp_write_until(c, &resp, sizeof(resp));
+  return c->WriteFull(&resp, sizeof(resp)) > 0;
 }
 
-bool ControllerServer::handle_update_location(tcpconn_t *c) {
+bool ControllerServer::handle_update_location(rt::TcpConn *c) {
   RPCReqUpdateLocation req;
   RPCRespUpdateLocation resp;
-  if (!tcp_read_until(c, &req, sizeof(req))) {
+  if (c->ReadFull(&req, sizeof(req)) <= 0) {
     return false;
   }
   ctrl_.update_location(req.id, req.obj_srv_addr);
-  return tcp_write_until(c, &resp, sizeof(resp));
+  return c->WriteFull(&resp, sizeof(resp)) > 0;
 }
 
-bool ControllerServer::handle_get_migration_dest(tcpconn_t *c) {
+bool ControllerServer::handle_get_migration_dest(rt::TcpConn *c) {
   RPCReqGetMigrationDest req;
   RPCRespGetMigrationDest resp;
-  if (!tcp_read_until(c, &req, sizeof(req))) {
+  if (c->ReadFull(&req, sizeof(req)) <= 0) {
     return false;
   }
-  auto addr = ctrl_.get_migration_dest(tcp_remote_addr(c).ip, req.resource);
+  auto addr = ctrl_.get_migration_dest(c->RemoteAddr().ip, req.resource);
   if (addr) {
     resp.empty = false;
     resp.addr = *addr;
   } else {
     resp.empty = true;
   }
-  return tcp_write_until(c, &resp, sizeof(resp));
+  return c->WriteFull(&resp, sizeof(resp)) > 0;
 }
-  
+
 } // namespace nu

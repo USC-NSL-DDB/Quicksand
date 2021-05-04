@@ -10,20 +10,20 @@ namespace nu {
 
 ControllerConnManager::ControllerConnManager(netaddr remote_ctrl_addr)
     : creator_([remote_ctrl_addr](bool unused) {
-        tcpconn_t *tcp_conn;
         netaddr local_ctrl_client_addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0),
                                           .port = 0};
-        BUG_ON(tcp_dial(local_ctrl_client_addr, remote_ctrl_addr, &tcp_conn) !=
-               0);
+        auto tcp_conn =
+            rt::TcpConn::Dial(local_ctrl_client_addr, remote_ctrl_addr);
+        BUG_ON(!tcp_conn);
         return tcp_conn;
       }),
       mgr_(creator_, kNumPerCoreCachedConns) {}
 
-inline tcpconn_t *ControllerConnManager::get_conn() {
+inline rt::TcpConn *ControllerConnManager::get_conn() {
   return mgr_.get_conn(false);
 }
 
-inline void ControllerConnManager::put_conn(tcpconn_t *conn) {
+inline void ControllerConnManager::put_conn(rt::TcpConn *conn) {
   mgr_.put_conn(false, conn);
 }
 
@@ -50,8 +50,9 @@ void ControllerClient::register_node(const Node &node) {
   RPCRespRegisterNode resp;
   req.node = node;
   auto c = conn_mgr_.get_conn();
-  tcp_write2_until(c, &rpc_type, sizeof(rpc_type), &req, sizeof(req));
-  tcp_read_until(c, &resp, sizeof(resp));
+  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(iovecs) < 0);
+  BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
 }
 
@@ -61,8 +62,9 @@ ControllerClient::allocate_obj() {
   RPCReqAllocateObj req;
   RPCRespAllocateObj resp;
   auto c = conn_mgr_.get_conn();
-  tcp_write2_until(c, &rpc_type, sizeof(rpc_type), &req, sizeof(req));
-  tcp_read_until(c, &resp, sizeof(resp));
+  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(iovecs) < 0);
+  BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
   if (resp.empty) {
     return std::nullopt;
@@ -79,8 +81,9 @@ void ControllerClient::destroy_obj(RemObjID id) {
   RPCRespDestroyObj resp;
   req.id = id;
   auto c = conn_mgr_.get_conn();
-  tcp_write2_until(c, &rpc_type, sizeof(rpc_type), &req, sizeof(req));
-  tcp_read_until(c, &resp, sizeof(resp));
+  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(iovecs) < 0);
+  BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
 }
 
@@ -90,8 +93,9 @@ std::optional<netaddr> ControllerClient::resolve_obj(RemObjID id) {
   RPCRespResolveObj resp;
   req.id = id;
   auto c = conn_mgr_.get_conn();
-  tcp_write2_until(c, &rpc_type, sizeof(rpc_type), &req, sizeof(req));
-  tcp_read_until(c, &resp, sizeof(resp));
+  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(iovecs) < 0);
+  BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
   if (resp.empty) {
     return std::nullopt;
@@ -107,8 +111,9 @@ std::optional<netaddr> ControllerClient::get_migration_dest(Resource resource) {
   RPCRespGetMigrationDest resp;
   req.resource = resource;
   auto c = conn_mgr_.get_conn();
-  tcp_write2_until(c, &rpc_type, sizeof(rpc_type), &req, sizeof(req));
-  tcp_read_until(c, &resp, sizeof(resp));
+  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(iovecs) < 0);
+  BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
   if (resp.empty) {
     return std::nullopt;
@@ -125,8 +130,9 @@ void ControllerClient::update_location(RemObjID id, netaddr obj_srv_addr) {
   req.id = id;
   req.obj_srv_addr = obj_srv_addr;
   auto c = conn_mgr_.get_conn();
-  tcp_write2_until(c, &rpc_type, sizeof(rpc_type), &req, sizeof(req));
-  tcp_read_until(c, &resp, sizeof(resp));
+  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(iovecs) < 0);
+  BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
 }
 

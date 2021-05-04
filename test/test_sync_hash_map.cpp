@@ -9,6 +9,7 @@
 extern "C" {
 #include <runtime/runtime.h>
 }
+#include <runtime.h>
 
 #include "utils/farmhash.hpp"
 #include "utils/sync_hash_map.hpp"
@@ -42,7 +43,7 @@ std::string random_str(uint32_t len) {
   return str;
 }
 
-void _main(void *args) {
+void do_work() {
   std::cout << "Running " << __FILE__ "..." << std::endl;
   bool passed = true;
 
@@ -84,7 +85,8 @@ int main(int argc, char **argv) {
     return -EINVAL;
   }
 
-  ret = runtime_init(argv[1], _main, NULL);
+  ret = rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
+
   if (ret) {
     std::cerr << "failed to start runtime" << std::endl;
     return ret;

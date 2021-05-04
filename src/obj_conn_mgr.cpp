@@ -12,9 +12,9 @@ namespace nu {
 RemObjConnManager::RemObjConnManager()
     : mgr_(
           [](netaddr server_addr) {
-            tcpconn_t *c;
             netaddr local_addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
-            BUG_ON(tcp_dial(local_addr, server_addr, &c) != 0);
+	    auto c = rt::TcpConn::Dial(local_addr, server_addr);
+	    BUG_ON(!c);
             return c;
           },
           kNumPerCoreCachedConns) {}

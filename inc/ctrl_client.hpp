@@ -6,7 +6,8 @@ extern "C" {
 #include <net/ip.h>
 #include <runtime/net.h>
 }
-#include "sync.h"
+#include <net.h>
+#include <sync.h>
 
 #include "conn_mgr.hpp"
 #include "ctrl_server.hpp"
@@ -18,12 +19,12 @@ public:
   constexpr static uint32_t kNumPerCoreCachedConns = 1;
 
   ControllerConnManager(netaddr remote_ctrl_addr);
-  tcpconn_t *get_conn();
-  void put_conn(tcpconn_t *conn);
+  rt::TcpConn *get_conn();
+  void put_conn(rt::TcpConn *conn);
   void reserve_conns(uint32_t num);
 
 private:
-  std::function<tcpconn_t *(bool unused)> creator_;
+  std::function<rt::TcpConn *(bool unused)> creator_;
   ConnectionManager<bool> mgr_;
 };
 

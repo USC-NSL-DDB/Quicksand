@@ -1,14 +1,14 @@
 namespace nu {
 
-inline tcpconn_t *RemObjConnManager::get_conn(RemObjID id) {
+inline rt::TcpConn *RemObjConnManager::get_conn(RemObjID id) {
   auto addr = get_addr(id);
-  auto conn = mgr_.get_conn(addr);
-  BUG_ON(addr != tcp_remote_addr(conn));
+  auto *conn = mgr_.get_conn(addr);
+  BUG_ON(addr != conn->RemoteAddr());
   return conn;
 }
 
-inline void RemObjConnManager::put_conn(tcpconn_t *conn) {
-  mgr_.put_conn(tcp_remote_addr(conn), conn);
+inline void RemObjConnManager::put_conn(rt::TcpConn *conn) {
+  mgr_.put_conn(conn->RemoteAddr(), conn);
 }
 
 inline void RemObjConnManager::reserve_conns(uint32_t num,

@@ -53,8 +53,10 @@ thread_t *thread_self(void);
 
 uint64_t get_uthread_specific(void)
 {
-	BUG_ON(!__self);
-	return __self->tlsvar;
+	if (!__self)
+		return 0;
+	else
+		return __self->tlsvar;
 }
 
 void set_uthread_specific(uint64_t val)

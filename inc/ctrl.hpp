@@ -11,7 +11,8 @@ extern "C" {
 #include <runtime/net.h>
 #include <runtime/tcp.h>
 }
-#include "sync.h"
+#include <net.h>
+#include <sync.h>
 
 #include "defs.hpp"
 #include "heap_mgr.hpp"
@@ -27,7 +28,7 @@ struct Node {
   // TODO: add other informations, e.g., free mem size.
   netaddr obj_srv_addr;
   netaddr migrator_addr;
-  tcpconn_t *migrator_conn;
+  rt::TcpConn *migrator_conn;
 };
 
 class Controller {

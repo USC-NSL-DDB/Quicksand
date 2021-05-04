@@ -9,6 +9,7 @@ extern "C" {
 #include <net/ip.h>
 #include <runtime/runtime.h>
 }
+#include <runtime.h>
 
 #include "cond_var.hpp"
 #include "monitor.hpp"
@@ -25,9 +26,7 @@ Runtime::Mode mode;
 namespace nu {
 class Test {
 public:
-  int get_credits() {
-    return credits_;
-  }
+  int get_credits() { return credits_; }
 
   void consume() {
     mutex_.Lock();
@@ -57,7 +56,7 @@ private:
 };
 } // namespace nu
 
-void _main(void *args) {
+void do_work() {
   std::cout << "Running " << __FILE__ "..." << std::endl;
   bool passed;
   netaddr remote_ctrl_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 3), .port = 8000};
@@ -111,7 +110,8 @@ int main(int argc, char **argv) {
     goto wrong_args;
   }
 
-  ret = runtime_init(argv[1], _main, NULL);
+  ret = rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
+
   if (ret) {
     std::cerr << "failed to start runtime" << std::endl;
     return ret;

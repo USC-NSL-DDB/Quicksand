@@ -4,6 +4,7 @@
 extern "C" {
 #include <base/assert.h>
 }
+#include <thread.h>
 
 namespace nu {
 
@@ -36,7 +37,7 @@ retry:
   if (unlikely(ACCESS_ONCE(writer_barrier_))) {
     rcu_.reader_unlock();
     while (unlikely(ACCESS_ONCE(writer_barrier_))) {
-      thread_yield();
+      rt::Yield();
     }
     goto retry;
   }
@@ -53,7 +54,7 @@ retry:
   if (unlikely(ACCESS_ONCE(writer_barrier_))) {
     rcu_.reader_unlock();
     while (unlikely(ACCESS_ONCE(writer_barrier_))) {
-      thread_yield();
+      rt::Yield();
     }
     goto retry;
   }

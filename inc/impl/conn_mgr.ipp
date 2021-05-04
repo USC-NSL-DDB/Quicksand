@@ -10,21 +10,37 @@ namespace nu {
 
 template <typename Key>
 ConnectionManager<Key>::ConnectionManager(
-    const std::function<tcpconn_t *(Key)> &creator,
+    const std::function<rt::TcpConn *(Key)> &creator,
     uint32_t per_core_cache_size)
     : creator_(creator), per_core_cache_size_(per_core_cache_size) {}
 
 template <typename Key>
 ConnectionManager<Key>::ConnectionManager(
-    std::function<tcpconn_t *(Key)> &&creator, uint32_t per_core_cache_size)
+    std::function<rt::TcpConn *(Key)> &&creator, uint32_t per_core_cache_size)
     : creator_(std::move(creator)), per_core_cache_size_(per_core_cache_size) {}
 
-template <typename Key> ConnectionManager<Key>::~ConnectionManager() {}
+template <typename Key> ConnectionManager<Key>::~ConnectionManager() {
+  constexpr auto drain_map_fn = [](auto &map) {
+    for (auto &[_, stack] : map) {
+      while (!stack.empty()) {
+        auto *c = stack.top();
+        stack.pop();
+        BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
+        delete c;
+      }
+    }
+  };
 
-template <typename Key> tcpconn_t *ConnectionManager<Key>::get_conn(Key k) {
+  for (uint32_t i = 0; i < kNumCores; i++) {
+    drain_map_fn(cached_conns_[i]);
+  }
+  drain_map_fn(global_conns_);
+}
+
+template <typename Key> rt::TcpConn *ConnectionManager<Key>::get_conn(Key k) {
 retry:
   int cpu = get_cpu();
-  tcpconn_t *conn = nullptr;
+  rt::TcpConn *conn = nullptr;
   auto &cached_conns = cached_conns_[cpu][k];
   if (!cached_conns.empty()) {
     conn = cached_conns.top();
@@ -56,7 +72,7 @@ retry:
 }
 
 template <typename Key>
-void ConnectionManager<Key>::put_conn(Key k, tcpconn_t *conn) {
+void ConnectionManager<Key>::put_conn(Key k, rt::TcpConn *conn) {
   int cpu = get_cpu();
   auto &cached_conns = cached_conns_[cpu][k];
   cached_conns.push(conn);
@@ -74,7 +90,7 @@ void ConnectionManager<Key>::put_conn(Key k, tcpconn_t *conn) {
 
 template <typename Key>
 void ConnectionManager<Key>::reserve_conns(Key k, uint32_t num) {
-  auto conns = std::make_unique<tcpconn_t *[]>(num);
+  auto conns = std::make_unique<rt::TcpConn *[]>(num);
   for (uint32_t i = 0; i < num; i++) {
     conns[i] = creator_(k);
   }

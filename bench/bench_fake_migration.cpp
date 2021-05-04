@@ -12,6 +12,7 @@ extern "C" {
 #include <runtime/tcp.h>
 #include <runtime/timer.h>
 }
+#include <runtime.h>
 #include <sync.h>
 #include <thread.h>
 
@@ -112,16 +113,6 @@ void do_client() {
   }
 }
 
-void _main(void *args) {
-  std::cout << "Running " << __FILE__ "..." << std::endl;
-
-  if (server_mode) {
-    do_server();
-  } else {
-    do_client();
-  }
-}
-
 int main(int argc, char **argv) {
   int ret;
   std::string mode_str;
@@ -139,7 +130,16 @@ int main(int argc, char **argv) {
     goto wrong_args;
   }
 
-  ret = runtime_init(argv[1], _main, NULL);
+  ret = rt::RuntimeInit(std::string(argv[1]), [] {
+    std::cout << "Running " << __FILE__ "..." << std::endl;
+
+    if (server_mode) {
+      do_server();
+    } else {
+      do_client();
+    }
+  });
+
   if (ret) {
     std::cerr << "failed to start runtime" << std::endl;
     return ret;

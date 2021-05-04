@@ -5,7 +5,7 @@ extern "C" {
 #include <base/compiler.h>
 #include <runtime/thread.h>
 }
-#include "thread.h"
+#include <thread.h>
 
 #include "ctrl_client.hpp"
 #include "ctrl_server.hpp"
@@ -139,7 +139,7 @@ void Runtime::migration_disable() {
   if (unlikely(!heap_manager->contains(heap_base))) {
     heap_manager->rcu_reader_unlock();
     while (unlikely(!thread_is_migrated())) {
-      thread_yield();
+      rt::Yield();
     }
     heap_manager->rcu_reader_lock();
   }

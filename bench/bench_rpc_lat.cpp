@@ -8,6 +8,7 @@ extern "C" {
 #include <net/ip.h>
 #include <runtime/runtime.h>
 }
+#include <runtime.h>
 
 #include "rem_obj.hpp"
 #include "runtime.hpp"
@@ -40,17 +41,6 @@ void do_work() {
   print_percentile(&tscs);
 }
 
-void _main(void *args) {
-  std::cout << "Running " << __FILE__ "..." << std::endl;
-
-  netaddr remote_ctrl_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 3), .port = 8000};
-  auto runtime = Runtime::init(/* local_obj_srv_port = */ 8001,
-                               /* local_migrator_port = */ 8002,
-                               /* remote_ctrl_addr = */ remote_ctrl_addr,
-                               /* mode = */ mode);
-  do_work();
-}
-
 int main(int argc, char **argv) {
   int ret;
   std::string mode_str;
@@ -70,7 +60,17 @@ int main(int argc, char **argv) {
     goto wrong_args;
   }
 
-  ret = runtime_init(argv[1], _main, NULL);
+  ret = rt::RuntimeInit(std::string(argv[1]), [] {
+    std::cout << "Running " << __FILE__ "..." << std::endl;
+
+    netaddr remote_ctrl_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 3), .port = 8000};
+    auto runtime = Runtime::init(/* local_obj_srv_port = */ 8001,
+                                 /* local_migrator_port = */ 8002,
+                                 /* remote_ctrl_addr = */ remote_ctrl_addr,
+                                 /* mode = */ mode);
+    do_work();
+  });
+
   if (ret) {
     std::cerr << "failed to start runtime" << std::endl;
     return ret;

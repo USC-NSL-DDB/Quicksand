@@ -23,7 +23,13 @@ Controller::Controller() {
   nodes_iter_ = nodes_.end();
 }
 
-Controller::~Controller() {}
+Controller::~Controller() {
+  for (auto &node : nodes_) {
+    auto *c = node.migrator_conn;
+    BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
+    delete c;
+  }
+}
 
 void Controller::register_node(Node &node) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
@@ -34,19 +40,21 @@ void Controller::register_node(Node &node) {
     RPCReqReserveConns req;
     req.num = Migrator::kDefaultNumReservedConns;
     req.dest_server_addr = node.migrator_addr;
-    BUG_ON(!tcp_write2_until(migrator_conn, &type, sizeof(type), &req,
-                            sizeof(req)));
+    iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
+    BUG_ON(migrator_conn->WritevFull(iovecs) < 0);
   }
 
   netaddr local_addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
-  BUG_ON(tcp_dial(local_addr, node.migrator_addr, &node.migrator_conn) != 0);
+  node.migrator_conn = rt::TcpConn::Dial(local_addr, node.migrator_addr);
+  BUG_ON(!node.migrator_conn);
+
   for (auto old_node : nodes_) {
     uint8_t type = RESERVE_CONNS;
     RPCReqReserveConns req;
     req.num = Migrator::kDefaultNumReservedConns;
     req.dest_server_addr = old_node.migrator_addr;
-    BUG_ON(!tcp_write2_until(node.migrator_conn, &type, sizeof(type), &req,
-                            sizeof(req)));
+    iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
+    BUG_ON(node.migrator_conn->WritevFull(iovecs) < 0);
   }
 
   nodes_.push_back(node);

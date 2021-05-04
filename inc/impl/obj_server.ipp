@@ -4,6 +4,8 @@
 extern "C" {
 #include <runtime/preempt.h>
 }
+#include <net.h>
+#include <thread.h>
 
 #include "ctrl.hpp"
 #include "heap_mgr.hpp"
@@ -15,7 +17,7 @@ namespace nu {
 
 template <typename Cls, typename... As>
 void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
-                              tcpconn_t *rpc_conn) {
+                              rt::TcpConn *rpc_conn) {
   void *base;
   bool pinned;
   ia >> base >> pinned;
@@ -44,7 +46,7 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls>
-void ObjServer::__update_ref_cnt(Cls &obj, tcpconn_t *rpc_conn,
+void ObjServer::__update_ref_cnt(Cls &obj, rt::TcpConn *rpc_conn,
                                  HeapHeader *heap_header, int delta,
                                  bool *deallocate) {
   heap_header->spin.Lock();
@@ -56,7 +58,7 @@ void ObjServer::__update_ref_cnt(Cls &obj, tcpconn_t *rpc_conn,
     obj.~Cls();
     if (unlikely(!Runtime::heap_manager->remove(heap_header))) {
       while (unlikely(!thread_is_migrated())) {
-        thread_yield();
+        rt::Yield();
       }
     }
   }
@@ -68,7 +70,7 @@ void ObjServer::__update_ref_cnt(Cls &obj, tcpconn_t *rpc_conn,
 
 template <typename Cls>
 void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
-                               tcpconn_t *rpc_conn) {
+                               rt::TcpConn *rpc_conn) {
   RemObjID id;
   ia >> id;
   int delta;
@@ -95,7 +97,7 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 void ObjServer::__closure_handler(Cls &obj, cereal::BinaryInputArchive &ia,
-                                  tcpconn_t *rpc_conn) {
+                                  rt::TcpConn *rpc_conn) {
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
 
   FnPtr fn;
@@ -123,7 +125,7 @@ void ObjServer::__closure_handler(Cls &obj, cereal::BinaryInputArchive &ia,
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 void ObjServer::closure_handler(cereal::BinaryInputArchive &ia,
-                                tcpconn_t *rpc_conn) {
+                                rt::TcpConn *rpc_conn) {
   RemObjID id;
   ia >> id;
   auto *heap_base = to_heap_base(id);
@@ -138,7 +140,7 @@ void ObjServer::closure_handler(cereal::BinaryInputArchive &ia,
 
 template <typename Cls, typename RetT, typename MdPtr, typename... A1s>
 void ObjServer::__method_handler(Cls &obj, cereal::BinaryInputArchive &ia,
-                                 tcpconn_t *rpc_conn) {
+                                 rt::TcpConn *rpc_conn) {
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
 
   MdPtr md;
@@ -166,7 +168,7 @@ void ObjServer::__method_handler(Cls &obj, cereal::BinaryInputArchive &ia,
 
 template <typename Cls, typename RetT, typename MdPtr, typename... A1s>
 void ObjServer::method_handler(cereal::BinaryInputArchive &ia,
-                               tcpconn_t *rpc_conn) {
+                               rt::TcpConn *rpc_conn) {
   RemObjID id;
   ia >> id;
   auto *heap_base = to_heap_base(id);
@@ -179,14 +181,14 @@ void ObjServer::method_handler(cereal::BinaryInputArchive &ia,
   }
 }
 
-inline void ObjServer::send_rpc_client_retry(tcpconn_t *rpc_conn) {
+inline void ObjServer::send_rpc_client_retry(rt::TcpConn *rpc_conn) {
   ObjRPCRespHdr hdr;
   hdr.rc = CLIENT_RETRY;
   hdr.payload_size = 0;
-  tcp_write_until(rpc_conn, &hdr, sizeof(hdr));
+  BUG_ON(rpc_conn->WriteFull(&hdr, sizeof(hdr)) < 0);
 }
 
-void ObjServer::send_rpc_resp(auto &ss, tcpconn_t *rpc_conn) {
+void ObjServer::send_rpc_resp(auto &ss, rt::TcpConn *rpc_conn) {
   ObjRPCRespHdr hdr;
   auto view = ss.view();
   hdr.payload_size = ss.tellp();
@@ -196,8 +198,13 @@ void ObjServer::send_rpc_resp(auto &ss, tcpconn_t *rpc_conn) {
     Runtime::migrator->forward_to_original_server(hdr, view.data(), rpc_conn);
   } else {
     hdr.rc = OK;
-    tcp_write2_until(rpc_conn, &hdr, sizeof(hdr), view.data(),
-                     hdr.payload_size);
+    if (hdr.payload_size) {
+      iovec iovecs[] = {{&hdr, sizeof(hdr)},
+                        {const_cast<char *>(view.data()), hdr.payload_size}};
+      BUG_ON(rpc_conn->WritevFull(iovecs) < 0);
+    } else {
+      BUG_ON(rpc_conn->WriteFull(&hdr, sizeof(hdr)) < 0);
+    }
   }
 }
 

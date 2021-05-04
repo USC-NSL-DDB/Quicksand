@@ -9,11 +9,12 @@ extern "C" {
 #include <net/ip.h>
 #include <runtime/runtime.h>
 }
+#include <runtime.h>
 
 #include "monitor.hpp"
+#include "mutex.hpp"
 #include "rem_obj.hpp"
 #include "runtime.hpp"
-#include "mutex.hpp"
 #include "utils/spinlock.hpp"
 
 using namespace nu;
@@ -25,7 +26,6 @@ Runtime::Mode mode;
 namespace nu {
 class Test {
 public:
-
   void do_work() { delay_us(100 * 1000); }
 
   void mutex() {
@@ -48,7 +48,7 @@ private:
 };
 } // namespace nu
 
-void _main(void *args) {
+void do_work() {
   std::cout << "Running " << __FILE__ "..." << std::endl;
   bool passed = true;
 
@@ -98,7 +98,8 @@ int main(int argc, char **argv) {
     goto wrong_args;
   }
 
-  ret = runtime_init(argv[1], _main, NULL);
+  ret = rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
+
   if (ret) {
     std::cerr << "failed to start runtime" << std::endl;
     return ret;

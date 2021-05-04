@@ -5,6 +5,7 @@
 #include <sstream>
 #include <type_traits>
 #include <utility>
+#include <array>
 
 extern "C" {
 #include <base/assert.h>
@@ -32,18 +33,17 @@ void serialize(cereal::BinaryOutputArchive *oa, S1s &&... states) {
 template <typename T>
 template <typename RetT>
 RetT RemObj<T>::invoke_remote(RemObjID id, auto *states_ss) {
-  tcpconn_t *conn;
-
 retry:
-  conn = Runtime::rem_obj_conn_mgr->get_conn(id);
+  auto conn = Runtime::rem_obj_conn_mgr->get_conn(id);
   auto states_view = states_ss->view();
   uint64_t states_size = states_ss->tellp();
 
-  BUG_ON(!tcp_write2_until(conn, &states_size, sizeof(states_size),
-                           states_view.data(), states_size));
+  iovec iovecs[] = {{&states_size, sizeof(states_size)},
+                    {const_cast<char *>(states_view.data()), states_size}};
+  BUG_ON(conn->WritevFull(iovecs) < 0);
 
   ObjRPCRespHdr hdr;
-  BUG_ON(!tcp_read_until(conn, &hdr, sizeof(hdr)));
+  BUG_ON(conn->ReadFull(&hdr, sizeof(hdr)) <= 0);
 
   if (unlikely(hdr.rc == CLIENT_RETRY)) {
     Runtime::rem_obj_conn_mgr->update_addr(id);
@@ -58,8 +58,8 @@ retry:
   if (unlikely(ret_ss.view().size() < hdr.payload_size)) {
     ret_ss.str(std::string(hdr.payload_size, '\0'));
   }
-  BUG_ON(!tcp_read_until(conn, const_cast<char *>(ret_ss.view().data()),
-                         hdr.payload_size));
+  BUG_ON(conn->ReadFull(const_cast<char *>(ret_ss.view().data()),
+                        hdr.payload_size) < 0);
 
   Runtime::rem_obj_conn_mgr->put_conn(conn);
 

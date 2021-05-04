@@ -5,6 +5,7 @@ extern "C" {
 #include <runtime/preempt.h>
 #include <runtime/thread.h>
 }
+#include <thread.h>
 
 #include "utils/rcu_lock.hpp"
 
@@ -12,7 +13,7 @@ namespace nu {
 
 inline void RCULock::detect_sync_barrier() {
   while (unlikely(ACCESS_ONCE(sync_barrier_))) {
-    thread_yield();
+    rt::Yield();
   }
 }
 
@@ -52,7 +53,7 @@ retry:
     sum += cnt.data.c;
   }
   if (sum != 0) {
-    thread_yield();
+    rt::Yield();
     goto retry;
   }
   for (size_t i = 0; i < kNumCores; i++) {

@@ -5,6 +5,7 @@
 extern "C" {
 #include <runtime/tcp.h>
 }
+#include <net.h>
 
 #include "ctrl.hpp"
 #include "utils/tcp.hpp"
@@ -78,16 +79,16 @@ public:
   void run_loop();
 
 private:
-  tcpqueue_t *tcp_queue_;
+  std::unique_ptr<rt::TcpQueue> tcp_queue_;
   Controller ctrl_;
 
-  void handle_reqs(tcpconn_t *c);
-  bool handle_one_req(ControllerRPC_t rpc_type, tcpconn_t *c);
-  bool handle_register_node(tcpconn_t *c);
-  bool handle_allocate_obj(tcpconn_t *c);
-  bool handle_destroy_obj(tcpconn_t *c);
-  bool handle_resolve_obj(tcpconn_t *c);
-  bool handle_get_migration_dest(tcpconn_t *c);
-  bool handle_update_location(tcpconn_t *c);
+  void handle_reqs(rt::TcpConn *c);
+  bool handle_one_req(ControllerRPC_t rpc_type, rt::TcpConn *c);
+  bool handle_register_node(rt::TcpConn *c);
+  bool handle_allocate_obj(rt::TcpConn *c);
+  bool handle_destroy_obj(rt::TcpConn *c);
+  bool handle_resolve_obj(rt::TcpConn *c);
+  bool handle_get_migration_dest(rt::TcpConn *c);
+  bool handle_update_location(rt::TcpConn *c);
 };
 } // namespace nu
