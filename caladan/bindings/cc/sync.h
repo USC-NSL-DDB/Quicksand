@@ -37,7 +37,7 @@ void write_once(T &p, const T &val) {
 // ThreadWaker is used to wake the current thread after it parks.
 class ThreadWaker {
  public:
-  ThreadWaker() : th_(thread_self()) {}
+  ThreadWaker() : th_(nullptr) {}
   ~ThreadWaker() { assert(th_ == nullptr); }
 
   // disable copy.
@@ -52,9 +52,12 @@ class ThreadWaker {
     return *this;
   }
 
+  // Prepares the running thread for waking after it parks.
+  void Arm() { th_ = thread_self(); }
+
   // Makes the thread runnable.
-  void Ready(bool head = false) {
-    assert(th_ != nullptr);
+  void Wake(bool head = false) {
+    if (th_ == nullptr) return;
     if (head) {
       thread_ready_head(th_);
     } else {
@@ -123,6 +126,12 @@ class Spin {
 
   // Returns true if the lock is currently held.
   bool IsHeld() { return spin_lock_held(&lock_); }
+
+  // Gets the current CPU index (not the same as the core number).
+  unsigned int get_cpu() {
+    assert(IsHeld());
+    return read_once(kthread_idx);
+  }
 
  private:
   spinlock_t lock_;
