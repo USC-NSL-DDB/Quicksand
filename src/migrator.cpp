@@ -45,15 +45,30 @@ void Migrator::handle_reserve_conns(rt::TcpConn *c) {
   reserve_conns(req.num, req.dest_server_addr);
 }
 
-void Migrator::handle_copy(rt::TcpConn *c) {
-  RPCReqCopy req;
-  BUG_ON(c->ReadFull(&req, sizeof(req)) <= 0);
-  BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(req.start_addr), req.len) <=
-         0);
-  req.wg->Done();
+void Migrator::handle_forward(rt::TcpConn *c) {
+  rt::TcpConn *conn_to_client;
+  ObjRPCRespHdr hdr;
+  const iovec iovecs[] = {{&conn_to_client, sizeof(conn_to_client)},
+                          {&hdr, sizeof(hdr)}};
+  BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
+
+  if (hdr.payload_size) {
+    auto payload = std::make_unique<uint8_t[]>(hdr.payload_size);
+    BUG_ON(c->ReadFull(payload.get(), hdr.payload_size) <= 0);
+    const iovec iovecs[] = {{&hdr, sizeof(hdr)},
+                            {payload.get(), hdr.payload_size}};
+    BUG_ON(conn_to_client->WritevFull(std::span(iovecs)) < 0);
+  } else {
+    BUG_ON(conn_to_client->WriteFull(&hdr, sizeof(hdr)) < 0);
+  }
+
+  rt::Thread([&, conn_to_client] {
+    Runtime::obj_server->handle_reqs(conn_to_client);
+  }).Detach();
 }
 
 void Migrator::run_loop(uint16_t port) {
+  port_ = port;
   netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
   auto tcp_queue = rt::TcpQueue::Listen(addr, kTCPListenBackLog);
   tcp_queue_.reset(tcp_queue);
@@ -70,15 +85,15 @@ void Migrator::run_loop(uint16_t port) {
         }
 
         switch (type) {
-        case LOAD:
+        case MIGRATE:
           handle_load(c);
           break;
         case RESERVE_CONNS:
           handle_reserve_conns(c);
           break;
-        case COPY:
-          handle_copy(c);
-          break;
+        case FORWARD:
+          handle_forward(c);
+	  break;
         default:
           BUG();
         }
@@ -88,52 +103,9 @@ void Migrator::run_loop(uint16_t port) {
   }
 }
 
-void Migrator::parallel_transmit_heap(netaddr dest_addr, rt::WaitGroup *wg,
-                                      uint64_t start_addr, uint64_t len) {
-  std::vector<rt::Thread> threads;
-  threads.reserve(kTransmitHeapNumThreads);
-
-  for (uint32_t i = 0; i < kTransmitHeapNumThreads; i++) {
-    threads.emplace_back([&, tid = i] {
-      auto conn = conn_mgr_.get_conn(dest_addr);
-      uint8_t type = COPY;
-      RPCReqCopy req;
-      auto per_thread_len = (len - 1) / kTransmitHeapNumThreads + 1;
-      req.start_addr = start_addr + tid * per_thread_len;
-      req.len = (tid != kTransmitHeapNumThreads - 1)
-                    ? per_thread_len
-                    : start_addr + len - req.start_addr;
-      req.wg = wg;
-      const iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
-      BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
-      BUG_ON(conn->WriteFull(reinterpret_cast<uint8_t *>(req.start_addr),
-                             req.len) < 0);
-      conn_mgr_.put_conn(dest_addr, conn);
-    });
-  }
-  for (auto &thread : threads) {
-    thread.Join();
-  }
-}
-
-void Migrator::transmit_heap(rt::TcpConn *c, netaddr dest_addr,
-                             HeapHeader *heap_header) {
-  uint8_t type = LOAD;
-  BUG_ON(c->WriteFull(&type, sizeof(type)) < 0);
-  int obj_ref_cnt = heap_header->ref_cnt;
-  const iovec iovecs0[] = {{&heap_header, sizeof(heap_header)},
-                           {&obj_ref_cnt, sizeof(obj_ref_cnt)}};
-  BUG_ON(c->WritevFull(std::span(iovecs0)) < 0);
-  const auto &slab = heap_header->slab;
-  auto start_addr = reinterpret_cast<uint64_t>(&slab);
-  auto len = (reinterpret_cast<intptr_t>(slab.get_base()) -
-              reinterpret_cast<intptr_t>(&slab)) +
-             slab.get_usage();
-  uint8_t ack;
-  rt::WaitGroup *wg;
-  const iovec iovecs1[] = {{&ack, sizeof(ack)}, {&wg, sizeof(wg)}};
-  BUG_ON(c->ReadvFull(std::span(iovecs1)) <= 0);
-  parallel_transmit_heap(dest_addr, wg, start_addr, len);
+void Migrator::transmit_heap(rt::TcpConn *c, const HeapParam &param) {
+  BUG_ON(c->WriteFull(reinterpret_cast<void *>(param.start_addr), param.len) <
+         0);
 }
 
 void Migrator::transmit_mutexes(rt::TcpConn *c, HeapHeader *heap_header,
@@ -217,6 +189,7 @@ void Migrator::transmit_time(rt::TcpConn *c, HeapHeader *heap_header,
 
   for (size_t i = 0; i < num_entries; i++) {
     auto *entry = timer_entries_arr[i];
+    timer_cancel(entry);
     auto *arg = reinterpret_cast<TimerCallbackArg *>(entry->arg);
     time_threads->emplace(arg->th);
     transmit_one_thread(c, arg->th);
@@ -246,42 +219,40 @@ void Migrator::transmit_threads(rt::TcpConn *c,
   }
 }
 
-void Migrator::forward_to_client(uint32_t num_rpcs,
-                                 rt::TcpConn *conn_to_new_server) {
-  for (size_t i = 0; i < num_rpcs; i++) {
-    rt::TcpConn *conn_to_client;
-    ObjRPCRespHdr hdr;
-    const iovec iovecs[] = {{&conn_to_client, sizeof(conn_to_client)},
-                            {&hdr, sizeof(hdr)}};
-    BUG_ON(conn_to_new_server->ReadvFull(std::span(iovecs)) <= 0);
-    auto payload = std::make_unique<uint8_t[]>(hdr.payload_size);
-    if (hdr.payload_size) {
-      BUG_ON(conn_to_new_server->ReadFull(payload.get(), hdr.payload_size) <=
-             0);
-    }
-    if (hdr.payload_size) {
-      const iovec iovecs[] = {{&hdr, sizeof(hdr)},
-                              {payload.get(), hdr.payload_size}};
-      BUG_ON(conn_to_client->WritevFull(std::span(iovecs)) < 0);
-    } else {
-      BUG_ON(conn_to_client->WriteFull(&hdr, sizeof(hdr)) < 0);
-    }
-    rt::Thread([&, conn_to_client] {
-      Runtime::obj_server->handle_reqs(conn_to_client);
-    }).Detach();
+std::vector<HeapParam>
+Migrator::transmit_all_heaps_params(rt::TcpConn *c,
+                                    const std::list<void *> &heaps) {
+  std::vector<HeapParam> heap_params;
+  heap_params.reserve(heaps.size());
+
+  for (auto heap : heaps) {
+    auto *heap_header = reinterpret_cast<HeapHeader *>(heap);
+    auto obj_ref_cnt = heap_header->ref_cnt;
+    auto &slab = heap_header->slab;
+    uint64_t start_addr = reinterpret_cast<uint64_t>(&slab);
+    uint64_t len = (reinterpret_cast<intptr_t>(slab.get_base()) -
+                    reinterpret_cast<intptr_t>(&slab)) +
+                   slab.get_usage();
+    HeapParam param{heap_header, obj_ref_cnt, start_addr, len};
+    heap_params.push_back(param);
   }
+  uint64_t size = heap_params.size() * sizeof(HeapParam);
+
+  const iovec iovecs[] = {{&size, sizeof(size)}, {heap_params.data(), size}};
+  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
+
+  return heap_params;
 }
 
-void Migrator::transmit_and_forward(netaddr dest_addr, void *heap_base) {
-  auto conn = conn_mgr_.get_conn(dest_addr);
+void Migrator::transmit(rt::TcpConn *c, const HeapParam &heap_param) {
+  auto *heap_header = heap_param.heap_header;
 
-  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-  transmit_heap(conn, dest_addr, heap_header);
+  transmit_heap(c, heap_param);
 
   std::unordered_set<thread_t *> blocked_threads;
-  transmit_mutexes(conn, heap_header, &blocked_threads);
-  transmit_condvars(conn, heap_header, &blocked_threads);
-  transmit_time(conn, heap_header, &blocked_threads);
+  transmit_mutexes(c, heap_header, &blocked_threads);
+  transmit_condvars(c, heap_header, &blocked_threads);
+  transmit_time(c, heap_header, &blocked_threads);
 
   auto all_threads = heap_header->threads->all_keys();
   std::vector<thread_t *> running_threads;
@@ -290,77 +261,63 @@ void Migrator::transmit_and_forward(netaddr dest_addr, void *heap_base) {
       running_threads.push_back(thread);
     }
   }
-  transmit_threads(conn, running_threads);
-
-  forward_to_client(all_threads.size(), conn);
-
-  conn_mgr_.put_conn(dest_addr, conn);
+  transmit_threads(c, running_threads);
 }
 
-void Migrator::migrate(std::list<void *> heaps) {
-  Resource resource;
-  __builtin_memset(&resource, 0, sizeof(resource));
+bool Migrator::mark_migrating_threads(HeapHeader *heap_header) {
+  if (!Runtime::heap_manager->remove(heap_header)) {
+    return false;
+  }
+  ACCESS_ONCE(heap_header->migrating) = true;
+  Runtime::heap_manager->rcu_writer_sync();
+  auto all_threads = heap_header->threads->all_keys();
+  for (auto thread : all_threads) {
+    thread_mark_migrating(thread);
+  }
+  return true;
+}
 
-  auto iter = heaps.begin();
-  while (iter != heaps.end()) {
-    auto heap = *iter;
-    auto *heap_header = reinterpret_cast<HeapHeader *>(heap);
-    if (!Runtime::heap_manager->remove(heap)) {
-      iter = heaps.erase(iter);
+void Migrator::migrate(Resource pressure, std::list<void *> heaps) {
+  auto optional_dest_addr =
+      Runtime::controller_client->get_migration_dest(pressure);
+  BUG_ON(!optional_dest_addr);
+  auto dest_addr = *optional_dest_addr;
+  auto conn = conn_mgr_.get_conn(dest_addr);
+
+  uint8_t type = MIGRATE;
+  BUG_ON(conn->WriteFull(&type, sizeof(type)) < 0);
+  auto heap_params = transmit_all_heaps_params(conn, heaps);
+
+  for (auto heap_param : heap_params) {
+    auto *heap_header = heap_param.heap_header;
+
+    if (unlikely(!mark_migrating_threads(heap_header))) {
       continue;
     }
-    Runtime::heap_manager->rcu_writer_sync();
-    resource.mem_mbs += heap_header->slab.get_usage() >> 20;
-    auto all_threads = heap_header->threads->all_keys();
-    for (auto thread : all_threads) {
-      thread_mark_migrating(thread);
-    }
-    ++iter;
-  }
-  pause_migrating_threads();
+    pause_migrating_threads();
 
-  auto optional_dest_addr =
-      Runtime::controller_client->get_migration_dest(resource);
-  BUG_ON(!optional_dest_addr);
+    transmit(conn, heap_param);
 
-  std::vector<rt::Thread> threads;
-  for (auto heap : heaps) {
-    threads.emplace_back(
-        [&, heap] { transmit_and_forward(*optional_dest_addr, heap); });
-  }
-  for (auto &thread : threads) {
-    thread.Join();
+    gc_migrated_threads();
   }
 
-  gc_migrated_threads();
-  for (auto heap : heaps) {
-    Runtime::heap_manager->deallocate(heap);
+  conn_mgr_.put_conn(dest_addr, conn);
+
+  for (auto heap_param : heap_params) {
+    auto *heap_header = heap_param.heap_header;
+    Runtime::heap_manager->deallocate(heap_header);
   }
 }
 
-void *Migrator::load_heap(rt::TcpConn *c, rt::Mutex *loader_mutex) {
-  HeapHeader *heap_header;
-  int obj_ref_cnt;
-  const iovec iovecs0[] = {{&heap_header, sizeof(heap_header)},
-                           {&obj_ref_cnt, sizeof(obj_ref_cnt)}};
-  if (c->ReadvFull(std::span(iovecs0)) <= 0) {
-    return nullptr;
+void Migrator::load_heap(rt::TcpConn *c, LoadHeapTask *task) {
+  task->mu->Lock();
+  while (unlikely(!ACCESS_ONCE(task->mmapped))) {
+    task->cv->Wait(task->mu.get());
   }
+  task->mu->Unlock();
 
-  // Only allows one loading at a time.
-  loader_mutex->Lock();
-  Runtime::heap_manager->mmap(heap_header);
-  uint8_t ack = true;
-  rt::WaitGroup wg(kTransmitHeapNumThreads);
-  auto *wg_p = &wg;
-  const iovec iovecs1[] = {{&ack, sizeof(ack)}, {&wg_p, sizeof(wg_p)}};
-  BUG_ON(c->WritevFull(std::span(iovecs1)) < 0);
-  Runtime::heap_manager->setup(heap_header, /* migratable = */ true,
-                               /* skip_slab = */ true);
-  heap_header->ref_cnt = obj_ref_cnt;
-  wg.Wait();
-
-  return heap_header;
+  BUG_ON(c->ReadFull(reinterpret_cast<void *>(task->param.start_addr),
+                     task->param.len) <= 0);
 }
 
 thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
@@ -392,6 +349,7 @@ void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
 
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
+      heap_header->forward_wg.Add(num_threads);
 
       auto *waiters = mutex->get_waiters();
       list_head_init(waiters);
@@ -417,10 +375,12 @@ void Migrator::load_condvars(rt::TcpConn *c, HeapHeader *heap_header) {
       auto condvar = condvars[i];
       heap_header->condvars->put(condvar);
 
-      auto *waiters = condvar->get_waiters();
-      list_head_init(waiters);
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
+      heap_header->forward_wg.Add(num_threads);
+
+      auto *waiters = condvar->get_waiters();
+      list_head_init(waiters);
       for (size_t j = 0; j < num_threads; j++) {
         auto *th = load_one_thread(c, heap_header);
         auto *th_link = reinterpret_cast<list_node *>(
@@ -439,6 +399,8 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
   const iovec iovecs[] = {{&sum_tsc, sizeof(sum_tsc)},
                           {&num_entries, sizeof(num_entries)}};
   BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
+  heap_header->forward_wg.Add(num_entries);
+
   auto loader_tsc = rdtscp(nullptr) - start_tsc;
   time->offset_tsc_ = sum_tsc - loader_tsc;
 
@@ -465,8 +427,7 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
 void Migrator::load_threads(rt::TcpConn *c, HeapHeader *heap_header) {
   uint64_t num_threads;
   BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
-
-  ACCESS_ONCE(remaining_forwarding_cnts_) = num_threads;
+  heap_header->forward_wg.Add(num_threads);
 
   for (uint64_t i = 0; i < num_threads; i++) {
     auto *th = load_one_thread(c, heap_header);
@@ -475,52 +436,94 @@ void Migrator::load_threads(rt::TcpConn *c, HeapHeader *heap_header) {
   }
 }
 
+std::vector<HeapParam> Migrator::load_all_heaps_params(rt::TcpConn *c) {
+  std::vector<HeapParam> params;
+  uint64_t size;
+
+  BUG_ON(c->ReadFull(&size, sizeof(size)) <= 0);
+  params.resize(size / sizeof(HeapParam));
+  BUG_ON(c->ReadFull(&params[0], size) <= 0);
+
+  return params;
+}
+
+rt::Thread
+Migrator::prepare_load_heap_tasks(uint32_t old_server_ip,
+                                  const std::vector<HeapParam> &heap_params,
+                                  std::vector<LoadHeapTask> *load_heap_tasks) {
+  load_heap_tasks->reserve(heap_params.size());
+  for (size_t i = 0; i < heap_params.size(); i++) {
+    load_heap_tasks->emplace_back(heap_params[i]);
+  }
+  return rt::Thread([load_heap_tasks, old_server_ip] {
+    for (auto &task : *load_heap_tasks) {
+      Runtime::heap_manager->mmap_populate(task.param.heap_header,
+                                           task.param.len);
+      Runtime::heap_manager->setup(task.param.heap_header,
+                                   /* migratable = */ true,
+                                   /* skip_slab = */ true);
+      task.param.heap_header->old_server_ip = old_server_ip;
+      task.param.heap_header->ref_cnt = task.param.obj_ref_cnt;
+      task.mu->Lock();
+      task.mmapped = true;
+      task.cv->Signal();
+      task.mu->Unlock();
+    }
+  });
+}
+
 void Migrator::load(rt::TcpConn *c) {
-  auto *heap_base = load_heap(c, &loader_mutex_);
-  if (!heap_base) {
-    return;
+  auto heap_params = load_all_heaps_params(c);
+
+  std::vector<LoadHeapTask> load_heap_tasks;
+  auto mmap_thread = prepare_load_heap_tasks(c->RemoteAddr().ip, heap_params,
+                                             &load_heap_tasks);
+
+  for (auto &task : load_heap_tasks) {
+    auto *heap_header = task.param.heap_header;
+
+    load_heap(c, &task);
+    ACCESS_ONCE(heap_header->migratable) = false;
+
+    load_mutexes(c, heap_header);
+    load_condvars(c, heap_header);
+    load_time(c, heap_header);
+
+    Runtime::heap_manager->insert(heap_header);
+
+    rt::Thread([heap_header] {
+      Runtime::controller_client->update_location(
+          to_obj_id(heap_header), Runtime::obj_server->get_addr());
+    }).Detach();
+
+    load_threads(c, heap_header);
+
+    rt::Thread([heap_header] {
+      heap_header->forward_wg.Wait();
+      ACCESS_ONCE(heap_header->migratable) = true;
+    }).Detach();
   }
-
-  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-  ACCESS_ONCE(heap_header->migratable) = false;
-  loader_conn_ = c;
-
-  load_mutexes(c, heap_header);
-  load_condvars(c, heap_header);
-  load_time(c, heap_header);
-
-  Runtime::heap_manager->insert(heap_base);
-
-  rt::Thread([heap_base] {
-    Runtime::controller_client->update_location(
-        to_obj_id(heap_base), Runtime::obj_server->get_addr());
-  }).Detach();
-
-  load_threads(c, heap_header);
-
-  forwarding_mutex_.Lock();
-  while (ACCESS_ONCE(remaining_forwarding_cnts_)) {
-    loader_done_forwarding_.Wait(&forwarding_mutex_);
-  }
-
-  ACCESS_ONCE(heap_header->migratable) = true;
-  forwarding_mutex_.Unlock();
-  loader_mutex_.Unlock();
+  mmap_thread.Join();
 }
 
 void Migrator::forward_to_original_server(const ObjRPCRespHdr &hdr,
                                           const void *payload,
                                           rt::TcpConn *conn_to_client) {
-  rt::ScopedLock<rt::Mutex> lock(&forwarding_mutex_);
-  const iovec iovecs[] = {{&conn_to_client, sizeof(conn_to_client)},
-                          {const_cast<ObjRPCRespHdr *>(&hdr), sizeof(hdr)}};
-  BUG_ON(loader_conn_->WritevFull(std::span(iovecs)) < 0);
-  BUG_ON(loader_conn_->WriteFull(payload, hdr.payload_size) < 0);
+  uint8_t type = FORWARD;
+  auto *heap_header = Runtime::get_obj_heap_header();
+  netaddr old_server_addr = {.ip = heap_header->old_server_ip, .port = port_};
+  auto conn = conn_mgr_.get_conn(old_server_addr);
 
-  barrier();
-  if (--remaining_forwarding_cnts_ == 0) {
-    loader_done_forwarding_.Signal();
+  const iovec iovecs[] = {{&type, sizeof(type)},
+                          {&conn_to_client, sizeof(conn_to_client)},
+                          {const_cast<ObjRPCRespHdr *>(&hdr), sizeof(hdr)}};
+  BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
+  if (hdr.payload_size) {
+    BUG_ON(conn->WriteFull(payload, hdr.payload_size) < 0);
   }
+  heap_header->forward_wg.Done();
+
+  conn_mgr_.put_conn(old_server_addr, conn);
 }
 
 void Migrator::reserve_conns(uint32_t num, netaddr dest_server_addr) {

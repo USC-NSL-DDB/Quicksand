@@ -22,6 +22,7 @@ constexpr static uint64_t kPtrHeaderSize = 8;
 constexpr static uint64_t kStackAlignment = 16;
 constexpr static uint64_t kStackSize =
     (32 << 10) - kPtrHeaderSize - kStackAlignment;
+constexpr static uint64_t kPageSize = 4096;
 
 inline void *to_heap_base(RemObjID id) { return reinterpret_cast<void *>(id); }
 inline RemObjID to_obj_id(void *heap_base) {

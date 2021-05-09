@@ -7,6 +7,7 @@
 #include <unordered_set>
 
 extern "C" {
+#include <runtime/net.h>
 #include <runtime/thread.h>
 }
 #include <sync.h>
@@ -37,6 +38,11 @@ struct HeapHeader {
       condvars;
   std::unique_ptr<Time> time;
   bool migratable;
+  bool migrating;
+
+  // Forwarding related.
+  uint32_t old_server_ip;
+  rt::WaitGroup forward_wg;
 
   // Ref cnt related.
   rt::Spin spin;
@@ -53,13 +59,16 @@ public:
   HeapManager();
   static void allocate(void *heap_base, bool migratable);
   static void mmap(void *heap_base);
+  static void mmap_populate(void *heap_base, uint64_t populate_len);
   static void setup(void *heap_base, bool migratable, bool skip_slab);
   static void deallocate(void *heap_base);
   void insert(void *heap_base);
   bool contains(void *heap_base);
   bool remove(void *heap_base);
   void rcu_reader_lock();
+  bool rcu_reader_lock_np();
   void rcu_reader_unlock();
+  void rcu_reader_unlock_np();
   void rcu_writer_sync();
   SlabAllocator *get_slab(void *heap_base);
   std::list<void *> pick_heaps(const Resource &pressure);

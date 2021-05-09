@@ -1,5 +1,6 @@
 #include "time.hpp"
 #include "runtime.hpp"
+#include "runtime_deleter.hpp"
 
 extern "C" {
 #include <base/assert.h>

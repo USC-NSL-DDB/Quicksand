@@ -133,16 +133,19 @@ void Runtime::migration_disable() {
   if (!heap_header) {
     return;
   }
-  void *heap_base = heap_header;
 
-  heap_manager->rcu_reader_lock();
-  if (unlikely(!heap_manager->contains(heap_base))) {
-    heap_manager->rcu_reader_unlock();
-    while (unlikely(!thread_is_migrated())) {
-      rt::Yield();
-    }
-    heap_manager->rcu_reader_lock();
+retry:
+  while (unlikely(!heap_manager->rcu_reader_lock_np())) {
+    rt::Yield();
   }
+  if (unlikely(heap_header->migrating)) {
+    heap_manager->rcu_reader_unlock_np();
+    do {
+      rt::Yield();
+    } while (!thread_is_migrated());
+    goto retry;
+  }
+  preempt_enable();
   heap_header->threads->remove(thread_self());
 }
 

@@ -12,7 +12,9 @@ namespace nu {
 class RCULock {
 public:
   void reader_lock();
+  bool reader_lock_np();
   void reader_unlock();
+  void reader_unlock_np();
   void writer_sync();
 
 private:
@@ -34,6 +36,7 @@ private:
 
   template <typename Fn> void write_sync_general(Fn &&fn);
   void detect_sync_barrier();
+  bool detect_sync_barrier_np();
 };
 } // namespace nu
 

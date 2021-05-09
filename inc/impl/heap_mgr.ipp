@@ -13,9 +13,7 @@ inline HeapManager::HeapManager()
 inline void HeapManager::deallocate(void *heap_base) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
   heap_header->~HeapHeader();
-  preempt_disable();
   BUG_ON(munmap(heap_base, kHeapSize) == -1);
-  preempt_enable();
 }
 
 inline SlabAllocator *HeapManager::get_slab(void *heap_base) {
@@ -36,7 +34,15 @@ inline bool HeapManager::remove(void *heap_base) {
 
 inline void HeapManager::rcu_reader_lock() { rcu_lock_.reader_lock(); }
 
+inline bool HeapManager::rcu_reader_lock_np() {
+  return rcu_lock_.reader_lock_np();
+}
+
 inline void HeapManager::rcu_reader_unlock() { rcu_lock_.reader_unlock(); }
+
+inline void HeapManager::rcu_reader_unlock_np() {
+  rcu_lock_.reader_unlock_np();
+}
 
 inline void HeapManager::rcu_writer_sync() { rcu_lock_.writer_sync(); }
 

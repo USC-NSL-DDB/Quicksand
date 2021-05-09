@@ -17,6 +17,15 @@ inline void RCULock::detect_sync_barrier() {
   }
 }
 
+inline bool RCULock::detect_sync_barrier_np() {
+  preempt_disable();
+  if (ACCESS_ONCE(sync_barrier_)) {
+    preempt_enable();
+    return false;
+  }
+  return true;
+}
+
 void RCULock::reader_lock() {
   detect_sync_barrier();
   int core = get_cpu();
@@ -28,8 +37,31 @@ void RCULock::reader_lock() {
   put_cpu();
 }
 
+bool RCULock::reader_lock_np() {
+  if (unlikely(!detect_sync_barrier_np())) {
+    return false;
+  }
+  int core = read_cpu();
+  Cnt cnt;
+  cnt.raw = aligned_cnts_[core].cnt.raw;
+  cnt.data.c++;
+  cnt.data.ver++;
+  aligned_cnts_[core].cnt.data = cnt.data;
+  return true;
+}
+
 void RCULock::reader_unlock() {
   int core = get_cpu();
+  Cnt cnt;
+  cnt.raw = aligned_cnts_[core].cnt.raw;
+  cnt.data.c--;
+  cnt.data.ver++;
+  aligned_cnts_[core].cnt.data = cnt.data;
+  put_cpu();
+}
+
+void RCULock::reader_unlock_np() {
+  int core = read_cpu();
   Cnt cnt;
   cnt.raw = aligned_cnts_[core].cnt.raw;
   cnt.data.c--;

@@ -26,7 +26,7 @@ void Monitor::run_loop() {
     if (!pressure.empty()) {
       auto heaps = Runtime::heap_manager->pick_heaps(pressure);
       if (!heaps.empty()) {
-        Runtime::migrator->migrate(heaps);
+        Runtime::migrator->migrate(pressure, heaps);
       }
       if (!continuous_) {
         Resource empty = {.cores = 0, .mem_mbs = 0};

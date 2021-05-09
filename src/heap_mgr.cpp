@@ -21,11 +21,24 @@ void HeapManager::allocate(void *heap_base, bool migratable) {
 }
 
 void HeapManager::mmap(void *heap_base) {
-  preempt_disable();
   auto mmap_addr = ::mmap(heap_base, kHeapSize, PROT_READ | PROT_WRITE,
-                          MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED, -1, 0);
-  preempt_enable();
+                          MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
   BUG_ON(mmap_addr != heap_base);
+}
+
+void HeapManager::mmap_populate(void *heap_base, uint64_t populate_len) {
+  populate_len = ((populate_len - 1) / kPageSize + 1) * kPageSize;
+  BUG_ON(populate_len > kHeapSize);
+  auto mmap_addr =
+      ::mmap(heap_base, populate_len, PROT_READ | PROT_WRITE,
+             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_POPULATE, -1, 0);
+  BUG_ON(mmap_addr != heap_base);
+  auto *unpopulated_base =
+      reinterpret_cast<uint8_t *>(heap_base) + populate_len;
+  mmap_addr =
+      ::mmap(unpopulated_base, kHeapSize - populate_len, PROT_READ | PROT_WRITE,
+             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+  BUG_ON(mmap_addr != unpopulated_base);
 }
 
 void HeapManager::setup(void *heap_base, bool migratable, bool skip_slab) {
@@ -42,6 +55,8 @@ void HeapManager::setup(void *heap_base, bool migratable, bool skip_slab) {
   heap_header->time.release();
   heap_header->time.reset(new decltype(heap_header->time)::element_type());
   heap_header->migratable = migratable;
+  heap_header->migrating = false;
+  new (&heap_header->forward_wg) rt::WaitGroup();
   new (&heap_header->spin) rt::Spin();
   heap_header->ref_cnt = 1;
   if (!skip_slab) {

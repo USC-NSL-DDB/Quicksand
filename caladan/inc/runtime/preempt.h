@@ -111,8 +111,15 @@ static inline void clear_preempt_cede_needed(void)
 static inline unsigned int get_cpu(void)
 {
 	preempt_disable();
+        // This isn't accurate but is enough for most purposes, e.g., lockless
+        // per-cpu data structures.
+        return kthread_idx;
+}
+
+static inline unsigned int read_cpu(void)
+{
 	// This isn't accurate but is enough for most purposes, e.g., lockless
-	// per-cpu data structures..
+	// per-cpu data structures.
 	return kthread_idx;
 }
 
