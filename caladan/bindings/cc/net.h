@@ -159,29 +159,33 @@ class TcpConn : public NetConn {
   }
 
   // Reads exactly a vector of bytes from the TCP stream.
-  ssize_t ReadvFull(std::span<const iovec> iov) {
-    if (__builtin_constant_p(iov.size())) {
-      if (iov.size() == 1) return ReadFull(iov[0].iov_base, iov[0].iov_len);
+  template <std::size_t Extent>
+  ssize_t ReadvFull(std::span<const iovec, Extent> iov) {
+    if constexpr (Extent != std::dynamic_extent) {
+      if constexpr (iov.size() == 1)
+        return ReadFull(iov[0].iov_base, iov[0].iov_len);
     }
     return ReadvFullRaw(iov);
   }
 
   // Writes exactly a vector of bytes to the TCP stream.
-  ssize_t WritevFull(std::span<const iovec> iov) {
-    if (__builtin_constant_p(iov.size())) {
-      if (iov.size() == 1) return WriteFull(iov[0].iov_base, iov[0].iov_len);
+  template <std::size_t Extent>
+  ssize_t WritevFull(std::span<const iovec, Extent> iov) {
+    if constexpr (Extent != std::dynamic_extent) {
+      if constexpr (iov.size() == 1)
+        return WriteFull(iov[0].iov_base, iov[0].iov_len);
     }
     return WritevFullRaw(iov);
   }
 
   // Reads exactly a vector of bytes from the TCP stream.
   ssize_t ReadvFull(const iovec *iov, int iovcnt) {
-    return ReadvFull({iov, static_cast<size_t>(iovcnt)});
+    return ReadvFull(std::span{iov, static_cast<size_t>(iovcnt)});
   }
 
   // Writes exactly a vector of bytes to the TCP stream.
   ssize_t WritevFull(const iovec *iov, int iovcnt) {
-    return WritevFull({iov, static_cast<size_t>(iovcnt)});
+    return WritevFull(std::span{iov, static_cast<size_t>(iovcnt)});
   }
 
   // Gracefully shutdown the TCP connection.

@@ -10,7 +10,6 @@ extern "C" {
 
 #include "ctrl.hpp"
 #include "obj_server.hpp"
-#include "utils/tcp.hpp"
 
 namespace nu {
 
@@ -40,8 +39,8 @@ void Controller::register_node(Node &node) {
     RPCReqReserveConns req;
     req.num = Migrator::kDefaultNumReservedConns;
     req.dest_server_addr = node.migrator_addr;
-    iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
-    BUG_ON(migrator_conn->WritevFull(iovecs) < 0);
+    const iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
+    BUG_ON(migrator_conn->WritevFull(std::span(iovecs)) < 0);
   }
 
   netaddr local_addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
@@ -53,8 +52,8 @@ void Controller::register_node(Node &node) {
     RPCReqReserveConns req;
     req.num = Migrator::kDefaultNumReservedConns;
     req.dest_server_addr = old_node.migrator_addr;
-    iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
-    BUG_ON(node.migrator_conn->WritevFull(iovecs) < 0);
+    const iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
+    BUG_ON(node.migrator_conn->WritevFull(std::span(iovecs)) < 0);
   }
 
   nodes_.push_back(node);

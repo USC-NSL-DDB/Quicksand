@@ -105,8 +105,8 @@ void Migrator::parallel_transmit_heap(netaddr dest_addr, rt::WaitGroup *wg,
                     ? per_thread_len
                     : start_addr + len - req.start_addr;
       req.wg = wg;
-      iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
-      BUG_ON(conn->WritevFull(iovecs) < 0);
+      const iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
+      BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
       BUG_ON(conn->WriteFull(reinterpret_cast<uint8_t *>(req.start_addr),
                              req.len) < 0);
       conn_mgr_.put_conn(dest_addr, conn);
@@ -122,9 +122,9 @@ void Migrator::transmit_heap(rt::TcpConn *c, netaddr dest_addr,
   uint8_t type = LOAD;
   BUG_ON(c->WriteFull(&type, sizeof(type)) < 0);
   int obj_ref_cnt = heap_header->ref_cnt;
-  iovec iovecs0[] = {{&heap_header, sizeof(heap_header)},
-                     {&obj_ref_cnt, sizeof(obj_ref_cnt)}};
-  BUG_ON(c->WritevFull(iovecs0) < 0);
+  const iovec iovecs0[] = {{&heap_header, sizeof(heap_header)},
+                           {&obj_ref_cnt, sizeof(obj_ref_cnt)}};
+  BUG_ON(c->WritevFull(std::span(iovecs0)) < 0);
   const auto &slab = heap_header->slab;
   auto start_addr = reinterpret_cast<uint64_t>(&slab);
   auto len = (reinterpret_cast<intptr_t>(slab.get_base()) -
@@ -132,8 +132,8 @@ void Migrator::transmit_heap(rt::TcpConn *c, netaddr dest_addr,
              slab.get_usage();
   uint8_t ack;
   rt::WaitGroup *wg;
-  iovec iovecs1[] = {{&ack, sizeof(ack)}, {&wg, sizeof(wg)}};
-  BUG_ON(c->ReadvFull(iovecs1) <= 0);
+  const iovec iovecs1[] = {{&ack, sizeof(ack)}, {&wg, sizeof(wg)}};
+  BUG_ON(c->ReadvFull(std::span(iovecs1)) <= 0);
   parallel_transmit_heap(dest_addr, wg, start_addr, len);
 }
 
@@ -143,9 +143,9 @@ void Migrator::transmit_mutexes(rt::TcpConn *c, HeapHeader *heap_header,
   size_t num_mutexes = mutexes.size();
 
   if (num_mutexes) {
-    iovec iovecs[] = {{&num_mutexes, sizeof(num_mutexes)},
-                      {mutexes.data(), num_mutexes * sizeof(Mutex *)}};
-    BUG_ON(c->WritevFull(iovecs) < 0);
+    const iovec iovecs[] = {{&num_mutexes, sizeof(num_mutexes)},
+                            {mutexes.data(), num_mutexes * sizeof(Mutex *)}};
+    BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   } else {
     BUG_ON(c->WriteFull(&num_mutexes, sizeof(num_mutexes)) < 0);
   }
@@ -174,9 +174,10 @@ void Migrator::transmit_condvars(
   size_t num_condvars = condvars.size();
 
   if (num_condvars) {
-    iovec iovecs[] = {{&num_condvars, sizeof(num_condvars)},
-                      {condvars.data(), num_condvars * sizeof(CondVar *)}};
-    BUG_ON(c->WritevFull(iovecs) < 0);
+    const iovec iovecs[] = {
+        {&num_condvars, sizeof(num_condvars)},
+        {condvars.data(), num_condvars * sizeof(CondVar *)}};
+    BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   } else {
     BUG_ON(c->WriteFull(&num_condvars, sizeof(num_condvars)) < 0);
   }
@@ -205,9 +206,9 @@ void Migrator::transmit_time(rt::TcpConn *c, HeapHeader *heap_header,
 
   const auto &timer_entries_list = heap_header->time->entries_;
   size_t num_entries = timer_entries_list.size();
-  iovec iovecs[] = {{&sum_tsc, sizeof(sum_tsc)},
-                    {&num_entries, sizeof(num_entries)}};
-  BUG_ON(c->WritevFull(iovecs) < 0);
+  const iovec iovecs[] = {{&sum_tsc, sizeof(sum_tsc)},
+                          {&num_entries, sizeof(num_entries)}};
+  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
 
   auto timer_entries_arr = std::make_unique<timer_entry *[]>(num_entries);
   std::copy(timer_entries_list.begin(), timer_entries_list.end(),
@@ -229,11 +230,11 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
   BUG_ON(c->WriteFull(tf, tf_size) < 0);
   void *stack_range[2];
   thread_get_obj_stack(thread, &stack_range[1], &stack_range[0]);
-  iovec iovecs[] = {
+  const iovec iovecs[] = {
       {stack_range, sizeof(stack_range)},
       {stack_range[0], reinterpret_cast<uintptr_t>(stack_range[1]) -
                            reinterpret_cast<uintptr_t>(stack_range[0]) + 1}};
-  BUG_ON(c->WritevFull(iovecs) < 0);
+  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   thread_mark_migrated(thread);
 }
 
@@ -251,17 +252,18 @@ void Migrator::forward_to_client(uint32_t num_rpcs,
   for (size_t i = 0; i < num_rpcs; i++) {
     rt::TcpConn *conn_to_client;
     ObjRPCRespHdr hdr;
-    iovec iovecs[] = {{&conn_to_client, sizeof(conn_to_client)},
-                      {&hdr, sizeof(hdr)}};
-    BUG_ON(conn_to_new_server->ReadvFull(iovecs) <= 0);
+    const iovec iovecs[] = {{&conn_to_client, sizeof(conn_to_client)},
+                            {&hdr, sizeof(hdr)}};
+    BUG_ON(conn_to_new_server->ReadvFull(std::span(iovecs)) <= 0);
     auto payload = std::make_unique<uint8_t[]>(hdr.payload_size);
     if (hdr.payload_size) {
       BUG_ON(conn_to_new_server->ReadFull(payload.get(), hdr.payload_size) <=
              0);
     }
     if (hdr.payload_size) {
-      iovec iovecs[] = {{&hdr, sizeof(hdr)}, {payload.get(), hdr.payload_size}};
-      BUG_ON(conn_to_client->WritevFull(iovecs) < 0);
+      const iovec iovecs[] = {{&hdr, sizeof(hdr)},
+                              {payload.get(), hdr.payload_size}};
+      BUG_ON(conn_to_client->WritevFull(std::span(iovecs)) < 0);
     } else {
       BUG_ON(conn_to_client->WriteFull(&hdr, sizeof(hdr)) < 0);
     }
@@ -340,9 +342,9 @@ void Migrator::migrate(std::list<void *> heaps) {
 void *Migrator::load_heap(rt::TcpConn *c, rt::Mutex *loader_mutex) {
   HeapHeader *heap_header;
   int obj_ref_cnt;
-  iovec iovecs0[] = {{&heap_header, sizeof(heap_header)},
-                     {&obj_ref_cnt, sizeof(obj_ref_cnt)}};
-  if (c->ReadvFull(iovecs0) <= 0) {
+  const iovec iovecs0[] = {{&heap_header, sizeof(heap_header)},
+                           {&obj_ref_cnt, sizeof(obj_ref_cnt)}};
+  if (c->ReadvFull(std::span(iovecs0)) <= 0) {
     return nullptr;
   }
 
@@ -352,8 +354,8 @@ void *Migrator::load_heap(rt::TcpConn *c, rt::Mutex *loader_mutex) {
   uint8_t ack = true;
   rt::WaitGroup wg(kTransmitHeapNumThreads);
   auto *wg_p = &wg;
-  iovec iovecs1[] = {{&ack, sizeof(ack)}, {&wg_p, sizeof(wg_p)}};
-  BUG_ON(c->WritevFull(iovecs1) < 0);
+  const iovec iovecs1[] = {{&ack, sizeof(ack)}, {&wg_p, sizeof(wg_p)}};
+  BUG_ON(c->WritevFull(std::span(iovecs1)) < 0);
   Runtime::heap_manager->setup(heap_header, /* migratable = */ true,
                                /* skip_slab = */ true);
   heap_header->ref_cnt = obj_ref_cnt;
@@ -435,9 +437,9 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
 
   int64_t sum_tsc;
   size_t num_entries;
-  iovec iovecs[] = {{&sum_tsc, sizeof(sum_tsc)},
-                    {&num_entries, sizeof(num_entries)}};
-  BUG_ON(c->ReadvFull(iovecs) <= 0);
+  const iovec iovecs[] = {{&sum_tsc, sizeof(sum_tsc)},
+                          {&num_entries, sizeof(num_entries)}};
+  BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
   auto loader_tsc = rdtscp(nullptr) - start_tsc;
   time->offset_tsc_ = sum_tsc - loader_tsc;
 
@@ -511,9 +513,9 @@ void Migrator::forward_to_original_server(const ObjRPCRespHdr &hdr,
                                           const void *payload,
                                           rt::TcpConn *conn_to_client) {
   rt::ScopedLock<rt::Mutex> lock(&forwarding_mutex_);
-  iovec iovecs[] = {{&conn_to_client, sizeof(conn_to_client)},
-                    {const_cast<ObjRPCRespHdr *>(&hdr), sizeof(hdr)}};
-  BUG_ON(loader_conn_->WritevFull(iovecs) < 0);
+  const iovec iovecs[] = {{&conn_to_client, sizeof(conn_to_client)},
+                          {const_cast<ObjRPCRespHdr *>(&hdr), sizeof(hdr)}};
+  BUG_ON(loader_conn_->WritevFull(std::span(iovecs)) < 0);
   BUG_ON(loader_conn_->WriteFull(payload, hdr.payload_size) < 0);
 
   barrier();

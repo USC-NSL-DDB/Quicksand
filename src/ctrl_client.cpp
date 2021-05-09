@@ -50,8 +50,8 @@ void ControllerClient::register_node(const Node &node) {
   RPCRespRegisterNode resp;
   req.node = node;
   auto c = conn_mgr_.get_conn();
-  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
-  BUG_ON(c->WritevFull(iovecs) < 0);
+  const iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
 }
@@ -62,8 +62,8 @@ ControllerClient::allocate_obj() {
   RPCReqAllocateObj req;
   RPCRespAllocateObj resp;
   auto c = conn_mgr_.get_conn();
-  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
-  BUG_ON(c->WritevFull(iovecs) < 0);
+  const iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
   if (resp.empty) {
@@ -81,8 +81,8 @@ void ControllerClient::destroy_obj(RemObjID id) {
   RPCRespDestroyObj resp;
   req.id = id;
   auto c = conn_mgr_.get_conn();
-  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
-  BUG_ON(c->WritevFull(iovecs) < 0);
+  const iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
 }
@@ -93,8 +93,8 @@ std::optional<netaddr> ControllerClient::resolve_obj(RemObjID id) {
   RPCRespResolveObj resp;
   req.id = id;
   auto c = conn_mgr_.get_conn();
-  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
-  BUG_ON(c->WritevFull(iovecs) < 0);
+  const iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
   if (resp.empty) {
@@ -111,8 +111,8 @@ std::optional<netaddr> ControllerClient::get_migration_dest(Resource resource) {
   RPCRespGetMigrationDest resp;
   req.resource = resource;
   auto c = conn_mgr_.get_conn();
-  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
-  BUG_ON(c->WritevFull(iovecs) < 0);
+  const iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
   if (resp.empty) {
@@ -130,8 +130,8 @@ void ControllerClient::update_location(RemObjID id, netaddr obj_srv_addr) {
   req.id = id;
   req.obj_srv_addr = obj_srv_addr;
   auto c = conn_mgr_.get_conn();
-  iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
-  BUG_ON(c->WritevFull(iovecs) < 0);
+  const iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
+  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
 }
