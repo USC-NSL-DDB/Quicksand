@@ -8,7 +8,6 @@ extern "C" {
 #include <net.h>
 
 #include "ctrl.hpp"
-#include "utils/tcp.hpp"
 
 namespace nu {
 

@@ -21,7 +21,6 @@ extern "C" {
 #include "obj_server.hpp"
 #include "runtime.hpp"
 #include "runtime_alloc.hpp"
-#include "utils/tcp.hpp"
 
 namespace nu {
 

@@ -11,7 +11,6 @@ extern "C" {
 #include "heap_mgr.hpp"
 #include "migrator.hpp"
 #include "runtime.hpp"
-#include "utils/tcp.hpp"
 
 namespace nu {
 
@@ -199,9 +198,10 @@ void ObjServer::send_rpc_resp(auto &ss, rt::TcpConn *rpc_conn) {
   } else {
     hdr.rc = OK;
     if (hdr.payload_size) {
-      iovec iovecs[] = {{&hdr, sizeof(hdr)},
-                        {const_cast<char *>(view.data()), hdr.payload_size}};
-      BUG_ON(rpc_conn->WritevFull(iovecs) < 0);
+      const iovec iovecs[] = {
+          {&hdr, sizeof(hdr)},
+          {const_cast<char *>(view.data()), hdr.payload_size}};
+      BUG_ON(rpc_conn->WritevFull(std::span(iovecs)) < 0);
     } else {
       BUG_ON(rpc_conn->WriteFull(&hdr, sizeof(hdr)) < 0);
     }

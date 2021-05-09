@@ -21,7 +21,6 @@ extern "C" {
 #include "utils/future.hpp"
 #include "utils/netaddr.hpp"
 #include "utils/promise.hpp"
-#include "utils/tcp.hpp"
 
 namespace nu {
 
@@ -38,9 +37,10 @@ retry:
   auto states_view = states_ss->view();
   uint64_t states_size = states_ss->tellp();
 
-  iovec iovecs[] = {{&states_size, sizeof(states_size)},
-                    {const_cast<char *>(states_view.data()), states_size}};
-  BUG_ON(conn->WritevFull(iovecs) < 0);
+  const iovec iovecs[] = {
+      {&states_size, sizeof(states_size)},
+      {const_cast<char *>(states_view.data()), states_size}};
+  BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
 
   ObjRPCRespHdr hdr;
   BUG_ON(conn->ReadFull(&hdr, sizeof(hdr)) <= 0);

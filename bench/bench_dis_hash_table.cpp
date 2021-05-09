@@ -219,7 +219,6 @@ void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
   std::ofstream ofs("records");
   for (auto [start, duration] : all_records) {
     ofs << start << " " << duration << std::endl;
-    ;
   }
 }
 

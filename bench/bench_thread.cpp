@@ -16,7 +16,6 @@ extern "C" {
 
 #include "defs.hpp"
 #include "utils/bench.hpp"
-#include "utils/tcp.hpp"
 
 using namespace nu;
 using namespace std;

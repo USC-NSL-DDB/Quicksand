@@ -11,12 +11,12 @@ extern "C" {
 #include <runtime/tcp.h>
 #include <runtime/timer.h>
 }
+#include <net.h>
 #include <runtime.h>
 #include <thread.h>
 
 #include "defs.hpp"
 #include "utils/bench.hpp"
-#include "utils/tcp.hpp"
 
 using namespace nu;
 using namespace std;
@@ -37,31 +37,35 @@ uint8_t client_buf2[16];
 uint8_t client_buf3[4];
 
 void do_server() {
-  tcpqueue_t *q;
-  BUG_ON(tcp_listen(server_addr, 1, &q) != 0);
-  tcpconn_t *c;
-  while (tcp_accept(q, &c) == 0) {
+  auto *q = rt::TcpQueue::Listen(server_addr, 1);
+  BUG_ON(!q);
+
+  rt::TcpConn *c;
+  while ((c = q->Accept())) {
     for (uint32_t i = 0; i < kNumRuns; i++) {
-      BUG_ON(!tcp_read_until(c, server_buf0, sizeof(server_buf0)));
-      BUG_ON(!tcp_read_until(c, server_buf1, sizeof(server_buf1)));
-      BUG_ON(!tcp_write2_until(c, server_buf2, sizeof(server_buf2), server_buf3,
-                               sizeof(server_buf3)));
+      BUG_ON(c->ReadFull(server_buf0, sizeof(server_buf0)) <= 0);
+      BUG_ON(c->ReadFull(server_buf1, sizeof(server_buf1)) <= 0);
+      constexpr static iovec iovecs[] = {{server_buf2, sizeof(server_buf2)},
+                                         {server_buf3, sizeof(server_buf3)}};
+      BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
     }
   }
 }
 
 void do_client() {
-  tcpconn_t *c;
+  rt::TcpConn *c;
   netaddr local_addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
-  BUG_ON(tcp_dial(local_addr, server_addr, &c) != 0);
+  c = rt::TcpConn::Dial(local_addr, server_addr);
+  BUG_ON(!c);
 
   std::vector<uint64_t> tscs;
   for (uint32_t i = 0; i < kNumRuns; i++) {
     auto start_tsc = rdtsc();
-    BUG_ON(!tcp_write2_until(c, client_buf0, sizeof(client_buf0), client_buf1,
-                             sizeof(client_buf1)));
-    BUG_ON(!tcp_read_until(c, client_buf2, sizeof(client_buf2)));
-    BUG_ON(!tcp_read_until(c, client_buf3, sizeof(client_buf3)));
+    constexpr static iovec iovecs[] = {{client_buf0, sizeof(client_buf0)},
+                                       {client_buf1, sizeof(client_buf1)}};
+    BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
+    BUG_ON(c->ReadFull(client_buf2, sizeof(client_buf2)) <= 0);
+    BUG_ON(c->ReadFull(client_buf3, sizeof(client_buf3)) <= 0);
     auto end_tsc = rdtsc();
     tscs.push_back(end_tsc - start_tsc);
   }
