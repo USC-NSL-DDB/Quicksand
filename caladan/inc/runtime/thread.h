@@ -65,4 +65,4 @@ extern void *thread_get_trap_frame(thread_t *th, size_t *size);
 extern void pause_migrating_threads(void);
 extern thread_t *create_migrated_thread(void *tf, uint64_t tlsvar);
 extern void gc_migrated_threads(void);
-extern uint64_t thread_get_runtime_stack_base(void);
+extern void *thread_get_runtime_stack_base(void);

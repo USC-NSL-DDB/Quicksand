@@ -8,6 +8,7 @@ extern "C" {
 }
 
 #include "defs.hpp"
+#include "stack_allocator.hpp"
 #include "utils/archive_pool.hpp"
 #include "utils/future.hpp"
 #include "utils/rcu_lock.hpp"
@@ -76,8 +77,9 @@ private:
   template <typename Cls, typename Fn, typename... As>
   static bool run_within_obj_env(void *heap_base, Fn fn, As &&... args);
   template <typename Cls, typename Fn, typename... As>
-  static void __run_within_obj_env(SlabAllocator *slab, uint64_t obj_stack_base,
-                                   Cls *obj_ptr, Fn fn, As &&... args);
+  static void __run_within_obj_env(StackAllocator *stack_allocator,
+                                   uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
+                                   As &&... args);
   static void switch_to_obj_heap(void *obj_ptr);
   static void switch_to_runtime_heap();
   static HeapHeader *get_obj_heap_header();

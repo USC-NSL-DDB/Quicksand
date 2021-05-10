@@ -22,7 +22,6 @@ struct PtrHeader {
   uint64_t size : 48;
   uint64_t sentinel : 16;
 };
-static_assert(kPtrHeaderSize == sizeof(PtrHeader));
 
 class SlabAllocator {
 public:

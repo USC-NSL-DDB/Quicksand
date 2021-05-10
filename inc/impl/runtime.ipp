@@ -14,9 +14,8 @@ extern "C" {
 
 namespace nu {
 
-inline __attribute__((always_inline)) uint64_t
-switch_to_obj_stack(uint64_t stack) {
-  uint64_t old_rsp;
+inline __attribute__((always_inline)) void *switch_to_obj_stack(void *stack) {
+  void *old_rsp;
   asm volatile("movq %%rsp, %0\n\t"
                "movq %1, %%rsp"
                : "=&r"(old_rsp)
@@ -27,7 +26,7 @@ switch_to_obj_stack(uint64_t stack) {
 }
 
 inline __attribute__((always_inline)) void
-switch_to_runtime_stack(uint64_t old_rsp) {
+switch_to_runtime_stack(void *old_rsp) {
   asm volatile("movq %0, %%rsp" : : "r"(old_rsp) :);
   thread_unset_obj_stack();
 }
@@ -52,14 +51,15 @@ inline HeapHeader *Runtime::get_obj_heap_header() {
 template <typename Cls, typename Fn, typename... As>
 void __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer")))
-Runtime::__run_within_obj_env(SlabAllocator *slab, uint64_t obj_stack_base,
-                              Cls *obj_ptr, Fn fn, As &&... args) {
+Runtime::__run_within_obj_env(StackAllocator *stack_allocator,
+                              uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
+                              As &&... args) {
   fn(*obj_ptr, std::forward<As>(args)...);
 
   if (unlikely(thread_is_migrated())) {
     auto runtime_stack_base = thread_get_runtime_stack_base();
     switch_to_runtime_stack(runtime_stack_base);
-    slab->free(reinterpret_cast<void *>(obj_stack_base));
+    stack_allocator->put(obj_stack);
     heap_manager->rcu_reader_unlock();
     rt::Exit();
   }
@@ -74,22 +74,23 @@ Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
     heap_manager->rcu_reader_unlock();
     return false;
   }
-  auto *slab = heap_manager->get_slab(heap_base);
+
+  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  auto &slab = heap_header->slab;
   auto *obj_ptr = reinterpret_cast<Cls *>(
-      reinterpret_cast<uintptr_t>(slab->get_base()) + sizeof(PtrHeader));
+      reinterpret_cast<uintptr_t>(slab.get_base()) + sizeof(PtrHeader));
   switch_to_obj_heap(obj_ptr);
 
-  auto obj_stack_base =
-      reinterpret_cast<uint64_t>(slab->allocate(kStackSize + kStackAlignment));
-  auto aligned_obj_top = obj_stack_base + kStackSize + kStackAlignment - 1;
-  aligned_obj_top &= ~(kStackAlignment - 1);
-  auto old_rsp = switch_to_obj_stack(aligned_obj_top);
+  auto &stack_allocator = heap_header->stack_allocator;
+  auto *obj_stack = stack_allocator.get();
+  BUG_ON(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment);
+  auto *old_rsp = switch_to_obj_stack(obj_stack);
 
-  __run_within_obj_env<Cls>(slab, obj_stack_base, obj_ptr, fn,
+  __run_within_obj_env<Cls>(&stack_allocator, obj_stack, obj_ptr, fn,
                             std::forward<As>(args)...);
 
   switch_to_runtime_stack(old_rsp);
-  slab->free(reinterpret_cast<void *>(obj_stack_base));
+  stack_allocator.put(obj_stack);
   switch_to_runtime_heap();
   heap_manager->rcu_reader_unlock();
 

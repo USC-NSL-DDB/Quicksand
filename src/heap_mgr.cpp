@@ -17,7 +17,7 @@ namespace nu {
 
 void HeapManager::allocate(void *heap_base, bool migratable) {
   mmap(heap_base);
-  setup(heap_base, migratable, /* skip_slab = */ false);
+  setup(heap_base, migratable, /* from_migration = */ false);
 }
 
 void HeapManager::mmap(void *heap_base) {
@@ -41,28 +41,42 @@ void HeapManager::mmap_populate(void *heap_base, uint64_t populate_len) {
   BUG_ON(mmap_addr != unpopulated_base);
 }
 
-void HeapManager::setup(void *heap_base, bool migratable, bool skip_slab) {
+void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
   auto heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+
   heap_header->threads.release();
   heap_header->threads.reset(
       new decltype(heap_header->threads)::element_type());
+
   heap_header->mutexes.release();
   heap_header->mutexes.reset(
       new decltype(heap_header->mutexes)::element_type());
+
   heap_header->condvars.release();
   heap_header->condvars.reset(
       new decltype(heap_header->condvars)::element_type());
+
   heap_header->time.release();
   heap_header->time.reset(new decltype(heap_header->time)::element_type());
+
   heap_header->migratable = migratable;
   heap_header->migrating = false;
+
   new (&heap_header->forward_wg) rt::WaitGroup();
+
   new (&heap_header->spin) rt::Spin();
   heap_header->ref_cnt = 1;
-  if (!skip_slab) {
-    uint16_t sentinel = reinterpret_cast<uint64_t>(heap_base) / kHeapSize;
-    heap_header->slab.init(sentinel, heap_header + 1,
-                           kHeapSize - sizeof(HeapHeader));
+
+  if (!from_migration) {
+    auto stack_region_size = kStackSize * kMaxNumStacksPerHeap;
+    auto heap_region_size = kHeapSize - sizeof(HeapHeader) - stack_region_size;
+
+    auto *stack_base = reinterpret_cast<uint8_t *>(heap_header) + kHeapSize -
+                       stack_region_size;
+    heap_header->stack_allocator.init(stack_base, kMaxNumStacksPerHeap);
+
+    uint16_t sentinel = reinterpret_cast<uint64_t>(heap_header) / kHeapSize;
+    heap_header->slab.init(sentinel, heap_header + 1, heap_region_size);
   }
 }
 
@@ -72,8 +86,8 @@ std::list<void *> HeapManager::pick_heaps(const Resource &pressure) {
       [&, pressure = pressure](HeapHeader *const &heap_header) mutable {
 	if (heap_header->migratable) {
           heaps.push_back(heap_header);
-          auto slab = get_slab(heap_header);
-          auto heap_usage = slab->get_usage() >> 20;
+          auto &slab = heap_header->slab;
+          auto heap_usage = slab.get_usage() >> 20;
           // TODO: also consider CPU pressure.
           if (pressure.mem_mbs <= heap_usage) {
             return false;

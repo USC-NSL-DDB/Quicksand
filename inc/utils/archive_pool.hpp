@@ -11,7 +11,7 @@ namespace nu {
 
 template <typename Allocator> class ArchivePool {
 public:
-  constexpr static uint32_t kSStreamBufSize = 8192 - 1 - sizeof(kPtrHeaderSize);
+  constexpr static uint32_t kSStreamBufSize = 8192 - 1;
 
   using CharAllocator =
       std::allocator_traits<Allocator>::template rebind_alloc<char>;

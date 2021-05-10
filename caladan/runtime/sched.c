@@ -1138,8 +1138,8 @@ void gc_migrated_threads(void)
 	}
 }
 
-uint64_t thread_get_runtime_stack_base(void)
+void *thread_get_runtime_stack_base(void)
 {
-	return (uint64_t)(&__self->stack->usable[STACK_PTR_SIZE - 1]);
+	return &__self->stack->usable[STACK_PTR_SIZE - 1];
 }
 

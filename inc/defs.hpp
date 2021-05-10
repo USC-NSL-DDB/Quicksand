@@ -18,10 +18,9 @@ using RemObjID = uint64_t;
 constexpr static RemObjID kNullRemObjID = 0;
 constexpr static uint64_t kNumCores = NCORES;
 constexpr static uint64_t kCacheLineBytes = 64;
-constexpr static uint64_t kPtrHeaderSize = 8;
 constexpr static uint64_t kStackAlignment = 16;
-constexpr static uint64_t kStackSize =
-    (32 << 10) - kPtrHeaderSize - kStackAlignment;
+constexpr static uint64_t kStackSize = (64 << 10);
+constexpr static uint64_t kMaxNumStacksPerHeap = 256;
 constexpr static uint64_t kPageSize = 4096;
 
 inline void *to_heap_base(RemObjID id) { return reinterpret_cast<void *>(id); }

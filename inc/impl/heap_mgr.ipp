@@ -16,10 +16,6 @@ inline void HeapManager::deallocate(void *heap_base) {
   BUG_ON(munmap(heap_base, kHeapSize) == -1);
 }
 
-inline SlabAllocator *HeapManager::get_slab(void *heap_base) {
-  return &(reinterpret_cast<HeapHeader *>(heap_base)->slab);
-}
-
 inline void HeapManager::insert(void *heap_base) {
   heap_statuses_->put(reinterpret_cast<HeapHeader *>(heap_base));
 }

@@ -13,6 +13,7 @@ extern "C" {
 #include <sync.h>
 
 #include "defs.hpp"
+#include "stack_allocator.hpp"
 #include "utils/rcu_hash_set.hpp"
 #include "utils/rcu_lock.hpp"
 #include "utils/refcount_hash_set.hpp"
@@ -48,7 +49,10 @@ struct HeapHeader {
   rt::Spin spin;
   int ref_cnt;
 
-  // Heap mem allocator.
+  // Stack allocator.
+  StackAllocator stack_allocator;
+
+  // Heap Mem allocator. Must be the last field.
   SlabAllocator slab;
 };
 
@@ -60,7 +64,7 @@ public:
   static void allocate(void *heap_base, bool migratable);
   static void mmap(void *heap_base);
   static void mmap_populate(void *heap_base, uint64_t populate_len);
-  static void setup(void *heap_base, bool migratable, bool skip_slab);
+  static void setup(void *heap_base, bool migratable, bool from_migration);
   static void deallocate(void *heap_base);
   void insert(void *heap_base);
   bool contains(void *heap_base);
@@ -70,7 +74,6 @@ public:
   void rcu_reader_unlock();
   void rcu_reader_unlock_np();
   void rcu_writer_sync();
-  SlabAllocator *get_slab(void *heap_base);
   std::list<void *> pick_heaps(const Resource &pressure);
 
 private:

@@ -200,6 +200,7 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
   size_t tf_size;
   auto *tf = thread_get_trap_frame(thread, &tf_size);
   BUG_ON(c->WriteFull(tf, tf_size) < 0);
+
   void *stack_range[2];
   thread_get_obj_stack(thread, &stack_range[1], &stack_range[0]);
   const iovec iovecs[] = {
@@ -207,6 +208,7 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
       {stack_range[0], reinterpret_cast<uintptr_t>(stack_range[1]) -
                            reinterpret_cast<uintptr_t>(stack_range[0]) + 1}};
   BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
+
   thread_mark_migrated(thread);
 }
 
@@ -232,10 +234,10 @@ Migrator::transmit_all_heaps_params(rt::TcpConn *c,
     }
 
     auto obj_ref_cnt = heap_header->ref_cnt;
+    auto &stack_allocator = heap_header->stack_allocator;
     auto &slab = heap_header->slab;
-    uint64_t start_addr = reinterpret_cast<uint64_t>(&slab);
-    uint64_t len = (reinterpret_cast<intptr_t>(slab.get_base()) -
-                    reinterpret_cast<intptr_t>(&slab)) +
+    uint64_t start_addr = reinterpret_cast<uint64_t>(&stack_allocator);
+    uint64_t len = (reinterpret_cast<uint64_t>(slab.get_base()) - start_addr) +
                    slab.get_usage();
     HeapParam param{heap_header, obj_ref_cnt, start_addr, len};
     heap_params.push_back(param);
@@ -328,11 +330,13 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
   thread_get_trap_frame(thread_self(), &tf_size);
   auto tf = std::make_unique<uint8_t[]>(tf_size);
   BUG_ON(c->ReadFull(tf.get(), tf_size) <= 0);
+
   void *stack_range[2];
   BUG_ON(c->ReadFull(stack_range, sizeof(stack_range)) <= 0);
   BUG_ON(c->ReadFull(stack_range[0],
                      reinterpret_cast<uintptr_t>(stack_range[1]) -
                          reinterpret_cast<uintptr_t>(stack_range[0]) + 1) <= 0);
+
   return create_migrated_thread(tf.get(), tlsvar);
 }
 
@@ -461,8 +465,8 @@ Migrator::prepare_load_heap_tasks(uint32_t old_server_ip,
       Runtime::heap_manager->mmap_populate(task.param.heap_header,
                                            task.param.len);
       Runtime::heap_manager->setup(task.param.heap_header,
-                                   /* migratable = */ true,
-                                   /* skip_slab = */ true);
+                                   /* migratable = */ false,
+                                   /* from_migration = */ true);
       task.param.heap_header->old_server_ip = old_server_ip;
       task.param.heap_header->ref_cnt = task.param.obj_ref_cnt;
       task.mu->Lock();
@@ -484,7 +488,6 @@ void Migrator::load(rt::TcpConn *c) {
     auto *heap_header = task.param.heap_header;
 
     load_heap(c, &task);
-    ACCESS_ONCE(heap_header->migratable) = false;
 
     load_mutexes(c, heap_header);
     load_condvars(c, heap_header);
