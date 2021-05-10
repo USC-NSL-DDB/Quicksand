@@ -4,12 +4,6 @@
 
 namespace nu {
 
-inline uint64_t bsr_64(uint64_t a) {
-  uint64_t ret;
-  asm("bsr %q1, %q0" : "=r"(ret) : "m"(a));
-  return ret;
-}
-
 inline void *pop(void **head_p) {
   auto old_head = *head_p;
   *head_p = *reinterpret_cast<void **>(old_head);
@@ -29,29 +23,7 @@ inline uint32_t get_cache_size(uint32_t size) {
   return std::max(1, cache_size);
 }
 
-SlabAllocator::SlabAllocator() noexcept {}
-
-SlabAllocator::SlabAllocator(uint16_t sentinel, void *buf,
-                             uint64_t len) noexcept {
-  init(sentinel, buf, len);
-}
-
-SlabAllocator::~SlabAllocator() noexcept {}
-
-void SlabAllocator::init(uint16_t sentinel, void *buf, uint64_t len) noexcept {
-  sentinel_ = sentinel;
-  start_ = reinterpret_cast<const uint8_t *>(buf);
-  end_ = start_ + len;
-  cur_ = const_cast<uint8_t *>(start_);
-  memset(slab_heads_, 0, sizeof(slab_heads_));
-  memset(core_caches_, 0, sizeof(core_caches_));
-}
-
-inline uint32_t SlabAllocator::get_slab_shift(uint64_t size) noexcept {
-  return std::max(bsr_64(size - 1), kMinSlabClassShift - 1);
-}
-
-void *SlabAllocator::allocate(size_t size) noexcept {
+void *SlabAllocator::_allocate(size_t size) noexcept {
   void *ret = nullptr;
 
   auto slab_shift = get_slab_shift(size);
@@ -109,7 +81,7 @@ void *SlabAllocator::allocate(size_t size) noexcept {
   return ret;
 }
 
-void SlabAllocator::free(const void *_ptr) noexcept {
+void SlabAllocator::_free(const void *_ptr) noexcept {
   auto ptr = const_cast<void *>(_ptr);
   auto *hdr = reinterpret_cast<PtrHeader *>(reinterpret_cast<uintptr_t>(ptr) -
                                             sizeof(PtrHeader));
@@ -138,11 +110,4 @@ void SlabAllocator::free(const void *_ptr) noexcept {
   }
 }
 
-void *SlabAllocator::get_base() const noexcept {
-  return const_cast<uint8_t *>(start_);
-}
-
-size_t SlabAllocator::get_usage() const noexcept { return cur_ - start_; }
-
-size_t SlabAllocator::get_remaining() const noexcept { return end_ - cur_; }
 } // namespace nu

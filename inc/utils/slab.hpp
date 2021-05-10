@@ -58,6 +58,10 @@ private:
   CoreCache core_caches_[kNumCores];
   rt::Spin spin_;
 
+  void *_allocate(size_t size) noexcept;
+  void _free(const void *ptr) noexcept;
   uint32_t get_slab_shift(uint64_t size) noexcept;
 };
 } // namespace nu
+
+#include "impl/slab.ipp"
