@@ -227,6 +227,10 @@ Migrator::transmit_all_heaps_params(rt::TcpConn *c,
 
   for (auto heap : heaps) {
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap);
+    if (!Runtime::heap_manager->remove(heap_header)) {
+      continue;
+    }
+
     auto obj_ref_cnt = heap_header->ref_cnt;
     auto &slab = heap_header->slab;
     uint64_t start_addr = reinterpret_cast<uint64_t>(&slab);
@@ -265,9 +269,6 @@ void Migrator::transmit(rt::TcpConn *c, const HeapParam &heap_param) {
 }
 
 bool Migrator::mark_migrating_threads(HeapHeader *heap_header) {
-  if (!Runtime::heap_manager->remove(heap_header)) {
-    return false;
-  }
   ACCESS_ONCE(heap_header->migrating) = true;
   Runtime::heap_manager->rcu_writer_sync();
   auto all_threads = heap_header->threads->all_keys();
