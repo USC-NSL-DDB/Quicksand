@@ -20,6 +20,7 @@ constexpr static uint64_t kMaxSlabClassSize = (1ULL << 27);
 static_assert(kBufSize >= kMaxSlabClassSize);
 
 bool run_with_size(uint64_t obj_size, uint64_t class_size) {
+  class_size += sizeof(PtrHeader);
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 

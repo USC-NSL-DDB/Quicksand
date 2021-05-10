@@ -54,7 +54,6 @@ inline uint32_t SlabAllocator::get_slab_shift(uint64_t size) noexcept {
 void *SlabAllocator::allocate(size_t size) noexcept {
   void *ret = nullptr;
 
-  size += sizeof(PtrHeader);
   auto slab_shift = get_slab_shift(size);
   if (likely(slab_shift < kMaxSlabClassShift)) {
     int cpu = get_cpu();
@@ -79,7 +78,7 @@ void *SlabAllocator::allocate(size_t size) noexcept {
       // beginning of the slab region.
       auto remaining = cache_size - cnt;
       if (remaining) {
-        auto slab_size = (1ULL << (slab_shift + 1));
+        auto slab_size = (1ULL << (slab_shift + 1)) + sizeof(PtrHeader);
         cur_ += slab_size * remaining;
         auto tmp = cur_;
         for (uint32_t i = 0; i < remaining; i++) {
