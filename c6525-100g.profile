@@ -42,7 +42,7 @@ link_0 = request.Link('link-0')
 link_0.Site('undefined')
 link_0.best_effort = False
 link_0.bandwidth = 25000000
-link_0.setNoInterSwitchLinks()
+#link_0.setNoInterSwitchLinks()
 link_0.addInterface(iface2)
 link_0.addInterface(iface4)
 link_0.addInterface(iface0)
@@ -52,7 +52,7 @@ link_1 = request.Link('link-1')
 link_1.Site('undefined')
 link_1.best_effort = False
 link_1.bandwidth = 100000000
-link_1.setNoInterSwitchLinks()
+#link_1.setNoInterSwitchLinks()
 link_1.addInterface(iface3)
 link_1.addInterface(iface5)
 link_1.addInterface(iface1)
