@@ -12,6 +12,36 @@ extern "C" {
 #include <span>
 
 namespace rt {
+namespace detail {
+
+template <bool Scatter, std::size_t Extent>
+inline void general_scatter_gather(uint8_t *buf, std::size_t offset,
+                                   std::span<const iovec, Extent> iov) {
+  if constexpr (Extent) {
+    auto iovec = iov.front();
+    if constexpr (Scatter) {
+      memcpy(iovec.iov_base, &buf[offset], iovec.iov_len);
+    } else {
+      memcpy(&buf[offset], iovec.iov_base, iovec.iov_len);
+    }
+    general_scatter_gather<Scatter, Extent - 1>(
+        offset + iovec.iov_len, iov.template last<Extent - 1>());
+  }
+}
+
+template <std::size_t Extent>
+inline void scatter_to(uint8_t *buf, std::span<const iovec, Extent> iov) {
+  static_assert(Extent != std::dynamic_extent);
+  general_scatter_gather<true, Extent>(buf, 0, iov);
+}
+
+template <std::size_t Extent>
+inline void gather_from(uint8_t *buf, std::span<const iovec, Extent> iov) {
+  static_assert(Extent != std::dynamic_extent);
+  general_scatter_gather<false, Extent>(buf, 0, iov);
+}
+
+} // detail
 
 class NetConn {
  public:
@@ -176,7 +206,7 @@ class TcpConn : public NetConn {
           [](std::size_t s, const iovec a) { return s + a.iov_len; });
       if (total_len <= kIOVCopyThresh) {
         auto ret = ReadFull(buf_, total_len);
-        scatter_to(iov);
+        detail::scatter_to(buf_, iov);
         return ret;
       }
     }
@@ -194,7 +224,7 @@ class TcpConn : public NetConn {
           iov.begin(), iov.end(), static_cast<std::size_t>(0),
           [](std::size_t s, const iovec a) { return s + a.iov_len; });
       if (total_len <= kIOVCopyThresh) {
-        gather_from(iov);
+        detail::gather_from(buf_, iov);
         return WriteFull(buf_, total_len);
       }
     }
@@ -227,33 +257,6 @@ class TcpConn : public NetConn {
 
   ssize_t WritevFullRaw(std::span<const iovec> iov);
   ssize_t ReadvFullRaw(std::span<const iovec> iov);
-
-  template <std::size_t Extent>
-  inline void scatter_to(std::span<const iovec, Extent> iov) {
-    static_assert(Extent != std::dynamic_extent);
-    general_scatter_gather<true, Extent>(0, iov);
-  }
-
-  template <std::size_t Extent>
-  inline void gather_from(std::span<const iovec, Extent> iov) {
-    static_assert(Extent != std::dynamic_extent);
-    general_scatter_gather<false, Extent>(0, iov);
-  }
-
-  template <bool Scatter, std::size_t Extent>
-  inline void general_scatter_gather(std::size_t offset,
-                                     std::span<const iovec, Extent> iov) {
-    if constexpr (Extent) {
-      auto iovec = iov.front();
-      if constexpr (Scatter) {
-        __builtin_memcpy(iovec.iov_base, &buf_[offset], iovec.iov_len);
-      } else {
-        __builtin_memcpy(&buf_[offset], iovec.iov_base, iovec.iov_len);
-      }
-      general_scatter_gather<Scatter, Extent - 1>(
-          offset + iovec.iov_len, iov.template last<Extent - 1>());
-    }
-  }
 
   tcpconn_t *c_;
   uint8_t buf_[kIOVCopyThresh];
