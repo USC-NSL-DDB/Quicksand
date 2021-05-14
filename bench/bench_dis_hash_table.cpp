@@ -28,7 +28,7 @@ bool stop = false;
 
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
-constexpr double kLoadFactor = 0.25;
+constexpr double kLoadFactor = 0.20;
 constexpr uint32_t kNumThreads = 100;
 constexpr uint32_t kNumRecordsTotal = 400 << 20;
 constexpr uint32_t kNumRecordsPerCore = kNumRecordsTotal / kNumCores;

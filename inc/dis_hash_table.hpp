@@ -11,7 +11,7 @@ template <typename K, typename V, typename Hash = std::hash<K>,
 class DistributedHashTable {
 public:
   constexpr static uint32_t kNumShards = 512;
-  constexpr static uint32_t kNumBucketsPerShard = 131072;
+  constexpr static uint32_t kNumBucketsPerShard = 65536;
 
   DistributedHashTable();
   template <typename K1> std::optional<V> get(K1 &&k);
