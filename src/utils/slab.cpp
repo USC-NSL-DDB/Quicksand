@@ -45,8 +45,6 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
         cnt++;
       }
 
-      // The first allocation (i.e., the root obj allocation) must happen at the
-      // beginning of the slab region.
       auto remaining = cache_size - cnt;
       if (remaining) {
         auto slab_size = (1ULL << (slab_shift + 1)) + sizeof(PtrHeader);
@@ -60,13 +58,12 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
           push(cached_head, tmp);
           cnt++;
         }
-        if (unlikely(!cnt)) {
-          return nullptr;
-        }
       }
 
-      ret = pop(cached_head);
-      --cnt;
+      if (likely(cnt)) {
+        ret = pop(cached_head);
+        --cnt;
+      }
     }
     put_cpu();
   }
