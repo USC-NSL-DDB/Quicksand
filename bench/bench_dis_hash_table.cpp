@@ -32,7 +32,7 @@ constexpr double kLoadFactor = 0.25;
 constexpr uint32_t kNumThreads = 100;
 constexpr uint32_t kNumRecordsTotal = 400 << 20;
 constexpr uint32_t kNumRecordsPerCore = kNumRecordsTotal / kNumCores;
-constexpr double kTargetMOPS = 2;
+constexpr double kTargetMOPS = 3;
 constexpr uint32_t kPrintIntervalUS = 100 * 1000;
 constexpr uint32_t kMigrationTriggeredIdx = 5;
 
@@ -69,7 +69,6 @@ public:
   int migrate() {
     Resource resource = {.cores = 0, .mem_mbs = pressure_mem_mbs_};
     Runtime::monitor->mock_set_pressure(resource);
-    Runtime::monitor->mock_set_continuous();
     return 0;
   }
 
@@ -227,7 +226,7 @@ void do_work() {
   std::vector<Key> keys[kNumThreads];
 
   std::cout << "start initing..." << std::endl;
-  auto test = RemObj<nu::Test>::create_pinned(1);
+  auto test = RemObj<nu::Test>::create_pinned(32 * 1024);
   init(&hash_table, keys);
   std::cout << "start benchmarking..." << std::endl;
   benchmark(&hash_table, keys, &test);
