@@ -8,6 +8,7 @@ extern "C" {
 #include <runtime/udp.h>
 }
 
+#include <cstring>
 #include <numeric>
 #include <span>
 
@@ -25,7 +26,7 @@ inline void general_scatter_gather(uint8_t *buf, std::size_t offset,
       memcpy(&buf[offset], iovec.iov_base, iovec.iov_len);
     }
     general_scatter_gather<Scatter, Extent - 1>(
-        offset + iovec.iov_len, iov.template last<Extent - 1>());
+        buf, offset + iovec.iov_len, iov.template last<Extent - 1>());
   }
 }
 
