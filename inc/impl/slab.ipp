@@ -48,11 +48,11 @@ inline void *SlabAllocator::get_base() const noexcept {
 }
 
 inline size_t SlabAllocator::get_usage() const noexcept {
-  return cur_ - start_;
+  return ACCESS_ONCE(cur_) - start_;
 }
 
 inline size_t SlabAllocator::get_remaining() const noexcept {
-  return end_ - cur_;
+  return end_ - ACCESS_ONCE(cur_);
 }
 
 } // namespace nu

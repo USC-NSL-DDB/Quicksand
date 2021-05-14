@@ -25,7 +25,6 @@ inline uint32_t get_cache_size(uint32_t size) {
 
 void *SlabAllocator::_allocate(size_t size) noexcept {
   void *ret = nullptr;
-
   auto slab_shift = get_slab_shift(size);
   if (likely(slab_shift < kMaxSlabClassShift)) {
     int cpu = get_cpu();
@@ -78,6 +77,7 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
     hdr->sentinel = sentinel_;
     ret = reinterpret_cast<uint8_t *>(ret) + sizeof(PtrHeader);
   }
+
   return ret;
 }
 
@@ -108,6 +108,16 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
     }
     put_cpu();
   }
+}
+
+void *SlabAllocator::acquire(size_t size) noexcept {
+  rt::ScopedLock<rt::Spin> lock(&spin_);
+  if (unlikely(cur_ + size > end_)) {
+    return nullptr;
+  }
+  auto ret = cur_;
+  cur_ += size;
+  return ret;
 }
 
 } // namespace nu

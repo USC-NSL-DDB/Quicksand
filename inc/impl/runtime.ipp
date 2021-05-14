@@ -32,7 +32,7 @@ switch_to_runtime_stack(void *old_rsp) {
 }
 
 inline void Runtime::switch_to_obj_heap(void *obj_ptr) {
-  auto slab_base = reinterpret_cast<uint64_t>(obj_ptr) - sizeof(PtrHeader);
+  auto slab_base = reinterpret_cast<uint64_t>(obj_ptr);
   auto *heap_header = reinterpret_cast<HeapHeader *>(slab_base) - 1;
   set_uthread_specific(reinterpret_cast<uint64_t>(&heap_header->slab));
 }
@@ -77,8 +77,8 @@ Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
 
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
   auto &slab = heap_header->slab;
-  auto *obj_ptr = reinterpret_cast<Cls *>(
-      reinterpret_cast<uintptr_t>(slab.get_base()) + sizeof(PtrHeader));
+  auto *obj_ptr =
+      reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab.get_base()));
   switch_to_obj_heap(obj_ptr);
 
   auto &stack_allocator = heap_header->stack_allocator;
