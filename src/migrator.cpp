@@ -37,6 +37,14 @@ MigratorConnManager::MigratorConnManager()
 
 Migrator::~Migrator() { BUG(); }
 
+void Migrator::handle_copy(rt::TcpConn *c) {
+  RPCReqCopy req;
+  BUG_ON(c->ReadFull(&req, sizeof(req)) <= 0);
+  BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(req.start_addr), req.len) <=
+         0);
+  req.wg->Done();
+}
+
 inline void Migrator::handle_load(rt::TcpConn *c) { load(c); }
 
 void Migrator::handle_reserve_conns(rt::TcpConn *c) {
@@ -85,6 +93,9 @@ void Migrator::run_loop(uint16_t port) {
         }
 
         switch (type) {
+        case COPY:
+          handle_copy(c);
+          break;
         case MIGRATE:
           handle_load(c);
           break;
@@ -104,8 +115,35 @@ void Migrator::run_loop(uint16_t port) {
 }
 
 void Migrator::transmit_heap(rt::TcpConn *c, const HeapParam &param) {
-  BUG_ON(c->WriteFull(reinterpret_cast<void *>(param.start_addr), param.len) <
-         0);
+  rt::WaitGroup *wg;
+  BUG_ON(c->ReadFull(&wg, sizeof(wg)) <= 0);
+
+  std::vector<rt::Thread> threads;
+  threads.reserve(kTransmitHeapNumThreads);
+  auto dest_addr = c->RemoteAddr();
+
+  for (uint32_t i = 0; i < kTransmitHeapNumThreads; i++) {
+    threads.emplace_back([&, tid = i] {
+      auto conn = conn_mgr_.get_conn(dest_addr);
+      uint8_t type = COPY;
+      RPCReqCopy req;
+      auto per_thread_len = (param.len - 1) / kTransmitHeapNumThreads + 1;
+      req.start_addr = param.start_addr + tid * per_thread_len;
+      req.len = (tid != kTransmitHeapNumThreads - 1)
+                    ? per_thread_len
+                    : param.start_addr + param.len - req.start_addr;
+      req.wg = wg;
+      const iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
+      BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
+      BUG_ON(conn->WriteFull(reinterpret_cast<uint8_t *>(req.start_addr),
+                             req.len) < 0);
+      conn_mgr_.put_conn(dest_addr, conn);
+    });
+  }
+
+  for (auto &thread : threads) {
+    thread.Join();
+  }
 }
 
 void Migrator::transmit_mutexes(rt::TcpConn *c, HeapHeader *heap_header,
@@ -203,10 +241,11 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
 
   void *stack_range[2];
   thread_get_obj_stack(thread, &stack_range[1], &stack_range[0]);
-  const iovec iovecs[] = {
-      {stack_range, sizeof(stack_range)},
-      {stack_range[0], reinterpret_cast<uintptr_t>(stack_range[1]) -
-                           reinterpret_cast<uintptr_t>(stack_range[0]) + 1}};
+  auto stack_len = reinterpret_cast<uintptr_t>(stack_range[1]) -
+                   reinterpret_cast<uintptr_t>(stack_range[0]) + 1 +
+                   kStackRedZoneSize;
+  const iovec iovecs[] = {{stack_range, sizeof(stack_range)},
+                          {stack_range[0], stack_len}};
   BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
 
   thread_mark_migrated(thread);
@@ -319,8 +358,10 @@ void Migrator::load_heap(rt::TcpConn *c, LoadHeapTask *task) {
   }
   task->mu->Unlock();
 
-  BUG_ON(c->ReadFull(reinterpret_cast<void *>(task->param.start_addr),
-                     task->param.len) <= 0);
+  rt::WaitGroup wg(kTransmitHeapNumThreads);
+  auto *wg_p = &wg;
+  BUG_ON(c->WriteFull(&wg_p, sizeof(wg_p)) < 0);
+  wg.Wait();
 }
 
 thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
@@ -333,9 +374,10 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
 
   void *stack_range[2];
   BUG_ON(c->ReadFull(stack_range, sizeof(stack_range)) <= 0);
-  BUG_ON(c->ReadFull(stack_range[0],
-                     reinterpret_cast<uintptr_t>(stack_range[1]) -
-                         reinterpret_cast<uintptr_t>(stack_range[0]) + 1) <= 0);
+  auto stack_len = reinterpret_cast<uintptr_t>(stack_range[1]) -
+                   reinterpret_cast<uintptr_t>(stack_range[0]) + 1 +
+                   kStackRedZoneSize;
+  BUG_ON(c->ReadFull(stack_range[0], stack_len) <= 0);
 
   return create_migrated_thread(tf.get(), tlsvar);
 }
@@ -471,7 +513,7 @@ Migrator::prepare_load_heap_tasks(uint32_t old_server_ip,
       task.param.heap_header->ref_cnt = task.param.obj_ref_cnt;
       task.mu->Lock();
       task.mmapped = true;
-      task.cv->Signal();
+      task.cv->SignalAll();
       task.mu->Unlock();
     }
   });

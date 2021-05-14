@@ -31,7 +31,7 @@ private:
   static std::function<rt::TcpConn *(netaddr)> creator_;
 };
 
-enum MigratorRPC_t { MIGRATE, FORWARD, RESERVE_CONNS };
+enum MigratorRPC_t { COPY, MIGRATE, FORWARD, RESERVE_CONNS };
 
 struct RPCReqReserveConns {
   uint32_t num;
@@ -65,7 +65,7 @@ struct LoadHeapTask {
 class Migrator {
 public:
   constexpr static uint32_t kDefaultNumReservedConns = 32;
-  constexpr static uint32_t kTransmitHeapNumThreads = 3;
+  constexpr static uint32_t kTransmitHeapNumThreads = 2;
 
   ~Migrator();
   void run_loop(uint16_t port);
@@ -80,6 +80,7 @@ private:
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   uint16_t port_;
 
+  void handle_copy(rt::TcpConn *c);
   void handle_load(rt::TcpConn *c);
   void handle_reserve_conns(rt::TcpConn *c);
   void handle_forward(rt::TcpConn *c);

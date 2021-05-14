@@ -19,6 +19,7 @@ constexpr static RemObjID kNullRemObjID = 0;
 constexpr static uint64_t kNumCores = NCORES;
 constexpr static uint64_t kCacheLineBytes = 64;
 constexpr static uint64_t kStackAlignment = 16;
+constexpr static uint64_t kStackRedZoneSize = 128;
 constexpr static uint64_t kStackSize = (64 << 10);
 constexpr static uint64_t kMaxNumStacksPerHeap = 256;
 constexpr static uint64_t kPageSize = 4096;
