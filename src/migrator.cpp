@@ -40,8 +40,8 @@ Migrator::~Migrator() { BUG(); }
 void Migrator::handle_copy(rt::TcpConn *c) {
   RPCReqCopy req;
   BUG_ON(c->ReadFull(&req, sizeof(req)) <= 0);
-  BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(req.start_addr), req.len) <=
-         0);
+  BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(req.start_addr), req.len,
+                     /* nt = */ true) <= 0);
   req.wg->Done();
 }
 
@@ -104,7 +104,7 @@ void Migrator::run_loop(uint16_t port) {
           break;
         case FORWARD:
           handle_forward(c);
-	  break;
+          break;
         default:
           BUG();
         }
@@ -136,7 +136,7 @@ void Migrator::transmit_heap(rt::TcpConn *c, const HeapParam &param) {
       const iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
       BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
       BUG_ON(conn->WriteFull(reinterpret_cast<uint8_t *>(req.start_addr),
-                             req.len) < 0);
+                             req.len, /* nt = */ true) < 0);
       conn_mgr_.put_conn(dest_addr, conn);
     });
   }
@@ -154,7 +154,7 @@ void Migrator::transmit_mutexes(rt::TcpConn *c, HeapHeader *heap_header,
   if (num_mutexes) {
     const iovec iovecs[] = {{&num_mutexes, sizeof(num_mutexes)},
                             {mutexes.data(), num_mutexes * sizeof(Mutex *)}};
-    BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
+    BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ true) < 0);
   } else {
     BUG_ON(c->WriteFull(&num_mutexes, sizeof(num_mutexes)) < 0);
   }
@@ -186,7 +186,7 @@ void Migrator::transmit_condvars(
     const iovec iovecs[] = {
         {&num_condvars, sizeof(num_condvars)},
         {condvars.data(), num_condvars * sizeof(CondVar *)}};
-    BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
+    BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ true) < 0);
   } else {
     BUG_ON(c->WriteFull(&num_condvars, sizeof(num_condvars)) < 0);
   }
@@ -219,18 +219,21 @@ void Migrator::transmit_time(rt::TcpConn *c, HeapHeader *heap_header,
                           {&num_entries, sizeof(num_entries)}};
   BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
 
-  auto timer_entries_arr = std::make_unique<timer_entry *[]>(num_entries);
-  std::copy(timer_entries_list.begin(), timer_entries_list.end(),
-            timer_entries_arr.get());
-  BUG_ON(c->WriteFull(timer_entries_arr.get(),
-                      sizeof(timer_entry *) * num_entries) < 0);
+  if (num_entries) {
+    auto timer_entries_arr = std::make_unique<timer_entry *[]>(num_entries);
+    std::copy(timer_entries_list.begin(), timer_entries_list.end(),
+              timer_entries_arr.get());
+    BUG_ON(c->WriteFull(timer_entries_arr.get(),
+                        sizeof(timer_entry *) * num_entries,
+                        /* nt = */ true) < 0);
 
-  for (size_t i = 0; i < num_entries; i++) {
-    auto *entry = timer_entries_arr[i];
-    timer_cancel(entry);
-    auto *arg = reinterpret_cast<TimerCallbackArg *>(entry->arg);
-    time_threads->emplace(arg->th);
-    transmit_one_thread(c, arg->th);
+    for (size_t i = 0; i < num_entries; i++) {
+      auto *entry = timer_entries_arr[i];
+      timer_cancel(entry);
+      auto *arg = reinterpret_cast<TimerCallbackArg *>(entry->arg);
+      time_threads->emplace(arg->th);
+      transmit_one_thread(c, arg->th);
+    }
   }
 }
 
@@ -246,7 +249,7 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
                    kStackRedZoneSize;
   const iovec iovecs[] = {{stack_range, sizeof(stack_range)},
                           {stack_range[0], stack_len}};
-  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
+  BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ true) < 0);
 
   thread_mark_migrated(thread);
 }
@@ -284,7 +287,7 @@ Migrator::transmit_all_heaps_params(rt::TcpConn *c,
   uint64_t size = heap_params.size() * sizeof(HeapParam);
 
   const iovec iovecs[] = {{&size, sizeof(size)}, {heap_params.data(), size}};
-  BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
+  BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ true) < 0);
 
   return heap_params;
 }
@@ -377,7 +380,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
   auto stack_len = reinterpret_cast<uintptr_t>(stack_range[1]) -
                    reinterpret_cast<uintptr_t>(stack_range[0]) + 1 +
                    kStackRedZoneSize;
-  BUG_ON(c->ReadFull(stack_range[0], stack_len) <= 0);
+  BUG_ON(c->ReadFull(stack_range[0], stack_len, /* nt = */ true) <= 0);
 
   return create_migrated_thread(tf.get(), tlsvar);
 }
@@ -388,7 +391,8 @@ void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
 
   if (num_mutexes) {
     auto mutexes = std::make_unique<Mutex *[]>(num_mutexes);
-    BUG_ON(c->ReadFull(mutexes.get(), num_mutexes * sizeof(Mutex *)) <= 0);
+    BUG_ON(c->ReadFull(mutexes.get(), num_mutexes * sizeof(Mutex *),
+                       /* nt = */ true) <= 0);
 
     for (size_t i = 0; i < num_mutexes; i++) {
       auto mutex = mutexes[i];
@@ -416,7 +420,8 @@ void Migrator::load_condvars(rt::TcpConn *c, HeapHeader *heap_header) {
 
   if (num_condvars) {
     auto condvars = std::make_unique<CondVar *[]>(num_condvars);
-    BUG_ON(c->ReadFull(condvars.get(), num_condvars * sizeof(CondVar *)) <= 0);
+    BUG_ON(c->ReadFull(condvars.get(), num_condvars * sizeof(CondVar *),
+                       /* nt = */ true) <= 0);
 
     for (size_t i = 0; i < num_condvars; i++) {
       auto condvar = condvars[i];
@@ -453,8 +458,8 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
 
   if (num_entries) {
     auto timer_entries = std::make_unique<timer_entry *[]>(num_entries);
-    BUG_ON(c->ReadFull(timer_entries.get(),
-                       sizeof(timer_entry *) * num_entries) <= 0);
+    BUG_ON(c->ReadFull(timer_entries.get(), sizeof(timer_entry *) * num_entries,
+                       /* nt = */ true) <= 0);
 
     for (size_t i = 0; i < num_entries; i++) {
       auto *entry = timer_entries[i];
@@ -489,7 +494,7 @@ std::vector<HeapParam> Migrator::load_all_heaps_params(rt::TcpConn *c) {
 
   BUG_ON(c->ReadFull(&size, sizeof(size)) <= 0);
   params.resize(size / sizeof(HeapParam));
-  BUG_ON(c->ReadFull(&params[0], size) <= 0);
+  BUG_ON(c->ReadFull(&params[0], size, /* nt = */ true) <= 0);
 
   return params;
 }
