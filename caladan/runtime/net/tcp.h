@@ -188,7 +188,7 @@ extern int tcp_tx_probe_window(tcpconn_t *c);
 extern int tcp_tx_ctl(tcpconn_t *c, uint8_t flags,
 		      const struct tcp_options *opts);
 extern ssize_t tcp_tx_send(tcpconn_t *c, const void *buf, size_t len,
-			   bool push);
+                           bool push, bool nt);
 extern void tcp_tx_retransmit(tcpconn_t *c);
 extern struct mbuf *tcp_tx_fast_retransmit_start(tcpconn_t *c);
 extern void tcp_tx_fast_retransmit_finish(tcpconn_t *c, struct mbuf *m);

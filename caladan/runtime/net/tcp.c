@@ -11,6 +11,7 @@
 #include <runtime/thread.h>
 #include <runtime/tcp.h>
 #include <runtime/timer.h>
+#include <runtime/memcpy.h>
 
 #include "tcp.h"
 
@@ -778,16 +779,7 @@ static void tcp_read_finish(tcpconn_t *c, struct mbuf *m)
 	waitq_release_finish(&waiters);
 }
 
-/**
- * tcp_read - reads data from a TCP connection
- * @c: the TCP connection
- * @buf: a buffer to store the read data
- * @len: the length of @buf
- *
- * Returns the number of bytes read, 0 if the connection is closed, or < 0
- * if an error occurred.
- */
-ssize_t tcp_read(tcpconn_t *c, void *buf, size_t len)
+ssize_t __tcp_read(tcpconn_t *c, void *buf, size_t len, bool nt)
 {
 	char *pos = buf;
 	struct list_head q;
@@ -809,7 +801,11 @@ ssize_t tcp_read(tcpconn_t *c, void *buf, size_t len)
 		if (!cur)
 			break;
 
-		memcpy(pos, mbuf_data(cur), mbuf_length(cur));
+		if (nt) {
+			memcpy_avx2_nt(pos, mbuf_data(cur), mbuf_length(cur));
+		} else {
+			memcpy(pos, mbuf_data(cur), mbuf_length(cur));
+		}
 		pos += mbuf_length(cur);
 		mbuf_free(cur);
 	}
@@ -817,7 +813,11 @@ ssize_t tcp_read(tcpconn_t *c, void *buf, size_t len)
 	/* we may have to consume only part of a buffer */
 	if (m) {
 		size_t cpylen = len - (uintptr_t)pos + (uintptr_t)buf;
-		memcpy(pos, mbuf_pull(m, cpylen), cpylen);
+		if (nt) {
+			memcpy_avx2_nt(pos, mbuf_pull(m, cpylen), cpylen);
+		} else {
+			memcpy(pos, mbuf_pull(m, cpylen), cpylen);
+		}
 		m->seg_seq += cpylen;
 	}
 
@@ -838,16 +838,7 @@ static size_t iov_len(const struct iovec *iov, int iovcnt)
 	return len;
 }
 
-/**
- * tcp_readv - reads vectored data from a TCP connection
- * @c: the TCP connection
- * @iov: a pointer to the IO vector
- * @iovcnt: the number of vectors in @iov
- *
- * Returns the number of bytes read, 0 if the connection is closed, or < 0
- * if an error occurred.
- */
-ssize_t tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt)
+ssize_t __tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt, bool nt)
 {
 	struct list_head q;
 	struct mbuf *m;
@@ -875,8 +866,13 @@ ssize_t tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt)
 			size_t cpylen = MIN(vp->iov_len - offset,
 					    mbuf_length(cur));
 
-			memcpy((char *)vp->iov_base + offset,
-			       mbuf_pull(cur, cpylen), cpylen);
+			if (nt) {
+				memcpy_avx2_nt((char *)vp->iov_base + offset,
+						mbuf_pull(cur, cpylen), cpylen);
+			} else {
+				memcpy((char *)vp->iov_base + offset,
+					mbuf_pull(cur, cpylen), cpylen);
+			}
 
 			offset += cpylen;
 			if (offset == vp->iov_len) {
@@ -896,8 +892,13 @@ ssize_t tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt)
 			size_t cpylen = MIN(vp->iov_len - offset,
 					    mbuf_length(m));
 
-			memcpy((char *)vp->iov_base + offset,
-			       mbuf_pull(m, cpylen), cpylen);
+			if (nt) {
+				memcpy_avx2_nt((char *)vp->iov_base + offset,
+						mbuf_pull(m, cpylen), cpylen);
+			} else {
+				memcpy((char *)vp->iov_base + offset,
+					mbuf_pull(m, cpylen), cpylen);
+			}
 			m->seg_seq += cpylen;
 			offset += cpylen;
 			if (offset == vp->iov_len) {
@@ -989,16 +990,7 @@ static void tcp_write_finish(tcpconn_t *c)
 	mbuf_list_free(&q);
 }
 
-/**
- * tcp_write - writes data to a TCP connection
- * @c: the TCP connection
- * @buf: a buffer from which to copy the data
- * @len: the length of the data
- *
- * Returns the number of bytes written (could be less than @len), or < 0
- * if there was a failure.
- */
-ssize_t tcp_write(tcpconn_t *c, const void *buf, size_t len)
+ssize_t __tcp_write(tcpconn_t *c, const void *buf, size_t len, bool nt)
 {
 	size_t winlen;
 	ssize_t ret;
@@ -1009,7 +1001,7 @@ ssize_t tcp_write(tcpconn_t *c, const void *buf, size_t len)
 		return ret;
 
 	/* actually send the data */
-	ret = tcp_tx_send(c, buf, MIN(len, winlen), true);
+	ret = tcp_tx_send(c, buf, MIN(len, winlen), true, nt);
 
 	/* catch up on any pending work */
 	tcp_write_finish(c);
@@ -1017,16 +1009,8 @@ ssize_t tcp_write(tcpconn_t *c, const void *buf, size_t len)
 	return ret;
 }
 
-/**
- * tcp_writev - writes vectored data to a TCP connection
- * @c: the TCP connection
- * @iov: a pointer to the IO vector
- * @iovcnt: the number of vectors in @iov
- *
- * Returns the number of bytes written (could be less than requested), or < 0
- * if there was a failure.
- */
-ssize_t tcp_writev(tcpconn_t *c, const struct iovec *iov, int iovcnt)
+ssize_t __tcp_writev(tcpconn_t *c, const struct iovec *iov, int iovcnt,
+                     bool nt)
 {
 	size_t winlen;
 	ssize_t sent = 0, ret;
@@ -1042,7 +1026,8 @@ ssize_t tcp_writev(tcpconn_t *c, const struct iovec *iov, int iovcnt)
 		if (winlen <= 0)
 			break;
 		ret = tcp_tx_send(c, iov->iov_base, MIN(iov->iov_len, winlen),
-				  i == iovcnt - 1 && iov->iov_len <= winlen);
+				  i == iovcnt - 1 && iov->iov_len <= winlen,
+				  nt);
 		if (ret <= 0)
 			break;
 		winlen -= ret;

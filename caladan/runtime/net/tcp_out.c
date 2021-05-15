@@ -8,6 +8,7 @@
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/chksum.h>
+#include <runtime/memcpy.h>
 
 #include "tcp.h"
 #include "defs.h"
@@ -263,6 +264,7 @@ int tcp_tx_ctl(tcpconn_t *c, uint8_t flags, const struct tcp_options *opts)
  * @buf: the buffer to transmit
  * @len: the length of the buffer to transmit
  * @push: indicates the data is ready for consumption by the receiver
+ * @nt: whether to use non-temporal memcpy or not
  *
  * If @push is false, the implementation may buffer some or all of the data for
  * future transmission.
@@ -273,7 +275,8 @@ int tcp_tx_ctl(tcpconn_t *c, uint8_t flags, const struct tcp_options *opts)
  *
  * Returns the number of bytes transmitted, or < 0 if there was an error.
  */
-ssize_t tcp_tx_send(tcpconn_t *c, const void *buf, size_t len, bool push)
+ssize_t tcp_tx_send(tcpconn_t *c, const void *buf, size_t len, bool push,
+                    bool nt)
 {
 	struct mbuf *m;
 	const char *pos = buf;
@@ -310,7 +313,11 @@ ssize_t tcp_tx_send(tcpconn_t *c, const void *buf, size_t len, bool push)
 			m->release = tcp_tx_release_mbuf;
 		}
 
-		memcpy(mbuf_put(m, seglen), pos, seglen);
+		if (nt) {
+	                memcpy_avx2_nt(mbuf_put(m, seglen), pos, seglen);
+		} else {
+			memcpy(mbuf_put(m, seglen), pos, seglen);
+		}
 		store_release(&c->pcb.snd_nxt, c->pcb.snd_nxt + seglen);
 		pos += seglen;
 
@@ -366,9 +373,10 @@ static int tcp_tx_retransmit_one(tcpconn_t *c, struct mbuf *m)
 		struct mbuf *newm = net_tx_alloc_mbuf();
 		if (unlikely(!newm))
 			return -ENOMEM;
-		memcpy(mbuf_put(newm, sizeof(uint32_t) * opts_len + l4len),
-		       mbuf_transport_offset(m) + sizeof(struct tcp_hdr),
-		       sizeof(uint32_t) * opts_len + l4len);
+		memcpy_avx2_nt(
+                        mbuf_put(newm, sizeof(uint32_t) * opts_len + l4len),
+                        mbuf_transport_offset(m) + sizeof(struct tcp_hdr),
+                        sizeof(uint32_t) * opts_len + l4len);
 		newm->flags = m->flags;
 		newm->seg_seq = m->seg_seq;
 		newm->seg_end = m->seg_end;

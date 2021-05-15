@@ -32,9 +32,9 @@ std::span<iovec> PullIOV(std::span<iovec> iov, size_t n) {
 
 namespace rt {
 
-ssize_t TcpConn::WritevFullRaw(std::span<const iovec> iov) {
+ssize_t TcpConn::WritevFullRaw(std::span<const iovec> iov, bool nt) {
   // first try to send without copying the vector
-  ssize_t n = tcp_writev(c_, iov.data(), iov.size());
+  ssize_t n = __tcp_writev(c_, iov.data(), iov.size(), nt);
   if (n < 0) return n;
   assert(n > 0);
 
@@ -50,7 +50,7 @@ ssize_t TcpConn::WritevFullRaw(std::span<const iovec> iov) {
   while (true) {
     s = PullIOV(s, n);
     if (s.empty()) break;
-    n = tcp_writev(c_, s.data(), s.size());
+    n = __tcp_writev(c_, s.data(), s.size(), nt);
     if (n < 0) return n;
     assert(n > 0);
     len += n;
@@ -60,9 +60,9 @@ ssize_t TcpConn::WritevFullRaw(std::span<const iovec> iov) {
   return len;
 }
 
-ssize_t TcpConn::ReadvFullRaw(std::span<const iovec> iov) {
+ssize_t TcpConn::ReadvFullRaw(std::span<const iovec> iov, bool nt) {
   // first try to receive without copying the vector
-  ssize_t n = tcp_readv(c_, iov.data(), iov.size());
+  ssize_t n = __tcp_readv(c_, iov.data(), iov.size(), nt);
   if (n <= 0) return n;
 
   // sum total length and check if everything was transfered
@@ -77,7 +77,7 @@ ssize_t TcpConn::ReadvFullRaw(std::span<const iovec> iov) {
   while (true) {
     s = PullIOV(s, n);
     if (s.empty()) break;
-    n = tcp_readv(c_, s.data(), s.size());
+    n = __tcp_readv(c_, s.data(), s.size(), nt);
     if (n <= 0) return n;
     len += n;
   }
