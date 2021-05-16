@@ -521,10 +521,10 @@ index 000000000000..c32111319522
 +#endif
 +#endif /*_LINUX_PREZERO_NG_H */
 diff --git a/mm/page_reporting.c b/mm/page_reporting.c
-index cd8e13d41df4..20ec3fb1afc4 100644
+index cd8e13d41df4..85b78db4e6cc 100644
 --- a/mm/page_reporting.c
 +++ b/mm/page_reporting.c
-@@ -6,12 +6,15 @@
+@@ -6,12 +6,14 @@
  #include <linux/export.h>
  #include <linux/delay.h>
  #include <linux/scatterlist.h>
@@ -534,14 +534,13 @@ index cd8e13d41df4..20ec3fb1afc4 100644
  #include "internal.h"
  
 -#define PAGE_REPORTING_DELAY	(2 * HZ)
-+#define MAX_SCAN_NUM 1024
  static struct page_reporting_dev_info __rcu *pr_dev_info __read_mostly;
 +int page_report_mini_order = pageblock_order;
 +unsigned long page_report_batch_size = 32 * 1024 * 1024;
  
  enum {
  	PAGE_REPORTING_IDLE = 0,
-@@ -43,7 +46,7 @@ __page_reporting_request(struct page_reporting_dev_info *prdev)
+@@ -43,7 +45,7 @@ __page_reporting_request(struct page_reporting_dev_info *prdev)
  	 * now we are limiting this to running no more than once every
  	 * couple of seconds.
  	 */
@@ -550,7 +549,7 @@ index cd8e13d41df4..20ec3fb1afc4 100644
  }
  
  /* notify prdev of free page reporting request */
-@@ -115,7 +118,7 @@ page_reporting_cycle(struct page_reporting_dev_info *prdev, struct zone *zone,
+@@ -115,7 +117,7 @@ page_reporting_cycle(struct page_reporting_dev_info *prdev, struct zone *zone,
  	unsigned int page_len = PAGE_SIZE << order;
  	struct page *page, *next;
  	long budget;
@@ -559,23 +558,7 @@ index cd8e13d41df4..20ec3fb1afc4 100644
  
  	/*
  	 * Perform early check, if free area is empty there is
-@@ -145,8 +148,14 @@ page_reporting_cycle(struct page_reporting_dev_info *prdev, struct zone *zone,
- 	/* loop through free list adding unreported pages to sg list */
- 	list_for_each_entry_safe(page, next, list, lru) {
- 		/* We are going to skip over the reported pages. */
--		if (PageReported(page))
-+		if (PageReported(page)) {
-+			if (++scan_cnt >= MAX_SCAN_NUM) {
-+				err = scan_cnt;
-+				break;
-+			}
- 			continue;
-+		}
-+
- 
- 		/*
- 		 * If we fully consumed our budget then update our
-@@ -219,6 +228,26 @@ page_reporting_cycle(struct page_reporting_dev_info *prdev, struct zone *zone,
+@@ -219,6 +221,26 @@ page_reporting_cycle(struct page_reporting_dev_info *prdev, struct zone *zone,
  	return err;
  }
  
@@ -602,7 +585,7 @@ index cd8e13d41df4..20ec3fb1afc4 100644
  static int
  page_reporting_process_zone(struct page_reporting_dev_info *prdev,
  			    struct scatterlist *sgl, struct zone *zone)
-@@ -229,7 +258,7 @@ page_reporting_process_zone(struct page_reporting_dev_info *prdev,
+@@ -229,7 +251,7 @@ page_reporting_process_zone(struct page_reporting_dev_info *prdev,
  
  	/* Generate minimum watermark to be able to guarantee progress */
  	watermark = low_wmark_pages(zone) +
@@ -611,7 +594,7 @@ index cd8e13d41df4..20ec3fb1afc4 100644
  
  	/*
  	 * Cancel request if insufficient free memory or if we failed
-@@ -239,13 +268,13 @@ page_reporting_process_zone(struct page_reporting_dev_info *prdev,
+@@ -239,13 +261,13 @@ page_reporting_process_zone(struct page_reporting_dev_info *prdev,
  		return err;
  
  	/* Process each free list starting from lowest order/mt */
@@ -627,7 +610,7 @@ index cd8e13d41df4..20ec3fb1afc4 100644
  						   sgl, &offset);
  			if (err)
  				return err;
-@@ -306,7 +335,7 @@ static void page_reporting_process(struct work_struct *work)
+@@ -306,7 +328,7 @@ static void page_reporting_process(struct work_struct *work)
  	 */
  	state = atomic_cmpxchg(&prdev->state, state, PAGE_REPORTING_IDLE);
  	if (state == PAGE_REPORTING_REQUESTED)
@@ -636,7 +619,7 @@ index cd8e13d41df4..20ec3fb1afc4 100644
  }
  
  static DEFINE_MUTEX(page_reporting_mutex);
-@@ -334,6 +363,8 @@ int page_reporting_register(struct page_reporting_dev_info *prdev)
+@@ -334,6 +356,8 @@ int page_reporting_register(struct page_reporting_dev_info *prdev)
  	/* Assign device to allow notifications */
  	rcu_assign_pointer(pr_dev_info, prdev);
  
@@ -645,7 +628,7 @@ index cd8e13d41df4..20ec3fb1afc4 100644
  	/* enable page reporting notification */
  	if (!static_key_enabled(&page_reporting_enabled)) {
  		static_branch_enable(&page_reporting_enabled);
-@@ -351,6 +382,8 @@ void page_reporting_unregister(struct page_reporting_dev_info *prdev)
+@@ -351,6 +375,8 @@ void page_reporting_unregister(struct page_reporting_dev_info *prdev)
  	mutex_lock(&page_reporting_mutex);
  
  	if (rcu_access_pointer(pr_dev_info) == prdev) {
