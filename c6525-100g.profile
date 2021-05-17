@@ -17,7 +17,7 @@ request = pc.makeRequestRSpec()
 node_0 = request.RawPC('node-0')
 node_0.routable_control_ip = True
 node_0.hardware_type = 'c6525-100g'
-node_0.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//latest-100g'
+node_0.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
 iface0 = node_0.addInterface('interface-2')
 iface1 = node_0.addInterface('interface-5')
 
@@ -25,7 +25,7 @@ iface1 = node_0.addInterface('interface-5')
 node_1 = request.RawPC('node-1')
 node_1.routable_control_ip = True
 node_1.hardware_type = 'c6525-100g'
-node_1.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//latest-100g'
+node_1.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
 iface2 = node_1.addInterface('interface-0')
 iface3 = node_1.addInterface('interface-3')
 
@@ -33,7 +33,7 @@ iface3 = node_1.addInterface('interface-3')
 node_2 = request.RawPC('node-2')
 node_2.routable_control_ip = True
 node_2.hardware_type = 'c6525-100g'
-node_2.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//latest-100g'
+node_2.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
 iface4 = node_2.addInterface('interface-1')
 iface5 = node_2.addInterface('interface-4')
 
