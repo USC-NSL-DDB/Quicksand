@@ -1,5 +1,14 @@
 #!/bin/bash
 
+if [[ ! -v NODE_TYPE ]]; then
+    echo 'Please set env var $NODE_TYPE, supported list: [c6525-100g, other]'
+    exit 1
+fi
+
+if [ $NODE_TYPE == "c6525-100g" ]; then
+    patch -p1 -d caladan/ < caladan/build/cloudlab_c6525-100g.patch
+fi
+
 export glibc_install="$(pwd)/glibc/build/install"
 git clone git://sourceware.org/git/glibc.git
 cd glibc

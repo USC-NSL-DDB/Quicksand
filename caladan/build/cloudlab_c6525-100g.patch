@@ -2,12 +2,12 @@ commit 5c7f093f17fb01d4a8b31e8b76cd43a8a35eeb2a
 Author: Zhenyuan Ruan <zainryan95@gmail.com>
 Date:   Mon May 10 21:09:43 2021 -0600
 
-    x
+    Patch Caladan to support cloudlab c6525-100g.
 
-diff --git a/caladan/iokernel/dpdk.c b/caladan/iokernel/dpdk.c
+diff --git a/iokernel/dpdk.c b/iokernel/dpdk.c
 index 0b48209..00fd89f 100644
---- a/caladan/iokernel/dpdk.c
-+++ b/caladan/iokernel/dpdk.c
+--- a/iokernel/dpdk.c
++++ b/iokernel/dpdk.c
 @@ -239,7 +239,7 @@ int dpdk_init(void)
  int dpdk_late_init(void)
  {
@@ -17,10 +17,10 @@ index 0b48209..00fd89f 100644
  	if (dpdk_port_init(dp.port, dp.rx_mbuf_pool) != 0) {
  		log_err("dpdk: cannot init port %"PRIu8 "\n", dp.port);
  		return -1;
-diff --git a/caladan/iokernel/ias_bw.c b/caladan/iokernel/ias_bw.c
+diff --git a/iokernel/ias_bw.c b/iokernel/ias_bw.c
 index 56d09fb..e563465 100644
---- a/caladan/iokernel/ias_bw.c
-+++ b/caladan/iokernel/ias_bw.c
+--- a/iokernel/ias_bw.c
++++ b/iokernel/ias_bw.c
 @@ -10,7 +10,7 @@
  #include "ksched.h"
  #include "pmc.h"
