@@ -15,6 +15,7 @@ EXTRA_CMAKE_FLAGS=-DENABLE_STATIC=1 MAKEFLAGS=-j$CORES ./build.sh
 cd ..
 
 echo building DPDK
+patch -p 1 -d dpdk/ < build/kernel-5.10.patch
 patch -p 1 -d dpdk/ < build/ixgbe_19_11.patch
 if lspci | grep -q 'ConnectX-[4,5]'; then
   rm -f dpdk/drivers/net/mlx5/mlx5_custom.h
