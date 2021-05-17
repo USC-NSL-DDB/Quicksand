@@ -31,7 +31,7 @@ private:
   static std::function<rt::TcpConn *(netaddr)> creator_;
 };
 
-enum MigratorRPC_t { COPY, MIGRATE, FORWARD, RESERVE_CONNS };
+enum MigratorRPC_t { COPY, MIGRATE, FORWARD, RESERVE_CONNS, UNMAP };
 
 struct RPCReqReserveConns {
   uint32_t num;
@@ -44,21 +44,19 @@ struct RPCReqCopy {
   rt::WaitGroup *wg;
 } __attribute__((packed));
 
-struct HeapParam {
+struct HeapMmapPopulateRange {
   HeapHeader *heap_header;
-  int obj_ref_cnt;
-  uint64_t start_addr;
   uint64_t len;
 };
 
-struct LoadHeapTask {
-  HeapParam param;
+struct HeapMmapPopulateTask {
+  HeapMmapPopulateRange range;
   bool mmapped;
   std::unique_ptr<rt::Mutex> mu;
   std::unique_ptr<rt::CondVar> cv;
 
-  LoadHeapTask(HeapParam _param)
-      : param(_param), mmapped(false), mu(new rt::Mutex()),
+  HeapMmapPopulateTask(HeapMmapPopulateRange _range)
+      : range(_range), mmapped(false), mu(new rt::Mutex()),
         cv(new rt::CondVar()) {}
 };
 
@@ -84,10 +82,12 @@ private:
   void handle_load(rt::TcpConn *c);
   void handle_reserve_conns(rt::TcpConn *c);
   void handle_forward(rt::TcpConn *c);
-  void transmit(rt::TcpConn *c, const HeapParam &heap_param);
-  void transmit_heap(rt::TcpConn *c, const HeapParam &param);
-  std::vector<HeapParam>
-  transmit_all_heaps_params(rt::TcpConn *c, const std::list<void *> &heaps);
+  void handle_unmap(rt::TcpConn *c);
+  void transmit(rt::TcpConn *c, HeapHeader *heap_header);
+  void transmit_heap(rt::TcpConn *c, HeapHeader *heap_header);
+  std::vector<HeapMmapPopulateRange>
+  transmit_heap_mmap_populate_ranges(rt::TcpConn *c,
+                                     const std::list<void *> &heaps);
   void transmit_mutexes(rt::TcpConn *c, HeapHeader *heap_header,
                         std::unordered_set<thread_t *> *mutex_threads);
   void transmit_condvars(rt::TcpConn *c, HeapHeader *heap_header,
@@ -97,17 +97,20 @@ private:
   void transmit_threads(rt::TcpConn *c, const std::vector<thread_t *> &threads);
   void transmit_one_thread(rt::TcpConn *c, thread_t *thread);
   bool mark_migrating_threads(HeapHeader *heap_header);
+  void unmap_destructed_heaps(rt::TcpConn *c,
+                              std::vector<HeapHeader *> *destructed_heaps);
   void load(rt::TcpConn *c);
-  void load_heap(rt::TcpConn *c, LoadHeapTask *task);
-  std::vector<HeapParam> load_all_heaps_params(rt::TcpConn *c);
+  void load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task);
+  std::vector<HeapMmapPopulateRange>
+  load_heap_mmap_populate_ranges(rt::TcpConn *c);
   void load_mutexes(rt::TcpConn *c, HeapHeader *heap_header);
   void load_condvars(rt::TcpConn *c, HeapHeader *heap_header);
   void load_time(rt::TcpConn *c, HeapHeader *heap_header);
   void load_threads(rt::TcpConn *c, HeapHeader *heap_header);
   thread_t *load_one_thread(rt::TcpConn *c, HeapHeader *heap_header);
-  rt::Thread
-  prepare_load_heap_tasks(uint32_t old_server_ip,
-                          const std::vector<HeapParam> &heap_params,
-                          std::vector<LoadHeapTask> *load_heap_tasks);
+  rt::Thread do_heap_mmap_populate(
+      uint32_t old_server_ip,
+      const std::vector<HeapMmapPopulateRange> &populate_ranges,
+      std::vector<HeapMmapPopulateTask> *populate_tasks);
 };
 } // namespace nu
