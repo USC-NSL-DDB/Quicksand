@@ -22,6 +22,9 @@ for n in /sys/devices/system/node/node[2-9]; do
 	echo 0 > $n/hugepages/hugepages-2048kB/nr_hugepages
 done
 
+# enable page prezeroing
+echo 1 > /sys/kernel/mm/zero_page/enabled
+
 # load msr module
 modprobe msr
 
