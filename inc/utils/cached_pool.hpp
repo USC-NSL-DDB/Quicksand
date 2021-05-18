@@ -26,12 +26,19 @@ private:
       std::allocator_traits<Allocator>::template rebind_alloc<T *>;
   using ItemStack = std::stack<T *, std::vector<T *, RebindAlloc>>;
 
+  struct alignas(kCacheLineBytes) LocalCache {
+    uint32_t num;
+    T **items;
+  };
+
   std::function<T *(void)> new_fn_;
   std::function<void(T *)> delete_fn_;
   uint32_t per_core_cache_size_;
-  ItemStack locals_[kNumCores];
+  LocalCache locals_[kNumCores];
   ItemStack global_;
   rt::Spin global_spin_;
+
+  void init(uint32_t per_core_cache_size);
 };
 } // namespace nu
 

@@ -11,52 +11,63 @@ CachedPool<T, Allocator>::CachedPool(const std::function<T *(void)> &new_fn,
                                      const std::function<void(T *)> &delete_fn,
                                      uint32_t per_core_cache_size)
     : new_fn_(new_fn), delete_fn_(delete_fn),
-      per_core_cache_size_(per_core_cache_size) {}
+      per_core_cache_size_(per_core_cache_size) {
+  init(per_core_cache_size);
+}
 
 template <typename T, typename Allocator>
 CachedPool<T, Allocator>::CachedPool(std::function<T *(void)> &&new_fn,
                                      std::function<void(T *)> &&delete_fn,
                                      uint32_t per_core_cache_size)
     : new_fn_(std::move(new_fn)), delete_fn_(std::move(delete_fn)),
-      per_core_cache_size_(per_core_cache_size) {}
+      per_core_cache_size_(per_core_cache_size) {
+  init(per_core_cache_size);
+}
+
+template <typename T, typename Allocator>
+void CachedPool<T, Allocator>::init(uint32_t per_core_cache_size) {
+  RebindAlloc alloc;
+  for (uint32_t i = 0; i < kNumCores; i++) {
+    locals_[i].num = 0;
+    locals_[i].items = alloc.allocate(per_core_cache_size + 1);
+  }
+}
 
 template <typename T, typename Allocator>
 CachedPool<T, Allocator>::~CachedPool() {
-  auto drain_stack_fn = [&](auto &stack) {
-    while (!stack.empty()) {
-      auto *item = stack.top();
-      stack.pop();
-      delete_fn_(item);
-    }
-  };
-
+  RebindAlloc alloc;
   for (size_t i = 0; i < kNumCores; i++) {
-    drain_stack_fn(locals_[i]);
+    auto &local = locals_[i];
+    for (uint32_t j = 0; j < local.num; j++) {
+      delete_fn_(local.items[j]);
+    }
+    alloc.deallocate(local.items, per_core_cache_size_ + 1);
   }
-  drain_stack_fn(global_);
+  while (!global_.empty()) {
+    auto *item = global_.top();
+    global_.pop();
+    delete_fn_(item);
+  }
 }
 
 template <typename T, typename Allocator> T *CachedPool<T, Allocator>::get() {
   int cpu = get_cpu();
   auto &local = locals_[cpu];
-  T *item = nullptr;
-  if (!local.empty()) {
-    item = local.top();
-    local.pop();
-  }
+  T *item;
 
-  if (unlikely(!item)) {
+  if (likely(local.num)) {
+    item = local.items[--local.num];
+  } else {
     global_spin_.Lock();
-    while (!global_.empty() && local.size() < per_core_cache_size_) {
-      local.push(global_.top());
+    while (!global_.empty() && local.num < per_core_cache_size_) {
+      local.items[local.num++] = global_.top();
       global_.pop();
     }
     global_spin_.Unlock();
-    while (local.size() < per_core_cache_size_) {
-      local.push(new_fn_());
+    while (local.num < per_core_cache_size_) {
+      local.items[local.num++] = new_fn_();
     }
-    item = local.top();
-    local.pop();
+    item = local.items[--local.num];
   }
   put_cpu();
 
@@ -67,13 +78,12 @@ template <typename T, typename Allocator>
 void CachedPool<T, Allocator>::put(T *item) {
   int cpu = get_cpu();
   auto &local = locals_[cpu];
-  local.push(item);
+  local.items[local.num++] = item;
 
-  if (unlikely(local.size() > per_core_cache_size_)) {
+  if (unlikely(local.num > per_core_cache_size_)) {
     rt::ScopedLock<rt::Spin> lock(&global_spin_);
-    while (local.size() > per_core_cache_size_ / 2 && local.size() > 1) {
-      global_.push(local.top());
-      local.pop();
+    while (local.num > per_core_cache_size_ / 2 && local.num > 1) {
+      global_.push(local.items[--local.num]);
     }
   }
   put_cpu();
