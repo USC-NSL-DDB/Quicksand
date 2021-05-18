@@ -7,6 +7,8 @@
 
 #define ALIGNMENT 32
 
+#ifdef NDEBUG
+
 static inline void __memcpy_avx2_256_nt(void **dst, const void **src,
                                         size_t *size, bool src_unaligned) {
         const __m256i *m_src;
@@ -204,3 +206,11 @@ void *memcpy_avx2_nt(void *dst, const void *src, size_t size) {
 
         return origin_dst;
 }
+
+#else
+
+void *memcpy_avx2_nt(void *dst, const void *src, size_t size) {
+  return memcpy(dst, src, size);
+}
+
+#endif
