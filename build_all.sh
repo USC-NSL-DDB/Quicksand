@@ -1,12 +1,17 @@
 #!/bin/bash
 
 if [[ ! -v NODE_TYPE ]]; then
-    echo 'Please set env var $NODE_TYPE, supported list: [c6525-100g, other]'
+    echo 'Please set env var $NODE_TYPE, supported list: [c6525-100g, xl170, other]'
     exit 1
 fi
 
 if [ $NODE_TYPE == "c6525-100g" ]; then
     patch -p1 -d caladan/ < caladan/build/cloudlab_c6525-100g.patch
+fi
+
+if [ $NODE_TYPE == "xl170" ]; then
+    patch -p1 -d caladan/ < caladan/build/cloudlab_xl170.patch
+    patch -p1 -d caladan/ < caladan/build/connectx-4.patch    
 fi
 
 export glibc_install="$(pwd)/glibc/build/install"
