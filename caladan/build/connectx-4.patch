@@ -387,7 +387,7 @@ index 3b0b644..1d08aa3 100644
 +
  #endif
 diff --git a/runtime/net/directpath/mlx5/mlx5_init.c b/runtime/net/directpath/mlx5/mlx5_init.c
-index bd4bfef..98331f8 100644
+index bd4bfef..f829ac7 100644
 --- a/runtime/net/directpath/mlx5/mlx5_init.c
 +++ b/runtime/net/directpath/mlx5/mlx5_init.c
 @@ -22,8 +22,6 @@
@@ -429,7 +429,7 @@ index bd4bfef..98331f8 100644
  {
  	int i, ret;
  	unsigned char *buf;
-@@ -168,32 +167,35 @@ static int mlx5_create_rxq(int index, struct mlx5_rxq *v)
+@@ -168,32 +167,40 @@ static int mlx5_create_rxq(int index, struct mlx5_rxq *v)
  	if (ret)
  		return -ret;
  
@@ -484,14 +484,19 @@ index bd4bfef..98331f8 100644
 +			.rx_hash_conf = rss_cnf,
 +		};
 +
-+		v->qp = ibv_create_qp_ex(context, &qp_ex_attr);
++		struct mlx5dv_qp_init_attr mqp_ex_attr = {
++			.comp_mask = MLX5DV_QP_INIT_ATTR_MASK_QP_CREATE_FLAGS,
++			.create_flags = MLX5DV_QP_CREATE_TIR_ALLOW_SELF_LOOPBACK_UC | MLX5DV_QP_CREATE_TIR_ALLOW_SELF_LOOPBACK_MC,
++		};
++
++		v->qp = mlx5dv_create_qp(context, &qp_ex_attr, &mqp_ex_attr);
 +		if (!v->qp)
 +			return -errno;
 +	}
  
  	/* expose direct verbs objects */
  	struct mlx5dv_obj obj = {
-@@ -285,7 +287,7 @@ static int mlx5_init_txq(int index, struct mlx5_txq *v)
+@@ -285,7 +292,7 @@ static int mlx5_init_txq(int index, struct mlx5_txq *v)
  			.max_send_wr = SQ_NUM_DESC,
  			.max_recv_wr = 0,
  			.max_send_sge = 1,
@@ -500,7 +505,7 @@ index bd4bfef..98331f8 100644
  		},
  		.qp_type = IBV_QPT_RAW_PACKET,
  		.sq_sig_all = 1,
-@@ -303,7 +305,7 @@ static int mlx5_init_txq(int index, struct mlx5_txq *v)
+@@ -303,7 +310,7 @@ static int mlx5_init_txq(int index, struct mlx5_txq *v)
  	struct ibv_qp_attr qp_attr;
  	memset(&qp_attr, 0, sizeof(qp_attr));
  	qp_attr.qp_state = IBV_QPS_INIT;
@@ -509,7 +514,7 @@ index bd4bfef..98331f8 100644
  	ret = ibv_modify_qp(v->tx_qp, &qp_attr, IBV_QP_STATE | IBV_QP_PORT);
  	if (ret)
  		return -ret;
-@@ -350,20 +352,11 @@ static int mlx5_init_txq(int index, struct mlx5_txq *v)
+@@ -350,20 +357,11 @@ static int mlx5_init_txq(int index, struct mlx5_txq *v)
  	return 0;
  }
  
@@ -531,8 +536,8 @@ index bd4bfef..98331f8 100644
 +	             unsigned int nr_rxq, unsigned int nr_txq, bool use_rss)
  {
  	int i, ret;
- 
-@@ -404,8 +397,8 @@ int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
+
+@@ -404,8 +402,8 @@ int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
  		return -1;
  	}
  
@@ -543,7 +548,7 @@ index bd4bfef..98331f8 100644
  	if (!context) {
  		log_err("mlx5_init: Couldn't get context for %s (errno %d)",
  			ibv_get_device_name(dev_list[i]), errno);
-@@ -441,17 +434,13 @@ int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
+@@ -441,17 +439,13 @@ int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
  	}
  
  	for (i = 0; i < nr_rxq; i++) {
@@ -562,7 +567,7 @@ index bd4bfef..98331f8 100644
  	for (i = 0; i < nr_txq; i++) {
  		ret = mlx5_init_txq(i, &txqs[i]);
  		if (ret)
-@@ -460,8 +449,6 @@ int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
+@@ -460,8 +454,6 @@ int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
  		txq_out[i] = &txqs[i].txq;
  	}
  
@@ -573,10 +578,10 @@ index bd4bfef..98331f8 100644
  
 diff --git a/runtime/net/directpath/mlx5/mlx5_queue_steering.c b/runtime/net/directpath/mlx5/mlx5_queue_steering.c
 new file mode 100644
-index 0000000..7605b74
+index 0000000..3ea7bee
 --- /dev/null
 +++ b/runtime/net/directpath/mlx5/mlx5_queue_steering.c
-@@ -0,0 +1,275 @@
+@@ -0,0 +1,281 @@
 +#ifdef DIRECTPATH
 +
 +#include <util/mmio.h>
@@ -632,15 +637,21 @@ index 0000000..7605b74
 +		.rwq_ind_tbl = rwq_ind_table,
 +		.rx_hash_conf = rss_cnf,
 +	};
++	
++	struct mlx5dv_qp_init_attr mqp_ex_attr = {
++		.comp_mask = MLX5DV_QP_INIT_ATTR_MASK_QP_CREATE_FLAGS,
++		.create_flags = MLX5DV_QP_CREATE_TIR_ALLOW_SELF_LOOPBACK_UC |MLX5DV_QP_CREATE_TIR_ALLOW_SELF_LOOPBACK_MC,
++	};
 +
-+	tcp_qp = ibv_create_qp_ex(context, &qp_ex_attr);
++	tcp_qp = mlx5dv_create_qp(context, &qp_ex_attr, &mqp_ex_attr);
++
 +	if (!tcp_qp)
 +		return -errno;
 +
 +	rss_cnf.rx_hash_fields_mask = IBV_RX_HASH_SRC_IPV4 | IBV_RX_HASH_DST_IPV4 | IBV_RX_HASH_SRC_PORT_UDP | IBV_RX_HASH_DST_PORT_UDP,
 +	qp_ex_attr.rx_hash_conf = rss_cnf;
-+	other_qp = ibv_create_qp_ex(context, &qp_ex_attr);
-+	if (!other_qp)
++        other_qp = mlx5dv_create_qp(context, &qp_ex_attr, &mqp_ex_attr);
++        if (!other_qp)
 +		return -errno;
 +
 +	/* Route TCP packets for our MAC address to the QP with TCP RSS configuration */
