@@ -573,10 +573,10 @@ index bd4bfef..98331f8 100644
  
 diff --git a/runtime/net/directpath/mlx5/mlx5_queue_steering.c b/runtime/net/directpath/mlx5/mlx5_queue_steering.c
 new file mode 100644
-index 0000000..0dad823
+index 0000000..7605b74
 --- /dev/null
 +++ b/runtime/net/directpath/mlx5/mlx5_queue_steering.c
-@@ -0,0 +1,269 @@
+@@ -0,0 +1,275 @@
 +#ifdef DIRECTPATH
 +
 +#include <util/mmio.h>
@@ -772,7 +772,8 @@ index 0000000..0dad823
 +
 +	unsigned int pulled = 0;
 +
-+	rcu_hlist_for_each(&hrxq->head, node, !preempt_enabled()) {
++	preempt_disable();
++	rcu_hlist_for_each(&hrxq->head, node, true) {
 +		mrxq = rcu_hlist_entry(node, struct mlx5_rxq, link);
 +		hq = &mrxq->rxq;
 +
@@ -783,6 +784,7 @@ index 0000000..0dad823
 +				break;
 +		}
 +	}
++	preempt_enable();
 +	return pulled;
 +}
 +
@@ -801,11 +803,15 @@ index 0000000..0dad823
 +	struct mlx5_rxq *mrxq, *hrxq = container_of(rxq, struct mlx5_rxq, rxq);
 +	struct rcu_hlist_node *node;
 +
-+	rcu_hlist_for_each(&hrxq->head, node, !preempt_enabled()) {
++	preempt_disable();
++	rcu_hlist_for_each(&hrxq->head, node, true) {
 +		mrxq = rcu_hlist_entry(node, struct mlx5_rxq, link);
-+		if (hardware_q_pending(&mrxq->rxq))
++		if (hardware_q_pending(&mrxq->rxq)) {
++			preempt_enable();
 +			return true;
++		}
 +	}
++	preempt_enable();
 +
 +	return false;
 +}
