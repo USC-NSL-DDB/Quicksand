@@ -1,7 +1,8 @@
 #!/bin/bash
 
 if [[ ! -v NODE_TYPE ]]; then
-    echo 'Please set env var $NODE_TYPE, supported list: [c6525-100g, xl170, other]'
+    echo 'Please set env var $NODE_TYPE, 
+supported list: [c6525-100g, xl170, xl170-uswitch, other]'
     exit 1
 fi
 
@@ -11,6 +12,11 @@ fi
 
 if [ $NODE_TYPE == "xl170" ]; then
     patch -p1 -d caladan/ < caladan/build/cloudlab_xl170.patch
+    patch -p1 -d caladan/ < caladan/build/connectx-4.patch    
+fi
+
+if [ $NODE_TYPE == "xl170-uswitch" ]; then
+    patch -p1 -d caladan/ < caladan/build/cloudlab_xl170_uswitch.patch
     patch -p1 -d caladan/ < caladan/build/connectx-4.patch    
 fi
 
