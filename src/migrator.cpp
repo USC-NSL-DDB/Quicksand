@@ -568,9 +568,6 @@ rt::Thread Migrator::do_heap_mmap_populate(
       task.cv->SignalAll();
       task.mu->Unlock();
     }
-    preempt_disable();
-    puts("mmap done");
-    preempt_enable();
   });
 }
 

@@ -90,6 +90,7 @@ struct tcpconn {
 	struct kref		ref;
 	int			err; /* error code for read(), write(), etc. */
 	uint32_t		winmax; /* initial receive window size */
+	uint8_t                 dscp;
 
 	/* ingress path */
 	unsigned int		rx_closed:1;
@@ -124,7 +125,7 @@ struct tcpconn {
 	int			acks_delayed_cnt;
 };
 
-extern tcpconn_t *tcp_conn_alloc(void);
+extern tcpconn_t *__tcp_conn_alloc(uint8_t dscp);
 extern int tcp_conn_attach(tcpconn_t *c, struct netaddr laddr,
 			   struct netaddr raddr);
 extern void tcp_conn_ack(tcpconn_t *c, struct list_head *freeq);
@@ -133,6 +134,25 @@ extern void tcp_conn_fail(tcpconn_t *c, int err);
 extern void tcp_conn_shutdown_rx(tcpconn_t *c);
 extern void tcp_conn_destroy(tcpconn_t *c);
 extern void tcp_timer_update(tcpconn_t *c);
+
+/**
+ * tcp_conn_alloc - allocates a TCP connection struct
+ *
+ * Returns a connection, or NULL if out of memory.
+ */
+static inline tcpconn_t *tcp_conn_alloc(void)
+{
+        return __tcp_conn_alloc(IPTOS_DSCP_CS0);
+}
+
+/**
+ * tcp_conn_alloc_dscp - similar with tcp_conn_alloc, but allows to
+ * specify dscp.
+ */
+static inline tcpconn_t *tcp_conn_alloc_dscp(uint8_t dscp)
+{
+        return __tcp_conn_alloc(dscp);
+}
 
 /**
  * tcp_conn_get - increments the connection ref count
@@ -172,7 +192,8 @@ struct tcp_options {
  */
 
 extern void tcp_rx_conn(struct trans_entry *e, struct mbuf *m);
-extern tcpconn_t *tcp_rx_listener(struct netaddr laddr, struct mbuf *m);
+extern tcpconn_t *tcp_rx_listener(struct netaddr laddr, struct mbuf *m,
+                                  uint8_t dscp);
 
 
 /*

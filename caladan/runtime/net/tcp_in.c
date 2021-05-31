@@ -593,7 +593,7 @@ done:
 }
 
 /* handles ingress packets for TCP listener queues */
-tcpconn_t *tcp_rx_listener(struct netaddr laddr, struct mbuf *m)
+tcpconn_t *tcp_rx_listener(struct netaddr laddr, struct mbuf *m, uint8_t dscp)
 {
 	struct netaddr raddr;
 	const struct ip_hdr *iphdr;
@@ -636,7 +636,7 @@ tcpconn_t *tcp_rx_listener(struct netaddr laddr, struct mbuf *m)
 		return NULL;
 
 	/* we have a valid SYN packet, initialize a new connection */
-	c = tcp_conn_alloc();
+	c = tcp_conn_alloc_dscp(dscp);
 	if (unlikely(!c))
 		return NULL;
 	c->pcb.irs = ntoh32(tcphdr->seq);

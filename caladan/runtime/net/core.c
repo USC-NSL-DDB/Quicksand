@@ -403,7 +403,8 @@ void net_tx_eth(struct mbuf *m, uint16_t type, struct eth_addr dhost)
 	net_tx_raw(m);
 }
 
-static void net_push_iphdr(struct mbuf *m, uint8_t proto, uint32_t daddr)
+static void net_push_iphdr(struct mbuf *m, uint8_t proto, uint32_t daddr,
+                           uint8_t dscp)
 {
 	struct ip_hdr *iphdr;
 
@@ -411,7 +412,7 @@ static void net_push_iphdr(struct mbuf *m, uint8_t proto, uint32_t daddr)
 	iphdr = mbuf_push_hdr(m, *iphdr);
 	iphdr->version = IPVERSION;
 	iphdr->header_len = 5;
-	iphdr->tos = IPTOS_DSCP_CS0 | IPTOS_ECN_NOTECT;
+	iphdr->tos = dscp | IPTOS_ECN_NOTECT;
 	iphdr->len = hton16(mbuf_length(m));
 	iphdr->id = 0; /* see RFC 6864 */
 	iphdr->off = hton16(IP_DF);
@@ -435,6 +436,7 @@ static uint32_t net_get_ip_route(uint32_t daddr)
  * @m: the mbuf to transmit
  * @proto: the transport protocol
  * @daddr: the destination IP address (in native byte order)
+ * @dscp: the dscp value used in the IP header
  *
  * The payload must start with the transport (L4) header. The IPv4 (L3) and
  * ethernet (L2) headers will be prepended by this function.
@@ -444,13 +446,13 @@ static uint32_t net_get_ip_route(uint32_t daddr)
  * Returns 0 if successful. If successful, the mbuf will be freed when the
  * transmit completes. Otherwise, the mbuf still belongs to the caller.
  */
-int net_tx_ip(struct mbuf *m, uint8_t proto, uint32_t daddr)
+int net_tx_ip(struct mbuf *m, uint8_t proto, uint32_t daddr, uint8_t dscp)
 {
 	struct eth_addr dhost;
 	int ret;
 
 	/* prepend the IP header */
-	net_push_iphdr(m, proto, daddr);
+	net_push_iphdr(m, proto, daddr, dscp);
 
 	/* ask NIC to calculate IP checksum */
 	m->txflags |= OLFLAG_IP_CHKSUM | OLFLAG_IPV4;
@@ -481,6 +483,7 @@ int net_tx_ip(struct mbuf *m, uint8_t proto, uint32_t daddr)
  * @n: the number of mbufs in @ms
  * @proto: the transport protocol
  * @daddr: the destination IP address (in native byte order)
+ * @dscp: the dscp value used in the IP header
  *
  * The payload must start with the transport (L4) header. The IPv4 (L3) and
  * ethernet (L2) headers will be prepended by this function.
@@ -492,7 +495,8 @@ int net_tx_ip(struct mbuf *m, uint8_t proto, uint32_t daddr)
  * ARP doesn't have a cached entry, only the first mbuf will be transmitted
  * when the ARP request resolves.
  */
-int net_tx_ip_burst(struct mbuf **ms, int n, uint8_t proto, uint32_t daddr)
+int net_tx_ip_burst(struct mbuf **ms, int n, uint8_t proto, uint32_t daddr,
+                    uint8_t dscp)
 {
 	struct eth_addr dhost;
 	int ret, i;
@@ -502,7 +506,7 @@ int net_tx_ip_burst(struct mbuf **ms, int n, uint8_t proto, uint32_t daddr)
 	/* prepare the mbufs */
 	for (i = 0; i < n; i++) {
 		/* prepend the IP header */
-		net_push_iphdr(ms[i], proto, daddr);
+		net_push_iphdr(ms[i], proto, daddr, dscp);
 
 		/* ask NIC to calculate IP checksum */
 		ms[i]->txflags |= OLFLAG_IP_CHKSUM | OLFLAG_IPV4;

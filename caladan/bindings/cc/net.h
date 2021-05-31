@@ -4,6 +4,7 @@
 
 extern "C" {
 #include <base/stddef.h>
+#include <net/ip.h>
 #include <runtime/tcp.h>
 #include <runtime/udp.h>
 }
@@ -133,25 +134,27 @@ class TcpConn : public NetConn {
   ~TcpConn() { tcp_close(c_); }
 
   // Creates a TCP connection with a given affinity
-  static TcpConn *DialAffinity(uint32_t affinity, netaddr raddr) {
+  static TcpConn *DialAffinity(uint32_t affinity, netaddr raddr,
+                               uint8_t dscp = IPTOS_DSCP_CS0) {
     tcpconn_t *c;
-    int ret = tcp_dial_affinity(affinity, raddr, &c);
+    int ret = tcp_dial_affinity_dscp(affinity, raddr, &c, dscp);
     if (ret) return nullptr;
     return new TcpConn(c);
   }
 
   // Creates a TCP connection between a local and remote address.
-  static TcpConn *Dial(netaddr laddr, netaddr raddr) {
+  static TcpConn *Dial(netaddr laddr, netaddr raddr,
+                       uint8_t dscp = IPTOS_DSCP_CS0) {
     tcpconn_t *c;
-    int ret = tcp_dial(laddr, raddr, &c);
+    int ret = tcp_dial_dscp(laddr, raddr, &c, dscp);
     if (ret) return nullptr;
     return new TcpConn(c);
   }
 
   // Creates a new TCP connection with matching affinity
-  TcpConn *DialAffinity(netaddr raddr) {
+  TcpConn *DialAffinity(netaddr raddr, uint8_t dscp = IPTOS_DSCP_CS0) {
     tcpconn_t *c;
-    int ret = tcp_dial_conn_affinity(c_, raddr, &c);
+    int ret = tcp_dial_conn_affinity_dscp(c_, raddr, &c, dscp);
     if (ret) return nullptr;
     return new TcpConn(c);
   }
@@ -279,9 +282,10 @@ class TcpQueue {
   ~TcpQueue() { tcp_qclose(q_); }
 
   // Creates a TCP listener queue.
-  static TcpQueue *Listen(netaddr laddr, int backlog) {
+  static TcpQueue *Listen(netaddr laddr, int backlog,
+                          uint8_t dscp = IPTOS_DSCP_CS0) {
     tcpqueue_t *q;
-    int ret = tcp_listen(laddr, backlog, &q);
+    int ret = tcp_listen_dscp(laddr, backlog, &q, dscp);
     if (ret) return nullptr;
     return new TcpQueue(q);
   }

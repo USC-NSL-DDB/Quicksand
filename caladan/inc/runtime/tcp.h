@@ -4,22 +4,18 @@
 
 #pragma once
 
+#include <base/compiler.h>
+#include <errno.h>
+#include <net/ip.h>
 #include <runtime/net.h>
-#include <sys/uio.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 
 struct tcpqueue;
 typedef struct tcpqueue tcpqueue_t;
 struct tcpconn;
 typedef struct tcpconn tcpconn_t;
 
-extern int tcp_dial(struct netaddr laddr, struct netaddr raddr,
-		    tcpconn_t **c_out);
-extern int tcp_dial_affinity(uint32_t affinity, struct netaddr raddr,
-		    tcpconn_t **c_out);
-extern int tcp_dial_conn_affinity(tcpconn_t *in, struct netaddr raddr,
-		    tcpconn_t **c_out);
-extern int tcp_listen(struct netaddr laddr, int backlog, tcpqueue_t **q_out);
 extern int tcp_accept(tcpqueue_t *q, tcpconn_t **c_out);
 extern void tcp_qshutdown(tcpqueue_t *q);
 extern void tcp_qclose(tcpqueue_t *q);
@@ -35,6 +31,16 @@ extern ssize_t __tcp_writev(tcpconn_t *c, const struct iovec *iov, int iovcnt,
 extern ssize_t __tcp_read(tcpconn_t *c, void *buf, size_t len, bool nt);
 extern ssize_t __tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt,
                            bool nt);
+
+extern int __tcp_dial(struct netaddr laddr, struct netaddr raddr,
+		      tcpconn_t **c_out, uint8_t dscp);
+extern int __tcp_dial_affinity(uint32_t affinity, struct netaddr raddr,
+                               tcpconn_t **c_out, uint8_t dscp);
+extern int __tcp_dial_conn_affinity(tcpconn_t *in, struct netaddr raddr,
+                                    tcpconn_t **c_out, uint8_t dscp);
+
+extern int __tcp_listen(struct netaddr laddr, int backlog, tcpqueue_t **q_out,
+                        uint8_t dscp);
 
 /**
  * tcp_write - writes data to a TCP connection
@@ -127,3 +133,116 @@ static inline ssize_t tcp_readv_nt(tcpconn_t *c, const struct iovec *iov,
 {
 	return __tcp_readv(c, iov, iovcnt, true);
 }
+
+/**
+ * tcp_dial - opens a TCP connection, creating a new socket
+ * @laddr: the local address
+ * @raddr: the remote address
+ * @c_out: a pointer to store the new connection
+ *
+ * Returns 0 if successful, otherwise fail.
+ */
+static inline int tcp_dial(struct netaddr laddr, struct netaddr raddr,
+	                   tcpconn_t **c_out)
+{
+	return __tcp_dial(laddr, raddr, c_out, IPTOS_DSCP_CS0);
+}
+
+/**
+ * tcp_dial_dscp - similar with tcp_dial, but allows to specify dscp.
+ */
+static inline int tcp_dial_dscp(struct netaddr laddr, struct netaddr raddr,
+		                tcpconn_t **c_out, uint8_t dscp)
+{
+	if (unlikely(dscp > IPTOS_DSCP_MAX)) {
+		return -EINVAL;
+	}
+	return __tcp_dial(laddr, raddr, c_out, dscp);
+}
+
+/**
+ * tcp_dial_affinity - opens a TCP connection with specific kthread affinity
+ * @in: the connection to match to
+ * @raddr: the remote address
+ * @c_out: a pointer to store the new connection
+ *
+ * Returns 0 if successful, otherwise fail.
+ *
+ * Note: in the future this can be better integrated with tcp_dial.
+ * for now, it simply wraps it.
+ */
+static inline int tcp_dial_affinity(uint32_t affinity, struct netaddr raddr,
+		                    tcpconn_t **c_out)
+{
+	return __tcp_dial_affinity(affinity, raddr, c_out, IPTOS_DSCP_CS0);
+}
+
+/**
+ * tcp_dial_affinity_dscp - similar with tcp_dial_affinity, but allows to
+ * specify dscp.
+ */
+static inline int tcp_dial_affinity_dscp(uint32_t affinity,
+					 struct netaddr raddr,
+			                 tcpconn_t **c_out, uint8_t dscp)
+{
+	if (unlikely(dscp > IPTOS_DSCP_MAX)) {
+		return -EINVAL;
+	}
+	return __tcp_dial_affinity(affinity, raddr, c_out, dscp);
+}
+
+/**
+ * tcp_dial_conn_affinity - opens a TCP connection with matching
+ * kthread affinity to another socket
+ * @in: the connection to match to
+ * @raddr: the remote address
+ * @c_out: a pointer to store the new connection
+ *
+ * Returns 0 if successful, otherwise fail.
+ *
+ * Note: in the future this can be better integrated with tcp_dial.
+ * for now, it simply wraps it.
+ */
+static inline int tcp_dial_conn_affinity(tcpconn_t *in, struct netaddr raddr,
+	                                 tcpconn_t **c_out)
+{
+	return __tcp_dial_conn_affinity(in, raddr, c_out, IPTOS_DSCP_CS0);
+}
+
+/**
+ * tcp_dial_conn_affinity_dscp - similar with tcp_dial_conn_affinity,
+ * but allows to specify dscp.
+ */
+static inline int tcp_dial_conn_affinity_dscp(tcpconn_t *in,
+					      struct netaddr raddr,
+				              tcpconn_t **c_out, uint8_t dscp)
+{
+	if (unlikely(dscp > IPTOS_DSCP_MAX)) {
+		return -EINVAL;
+	}
+	return __tcp_dial_conn_affinity(in, raddr, c_out, dscp);
+}
+
+/**
+ * tcp_listen - creates a TCP listening queue for a local address
+ * @laddr: the local address to listen on
+ * @backlog: the maximum number of unaccepted sockets to queue
+ * @q_out: a pointer to store the newly created listening queue
+ *
+ * Returns 0 if successful, otherwise fails.
+ */
+static inline int tcp_listen(struct netaddr laddr, int backlog,
+			     tcpqueue_t **q_out)
+{
+	return __tcp_listen(laddr, backlog, q_out, IPTOS_DSCP_CS0);
+}
+
+/**
+ * tcp_listen_dscp - similar with tcp_listen, but allows to specify dscp.
+ */
+static inline int tcp_listen_dscp(struct netaddr laddr, int backlog,
+			          tcpqueue_t **q_out, uint8_t dscp)
+{
+	return __tcp_listen(laddr, backlog, q_out, dscp);
+}
+

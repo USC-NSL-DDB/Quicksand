@@ -49,9 +49,9 @@ extern void net_tx_release_mbuf(struct mbuf *m);
 extern void net_tx_eth(struct mbuf *m, uint16_t proto,
 		       struct eth_addr dhost);
 extern int net_tx_ip(struct mbuf *m, uint8_t proto,
-		     uint32_t daddr) __must_use_return;
+                     uint32_t daddr, uint8_t dscp) __must_use_return;
 extern int net_tx_ip_burst(struct mbuf **ms, int n, uint8_t proto,
-		     uint32_t daddr) __must_use_return;
+                           uint32_t daddr, uint8_t dscp) __must_use_return;
 extern int net_tx_icmp(struct mbuf *m, uint8_t type, uint8_t code,
 		uint32_t daddr, uint16_t id, uint16_t seq) __must_use_return;
 
@@ -67,9 +67,9 @@ extern int net_tx_icmp(struct mbuf *m, uint8_t type, uint8_t code,
  * @m must have been allocated with net_tx_alloc_mbuf().
  */
 static inline void net_tx_ip_or_free(struct mbuf *m, uint8_t proto,
-				     uint32_t daddr)
+				     uint32_t daddr, uint8_t dscp)
 {
-	if (unlikely(net_tx_ip(m, proto, daddr) != 0))
+	if (unlikely(net_tx_ip(m, proto, daddr, dscp) != 0))
 		mbuf_free(m);
 }
 

@@ -33,7 +33,8 @@ static int udp_send_raw(struct mbuf *m, size_t len,
 	udphdr->chksum = 0;
 
 	/* send the IP packet */
-	return net_tx_ip(m, IPPROTO_UDP, raddr.ip);
+	return net_tx_ip(m, IPPROTO_UDP, raddr.ip,
+			 IPTOS_DSCP_CS0); /* TODO: allow to specify dscp */
 }
 
 

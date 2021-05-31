@@ -1,3 +1,4 @@
+
 /*
  * tcp.c - support for Transmission Control Protocol (RFC 793)
  */
@@ -227,12 +228,7 @@ static uint32_t tcp_scale_window(uint32_t maxwin)
 	return wscale;
 }
 
-/**
- * tcp_conn_alloc - allocates a TCP connection struct
- *
- * Returns a connection, or NULL if out of memory.
- */
-tcpconn_t *tcp_conn_alloc(void)
+tcpconn_t *__tcp_conn_alloc(uint8_t dscp)
 {
 	tcpconn_t *c;
 
@@ -245,6 +241,7 @@ tcpconn_t *tcp_conn_alloc(void)
 	spin_lock_init(&c->lock);
 	kref_init(&c->ref);
 	c->err = 0;
+	c->dscp = dscp;
 
 	/* ingress fields */
 	c->rx_closed = false;
@@ -372,6 +369,7 @@ struct tcpqueue {
 	struct list_head	conns;
 	int			backlog;
 	bool			shutdown;
+	uint8_t                 dscp;
 
 	struct kref ref;
 	struct flow_registration flow;
@@ -393,7 +391,7 @@ static void tcp_queue_recv(struct trans_entry *e, struct mbuf *m)
 	spin_unlock_np(&q->l);
 
 	/* create a new connection */
-	c = tcp_rx_listener(e->laddr, m);
+	c = tcp_rx_listener(e->laddr, m, q->dscp);
 	if (!c) {
 		spin_lock_np(&q->l);
 		q->backlog++;
@@ -429,15 +427,8 @@ static void tcp_queue_release_ref(struct kref *ref)
 	rcu_free(&q->e.rcu, tcp_queue_release);
 }
 
-/**
- * tcp_listen - creates a TCP listening queue for a local address
- * @laddr: the local address to listen on
- * @backlog: the maximum number of unaccepted sockets to queue
- * @q_out: a pointer to store the newly created listening queue
- *
- * Returns 0 if successful, otherwise fails.
- */
-int tcp_listen(struct netaddr laddr, int backlog, tcpqueue_t **q_out)
+int __tcp_listen(struct netaddr laddr, int backlog, tcpqueue_t **q_out,
+                 uint8_t dscp)
 {
 	tcpqueue_t *q;
 	int ret;
@@ -461,6 +452,7 @@ int tcp_listen(struct netaddr laddr, int backlog, tcpqueue_t **q_out)
 	list_head_init(&q->conns);
 	q->backlog = backlog;
 	q->shutdown = false;
+	q->dscp = dscp;
 	kref_init(&q->ref);
 
 	ret = trans_table_add(&q->e);
@@ -569,23 +561,15 @@ void tcp_qclose(tcpqueue_t *q)
 /*
  * Support for the TCP socket API
  */
-
-/**
- * tcp_dial - opens a TCP connection, creating a new socket
- * @laddr: the local address
- * @raddr: the remote address
- * @c_out: a pointer to store the new connection
- *
- * Returns 0 if successful, otherwise fail.
- */
-int tcp_dial(struct netaddr laddr, struct netaddr raddr, tcpconn_t **c_out)
+int __tcp_dial(struct netaddr laddr, struct netaddr raddr, tcpconn_t **c_out,
+               uint8_t dscp)
 {
 	struct tcp_options opts;
 	tcpconn_t *c;
 	int ret;
 
 	/* create and initialize a connection */
-	c = tcp_conn_alloc();
+	c = tcp_conn_alloc_dscp(dscp);
 	if (unlikely(!c))
 		return -ENOMEM;
 
@@ -631,38 +615,16 @@ int tcp_dial(struct netaddr laddr, struct netaddr raddr, tcpconn_t **c_out)
 	return 0;
 }
 
-/**
- * tcp_dial_conn_affinity - opens a TCP connection with matching
- * kthread affinity to another socket
- * @in: the connection to match to
- * @raddr: the remote address
- * @c_out: a pointer to store the new connection
- *
- * Returns 0 if successful, otherwise fail.
- *
- * Note: in the future this can be better integrated with tcp_dial.
- * for now, it simply wraps it.
- */
-int tcp_dial_conn_affinity(tcpconn_t *in, struct netaddr raddr, tcpconn_t **c_out)
+int __tcp_dial_conn_affinity(tcpconn_t *in, struct netaddr raddr,
+                             tcpconn_t **c_out, uint8_t dscp)
 {
 	uint32_t in_aff = net_ops.get_flow_affinity(
 			  IPPROTO_TCP, in->e.laddr.port, in->e.raddr);
-	return tcp_dial_affinity(in_aff, raddr, c_out);
+	return __tcp_dial_affinity(in_aff, raddr, c_out, dscp);
 }
 
-
-/**
- * tcp_dial_affinity - opens a TCP connection with specific kthread affinity
- * @in: the connection to match to
- * @raddr: the remote address
- * @c_out: a pointer to store the new connection
- *
- * Returns 0 if successful, otherwise fail.
- *
- * Note: in the future this can be better integrated with tcp_dial.
- * for now, it simply wraps it.
- */
-int tcp_dial_affinity(uint32_t in_aff, struct netaddr raddr, tcpconn_t **c_out)
+int __tcp_dial_affinity(uint32_t in_aff, struct netaddr raddr,
+                        tcpconn_t **c_out, uint8_t dscp)
 {
 	int ret;
 	uint32_t out_aff;
@@ -680,7 +642,7 @@ int tcp_dial_affinity(uint32_t in_aff, struct netaddr raddr, tcpconn_t **c_out)
 		} while (out_aff != in_aff || base_port == 0);
 
 		laddr.port = base_port;
-		ret = tcp_dial(laddr, raddr, &c);
+		ret = __tcp_dial(laddr, raddr, &c, dscp);
 		if (ret == -EADDRINUSE)
 			continue;
 		if (!ret)
