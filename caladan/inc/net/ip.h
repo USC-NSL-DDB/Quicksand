@@ -103,7 +103,7 @@ struct ip_hdr {
 /*
  * Definitions for DiffServ Codepoints as per RFC2474
  */
-#define IPTOS_DSCP_MAX          0x3f
+#define	IPTOS_DSCP_MAX		0xfc
 #define	IPTOS_DSCP_CS0		0x00
 #define	IPTOS_DSCP_CS1		0x20
 #define	IPTOS_DSCP_AF11		0x28
