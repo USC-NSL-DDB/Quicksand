@@ -133,15 +133,6 @@ class TcpConn : public NetConn {
  public:
   ~TcpConn() { tcp_close(c_); }
 
-  // Creates a TCP connection with a given affinity
-  static TcpConn *DialAffinity(uint32_t affinity, netaddr raddr,
-                               uint8_t dscp = IPTOS_DSCP_CS0) {
-    tcpconn_t *c;
-    int ret = tcp_dial_affinity_dscp(affinity, raddr, &c, dscp);
-    if (ret) return nullptr;
-    return new TcpConn(c);
-  }
-
   // Creates a TCP connection between a local and remote address.
   static TcpConn *Dial(netaddr laddr, netaddr raddr,
                        uint8_t dscp = IPTOS_DSCP_CS0) {
@@ -151,10 +142,20 @@ class TcpConn : public NetConn {
     return new TcpConn(c);
   }
 
-  // Creates a new TCP connection with matching affinity
-  TcpConn *DialAffinity(netaddr raddr, uint8_t dscp = IPTOS_DSCP_CS0) {
+  // Creates a TCP connection with affinity to a CPU index.
+  static TcpConn *DialAffinity(unsigned int cpu, netaddr raddr,
+                               uint8_t dscp = IPTOS_DSCP_CS0) {
     tcpconn_t *c;
-    int ret = tcp_dial_conn_affinity_dscp(c_, raddr, &c, dscp);
+    int ret = tcp_dial_affinity_dscp(cpu, raddr, &c, dscp);
+    if (ret) return nullptr;
+    return new TcpConn(c);
+  }
+
+  // Creates a new TCP connection with affinity to another TCP connection.
+  static TcpConn *DialAffinity(TcpConn *cin, netaddr raddr,
+                               uint8_t dscp = IPTOS_DSCP_CS0) {
+    tcpconn_t *c;
+    int ret = tcp_dial_conn_affinity_dscp(cin->c_, raddr, &c, dscp);
     if (ret) return nullptr;
     return new TcpConn(c);
   }
