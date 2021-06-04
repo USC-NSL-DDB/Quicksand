@@ -150,7 +150,7 @@ static int mlx5_create_rxq(int index, struct mlx5_rxq *v)
 		.pd = pd,
 		.cq = ibv_cq_ex_to_cq(v->rx_cq),
 		.comp_mask = 0,
-		.create_flags = 0,
+		.create_flags = IBV_WQ_FLAGS_DELAY_DROP,
 	};
 	struct mlx5dv_wq_init_attr dv_wq_attr = {
 		.comp_mask = 0,
