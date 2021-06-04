@@ -187,12 +187,12 @@ index 97ce4e2..159adf2 100644
  		return ret;
  
  	/* initialize mlx5 */
--	ret = mlx5_init(rxq_out, txq_out, maxks, maxks);
+-	ret = mlx5_init(rxq_out, (struct direct_txq **)txq_out, maxks, maxks);
 -	if (ret)
 -		return ret;
 +	if (strncmp("qs", directpath_arg, 2) != 0) {
 +		directpath_mode = RX_MODE_FLOW_STEERING;
-+		ret = mlx5_init_flow_steering(rxq_out, txq_out, maxks, maxks);
++		ret = mlx5_init_flow_steering(rxq_out, (struct direct_txq **)txq_out, maxks, maxks);
 +		if (ret == 0) {
 +			log_err("directpath_init: selected flow steering mode");
 +			return 0;
@@ -202,7 +202,7 @@ index 97ce4e2..159adf2 100644
 -	return 0;
 +	if (strncmp("fs", directpath_arg, 2) != 0) {
 +		directpath_mode = RX_MODE_QUEUE_STEERING;
-+		ret = mlx5_init_queue_steering(rxq_out, txq_out, maxks, maxks);
++		ret = mlx5_init_queue_steering(rxq_out, (struct direct_txq **)txq_out, maxks, maxks);
 +		if (ret == 0) {
 +			log_err("directpath_init: selected queue steering mode");
 +			return 0;
@@ -396,7 +396,7 @@ index bd4bfef..f829ac7 100644
  
 -#define PORT_NUM 1 // TODO: make this dynamic
 -
- static struct mlx5_txq txqs[NCPU];
+ static struct mlx5_txq txqs[NCPU][ETH_VLAN_MAX_PCP];
  
  struct mlx5_rxq rxqs[NCPU];
 @@ -84,10 +82,10 @@ static void mlx5_init_tx_segment(struct mlx5_txq *v, unsigned int idx)
