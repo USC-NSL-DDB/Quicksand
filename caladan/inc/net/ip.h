@@ -126,6 +126,8 @@ struct ip_hdr {
 #define	IPTOS_DSCP_CS6		0xc0
 #define	IPTOS_DSCP_CS7		0xe0
 
+#define DSCP_TO_PCP(dscp)       (dscp >> 5)
+
 /*
  * ECN (Explicit Congestion Notification) codepoints in RFC3168 mapped to the
  * lower 2 bits of the TOS field.

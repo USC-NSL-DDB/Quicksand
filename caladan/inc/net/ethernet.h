@@ -18,6 +18,8 @@
 #define	ETH_MAX_LEN_JUMBO	9018	/* max jumbo frame len, including CRC */
 #define ETH_DEFAULT_MTU		1500
 #define ETH_MAX_MTU		9000
+#define ETH_VLAN_PCP_BITS       3
+#define ETH_VLAN_MAX_PCP        (1 << ETH_VLAN_PCP_BITS)
 
 struct eth_addr {
 	uint8_t addr[ETH_ADDR_LEN];

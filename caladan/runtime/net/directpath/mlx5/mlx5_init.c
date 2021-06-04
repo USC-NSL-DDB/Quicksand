@@ -13,6 +13,8 @@
 #include <base/log.h>
 #include <base/mempool.h>
 
+#include <net/ethernet.h>
+
 #ifdef DIRECTPATH
 
 #include <util/mmio.h>
@@ -24,7 +26,7 @@
 
 #define PORT_NUM 1 // TODO: make this dynamic
 
-static struct mlx5_txq txqs[NCPU];
+static struct mlx5_txq txqs[NCPU][ETH_VLAN_MAX_PCP];
 
 struct mlx5_rxq rxqs[NCPU];
 struct ibv_context *context;
@@ -365,7 +367,7 @@ static struct net_driver_ops mlx5_net_ops = {
 int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
 	             unsigned int nr_rxq, unsigned int nr_txq)
 {
-	int i, ret;
+	int i, j, ret;
 
 	struct ibv_device **dev_list;
 	struct mlx5dv_context_attr attr = {0};
@@ -453,11 +455,13 @@ int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
 		return ret;
 
 	for (i = 0; i < nr_txq; i++) {
-		ret = mlx5_init_txq(i, &txqs[i]);
-		if (ret)
-			return ret;
+		for (j = 0; j < ETH_VLAN_MAX_PCP; j++) {
+			ret = mlx5_init_txq(i, &txqs[i][j]);
+			if (ret)
+				return ret;
 
-		txq_out[i] = &txqs[i].txq;
+			txq_out[i * ETH_VLAN_MAX_PCP + j] = &txqs[i][j].txq;
+		}
 	}
 
 	net_ops = mlx5_net_ops;

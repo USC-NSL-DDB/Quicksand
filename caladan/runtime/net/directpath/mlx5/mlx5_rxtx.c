@@ -1,5 +1,6 @@
 
 #include <base/log.h>
+#include <net/ip.h>
 #include <runtime/preempt.h>
 
 #ifdef DIRECTPATH
@@ -105,7 +106,7 @@ int mlx5_transmit_one(struct mbuf *m)
 	int i, compl = 0;
 
 	k = getk();
-	v = container_of(k->directpath_txq, struct mlx5_txq, txq);
+	v = container_of(k->directpath_txq[DSCP_TO_PCP(m->dscp)], struct mlx5_txq, txq);
 	idx = v->sq_head & (v->tx_qp_dv.sq.wqe_cnt - 1);
 
 	if (nr_inflight_tx(v) >= SQ_CLEAN_THRESH) {

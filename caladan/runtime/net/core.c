@@ -413,6 +413,7 @@ static void net_push_iphdr(struct mbuf *m, uint8_t proto, uint32_t daddr,
 	iphdr->version = IPVERSION;
 	iphdr->header_len = 5;
 	iphdr->tos = dscp | IPTOS_ECN_NOTECT;
+	m->dscp = dscp;
 	iphdr->len = hton16(mbuf_length(m));
 	iphdr->id = 0; /* see RFC 6864 */
 	iphdr->off = hton16(IP_DF);

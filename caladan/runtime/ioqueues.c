@@ -83,7 +83,7 @@ static size_t estimate_shm_space(void)
 	q = sizeof(struct lrpc_msg) * PACKET_QUEUE_MCOUNT;
 	q = align_up(q, CACHE_LINE_SIZE);
 	q += align_up(sizeof(uint32_t), CACHE_LINE_SIZE);
-	ret += q * maxks;
+	ret += q * maxks * ETH_VLAN_MAX_PCP;
 
 	// TX command queues
 	q = sizeof(struct lrpc_msg) * COMMAND_QUEUE_MCOUNT;

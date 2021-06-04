@@ -23,7 +23,6 @@
 #include <runtime/rcu.h>
 #include <runtime/preempt.h>
 
-
 /*
  * constant limits
  * TODO: make these configurable?
@@ -419,14 +418,16 @@ struct kthread {
 	/* 9th cache-line, storage nvme queues */
 	struct storage_q	storage_q;
 
-	/* 10th cache-line, direct path queues */
+	/* 10th cache-line, direct path TX queues */
+	struct direct_txq	*directpath_txq[ETH_VLAN_MAX_PCP];
+
+	/* 11th cache-line, direct path RX queues and migration states */
 	struct hardware_q	*directpath_rxq;
-	struct direct_txq	*directpath_txq;
 	bool                    pausing_migrating_ths;
 	struct list_head        migrating_ths;
-	unsigned long		pad4[3];
+	unsigned long		pad4[4];
 
-	/* 11th cache-line, statistics counters */
+	/* 12th cache-line, statistics counters */
 	uint64_t		stats[STAT_NR];
 };
 
@@ -437,6 +438,7 @@ BUILD_ASSERT(offsetof(struct kthread, txpktq) % CACHE_LINE_SIZE == 0);
 BUILD_ASSERT(offsetof(struct kthread, rq) % CACHE_LINE_SIZE == 0);
 BUILD_ASSERT(offsetof(struct kthread, timer_lock) % CACHE_LINE_SIZE == 0);
 BUILD_ASSERT(offsetof(struct kthread, storage_q) % CACHE_LINE_SIZE == 0);
+BUILD_ASSERT(offsetof(struct kthread, directpath_txq) % CACHE_LINE_SIZE == 0);
 BUILD_ASSERT(offsetof(struct kthread, directpath_rxq) % CACHE_LINE_SIZE == 0);
 BUILD_ASSERT(offsetof(struct kthread, stats) % CACHE_LINE_SIZE == 0);
 

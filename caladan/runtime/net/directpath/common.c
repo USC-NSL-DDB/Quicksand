@@ -2,13 +2,14 @@
 #include <base/kref.h>
 #include <base/mempool.h>
 #include <runtime/sync.h>
+#include <net/ethernet.h>
 #include <base/log.h>
 #include "defs.h"
 
 #ifdef DIRECTPATH
 
 static struct hardware_q *rxq_out[NCPU];
-static struct direct_txq *txq_out[NCPU];
+static struct direct_txq *txq_out[NCPU][ETH_VLAN_MAX_PCP];
 
 /* configuration options */
 struct pci_addr nic_pci_addr;
@@ -111,7 +112,7 @@ int directpath_init(void)
 		return ret;
 
 	/* initialize mlx5 */
-	ret = mlx5_init(rxq_out, txq_out, maxks, maxks);
+	ret = mlx5_init(rxq_out, (struct direct_txq **)txq_out, maxks, maxks);
 	if (ret)
 		return ret;
 
@@ -121,6 +122,7 @@ int directpath_init(void)
 
 int directpath_init_thread(void)
 {
+	int i;
 	struct kthread *k = myk();
 	struct hardware_queue_spec *hs;
 	struct hardware_q *rxq = rxq_out[k->kthread_idx];
@@ -147,7 +149,9 @@ int directpath_init_thread(void)
 	hs->consumer_idx = ptr_to_shmptr(&netcfg.tx_region, rxq->shadow_tail, sizeof(uint32_t));
 
 	k->directpath_rxq = rxq;
-	k->directpath_txq = txq_out[k->kthread_idx];
+	for (i = 0; i < ETH_VLAN_MAX_PCP; i++) {
+		k->directpath_txq[i] = txq_out[k->kthread_idx][i];
+        }
 
 	tcache_init_perthread(directpath_buf_tcache, &perthread_get(directpath_buf_pt));
 
