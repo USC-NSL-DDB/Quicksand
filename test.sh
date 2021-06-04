@@ -11,7 +11,6 @@ function prepare {
 	echo 'Please set env var $DPDK_NIC, e.g., export DPDK_NIC=enp5s0f0'
 	exit 1
     fi
-    echo 0 | sudo tee /proc/sys/kernel/randomize_va_space >/dev/null
     sudo bridge fdb add 1E:CF:16:43:AF:94 self dev $DPDK_NIC 2>/dev/null
     sudo bridge fdb add 1E:CF:16:43:AF:95 self dev $DPDK_NIC 2>/dev/null
     sudo bridge fdb add 1E:CF:16:43:AF:96 self dev $DPDK_NIC 2>/dev/null
@@ -71,6 +70,10 @@ function run_all_tests {
 
 function cleanup {
     kill_iokerneld
+    sudo bridge fdb delete 1E:CF:16:43:AF:94 self dev $DPDK_NIC 2>/dev/null
+    sudo bridge fdb delete 1E:CF:16:43:AF:95 self dev $DPDK_NIC 2>/dev/null
+    sudo bridge fdb delete 1E:CF:16:43:AF:96 self dev $DPDK_NIC 2>/dev/null
+    sudo bridge fdb delete 1E:CF:16:43:AF:97 self dev $DPDK_NIC 2>/dev/null
 }
 
 prepare

@@ -22,6 +22,9 @@ for n in /sys/devices/system/node/node[2-9]; do
 	echo 0 > $n/hugepages/hugepages-2048kB/nr_hugepages
 done
 
+# disable ASLR
+echo 0 | sudo tee /proc/sys/kernel/randomize_va_space >/dev/null
+
 # enable page prezeroing
 echo 1 > /sys/kernel/mm/zero_page/enabled
 
