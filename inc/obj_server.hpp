@@ -10,6 +10,8 @@ extern "C" {
 }
 #include <net.h>
 
+#include "utils/trace_logger.hpp"
+
 namespace nu {
 
 enum { OK = 0, FORWARDED, CLIENT_RETRY };
@@ -47,6 +49,7 @@ private:
                                   rt::TcpConn *rpc_conn);
   uint16_t port_;
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
+  TraceLogger trace_logger_;
   friend class Migrator;
 
   static void send_rpc_resp(auto &ss, rt::TcpConn *rpc_conn);

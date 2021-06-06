@@ -19,6 +19,9 @@ extern "C" {
 #include "runtime.hpp"
 #include "runtime_alloc.hpp"
 
+constexpr static bool kEnableLogging = false;
+constexpr static uint32_t kPrintLoggingIntervalUs = 200 * 1000;
+
 namespace nu {
 
 ObjServer::ObjServer() {}
@@ -32,6 +35,10 @@ ObjServer::~ObjServer() {
 ObjServer::ObjServer(uint16_t port) { init(port); }
 
 void ObjServer::init(uint16_t port) {
+  if constexpr (kEnableLogging) {
+    trace_logger_.enable_print(kPrintLoggingIntervalUs);
+  }
+
   port_ = port;
   netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
 
@@ -74,7 +81,12 @@ void ObjServer::handle_reqs(rt::TcpConn *c) {
 
     GenericHandler handler;
     ia >> handler;
-    handler(ia, c);
+
+    if constexpr (kEnableLogging) {
+      trace_logger_.add_trace([&] { handler(ia, c); });
+    } else {
+      handler(ia, c);
+    }
 
     Runtime::archive_pool->put_ia_sstream(ia_sstream);
   }

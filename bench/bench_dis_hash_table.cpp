@@ -1,6 +1,8 @@
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <signal.h>
@@ -20,11 +22,9 @@ extern "C" {
 #include "rem_obj.hpp"
 #include "runtime.hpp"
 #include "utils/farmhash.hpp"
+#include "utils/trace_logger.hpp"
 
 using namespace nu;
-
-Runtime::Mode mode;
-bool stop = false;
 
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
@@ -33,8 +33,13 @@ constexpr uint32_t kNumThreads = 100;
 constexpr uint32_t kNumRecordsTotal = 400 << 20;
 constexpr uint32_t kNumRecordsPerCore = kNumRecordsTotal / kNumCores;
 constexpr double kTargetMOPS = 3;
-constexpr uint32_t kPrintIntervalUS = 100 * 1000;
-constexpr uint32_t kMigrationTriggeredIdx = 5;
+constexpr bool kEnablePrinting = true;
+constexpr uint32_t kPrintIntervalUS = 200 * 1000;
+constexpr uint32_t kMigrationTriggeredUs = 5 * kPrintIntervalUS;
+
+Runtime::Mode mode;
+std::unique_ptr<TraceLogger> trace_logger;
+bool done = false;
 
 struct Key {
   char data[kKeyLen];
@@ -93,7 +98,19 @@ private:
 };
 } // namespace nu
 
-void sigint_handler(int sig) { ACCESS_ONCE(stop) = true; }
+void client_cleanup() {
+  ACCESS_ONCE(done) = true;
+  trace_logger->disable_print();
+}
+
+void sigint_handler(int sig) {
+  if (mode != Runtime::Mode::CLIENT) {
+    std::cout << "Force exiting..." << std::endl;
+    exit(0);
+  } else {
+    client_cleanup();
+  }
+}
 
 void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
   for (uint32_t i = 0; i < len; i++) {
@@ -122,11 +139,8 @@ void init(Test::DSHashTable *hash_table, std::vector<Key> *keys) {
   for (auto &thread : threads) {
     thread.Join();
   }
+  trace_logger.reset(new TraceLogger());
 }
-
-struct alignas(kCacheLineBytes) AlignedCnt {
-  uint64_t cnt;
-};
 
 void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
                RemObj<nu::Test> *test) {
@@ -135,11 +149,7 @@ void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
     records[i].reserve(kNumRecordsPerCore);
   }
 
-  AlignedCnt aligned_cnts[kNumCores];
-  memset(aligned_cnts, 0, sizeof(aligned_cnts));
-
   std::vector<rt::Thread> threads;
-
   for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back([&, tid = i] {
       auto target_mops = kTargetMOPS / kNumThreads;
@@ -148,7 +158,7 @@ void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
 
       while (true) {
         for (const auto &k : keys[tid]) {
-          if (unlikely(ACCESS_ONCE(stop))) {
+          if (unlikely(ACCESS_ONCE(done))) {
             return;
           }
 
@@ -158,53 +168,36 @@ void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
           }
           target_next_op_tsc += target_cycles_per_op;
 
-          auto start_tsc = rdtsc();
-          hash_table->get(k);
-          auto end_tsc = rdtsc();
+          uint64_t start_tsc, end_tsc;
+          if constexpr (kEnablePrinting) {
+            auto p = trace_logger->add_trace([&] { hash_table->get(k); });
+            start_tsc = p.first;
+            end_tsc = p.second;
+          } else {
+            start_tsc = rdtsc();
+            hash_table->get(k);
+            end_tsc = rdtsc();
+          }
 
           int cpu_id = get_cpu();
           if (unlikely(records[cpu_id].size() == kNumRecordsPerCore)) {
-            ACCESS_ONCE(stop) = true;
+            client_cleanup();
             put_cpu();
             return;
           }
           records[cpu_id].push_back(
               std::make_pair(start_tsc, end_tsc - start_tsc));
-          ACCESS_ONCE(aligned_cnts[cpu_id].cnt) = aligned_cnts[cpu_id].cnt + 1;
           put_cpu();
         }
       }
     });
   }
 
-  auto old_us = microtime();
-  auto old_sum = 0;
-
-  int idx = 0;
-
-  while (!ACCESS_ONCE(stop)) {
-    if (idx++ == kMigrationTriggeredIdx) {
-      test->run(&Test::migrate);
-    }
-
-    timer_sleep(kPrintIntervalUS);
-
-    auto cur_us = microtime();
-    uint64_t cur_sum = 0;
-    for (uint32_t i = 0; i < kNumCores; i++) {
-      cur_sum += ACCESS_ONCE(aligned_cnts[i].cnt);
-    }
-    auto diff_sum = cur_sum - old_sum;
-    auto diff_us = cur_us - old_us;
-    auto mops = static_cast<double>(diff_sum) / diff_us;
-
-    preempt_disable();
-    std::cout << "mops = " << mops << ", diff_sum = " << diff_sum
-              << " , diff_us = " << diff_us << std::endl;
-    preempt_enable();
-    old_us = cur_us;
-    old_sum = cur_sum;
+  if constexpr (kEnablePrinting) {
+    trace_logger->enable_print(kPrintIntervalUS);
   }
+  timer_sleep(kMigrationTriggeredUs);
+  test->run(&Test::migrate);
 
   for (auto &thread : threads) {
     thread.Join();
@@ -255,7 +248,6 @@ int main(int argc, char **argv) {
 
   ret = rt::RuntimeInit(std::string(argv[1]), [] {
     std::cout << "Running " << __FILE__ "..." << std::endl;
-
     netaddr remote_ctrl_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 3), .port = 8000};
     auto runtime = Runtime::init(/* local_obj_srv_port = */ 8001,
                                  /* local_migrator_port = */ 8002,
