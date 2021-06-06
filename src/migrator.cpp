@@ -27,7 +27,7 @@ namespace nu {
 std::function<rt::TcpConn *(netaddr)> MigratorConnManager::creator_ =
     [](netaddr server_addr) {
       netaddr local_addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
-      auto *c = rt::TcpConn::Dial(local_addr, server_addr, IPTOS_DSCP_CS7);
+      auto *c = rt::TcpConn::Dial(local_addr, server_addr, IPTOS_DSCP_CS0);
       BUG_ON(!c);
       return c;
     };
@@ -91,7 +91,7 @@ void Migrator::run_loop(uint16_t port) {
   port_ = port;
   netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
   auto tcp_queue =
-      rt::TcpQueue::Listen(addr, kTCPListenBackLog, IPTOS_DSCP_CS7);
+      rt::TcpQueue::Listen(addr, kTCPListenBackLog, IPTOS_DSCP_CS0);
   tcp_queue_.reset(tcp_queue);
   rt::TcpConn *c;
 

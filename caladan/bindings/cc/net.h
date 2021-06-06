@@ -135,7 +135,7 @@ class TcpConn : public NetConn {
 
   // Creates a TCP connection between a local and remote address.
   static TcpConn *Dial(netaddr laddr, netaddr raddr,
-                       uint8_t dscp = IPTOS_DSCP_CS0) {
+                       uint8_t dscp = DEFAULT_DSCP) {
     tcpconn_t *c;
     int ret = tcp_dial_dscp(laddr, raddr, &c, dscp);
     if (ret) return nullptr;
@@ -144,7 +144,7 @@ class TcpConn : public NetConn {
 
   // Creates a TCP connection with affinity to a CPU index.
   static TcpConn *DialAffinity(unsigned int cpu, netaddr raddr,
-                               uint8_t dscp = IPTOS_DSCP_CS0) {
+                               uint8_t dscp = DEFAULT_DSCP) {
     tcpconn_t *c;
     int ret = tcp_dial_affinity_dscp(cpu, raddr, &c, dscp);
     if (ret) return nullptr;
@@ -153,7 +153,7 @@ class TcpConn : public NetConn {
 
   // Creates a new TCP connection with affinity to another TCP connection.
   static TcpConn *DialAffinity(TcpConn *cin, netaddr raddr,
-                               uint8_t dscp = IPTOS_DSCP_CS0) {
+                               uint8_t dscp = DEFAULT_DSCP) {
     tcpconn_t *c;
     int ret = tcp_dial_conn_affinity_dscp(cin->c_, raddr, &c, dscp);
     if (ret) return nullptr;
@@ -284,7 +284,7 @@ class TcpQueue {
 
   // Creates a TCP listener queue.
   static TcpQueue *Listen(netaddr laddr, int backlog,
-                          uint8_t dscp = IPTOS_DSCP_CS0) {
+                          uint8_t dscp = DEFAULT_DSCP) {
     tcpqueue_t *q;
     int ret = tcp_listen_dscp(laddr, backlog, &q, dscp);
     if (ret) return nullptr;

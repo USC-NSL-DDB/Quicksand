@@ -36,7 +36,7 @@ static void net_rx_icmp_echo(struct mbuf *m_in,
 
 	/* send the echo reply */
 	net_tx_ip_or_free(m, IPPROTO_ICMP, ntoh32(in_iphdr->saddr),
-			  IPTOS_DSCP_CS0);
+			  DEFAULT_DSCP);
 	mbuf_free(m_in);
 }
 
@@ -99,5 +99,5 @@ int net_tx_icmp(struct mbuf *m, uint8_t type, uint8_t code, uint32_t daddr,
 	icmp_pkt->hdr.chksum = 0;
 	icmp_pkt->hdr.chksum = chksum_internet((char *)icmp_pkt, mbuf_length(m));
 
-	return net_tx_ip(m, IPPROTO_ICMP, daddr, IPTOS_DSCP_CS0);
+	return net_tx_ip(m, IPPROTO_ICMP, daddr, DEFAULT_DSCP);
 }

@@ -6,6 +6,8 @@
 
 #include <base/types.h>
 
+#define DEFAULT_DSCP IPTOS_DSCP_CS4
+
 struct netaddr {
 	uint32_t ip;
 	uint16_t port;

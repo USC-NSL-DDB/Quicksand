@@ -142,7 +142,7 @@ extern void tcp_timer_update(tcpconn_t *c);
  */
 static inline tcpconn_t *tcp_conn_alloc(void)
 {
-        return __tcp_conn_alloc(IPTOS_DSCP_CS0);
+        return __tcp_conn_alloc(DEFAULT_DSCP);
 }
 
 /**

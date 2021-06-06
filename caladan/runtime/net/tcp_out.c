@@ -87,7 +87,7 @@ int tcp_tx_raw_rst(struct netaddr laddr, struct netaddr raddr, tcp_seq seq)
 	tcphdr->sum = tcp_hdr_chksum(laddr.ip, raddr.ip, 0);
 
 	/* transmit packet */
-	ret = net_tx_ip(m, IPPROTO_TCP, raddr.ip, IPTOS_DSCP_CS0);
+	ret = net_tx_ip(m, IPPROTO_TCP, raddr.ip, DEFAULT_DSCP);
 	if (unlikely(ret))
 		mbuf_free(m);
 	return ret;
@@ -127,7 +127,7 @@ int tcp_tx_raw_rst_ack(struct netaddr laddr, struct netaddr raddr,
 	tcphdr->sum = tcp_hdr_chksum(laddr.ip, raddr.ip, 0);
 
 	/* transmit packet */
-	ret = net_tx_ip(m, IPPROTO_TCP, raddr.ip, IPTOS_DSCP_CS0);
+	ret = net_tx_ip(m, IPPROTO_TCP, raddr.ip, DEFAULT_DSCP);
 	if (unlikely(ret))
 		mbuf_free(m);
 	return ret;
