@@ -275,7 +275,7 @@ RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
     Runtime::migration_enable();
   }
-};
+}
 
 template <typename T> void RemObj<T>::inc_ref_cnt() {
   inc_ref_ = std::move(

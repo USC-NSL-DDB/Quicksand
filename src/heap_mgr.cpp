@@ -84,7 +84,7 @@ std::list<void *> HeapManager::pick_heaps(const Resource &pressure) {
   std::list<void *> heaps;
   std::function<bool(HeapHeader *const &)> fn =
       [&, pressure = pressure](HeapHeader *const &heap_header) mutable {
-	if (heap_header->migratable) {
+        if (heap_header->migratable) {
           heaps.push_back(heap_header);
           auto &slab = heap_header->slab;
           auto heap_usage = slab.get_usage() >> 20;

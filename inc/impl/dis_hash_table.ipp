@@ -3,9 +3,13 @@
 namespace nu {
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
-DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable() {
+DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(bool pinned) {
   for (uint32_t i = 0; i < kNumShards; i++) {
-    shards_[i] = std::move(RemObj<HashTableShard>::create());
+    if (pinned) {
+      shards_[i] = std::move(RemObj<HashTableShard>::create_pinned());
+    } else {
+      shards_[i] = std::move(RemObj<HashTableShard>::create());
+    }
   }
 }
 
