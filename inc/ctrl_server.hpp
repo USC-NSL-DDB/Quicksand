@@ -28,7 +28,8 @@ struct RPCRespRegisterNode {
 } __attribute__((packed));
 
 struct RPCReqAllocateObj {
-} __attribute__((packed));
+  std::optional<netaddr> hint;
+};
 
 struct RPCRespAllocateObj {
   bool empty;

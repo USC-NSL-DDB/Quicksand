@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 
 extern "C" {
 #include <net/ip.h>
@@ -34,7 +35,8 @@ public:
   ControllerClient(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
                    netaddr remote_ctrl_addr);
   void register_node(const Node &node);
-  std::optional<std::pair<RemObjID, VAddrRange>> allocate_obj();
+  std::optional<std::pair<RemObjID, VAddrRange>>
+  allocate_obj(std::optional<netaddr> hint);
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);
   std::optional<netaddr> get_migration_dest(Resource resource);

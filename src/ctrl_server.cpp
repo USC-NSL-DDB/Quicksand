@@ -75,7 +75,7 @@ bool ControllerServer::handle_allocate_obj(rt::TcpConn *c) {
   if (c->ReadFull(&req, sizeof(req)) <= 0) {
     return false;
   }
-  auto optional = ctrl_.allocate_obj();
+  auto optional = ctrl_.allocate_obj(req.hint);
   if (optional) {
     resp.empty = false;
     resp.id = optional->first;

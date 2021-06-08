@@ -56,10 +56,11 @@ void Controller::register_node(Node &node) {
     BUG_ON(node.migrator_conn->WritevFull(std::span(iovecs)) < 0);
   }
 
-  nodes_.push_back(node);
+  nodes_.insert(node);
 }
 
-std::optional<std::pair<RemObjID, VAddrRange>> Controller::allocate_obj() {
+std::optional<std::pair<RemObjID, VAddrRange>>
+Controller::allocate_obj(std::optional<netaddr> hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   if (unlikely(free_ranges_.empty())) {
@@ -68,8 +69,11 @@ std::optional<std::pair<RemObjID, VAddrRange>> Controller::allocate_obj() {
   auto range = free_ranges_.top();
   auto id = range.start;
   free_ranges_.pop();
-  auto node = select_node_for_obj();
-  objs_map_.emplace(id, std::make_pair(range, node.obj_srv_addr));
+  auto node_optional = select_node_for_obj(hint);
+  if (unlikely(!node_optional)) {
+    return std::nullopt;
+  }
+  objs_map_.emplace(id, std::make_pair(range, node_optional->obj_srv_addr));
   return std::make_pair(id, range);
 }
 
@@ -100,9 +104,21 @@ std::optional<netaddr> Controller::resolve_obj(RemObjID id) {
   }
 }
 
-Node Controller::select_node_for_obj() {
-  // TODO: adopt a more sophisticated mechanism once we've added more fields to
+std::optional<Node>
+Controller::select_node_for_obj(std::optional<netaddr> hint) {
   BUG_ON(nodes_.empty());
+
+  if (hint) {
+    Node n;
+    n.obj_srv_addr = *hint;
+    auto iter = nodes_.find(n);
+    if (unlikely(iter == nodes_.end())) {
+      return std::nullopt;
+    }
+    return *iter;
+  }
+
+  // TODO: adopt a more sophisticated mechanism once we've added more fields to
   if (unlikely(nodes_iter_ == nodes_.end())) {
     nodes_iter_ = nodes_.begin();
   }

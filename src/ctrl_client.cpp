@@ -57,10 +57,11 @@ void ControllerClient::register_node(const Node &node) {
 }
 
 std::optional<std::pair<RemObjID, VAddrRange>>
-ControllerClient::allocate_obj() {
+ControllerClient::allocate_obj(std::optional<netaddr> hint) {
   ControllerRPC_t rpc_type = ALLOCATE_OBJ;
   RPCReqAllocateObj req;
   RPCRespAllocateObj resp;
+  req.hint = hint;
   auto c = conn_mgr_.get_conn();
   const iovec iovecs[] = {{&rpc_type, sizeof(rpc_type)}, {&req, sizeof(req)}};
   BUG_ON(c->WritevFull(std::span(iovecs)) < 0);

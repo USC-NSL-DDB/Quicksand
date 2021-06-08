@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cereal/archives/binary.hpp>
+#include <cstdint>
+#include <optional>
+
 extern "C" {
 #include <runtime/tcp.h>
 }
-
-#include <cereal/archives/binary.hpp>
-#include <cstdint>
 
 #include "defs.hpp"
 #include "runtime_deleter.hpp"
@@ -29,7 +30,11 @@ public:
   RemObj();
   ~RemObj();
   template <typename... As> static RemObj create(As &&... args);
+  template <typename... As>
+  static RemObj create_at(netaddr addr, As &&... args);
   template <typename... As> static RemObj create_pinned(As &&... args);
+  template <typename... As>
+  static RemObj create_pinned_at(netaddr addr, As &&... args);
   static RemObj attach(Cap cap);
   Cap get_cap();
   template <typename RetT, typename... S0s, typename... S1s>
@@ -54,7 +59,8 @@ private:
   template <typename RetT>
   static RetT invoke_remote(RemObjID id, auto *states_ss);
   template <typename... As>
-  static RemObj general_create(bool pinned, As &&... args);
+  static RemObj general_create(bool pinned, std::optional<netaddr> hint,
+                               As &&... args);
 };
 
 template <typename T> union MethodPtr {

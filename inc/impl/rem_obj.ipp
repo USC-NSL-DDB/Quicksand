@@ -1,3 +1,4 @@
+#include <array>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
 #include <cstdint>
@@ -5,14 +6,15 @@
 #include <sstream>
 #include <type_traits>
 #include <utility>
-#include <array>
 
 extern "C" {
 #include <base/assert.h>
+#include <runtime/net.h>
 }
-#include "thread.h"
+#include <thread.h>
 
 #include "ctrl_client.hpp"
+#include "exception.hpp"
 #include "obj_conn_mgr.hpp"
 #include "obj_server.hpp"
 #include "runtime.hpp"
@@ -105,20 +107,38 @@ template <typename T> RemObj<T> &RemObj<T>::operator=(RemObj<T> &&o) {
 template <typename T>
 template <typename... As>
 RemObj<T> RemObj<T>::create(As &&... args) {
-  return general_create(/* pinned = */ false, std::forward<As>(args)...);
+  return general_create(/* pinned = */ false, std::nullopt,
+                        std::forward<As>(args)...);
+}
+
+template <typename T>
+template <typename... As>
+RemObj<T> RemObj<T>::create_at(netaddr addr, As &&... args) {
+  return general_create(/* pinned = */ false, addr, std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
 RemObj<T> RemObj<T>::create_pinned(As &&... args) {
-  return general_create(/* pinned = */ true, std::forward<As>(args)...);
+  return general_create(/* pinned = */ true, std::nullopt,
+                        std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
-RemObj<T> RemObj<T>::general_create(bool pinned, As &&... args) {
-  auto optional = Runtime::controller_client->allocate_obj();
-  BUG_ON(!optional);
+RemObj<T> RemObj<T>::create_pinned_at(netaddr addr, As &&... args) {
+  return general_create(/* pinned = */ true, addr, std::forward<As>(args)...);
+}
+
+template <typename T>
+template <typename... As>
+RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
+                                    As &&... args) {
+  auto optional = Runtime::controller_client->allocate_obj(hint);
+  if (unlikely(!optional)) {
+    throw OutOfMemory();
+  }
+
   auto [id, range] = *optional;
 
   Runtime::migration_disable();
@@ -153,7 +173,7 @@ template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  using closure_states_checker [[maybe_unused]] =
+  using closure_states_checker[[maybe_unused]] =
       decltype(fn(std::declval<T &>(), states...));
 
   if (construct_) {
@@ -184,7 +204,7 @@ Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  using closure_states_checker [[maybe_unused]] =
+  using closure_states_checker[[maybe_unused]] =
       decltype(fn(std::declval<T &>(), states...));
 
   if (construct_) {
@@ -212,7 +232,7 @@ RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
-  using md_args_checker [[maybe_unused]] =
+  using md_args_checker[[maybe_unused]] =
       decltype((std::declval<T>().*(md))(args...));
 
   if (construct_) {
@@ -247,7 +267,7 @@ Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
-  using md_args_checker [[maybe_unused]] =
+  using md_args_checker[[maybe_unused]] =
       decltype((std::declval<T>().*(md))(args...));
 
   if (construct_) {
@@ -291,7 +311,8 @@ template <typename T> void RemObj<T>::dec_ref_cnt() {
   rt::Thread([=]() {
     dec_promise->template get_future<RuntimeDeleter<Promise<void>>>().get();
     Runtime::rcu_lock.reader_unlock();
-  }).Detach();
+  })
+      .Detach();
 }
 
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <list>
 #include <optional>
+#include <set>
 #include <stack>
 #include <unordered_map>
 #include <utility>
@@ -16,6 +17,7 @@ extern "C" {
 
 #include "defs.hpp"
 #include "heap_mgr.hpp"
+#include "utils/netaddr.hpp"
 
 namespace nu {
 
@@ -29,6 +31,8 @@ struct Node {
   netaddr obj_srv_addr;
   netaddr migrator_addr;
   rt::TcpConn *migrator_conn;
+
+  bool operator<(const Node &o) const { return obj_srv_addr < o.obj_srv_addr; }
 };
 
 class Controller {
@@ -41,7 +45,8 @@ public:
   Controller();
   ~Controller();
   void register_node(Node &node);
-  std::optional<std::pair<RemObjID, VAddrRange>> allocate_obj();
+  std::optional<std::pair<RemObjID, VAddrRange>>
+  allocate_obj(std::optional<netaddr> hint);
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);
   std::optional<netaddr> get_migration_dest(uint32_t requestor_ip,
@@ -51,10 +56,10 @@ public:
 private:
   std::stack<VAddrRange> free_ranges_;
   std::unordered_map<RemObjID, std::pair<VAddrRange, netaddr>> objs_map_;
-  std::list<Node> nodes_;
-  std::list<Node>::iterator nodes_iter_;
+  std::set<Node> nodes_;
+  std::set<Node>::iterator nodes_iter_;
   rt::Mutex mutex_;
 
-  Node select_node_for_obj();
+  std::optional<Node> select_node_for_obj(std::optional<netaddr> hint);
 };
 } // namespace nu
