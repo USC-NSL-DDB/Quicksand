@@ -22,9 +22,11 @@ extern "C" {
 #include "runtime.hpp"
 #include "runtime_alloc.hpp"
 
+constexpr static bool kEnableLogging = false;
+
 namespace nu {
 
-constexpr static auto kMigrationDSCP = IPTOS_DSCP_CS7;
+constexpr static auto kMigrationDSCP = IPTOS_DSCP_CS0;
 
 std::function<rt::TcpConn *(netaddr)> MigratorConnManager::creator_ =
     [](netaddr server_addr) {
@@ -72,9 +74,9 @@ void Migrator::handle_forward(rt::TcpConn *c) {
     BUG_ON(conn_to_client->WriteFull(&hdr, sizeof(hdr)) < 0);
   }
 
-  rt::Thread([&, conn_to_client] {
-    Runtime::obj_server->handle_reqs(conn_to_client);
-  }).Detach();
+  rt::Thread(
+      [&, conn_to_client] { Runtime::obj_server->handle_reqs(conn_to_client); })
+      .Detach();
 }
 
 void Migrator::handle_unmap(rt::TcpConn *c) {
@@ -128,11 +130,17 @@ void Migrator::run_loop(uint16_t port) {
         }
       }
       BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
-    }).Detach();
+    })
+        .Detach();
   }
 }
 
 void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
+  [[maybe_unused]] uint64_t start_tsc, end_tsc;
+  if constexpr (kEnableLogging) {
+    start_tsc = rdtsc();
+  }
+
   rt::WaitGroup *wg;
   BUG_ON(c->ReadFull(&wg, sizeof(wg)) <= 0);
 
@@ -168,6 +176,14 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
 
   for (auto &thread : threads) {
     thread.Join();
+  }
+
+  if constexpr (kEnableLogging) {
+    end_tsc = rdtsc();
+    preempt_disable();
+    std::cout << "Transmit heap: size = " << len
+              << ", cycles = " << end_tsc - start_tsc << std::endl;
+    preempt_enable();
   }
 }
 
@@ -398,12 +414,20 @@ void Migrator::migrate(Resource pressure, std::list<void *> heaps) {
 }
 
 void Migrator::load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task) {
+  [[maybe_unused]] uint64_t t0, t1, t2;
+  if constexpr (kEnableLogging) {
+    t0 = rdtsc();
+  }
+
   task->mu->Lock();
   while (unlikely(!ACCESS_ONCE(task->mmapped))) {
     task->cv->Wait(task->mu.get());
   }
   task->mu->Unlock();
 
+  if constexpr (kEnableLogging) {
+    t1 = rdtsc();
+  }
   rt::WaitGroup wg(kTransmitHeapNumThreads);
   auto *wg_p = &wg;
   BUG_ON(c->WriteFull(&wg_p, sizeof(wg_p)) < 0);
@@ -412,6 +436,14 @@ void Migrator::load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task) {
   BUG_ON(c->ReadFull(&heap_header->ref_cnt, sizeof(heap_header->ref_cnt)) <= 0);
 
   wg.Wait();
+
+  if constexpr (kEnableLogging) {
+    t2 = rdtsc();
+    preempt_disable();
+    std::cout << "Load heap: mmap cycles = " << t1 - t0
+              << ", tcp cycles = " << t2 - t2 << std::endl;
+    preempt_enable();
+  }
 }
 
 thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
@@ -595,14 +627,16 @@ void Migrator::load(rt::TcpConn *c) {
     rt::Thread([heap_header] {
       Runtime::controller_client->update_location(
           to_obj_id(heap_header), Runtime::obj_server->get_addr());
-    }).Detach();
+    })
+        .Detach();
 
     load_threads(c, heap_header);
 
     rt::Thread([heap_header] {
       heap_header->forward_wg.Wait();
       ACCESS_ONCE(heap_header->migratable) = true;
-    }).Detach();
+    })
+        .Detach();
   }
   mmap_thread.Join();
 }

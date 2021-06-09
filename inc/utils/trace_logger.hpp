@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -16,17 +17,20 @@ public:
   constexpr static uint32_t kNumBuckets = 11;
   constexpr static uint32_t kBucketIntervalUs = 50;
 
-  TraceLogger();
+  TraceLogger(std::string header_str =
+                  "*******************TraceLogger*******************");
   ~TraceLogger();
   void enable_print(uint32_t interval_us);
   void disable_print();
-  template <typename F> std::pair<uint64_t, uint64_t> add_trace(F &&f);
+  template <typename Fn> std::pair<uint64_t, uint64_t> add_trace(Fn &&fn);
+  void add_trace(uint64_t duration_tsc);
 
 private:
   struct alignas(kCacheLineBytes) AlignedCnt {
     uint64_t cnt;
   };
 
+  std::string header_str_;
   AlignedCnt aligned_cnts_[kNumCores][kNumBuckets];
   uint32_t print_interval_us_;
   rt::Thread print_thread_;

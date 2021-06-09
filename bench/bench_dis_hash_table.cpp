@@ -30,15 +30,18 @@ constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr double kLoadFactor = 0.20;
 constexpr uint32_t kNumThreads = 100;
-constexpr uint32_t kNumRecordsTotal = 400 << 20;
+constexpr uint32_t kNumRecordsTotal = 100 << 20;
 constexpr uint32_t kNumRecordsPerCore = kNumRecordsTotal / kNumCores;
 constexpr double kTargetMOPS = 3;
 constexpr bool kEnablePrinting = true;
 constexpr uint32_t kPrintIntervalUS = 200 * 1000;
-constexpr uint32_t kMigrationTriggeredUs = 5 * kPrintIntervalUS;
+constexpr uint32_t kMigrationTriggeredUs = 10 * kPrintIntervalUS;
+
+constexpr auto kIPServer0 = MAKE_IP_ADDR(18, 18, 1, 4); // The migration source.
+constexpr auto kIPServer1 = MAKE_IP_ADDR(18, 18, 1, 5); // The migration dest.
 
 Runtime::Mode mode;
-std::unique_ptr<TraceLogger> trace_logger;
+std::unique_ptr<TraceLogger> trace_loggers[2];
 bool done = false;
 
 struct Key {
@@ -100,7 +103,8 @@ private:
 
 void client_cleanup() {
   ACCESS_ONCE(done) = true;
-  trace_logger->disable_print();
+  trace_loggers[0]->disable_print();
+  trace_loggers[1]->disable_print();
 }
 
 void sigint_handler(int sig) {
@@ -139,14 +143,17 @@ void init(Test::DSHashTable *hash_table, std::vector<Key> *keys) {
   for (auto &thread : threads) {
     thread.Join();
   }
-  trace_logger.reset(new TraceLogger());
+  trace_loggers[0].reset(new TraceLogger("************Server0************"));
+  trace_loggers[1].reset(new TraceLogger("************Server1************"));
 }
 
 void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
                RemObj<nu::Test> *test) {
-  std::vector<std::pair<uint64_t, uint64_t>> records[kNumCores];
-  for (uint32_t i = 0; i < kNumCores; i++) {
-    records[i].reserve(kNumRecordsPerCore);
+  std::vector<std::pair<uint64_t, uint64_t>> records[2][kNumCores];
+  for (uint32_t i = 0; i < 2; i++) {
+    for (uint32_t j = 0; j < kNumCores; j++) {
+      records[i][j].reserve(kNumRecordsPerCore);
+    }
   }
 
   std::vector<rt::Thread> threads;
@@ -168,24 +175,32 @@ void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
           }
           target_next_op_tsc += target_cycles_per_op;
 
-          uint64_t start_tsc, end_tsc;
-          if constexpr (kEnablePrinting) {
-            auto p = trace_logger->add_trace([&] { hash_table->get(k); });
-            start_tsc = p.first;
-            end_tsc = p.second;
+          auto start_tsc = rdtsc();
+          auto [v_optional, ip] = hash_table->get_with_ip(k);
+          auto end_tsc = rdtsc();
+
+          uint8_t server_id;
+          if (ip == kIPServer0) {
+            server_id = 0;
+          } else if (ip == kIPServer1) {
+            server_id = 1;
           } else {
-            start_tsc = rdtsc();
-            hash_table->get(k);
-            end_tsc = rdtsc();
+            BUG();
+          }
+
+          if constexpr (kEnablePrinting) {
+            auto duration_tsc = end_tsc - start_tsc;
+            trace_loggers[server_id]->add_trace(duration_tsc);
           }
 
           int cpu_id = get_cpu();
-          if (unlikely(records[cpu_id].size() == kNumRecordsPerCore)) {
+          if (unlikely(records[server_id][cpu_id].size() ==
+                       kNumRecordsPerCore)) {
             client_cleanup();
             put_cpu();
             return;
           }
-          records[cpu_id].push_back(
+          records[server_id][cpu_id].push_back(
               std::make_pair(start_tsc, end_tsc - start_tsc));
           put_cpu();
         }
@@ -194,7 +209,9 @@ void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
   }
 
   if constexpr (kEnablePrinting) {
-    trace_logger->enable_print(kPrintIntervalUS);
+    trace_loggers[0]->enable_print(kPrintIntervalUS);
+    timer_sleep(500 * 1000); // Wait 0.5 seconds to avoid overlapped print.
+    trace_loggers[1]->enable_print(kPrintIntervalUS);
   }
   timer_sleep(kMigrationTriggeredUs);
   test->run(&Test::migrate);
@@ -203,14 +220,17 @@ void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
     thread.Join();
   }
 
-  std::vector<std::pair<uint64_t, uint64_t>> all_records;
-  for (uint32_t i = 0; i < kNumCores; i++) {
-    all_records.insert(all_records.end(), records[i].begin(), records[i].end());
-  }
-  sort(all_records.begin(), all_records.end());
-  std::ofstream ofs("records");
-  for (auto [start, duration] : all_records) {
-    ofs << start << " " << duration << std::endl;
+  for (uint8_t server_id = 0; server_id < 2; server_id++) {
+    std::vector<std::pair<uint64_t, uint64_t>> all_records;
+    for (uint32_t i = 0; i < kNumCores; i++) {
+      all_records.insert(all_records.end(), records[server_id][i].begin(),
+                         records[server_id][i].end());
+    }
+    sort(all_records.begin(), all_records.end());
+    std::ofstream ofs("records_" + std::to_string(server_id));
+    for (auto [start, duration] : all_records) {
+      ofs << start << " " << duration << std::endl;
+    }
   }
 }
 

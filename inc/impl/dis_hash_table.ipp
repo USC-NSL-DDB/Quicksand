@@ -1,3 +1,5 @@
+#include <cereal/types/optional.hpp>
+#include <cereal/types/utility.hpp>
 #include <limits>
 
 namespace nu {
@@ -9,6 +11,18 @@ DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(bool pinned) {
       shards_[i] = std::move(RemObj<HashTableShard>::create_pinned());
     } else {
       shards_[i] = std::move(RemObj<HashTableShard>::create());
+    }
+  }
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
+DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(netaddr addr,
+                                                                 bool pinned) {
+  for (uint32_t i = 0; i < kNumShards; i++) {
+    if (pinned) {
+      shards_[i] = std::move(RemObj<HashTableShard>::create_pinned_at(addr));
+    } else {
+      shards_[i] = std::move(RemObj<HashTableShard>::create_at(addr));
     }
   }
 }
@@ -27,6 +41,21 @@ std::optional<V> DistributedHashTable<K, V, Hash, KeyEqual>::get(K1 &&k) {
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
   return shard.run(&HashTableShard::template get_with_hash<K1>, k, key_hash);
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
+template <typename K1>
+std::pair<std::optional<V>, uint32_t>
+DistributedHashTable<K, V, Hash, KeyEqual>::get_with_ip(K1 &&k) {
+  auto hash = Hash();
+  auto key_hash = hash(k);
+  auto shard_idx = get_shard_idx(key_hash);
+  auto &shard = shards_[shard_idx];
+  return shard.run(
+      +[](HashTableShard &shard, const K &k, uint64_t key_hash) {
+        return std::make_pair(shard.get_with_hash(k, key_hash), get_cfg_ip());
+      },
+      k, key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>

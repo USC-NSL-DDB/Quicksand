@@ -8,7 +8,8 @@ extern "C" {
 #include "utils/trace_logger.hpp"
 
 namespace nu {
-TraceLogger::TraceLogger() {
+
+TraceLogger::TraceLogger(std::string header_str) : header_str_(header_str) {
   done_ = false;
   disabled_ = true;
   print_thread_ = std::move(rt::Thread([&] {
@@ -38,8 +39,7 @@ TraceLogger::TraceLogger() {
       auto diff_sum = cur_sum - old_sum;
 
       preempt_disable();
-      std::cout << "*******************TraceLogger*******************"
-                << std::endl;
+      std::cout << header_str_ << std::endl;
       std::cout << "diff_us = " << diff_us << ", diff_sum = " << diff_sum
                 << ", mops = " << diff_sum / static_cast<double>(diff_us)
                 << std::endl;
