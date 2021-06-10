@@ -7,6 +7,11 @@ function check_param {
     fi
 }
 
+function restart_port {
+    sudo ifconfig $DPDK_NIC down
+    sudo ifconfig $DPDK_NIC up
+}
+
 function setup_caladan {
     sudo ./caladan/scripts/setup_machine.sh    
 }
@@ -32,9 +37,9 @@ function setup_dropless_rq {
 }
 
 check_param
+restart_port
 setup_caladan
 setup_jumbo_frame
 setup_trust_dscp
 setup_pfc
 setup_dropless_rq
-
