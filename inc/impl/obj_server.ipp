@@ -137,49 +137,6 @@ void ObjServer::closure_handler(cereal::BinaryInputArchive &ia,
   }
 }
 
-template <typename Cls, typename RetT, typename MdPtr, typename... A1s>
-void ObjServer::__method_handler(Cls &obj, cereal::BinaryInputArchive &ia,
-                                 rt::TcpConn *rpc_conn) {
-  decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
-
-  MdPtr md;
-  ia >> md.raw;
-
-  std::tuple<std::decay_t<A1s>...> args;
-  std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
-
-  Runtime::migration_enable();
-  if constexpr (std::is_same<RetT, void>::value) {
-    std::apply([&](auto &&... args) { (obj.*(md.ptr))(args...); }, args);
-    Runtime::migration_disable();
-    oa_sstream = Runtime::archive_pool->get_oa_sstream();
-  } else {
-    auto ret = std::apply(
-        [&](auto &&... args) { return (obj.*(md.ptr))(args...); }, args);
-    Runtime::migration_disable();
-    oa_sstream = Runtime::archive_pool->get_oa_sstream();
-    oa_sstream->oa << ret;
-  }
-
-  send_rpc_resp(oa_sstream->ss, rpc_conn);
-  Runtime::archive_pool->put_oa_sstream(oa_sstream);
-}
-
-template <typename Cls, typename RetT, typename MdPtr, typename... A1s>
-void ObjServer::method_handler(cereal::BinaryInputArchive &ia,
-                               rt::TcpConn *rpc_conn) {
-  RemObjID id;
-  ia >> id;
-  auto *heap_base = to_heap_base(id);
-
-  bool client_retry = !Runtime::run_within_obj_env<Cls>(
-      heap_base, __method_handler<Cls, RetT, MdPtr, A1s...>, ia, rpc_conn);
-
-  if (unlikely(client_retry)) {
-    send_rpc_client_retry(rpc_conn);
-  }
-}
-
 inline void ObjServer::send_rpc_client_retry(rt::TcpConn *rpc_conn) {
   ObjRPCRespHdr hdr;
   hdr.rc = CLIENT_RETRY;

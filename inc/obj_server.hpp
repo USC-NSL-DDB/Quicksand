@@ -40,9 +40,6 @@ public:
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
   static void closure_handler(cereal::BinaryInputArchive &ia,
                               rt::TcpConn *rpc_conn);
-  template <typename Cls, typename RetT, typename MdPtr, typename... A1s>
-  static void method_handler(cereal::BinaryInputArchive &ia,
-                             rt::TcpConn *rpc_conn);
 
 private:
   using GenericHandler = void (*)(cereal::BinaryInputArchive &ia,
@@ -62,9 +59,6 @@ private:
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
   static void __closure_handler(Cls &obj, cereal::BinaryInputArchive &ia,
                                 rt::TcpConn *rpc_conn);
-  template <typename Cls, typename RetT, typename MdPtr, typename... A1s>
-  static void __method_handler(Cls &obj, cereal::BinaryInputArchive &ia,
-                               rt::TcpConn *rpc_conn);
 };
 } // namespace nu
 

@@ -66,6 +66,8 @@ private:
 template <typename T> union MethodPtr {
   T ptr;
   uint8_t raw[sizeof(T)];
+
+  template <class Archive> void serialize(Archive &ar) { ar(raw); }
 };
 
 } // namespace nu

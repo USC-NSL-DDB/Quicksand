@@ -173,38 +173,15 @@ template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  using closure_states_checker[[maybe_unused]] =
-      decltype(fn(std::declval<T &>(), states...));
-
-  if (construct_) {
-    construct_.get();
-  }
-
-  Runtime::migration_disable();
-
-  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
-  auto *handler = ObjServer::closure_handler<T, RetT, decltype(fn), S1s...>;
-  serialize(&oa_sstream->oa, handler, id_, fn, std::forward<S1s>(states)...);
-
-  auto *promise = Promise<RetT>::create([&, oa_sstream] {
-    if constexpr (!std::is_same<RetT, void>::value) {
-      auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
-      Runtime::archive_pool->put_oa_sstream(oa_sstream);
-      Runtime::migration_enable();
-      return ret;
-    } else {
-      invoke_remote<void>(id_, &oa_sstream->ss);
-      Runtime::archive_pool->put_oa_sstream(oa_sstream);
-      Runtime::migration_enable();
-    }
-  });
+  auto *promise =
+      Promise<RetT>::create([&, fn, states...] { return run(fn, states...); });
   return promise->get_future();
 }
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  using closure_states_checker[[maybe_unused]] =
+  using type_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), states...));
 
   if (construct_) {
@@ -232,69 +209,24 @@ RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
-  using md_args_checker[[maybe_unused]] =
-      decltype((std::declval<T>().*(md))(args...));
-
-  if (construct_) {
-    construct_.get();
-  }
-
-  MethodPtr<decltype(md)> method_ptr;
-  method_ptr.ptr = md;
-
-  Runtime::migration_disable();
-  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
-  auto *handler =
-      ObjServer::method_handler<T, RetT, decltype(method_ptr), A1s...>;
-  serialize(&oa_sstream->oa, handler, id_, method_ptr.raw,
-            std::forward<A1s>(args)...);
-
-  auto *promise = Promise<RetT>::create([&, oa_sstream] {
-    if constexpr (!std::is_same<RetT, void>::value) {
-      auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
-      Runtime::archive_pool->put_oa_sstream(oa_sstream);
-      Runtime::migration_enable();
-      return ret;
-    } else {
-      invoke_remote<void>(id_, &oa_sstream->ss);
-      Runtime::archive_pool->put_oa_sstream(oa_sstream);
-      Runtime::migration_enable();
-    }
-  });
+  auto *promise =
+      Promise<RetT>::create([&, md, args...] { return run(md, args...); });
   return promise->get_future();
 }
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
-  using md_args_checker[[maybe_unused]] =
+  using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(args...));
-
-  if (construct_) {
-    construct_.get();
-  }
 
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
-
-  Runtime::migration_disable();
-
-  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
-  auto *handler =
-      ObjServer::method_handler<T, RetT, decltype(method_ptr), A1s...>;
-  serialize(&oa_sstream->oa, handler, id_, method_ptr.raw,
-            std::forward<A1s>(args)...);
-
-  if constexpr (!std::is_same<RetT, void>::value) {
-    auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
-    Runtime::archive_pool->put_oa_sstream(oa_sstream);
-    Runtime::migration_enable();
-    return ret;
-  } else {
-    invoke_remote<void>(id_, &oa_sstream->ss);
-    Runtime::archive_pool->put_oa_sstream(oa_sstream);
-    Runtime::migration_enable();
-  }
+  return run(
+      +[](T &t, decltype(method_ptr) method_ptr, A1s &... args) {
+        return (t.*(method_ptr.ptr))(args...);
+      },
+      method_ptr, std::forward<A1s>(args)...);
 }
 
 template <typename T> void RemObj<T>::inc_ref_cnt() {

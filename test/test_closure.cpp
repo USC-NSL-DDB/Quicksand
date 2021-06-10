@@ -27,14 +27,14 @@ void do_work() {
 
   auto rem_obj = RemObj<Obj>::create();
   auto rem_a_ptr_future = rem_obj.run_async(
-      +[](Obj &_, std::vector<int> &a_vec) {
+      +[](Obj &_, const std::vector<int> &a_vec) {
         auto *rem_a_ptr = new std::vector<int>();
         *rem_a_ptr = a_vec;
         return rem_a_ptr;
       },
       a);
   auto rem_b_ptr_future = rem_obj.run_async(
-      +[](Obj &_, std::vector<int> &b_vec) {
+      +[](Obj &_, const std::vector<int> &b_vec) {
         auto *rem_b_ptr = new std::vector<int>();
         *rem_b_ptr = b_vec;
         return rem_b_ptr;
