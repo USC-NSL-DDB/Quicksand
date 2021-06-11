@@ -22,8 +22,8 @@ bool passed = true;
 
 template <int N> class Obj {
 public:
-  void set_vec_a(const std::vector<int> &vec) { a_ = vec; }
-  void set_vec_b(const std::vector<int> &vec) { b_ = vec; }
+  void set_vec_a(std::vector<int> vec) { a_ = vec; }
+  void set_vec_b(std::vector<int> vec) { b_ = vec; }
   std::vector<int> plus() {
     std::vector<int> c;
     for (size_t i = 0; i < a_.size(); i++) {

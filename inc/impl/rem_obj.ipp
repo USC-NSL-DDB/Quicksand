@@ -173,17 +173,35 @@ template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  auto *promise =
-      Promise<RetT>::create([&, fn, states...] { return run(fn, states...); });
+  static_assert((!std::is_lvalue_reference<S0s>::value && ... && true));
+  static_assert((!std::is_pointer<S0s>::value && ... && true));
+
+  return __run_async(fn, states...);
+}
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+Future<RetT> RemObj<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
+  auto *promise = Promise<RetT>::create(
+      [&, fn, states...] { return __run(fn, states...); });
   return promise->get_future();
 }
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  using type_checker [[maybe_unused]] =
+  static_assert((!std::is_lvalue_reference<S0s>::value && ... && true));
+  static_assert((!std::is_pointer<S0s>::value && ... && true));
+
+  using fn_type_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), states...));
 
+  return __run(fn, states...);
+}
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   if (construct_) {
     construct_.get();
   }
@@ -209,24 +227,42 @@ RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
+  static_assert((!std::is_lvalue_reference<A0s>::value && ... && true));
+  static_assert((!std::is_pointer<A0s>::value && ... && true));
+
+  return __run_async(md, args...);
+}
+
+template <typename T>
+template <typename RetT, typename... A0s, typename... A1s>
+Future<RetT> RemObj<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   auto *promise =
-      Promise<RetT>::create([&, md, args...] { return run(md, args...); });
+      Promise<RetT>::create([&, md, args...] { return __run(md, args...); });
   return promise->get_future();
 }
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
+  static_assert((!std::is_lvalue_reference<A0s>::value && ... && true));
+  static_assert((!std::is_pointer<A0s>::value && ... && true));
+
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(args...));
 
+  return __run(md, args...);
+}
+
+template <typename T>
+template <typename RetT, typename... A0s, typename... A1s>
+RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
-  return run(
+  return __run(
       +[](T &t, decltype(method_ptr) method_ptr, A1s &... args) {
         return (t.*(method_ptr.ptr))(args...);
       },
-      method_ptr, std::forward<A1s>(args)...);
+      method_ptr, args...);
 }
 
 template <typename T> void RemObj<T>::inc_ref_cnt() {
