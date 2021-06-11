@@ -45,6 +45,7 @@ public:
   Future<RetT> run_async(RetT (T::*md)(A0s...), A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
   RetT run(RetT (T::*md)(A0s...), A1s &&... args);
+  bool is_local() const;
 
 private:
   RemObjID id_;
@@ -56,8 +57,6 @@ private:
 
   RemObj(RemObjID id);
   RemObj(RemObjID id, Future<void> &&construct);
-  void inc_ref_cnt();
-  void dec_ref_cnt();
   Promise<void> *update_ref_cnt(int delta);
   template <typename RetT>
   static RetT invoke_remote(RemObjID id, auto *states_ss);

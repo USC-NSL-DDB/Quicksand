@@ -76,7 +76,8 @@ retry:
 }
 
 template <typename T> RemObj<T>::RemObj(RemObjID id) : id_(id) {
-  inc_ref_cnt();
+  inc_ref_ = std::move(
+      update_ref_cnt(1)->template get_future<RuntimeDeleter<Promise<void>>>());
 }
 
 template <typename T> RemObj<T>::RemObj() : id_(kNullRemObjID) {}
@@ -89,19 +90,25 @@ template <typename T> RemObj<T>::~RemObj() {
   if (construct_) {
     construct_.get();
   }
-  if (id_ != kNullRemObjID) {
-    dec_ref_cnt();
+  if (inc_ref_) {
+    inc_ref_.get();
+    auto *dec_promise = update_ref_cnt(-1);
+    Runtime::rcu_lock.reader_lock();
+    rt::Thread([=]() {
+      dec_promise->template get_future<RuntimeDeleter<Promise<void>>>().get();
+      Runtime::rcu_lock.reader_unlock();
+    }).Detach();
   }
 }
 
-template <typename T> RemObj<T>::RemObj(RemObj<T> &&o) : id_(o.id_) {
-  o.id_ = kNullRemObjID;
-}
+template <typename T>
+RemObj<T>::RemObj(RemObj<T> &&o)
+    : id_(o.id_), inc_ref_(std::move(o.inc_ref_)) {}
 
 template <typename T> RemObj<T> &RemObj<T>::operator=(RemObj<T> &&o) {
   this->~RemObj();
   id_ = o.id_;
-  o.id_ = kNullRemObjID;
+  inc_ref_ = std::move(o.inc_ref_);
   return *this;
 }
 
@@ -267,24 +274,6 @@ RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
       method_ptr, args...);
 }
 
-template <typename T> void RemObj<T>::inc_ref_cnt() {
-  inc_ref_ = std::move(
-      update_ref_cnt(1)->template get_future<RuntimeDeleter<Promise<void>>>());
-}
-
-template <typename T> void RemObj<T>::dec_ref_cnt() {
-  if (inc_ref_) {
-    inc_ref_.get();
-  }
-  auto *dec_promise = update_ref_cnt(-1);
-  Runtime::rcu_lock.reader_lock();
-  rt::Thread([=]() {
-    dec_promise->template get_future<RuntimeDeleter<Promise<void>>>().get();
-    Runtime::rcu_lock.reader_unlock();
-  })
-      .Detach();
-}
-
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
   Runtime::migration_disable();
 
@@ -299,4 +288,12 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
         Runtime::migration_enable();
       });
 }
+
+template <typename T> bool RemObj<T>::is_local() const {
+  Runtime::migration_disable();
+  bool ret = Runtime::heap_manager->contains(to_heap_base(id_));
+  Runtime::migration_enable();
+  return ret;
+}
+
 } // namespace nu
