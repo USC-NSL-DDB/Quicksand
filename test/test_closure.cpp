@@ -11,6 +11,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "rem_obj.hpp"
+#include "rem_ptr.hpp"
 #include "runtime.hpp"
 
 using namespace nu;
@@ -26,41 +27,67 @@ void do_work() {
   std::vector<int> b{5, 6, 7, 8};
 
   auto rem_obj = RemObj<Obj>::create();
-  auto rem_a_ptr_future = rem_obj.run_async(
-      +[](Obj &_, std::vector<int> a_vec) {
-        auto *rem_a_ptr = new std::vector<int>();
-        *rem_a_ptr = a_vec;
-        return rem_a_ptr;
+  auto rem_ptr_a_future = rem_obj.run_async(
+      +[](Obj &_, std::vector<int> vec_a) {
+        auto *raw_ptr_a = new std::vector<int>();
+        *raw_ptr_a = vec_a;
+        return to_rem_ptr(raw_ptr_a);
       },
       a);
-  auto rem_b_ptr_future = rem_obj.run_async(
-      +[](Obj &_, std::vector<int> b_vec) {
-        auto *rem_b_ptr = new std::vector<int>();
-        *rem_b_ptr = b_vec;
-        return rem_b_ptr;
+  auto rem_ptr_b_future = rem_obj.run_async(
+      +[](Obj &_, std::vector<int> vec_b) {
+        auto *raw_ptr_b = new std::vector<int>();
+        *raw_ptr_b = vec_b;
+        return to_rem_ptr(raw_ptr_b);
       },
       b);
 
-  // Cannot be implemented for now.
+  auto rem_ptr_a = rem_ptr_a_future.get();
+  auto rem_ptr_b = rem_ptr_b_future.get();
+  auto c = rem_obj.run(
+      +[](Obj &_, RemPtr<std::vector<int>> rem_ptr_a,
+          RemPtr<std::vector<int>> rem_ptr_b) {
+        auto *raw_ptr_a = rem_ptr_a.get_checked();
+        auto *raw_ptr_b = rem_ptr_b.get_checked();
+        std::vector<int> rem_c;
+        for (size_t i = 0; i < raw_ptr_a->size(); i++) {
+          rem_c.push_back(raw_ptr_a->at(i) + raw_ptr_b->at(i));
+        }
+        return rem_c;
+      },
+      rem_ptr_a, rem_ptr_b);
 
-  // auto rem_a_ptr = rem_a_ptr_future.get();
-  // auto rem_b_ptr = rem_b_ptr_future.get();
-  // auto c = rem_obj.run(
-  //     +[](Obj &_, std::vector<int> *rem_a_ptr, std::vector<int> *rem_b_ptr) {
-  //       std::vector<int> rem_c;
-  //       for (size_t i = 0; i < rem_a_ptr->size(); i++) {
-  //         rem_c.push_back(rem_a_ptr->at(i) + rem_b_ptr->at(i));
-  //       }
-  //       return rem_c;
-  //     },
-  //     rem_a_ptr, rem_b_ptr);
+  for (size_t i = 0; i < a.size(); i++) {
+    if (c[i] != a[i] + b[i]) {
+      passed = false;
+      break;
+    }
+  }
+  if (a.size() != c.size()) {
+    passed = false;
+  }
 
-  // for (size_t i = 0; i < a.size(); i++) {
-  //   if (c[i] != a[i] + b[i]) {
-  //     passed = false;
-  //     break;
-  //   }
-  // }
+  auto a_copy = *rem_ptr_a;
+  for (size_t i = 0; i < a.size(); i++) {
+    if (a_copy[i] != a[i]) {
+      passed = false;
+      break;
+    }
+  }
+  if (a.size() != a_copy.size()) {
+    passed = false;
+  }
+
+  auto b_copy = *rem_ptr_b;
+  for (size_t i = 0; i < b.size(); i++) {
+    if (b_copy[i] != b[i]) {
+      passed = false;
+      break;
+    }
+  }
+  if (b.size() != b_copy.size()) {
+    passed = false;
+  }
 
   if (passed) {
     std::cout << "Passed" << std::endl;

@@ -43,6 +43,7 @@ public:
   static void reserve_ctrl_server_conns(uint32_t num);
   static void reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr);
   static void reserve_migration_conns(uint32_t num, netaddr dest_server_addr);
+  static HeapHeader *get_obj_heap_header();
 
 private:
   static RCULock rcu_lock;
@@ -64,6 +65,7 @@ private:
   friend class CondVar;
   friend class Time;
   template <typename T> friend class RemObj;
+  template <typename T> friend class RemPtr;
   template <typename T> friend class RuntimeDeleter;
 
   Runtime(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
@@ -82,7 +84,6 @@ private:
                                    As &&... args);
   static void switch_to_obj_heap(void *obj_ptr);
   static void switch_to_runtime_heap();
-  static HeapHeader *get_obj_heap_header();
   static void migration_enable();
   static void migration_disable();
 

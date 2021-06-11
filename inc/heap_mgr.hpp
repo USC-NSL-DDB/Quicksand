@@ -70,9 +70,8 @@ public:
   bool contains(void *heap_base);
   bool remove(void *heap_base);
   void rcu_reader_lock();
-  bool rcu_reader_lock_np();
+  bool rcu_try_reader_lock();
   void rcu_reader_unlock();
-  void rcu_reader_unlock_np();
   void rcu_writer_sync();
   std::list<void *> pick_heaps(const Resource &pressure);
 

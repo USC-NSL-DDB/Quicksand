@@ -1,0 +1,81 @@
+#include "defs.hpp"
+#include "runtime.hpp"
+
+namespace nu {
+
+template <typename T>
+RemPtr<T>::RemPtr() : id_(kNullRemObjID), raw_ptr_(nullptr) {}
+
+template <typename T>
+RemPtr<T>::RemPtr(const RemPtr<T> &o)
+    : id_(o.id_), raw_ptr_(o.raw_ptr_), rem_obj_(id_) {}
+
+template <typename T> RemPtr<T> &RemPtr<T>::operator=(const RemPtr<T> &o) {
+  id_ = o.id_;
+  raw_ptr_ = o.raw_ptr_;
+  rem_obj_ = std::move(RemObj<T>(id_));
+  return *this;
+}
+
+template <typename T>
+RemPtr<T>::RemPtr(RemPtr<T> &&o)
+    : id_(o.id_), raw_ptr_(o.raw_ptr_), rem_obj_(std::move(o.rem_obj_)) {}
+
+template <typename T> RemPtr<T> &RemPtr<T>::operator=(RemPtr<T> &&o) {
+  id_ = o.id_;
+  raw_ptr_ = o.raw_ptr_;
+  rem_obj_ = std::move(o.rem_obj_);
+  return *this;
+}
+
+template <typename T>
+RemPtr<T>::RemPtr(RemObjID id, T *raw_ptr) : id_(id), raw_ptr_(raw_ptr) {}
+
+template <typename T> RemPtr<T>::operator bool() const { return raw_ptr_; }
+
+template <typename T> bool RemPtr<T>::is_local() const {
+  Runtime::migration_disable();
+  bool ret = Runtime::heap_manager->contains(to_heap_base(id_));
+  Runtime::migration_enable();
+  return ret;
+}
+
+template <typename T> T *RemPtr<T>::get() { return raw_ptr_; }
+
+template <typename T> T *RemPtr<T>::get_checked() {
+  BUG_ON(!is_local());
+  return raw_ptr_;
+}
+
+template <typename T> T RemPtr<T>::operator*() {
+  return rem_obj_.__run(
+      +[](ErasedType &, T *raw_ptr) { return *raw_ptr; }, raw_ptr_);
+}
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+Future<RetT> RemPtr<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
+  return rem_obj_.__run_async(
+      +[](ErasedType &, T *raw_ptr, RetT (*fn)(T &, S0s...), S1s &... states) {
+        return fn(*raw_ptr, states...);
+      },
+      raw_ptr_);
+}
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+RetT RemPtr<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
+  return rem_obj_.__run(
+      +[](ErasedType &, T *raw_ptr, RetT (*fn)(T &, S0s...), S1s &... states) {
+        return fn(*raw_ptr, states...);
+      },
+      raw_ptr_);
+}
+
+template <typename T> RemPtr<T> to_rem_ptr(T *raw_ptr) {
+  auto *heap_base = Runtime::get_obj_heap_header();
+  BUG_ON(!heap_base);
+  auto id = to_obj_id(heap_base);
+  return RemPtr<T>(id, raw_ptr);
+}
+} // namespace nu

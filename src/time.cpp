@@ -14,9 +14,8 @@ void Time::timer_callback(unsigned long arg_addr) {
   auto *arg = reinterpret_cast<TimerCallbackArg *>(arg_addr);
   Time *time;
 
-  Runtime::heap_manager->rcu_reader_lock();
   if (unlikely(!Runtime::heap_manager->contains(arg->heap_header))) {
-    goto done;
+    return;
   }
 
   time = arg->heap_header->time.get();
@@ -24,9 +23,6 @@ void Time::timer_callback(unsigned long arg_addr) {
   time->entries_.erase(arg->iter);
   time->spin_.Unlock();
   thread_ready(arg->th);
-
-done:
-  Runtime::heap_manager->rcu_reader_unlock();
 }
 
 uint64_t Time::microtime() {

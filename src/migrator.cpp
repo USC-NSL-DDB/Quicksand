@@ -310,7 +310,6 @@ Migrator::transmit_heap_mmap_populate_ranges(rt::TcpConn *c,
   std::vector<HeapMmapPopulateRange> populate_ranges;
   populate_ranges.reserve(heaps.size());
 
-  Runtime::heap_manager->rcu_reader_lock();
   for (auto heap : heaps) {
     if (unlikely(!Runtime::heap_manager->contains(heap))) {
       continue;
@@ -322,7 +321,6 @@ Migrator::transmit_heap_mmap_populate_ranges(rt::TcpConn *c,
     HeapMmapPopulateRange range{heap_header, len};
     populate_ranges.push_back(range);
   }
-  Runtime::heap_manager->rcu_reader_unlock();
 
   uint64_t size = populate_ranges.size() * sizeof(HeapMmapPopulateRange);
   if (size) {

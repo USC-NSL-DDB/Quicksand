@@ -30,15 +30,11 @@ inline bool HeapManager::remove(void *heap_base) {
 
 inline void HeapManager::rcu_reader_lock() { rcu_lock_.reader_lock(); }
 
-inline bool HeapManager::rcu_reader_lock_np() {
-  return rcu_lock_.reader_lock_np();
+inline bool HeapManager::rcu_try_reader_lock() {
+  return rcu_lock_.try_reader_lock();
 }
 
 inline void HeapManager::rcu_reader_unlock() { rcu_lock_.reader_unlock(); }
-
-inline void HeapManager::rcu_reader_unlock_np() {
-  rcu_lock_.reader_unlock_np();
-}
 
 inline void HeapManager::rcu_writer_sync() { rcu_lock_.writer_sync(); }
 

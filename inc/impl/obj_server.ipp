@@ -89,7 +89,6 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
   }
 
   if (deallocate) {
-    Runtime::heap_manager->rcu_writer_sync();
     Runtime::heap_manager->deallocate(heap_base);
   }
 }

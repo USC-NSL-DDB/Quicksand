@@ -99,6 +99,7 @@ template <typename T> RemObj<T>::RemObj(RemObj<T> &&o) : id_(o.id_) {
 }
 
 template <typename T> RemObj<T> &RemObj<T>::operator=(RemObj<T> &&o) {
+  this->~RemObj();
   id_ = o.id_;
   o.id_ = kNullRemObjID;
   return *this;
@@ -170,11 +171,15 @@ template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() {
   return cap;
 }
 
+template <typename... T> void assert_no_pointer_or_lval_ref() {
+  static_assert((!std::is_lvalue_reference<T>::value && ... && true));
+  static_assert((!std::is_pointer<T>::value && ... && true));
+}
+
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  static_assert((!std::is_lvalue_reference<S0s>::value && ... && true));
-  static_assert((!std::is_pointer<S0s>::value && ... && true));
+  assert_no_pointer_or_lval_ref<RetT, S0s...>();
 
   return __run_async(fn, states...);
 }
@@ -190,8 +195,7 @@ Future<RetT> RemObj<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  static_assert((!std::is_lvalue_reference<S0s>::value && ... && true));
-  static_assert((!std::is_pointer<S0s>::value && ... && true));
+  assert_no_pointer_or_lval_ref<RetT, S0s...>();
 
   using fn_type_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), states...));
@@ -227,8 +231,7 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
-  static_assert((!std::is_lvalue_reference<A0s>::value && ... && true));
-  static_assert((!std::is_pointer<A0s>::value && ... && true));
+  assert_no_pointer_or_lval_ref<RetT, A0s...>();
 
   return __run_async(md, args...);
 }
@@ -244,8 +247,7 @@ Future<RetT> RemObj<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
-  static_assert((!std::is_lvalue_reference<A0s>::value && ... && true));
-  static_assert((!std::is_pointer<A0s>::value && ... && true));
+  assert_no_pointer_or_lval_ref<RetT, A0s...>();
 
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(args...));
