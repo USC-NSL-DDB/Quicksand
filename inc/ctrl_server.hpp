@@ -34,7 +34,7 @@ struct RPCReqAllocateObj {
 struct RPCRespAllocateObj {
   bool empty;
   RemObjID id;
-  VAddrRange range;
+  netaddr server_addr;
 } __attribute__((packed));
 
 struct RPCReqDestroyObj {

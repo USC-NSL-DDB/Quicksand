@@ -59,7 +59,7 @@ void Controller::register_node(Node &node) {
   nodes_.insert(node);
 }
 
-std::optional<std::pair<RemObjID, VAddrRange>>
+std::optional<std::pair<RemObjID, netaddr>>
 Controller::allocate_obj(std::optional<netaddr> hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
@@ -74,7 +74,7 @@ Controller::allocate_obj(std::optional<netaddr> hint) {
     return std::nullopt;
   }
   objs_map_.emplace(id, std::make_pair(range, node_optional->obj_srv_addr));
-  return std::make_pair(id, range);
+  return std::make_pair(id, node_optional->obj_srv_addr);
 }
 
 void Controller::destroy_obj(RemObjID id) {

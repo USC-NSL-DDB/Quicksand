@@ -35,7 +35,7 @@ public:
   ControllerClient(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
                    netaddr remote_ctrl_addr);
   void register_node(const Node &node);
-  std::optional<std::pair<RemObjID, VAddrRange>>
+  std::optional<std::pair<RemObjID, netaddr>>
   allocate_obj(std::optional<netaddr> hint);
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);

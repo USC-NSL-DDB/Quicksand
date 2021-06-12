@@ -107,7 +107,7 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
   }
 }
 
-void *SlabAllocator::acquire(size_t size) noexcept {
+void *SlabAllocator::release(size_t size) noexcept {
   rt::ScopedLock<rt::Spin> lock(&spin_);
   if (unlikely(cur_ + size > end_)) {
     return nullptr;

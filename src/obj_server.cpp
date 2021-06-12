@@ -47,11 +47,6 @@ void ObjServer::init(uint16_t port) {
   tcp_queue_.reset(tcp_queue);
 }
 
-netaddr ObjServer::get_addr() const {
-  netaddr addr = {.ip = get_cfg_ip(), .port = port_};
-  return addr;
-}
-
 void ObjServer::run_loop() {
   rt::TcpConn *c;
   while ((c = tcp_queue_->Accept())) {

@@ -71,6 +71,7 @@ private:
   Future<RetT> __run_async(RetT (T::*md)(A0s...), A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
   RetT __run(RetT (T::*md)(A0s...), A1s &&... args);
+  bool __is_local() const;
 };
 
 template <typename T> union MethodPtr {

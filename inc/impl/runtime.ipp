@@ -48,6 +48,21 @@ inline HeapHeader *Runtime::get_obj_heap_header() {
   return heap_header;
 }
 
+template <typename T> T *Runtime::get_obj() {
+  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
+  if (!obj_slab) {
+    return nullptr;
+  }
+  return reinterpret_cast<T *>(
+      reinterpret_cast<uintptr_t>(obj_slab->get_base()));
+}
+
+template <typename T> T *Runtime::get_obj(RemObjID id) {
+  auto *heap_header = reinterpret_cast<HeapHeader *>(to_heap_base(id));
+  return reinterpret_cast<T *>(
+      reinterpret_cast<uintptr_t>(heap_header->slab.get_base()));
+}
+
 template <typename Cls, typename Fn, typename... As>
 void __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer")))

@@ -45,7 +45,7 @@ public:
   Controller();
   ~Controller();
   void register_node(Node &node);
-  std::optional<std::pair<RemObjID, VAddrRange>>
+  std::optional<std::pair<RemObjID, netaddr>>
   allocate_obj(std::optional<netaddr> hint);
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);

@@ -79,7 +79,7 @@ bool ControllerServer::handle_allocate_obj(rt::TcpConn *c) {
   if (optional) {
     resp.empty = false;
     resp.id = optional->first;
-    resp.range = optional->second;
+    resp.server_addr = optional->second;
   } else {
     resp.empty = true;
   }

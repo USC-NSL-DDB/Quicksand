@@ -34,12 +34,18 @@ public:
   template <typename Cls>
   static void update_ref_cnt(cereal::BinaryInputArchive &ia,
                              rt::TcpConn *rpc_conn);
+  template <typename Cls>
+  static void update_ref_cnt_locally(RemObjID id, int delta);
   template <typename Cls, typename... As>
   static void construct_obj(cereal::BinaryInputArchive &ia,
                             rt::TcpConn *rpc_conn);
+  template <typename Cls, typename... As>
+  static void construct_obj_locally(void *base, bool pinned, As &... args);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-  static void closure_handler(cereal::BinaryInputArchive &ia,
-                              rt::TcpConn *rpc_conn);
+  static void run_closure(cereal::BinaryInputArchive &ia,
+                          rt::TcpConn *rpc_conn);
+  template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+  static RetT run_closure_locally(RemObjID id, FnPtr fn_ptr, S1s &... states);
 
 private:
   using GenericHandler = void (*)(cereal::BinaryInputArchive &ia,
@@ -57,8 +63,8 @@ private:
                                HeapHeader *heap_header, int delta,
                                bool *deallocate);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-  static void __closure_handler(Cls &obj, cereal::BinaryInputArchive &ia,
-                                rt::TcpConn *rpc_conn);
+  static void __run_closure(Cls &obj, cereal::BinaryInputArchive &ia,
+                            rt::TcpConn *rpc_conn);
 };
 } // namespace nu
 

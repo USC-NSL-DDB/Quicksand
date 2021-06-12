@@ -41,6 +41,8 @@ test_sync_hash_map_src = test/test_sync_hash_map.cpp
 test_sync_hash_map_obj = $(test_sync_hash_map_src:.cpp=.o)
 test_dis_hash_table_src = test/test_dis_hash_table.cpp
 test_dis_hash_table_obj = $(test_dis_hash_table_src:.cpp=.o)
+test_nested_rem_obj_src = test/test_nested_rem_obj.cpp
+test_nested_rem_obj_obj = $(test_nested_rem_obj_src:.cpp=.o)
 
 bench_rpc_lat_src = bench/bench_rpc_lat.cpp
 bench_rpc_lat_obj = $(bench_rpc_lat_src:.cpp=.o)
@@ -63,7 +65,7 @@ all: libservless.a bin/test_slab bin/test_closure bin/test_method bin/test_multi
 bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
 bin/bench_rpc_lat bin/bench_rpc_tput bin/bench_tcp_tput bin/bench_tcp_lat \
 bin/bench_thread bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
-bin/bench_dis_hash_table bin/bench_fake_migration
+bin/bench_dis_hash_table bin/bench_fake_migration bin/test_nested_rem_obj
 
 libservless.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -95,6 +97,8 @@ bin/test_sync_hash_map: $(test_sync_hash_map_obj) $(librt_libs) $(RUNTIME_DEPS) 
 	$(LDXX) -o $@ $(test_sync_hash_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_dis_hash_table: $(test_dis_hash_table_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_dis_hash_table_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_nested_rem_obj: $(test_nested_rem_obj_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_nested_rem_obj_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_lat: $(bench_rpc_lat_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_lat_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)

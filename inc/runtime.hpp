@@ -44,6 +44,8 @@ public:
   static void reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr);
   static void reserve_migration_conns(uint32_t num, netaddr dest_server_addr);
   static HeapHeader *get_obj_heap_header();
+  template <typename T> static T *get_obj();
+  template <typename T> static T *get_obj(RemObjID id);
 
 private:
   static RCULock rcu_lock;

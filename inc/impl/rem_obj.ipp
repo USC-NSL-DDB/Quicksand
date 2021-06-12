@@ -146,11 +146,18 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
   if (unlikely(!optional)) {
     throw OutOfMemory();
   }
+  auto [id, server_addr] = *optional;
 
-  auto [id, range] = *optional;
+  if (Runtime::obj_server && server_addr == Runtime::obj_server->get_addr()) {
+    // Fast path: the heap is actually local, use normal function call.
+    ObjServer::construct_obj_locally<T, As...>(to_heap_base(id), pinned,
+                                               args...);
+    return RemObj<T>(id);
+  }
 
   Runtime::migration_disable();
 
+  // Slow path: the heap is actually remote, use RPC.
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler = ObjServer::construct_obj<T, As...>;
   serialize(&oa_sstream->oa, handler, to_heap_base(id), pinned,
@@ -219,8 +226,24 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 
   Runtime::migration_disable();
 
+  if (__is_local()) {
+    // Fast path: the heap is actually local, use function call.
+    auto *local_fn =
+        ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>;
+    if constexpr (!std::is_same<RetT, void>::value) {
+      auto ret = local_fn(id_, fn, states...);
+      Runtime::migration_enable();
+      return ret;
+    } else {
+      local_fn(id_, fn, states...);
+      Runtime::migration_enable();
+      return;
+    }
+  }
+
+  // Slow path: the heap is actually remote, use RPC.
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
-  auto *handler = ObjServer::closure_handler<T, RetT, decltype(fn), S1s...>;
+  auto *handler = ObjServer::run_closure<T, RetT, decltype(fn), S1s...>;
   serialize(&oa_sstream->oa, handler, id_, fn, std::forward<S1s>(states)...);
 
   if constexpr (!std::is_same<RetT, void>::value) {
@@ -277,6 +300,14 @@ RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
   Runtime::migration_disable();
 
+  if (__is_local()) {
+    // Fast path: the heap is actually local, use function call.
+    ObjServer::update_ref_cnt_locally<T>(id_, delta);
+    Runtime::migration_enable();
+    return Promise<void>::create<RuntimeAllocator<Promise<void>>>([] {});
+  }
+
+  // Slow path: the heap is actually remote, use RPC.
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler = ObjServer::update_ref_cnt<T>;
   serialize(&oa_sstream->oa, handler, id_, delta);
@@ -291,9 +322,14 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
 
 template <typename T> bool RemObj<T>::is_local() const {
   Runtime::migration_disable();
-  bool ret = Runtime::heap_manager->contains(to_heap_base(id_));
+  bool ret = __is_local();
   Runtime::migration_enable();
   return ret;
+}
+
+template <typename T> bool RemObj<T>::__is_local() const {
+  return Runtime::heap_manager &&
+         Runtime::heap_manager->contains(to_heap_base(id_));
 }
 
 } // namespace nu

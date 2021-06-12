@@ -56,7 +56,7 @@ void ControllerClient::register_node(const Node &node) {
   conn_mgr_.put_conn(c);
 }
 
-std::optional<std::pair<RemObjID, VAddrRange>>
+std::optional<std::pair<RemObjID, netaddr>>
 ControllerClient::allocate_obj(std::optional<netaddr> hint) {
   ControllerRPC_t rpc_type = ALLOCATE_OBJ;
   RPCReqAllocateObj req;
@@ -71,8 +71,8 @@ ControllerClient::allocate_obj(std::optional<netaddr> hint) {
     return std::nullopt;
   } else {
     auto id = resp.id;
-    auto range = resp.range;
-    return std::make_pair(id, range);
+    auto server_addr = resp.server_addr;
+    return std::make_pair(id, server_addr);
   }
 }
 
