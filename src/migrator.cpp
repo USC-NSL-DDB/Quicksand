@@ -643,7 +643,7 @@ void Migrator::forward_to_original_server(const ObjRPCRespHdr &hdr,
                                           const void *payload,
                                           rt::TcpConn *conn_to_client) {
   uint8_t type = FORWARD;
-  auto *heap_header = Runtime::get_obj_heap_header();
+  auto *heap_header = Runtime::get_current_obj_heap_header();
   netaddr old_server_addr = {.ip = heap_header->old_server_ip, .port = port_};
   auto conn = conn_mgr_.get_conn(old_server_addr);
 

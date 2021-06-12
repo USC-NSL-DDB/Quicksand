@@ -26,7 +26,7 @@ void Time::timer_callback(unsigned long arg_addr) {
 }
 
 uint64_t Time::microtime() {
-  auto *heap_header = Runtime::get_obj_heap_header();
+  auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
     return heap_header->time->obj_env_microtime();
   } else {
@@ -35,7 +35,7 @@ uint64_t Time::microtime() {
 }
 
 void Time::sleep_until(uint64_t deadline_us) {
-  auto *heap_header = Runtime::get_obj_heap_header();
+  auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
     heap_header->time->obj_env_sleep_until(deadline_us);
   } else {
@@ -44,7 +44,7 @@ void Time::sleep_until(uint64_t deadline_us) {
 }
 
 void Time::sleep(uint64_t duration_us) {
-  auto *heap_header = Runtime::get_obj_heap_header();
+  auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
     heap_header->time->obj_env_sleep(duration_us);
   } else {
@@ -60,7 +60,7 @@ void Time::obj_env_sleep_until(uint64_t deadline_us) {
   std::unique_ptr<TimerCallbackArg> arg_gc(arg);
 
   arg->th = thread_self();
-  arg->heap_header = Runtime::get_obj_heap_header();
+  arg->heap_header = Runtime::get_current_obj_heap_header();
   arg->logical_deadline_us = deadline_us;
   BUG_ON(!arg->heap_header);
   timer_init(e, Time::timer_callback, reinterpret_cast<unsigned long>(arg));

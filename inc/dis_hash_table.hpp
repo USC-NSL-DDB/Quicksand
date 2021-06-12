@@ -26,6 +26,8 @@ public:
                   std::allocator<std::pair<const K, V>>, SpinLock>;
   struct Cap {
     RemObj<HashTableShard>::Cap shard_caps[kNumShards];
+
+    template <class Archive> void serialize(Archive &ar) { ar(shard_caps); }
   };
 
   DistributedHashTable(const Cap &cap);

@@ -2,6 +2,10 @@
 
 namespace nu {
 
+#ifndef NCORES
+#error Must indicate number of CPU cores
+#endif
+
 struct Resource {
   uint32_t cores;
   uint32_t mem_mbs;
@@ -9,9 +13,7 @@ struct Resource {
   bool empty() const { return cores == 0 && mem_mbs == 0; }
 };
 
-#ifndef NCORES
-#error Must indicate number of CPU cores
-#endif
+struct ErasedType {};
 
 using RemObjID = uint64_t;
 
@@ -25,7 +27,9 @@ constexpr static uint64_t kMaxNumStacksPerHeap = 256;
 constexpr static uint64_t kPageSize = 4096;
 
 inline void *to_heap_base(RemObjID id) { return reinterpret_cast<void *>(id); }
+
 inline RemObjID to_obj_id(void *heap_base) {
   return reinterpret_cast<RemObjID>(heap_base);
 }
+
 } // namespace nu

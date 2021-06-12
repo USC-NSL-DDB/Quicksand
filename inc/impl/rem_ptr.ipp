@@ -86,7 +86,7 @@ RetT RemPtr<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 }
 
 template <typename T> RemPtr<T> to_rem_ptr(T *raw_ptr) {
-  auto *heap_base = Runtime::get_obj_heap_header();
+  auto *heap_base = Runtime::get_current_obj_heap_header();
   BUG_ON(!heap_base);
   auto id = to_obj_id(heap_base);
   return RemPtr<T>(id, raw_ptr);

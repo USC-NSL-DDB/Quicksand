@@ -39,7 +39,7 @@ inline void Runtime::switch_to_obj_heap(void *obj_ptr) {
 
 inline void Runtime::switch_to_runtime_heap() { set_uthread_specific(0); }
 
-inline HeapHeader *Runtime::get_obj_heap_header() {
+inline HeapHeader *Runtime::get_current_obj_heap_header() {
   auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
   if (!obj_slab) {
     return nullptr;
@@ -48,7 +48,7 @@ inline HeapHeader *Runtime::get_obj_heap_header() {
   return heap_header;
 }
 
-template <typename T> T *Runtime::get_obj() {
+template <typename T> T *Runtime::get_current_obj() {
   auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
   if (!obj_slab) {
     return nullptr;

@@ -36,7 +36,7 @@ public:
   void init(uint16_t sentinel, void *buf, size_t len) noexcept;
   void *allocate(size_t size) noexcept;
   void free(const void *ptr) noexcept;
-  void *release(size_t size) noexcept;
+  void *yield(size_t size) noexcept;
   void *get_base() const noexcept;
   size_t get_usage() const noexcept;
   size_t get_remaining() const noexcept;

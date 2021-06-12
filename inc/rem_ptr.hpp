@@ -28,11 +28,10 @@ public:
   template <class Archive> void load(Archive &ar);
 
 private:
-  struct ErasedType {};
-
   T *raw_ptr_;
   RemObj<ErasedType> rem_obj_;
   template <typename U> friend RemPtr<U> to_rem_ptr(U *raw_ptr);
+  friend class DistributedHeap;
 
   // Can only be invoked through to_rem_ptr locally.
   RemPtr(RemObjID id, T *raw_ptr);

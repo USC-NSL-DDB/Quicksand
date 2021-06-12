@@ -4,7 +4,7 @@
 namespace nu {
 
 inline Mutex::Mutex() {
-  auto *heap_header = Runtime::get_obj_heap_header();
+  auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
     heap_header->mutexes->put(this);
   }
@@ -12,7 +12,7 @@ inline Mutex::Mutex() {
 }
 
 inline Mutex::~Mutex() {
-  auto *heap_header = Runtime::get_obj_heap_header();
+  auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
     heap_header->mutexes->remove(this);
   }

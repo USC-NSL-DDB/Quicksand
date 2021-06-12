@@ -43,8 +43,8 @@ public:
   static void reserve_ctrl_server_conns(uint32_t num);
   static void reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr);
   static void reserve_migration_conns(uint32_t num, netaddr dest_server_addr);
-  static HeapHeader *get_obj_heap_header();
-  template <typename T> static T *get_obj();
+  static HeapHeader *get_current_obj_heap_header();
+  template <typename T> static T *get_current_obj();
   template <typename T> static T *get_obj(RemObjID id);
 
 private:

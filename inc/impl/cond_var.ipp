@@ -5,7 +5,7 @@
 namespace nu {
 
 inline CondVar::CondVar() {
-  auto *heap_header = Runtime::get_obj_heap_header();
+  auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
     heap_header->condvars->put(this);
   }
@@ -13,7 +13,7 @@ inline CondVar::CondVar() {
 }
 
 inline CondVar::~CondVar() {
-  auto *heap_header = Runtime::get_obj_heap_header();
+  auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
     heap_header->condvars->remove(this);
   }

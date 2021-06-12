@@ -29,7 +29,7 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
 
   auto &slab = reinterpret_cast<HeapHeader *>(base)->slab;
-  auto obj_space = slab.release(sizeof(Cls));
+  auto obj_space = slab.yield(sizeof(Cls));
 
   std::tuple<std::decay_t<As>...> args;
   std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
@@ -54,7 +54,7 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &... args) {
   Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
 
   auto &slab = reinterpret_cast<HeapHeader *>(base)->slab;
-  auto obj_space = slab.release(sizeof(Cls));
+  auto obj_space = slab.yield(sizeof(Cls));
 
   new (obj_space) Cls(args...);
   barrier();

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cereal/types/unordered_map.hpp>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -65,6 +66,25 @@ bool run_test() {
     if (!optional || v != *optional) {
       return false;
     }
+  }
+
+  auto rem_obj = RemObj<ErasedType>::create();
+  if (!rem_obj.run(
+          +[](ErasedType &,
+              std::unordered_map<std::string, std::string> std_map,
+              DistributedHashTable<std::string, std::string>::Cap cap) {
+            auto rem_attached_hash_table = std::make_unique<
+                DistributedHashTable<std::string, std::string>>(cap);
+            for (auto &[k, v] : std_map) {
+              auto optional = rem_attached_hash_table->get(k);
+              if (!optional || v != *optional) {
+                return false;
+              }
+            }
+            return true;
+          },
+          std_map, attached_hash_table->get_cap())) {
+    return false;
   }
 
   auto moved_hash_table =

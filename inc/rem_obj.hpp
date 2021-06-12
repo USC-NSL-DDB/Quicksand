@@ -51,9 +51,10 @@ private:
   RemObjID id_;
   Future<void> construct_;
   Future<void, RuntimeDeleter<nu::Promise<void>>> inc_ref_;
+  template <typename U> friend class RemPtr;
   template <typename K, typename V, typename Hash, typename KeyEqual>
   friend class DistributedHashTable;
-  template <typename U> friend class RemPtr;
+  friend class DistributedHeap;
 
   RemObj(RemObjID id);
   RemObj(RemObjID id, Future<void> &&construct);

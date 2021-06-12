@@ -120,7 +120,7 @@ Runtime::~Runtime() {
 
 // TODO: make the rcu lock to be per-heap instead of being global.
 void Runtime::migration_enable() {
-  auto *heap_header = get_obj_heap_header();
+  auto *heap_header = get_current_obj_heap_header();
   if (!heap_header) {
     return;
   }
@@ -129,7 +129,7 @@ void Runtime::migration_enable() {
 }
 
 void Runtime::migration_disable() {
-  auto *heap_header = get_obj_heap_header();
+  auto *heap_header = get_current_obj_heap_header();
   if (!heap_header) {
     return;
   }
