@@ -5,6 +5,30 @@
 namespace nu {
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
+DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(
+    DistributedHashTable &&o) {
+  *this = std::move(o);
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
+DistributedHashTable<K, V, Hash, KeyEqual> &
+DistributedHashTable<K, V, Hash, KeyEqual>::operator=(
+    DistributedHashTable &&o) {
+  for (uint32_t i = 0; i < kNumShards; i++) {
+    shards_[i] = std::move(o.shards_[i]);
+  }
+  return *this;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
+DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(
+    const Cap &cap) {
+  for (uint32_t i = 0; i < kNumShards; i++) {
+    shards_[i] = std::move(RemObj<HashTableShard>(cap.shard_caps[i]));
+  }
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
 DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(bool pinned) {
   for (uint32_t i = 0; i < kNumShards; i++) {
     if (pinned) {
@@ -100,6 +124,16 @@ template <typename K1>
 Future<bool> DistributedHashTable<K, V, Hash, KeyEqual>::remove_async(K1 &&k) {
   auto *promise = Promise<bool>::create([&, k] { return remove(k); });
   return promise->get_future();
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
+DistributedHashTable<K, V, Hash, KeyEqual>::Cap
+DistributedHashTable<K, V, Hash, KeyEqual>::get_cap() {
+  Cap cap;
+  for (uint32_t i = 0; i < kNumShards; i++) {
+    cap.shard_caps[i] = shards_[i].get_cap();
+  }
+  return cap;
 }
 
 } // namespace nu

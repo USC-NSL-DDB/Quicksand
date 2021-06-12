@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <vector>
@@ -44,35 +45,48 @@ std::string random_str(uint32_t len) {
   return str;
 }
 
-void do_work() {
-  bool passed = true;
-
+bool run_test() {
   std::unordered_map<std::string, std::string> std_map;
-  DistributedHashTable<std::string, std::string> hash_table;
+  auto hash_table =
+      std::make_unique<DistributedHashTable<std::string, std::string>>();
   for (uint32_t i = 0; i < kNumPairs; i++) {
     std::string k = random_str(kKeyLen);
     std::string v = random_str(kValLen);
     std_map[k] = v;
-    hash_table.put(k, v);
+    hash_table->put(k, v);
   }
 
+  auto attached_hash_table =
+      std::make_unique<DistributedHashTable<std::string, std::string>>(
+          hash_table->get_cap());
+
   for (auto &[k, v] : std_map) {
-    auto optional = hash_table.get(k);
+    auto optional = attached_hash_table->get(k);
     if (!optional || v != *optional) {
-      passed = false;
-      goto done;
+      return false;
+    }
+  }
+
+  auto moved_hash_table =
+      std::make_unique<DistributedHashTable<std::string, std::string>>(
+          std::move(*attached_hash_table));
+  for (auto &[k, v] : std_map) {
+    auto optional = moved_hash_table->get(k);
+    if (!optional || v != *optional) {
+      return false;
     }
   }
 
   for (auto &[k, _] : std_map) {
-    if (!hash_table.remove(k)) {
-      passed = false;
-      goto done;
+    if (!moved_hash_table->remove(k)) {
+      return false;
     }
   }
+  return true;
+}
 
-done:
-  if (passed) {
+void do_work() {
+  if (run_test()) {
     std::cout << "Passed" << std::endl;
   } else {
     std::cout << "Failed" << std::endl;

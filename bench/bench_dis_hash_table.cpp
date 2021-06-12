@@ -80,22 +80,6 @@ public:
     return 0;
   }
 
-  void print_addrs() {
-    std::cout << reinterpret_cast<uintptr_t>(
-                     ObjServer::construct_obj<DSHashTable::HashTableShard>)
-              << std::endl;
-    std::cout << reinterpret_cast<uintptr_t>(
-                     ObjServer::construct_obj<Test, int>)
-              << std::endl;
-    auto md_ptr_0 = &DSHashTable::HashTableShard::template get_with_hash<Key>;
-    std::cout << *reinterpret_cast<unsigned long *>(&md_ptr_0) << std::endl;
-    auto md_ptr_1 =
-        &DSHashTable::HashTableShard::template put_with_hash<Key, Val>;
-    std::cout << *reinterpret_cast<unsigned long *>(&md_ptr_1) << std::endl;
-    auto md_ptr_2 = &Test::migrate;
-    std::cout << *reinterpret_cast<unsigned long *>(&md_ptr_2) << std::endl;
-  }
-
 private:
   uint32_t pressure_mem_mbs_;
 };

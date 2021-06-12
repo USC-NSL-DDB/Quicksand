@@ -23,6 +23,7 @@ public:
     template <class Archive> void serialize(Archive &ar) { ar(id); }
   };
 
+  RemObj(const Cap &cap);
   RemObj(const RemObj &) = delete;
   RemObj &operator=(const RemObj &) = delete;
   RemObj(RemObj &&);
@@ -35,7 +36,6 @@ public:
   template <typename... As> static RemObj create_pinned(As &&... args);
   template <typename... As>
   static RemObj create_pinned_at(netaddr addr, As &&... args);
-  static RemObj attach(Cap cap);
   Cap get_cap();
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);

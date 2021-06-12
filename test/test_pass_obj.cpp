@@ -51,7 +51,7 @@ void do_work() {
   auto rem_adder = RemObj<Adder>::create();
   auto c = rem_adder.run(
       +[](Adder &adder, RemObj<VecStore>::Cap cap) {
-        auto rem_obj = RemObj<VecStore>::attach(cap);
+        RemObj<VecStore> rem_obj(cap);
         auto vec_a = rem_obj.run(&VecStore::get_vec_a);
         auto vec_b = rem_obj.run(&VecStore::get_vec_b);
         return adder.add(vec_a, vec_b);

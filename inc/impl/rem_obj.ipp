@@ -80,6 +80,8 @@ template <typename T> RemObj<T>::RemObj(RemObjID id) : id_(id) {
       update_ref_cnt(1)->template get_future<RuntimeDeleter<Promise<void>>>());
 }
 
+template <typename T> RemObj<T>::RemObj(const Cap &cap) : RemObj(cap.id) {}
+
 template <typename T> RemObj<T>::RemObj() : id_(kNullRemObjID) {}
 
 template <typename T>
@@ -169,10 +171,6 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
     Runtime::migration_enable();
   });
   return RemObj(id, std::move(construct_promise->get_future()));
-}
-
-template <typename T> RemObj<T> RemObj<T>::attach(Cap cap) {
-  return RemObj<T>(cap.id);
 }
 
 template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() {
