@@ -123,8 +123,26 @@ RemObj<T> RemObj<T>::create(As &&... args) {
 
 template <typename T>
 template <typename... As>
+Future<RemObj<T>> RemObj<T>::create_async(As &&... args) {
+  auto *promise = Promise<RemObj<T>>::create([&, args...] {
+    return general_create(/* pinned = */ false, std::nullopt, args...);
+  });
+  return promise->get_future();
+}
+
+template <typename T>
+template <typename... As>
 RemObj<T> RemObj<T>::create_at(netaddr addr, As &&... args) {
   return general_create(/* pinned = */ false, addr, std::forward<As>(args)...);
+}
+
+template <typename T>
+template <typename... As>
+Future<RemObj<T>> RemObj<T>::create_at_async(netaddr addr, As &&... args) {
+  auto *promise = Promise<RemObj<T>>::create([&, addr, args...] {
+    return general_create(/* pinned = */ false, addr, args...);
+  });
+  return promise->get_future();
 }
 
 template <typename T>
@@ -136,8 +154,28 @@ RemObj<T> RemObj<T>::create_pinned(As &&... args) {
 
 template <typename T>
 template <typename... As>
+Future<RemObj<T>> RemObj<T>::create_pinned_async(As &&... args) {
+  auto *promise = Promise<RemObj<T>>::create([&, args...] {
+    return general_create(/* pinned = */ true, std::nullopt,
+                          std::forward<As>(args)...);
+  });
+  return promise->get_future();
+}
+
+template <typename T>
+template <typename... As>
 RemObj<T> RemObj<T>::create_pinned_at(netaddr addr, As &&... args) {
   return general_create(/* pinned = */ true, addr, std::forward<As>(args)...);
+}
+
+template <typename T>
+template <typename... As>
+Future<RemObj<T>> RemObj<T>::create_pinned_at_async(netaddr addr,
+                                                    As &&... args) {
+  auto *promise = Promise<RemObj<T>>::create([&, addr, args...] {
+    return general_create(/* pinned = */ true, addr, std::forward<As>(args)...);
+  });
+  return promise->get_future();
 }
 
 template <typename T>

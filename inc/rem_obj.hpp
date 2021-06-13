@@ -31,11 +31,18 @@ public:
   RemObj();
   ~RemObj();
   template <typename... As> static RemObj create(As &&... args);
+  template <typename... As> static Future<RemObj> create_async(As &&... args);
   template <typename... As>
   static RemObj create_at(netaddr addr, As &&... args);
+  template <typename... As>
+  static Future<RemObj> create_at_async(netaddr addr, As &&... args);
   template <typename... As> static RemObj create_pinned(As &&... args);
   template <typename... As>
+  static Future<RemObj> create_pinned_async(As &&... args);
+  template <typename... As>
   static RemObj create_pinned_at(netaddr addr, As &&... args);
+  template <typename... As>
+  static Future<RemObj> create_pinned_at_async(netaddr addr, As &&... args);
   Cap get_cap();
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
