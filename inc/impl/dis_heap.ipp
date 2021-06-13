@@ -6,12 +6,42 @@ extern "C" {
 
 namespace nu {
 
-inline DistributedHeap::FullShard::FullShard(uint32_t size,
-                                             const RemObj<ErasedType>::Cap &cap)
-    : failed_alloc_size(size), rem_obj(cap) {}
+inline DistributedHeap::Shard::Shard(uint32_t shard_size) {
+  auto *heap_header = Runtime::get_current_obj_heap_header();
+  BUG_ON(!heap_header->slab.try_shrink(shard_size));
+}
+
+template <typename T, typename... As>
+RemPtr<T> DistributedHeap::Shard::allocate(As &&... args) {
+  auto *heap_header = Runtime::get_current_obj_heap_header();
+  auto *obj_space = heap_header->slab.allocate(sizeof(T));
+  if (unlikely(!obj_space)) {
+    return RemPtr<T>();
+  }
+  new (obj_space) T(args...);
+  return to_rem_ptr(reinterpret_cast<T *>(obj_space));
+}
+
+template <typename T> void DistributedHeap::Shard::free(T *raw_ptr) {
+  auto *heap_header = Runtime::get_current_obj_heap_header();
+  heap_header->slab.free(raw_ptr);
+}
+
+inline bool DistributedHeap::Shard::has_space_for(uint32_t size) {
+  auto &slab = Runtime::get_current_obj_heap_header()->slab;
+  auto *buf = slab.allocate(size);
+  if (!buf) {
+    return false;
+  }
+  slab.free(buf);
+  return true;
+}
 
 inline DistributedHeap::FullShard::FullShard(uint32_t size,
-                                             RemObj<ErasedType> &&obj)
+                                             const RemObj<Shard>::Cap &cap)
+    : failed_alloc_size(size), rem_obj(cap) {}
+
+inline DistributedHeap::FullShard::FullShard(uint32_t size, RemObj<Shard> &&obj)
     : failed_alloc_size(size), rem_obj(std::move(obj)) {}
 
 inline DistributedHeap::FullShard::FullShard(FullShard &&o)
@@ -57,20 +87,11 @@ RemPtr<T> DistributedHeap::allocate(As &&... args) {
 retry:
   probing_mutex_.Lock();
   if (unlikely(free_shards_.empty())) {
-    free_shards_.emplace_back(std::move(RemObj<ErasedType>::create()));
+    free_shards_.emplace_back(std::move(RemObj<Shard>::create(kShardSize)));
   }
   auto &free_shard = free_shards_.front();
   probing_mutex_.Unlock();
-  auto *allocate_fn = +[](ErasedType &, As &... args) {
-    auto *heap_header = Runtime::get_current_obj_heap_header();
-    auto *obj_space = heap_header->slab.allocate(sizeof(T));
-    if (unlikely(!obj_space)) {
-      return RemPtr<T>();
-    }
-    new (obj_space) T(args...);
-    return to_rem_ptr(reinterpret_cast<T *>(obj_space));
-  };
-  auto rem_ptr = free_shard.__run(allocate_fn, args...);
+  auto rem_ptr = free_shard.__run(&Shard::allocate<T, As...>, args...);
   if (!rem_ptr) {
     rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
     full_shards_.emplace_back(sizeof(T), std::move(free_shard));
@@ -88,11 +109,10 @@ Future<RemPtr<T>> DistributedHeap::allocate_async(As &&... args) {
 }
 
 template <typename T> void DistributedHeap::free(const RemPtr<T> &ptr) {
-  auto *free_fn = +[](ErasedType &, void *raw_ptr) {
-    auto *heap_header = Runtime::get_current_obj_heap_header();
-    heap_header->slab.free(raw_ptr);
-  };
-  const_cast<RemPtr<T> *>(&ptr)->rem_obj_.__run(free_fn, ptr.raw_ptr_);
+  auto &mut_ptr = const_cast<RemPtr<T> &>(ptr);
+  auto *erased_type_rem_obj = &mut_ptr.rem_obj_;
+  auto *shard = reinterpret_cast<RemObj<Shard> *>(erased_type_rem_obj);
+  shard->__run(&Shard::free<T>, mut_ptr.get());
 }
 
 template <typename T>

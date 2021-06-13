@@ -40,6 +40,7 @@ public:
   void *get_base() const noexcept;
   size_t get_usage() const noexcept;
   size_t get_remaining() const noexcept;
+  bool try_shrink(size_t new_len) noexcept;
 
 private:
   struct alignas(kCacheLineBytes) CoreCache {
@@ -52,7 +53,7 @@ private:
 
   uint16_t sentinel_;
   const uint8_t *start_;
-  const uint8_t *end_;
+  uint8_t *end_;
   uint8_t *cur_;
   void *slab_heads_[kMaxSlabClassShift];
   CoreCache core_caches_[kNumCores];

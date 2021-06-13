@@ -19,7 +19,7 @@ inline void SlabAllocator::init(uint16_t sentinel, void *buf,
                                 uint64_t len) noexcept {
   sentinel_ = sentinel;
   start_ = reinterpret_cast<const uint8_t *>(buf);
-  end_ = start_ + len;
+  end_ = const_cast<uint8_t *>(start_) + len;
   cur_ = const_cast<uint8_t *>(start_);
   memset(slab_heads_, 0, sizeof(slab_heads_));
   memset(core_caches_, 0, sizeof(core_caches_));
@@ -53,6 +53,14 @@ inline size_t SlabAllocator::get_usage() const noexcept {
 
 inline size_t SlabAllocator::get_remaining() const noexcept {
   return end_ - ACCESS_ONCE(cur_);
+}
+
+inline bool SlabAllocator::try_shrink(size_t new_len) noexcept {
+  if (cur_ > new_len + start_) {
+    return false;
+  }
+  end_ = const_cast<uint8_t *>(start_) + new_len;
+  return true;
 }
 
 } // namespace nu

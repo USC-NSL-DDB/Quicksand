@@ -42,17 +42,8 @@ void DistributedHeap::probing_fn() {
     auto full_shard = std::move(full_shards_.front());
     full_shards_.pop_front();
     probing_mutex_.Unlock();
-
-    auto *try_alloc_fn = +[](ErasedType &, uint32_t failed_alloc_size) {
-      auto &slab = Runtime::get_current_obj_heap_header()->slab;
-      auto *buf = slab.allocate(failed_alloc_size);
-      if (!buf) {
-        return false;
-      }
-      slab.free(buf);
-      return true;
-    };
-    if (full_shard.rem_obj.run(try_alloc_fn, full_shard.failed_alloc_size)) {
+    if (full_shard.rem_obj.run(&Shard::has_space_for,
+                               full_shard.failed_alloc_size)) {
       rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
       free_shards_.emplace_back(std::move(full_shard.rem_obj));
     }

@@ -20,14 +20,21 @@ namespace nu {
 
 // TODO: make it thread-safe.
 // TODO: add batch interface.
-// TODO: configurable shard size.
 class DistributedHeap {
 public:
   constexpr static uint32_t kFullShardProbingIntervalMs = 400;
+  constexpr static uint32_t kShardSize = 2 << 20;
+
+  struct Shard {
+    Shard(uint32_t shard_size);
+    template <typename T, typename... As> RemPtr<T> allocate(As &&... args);
+    template <typename T> void free(T *raw_ptr);
+    bool has_space_for(uint32_t size);
+  };
 
   struct Cap {
-    std::vector<RemObj<ErasedType>::Cap> free_shard_caps;
-    std::vector<std::pair<uint32_t, RemObj<ErasedType>::Cap>> full_shard_infos;
+    std::vector<RemObj<Shard>::Cap> free_shard_caps;
+    std::vector<std::pair<uint32_t, RemObj<Shard>::Cap>> full_shard_infos;
 
     template <class Archive> void serialize(Archive &ar) {
       ar(free_shard_caps, full_shard_infos);
@@ -51,15 +58,15 @@ public:
 private:
   struct FullShard {
     uint32_t failed_alloc_size;
-    RemObj<ErasedType> rem_obj;
+    RemObj<Shard> rem_obj;
 
-    FullShard(uint32_t failed_alloc_size, RemObj<ErasedType> &&obj);
-    FullShard(uint32_t failed_alloc_size, const RemObj<ErasedType>::Cap &cap);
+    FullShard(uint32_t failed_alloc_size, RemObj<Shard> &&obj);
+    FullShard(uint32_t failed_alloc_size, const RemObj<Shard>::Cap &cap);
     FullShard(FullShard &&o);
     FullShard &operator=(FullShard &&o);
   };
 
-  std::deque<RemObj<ErasedType>> free_shards_;
+  std::deque<RemObj<Shard>> free_shards_;
   std::deque<FullShard> full_shards_;
 
   uint64_t last_probing_us_;
