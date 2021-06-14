@@ -138,9 +138,9 @@ retry:
   preempt_disable();
   if (unlikely(!heap_manager->rcu_try_reader_lock())) {
     preempt_enable();
-    do {
+    while (unlikely(thread_is_migrating())) {
       rt::Yield();
-    } while (!thread_is_migrated());
+    }
     goto retry;
   }
   preempt_enable();

@@ -58,6 +58,7 @@ extern void thread_exit(void) __noreturn;
 extern void thread_mark_migrating(thread_t *thread);
 extern void thread_mark_migrated(thread_t *thread);
 extern bool thread_is_migrated(void);
+extern bool thread_is_migrating(void);
 extern void thread_set_obj_stack(void *stack_base);
 extern void thread_unset_obj_stack(void);
 extern void thread_get_obj_stack(thread_t *th, void **base, void **top);

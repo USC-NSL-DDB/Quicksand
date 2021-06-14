@@ -67,13 +67,14 @@ void ObjServer::__update_ref_cnt(Cls &obj, rt::TcpConn *rpc_conn,
                                  bool *deallocate) {
   heap_header->spin.Lock();
   auto latest_cnt = (heap_header->ref_cnt += delta);
+  BUG_ON(latest_cnt < 0);
   heap_header->spin.Unlock();
 
   if (latest_cnt == 0) {
     *deallocate = true;
     obj.~Cls();
     if (unlikely(!Runtime::heap_manager->remove(heap_header))) {
-      while (unlikely(!thread_is_migrated())) {
+      while (unlikely(thread_is_migrating())) {
         rt::Yield();
       }
     }
@@ -115,10 +116,12 @@ void ObjServer::update_ref_cnt_locally(RemObjID id, int delta) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(to_heap_base(id));
   heap_header->spin.Lock();
   auto latest_cnt = (heap_header->ref_cnt += delta);
+  BUG_ON(latest_cnt < 0);
   heap_header->spin.Unlock();
 
   if (latest_cnt == 0) {
     Runtime::get_obj<Cls>(id)->~Cls();
+    Runtime::heap_manager->deallocate(heap_header);
   }
 }
 

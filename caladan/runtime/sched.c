@@ -1068,6 +1068,11 @@ bool thread_is_migrated(void)
 	return __self->migration_state == MIGRATED;
 }
 
+bool thread_is_migrating(void)
+{
+	return __self->migration_state == MIGRATING;
+}
+
 void pause_migrating_threads(void)
 {
 	int i;
