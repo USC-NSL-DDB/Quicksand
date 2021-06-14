@@ -31,16 +31,24 @@ switch_to_runtime_stack(void *old_rsp) {
   thread_unset_obj_stack();
 }
 
+inline void *Runtime::get_heap() {
+  return reinterpret_cast<void *>(get_uthread_specific());
+}
+
+inline void Runtime::set_heap(void *heap) {
+  return set_uthread_specific(reinterpret_cast<uint64_t>(heap));
+}
+
 inline void Runtime::switch_to_obj_heap(void *obj_ptr) {
   auto slab_base = reinterpret_cast<uint64_t>(obj_ptr);
   auto *heap_header = reinterpret_cast<HeapHeader *>(slab_base) - 1;
-  set_uthread_specific(reinterpret_cast<uint64_t>(&heap_header->slab));
+  set_heap(&heap_header->slab);
 }
 
-inline void Runtime::switch_to_runtime_heap() { set_uthread_specific(0); }
+inline void Runtime::switch_to_runtime_heap() { set_heap(nullptr); }
 
 inline HeapHeader *Runtime::get_current_obj_heap_header() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
+  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_heap());
   if (!obj_slab) {
     return nullptr;
   }
@@ -49,7 +57,7 @@ inline HeapHeader *Runtime::get_current_obj_heap_header() {
 }
 
 template <typename T> T *Runtime::get_current_obj() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
+  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_heap());
   if (!obj_slab) {
     return nullptr;
   }

@@ -84,6 +84,8 @@ private:
   static void __run_within_obj_env(StackAllocator *stack_allocator,
                                    uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
                                    As &&... args);
+  static void *get_heap();
+  static void set_heap(void *heap);
   static void switch_to_obj_heap(void *obj_ptr);
   static void switch_to_runtime_heap();
   static void migration_enable();

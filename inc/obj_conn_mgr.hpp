@@ -10,6 +10,7 @@ extern "C" {
 
 #include "conn_mgr.hpp"
 #include "defs.hpp"
+#include "runtime_alloc.hpp"
 #include "utils/netaddr.hpp"
 #include "utils/rcu_hash_map.hpp"
 
@@ -26,7 +27,9 @@ public:
   void reserve_conns(uint32_t num, netaddr obj_server_addr);
 
 private:
-  RCUHashMap<RemObjID, netaddr> id_map_;
+  RCUHashMap<RemObjID, netaddr,
+             RuntimeAllocator<std::pair<const RemObjID, netaddr>>>
+      id_map_;
   ConnectionManager<netaddr> mgr_;
 
   netaddr get_addr(RemObjID id);
