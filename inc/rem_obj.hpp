@@ -23,7 +23,7 @@ public:
     template <class Archive> void serialize(Archive &ar) { ar(id); }
   };
 
-  RemObj(const Cap &cap);
+  RemObj(const Cap &cap, bool ref_cnted = true);
   RemObj(const RemObj &) = delete;
   RemObj &operator=(const RemObj &) = delete;
   RemObj(RemObj &&);
@@ -53,18 +53,21 @@ public:
   template <typename RetT, typename... A0s, typename... A1s>
   RetT run(RetT (T::*md)(A0s...), A1s &&... args);
   bool is_local() const;
+  void reset();
+  Future<void> reset_async();
+  void reset_bg();
 
 private:
   RemObjID id_;
-  Future<void> construct_;
-  Future<void, RuntimeDeleter<nu::Promise<void>>> inc_ref_;
+  Future<void> inc_ref_;
+  bool ref_cnted_;
+
   template <typename U> friend class RemPtr;
   template <typename K, typename V, typename Hash, typename KeyEqual>
   friend class DistributedHashTable;
   friend class DistributedHeap;
 
-  RemObj(RemObjID id);
-  RemObj(RemObjID id, Future<void> &&construct);
+  RemObj(RemObjID id, bool ref_cnted);
   Promise<void> *update_ref_cnt(int delta);
   template <typename RetT>
   static RetT invoke_remote(RemObjID id, auto *states_ss);

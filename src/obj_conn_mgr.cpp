@@ -13,8 +13,8 @@ RemObjConnManager::RemObjConnManager()
     : mgr_(
           [](netaddr server_addr) {
             netaddr local_addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
-	    auto c = rt::TcpConn::Dial(local_addr, server_addr);
-	    BUG_ON(!c);
+            auto c = rt::TcpConn::Dial(local_addr, server_addr);
+            BUG_ON(!c);
             return c;
           },
           kNumPerCoreCachedConns) {}

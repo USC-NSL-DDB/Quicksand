@@ -28,8 +28,8 @@ public:
   template <class Archive> void load(Archive &ar);
 
 private:
+  RemObjID rem_obj_id_;
   T *raw_ptr_;
-  RemObj<ErasedType> rem_obj_;
   template <typename U> friend RemPtr<U> to_rem_ptr(U *raw_ptr);
   friend class DistributedHeap;
 

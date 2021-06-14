@@ -18,8 +18,6 @@ extern "C" {
 #include "obj_conn_mgr.hpp"
 #include "obj_server.hpp"
 #include "runtime.hpp"
-#include "runtime_alloc.hpp"
-#include "runtime_deleter.hpp"
 #include "utils/future.hpp"
 #include "utils/netaddr.hpp"
 #include "utils/promise.hpp"
@@ -75,42 +73,37 @@ retry:
   }
 }
 
-template <typename T> RemObj<T>::RemObj(RemObjID id) : id_(id) {
-  inc_ref_ = std::move(
-      update_ref_cnt(1)->template get_future<RuntimeDeleter<Promise<void>>>());
+template <typename T>
+RemObj<T>::RemObj(RemObjID id, bool ref_cnted)
+    : id_(id), ref_cnted_(ref_cnted) {
+  if (ref_cnted) {
+    auto *inc_ref_promise = update_ref_cnt(1);
+    if (inc_ref_promise) {
+      inc_ref_ = std::move(inc_ref_promise->get_future());
+    }
+  }
 }
-
-template <typename T> RemObj<T>::RemObj(const Cap &cap) : RemObj(cap.id) {}
-
-template <typename T> RemObj<T>::RemObj() : id_(kNullRemObjID) {}
 
 template <typename T>
-RemObj<T>::RemObj(RemObjID id, Future<void> &&construct)
-    : id_(id), construct_(std::move(construct)) {}
+RemObj<T>::RemObj(const Cap &cap, bool ref_cnted) : RemObj(cap.id, ref_cnted) {}
 
-template <typename T> RemObj<T>::~RemObj() {
-  if (construct_) {
-    construct_.get();
-  }
-  if (inc_ref_) {
-    inc_ref_.get();
-    auto *dec_promise = update_ref_cnt(-1);
-    Runtime::rcu_lock.reader_lock();
-    rt::Thread([=]() {
-      dec_promise->template get_future<RuntimeDeleter<Promise<void>>>().get();
-      Runtime::rcu_lock.reader_unlock();
-    }).Detach();
-  }
-}
+template <typename T>
+RemObj<T>::RemObj() : id_(kNullRemObjID), ref_cnted_(false) {}
+
+template <typename T> RemObj<T>::~RemObj() { reset(); }
 
 template <typename T>
 RemObj<T>::RemObj(RemObj<T> &&o)
-    : id_(o.id_), inc_ref_(std::move(o.inc_ref_)) {}
+    : id_(o.id_), inc_ref_(std::move(o.inc_ref_)), ref_cnted_(o.ref_cnted_) {
+  o.ref_cnted_ = false;
+}
 
 template <typename T> RemObj<T> &RemObj<T>::operator=(RemObj<T> &&o) {
   this->~RemObj();
   id_ = o.id_;
   inc_ref_ = std::move(o.inc_ref_);
+  ref_cnted_ = o.ref_cnted_;
+  o.ref_cnted_ = false;
   return *this;
 }
 
@@ -188,11 +181,15 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
   }
   auto [id, server_addr] = *optional;
 
+  RemObj<T> rem_obj;
+  rem_obj.id_ = id;
+  rem_obj.ref_cnted_ = true;
+
   if (Runtime::obj_server && server_addr == Runtime::obj_server->get_addr()) {
     // Fast path: the heap is actually local, use normal function call.
     ObjServer::construct_obj_locally<T, As...>(to_heap_base(id), pinned,
                                                args...);
-    return RemObj<T>(id);
+    return rem_obj;
   }
 
   Runtime::migration_disable();
@@ -203,19 +200,14 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
   serialize(&oa_sstream->oa, handler, to_heap_base(id), pinned,
             std::forward<As>(args)...);
 
-  auto *construct_promise = Promise<void>::create([id, oa_sstream]() {
-    invoke_remote<void>(id, &oa_sstream->ss);
-    Runtime::archive_pool->put_oa_sstream(oa_sstream);
-    Runtime::migration_enable();
-  });
-  return RemObj(id, std::move(construct_promise->get_future()));
+  invoke_remote<void>(id, &oa_sstream->ss);
+  Runtime::archive_pool->put_oa_sstream(oa_sstream);
+  Runtime::migration_enable();
+
+  return rem_obj;
 }
 
 template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() {
-  if (construct_) {
-    construct_.get();
-  }
-
   Cap cap;
   cap.id = id_;
   return cap;
@@ -256,10 +248,6 @@ RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  if (construct_) {
-    construct_.get();
-  }
-
   Runtime::migration_disable();
 
   if (__is_local()) {
@@ -340,7 +328,7 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
     // Fast path: the heap is actually local, use function call.
     ObjServer::update_ref_cnt_locally<T>(id_, delta);
     Runtime::migration_enable();
-    return Promise<void>::create<RuntimeAllocator<Promise<void>>>([] {});
+    return nullptr;
   }
 
   // Slow path: the heap is actually remote, use RPC.
@@ -348,12 +336,11 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
   auto *handler = ObjServer::update_ref_cnt<T>;
   serialize(&oa_sstream->oa, handler, id_, delta);
 
-  return Promise<void>::create<RuntimeAllocator<Promise<void>>>(
-      [&, id = id_, oa_sstream] {
-        invoke_remote<void>(id, &oa_sstream->ss);
-        Runtime::archive_pool->put_oa_sstream(oa_sstream);
-        Runtime::migration_enable();
-      });
+  return Promise<void>::create([&, id = id_, oa_sstream] {
+    invoke_remote<void>(id, &oa_sstream->ss);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+    Runtime::migration_enable();
+  });
 }
 
 template <typename T> bool RemObj<T>::is_local() const {
@@ -366,6 +353,59 @@ template <typename T> bool RemObj<T>::is_local() const {
 template <typename T> bool RemObj<T>::__is_local() const {
   return Runtime::heap_manager &&
          Runtime::heap_manager->contains(to_heap_base(id_));
+}
+
+template <typename T> void RemObj<T>::reset() {
+  if (ref_cnted_) {
+    ref_cnted_ = false;
+    if (inc_ref_) {
+      inc_ref_.get();
+    }
+
+    auto *dec_promise = update_ref_cnt(-1);
+    if (dec_promise) {
+      dec_promise->get_future().get();
+    }
+  }
+}
+
+template <typename T> Future<void> RemObj<T>::reset_async() {
+  if (ref_cnted_) {
+    ref_cnted_ = false;
+    if (inc_ref_) {
+      inc_ref_.get();
+    }
+
+    auto *dec_promise = update_ref_cnt(-1);
+    if (dec_promise) {
+      return dec_promise->get_future();
+    } else {
+      return Promise<void>::create([] {})->get_future();
+    }
+  }
+}
+
+template <typename T> void RemObj<T>::reset_bg() {
+  if (ref_cnted_) {
+    ref_cnted_ = false;
+    if (inc_ref_) {
+      inc_ref_.get();
+    }
+
+    // Should allocate from the runtime slab, since the root object might be
+    // destructed earlier than this background thread.
+    auto *old_heap = Runtime::get_heap();
+    Runtime::switch_to_runtime_heap();
+    auto *dec_promise = update_ref_cnt(-1);
+    if (dec_promise) {
+      Runtime::rcu_lock.reader_lock();
+      rt::Thread([=]() {
+        dec_promise->get_future().get();
+        Runtime::rcu_lock.reader_unlock();
+      }).Detach();
+    }
+    Runtime::set_heap(old_heap);
+  }
 }
 
 } // namespace nu

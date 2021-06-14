@@ -109,10 +109,8 @@ Future<RemPtr<T>> DistributedHeap::allocate_async(As &&... args) {
 }
 
 template <typename T> void DistributedHeap::free(const RemPtr<T> &ptr) {
-  auto &mut_ptr = const_cast<RemPtr<T> &>(ptr);
-  auto *erased_type_rem_obj = &mut_ptr.rem_obj_;
-  auto *shard = reinterpret_cast<RemObj<Shard> *>(erased_type_rem_obj);
-  shard->__run(&Shard::free<T>, mut_ptr.get());
+  RemObj<Shard> shard(ptr.rem_obj_id_, false);
+  shard.__run(&Shard::free<T>, const_cast<RemPtr<T> &>(ptr).get());
 }
 
 template <typename T>
