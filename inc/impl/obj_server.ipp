@@ -51,12 +51,17 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
 
 template <typename Cls, typename... As>
 void ObjServer::construct_obj_locally(void *base, bool pinned, As &... args) {
+  auto *heap = Runtime::get_heap();
+  Runtime::switch_to_runtime_heap();
   Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
 
   auto &slab = reinterpret_cast<HeapHeader *>(base)->slab;
   auto obj_space = slab.yield(sizeof(Cls));
 
+  Runtime::switch_to_obj_heap(obj_space);
   new (obj_space) Cls(args...);
+  Runtime::set_heap(heap);
+
   barrier();
   Runtime::heap_manager->insert(base);
 }
@@ -120,8 +125,13 @@ void ObjServer::update_ref_cnt_locally(RemObjID id, int delta) {
   heap_header->spin.Unlock();
 
   if (latest_cnt == 0) {
-    Runtime::get_obj<Cls>(id)->~Cls();
+    auto *heap = Runtime::get_heap();
+    auto *obj = Runtime::get_obj<Cls>(id);
+    Runtime::switch_to_obj_heap(obj);
+    obj->~Cls();
+    Runtime::switch_to_runtime_heap();
     Runtime::heap_manager->deallocate(heap_header);
+    Runtime::set_heap(heap);
   }
 }
 
