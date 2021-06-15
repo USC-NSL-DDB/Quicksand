@@ -2,29 +2,6 @@
 
 namespace nu {
 
-DistributedHeap::DistributedHeap(const Cap &cap)
-    : last_probing_us_(microtime()), probing_active_(false), done_(false) {
-  for (auto &cap : cap.free_shard_caps) {
-    free_shards_.emplace_back(cap);
-  }
-  for (auto &info : cap.full_shard_infos) {
-    full_shards_.emplace_back(info.first, info.second);
-  }
-}
-
-DistributedHeap::Cap DistributedHeap::get_cap() {
-  Cap cap;
-  rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
-  for (auto &shard : free_shards_) {
-    cap.free_shard_caps.emplace_back(shard.get_cap());
-  }
-  for (auto &info : full_shards_) {
-    cap.full_shard_infos.emplace_back(info.failed_alloc_size,
-                                      info.rem_obj.get_cap());
-  }
-  return cap;
-}
-
 void DistributedHeap::__check_probing(uint64_t cur_us) {
   rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
   if (likely(!probing_active_ && !done_)) {

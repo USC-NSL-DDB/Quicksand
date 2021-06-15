@@ -128,7 +128,7 @@ Future<bool> DistributedHashTable<K, V, Hash, KeyEqual>::remove_async(K1 &&k) {
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
 DistributedHashTable<K, V, Hash, KeyEqual>::Cap
-DistributedHashTable<K, V, Hash, KeyEqual>::get_cap() {
+DistributedHashTable<K, V, Hash, KeyEqual>::get_cap() const {
   Cap cap;
   for (uint32_t i = 0; i < kNumShards; i++) {
     cap.shard_caps[i] = shards_[i].get_cap();

@@ -32,38 +32,35 @@ public:
     bool has_space_for(uint32_t size);
   };
 
-  struct Cap {
-    std::vector<RemObj<Shard>::Cap> free_shard_caps;
-    std::vector<std::pair<uint32_t, RemObj<Shard>::Cap>> full_shard_infos;
-
-    template <class Archive> void serialize(Archive &ar) {
-      ar(free_shard_caps, full_shard_infos);
-    }
-  };
-
   DistributedHeap();
-  DistributedHeap(const Cap &cap);
   DistributedHeap(const DistributedHeap &) = delete;
   DistributedHeap &operator=(const DistributedHeap &) = delete;
   DistributedHeap(DistributedHeap &&);
   DistributedHeap &operator=(DistributedHeap &&);
   ~DistributedHeap();
-  Cap get_cap();
   template <typename T, typename... As> RemPtr<T> allocate(As &&... args);
   template <typename T, typename... As>
   Future<RemPtr<T>> allocate_async(As &&... args);
   template <typename T> void free(const RemPtr<T> &ptr);
   template <typename T> Future<void> free_async(const RemPtr<T> &ptr);
 
+  template <class Archive> void save(Archive &ar) const;
+  template <class Archive> void save(Archive &ar);
+  template <class Archive> void load(Archive &ar);
+
 private:
   struct FullShard {
     uint32_t failed_alloc_size;
     RemObj<Shard> rem_obj;
 
+    FullShard();
     FullShard(uint32_t failed_alloc_size, RemObj<Shard> &&obj);
-    FullShard(uint32_t failed_alloc_size, const RemObj<Shard>::Cap &cap);
     FullShard(FullShard &&o);
     FullShard &operator=(FullShard &&o);
+
+    template <class Archive> void serialize(Archive &ar) {
+      ar(failed_alloc_size, rem_obj);
+    }
   };
 
   std::deque<RemObj<Shard>> free_shards_;

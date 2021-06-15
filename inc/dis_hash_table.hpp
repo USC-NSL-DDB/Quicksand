@@ -43,7 +43,7 @@ public:
   template <typename K1> Future<std::optional<V>> get_async(K1 &&k);
   template <typename K1, typename V1> Future<void> put_async(K1 &&k, V1 &&v);
   template <typename K1> Future<bool> remove_async(K1 &&k);
-  Cap get_cap();
+  Cap get_cap() const;
 
   // For debugging and performance analysis.
   template <typename K1>

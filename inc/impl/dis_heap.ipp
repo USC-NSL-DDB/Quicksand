@@ -1,3 +1,5 @@
+#include <cereal/types/deque.hpp>
+
 extern "C" {
 #include <base/compiler.h>
 }
@@ -37,9 +39,7 @@ inline bool DistributedHeap::Shard::has_space_for(uint32_t size) {
   return true;
 }
 
-inline DistributedHeap::FullShard::FullShard(uint32_t size,
-                                             const RemObj<Shard>::Cap &cap)
-    : failed_alloc_size(size), rem_obj(cap) {}
+inline DistributedHeap::FullShard::FullShard() {}
 
 inline DistributedHeap::FullShard::FullShard(uint32_t size, RemObj<Shard> &&obj)
     : failed_alloc_size(size), rem_obj(std::move(obj)) {}
@@ -127,6 +127,23 @@ inline void DistributedHeap::check_probing() {
       __check_probing(cur_us);
     }
   }
+}
+
+template <class Archive> void DistributedHeap::save(Archive &ar) const {
+  const_cast<DistributedHeap *>(this)->save(ar);
+}
+
+template <class Archive> void DistributedHeap::save(Archive &ar) {
+  rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
+  ar(free_shards_, full_shards_);
+}
+
+template <class Archive> void DistributedHeap::load(Archive &ar) {
+  ar(free_shards_, full_shards_);
+
+  last_probing_us_ = microtime();
+  probing_active_ = false;
+  done_ = false;
 }
 
 } // namespace nu

@@ -40,12 +40,12 @@ public:
   static void construct_obj(cereal::BinaryInputArchive &ia,
                             rt::TcpConn *rpc_conn);
   template <typename Cls, typename... As>
-  static void construct_obj_locally(void *base, bool pinned, As &... args);
+  static void construct_obj_locally(void *base, bool pinned, As &&... args);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
   static void run_closure(cereal::BinaryInputArchive &ia,
                           rt::TcpConn *rpc_conn);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-  static RetT run_closure_locally(RemObjID id, FnPtr fn_ptr, S1s &... states);
+  static RetT run_closure_locally(RemObjID id, FnPtr fn_ptr, S1s &&... states);
 
 private:
   using GenericHandler = void (*)(cereal::BinaryInputArchive &ia,

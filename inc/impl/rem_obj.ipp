@@ -117,8 +117,9 @@ RemObj<T> RemObj<T>::create(As &&... args) {
 template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_async(As &&... args) {
-  auto *promise = Promise<RemObj<T>>::create([&, args...] {
-    return general_create(/* pinned = */ false, std::nullopt, args...);
+  auto *promise = Promise<RemObj<T>>::create([&, args...]() mutable {
+    return general_create(/* pinned = */ false, std::nullopt,
+                          std::forward<As>(args)...);
   });
   return promise->get_future();
 }
@@ -132,8 +133,9 @@ RemObj<T> RemObj<T>::create_at(netaddr addr, As &&... args) {
 template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_at_async(netaddr addr, As &&... args) {
-  auto *promise = Promise<RemObj<T>>::create([&, addr, args...] {
-    return general_create(/* pinned = */ false, addr, args...);
+  auto *promise = Promise<RemObj<T>>::create([&, addr, args...]() mutable {
+    return general_create(/* pinned = */ false, addr,
+                          std::forward<As>(args)...);
   });
   return promise->get_future();
 }
@@ -148,7 +150,7 @@ RemObj<T> RemObj<T>::create_pinned(As &&... args) {
 template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_pinned_async(As &&... args) {
-  auto *promise = Promise<RemObj<T>>::create([&, args...] {
+  auto *promise = Promise<RemObj<T>>::create([&, args...]() mutable {
     return general_create(/* pinned = */ true, std::nullopt,
                           std::forward<As>(args)...);
   });
@@ -165,7 +167,7 @@ template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_pinned_at_async(netaddr addr,
                                                     As &&... args) {
-  auto *promise = Promise<RemObj<T>>::create([&, addr, args...] {
+  auto *promise = Promise<RemObj<T>>::create([&, addr, args...]() mutable {
     return general_create(/* pinned = */ true, addr, std::forward<As>(args)...);
   });
   return promise->get_future();
@@ -188,7 +190,7 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
   if (Runtime::obj_server && server_addr == Runtime::obj_server->get_addr()) {
     // Fast path: the heap is actually local, use normal function call.
     ObjServer::construct_obj_locally<T, As...>(to_heap_base(id), pinned,
-                                               args...);
+                                               std::forward<As>(args)...);
     return rem_obj;
   }
 
@@ -207,7 +209,7 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
   return rem_obj;
 }
 
-template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() {
+template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() const {
   Cap cap;
   cap.id = id_;
   return cap;
@@ -223,14 +225,15 @@ template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
   assert_no_pointer_or_lval_ref<RetT, S0s...>();
 
-  return __run_async(fn, states...);
+  return __run_async(fn, std::forward<S1s>(states)...);
 }
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemObj<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  auto *promise = Promise<RetT>::create(
-      [&, fn, states...] { return __run(fn, states...); });
+  auto *promise = Promise<RetT>::create([&, fn, states...]() mutable {
+    return __run(fn, std::forward<S1s>(states)...);
+  });
   return promise->get_future();
 }
 
@@ -239,10 +242,10 @@ template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   assert_no_pointer_or_lval_ref<RetT, S0s...>();
 
-  using fn_type_checker [[maybe_unused]] =
-      decltype(fn(std::declval<T &>(), states...));
+  using fn_states_checker [[maybe_unused]] =
+      decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
 
-  return __run(fn, states...);
+  return __run(fn, std::forward<S1s>(states)...);
 }
 
 template <typename T>
@@ -255,11 +258,11 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
     auto *local_fn =
         ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>;
     if constexpr (!std::is_same<RetT, void>::value) {
-      auto ret = local_fn(id_, fn, states...);
+      auto ret = local_fn(id_, fn, std::forward<S1s>(states)...);
       Runtime::migration_enable();
       return ret;
     } else {
-      local_fn(id_, fn, states...);
+      local_fn(id_, fn, std::forward<S1s>(states)...);
       Runtime::migration_enable();
       return;
     }
@@ -287,14 +290,15 @@ template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_no_pointer_or_lval_ref<RetT, A0s...>();
 
-  return __run_async(md, args...);
+  return __run_async(md, std::forward<A1s>(args)...);
 }
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
-  auto *promise =
-      Promise<RetT>::create([&, md, args...] { return __run(md, args...); });
+  auto *promise = Promise<RetT>::create([&, md, args...]() mutable {
+    return __run(md, std::forward<A1s>(args)...);
+  });
   return promise->get_future();
 }
 
@@ -304,9 +308,9 @@ RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_no_pointer_or_lval_ref<RetT, A0s...>();
 
   using md_args_checker [[maybe_unused]] =
-      decltype((std::declval<T>().*(md))(args...));
+      decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
 
-  return __run(md, args...);
+  return __run(md, std::forward<A1s>(args)...);
 }
 
 template <typename T>
@@ -315,10 +319,10 @@ RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
   return __run(
-      +[](T &t, decltype(method_ptr) method_ptr, A1s &... args) {
-        return (t.*(method_ptr.ptr))(args...);
+      +[](T &t, decltype(method_ptr) method_ptr, A1s &&... args) {
+        return (t.*(method_ptr.ptr))(std::forward<A1s>(args)...);
       },
-      method_ptr, args...);
+      method_ptr, std::forward<A1s>(args)...);
 }
 
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
@@ -406,6 +410,22 @@ template <typename T> void RemObj<T>::reset_bg() {
     }
     Runtime::set_heap(old_heap);
   }
+}
+
+template <typename T> void RemObj<T>::release() { ref_cnted_ = false; }
+
+template <typename T>
+template <class Archive>
+void RemObj<T>::save(Archive &ar) const {
+  const_cast<RemObj<T> *>(this)->ref_cnted_ = false;
+  ar(id_);
+}
+
+template <typename T>
+template <class Archive>
+void RemObj<T>::load(Archive &ar) {
+  ar(id_);
+  ref_cnted_ = true;
 }
 
 } // namespace nu

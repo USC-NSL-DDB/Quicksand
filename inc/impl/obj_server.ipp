@@ -34,9 +34,9 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   std::tuple<std::decay_t<As>...> args;
   std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
   std::apply(
-      [&](const As &... args) {
+      [&](auto &&... args) {
         Runtime::switch_to_obj_heap(obj_space);
-        new (obj_space) Cls(args...);
+        new (obj_space) Cls(std::forward<As>(args)...);
         Runtime::switch_to_runtime_heap();
       },
       args);
@@ -50,7 +50,7 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls, typename... As>
-void ObjServer::construct_obj_locally(void *base, bool pinned, As &... args) {
+void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
   auto *heap = Runtime::get_heap();
   Runtime::switch_to_runtime_heap();
   Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
@@ -59,7 +59,7 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &... args) {
   auto obj_space = slab.yield(sizeof(Cls));
 
   Runtime::switch_to_obj_heap(obj_space);
-  new (obj_space) Cls(args...);
+  new (obj_space) Cls(std::forward<As>(args)...);
   Runtime::set_heap(heap);
 
   barrier();
@@ -148,12 +148,17 @@ void ObjServer::__run_closure(Cls &obj, cereal::BinaryInputArchive &ia,
 
   Runtime::migration_enable();
   if constexpr (std::is_same<RetT, void>::value) {
-    std::apply([&](auto &&... states) { fn(obj, states...); }, states);
+    std::apply(
+        [&](auto &&... states) { fn(obj, std::forward<S1s>(states)...); },
+        states);
     Runtime::migration_disable();
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
   } else {
-    auto ret = std::apply([&](auto &&... states) { return fn(obj, states...); },
-                          states);
+    auto ret = std::apply(
+        [&](auto &&... states) {
+          return fn(obj, std::forward<S1s>(states)...);
+        },
+        states);
     Runtime::migration_disable();
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
     oa_sstream->oa << ret;
@@ -180,12 +185,12 @@ void ObjServer::run_closure(cereal::BinaryInputArchive &ia,
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
-                                    S1s &... states) {
+                                    S1s &&... states) {
   auto &obj = *Runtime::get_obj<Cls>(id);
   if constexpr (!std::is_same<RetT, void>::value) {
-    return fn_ptr(obj, states...);
+    return fn_ptr(obj, std::forward<S1s>(states)...);
   } else {
-    fn_ptr(obj, states...);
+    fn_ptr(obj, std::forward<S1s>(states)...);
   }
 }
 

@@ -43,7 +43,7 @@ public:
   static RemObj create_pinned_at(netaddr addr, As &&... args);
   template <typename... As>
   static Future<RemObj> create_pinned_at_async(netaddr addr, As &&... args);
-  Cap get_cap();
+  Cap get_cap() const;
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>
@@ -56,6 +56,10 @@ public:
   void reset();
   Future<void> reset_async();
   void reset_bg();
+  void release();
+
+  template <class Archive> void save(Archive &ar) const;
+  template <class Archive> void load(Archive &ar);
 
 private:
   RemObjID id_;

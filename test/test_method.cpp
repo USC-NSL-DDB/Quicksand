@@ -45,14 +45,20 @@ void do_work() {
   auto future_1 = rem_obj.run_async(&Obj::set_vec_b, b);
   future_0.get();
   future_1.get();
-  auto c = rem_obj.run(&Obj::plus);
 
-  for (size_t i = 0; i < a.size(); i++) {
-    if (c[i] != a[i] + b[i]) {
-      passed = false;
-      break;
-    }
-  }
+  auto tmp_obj = RemObj<ErasedType>::create();
+  passed &= tmp_obj.run(
+      +[](ErasedType &, RemObj<Obj> &&rem_obj, std::vector<int> &&a,
+          std::vector<int> &&b) {
+        auto c = rem_obj.run(&Obj::plus);
+        for (size_t i = 0; i < a.size(); i++) {
+          if (c[i] != a[i] + b[i]) {
+	    return false;
+          }
+        }
+	return true;
+      },
+      std::move(rem_obj), std::move(a), std::move(b));
 
   if (passed) {
     std::cout << "Passed" << std::endl;
