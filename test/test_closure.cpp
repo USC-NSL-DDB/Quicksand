@@ -11,7 +11,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "rem_obj.hpp"
-#include "rem_ptr.hpp"
+#include "rem_raw_ptr.hpp"
 #include "runtime.hpp"
 
 using namespace nu;
@@ -30,35 +30,35 @@ void do_work() {
   auto rem_obj_future = RemObj<Obj>::create_async();
   auto rem_obj = std::move(rem_obj_future.get());
 
-  auto rem_ptr_a_future = rem_obj.run_async(
+  auto rem_raw_ptr_a_future = rem_obj.run_async(
       +[](Obj &_, std::vector<int> vec_a) {
         auto *raw_ptr_a = new std::vector<int>();
         *raw_ptr_a = vec_a;
-        return to_rem_ptr(raw_ptr_a);
+        return to_rem_raw_ptr(raw_ptr_a);
       },
       a);
-  auto rem_ptr_b_future = rem_obj.run_async(
+  auto rem_raw_ptr_b_future = rem_obj.run_async(
       +[](Obj &_, std::vector<int> vec_b) {
         auto *raw_ptr_b = new std::vector<int>();
         *raw_ptr_b = vec_b;
-        return to_rem_ptr(raw_ptr_b);
+        return to_rem_raw_ptr(raw_ptr_b);
       },
       b);
 
-  auto rem_ptr_a = rem_ptr_a_future.get();
-  auto rem_ptr_b = rem_ptr_b_future.get();
+  auto rem_raw_ptr_a = rem_raw_ptr_a_future.get();
+  auto rem_raw_ptr_b = rem_raw_ptr_b_future.get();
   auto c = rem_obj.run(
-      +[](Obj &_, RemPtr<std::vector<int>> rem_ptr_a,
-          RemPtr<std::vector<int>> rem_ptr_b) {
-        auto *raw_ptr_a = rem_ptr_a.get_checked();
-        auto *raw_ptr_b = rem_ptr_b.get_checked();
+      +[](Obj &_, RemRawPtr<std::vector<int>> rem_raw_ptr_a,
+          RemRawPtr<std::vector<int>> rem_raw_ptr_b) {
+        auto *raw_ptr_a = rem_raw_ptr_a.get_checked();
+        auto *raw_ptr_b = rem_raw_ptr_b.get_checked();
         std::vector<int> rem_c;
         for (size_t i = 0; i < raw_ptr_a->size(); i++) {
           rem_c.push_back(raw_ptr_a->at(i) + raw_ptr_b->at(i));
         }
         return rem_c;
       },
-      rem_ptr_a, rem_ptr_b);
+      rem_raw_ptr_a, rem_raw_ptr_b);
 
   for (size_t i = 0; i < a.size(); i++) {
     if (c[i] != a[i] + b[i]) {
@@ -70,7 +70,7 @@ void do_work() {
     passed = false;
   }
 
-  auto a_copy = *rem_ptr_a;
+  auto a_copy = *rem_raw_ptr_a;
   for (size_t i = 0; i < a.size(); i++) {
     if (a_copy[i] != a[i]) {
       passed = false;
@@ -81,7 +81,7 @@ void do_work() {
     passed = false;
   }
 
-  auto b_copy = *rem_ptr_b;
+  auto b_copy = *rem_raw_ptr_b;
   for (size_t i = 0; i < b.size(); i++) {
     if (b_copy[i] != b[i]) {
       passed = false;

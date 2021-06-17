@@ -7,13 +7,13 @@
 
 namespace nu {
 
-template <typename T> class RemPtr {
+template <typename T> class RemRawPtr {
 public:
-  RemPtr();
-  RemPtr(const RemPtr &);
-  RemPtr &operator=(const RemPtr &);
-  RemPtr(RemPtr &&);
-  RemPtr &operator=(RemPtr &&);
+  RemRawPtr();
+  RemRawPtr(const RemRawPtr &);
+  RemRawPtr &operator=(const RemRawPtr &);
+  RemRawPtr(RemRawPtr &&);
+  RemRawPtr &operator=(RemRawPtr &&);
   operator bool() const;
   T operator*();
   bool is_local() const;
@@ -30,15 +30,15 @@ public:
 private:
   RemObjID rem_obj_id_;
   T *raw_ptr_;
-  template <typename U> friend RemPtr<U> to_rem_ptr(U *raw_ptr);
+  template <typename U> friend RemRawPtr<U> to_rem_raw_ptr(U *raw_ptr);
   friend class DistributedMemPool;
 
-  // Can only be invoked through to_rem_ptr locally.
-  RemPtr(RemObjID id, T *raw_ptr);
+  // Can only be invoked through to_rem_raw_ptr locally.
+  RemRawPtr(RemObjID id, T *raw_ptr);
 };
 
-template <typename T> RemPtr<T> to_rem_ptr(T *raw_ptr);
+template <typename T> RemRawPtr<T> to_rem_raw_ptr(T *raw_ptr);
 
 } // namespace nu
 
-#include "impl/rem_ptr.ipp"
+#include "impl/rem_raw_ptr.ipp"

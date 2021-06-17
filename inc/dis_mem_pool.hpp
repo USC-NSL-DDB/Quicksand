@@ -13,7 +13,7 @@ extern "C" {
 }
 
 #include "rem_obj.hpp"
-#include "rem_ptr.hpp"
+#include "rem_raw_ptr.hpp"
 #include "utils/future.hpp"
 
 namespace nu {
@@ -27,7 +27,7 @@ public:
 
   struct Shard {
     Shard(uint32_t shard_size);
-    template <typename T, typename... As> RemPtr<T> allocate(As &&... args);
+    template <typename T, typename... As> RemRawPtr<T> allocate(As &&... args);
     template <typename T> void free(T *raw_ptr);
     bool has_space_for(uint32_t size);
   };
@@ -38,11 +38,11 @@ public:
   DistributedMemPool(DistributedMemPool &&);
   DistributedMemPool &operator=(DistributedMemPool &&);
   ~DistributedMemPool();
-  template <typename T, typename... As> RemPtr<T> allocate(As &&... args);
+  template <typename T, typename... As> RemRawPtr<T> allocate(As &&... args);
   template <typename T, typename... As>
-  Future<RemPtr<T>> allocate_async(As &&... args);
-  template <typename T> void free(const RemPtr<T> &ptr);
-  template <typename T> Future<void> free_async(const RemPtr<T> &ptr);
+  Future<RemRawPtr<T>> allocate_async(As &&... args);
+  template <typename T> void free(const RemRawPtr<T> &ptr);
+  template <typename T> Future<void> free_async(const RemRawPtr<T> &ptr);
 
   template <class Archive> void save(Archive &ar) const;
   template <class Archive> void save(Archive &ar);

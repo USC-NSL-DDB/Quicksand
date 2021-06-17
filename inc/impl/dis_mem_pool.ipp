@@ -14,14 +14,14 @@ inline DistributedMemPool::Shard::Shard(uint32_t shard_size) {
 }
 
 template <typename T, typename... As>
-RemPtr<T> DistributedMemPool::Shard::allocate(As &&... args) {
+RemRawPtr<T> DistributedMemPool::Shard::allocate(As &&... args) {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   auto *obj_space = heap_header->slab.allocate(sizeof(T));
   if (unlikely(!obj_space)) {
-    return RemPtr<T>();
+    return RemRawPtr<T>();
   }
   new (obj_space) T(args...);
-  return to_rem_ptr(reinterpret_cast<T *>(obj_space));
+  return to_rem_raw_ptr(reinterpret_cast<T *>(obj_space));
 }
 
 template <typename T> void DistributedMemPool::Shard::free(T *raw_ptr) {
@@ -85,7 +85,7 @@ inline void DistributedMemPool::halt_probing() {
 }
 
 template <typename T, typename... As>
-RemPtr<T> DistributedMemPool::allocate(As &&... args) {
+RemRawPtr<T> DistributedMemPool::allocate(As &&... args) {
 retry:
   probing_mutex_.Lock();
   if (unlikely(free_shards_.empty())) {
@@ -93,30 +93,30 @@ retry:
   }
   auto &free_shard = free_shards_.front();
   probing_mutex_.Unlock();
-  auto rem_ptr = free_shard.__run(&Shard::allocate<T, As...>, args...);
-  if (!rem_ptr) {
+  auto rem_raw_ptr = free_shard.__run(&Shard::allocate<T, As...>, args...);
+  if (!rem_raw_ptr) {
     rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
     full_shards_.emplace_back(sizeof(T), std::move(free_shard));
     free_shards_.pop_front();
     goto retry;
   }
-  return rem_ptr;
+  return rem_raw_ptr;
 }
 
 template <typename T, typename... As>
-Future<RemPtr<T>> DistributedMemPool::allocate_async(As &&... args) {
+Future<RemRawPtr<T>> DistributedMemPool::allocate_async(As &&... args) {
   auto *promise =
       Promise<T>::create([&, args...] { return allocate(args...); });
   return promise->get_future();
 }
 
-template <typename T> void DistributedMemPool::free(const RemPtr<T> &ptr) {
+template <typename T> void DistributedMemPool::free(const RemRawPtr<T> &ptr) {
   RemObj<Shard> shard(ptr.rem_obj_id_, false);
-  shard.__run(&Shard::free<T>, const_cast<RemPtr<T> &>(ptr).get());
+  shard.__run(&Shard::free<T>, const_cast<RemRawPtr<T> &>(ptr).get());
 }
 
 template <typename T>
-Future<void> DistributedMemPool::free_async(const RemPtr<T> &ptr) {
+Future<void> DistributedMemPool::free_async(const RemRawPtr<T> &ptr) {
   auto *promise = Promise<T>::create([&] { free(ptr); });
   return promise->get_future();
 }

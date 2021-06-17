@@ -67,7 +67,7 @@ private:
   friend class CondVar;
   friend class Time;
   template <typename T> friend class RemObj;
-  template <typename T> friend class RemPtr;
+  template <typename T> friend class RemRawPtr;
   template <typename T> friend class RuntimeDeleter;
 
   Runtime(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
