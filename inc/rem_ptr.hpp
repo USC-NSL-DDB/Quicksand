@@ -31,7 +31,7 @@ private:
   RemObjID rem_obj_id_;
   T *raw_ptr_;
   template <typename U> friend RemPtr<U> to_rem_ptr(U *raw_ptr);
-  friend class DistributedHeap;
+  friend class DistributedMemPool;
 
   // Can only be invoked through to_rem_ptr locally.
   RemPtr(RemObjID id, T *raw_ptr);

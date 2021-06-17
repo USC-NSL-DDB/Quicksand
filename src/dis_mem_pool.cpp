@@ -1,8 +1,8 @@
-#include "dis_heap.hpp"
+#include "dis_mem_pool.hpp"
 
 namespace nu {
 
-void DistributedHeap::__check_probing(uint64_t cur_us) {
+void DistributedMemPool::__check_probing(uint64_t cur_us) {
   rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
   if (likely(!probing_active_ && !done_)) {
     last_probing_us_ = cur_us;
@@ -12,7 +12,7 @@ void DistributedHeap::__check_probing(uint64_t cur_us) {
   }
 }
 
-void DistributedHeap::probing_fn() {
+void DistributedMemPool::probing_fn() {
   auto num_probes = full_shards_.size();
   while (num_probes-- && !ACCESS_ONCE(done_)) {
     probing_mutex_.Lock();

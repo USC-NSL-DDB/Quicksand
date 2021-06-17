@@ -69,7 +69,7 @@ private:
   template <typename U> friend class RemPtr;
   template <typename K, typename V, typename Hash, typename KeyEqual>
   friend class DistributedHashTable;
-  friend class DistributedHeap;
+  friend class DistributedMemPool;
 
   RemObj(RemObjID id, bool ref_cnted);
   Promise<void> *update_ref_cnt(int delta);

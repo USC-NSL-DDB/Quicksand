@@ -20,7 +20,7 @@ namespace nu {
 
 // TODO: make it thread-safe.
 // TODO: add batch interface.
-class DistributedHeap {
+class DistributedMemPool {
 public:
   constexpr static uint32_t kFullShardProbingIntervalMs = 400;
   constexpr static uint32_t kShardSize = 2 << 20;
@@ -32,12 +32,12 @@ public:
     bool has_space_for(uint32_t size);
   };
 
-  DistributedHeap();
-  DistributedHeap(const DistributedHeap &) = delete;
-  DistributedHeap &operator=(const DistributedHeap &) = delete;
-  DistributedHeap(DistributedHeap &&);
-  DistributedHeap &operator=(DistributedHeap &&);
-  ~DistributedHeap();
+  DistributedMemPool();
+  DistributedMemPool(const DistributedMemPool &) = delete;
+  DistributedMemPool &operator=(const DistributedMemPool &) = delete;
+  DistributedMemPool(DistributedMemPool &&);
+  DistributedMemPool &operator=(DistributedMemPool &&);
+  ~DistributedMemPool();
   template <typename T, typename... As> RemPtr<T> allocate(As &&... args);
   template <typename T, typename... As>
   Future<RemPtr<T>> allocate_async(As &&... args);
@@ -81,4 +81,4 @@ private:
 
 } // namespace nu
 
-#include "impl/dis_heap.ipp"
+#include "impl/dis_mem_pool.ipp"

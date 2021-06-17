@@ -10,7 +10,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "dis_heap.hpp"
+#include "dis_mem_pool.hpp"
 #include "rem_obj.hpp"
 #include "runtime.hpp"
 
@@ -22,18 +22,18 @@ bool run_test() {
   std::vector<int> a{1, 2, 3, 4, 5, 6};
 
   auto rem_obj = RemObj<ErasedType>::create();
-  auto [dis_heap, rem_vec_ptr] = rem_obj.run(
+  auto [dis_mem_pool, rem_vec_ptr] = rem_obj.run(
       +[](ErasedType &, std::vector<int> a) {
-        DistributedHeap dis_heap;
-        return std::make_pair(std::move(dis_heap),
-                              dis_heap.allocate<std::vector<int>>(a));
+        DistributedMemPool dis_mem_pool;
+        return std::make_pair(std::move(dis_mem_pool),
+                              dis_mem_pool.allocate<std::vector<int>>(a));
       },
       a);
 
   if (a != *rem_vec_ptr) {
     return false;
   }
-  dis_heap.free(rem_vec_ptr);
+  dis_mem_pool.free(rem_vec_ptr);
 
   return true;
 }

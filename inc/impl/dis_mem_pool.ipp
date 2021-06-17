@@ -8,13 +8,13 @@ extern "C" {
 
 namespace nu {
 
-inline DistributedHeap::Shard::Shard(uint32_t shard_size) {
+inline DistributedMemPool::Shard::Shard(uint32_t shard_size) {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   BUG_ON(!heap_header->slab.try_shrink(shard_size));
 }
 
 template <typename T, typename... As>
-RemPtr<T> DistributedHeap::Shard::allocate(As &&... args) {
+RemPtr<T> DistributedMemPool::Shard::allocate(As &&... args) {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   auto *obj_space = heap_header->slab.allocate(sizeof(T));
   if (unlikely(!obj_space)) {
@@ -24,12 +24,12 @@ RemPtr<T> DistributedHeap::Shard::allocate(As &&... args) {
   return to_rem_ptr(reinterpret_cast<T *>(obj_space));
 }
 
-template <typename T> void DistributedHeap::Shard::free(T *raw_ptr) {
+template <typename T> void DistributedMemPool::Shard::free(T *raw_ptr) {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   heap_header->slab.free(raw_ptr);
 }
 
-inline bool DistributedHeap::Shard::has_space_for(uint32_t size) {
+inline bool DistributedMemPool::Shard::has_space_for(uint32_t size) {
   auto &slab = Runtime::get_current_obj_heap_header()->slab;
   auto *buf = slab.allocate(size);
   if (!buf) {
@@ -39,30 +39,32 @@ inline bool DistributedHeap::Shard::has_space_for(uint32_t size) {
   return true;
 }
 
-inline DistributedHeap::FullShard::FullShard() {}
+inline DistributedMemPool::FullShard::FullShard() {}
 
-inline DistributedHeap::FullShard::FullShard(uint32_t size, RemObj<Shard> &&obj)
+inline DistributedMemPool::FullShard::FullShard(uint32_t size,
+                                                RemObj<Shard> &&obj)
     : failed_alloc_size(size), rem_obj(std::move(obj)) {}
 
-inline DistributedHeap::FullShard::FullShard(FullShard &&o)
+inline DistributedMemPool::FullShard::FullShard(FullShard &&o)
     : failed_alloc_size(o.failed_alloc_size), rem_obj(std::move(o.rem_obj)) {}
 
-inline DistributedHeap::FullShard &
-DistributedHeap::FullShard::operator=(FullShard &&o) {
+inline DistributedMemPool::FullShard &
+DistributedMemPool::FullShard::operator=(FullShard &&o) {
   failed_alloc_size = o.failed_alloc_size;
   rem_obj = std::move(o.rem_obj);
   return *this;
 }
 
-inline DistributedHeap::DistributedHeap()
+inline DistributedMemPool::DistributedMemPool()
     : last_probing_us_(microtime()), probing_active_(false), done_(false) {}
 
-inline DistributedHeap::DistributedHeap(DistributedHeap &&o)
+inline DistributedMemPool::DistributedMemPool(DistributedMemPool &&o)
     : last_probing_us_(microtime()), probing_active_(false), done_(false) {
   *this = std::move(o);
 }
 
-inline DistributedHeap &DistributedHeap::operator=(DistributedHeap &&o) {
+inline DistributedMemPool &
+DistributedMemPool::operator=(DistributedMemPool &&o) {
   o.halt_probing();
   free_shards_ = std::move(o.free_shards_);
   full_shards_ = std::move(o.full_shards_);
@@ -70,9 +72,9 @@ inline DistributedHeap &DistributedHeap::operator=(DistributedHeap &&o) {
   return *this;
 }
 
-inline DistributedHeap::~DistributedHeap() { halt_probing(); }
+inline DistributedMemPool::~DistributedMemPool() { halt_probing(); }
 
-inline void DistributedHeap::halt_probing() {
+inline void DistributedMemPool::halt_probing() {
   {
     rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
     done_ = true;
@@ -83,7 +85,7 @@ inline void DistributedHeap::halt_probing() {
 }
 
 template <typename T, typename... As>
-RemPtr<T> DistributedHeap::allocate(As &&... args) {
+RemPtr<T> DistributedMemPool::allocate(As &&... args) {
 retry:
   probing_mutex_.Lock();
   if (unlikely(free_shards_.empty())) {
@@ -102,24 +104,24 @@ retry:
 }
 
 template <typename T, typename... As>
-Future<RemPtr<T>> DistributedHeap::allocate_async(As &&... args) {
+Future<RemPtr<T>> DistributedMemPool::allocate_async(As &&... args) {
   auto *promise =
       Promise<T>::create([&, args...] { return allocate(args...); });
   return promise->get_future();
 }
 
-template <typename T> void DistributedHeap::free(const RemPtr<T> &ptr) {
+template <typename T> void DistributedMemPool::free(const RemPtr<T> &ptr) {
   RemObj<Shard> shard(ptr.rem_obj_id_, false);
   shard.__run(&Shard::free<T>, const_cast<RemPtr<T> &>(ptr).get());
 }
 
 template <typename T>
-Future<void> DistributedHeap::free_async(const RemPtr<T> &ptr) {
+Future<void> DistributedMemPool::free_async(const RemPtr<T> &ptr) {
   auto *promise = Promise<T>::create([&] { free(ptr); });
   return promise->get_future();
 }
 
-inline void DistributedHeap::check_probing() {
+inline void DistributedMemPool::check_probing() {
   auto cur_us = microtime();
   if (unlikely(cur_us >
                last_probing_us_ + kFullShardProbingIntervalMs * 1000)) {
@@ -129,16 +131,16 @@ inline void DistributedHeap::check_probing() {
   }
 }
 
-template <class Archive> void DistributedHeap::save(Archive &ar) const {
-  const_cast<DistributedHeap *>(this)->save(ar);
+template <class Archive> void DistributedMemPool::save(Archive &ar) const {
+  const_cast<DistributedMemPool *>(this)->save(ar);
 }
 
-template <class Archive> void DistributedHeap::save(Archive &ar) {
+template <class Archive> void DistributedMemPool::save(Archive &ar) {
   rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
   ar(free_shards_, full_shards_);
 }
 
-template <class Archive> void DistributedHeap::load(Archive &ar) {
+template <class Archive> void DistributedMemPool::load(Archive &ar) {
   ar(free_shards_, full_shards_);
 
   last_probing_us_ = microtime();
