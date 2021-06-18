@@ -107,7 +107,7 @@ template <typename T> void RemSharedPtr<T>::reset_bg() {
 
 template <typename T, typename... Args>
 RemSharedPtr<T> make_rem_shared(Args &&... args) {
-  return RemSharedPtr<T>(std::make_shared(std::forward<Args>(args)...));
+  return RemSharedPtr<T>(std::make_shared<T>(std::forward<Args>(args)...));
 }
 
 } // namespace nu

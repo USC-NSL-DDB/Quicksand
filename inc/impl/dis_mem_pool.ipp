@@ -5,6 +5,7 @@ extern "C" {
 }
 
 #include "rem_raw_ptr.hpp"
+#include "rem_shared_ptr.hpp"
 #include "rem_unique_ptr.hpp"
 #include "utils/promise.hpp"
 
@@ -17,41 +18,29 @@ inline DistributedMemPool::Shard::Shard(uint32_t shard_size) {
 
 template <typename T, typename... As>
 RemRawPtr<T> DistributedMemPool::Shard::allocate_raw(As &&... args) {
-  auto *heap_header = Runtime::get_current_obj_heap_header();
-  auto *obj_space = heap_header->slab.allocate(sizeof(T));
-  if (unlikely(!obj_space)) {
-    return RemRawPtr<T>();
-  }
-
-  new (obj_space) T(args...);
-  return RemRawPtr(reinterpret_cast<T *>(obj_space));
+  return RemRawPtr(new T(std::forward<As>(args)...));
 }
 
 template <typename T, typename... As>
 RemUniquePtr<T> DistributedMemPool::Shard::allocate_unique(As &&... args) {
-  auto *heap_header = Runtime::get_current_obj_heap_header();
-  auto *obj_space = heap_header->slab.allocate(sizeof(T));
-  if (unlikely(!obj_space)) {
-    return RemUniquePtr<T>();
-  }
+  return make_rem_unique<T>(std::forward<As>(args)...);
+}
 
-  std::unique_ptr<T> unique_ptr(new (obj_space) T(args...));
-  return RemUniquePtr<T>(unique_ptr);
+template <typename T, typename... As>
+RemSharedPtr<T> DistributedMemPool::Shard::allocate_shared(As &&... args) {
+  return make_rem_shared<T>(std::forward<As>(args)...);
 }
 
 template <typename T> void DistributedMemPool::Shard::free_raw(T *raw_ptr) {
-  raw_ptr->~T();
-  auto *heap_header = Runtime::get_current_obj_heap_header();
-  heap_header->slab.free(raw_ptr);
+  delete raw_ptr;
 }
 
 inline bool DistributedMemPool::Shard::has_space_for(uint32_t size) {
-  auto &slab = Runtime::get_current_obj_heap_header()->slab;
-  auto *buf = slab.allocate(size);
+  auto buf = new uint8_t[size];
   if (!buf) {
     return false;
   }
-  slab.free(buf);
+  delete[] buf;
   return true;
 }
 
@@ -102,22 +91,14 @@ inline void DistributedMemPool::halt_probing() {
 
 template <typename T, typename... As>
 RemRawPtr<T> DistributedMemPool::allocate_raw(As &&... args) {
-retry:
-  auto free_shard = atomic_pick_free_shard();
-  auto rem_raw_ptr = free_shard.__run(&Shard::allocate_raw<T, As...>, args...);
-  if (!rem_raw_ptr) {
-    atomic_put_full_shard(sizeof(T), std::move(free_shard));
-    goto retry;
-  } else {
-    atomic_put_free_shard(std::move(free_shard));
-  }
-  return rem_raw_ptr;
+  return general_allocate<T>(&Shard::allocate_raw<T, As...>,
+                             std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
 Future<RemRawPtr<T>> DistributedMemPool::allocate_raw_async(As &&... args) {
-  auto *promise =
-      Promise<T>::create([&, args...] { return allocate_raw(args...); });
+  auto *promise = Promise<T>::create(
+      [&, args...] { return allocate_raw(std::forward<As>(args)...); });
   return promise->get_future();
 }
 
@@ -162,25 +143,44 @@ template <class Archive> void DistributedMemPool::load(Archive &ar) {
 
 template <typename T, typename... As>
 RemUniquePtr<T> DistributedMemPool::allocate_unique(As &&... args) {
-retry:
-  auto free_shard = atomic_pick_free_shard();
-  auto rem_unique_ptr =
-      free_shard.__run(&Shard::allocate_unique<T, As...>, args...);
-  if (!rem_unique_ptr) {
-    atomic_put_full_shard(sizeof(T), std::move(free_shard));
-    goto retry;
-  } else {
-    atomic_put_free_shard(std::move(free_shard));
-  }
-  return rem_unique_ptr;
+  return general_allocate<T>(&Shard::allocate_unique<T, As...>,
+                             std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
 Future<RemUniquePtr<T>>
 DistributedMemPool::allocate_unique_async(As &&... args) {
-  auto *promise =
-      Promise<T>::create([&, args...] { return allocate_unique(args...); });
+  auto *promise = Promise<T>::create(
+      [&, args...] { return allocate_unique(std::forward<As>(args)...); });
   return promise->get_future();
+}
+
+template <typename T, typename... As>
+RemSharedPtr<T> DistributedMemPool::allocate_shared(As &&... args) {
+  return general_allocate<T>(&Shard::allocate_shared<T, As...>,
+                             std::forward<As>(args)...);
+}
+
+template <typename T, typename... As>
+Future<RemSharedPtr<T>>
+DistributedMemPool::allocate_shared_async(As &&... args) {
+  auto *promise = Promise<T>::create(
+      [&, args...] { return allocate_shared(std::forward<As>(args)...); });
+  return promise->get_future();
+}
+
+template <typename T, typename AllocFn, typename... As>
+auto DistributedMemPool::general_allocate(AllocFn &&alloc_fn, As &&... args) {
+retry:
+  auto free_shard = atomic_pick_free_shard();
+  auto ptr = free_shard.__run(alloc_fn, std::forward<As>(args)...);
+  if (!ptr) {
+    atomic_put_full_shard(sizeof(T), std::move(free_shard));
+    goto retry;
+  } else {
+    atomic_put_free_shard(std::move(free_shard));
+  }
+  return ptr;
 }
 
 } // namespace nu

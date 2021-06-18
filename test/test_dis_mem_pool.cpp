@@ -22,7 +22,7 @@ bool run_test() {
   std::vector<int> a{1, 2, 3, 4, 5, 6};
 
   auto rem_obj = RemObj<ErasedType>::create();
-  auto [dis_mem_pool, rem_vec_ptr] = rem_obj.run(
+  auto [dis_mem_pool, rem_raw_ptr] = rem_obj.run(
       +[](ErasedType &, std::vector<int> a) {
         DistributedMemPool dis_mem_pool;
         return std::make_pair(std::move(dis_mem_pool),
@@ -30,10 +30,21 @@ bool run_test() {
       },
       a);
 
-  if (a != *rem_vec_ptr) {
+  auto rem_unique_ptr = dis_mem_pool.allocate_unique<std::vector<int>>(a);
+  auto rem_shared_ptr = dis_mem_pool.allocate_shared<std::vector<int>>(a);
+
+  if (a != *rem_raw_ptr) {
     return false;
   }
-  dis_mem_pool.free_raw(rem_vec_ptr);
+  dis_mem_pool.free_raw(rem_raw_ptr);
+
+  if (a != *rem_unique_ptr) {
+    return false;
+  }
+
+  if (a != *rem_shared_ptr) {
+    return false;
+  }
 
   return true;
 }

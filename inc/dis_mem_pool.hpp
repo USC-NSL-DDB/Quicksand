@@ -20,6 +20,7 @@ namespace nu {
 
 template <typename T> class RemRawPtr;
 template <typename T> class RemUniquePtr;
+template <typename T> class RemSharedPtr;
 
 // TODO: make it thread-safe.
 // TODO: add batch interface.
@@ -42,6 +43,10 @@ public:
   RemUniquePtr<T> allocate_unique(As &&... args);
   template <typename T, typename... As>
   Future<RemUniquePtr<T>> allocate_unique_async(As &&... args);
+  template <typename T, typename... As>
+  RemSharedPtr<T> allocate_shared(As &&... args);
+  template <typename T, typename... As>
+  Future<RemSharedPtr<T>> allocate_shared_async(As &&... args);
   template <typename T> void free_raw(const RemRawPtr<T> &ptr);
   template <typename T> Future<void> free_raw_async(const RemRawPtr<T> &ptr);
 
@@ -56,6 +61,8 @@ private:
     RemRawPtr<T> allocate_raw(As &&... args);
     template <typename T, typename... As>
     RemUniquePtr<T> allocate_unique(As &&... args);
+    template <typename T, typename... As>
+    RemSharedPtr<T> allocate_shared(As &&... args);
     template <typename T> void free_raw(T *raw_ptr);
     bool has_space_for(uint32_t size);
   };
@@ -88,6 +95,8 @@ private:
 
   template <typename T> friend class RemUniquePtr;
 
+  template <typename T, typename AllocFn, typename... As>
+  auto general_allocate(AllocFn &&alloc_fn, As &&... args);
   FreeShard atomic_pick_free_shard();
   void atomic_put_free_shard(FreeShard &&free_shard);
   void atomic_put_full_shard(uint32_t failed_alloc_size,
