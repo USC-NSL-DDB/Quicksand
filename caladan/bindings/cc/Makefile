@@ -2,6 +2,9 @@
 ROOT_PATH=../..
 include $(ROOT_PATH)/build/shared.mk
 
+# Add Folly headers
+INC += -I$(ROOT_PATH)/deps/folly/include/
+
 # librt++.a - the c++ runtime library
 rt_src = runtime.cc thread.cc net.cc
 rt_obj = $(rt_src:.cc=.o)

@@ -7,49 +7,35 @@ extern "C" {
 #include <runtime/sync.h>
 }
 
-#include <functional>
+#include <folly/Function.h>
 
 namespace rt {
 namespace thread_internal {
 
 struct join_data {
-  join_data(std::function<void()>&& func)
-      : done_(false), waiter_(nullptr), func_(std::move(func)) {
-    spin_lock_init(&lock_);
-  }
-  join_data(const std::function<void()>& func)
-      : done_(false), waiter_(nullptr), func_(func) {
+  template <typename F>
+  join_data(F &&f) : done_(false), waiter_(nullptr), func_(std::forward<F>(f)) {
     spin_lock_init(&lock_);
   }
 
   spinlock_t lock_;
   bool done_;
-  thread_t* waiter_;
-  std::function<void()> func_;
+  thread_t *waiter_;
+  folly::Function<void()> func_;
 };
 
-extern void ThreadTrampoline(void* arg);
-extern void ThreadTrampolineWithJoin(void* arg);
+extern void ThreadTrampoline(void *arg);
+extern void ThreadTrampolineWithJoin(void *arg);
 
 }  // namespace thread_internal
 
-// Spawns a new thread by copying.
-inline void Spawn(const std::function<void()>& func) {
-  void* buf;
-  thread_t* th = thread_create_with_buf(thread_internal::ThreadTrampoline, &buf,
-                                        sizeof(std::function<void()>));
+// Spawns a new thread.
+template <typename F> void Spawn(F &&f) {
+  void *buf;
+  thread_t *th = thread_create_with_buf(thread_internal::ThreadTrampoline, &buf,
+                                        sizeof(folly::Function<void()>));
   if (unlikely(!th)) BUG();
-  new (buf) std::function<void()>(func);
-  thread_ready(th);
-}
-
-// Spawns a new thread by moving.
-inline void Spawn(std::function<void()>&& func) {
-  void* buf;
-  thread_t* th = thread_create_with_buf(thread_internal::ThreadTrampoline, &buf,
-                                        sizeof(std::function<void()>));
-  if (unlikely(!th)) BUG();
-  new (buf) std::function<void()>(std::move(func));
+  new (buf) folly::Function<void()>(std::forward<F>(f));
   thread_ready(th);
 }
 
@@ -67,22 +53,29 @@ class Thread {
   ~Thread();
 
   // disable copy.
-  Thread(const Thread&) = delete;
-  Thread& operator=(const Thread&) = delete;
+  Thread(const Thread &) = delete;
+  Thread &operator=(const Thread &) = delete;
 
   // Move support.
-  Thread(Thread&& t) : join_data_(t.join_data_) { t.join_data_ = nullptr; }
-  Thread& operator=(Thread&& t) {
+  Thread(Thread &&t) : join_data_(t.join_data_) { t.join_data_ = nullptr; }
+  Thread &operator=(Thread &&t) {
     join_data_ = t.join_data_;
     t.join_data_ = nullptr;
     return *this;
   }
 
-  // Spawns a thread by copying a std::function.
-  Thread(const std::function<void()>& func);
-
-  // Spawns a thread by moving a std::function.
-  Thread(std::function<void()>&& func);
+  // Spawns a thread.
+  template <typename F> Thread(F&& f) {
+    thread_internal::join_data *buf;
+    thread_t *th =
+        thread_create_with_buf(thread_internal::ThreadTrampolineWithJoin,
+                               reinterpret_cast<void **>(&buf), sizeof(*buf));
+    if (unlikely(!th))
+      BUG();
+    new (buf) thread_internal::join_data(std::forward<F>(f));
+    join_data_ = buf;
+    thread_ready(th);
+  }
 
   // Waits for the thread to exit.
   void Join();

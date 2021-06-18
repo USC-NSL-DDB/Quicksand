@@ -1,20 +1,23 @@
+#include <memory>
+
 #include "thread.h"
 
 namespace rt {
 namespace thread_internal {
 
-// A helper to jump from a C function to a C++ std::function.
+// A helper to jump from a C function to a C++ folly::Function.
 void ThreadTrampoline(void *arg) {
-  (*static_cast<std::function<void()> *>(arg))();
+  (*static_cast<folly::Function<void()> *>(arg))();
+  std::destroy_at(static_cast<thread_internal::join_data *>(arg));
 }
 
-// A helper to jump from a C function to a C++ std::function. This variant
+// A helper to jump from a C function to a C++ folly::Function. This variant
 // can wait for the thread to be joined.
 void ThreadTrampolineWithJoin(void *arg) {
   thread_internal::join_data *d =
       static_cast<thread_internal::join_data *>(arg);
   d->func_();
-  d->func_.~function<void()>();
+  std::destroy_at(&d->func_);
   spin_lock_np(&d->lock_);
   if (d->done_) {
     spin_unlock_np(&d->lock_);
@@ -30,28 +33,6 @@ void ThreadTrampolineWithJoin(void *arg) {
 
 Thread::~Thread() {
   if (unlikely(join_data_ != nullptr)) BUG();
-}
-
-Thread::Thread(const std::function<void()> &func) {
-  thread_internal::join_data *buf;
-  thread_t *th =
-      thread_create_with_buf(thread_internal::ThreadTrampolineWithJoin,
-                             reinterpret_cast<void **>(&buf), sizeof(*buf));
-  if (unlikely(!th)) BUG();
-  new (buf) thread_internal::join_data(func);
-  join_data_ = buf;
-  thread_ready(th);
-}
-
-Thread::Thread(std::function<void()> &&func) {
-  thread_internal::join_data *buf;
-  thread_t *th =
-      thread_create_with_buf(thread_internal::ThreadTrampolineWithJoin,
-                             reinterpret_cast<void **>(&buf), sizeof(*buf));
-  if (unlikely(!th)) BUG();
-  new (buf) thread_internal::join_data(std::move(func));
-  join_data_ = buf;
-  thread_ready(th);
 }
 
 void Thread::Detach() {
