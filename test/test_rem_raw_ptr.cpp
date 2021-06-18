@@ -26,22 +26,20 @@ void do_work() {
   std::vector<int> a{1, 2, 3, 4};
   std::vector<int> b{5, 6, 7, 8};
 
-  // Intentionally test the async method.
-  auto rem_obj_future = RemObj<Obj>::create_async();
-  auto rem_obj = std::move(rem_obj_future.get());
+  auto rem_obj = RemObj<Obj>::create();
 
   auto rem_raw_ptr_a_future = rem_obj.run_async(
       +[](Obj &_, std::vector<int> vec_a) {
         auto *raw_ptr_a = new std::vector<int>();
         *raw_ptr_a = vec_a;
-        return to_rem_raw_ptr(raw_ptr_a);
+        return RemRawPtr(raw_ptr_a);
       },
       a);
   auto rem_raw_ptr_b_future = rem_obj.run_async(
       +[](Obj &_, std::vector<int> vec_b) {
         auto *raw_ptr_b = new std::vector<int>();
         *raw_ptr_b = vec_b;
-        return to_rem_raw_ptr(raw_ptr_b);
+        return RemRawPtr(raw_ptr_b);
       },
       b);
 

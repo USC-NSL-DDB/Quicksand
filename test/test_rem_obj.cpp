@@ -1,8 +1,8 @@
-#include <cereal/types/utility.hpp>
-#include <cereal/types/vector.hpp>
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
-#include <memory>
+#include <numeric>
+#include <vector>
 
 extern "C" {
 #include <net/ip.h>
@@ -10,7 +10,6 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "dis_mem_pool.hpp"
 #include "rem_obj.hpp"
 #include "runtime.hpp"
 
@@ -18,28 +17,53 @@ using namespace nu;
 
 Runtime::Mode mode;
 
-bool run_test() {
-  std::vector<int> a{1, 2, 3, 4, 5, 6};
-
-  auto rem_obj = RemObj<ErasedType>::create();
-  auto [dis_mem_pool, rem_vec_ptr] = rem_obj.run(
-      +[](ErasedType &, std::vector<int> a) {
-        DistributedMemPool dis_mem_pool;
-        return std::make_pair(std::move(dis_mem_pool),
-                              dis_mem_pool.allocate_raw<std::vector<int>>(a));
-      },
-      a);
-
-  if (a != *rem_vec_ptr) {
-    return false;
+class Obj {
+public:
+  void set_vec_a(std::vector<int> vec) { a_ = vec; }
+  void set_vec_b(std::vector<int> vec) { b_ = vec; }
+  std::vector<int> plus() {
+    std::vector<int> c;
+    for (size_t i = 0; i < a_.size(); i++) {
+      c.push_back(a_[i] + b_[i]);
+    }
+    return c;
   }
-  dis_mem_pool.free_raw(rem_vec_ptr);
 
-  return true;
-}
+private:
+  std::vector<int> a_;
+  std::vector<int> b_;
+};
 
 void do_work() {
-  if (run_test()) {
+  bool passed = true;
+
+  std::vector<int> a{1, 2, 3, 4};
+  std::vector<int> b{5, 6, 7, 8};
+
+  // Intentionally test the async method.
+  auto rem_obj_future = RemObj<Obj>::create_async();
+  auto rem_obj = std::move(rem_obj_future.get());
+
+  auto future_0 = rem_obj.run_async(&Obj::set_vec_a, a);
+  auto future_1 = rem_obj.run_async(&Obj::set_vec_b, b);
+  future_0.get();
+  future_1.get();
+
+  auto tmp_obj = RemObj<ErasedType>::create();
+  passed &= tmp_obj.run(
+      +[](ErasedType &, RemObj<Obj> &&rem_obj, std::vector<int> &&a,
+          std::vector<int> &&b) {
+        auto c = rem_obj.run(&Obj::plus);
+        for (size_t i = 0; i < a.size(); i++) {
+          if (c[i] != a[i] + b[i]) {
+            return false;
+          }
+        }
+        return true;
+      },
+      std::move(rem_obj), std::move(a), std::move(b));
+
+  if (passed) {
     std::cout << "Passed" << std::endl;
   } else {
     std::cout << "Failed" << std::endl;

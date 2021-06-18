@@ -56,6 +56,12 @@ inline HeapHeader *Runtime::get_current_obj_heap_header() {
   return heap_header;
 }
 
+inline RemObjID Runtime::get_current_obj_id() {
+  auto *heap_base = Runtime::get_current_obj_heap_header();
+  BUG_ON(!heap_base);
+  return to_obj_id(heap_base);
+}
+
 template <typename T> T *Runtime::get_current_obj() {
   auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_heap());
   if (!obj_slab) {

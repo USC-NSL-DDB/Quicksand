@@ -1,0 +1,43 @@
+#pragma once
+
+#include <memory>
+
+#include "rem_obj.hpp"
+#include "utils/future.hpp"
+
+namespace nu {
+
+template <typename T> class RemPtr {
+public:
+  RemPtr();
+  RemPtr(const RemPtr &);
+  RemPtr &operator=(const RemPtr &);
+  RemPtr(RemPtr &&);
+  RemPtr &operator=(RemPtr &&);
+  operator bool() const;
+  T operator*();
+  bool is_local() const;
+  T *get();
+  T *get_checked();
+  template <typename RetT, typename... S0s, typename... S1s>
+  Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT run(RetT (*fn)(T &, S0s...), S1s &&... states);
+
+  template <class Archive> void save(Archive &ar) const;
+  template <class Archive> void load(Archive &ar);
+
+protected:
+  RemObjID rem_obj_id_;
+  T *raw_ptr_;
+
+  RemPtr(RemObjID id, T *raw_ptr);
+
+private:
+  friend class DistributedMemPool;
+};
+
+
+} // namespace nu
+
+#include "impl/rem_ptr.ipp"

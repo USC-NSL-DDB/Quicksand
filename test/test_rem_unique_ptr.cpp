@@ -11,28 +11,14 @@ extern "C" {
 #include <runtime.h>
 
 #include "rem_obj.hpp"
+#include "rem_unique_ptr.hpp"
 #include "runtime.hpp"
 
 using namespace nu;
 
 Runtime::Mode mode;
 
-class Obj {
-public:
-  void set_vec_a(std::vector<int> vec) { a_ = vec; }
-  void set_vec_b(std::vector<int> vec) { b_ = vec; }
-  std::vector<int> plus() {
-    std::vector<int> c;
-    for (size_t i = 0; i < a_.size(); i++) {
-      c.push_back(a_[i] + b_[i]);
-    }
-    return c;
-  }
-
-private:
-  std::vector<int> a_;
-  std::vector<int> b_;
-};
+class Obj {};
 
 void do_work() {
   bool passed = true;
@@ -41,24 +27,39 @@ void do_work() {
   std::vector<int> b{5, 6, 7, 8};
 
   auto rem_obj = RemObj<Obj>::create();
-  auto future_0 = rem_obj.run_async(&Obj::set_vec_a, a);
-  auto future_1 = rem_obj.run_async(&Obj::set_vec_b, b);
-  future_0.get();
-  future_1.get();
 
-  auto tmp_obj = RemObj<ErasedType>::create();
-  passed &= tmp_obj.run(
-      +[](ErasedType &, RemObj<Obj> &&rem_obj, std::vector<int> &&a,
-          std::vector<int> &&b) {
-        auto c = rem_obj.run(&Obj::plus);
-        for (size_t i = 0; i < a.size(); i++) {
-          if (c[i] != a[i] + b[i]) {
-	    return false;
-          }
-        }
-	return true;
+  auto rem_unique_ptr_a_future = rem_obj.run_async(
+      +[](Obj &_, std::vector<int> vec_a) {
+        auto unique_ptr_a = std::make_unique<std::vector<int>>();
+        *unique_ptr_a = vec_a;
+        return RemUniquePtr(std::move(unique_ptr_a));
       },
-      std::move(rem_obj), std::move(a), std::move(b));
+      a);
+  auto rem_unique_ptr_b_future = rem_obj.run_async(
+      +[](Obj &_, std::vector<int> vec_b) {
+        auto unique_ptr_b = std::make_unique<std::vector<int>>();
+        *unique_ptr_b = vec_b;
+        return RemUniquePtr(std::move(unique_ptr_b));
+      },
+      b);
+
+  auto rem_unique_ptr_a = std::move(rem_unique_ptr_a_future.get());
+  auto rem_unique_ptr_b = std::move(rem_unique_ptr_b_future.get());
+  auto c = rem_obj.run(
+      +[](Obj &_, RemUniquePtr<std::vector<int>> &&rem_unique_ptr_a,
+          RemUniquePtr<std::vector<int>> &&rem_unique_ptr_b) {
+        auto *raw_ptr_a = rem_unique_ptr_a.get_checked();
+        auto *raw_ptr_b = rem_unique_ptr_b.get_checked();
+        std::vector<int> rem_c;
+        for (size_t i = 0; i < raw_ptr_a->size(); i++) {
+          rem_c.push_back(raw_ptr_a->at(i) + raw_ptr_b->at(i));
+        }
+        return rem_c;
+      },
+      std::move(rem_unique_ptr_a), std::move(rem_unique_ptr_b));
+
+  passed &= !rem_unique_ptr_a;
+  passed &= !rem_unique_ptr_b;
 
   if (passed) {
     std::cout << "Passed" << std::endl;

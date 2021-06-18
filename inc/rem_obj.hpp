@@ -66,7 +66,7 @@ private:
   Future<void> inc_ref_;
   bool ref_cnted_;
 
-  template <typename U> friend class RemRawPtr;
+  template <typename U> friend class RemPtr;
   template <typename K, typename V, typename Hash, typename KeyEqual>
   friend class DistributedHashTable;
   friend class DistributedMemPool;

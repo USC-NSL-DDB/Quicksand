@@ -28,4 +28,25 @@ void DistributedMemPool::probing_fn() {
   probing_active_ = false;
 }
 
+DistributedMemPool::FreeShard DistributedMemPool::atomic_pick_free_shard() {
+  rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
+  if (unlikely(free_shards_.empty())) {
+    free_shards_.emplace_back(std::move(RemObj<Shard>::create(kShardSize)));
+  }
+  auto free_shard = std::move(free_shards_.front());
+  free_shards_.pop_front();
+  return free_shard;
+}
+
+void DistributedMemPool::atomic_put_free_shard(FreeShard &&free_shard) {
+  rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
+  free_shards_.emplace_front(std::move(free_shard));
+}
+
+void DistributedMemPool::atomic_put_full_shard(uint32_t failed_alloc_size,
+                                               FreeShard &&free_shard) {
+  rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
+  full_shards_.emplace_back(failed_alloc_size, std::move(free_shard));
+}
+
 } // namespace nu

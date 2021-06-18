@@ -19,10 +19,8 @@ src = $(lib_src)
 obj = $(src:.cpp=.o)
 dep = $(obj:.o=.d)
 
-test_closure_src = test/test_closure.cpp
-test_closure_obj = $(test_closure_src:.cpp=.o)
-test_method_src = test/test_method.cpp
-test_method_obj = $(test_method_src:.cpp=.o)
+test_rem_obj_src = test/test_rem_obj.cpp
+test_rem_obj_obj = $(test_rem_obj_src:.cpp=.o)
 test_multi_objs_src = test/test_multi_objs.cpp
 test_multi_objs_obj = $(test_multi_objs_src:.cpp=.o)
 test_slab_src = test/test_slab.cpp
@@ -45,6 +43,10 @@ test_dis_mem_pool_src = test/test_dis_mem_pool.cpp
 test_dis_mem_pool_obj = $(test_dis_mem_pool_src:.cpp=.o)
 test_nested_rem_obj_src = test/test_nested_rem_obj.cpp
 test_nested_rem_obj_obj = $(test_nested_rem_obj_src:.cpp=.o)
+test_rem_raw_ptr_src = test/test_rem_raw_ptr.cpp
+test_rem_raw_ptr_obj = $(test_rem_raw_ptr_src:.cpp=.o)
+test_rem_unique_ptr_src = test/test_rem_unique_ptr.cpp
+test_rem_unique_ptr_obj = $(test_rem_unique_ptr_src:.cpp=.o)
 
 bench_rpc_lat_src = bench/bench_rpc_lat.cpp
 bench_rpc_lat_obj = $(bench_rpc_lat_src:.cpp=.o)
@@ -65,12 +67,12 @@ bench_dis_mem_pool_obj = $(bench_dis_mem_pool_src:.cpp=.o)
 bench_fake_migration_src = bench/bench_fake_migration.cpp
 bench_fake_migration_obj = $(bench_fake_migration_src:.cpp=.o)
 
-all: libservless.a bin/test_slab bin/test_closure bin/test_method bin/test_multi_objs \
+all: libservless.a bin/test_slab bin/test_rem_obj bin/test_multi_objs \
 bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
 bin/bench_rpc_lat bin/bench_rpc_tput bin/bench_tcp_tput bin/bench_tcp_lat \
 bin/bench_thread bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
 bin/bench_dis_hash_table bin/bench_fake_migration bin/test_nested_rem_obj \
-bin/test_dis_mem_pool
+bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr
 
 libservless.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -80,10 +82,8 @@ libservless.a: $(lib_obj)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-bin/test_closure: $(test_closure_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(test_closure_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/test_method: $(test_method_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(test_method_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_rem_obj: $(test_rem_obj_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_rem_obj_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_multi_objs: $(test_multi_objs_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_multi_objs_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_slab: $(test_slab_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
@@ -106,6 +106,10 @@ bin/test_dis_mem_pool: $(test_dis_mem_pool_obj) $(librt_libs) $(RUNTIME_DEPS) $(
 	$(LDXX) -o $@ $(test_dis_mem_pool_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_nested_rem_obj: $(test_nested_rem_obj_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_nested_rem_obj_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_rem_raw_ptr: $(test_rem_raw_ptr_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_rem_raw_ptr_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_rem_unique_ptr: $(test_rem_unique_ptr_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_rem_unique_ptr_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_lat: $(bench_rpc_lat_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_lat_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
