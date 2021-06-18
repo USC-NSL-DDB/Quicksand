@@ -56,7 +56,6 @@ public:
   void reset();
   Future<void> reset_async();
   void reset_bg();
-  void release();
 
   template <class Archive> void save(Archive &ar) const;
   template <class Archive> void load(Archive &ar);

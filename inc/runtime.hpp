@@ -67,6 +67,7 @@ private:
   template <typename T> friend class RemObj;
   template <typename T> friend class RemRawPtr;
   template <typename T> friend class RemUniquePtr;
+  template <typename T> friend class RemSharedPtr;
   template <typename T> friend class RuntimeDeleter;
 
   Runtime(uint16_t local_obj_srv_port, uint16_t local_migrator_port,

@@ -11,7 +11,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "rem_obj.hpp"
-#include "rem_unique_ptr.hpp"
+#include "rem_shared_ptr.hpp"
 #include "runtime.hpp"
 
 using namespace nu;
@@ -28,38 +28,42 @@ void do_work() {
 
   auto rem_obj = RemObj<Obj>::create();
 
-  auto rem_unique_ptr_a_future = rem_obj.run_async(
+  auto rem_shared_ptr_a_future = rem_obj.run_async(
       +[](Obj &_, std::vector<int> vec_a) {
-        auto unique_ptr_a =
-            std::make_unique<std::vector<int>>(std::move(vec_a));
-        return RemUniquePtr(std::move(unique_ptr_a));
+        auto shared_ptr_a =
+            std::make_shared<std::vector<int>>(std::move(vec_a));
+        return RemSharedPtr(std::move(shared_ptr_a));
       },
       a);
-  auto rem_unique_ptr_b_future = rem_obj.run_async(
+  auto rem_shared_ptr_b_future = rem_obj.run_async(
       +[](Obj &_, std::vector<int> vec_b) {
-        auto unique_ptr_b =
-            std::make_unique<std::vector<int>>(std::move(vec_b));
-        return RemUniquePtr(std::move(unique_ptr_b));
+        auto shared_ptr_b =
+            std::make_shared<std::vector<int>>(std::move(vec_b));
+        return RemSharedPtr(std::move(shared_ptr_b));
       },
       b);
 
-  auto rem_unique_ptr_a = std::move(rem_unique_ptr_a_future.get());
-  auto rem_unique_ptr_b = std::move(rem_unique_ptr_b_future.get());
+  auto rem_shared_ptr_a = std::move(rem_shared_ptr_a_future.get());
+  auto rem_shared_ptr_a_copy = rem_shared_ptr_a;
+  auto rem_shared_ptr_b = std::move(rem_shared_ptr_b_future.get());
+  auto rem_shared_ptr_b_copy = rem_shared_ptr_b;
   auto c = rem_obj.run(
-      +[](Obj &_, RemUniquePtr<std::vector<int>> &&rem_unique_ptr_a,
-          RemUniquePtr<std::vector<int>> &&rem_unique_ptr_b) {
-        auto *raw_ptr_a = rem_unique_ptr_a.get_checked();
-        auto *raw_ptr_b = rem_unique_ptr_b.get_checked();
+      +[](Obj &_, RemSharedPtr<std::vector<int>> &&rem_shared_ptr_a,
+          RemSharedPtr<std::vector<int>> &&rem_shared_ptr_b) {
+        auto *raw_ptr_a = rem_shared_ptr_a.get_checked();
+        auto *raw_ptr_b = rem_shared_ptr_b.get_checked();
         std::vector<int> rem_c;
         for (size_t i = 0; i < raw_ptr_a->size(); i++) {
           rem_c.push_back(raw_ptr_a->at(i) + raw_ptr_b->at(i));
         }
         return rem_c;
       },
-      std::move(rem_unique_ptr_a), std::move(rem_unique_ptr_b));
+      std::move(rem_shared_ptr_a), std::move(rem_shared_ptr_b));
 
-  passed &= !rem_unique_ptr_a;
-  passed &= !rem_unique_ptr_b;
+  passed &= !rem_shared_ptr_a;
+  passed &= !rem_shared_ptr_b;
+  passed &= rem_shared_ptr_a_copy;
+  passed &= rem_shared_ptr_b_copy;
 
   for (size_t i = 0; i < a.size(); i++) {
     if (c[i] != a[i] + b[i]) {
@@ -68,6 +72,28 @@ void do_work() {
     }
   }
   if (a.size() != c.size()) {
+    passed = false;
+  }
+
+  auto a_copy = *rem_shared_ptr_a_copy;
+  for (size_t i = 0; i < a.size(); i++) {
+    if (a_copy[i] != a[i]) {
+      passed = false;
+      break;
+    }
+  }
+  if (a.size() != a_copy.size()) {
+    passed = false;
+  }
+
+  auto b_copy = *rem_shared_ptr_b_copy;
+  for (size_t i = 0; i < b.size(); i++) {
+    if (b_copy[i] != b[i]) {
+      passed = false;
+      break;
+    }
+  }
+  if (b.size() != b_copy.size()) {
     passed = false;
   }
 

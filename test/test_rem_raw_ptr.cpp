@@ -30,15 +30,13 @@ void do_work() {
 
   auto rem_raw_ptr_a_future = rem_obj.run_async(
       +[](Obj &_, std::vector<int> vec_a) {
-        auto *raw_ptr_a = new std::vector<int>();
-        *raw_ptr_a = vec_a;
+        auto *raw_ptr_a = new std::vector<int>(std::move(vec_a));
         return RemRawPtr(raw_ptr_a);
       },
       a);
   auto rem_raw_ptr_b_future = rem_obj.run_async(
       +[](Obj &_, std::vector<int> vec_b) {
-        auto *raw_ptr_b = new std::vector<int>();
-        *raw_ptr_b = vec_b;
+        auto *raw_ptr_b = new std::vector<int>(std::move(vec_b));
         return RemRawPtr(raw_ptr_b);
       },
       b);

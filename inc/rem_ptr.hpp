@@ -29,7 +29,7 @@ public:
 
 protected:
   RemObjID rem_obj_id_;
-  T *raw_ptr_;
+  T *raw_ptr_ = nullptr;
 
   RemPtr(RemObjID id, T *raw_ptr);
 

@@ -16,11 +16,7 @@ void RemUniquePtr<T>::save(Archive &ar) {
 }
 
 template <typename T> consteval auto get_free_fn() {
-  return +[](T &t) {
-    t.~T();
-    auto *heap_header = Runtime::get_current_obj_heap_header();
-    heap_header->slab.free(&t);
-  };
+  return +[](T &t) { delete &t; };
 }
 
 template <typename T> RemUniquePtr<T>::RemUniquePtr() {}
@@ -56,11 +52,7 @@ template <typename T> void RemUniquePtr<T>::release() {
 
 template <typename T> void RemUniquePtr<T>::reset() {
   if (RemPtr<T>::get()) {
-    RemPtr<T>::run(+[](T &t) {
-      t.~T();
-      auto *heap_header = Runtime::get_current_obj_heap_header();
-      heap_header->slab.free(&t);
-    });
+    RemPtr<T>::run(get_free_fn<T>());
     release();
   }
 }

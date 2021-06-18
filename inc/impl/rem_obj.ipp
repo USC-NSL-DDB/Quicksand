@@ -412,8 +412,6 @@ template <typename T> void RemObj<T>::reset_bg() {
   }
 }
 
-template <typename T> void RemObj<T>::release() { ref_cnted_ = false; }
-
 template <typename T>
 template <class Archive>
 void RemObj<T>::save(Archive &ar) const {

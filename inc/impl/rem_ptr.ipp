@@ -17,7 +17,7 @@ void RemPtr<T>::load(Archive &ar) {
   rem_obj_id_ = id;
 }
 
-template <typename T> RemPtr<T>::RemPtr() : raw_ptr_(nullptr) {}
+template <typename T> RemPtr<T>::RemPtr() {}
 
 template <typename T>
 RemPtr<T>::RemPtr(const RemPtr<T> &o)

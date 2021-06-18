@@ -24,10 +24,10 @@ public:
   template <class Archive> void save(Archive &ar);
 
 private:
-  RemUniquePtr(T *raw_ptr);
-
   template <typename U, typename... Args>
   friend RemUniquePtr<U> make_rem_unique(Args &&... args);
+
+  RemUniquePtr(T *raw_ptr);
 };
 
 template <typename T, typename... Args>
