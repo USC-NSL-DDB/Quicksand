@@ -21,6 +21,7 @@ extern "C" {
 #include "utils/future.hpp"
 #include "utils/netaddr.hpp"
 #include "utils/promise.hpp"
+#include "utils/type_traits.hpp"
 
 namespace nu {
 
@@ -215,15 +216,12 @@ template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() const {
   return cap;
 }
 
-template <typename... T> void assert_no_pointer_or_lval_ref() {
-  static_assert((!std::is_lvalue_reference<T>::value && ... && true));
-  static_assert((!std::is_pointer<T>::value && ... && true));
-}
-
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
   assert_no_pointer_or_lval_ref<RetT, S0s...>();
+  using fn_states_checker [[maybe_unused]] =
+      decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
 
   return __run_async(fn, std::forward<S1s>(states)...);
 }
@@ -241,7 +239,6 @@ template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   assert_no_pointer_or_lval_ref<RetT, S0s...>();
-
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
 
@@ -289,6 +286,8 @@ template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_no_pointer_or_lval_ref<RetT, A0s...>();
+  using md_args_checker [[maybe_unused]] =
+      decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
 
   return __run_async(md, std::forward<A1s>(args)...);
 }
@@ -306,7 +305,6 @@ template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_no_pointer_or_lval_ref<RetT, A0s...>();
-
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
 

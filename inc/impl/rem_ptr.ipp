@@ -66,6 +66,16 @@ template <typename T> T RemPtr<T>::operator*() {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemPtr<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
+  assert_no_pointer_or_lval_ref<RetT, S0s...>();
+  using fn_states_checker [[maybe_unused]] =
+      decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
+
+  return __run_async(fn, std::forward<S1s>(states)...);
+}
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+Future<RetT> RemPtr<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
   RemObj<ErasedType> rem_obj(rem_obj_id_, false);
   return rem_obj.__run_async(
       +[](ErasedType &, T *raw_ptr, RetT (*fn)(T &, S0s...), S1s &&... states) {
@@ -77,6 +87,16 @@ Future<RetT> RemPtr<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemPtr<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
+  assert_no_pointer_or_lval_ref<RetT, S0s...>();
+  using fn_states_checker [[maybe_unused]] =
+      decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
+
+  return __run(fn, std::forward<S1s>(states)...);
+}
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+RetT RemPtr<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   RemObj<ErasedType> rem_obj(rem_obj_id_, false);
   return rem_obj.__run(
       +[](ErasedType &, T *raw_ptr, RetT (*fn)(T &, S0s...), S1s &&... states) {
