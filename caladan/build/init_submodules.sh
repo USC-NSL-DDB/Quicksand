@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -54,8 +54,7 @@ cd ../../
 echo building Folly
 cd deps/folly
 sudo ./build.sh
-pushd .
-cd /tmp
+pushd /tmp
 folly_path=`sudo find . -wholename "*/installed/folly"`
 popd
 if test -z "$folly_path"

@@ -5,9 +5,10 @@
 namespace rt {
 
 // initializes the runtime
-int RuntimeInit(std::string cfg_path, folly::Function<void()> main_func) {
+int RuntimeInit(std::string cfg_path, std::function<void()> main_func) {
+  auto *func_copy = new folly::Function<void()>(main_func);
   return runtime_init(cfg_path.c_str(), thread_internal::ThreadTrampoline,
-                      reinterpret_cast<void*>(&main_func));
+                      reinterpret_cast<void *>(func_copy));
 }
 
 }  // namespace rt

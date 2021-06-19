@@ -7,8 +7,9 @@ namespace thread_internal {
 
 // A helper to jump from a C function to a C++ folly::Function.
 void ThreadTrampoline(void *arg) {
-  (*static_cast<folly::Function<void()> *>(arg))();
-  std::destroy_at(static_cast<thread_internal::join_data *>(arg));
+  auto *func_ptr = static_cast<folly::Function<void()> *>(arg);
+  (*func_ptr)();
+  std::destroy_at(func_ptr);
 }
 
 // A helper to jump from a C function to a C++ folly::Function. This variant

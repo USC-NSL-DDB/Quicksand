@@ -15,7 +15,7 @@ namespace rt {
 constexpr unsigned int kCoreLimit = NCPU;
 
 // Initializes the runtime. If successful, calls @main_func and does not return.
-int RuntimeInit(std::string cfg_path, folly::Function<void()> main_func);
+int RuntimeInit(std::string cfg_path, std::function<void()> main_func);
 
 // Gets the queueing delay of runqueue (thread queue) + packet queue
 inline uint64_t RuntimeQueueUS() { return runtime_queue_us(); }
