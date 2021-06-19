@@ -5,7 +5,9 @@ include $(CALADAN_PATH)/build/shared.mk
 
 NCORES = $(shell nproc)
 
-INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/
+INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/ \
+-I$(CALADAN_PATH)/deps/folly/include/
+
 override CXXFLAGS += -Wno-subobject-linkage -DNCORES=$(NCORES)
 override LDFLAGS += -Lglibc/build/install/lib
 override LDFLAGS += -static -static-libstdc++ -static-libgcc -lpthread

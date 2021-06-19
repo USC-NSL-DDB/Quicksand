@@ -53,52 +53,28 @@ inline void Promise<void>::set_ready() {
 template <typename T> T *Promise<T>::data() { return &t_; }
 
 template <typename T>
-template <typename Allocator>
-Promise<T> *Promise<T>::create(const std::function<T()> &func) {
+template <typename F, typename Allocator>
+Promise<T> *Promise<T>::create(F && f) {
   Allocator allocator;
   auto *promise = allocator.allocate(1);
   new (promise) Promise<T>();
-  rt::Thread([promise, func = std::move(func)] {
-    *promise->data() = func();
+  rt::Thread([promise, f = std::forward<F>(f)]() mutable {
+    *promise->data() = f();
     promise->set_ready();
   }).Detach();
   return promise;
 }
 
-template <typename T>
-template <typename Allocator>
-Promise<T> *Promise<T>::create(std::function<T()> &&func) {
-  Allocator allocator;
-  auto *promise = allocator.allocate(1);
-  new (promise) Promise<T>();
-  rt::Thread([promise, func = std::move(func)] {
-    *promise->data() = func();
-    promise->set_ready();
-  }).Detach();
-  return promise;
-}
-
-template <typename Allocator>
-Promise<void> *Promise<void>::create(const std::function<void()> &func) {
+template <typename F, typename Allocator>
+Promise<void> *Promise<void>::create(F &&f) {
   Allocator allocator;
   auto *promise = allocator.allocate(1);
   new (promise) Promise<void>();
-  rt::Thread([promise, func = std::move(func)] {
-    func();
+  rt::Thread([promise, f = std::forward<F>(f)]() mutable {
+    f();
     promise->set_ready();
   }).Detach();
   return promise;
 }
 
-template <typename Allocator>
-Promise<void> *Promise<void>::create(std::function<void()> &&func) {
-  Allocator allocator;
-  auto *promise = allocator.allocate(1);
-  new (promise) Promise<void>();
-  rt::Thread([promise, func = std::move(func)] {
-    func();
-    promise->set_ready();
-  }).Detach();
-  return promise;
-}
 } // namespace nu

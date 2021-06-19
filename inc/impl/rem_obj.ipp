@@ -118,10 +118,11 @@ RemObj<T> RemObj<T>::create(As &&... args) {
 template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_async(As &&... args) {
-  auto *promise = Promise<RemObj<T>>::create([&, args...]() mutable {
-    return general_create(/* pinned = */ false, std::nullopt,
-                          std::forward<As>(args)...);
-  });
+  auto *promise =
+      Promise<RemObj<T>>::create([&, ... args = std::forward<As>(args)]() {
+        return general_create(/* pinned = */ false, std::nullopt,
+                              std::forward<As>(args)...);
+      });
   return promise->get_future();
 }
 
@@ -134,10 +135,11 @@ RemObj<T> RemObj<T>::create_at(netaddr addr, As &&... args) {
 template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_at_async(netaddr addr, As &&... args) {
-  auto *promise = Promise<RemObj<T>>::create([&, addr, args...]() mutable {
-    return general_create(/* pinned = */ false, addr,
-                          std::forward<As>(args)...);
-  });
+  auto *promise = Promise<RemObj<T>>::create(
+      [&, addr, ... args = std::forward<As>(args)]() {
+        return general_create(/* pinned = */ false, addr,
+                              std::forward<As>(args)...);
+      });
   return promise->get_future();
 }
 
@@ -151,7 +153,8 @@ RemObj<T> RemObj<T>::create_pinned(As &&... args) {
 template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_pinned_async(As &&... args) {
-  auto *promise = Promise<RemObj<T>>::create([&, args...]() mutable {
+  auto *promise = Promise<RemObj<T>>::create([&, ... args =
+                                                     std::forward<As>(args)]() {
     return general_create(/* pinned = */ true, std::nullopt,
                           std::forward<As>(args)...);
   });
@@ -168,9 +171,11 @@ template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_pinned_at_async(netaddr addr,
                                                     As &&... args) {
-  auto *promise = Promise<RemObj<T>>::create([&, addr, args...]() mutable {
-    return general_create(/* pinned = */ true, addr, std::forward<As>(args)...);
-  });
+  auto *promise = Promise<RemObj<T>>::create(
+      [&, addr, ... args = std::forward<As>(args)]() {
+        return general_create(/* pinned = */ true, addr,
+                              std::forward<As>(args)...);
+      });
   return promise->get_future();
 }
 
@@ -229,9 +234,10 @@ Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> RemObj<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  auto *promise = Promise<RetT>::create([&, fn, states...]() mutable {
-    return __run(fn, std::forward<S1s>(states)...);
-  });
+  auto *promise = Promise<RetT>::create(
+      [&, fn, ... states = std::forward<S1s>(states)]() mutable {
+        return __run(fn, std::forward<S1s>(states)...);
+      });
   return promise->get_future();
 }
 
@@ -295,9 +301,10 @@ Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
-  auto *promise = Promise<RetT>::create([&, md, args...]() mutable {
-    return __run(md, std::forward<A1s>(args)...);
-  });
+  auto *promise = Promise<RetT>::create(
+      [&, md, ... args = std::forward<A1s>(args)]() mutable {
+        return __run(md, std::forward<A1s>(args)...);
+      });
   return promise->get_future();
 }
 

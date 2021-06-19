@@ -16,10 +16,8 @@ public:
   ~Promise();
   template <typename Deleter = std::default_delete<Promise>>
   Future<T, Deleter> get_future();
-  template <typename Allocator = std::allocator<Promise>>
-  static Promise *create(const std::function<T()> &func);
-  template <typename Allocator = std::allocator<Promise>>
-  static Promise *create(std::function<T()> &&func);
+  template <typename F, typename Allocator = std::allocator<Promise>>
+  static Promise *create(F &&f);
 
 private:
   bool futurized_;
@@ -41,10 +39,8 @@ public:
   ~Promise();
   template <typename Deleter = std::default_delete<Promise>>
   Future<void, Deleter> get_future();
-  template <typename Allocator = std::allocator<Promise>>  
-  static Promise *create(const std::function<void()> &func);
-  template <typename Allocator = std::allocator<Promise>>
-  static Promise *create(std::function<void()> &&func);
+  template <typename F, typename Allocator = std::allocator<Promise>>
+  static Promise *create(F &&f);
 
 private:
   bool futurized_;
