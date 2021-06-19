@@ -1,7 +1,9 @@
 #include <algorithm>
+#include <cereal/types/utility.hpp>
 #include <cstdint>
 #include <iostream>
 #include <numeric>
+#include <utility>
 #include <vector>
 
 extern "C" {
@@ -50,18 +52,21 @@ void do_work() {
   future_1.get();
 
   auto tmp_obj = RemObj<ErasedType>::create();
-  passed &= tmp_obj.run(
+  bool match;
+  // We can move a RemObj into/out of closure without updating the ref cnt.
+  std::tie(rem_obj, match) = tmp_obj.run(
       +[](ErasedType &, RemObj<Obj> &&rem_obj, std::vector<int> &&a,
           std::vector<int> &&b) {
         auto c = rem_obj.run(&Obj::plus);
         for (size_t i = 0; i < a.size(); i++) {
           if (c[i] != a[i] + b[i]) {
-            return false;
+            return std::make_pair(std::move(rem_obj), false);
           }
         }
-        return true;
+        return std::make_pair(std::move(rem_obj), true);
       },
       std::move(rem_obj), std::move(a), std::move(b));
+  passed &= match;
 
   if (passed) {
     std::cout << "Passed" << std::endl;
