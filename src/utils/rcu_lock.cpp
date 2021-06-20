@@ -11,6 +11,10 @@ extern "C" {
 
 namespace nu {
 
+RCULock::RCULock() : sync_barrier_(false) {
+  memset(aligned_cnts_, 0, sizeof(aligned_cnts_));
+}
+
 inline void RCULock::detect_sync_barrier() {
   while (unlikely(ACCESS_ONCE(sync_barrier_))) {
     rt::Yield();

@@ -11,6 +11,7 @@ namespace nu {
 
 class RCULock {
 public:
+  RCULock();
   void reader_lock();
   bool try_reader_lock();
   void reader_unlock();
