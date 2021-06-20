@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstring>
 
 extern "C" {
@@ -15,6 +16,7 @@ StackAllocator::StackAllocator(uint8_t *base, uint64_t num_stacks) {
 }
 
 void StackAllocator::init(uint8_t *base, uint64_t num_stacks) {
+  num_stacks_ = num_stacks;
   global_pool_size_ = num_stacks;
   for (uint64_t i = 0; i < num_stacks; i++) {
     global_pool_[i] = base;
@@ -36,7 +38,9 @@ uint8_t *StackAllocator::get() {
   }
   put_cpu();
   rt::ScopedLock<rt::Spin> lock(&spin_);
+  BUG_ON(!global_pool_size_); // Run out of stack.
   auto ret = global_pool_[--global_pool_size_];
+  num_touched_ = std::max(num_touched_, num_stacks_ - global_pool_size_);
   return ret;
 }
 

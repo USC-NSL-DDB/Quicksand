@@ -16,11 +16,11 @@ inline void push(void **head_p, void *item) {
   *reinterpret_cast<void **>(item) = old_head;
 }
 
-inline uint32_t get_cache_size(uint32_t size) {
-  int cache_size =
-      static_cast<int>(SlabAllocator::kMaxCacheSize) -
-      size / (SlabAllocator::kCacheSizeCutoff / SlabAllocator::kMaxCacheSize);
-  return std::max(1, cache_size);
+inline uint32_t get_num_cache_entries(uint32_t size) {
+  int num_cache_entries = static_cast<int>(SlabAllocator::kMaxNumCacheEntries) -
+                          size / (SlabAllocator::kCacheSizeCutoff /
+                                  SlabAllocator::kMaxNumCacheEntries);
+  return std::max(1, num_cache_entries);
 }
 
 void *SlabAllocator::_allocate(size_t size) noexcept {
@@ -39,13 +39,13 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
     if (unlikely(!ret)) {
       rt::ScopedLock<rt::Spin> lock(&spin_);
       auto **slab_head = &slab_heads_[slab_shift];
-      auto cache_size = get_cache_size(size);
-      while (*slab_head && cnt < cache_size) {
+      auto num_cache_entries = get_num_cache_entries(size);
+      while (*slab_head && cnt < num_cache_entries) {
         push(cached_head, pop(slab_head));
         cnt++;
       }
 
-      auto remaining = cache_size - cnt;
+      auto remaining = num_cache_entries - cnt;
       if (remaining) {
         auto slab_size = (1ULL << (slab_shift + 1)) + sizeof(PtrHeader);
         cur_ += slab_size * remaining;
@@ -94,11 +94,11 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
     push(cached_head, ptr);
     cnt++;
 
-    auto cache_size = get_cache_size(size);
-    if (unlikely(cnt > cache_size)) {
+    auto num_cache_entries = get_num_cache_entries(size);
+    if (unlikely(cnt > num_cache_entries)) {
       rt::ScopedLock<rt::Spin> lock(&spin_);
       auto **slab_head = &slab_heads_[slab_shift];
-      while (cnt > cache_size / 2 && cnt > 1) {
+      while (cnt > num_cache_entries / 2 && cnt > 1) {
         push(slab_head, pop(cached_head));
         --cnt;
       }

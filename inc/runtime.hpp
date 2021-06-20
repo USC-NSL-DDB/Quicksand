@@ -33,7 +33,7 @@ class Runtime {
 public:
   enum Mode { CLIENT, SERVER, CONTROLLER };
 
-  constexpr static uint64_t kRuntimeHeapSize = 32ULL << 30;
+  constexpr static uint64_t kRuntimeHeapSize = 48ULL << 30;
   static SlabAllocator runtime_slab;
 
   ~Runtime();

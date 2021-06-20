@@ -25,9 +25,9 @@ struct PtrHeader {
 
 class SlabAllocator {
 public:
-  constexpr static uint64_t kMaxSlabClassShift = 32; // 4 GB.
+  constexpr static uint64_t kMaxSlabClassShift = 35; // 32 GB.
   constexpr static uint64_t kMinSlabClassShift = 5;  // 32 B.
-  constexpr static uint64_t kMaxCacheSize = 32;
+  constexpr static uint64_t kMaxNumCacheEntries = 32;
   constexpr static uint64_t kCacheSizeCutoff = 1024;
 
   SlabAllocator() noexcept;
@@ -49,7 +49,7 @@ private:
     void *heads[kMaxSlabClassShift];
   };
   static_assert(std::numeric_limits<CoreCache::CntType>::max() >=
-                kMaxCacheSize);
+                kMaxNumCacheEntries);
 
   uint16_t sentinel_;
   const uint8_t *start_;

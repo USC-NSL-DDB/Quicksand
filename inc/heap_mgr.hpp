@@ -79,6 +79,7 @@ private:
   std::unique_ptr<RCUHashSet<HeapHeader *, RuntimeAllocator<HeapHeader *>>>
       heap_statuses_;
   RCULock rcu_lock_;
+  friend class Test;
 };
 } // namespace nu
 

@@ -20,10 +20,13 @@ private:
     uint8_t *stack;
   };
 
+  uint64_t num_stacks_;
   uint64_t global_pool_size_;
+  uint64_t num_touched_; // For profiling.
   uint8_t *global_pool_[kMaxNumStacksPerHeap];
   CoreCache core_caches_[kNumCores];
   rt::Spin spin_;
+  friend class Test;
 };
 } // namespace nu
 
