@@ -25,6 +25,7 @@ struct RPCReqRegisterNode {
 } __attribute__((packed));
 
 struct RPCRespRegisterNode {
+  VAddrRange stack_cluster;
 } __attribute__((packed));
 
 struct RPCReqAllocateObj {

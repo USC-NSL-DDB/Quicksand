@@ -65,7 +65,7 @@ bool ControllerServer::handle_register_node(rt::TcpConn *c) {
     return false;
   }
   auto node = req.node;
-  ctrl_.register_node(node);
+  resp.stack_cluster = ctrl_.register_node(node);
   return c->WriteFull(&resp, sizeof(resp)) > 0;
 }
 

@@ -41,10 +41,10 @@ ControllerClient::ControllerClient(uint16_t local_obj_srv_port,
   Node node;
   node.obj_srv_addr = {.ip = get_cfg_ip(), .port = local_obj_srv_port};
   node.migrator_addr = {.ip = get_cfg_ip(), .port = local_migrator_port};
-  register_node(node);
+  stack_cluster_ = register_node(node);
 }
 
-void ControllerClient::register_node(const Node &node) {
+VAddrRange ControllerClient::register_node(const Node &node) {
   ControllerRPC_t rpc_type = REGISTER_NODE;
   RPCReqRegisterNode req;
   RPCRespRegisterNode resp;
@@ -54,6 +54,7 @@ void ControllerClient::register_node(const Node &node) {
   BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   BUG_ON(c->ReadFull(&resp, sizeof(resp)) <= 0);
   conn_mgr_.put_conn(c);
+  return resp.stack_cluster;
 }
 
 std::optional<std::pair<RemObjID, netaddr>>
@@ -139,6 +140,10 @@ void ControllerClient::update_location(RemObjID id, netaddr obj_srv_addr) {
 
 void ControllerClient::reserve_conns(uint32_t num) {
   conn_mgr_.reserve_conns(num);
+}
+
+VAddrRange ControllerClient::get_stack_cluster() const {
+  return stack_cluster_;
 }
 
 } // namespace nu

@@ -21,11 +21,6 @@ extern "C" {
 
 namespace nu {
 
-struct VAddrRange {
-  uint64_t start;
-  uint64_t end;
-};
-
 struct Node {
   // TODO: add other informations, e.g., free mem size.
   netaddr obj_srv_addr;
@@ -37,14 +32,9 @@ struct Node {
 
 class Controller {
 public:
-  constexpr static uint64_t kMinVAddr = 0x40000000ULL;
-  constexpr static uint64_t kMaxVAddr = 0x500000000000ULL;
-  constexpr static uint64_t kMaxNumObjs =
-      (kMaxVAddr - kMinVAddr) / HeapManager::kHeapSize;
-
   Controller();
   ~Controller();
-  void register_node(Node &node);
+  VAddrRange register_node(Node &node);
   std::optional<std::pair<RemObjID, netaddr>>
   allocate_obj(std::optional<netaddr> hint);
   void destroy_obj(RemObjID id);
@@ -54,7 +44,8 @@ public:
   void update_location(RemObjID id, netaddr obj_srv_addr);
 
 private:
-  std::stack<VAddrRange> free_ranges_;
+  std::stack<VAddrRange> free_heap_ranges_;          // One range per RemObj.
+  std::stack<VAddrRange> free_stack_cluster_ranges_; // One range per server.
   std::unordered_map<RemObjID, std::pair<VAddrRange, netaddr>> objs_map_;
   std::set<Node> nodes_;
   std::set<Node>::iterator nodes_iter_;

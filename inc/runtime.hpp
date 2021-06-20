@@ -8,7 +8,6 @@ extern "C" {
 }
 
 #include "defs.hpp"
-#include "stack_allocator.hpp"
 #include "utils/archive_pool.hpp"
 #include "utils/future.hpp"
 #include "utils/rcu_lock.hpp"
@@ -16,13 +15,14 @@ extern "C" {
 
 namespace nu {
 
+struct HeapHeader;
 class ObjServer;
 class HeapManager;
+class StackManager;
 class ControllerClient;
 class RemObjConnManager;
 class Migrator;
 class Monitor;
-struct HeapHeader;
 template <typename T> class RuntimeAllocator;
 template <typename T> class RuntimeDeleter;
 
@@ -33,7 +33,6 @@ class Runtime {
 public:
   enum Mode { CLIENT, SERVER, CONTROLLER };
 
-  constexpr static uint64_t kRuntimeHeapSize = 48ULL << 30;
   static SlabAllocator runtime_slab;
 
   ~Runtime();
@@ -49,6 +48,7 @@ private:
   static std::unique_ptr<ObjServer> obj_server;
   static std::unique_ptr<ControllerClient> controller_client;
   static std::unique_ptr<HeapManager> heap_manager;
+  static std::unique_ptr<StackManager> stack_manager;
   static std::unique_ptr<RemObjConnManager> rem_obj_conn_mgr;
   static std::unique_ptr<Migrator> migrator;
   static std::unique_ptr<Monitor> monitor;
@@ -81,8 +81,7 @@ private:
   template <typename Cls, typename Fn, typename... As>
   static bool run_within_obj_env(void *heap_base, Fn fn, As &&... args);
   template <typename Cls, typename Fn, typename... As>
-  static void __run_within_obj_env(StackAllocator *stack_allocator,
-                                   uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
+  static void __run_within_obj_env(uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
                                    As &&... args);
   static void *get_heap();
   static void set_heap(void *heap);

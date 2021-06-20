@@ -14,11 +14,19 @@ extern "C" {
 namespace nu {
 
 Controller::Controller() {
-  for (uint64_t vaddr = kMinVAddr; vaddr + HeapManager::kHeapSize <= kMaxVAddr;
-       vaddr += HeapManager::kHeapSize) {
-    VAddrRange range = {.start = vaddr, .end = vaddr + HeapManager::kHeapSize};
-    free_ranges_.push(range);
+  for (uint64_t vaddr = kMinHeapVAddr; vaddr + kHeapSize <= kMaxHeapVAddr;
+       vaddr += kHeapSize) {
+    VAddrRange range = {.start = vaddr, .end = vaddr + kHeapSize};
+    free_heap_ranges_.push(range);
   }
+
+  for (uint64_t vaddr = kMinStackClusterVAddr;
+       vaddr + kStackClusterSize <= kMaxStackClusterVAddr;
+       vaddr += kStackClusterSize) {
+    VAddrRange range = {.start = vaddr, .end = vaddr + kStackClusterSize};
+    free_stack_cluster_ranges_.push(range);
+  }
+
   nodes_iter_ = nodes_.end();
 }
 
@@ -30,8 +38,14 @@ Controller::~Controller() {
   }
 }
 
-void Controller::register_node(Node &node) {
+VAddrRange Controller::register_node(Node &node) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
+
+  BUG_ON(free_stack_cluster_ranges_.empty());
+  // TODO: should GC the allocated stack somehow through heartbeat or an
+  // explicit deregister_node() call.
+  auto stack_cluster = free_stack_cluster_ranges_.top();
+  free_stack_cluster_ranges_.pop();
 
   for (auto old_node : nodes_) {
     auto migrator_conn = old_node.migrator_conn;
@@ -57,18 +71,19 @@ void Controller::register_node(Node &node) {
   }
 
   nodes_.insert(node);
+  return stack_cluster;
 }
 
 std::optional<std::pair<RemObjID, netaddr>>
 Controller::allocate_obj(std::optional<netaddr> hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  if (unlikely(free_ranges_.empty())) {
+  if (unlikely(free_heap_ranges_.empty())) {
     return std::nullopt;
   }
-  auto range = free_ranges_.top();
+  auto range = free_heap_ranges_.top();
   auto id = range.start;
-  free_ranges_.pop();
+  free_heap_ranges_.pop();
   auto node_optional = select_node_for_obj(hint);
   if (unlikely(!node_optional)) {
     return std::nullopt;
@@ -87,7 +102,7 @@ void Controller::destroy_obj(RemObjID id) {
   }
   auto &p = iter->second;
   auto &range = p.first;
-  free_ranges_.push(range);
+  free_heap_ranges_.push(range);
   objs_map_.erase(iter);
 }
 

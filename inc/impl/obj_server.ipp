@@ -208,7 +208,9 @@ void ObjServer::send_rpc_resp(auto &ss, rt::TcpConn *rpc_conn) {
 
   if (unlikely(thread_is_migrated())) {
     hdr.rc = FORWARDED;
-    Runtime::migrator->forward_to_original_server(hdr, view.data(), rpc_conn);
+    auto stack_top = get_obj_stack_range(thread_self()).end;
+    Runtime::migrator->forward_to_original_server(rpc_conn, stack_top, hdr,
+                                                  view.data());
   } else {
     hdr.rc = OK;
     if (hdr.payload_size) {

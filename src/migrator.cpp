@@ -60,7 +60,9 @@ void Migrator::handle_reserve_conns(rt::TcpConn *c) {
 void Migrator::handle_forward(rt::TcpConn *c) {
   rt::TcpConn *conn_to_client;
   ObjRPCRespHdr hdr;
+  uint64_t stack_top;
   const iovec iovecs[] = {{&conn_to_client, sizeof(conn_to_client)},
+                          {&stack_top, sizeof(stack_top)},
                           {&hdr, sizeof(hdr)}};
   BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
 
@@ -73,6 +75,8 @@ void Migrator::handle_forward(rt::TcpConn *c) {
   } else {
     BUG_ON(conn_to_client->WriteFull(&hdr, sizeof(hdr)) < 0);
   }
+
+  Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(stack_top));
 
   rt::Thread(
       [&, conn_to_client] { Runtime::obj_server->handle_reqs(conn_to_client); })
@@ -148,7 +152,7 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   threads.reserve(kTransmitHeapNumThreads);
   auto dest_addr = c->RemoteAddr();
 
-  auto start_addr = reinterpret_cast<uint64_t>(&heap_header->stack_allocator);
+  auto start_addr = reinterpret_cast<uint64_t>(&heap_header->slab);
   auto len =
       (reinterpret_cast<uint64_t>(heap_header->slab.get_base()) - start_addr) +
       heap_header->slab.get_usage();
@@ -283,13 +287,11 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
   auto *tf = thread_get_trap_frame(thread, &tf_size);
   BUG_ON(c->WriteFull(tf, tf_size) < 0);
 
-  void *stack_range[2];
-  thread_get_obj_stack(thread, &stack_range[1], &stack_range[0]);
-  auto stack_len = reinterpret_cast<uintptr_t>(stack_range[1]) -
-                   reinterpret_cast<uintptr_t>(stack_range[0]) + 1 +
-                   kStackRedZoneSize;
-  const iovec iovecs[] = {{stack_range, sizeof(stack_range)},
-                          {stack_range[0], stack_len}};
+  auto stack_range = get_obj_stack_range(thread);
+  auto stack_len = stack_range.end - stack_range.start;
+  const iovec iovecs[] = {
+      {&stack_range, sizeof(stack_range)},
+      {reinterpret_cast<void *>(stack_range.start), stack_len}};
   BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ true) < 0);
 
   thread_mark_migrated(thread);
@@ -302,6 +304,11 @@ void Migrator::transmit_threads(rt::TcpConn *c,
   for (auto thread : threads) {
     transmit_one_thread(c, thread);
   }
+}
+
+void Migrator::transmit_stack_cluster_mmap_task(rt::TcpConn *c) {
+  auto stack_cluster = Runtime::stack_manager->get_range();
+  BUG_ON(c->WriteFull(&stack_cluster, sizeof(stack_cluster)) < 0);
 }
 
 std::vector<HeapMmapPopulateRange>
@@ -386,6 +393,7 @@ void Migrator::migrate(Resource pressure, std::list<void *> heaps) {
 
   uint8_t type = MIGRATE;
   BUG_ON(conn->WriteFull(&type, sizeof(type)) < 0);
+  transmit_stack_cluster_mmap_task(conn);
   auto heap_populate_ranges = transmit_heap_mmap_populate_ranges(conn, heaps);
 
   std::vector<HeapHeader *> migrated_heaps;
@@ -452,12 +460,11 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
   auto tf = std::make_unique<uint8_t[]>(tf_size);
   BUG_ON(c->ReadFull(tf.get(), tf_size) <= 0);
 
-  void *stack_range[2];
-  BUG_ON(c->ReadFull(stack_range, sizeof(stack_range)) <= 0);
-  auto stack_len = reinterpret_cast<uintptr_t>(stack_range[1]) -
-                   reinterpret_cast<uintptr_t>(stack_range[0]) + 1 +
-                   kStackRedZoneSize;
-  BUG_ON(c->ReadFull(stack_range[0], stack_len, /* nt = */ true) <= 0);
+  VAddrRange stack_range;
+  BUG_ON(c->ReadFull(&stack_range, sizeof(stack_range)) <= 0);
+  auto stack_len = stack_range.end - stack_range.start;
+  BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
+                     /* nt = */ true) <= 0);
 
   return create_migrated_thread(tf.get(), tlsvar);
 }
@@ -565,6 +572,13 @@ void Migrator::load_threads(rt::TcpConn *c, HeapHeader *heap_header) {
   }
 }
 
+VAddrRange Migrator::load_stack_cluster_mmap_task(rt::TcpConn *c) {
+  VAddrRange stack_cluster;
+  BUG_ON(c->ReadFull(&stack_cluster, sizeof(stack_cluster)) <= 0);
+  StackManager::mmap(stack_cluster);
+  return stack_cluster;
+}
+
 std::vector<HeapMmapPopulateRange>
 Migrator::load_heap_mmap_populate_ranges(rt::TcpConn *c) {
   std::vector<HeapMmapPopulateRange> populate_ranges;
@@ -605,6 +619,7 @@ rt::Thread Migrator::do_heap_mmap_populate(
 }
 
 void Migrator::load(rt::TcpConn *c) {
+  auto stack_cluster = load_stack_cluster_mmap_task(c);
   auto populate_ranges = load_heap_mmap_populate_ranges(c);
 
   std::vector<HeapMmapPopulateTask> heap_mmap_populate_tasks;
@@ -630,18 +645,20 @@ void Migrator::load(rt::TcpConn *c) {
 
     load_threads(c, heap_header);
 
-    rt::Thread([heap_header] {
+    rt::Thread([heap_header, stack_cluster] {
       heap_header->forward_wg.Wait();
       ACCESS_ONCE(heap_header->migratable) = true;
+      StackManager::munmap(stack_cluster);
     })
         .Detach();
   }
   mmap_thread.Join();
 }
 
-void Migrator::forward_to_original_server(const ObjRPCRespHdr &hdr,
-                                          const void *payload,
-                                          rt::TcpConn *conn_to_client) {
+void Migrator::forward_to_original_server(rt::TcpConn *conn_to_client,
+                                          uint64_t stack_top,
+                                          const ObjRPCRespHdr &hdr,
+                                          const void *payload) {
   uint8_t type = FORWARD;
   auto *heap_header = Runtime::get_current_obj_heap_header();
   netaddr old_server_addr = {.ip = heap_header->old_server_ip, .port = port_};
@@ -649,6 +666,7 @@ void Migrator::forward_to_original_server(const ObjRPCRespHdr &hdr,
 
   const iovec iovecs[] = {{&type, sizeof(type)},
                           {&conn_to_client, sizeof(conn_to_client)},
+                          {&stack_top, sizeof(stack_top)},
                           {const_cast<ObjRPCRespHdr *>(&hdr), sizeof(hdr)}};
   BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
   if (hdr.payload_size) {

@@ -13,7 +13,6 @@ extern "C" {
 #include <sync.h>
 
 #include "defs.hpp"
-#include "stack_allocator.hpp"
 #include "utils/rcu_hash_set.hpp"
 #include "utils/rcu_lock.hpp"
 #include "utils/refcount_hash_set.hpp"
@@ -49,17 +48,12 @@ struct HeapHeader {
   rt::Spin spin;
   int ref_cnt;
 
-  // Stack allocator.
-  StackAllocator stack_allocator;
-
   // Heap Mem allocator. Must be the last field.
   SlabAllocator slab;
 };
 
 class HeapManager {
 public:
-  constexpr static uint64_t kHeapSize = 0x40000000ULL;
-
   HeapManager();
   static void allocate(void *heap_base, bool migratable);
   static void mmap(void *heap_base);

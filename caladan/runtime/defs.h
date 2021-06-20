@@ -105,7 +105,6 @@ struct thread {
 	uint64_t		run_start_tsc;
 	uint64_t		ready_tsc;
 	uint64_t		tlsvar;
-	void                    *obj_stack_base;
 #ifdef GC
 	struct list_node	gc_link;
 	unsigned int		onk;

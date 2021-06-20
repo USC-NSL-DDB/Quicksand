@@ -11,25 +11,9 @@ extern "C" {
 #include "defs.hpp"
 #include "heap_mgr.hpp"
 #include "runtime_alloc.hpp"
+#include "stack_manager.hpp"
 
 namespace nu {
-
-inline __attribute__((always_inline)) void *switch_to_obj_stack(void *stack) {
-  void *old_rsp;
-  asm volatile("movq %%rsp, %0\n\t"
-               "movq %1, %%rsp"
-               : "=&r"(old_rsp)
-               : "r"(stack)
-               :);
-  thread_set_obj_stack(reinterpret_cast<void *>(stack));
-  return old_rsp;
-}
-
-inline __attribute__((always_inline)) void
-switch_to_runtime_stack(void *old_rsp) {
-  asm volatile("movq %0, %%rsp" : : "r"(old_rsp) :);
-  thread_unset_obj_stack();
-}
 
 inline void *Runtime::get_heap() {
   return reinterpret_cast<void *>(get_uthread_specific());
@@ -80,15 +64,13 @@ template <typename T> T *Runtime::get_obj(RemObjID id) {
 template <typename Cls, typename Fn, typename... As>
 void __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer")))
-Runtime::__run_within_obj_env(StackAllocator *stack_allocator,
-                              uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
+Runtime::__run_within_obj_env(uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
                               As &&... args) {
   fn(*obj_ptr, std::forward<As>(args)...);
 
   if (unlikely(thread_is_migrated())) {
     auto runtime_stack_base = thread_get_runtime_stack_base();
     switch_to_runtime_stack(runtime_stack_base);
-    stack_allocator->put(obj_stack);
     heap_manager->rcu_reader_unlock();
     rt::Exit();
   }
@@ -110,16 +92,14 @@ Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
       reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab.get_base()));
   switch_to_obj_heap(obj_ptr);
 
-  auto &stack_allocator = heap_header->stack_allocator;
-  auto *obj_stack = stack_allocator.get();
+  auto *obj_stack = Runtime::stack_manager->get();
   BUG_ON(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment);
   auto *old_rsp = switch_to_obj_stack(obj_stack);
 
-  __run_within_obj_env<Cls>(&stack_allocator, obj_stack, obj_ptr, fn,
-                            std::forward<As>(args)...);
+  __run_within_obj_env<Cls>(obj_stack, obj_ptr, fn, std::forward<As>(args)...);
 
   switch_to_runtime_stack(old_rsp);
-  stack_allocator.put(obj_stack);
+  Runtime::stack_manager->put(obj_stack);
   switch_to_runtime_heap();
   heap_manager->rcu_reader_unlock();
 

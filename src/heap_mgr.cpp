@@ -68,13 +68,7 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
   heap_header->ref_cnt = 1;
 
   if (!from_migration) {
-    auto stack_region_size = kStackSize * kMaxNumStacksPerHeap;
-    auto heap_region_size = kHeapSize - sizeof(HeapHeader) - stack_region_size;
-
-    auto *stack_base = reinterpret_cast<uint8_t *>(heap_header) + kHeapSize -
-                       stack_region_size;
-    heap_header->stack_allocator.init(stack_base, kMaxNumStacksPerHeap);
-
+    auto heap_region_size = kHeapSize - sizeof(HeapHeader);
     uint16_t sentinel = reinterpret_cast<uint64_t>(heap_header) / kHeapSize;
     heap_header->slab.init(sentinel, heap_header + 1, heap_region_size);
   }

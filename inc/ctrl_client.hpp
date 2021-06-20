@@ -34,7 +34,7 @@ public:
   ControllerClient(netaddr remote_ctrl_addr);
   ControllerClient(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
                    netaddr remote_ctrl_addr);
-  void register_node(const Node &node);
+  VAddrRange register_node(const Node &node);
   std::optional<std::pair<RemObjID, netaddr>>
   allocate_obj(std::optional<netaddr> hint);
   void destroy_obj(RemObjID id);
@@ -42,8 +42,10 @@ public:
   std::optional<netaddr> get_migration_dest(Resource resource);
   void update_location(RemObjID id, netaddr obj_srv_addr);
   void reserve_conns(uint32_t num);
+  VAddrRange get_stack_cluster() const;
 
 private:
   ControllerConnManager conn_mgr_;
+  VAddrRange stack_cluster_;
 };
 } // namespace nu

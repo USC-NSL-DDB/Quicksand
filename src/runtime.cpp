@@ -25,6 +25,7 @@ SlabAllocator Runtime::runtime_slab;
 RCULock Runtime::rcu_lock;
 std::unique_ptr<ObjServer> Runtime::obj_server;
 std::unique_ptr<HeapManager> Runtime::heap_manager;
+std::unique_ptr<StackManager> Runtime::stack_manager;
 std::unique_ptr<ControllerClient> Runtime::controller_client;
 std::unique_ptr<RemObjConnManager> Runtime::rem_obj_conn_mgr;
 std::unique_ptr<Migrator> Runtime::migrator;
@@ -32,7 +33,7 @@ std::unique_ptr<Monitor> Runtime::monitor;
 std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
 
 void Runtime::init_runtime_heap() {
-  auto addr = reinterpret_cast<void *>(Controller::kMaxVAddr);
+  auto addr = reinterpret_cast<void *>(kMinRuntimeHeapVaddr);
   preempt_disable();
   auto mmap_addr = mmap(addr, kRuntimeHeapSize, PROT_READ | PROT_WRITE,
                         MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED, -1, 0);
@@ -55,9 +56,11 @@ void Runtime::init_as_server(uint16_t local_obj_srv_port,
   rt::Thread obj_srv_thread([&] { obj_server->run_loop(); });
   migrator.reset(new decltype(migrator)::element_type());
   rt::Thread migrator_thread([&] { migrator->run_loop(local_migrator_port); });
-  heap_manager.reset(new decltype(heap_manager)::element_type());
   controller_client.reset(new decltype(controller_client)::element_type(
       local_obj_srv_port, local_migrator_port, ctrl_server_addr));
+  heap_manager.reset(new decltype(heap_manager)::element_type());
+  stack_manager.reset(new decltype(stack_manager)::element_type(
+      controller_client->get_stack_cluster()));
   rem_obj_conn_mgr.reset(new decltype(rem_obj_conn_mgr)::element_type());
   monitor.reset(new decltype(monitor)::element_type());
   rt::Thread monitor_thread([&] { monitor->run_loop(); });
@@ -107,6 +110,7 @@ Runtime::~Runtime() {
   obj_server.reset();
   controller_client.reset();
   heap_manager.reset();
+  stack_manager.reset();
   rem_obj_conn_mgr.reset();
   monitor.reset();
   migrator.reset();

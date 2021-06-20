@@ -68,8 +68,9 @@ public:
   ~Migrator();
   void run_loop(uint16_t port);
   void migrate(Resource pressure, std::list<void *> heaps);
-  void forward_to_original_server(const ObjRPCRespHdr &hdr, const void *payload,
-                                  rt::TcpConn *conn_to_client);
+  void forward_to_original_server(rt::TcpConn *conn_to_client,
+                                  uint64_t stack_top, const ObjRPCRespHdr &hdr,
+                                  const void *payload);
   void reserve_conns(uint32_t num, netaddr dest_server_addr);
 
 private:
@@ -83,7 +84,9 @@ private:
   void handle_reserve_conns(rt::TcpConn *c);
   void handle_forward(rt::TcpConn *c);
   void handle_unmap(rt::TcpConn *c);
+  VAddrRange load_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit(rt::TcpConn *c, HeapHeader *heap_header);
+  void transmit_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit_heap(rt::TcpConn *c, HeapHeader *heap_header);
   std::vector<HeapMmapPopulateRange>
   transmit_heap_mmap_populate_ranges(rt::TcpConn *c,

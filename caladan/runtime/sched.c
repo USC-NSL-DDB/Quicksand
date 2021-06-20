@@ -839,7 +839,6 @@ static __always_inline thread_t *__thread_create(void)
 		th->tlsvar = __self->tlsvar;
 	else
 		th->tlsvar = 0;
-	th->obj_stack_base = NULL;
 	th->migration_state = NO_MIGRATION;
 
 	return th;
@@ -1094,22 +1093,7 @@ retry:
 	ACCESS_ONCE(pausing_migrating_ths) = false;
 }
 
-void thread_set_obj_stack(void *stack_base)
-{
-	__self->obj_stack_base = stack_base;
-}
-
-void thread_unset_obj_stack(void)
-{
-	__self->obj_stack_base = NULL;
-}
-
-void thread_get_obj_stack(thread_t *th, void **base, void **top)
-{
-	BUG_ON(!th->obj_stack_base);
-	*base = th->obj_stack_base;
-	*top = (void *)th->tf.rsp;
-}
+uint64_t thread_get_rsp(thread_t *th) { return th->tf.rsp; }
 
 void *thread_get_trap_frame(thread_t *th, size_t *size)
 {
