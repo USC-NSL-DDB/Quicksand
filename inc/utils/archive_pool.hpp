@@ -15,17 +15,20 @@ public:
 
   using CharAllocator =
       std::allocator_traits<Allocator>::template rebind_alloc<char>;
+  using StringStream =
+      std::basic_stringstream<char, std::char_traits<char>, CharAllocator>;
+  using String = std::basic_string<char, std::char_traits<char>, CharAllocator>;
 
   struct IASStream {
-    std::basic_stringstream<char, std::char_traits<char>, CharAllocator> ss;
+    StringStream ss;
     cereal::BinaryInputArchive ia;
-    IASStream() : ss(std::string(kSStreamBufSize, '\0')), ia(ss) {}
+    IASStream() : ss(String(kSStreamBufSize, '\0')), ia(ss) {}
   };
 
   struct OASStream {
-    std::basic_stringstream<char, std::char_traits<char>, CharAllocator> ss;
+    StringStream ss;
     cereal::BinaryOutputArchive oa;
-    OASStream() : ss(std::string(kSStreamBufSize, '\0')), oa(ss) {}
+    OASStream() : ss(String(kSStreamBufSize, '\0')), oa(ss) {}
   };
 
   ArchivePool(uint32_t per_core_cache_size = 4);
