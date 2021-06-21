@@ -4,8 +4,6 @@ extern "C" {
 
 namespace nu {
 
-inline bool Resource::empty() const { return cores == 0 && mem_mbs == 0; }
-
 inline void *to_heap_base(RemObjID id) { return reinterpret_cast<void *>(id); }
 
 inline RemObjID to_obj_id(void *heap_base) {

@@ -9,8 +9,6 @@ namespace nu {
 struct Resource {
   uint32_t cores;
   uint32_t mem_mbs;
-
-  bool empty() const;
 };
 
 struct VAddrRange {
@@ -41,6 +39,8 @@ constexpr static uint64_t kMaxNumStacksPerCluster =
     kStackClusterSize / kStackSize;
 constexpr static uint64_t kMinRuntimeHeapVaddr = kMaxStackClusterVAddr;
 constexpr static uint64_t kRuntimeHeapSize = 48ULL << 30;
+
+constexpr static uint64_t kOneMB = 1ULL << 20;
 
 void *to_heap_base(RemObjID id);
 RemObjID to_obj_id(void *heap_base);

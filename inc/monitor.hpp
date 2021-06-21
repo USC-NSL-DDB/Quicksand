@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include "defs.hpp"
 
@@ -8,20 +9,18 @@ namespace nu {
 
 class Monitor {
 public:
-  constexpr static uint32_t kPollIntervalUs = 100;
+  constexpr static uint32_t kPollIntervalUs = 1000;
+  constexpr static double kMemLowWaterMark = 0.05;
 
   Monitor();
-  ~Monitor();
   void run_loop();
+  void stop_loop();
   void mock_set_pressure(Resource pressure);
-  void mock_set_continuous();
-  void mock_clear_continuous();
 
 private:
-  Resource mock_pressure_;
+  std::optional<Resource> mock_pressure_;
   bool stopped_;
-  bool continuous_;
 
-  Resource detect_pressure();
+  bool detect_pressure(Resource *pressure);
 };
 } // namespace nu
