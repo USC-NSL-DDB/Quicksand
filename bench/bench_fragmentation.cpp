@@ -7,6 +7,7 @@
 #include <random>
 #include <utility>
 #include <vector>
+#include <set>
 
 extern "C" {
 #include <net/ip.h>
@@ -29,6 +30,7 @@ constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr double kLoadFactor = 0.20;
 constexpr uint32_t kNumThreads = 100;
+constexpr uint32_t kDeletePercentage = 10;
 
 constexpr auto kIPServer = MAKE_IP_ADDR(18, 18, 1, 4);
 
@@ -40,6 +42,15 @@ struct Key {
 
   bool operator==(const Key &o) const {
     return __builtin_memcmp(data, o.data, kKeyLen) == 0;
+  }
+
+  bool operator<(const Key &o) const {
+    for (uint32_t i = 0; i < kKeyLen; i++) {
+      if (data[i] != o.data[i]) {
+        return data[i] < o.data[i];
+      }
+    }
+    return false;
   }
 
   template <class Archive> void serialize(Archive &ar) { ar(data); }
@@ -85,7 +96,7 @@ using LocalHashTable =
                 std::equal_to<Key>, std::allocator<std::pair<const Key, Val>>,
                 SpinLock>;
 
-enum Op { PUT, GET, DELETE };
+enum Op { PUT, DELETE };
 
 struct Command {
   Op op;
@@ -95,6 +106,14 @@ struct Command {
   Command(Op _op, Key _key, std::optional<Val> _val = std::nullopt)
       : op(_op), key(_key), val(_val) {}
 };
+
+Op random_op(auto &dist, auto &mt) {
+  uint32_t n = dist(mt) % 100;
+  if (n < kDeletePercentage) {
+    return DELETE;
+  }
+  return PUT;
+}
 
 void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
   for (uint32_t i = 0; i < len; i++) {
@@ -106,16 +125,37 @@ void gen_commands(std::vector<Command> *commands) {
   std::vector<rt::Thread> threads;
   for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back([&, tid = i, commands_pt = &commands[i]] {
+      std::set<Key> set_pt;
       std::random_device rd;
       std::mt19937 mt(rd());
       std::uniform_int_distribution<int> dist('A', 'z');
       auto num_pairs = Test::kNumPairs / kNumThreads;
-      for (size_t j = 0; j < num_pairs; j++) {
+      while (set_pt.size() < num_pairs) {
+        auto op = random_op(dist, mt);
         Key key;
         Val val;
-        random_str(dist, mt, kKeyLen, key.data);
-        random_str(dist, mt, kValLen, val.data);
-        commands_pt->emplace_back(PUT, key, val);
+        std::set<Key>::iterator iter;
+
+        switch (op) {
+	case PUT:
+          random_str(dist, mt, kKeyLen, key.data);
+          random_str(dist, mt, kValLen, val.data);
+          commands_pt->emplace_back(PUT, key, val);
+          set_pt.emplace(key);
+          break;
+        case DELETE:
+          random_str(dist, mt, kKeyLen, key.data);
+          iter = set_pt.lower_bound(key);
+          if (unlikely(iter == set_pt.end())) {
+            break;
+          }
+          key = *iter;
+          commands_pt->emplace_back(DELETE, key);
+          set_pt.erase(iter);
+          break;
+	default:
+	  BUG();
+	}
       }
     });
   }
@@ -138,6 +178,9 @@ uint64_t run_on_local_hashtable(std::vector<Command> *commands) {
         switch (cmd.op) {
         case PUT:
           local_hashtable->put(cmd.key, *cmd.val);
+          break;
+        case DELETE:
+          BUG_ON(!local_hashtable->remove(cmd.key));
           break;
         default:
           BUG();
@@ -168,6 +211,9 @@ uint64_t run_on_dis_hashtable(std::vector<Command> *commands) {
         switch (cmd.op) {
         case PUT:
           dis_hashtable->put(cmd.key, *cmd.val);
+          break;
+	case DELETE:
+          BUG_ON(!dis_hashtable->remove(cmd.key));
           break;
         default:
           BUG();
