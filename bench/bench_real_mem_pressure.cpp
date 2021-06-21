@@ -1,8 +1,10 @@
 #include <algorithm>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <sys/mman.h>
+#include <sys/sysinfo.h>
 #include <utility>
 #include <vector>
 
@@ -25,6 +27,8 @@ Runtime::Mode mode;
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr uint64_t kAllocateGranularity = 1ULL << 30;
+constexpr uint32_t kAllocateIters = 35;
+constexpr uint32_t kLoggingIntervalUs = 1000;
 
 struct Key {
   char data[kKeyLen];
@@ -48,20 +52,47 @@ constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
 
 using DSHashTable = DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
 
+struct Trace {
+  uint64_t time_us;
+  uint64_t free_ram;
+};
+
+void logging(const bool &done, std::vector<Trace> *traces) {
+  auto last_poll_us = microtime();
+  while (!ACCESS_ONCE(done)) {
+    timer_sleep(last_poll_us + kLoggingIntervalUs - microtime());
+    last_poll_us = microtime();
+
+    struct sysinfo info;
+    BUG_ON(sysinfo(&info) != 0);
+    traces->emplace_back(microtime(), info.freeram);
+  }
+}
+
 void do_work() {
   DSHashTable hash_table;
   std::cout << "Now let's start the second server. Press enter to continue."
             << std::endl;
   std::cin.ignore();
 
-  uint64_t allocated_size = 0;
-  while (true) {
+  bool done = false;
+  std::vector<Trace> traces;
+  auto logging_thread =
+      rt::Thread([&traces, &done] { logging(done, &traces); });
+
+  for (uint32_t i = 0; i < kAllocateIters; i++) {
+    std::cout << microtime() << " " << i << std::endl;
     mmap(nullptr, kAllocateGranularity, PROT_READ | PROT_WRITE,
          MAP_ANONYMOUS | MAP_SHARED | MAP_POPULATE, -1, 0);
-    allocated_size += kAllocateGranularity;
-    std::cout << "Have allocated " << allocated_size
-              << " bytes. Press enter to continue." << std::endl;
-    std::cin.ignore();
+  }
+
+  done = true;
+  barrier();
+  logging_thread.Join();
+
+  std::ofstream ofs("log", std::ofstream::trunc);
+  for (auto [time_us, free_mem] : traces) {
+    ofs << time_us << " " << free_mem << std::endl;
   }
 }
 
