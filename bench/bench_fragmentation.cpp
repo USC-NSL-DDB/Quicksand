@@ -126,7 +126,8 @@ void gen_commands(std::vector<Command> *commands) {
 }
 
 uint64_t run_on_local_hashtable(std::vector<Command> *commands) {
-  auto padding = (2 << bsr_64(sizeof(LocalHashTable))) - sizeof(LocalHashTable);
+  auto padding =
+      (2ULL << bsr_64(sizeof(LocalHashTable))) - sizeof(LocalHashTable);
   auto mem_usage_start = Runtime::runtime_slab.get_usage();
   auto *local_hashtable = new LocalHashTable();
 
