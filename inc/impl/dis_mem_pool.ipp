@@ -11,31 +11,31 @@ extern "C" {
 
 namespace nu {
 
-inline DistributedMemPool::Shard::Shard(uint32_t shard_size) {
+inline DistributedMemPool::Heap::Heap(uint32_t shard_size) {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   BUG_ON(!heap_header->slab.try_shrink(shard_size));
 }
 
 template <typename T, typename... As>
-RemRawPtr<T> DistributedMemPool::Shard::allocate_raw(As &&... args) {
+RemRawPtr<T> DistributedMemPool::Heap::allocate_raw(As &&... args) {
   return RemRawPtr(new T(std::forward<As>(args)...));
 }
 
 template <typename T, typename... As>
-RemUniquePtr<T> DistributedMemPool::Shard::allocate_unique(As &&... args) {
+RemUniquePtr<T> DistributedMemPool::Heap::allocate_unique(As &&... args) {
   return make_rem_unique<T>(std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
-RemSharedPtr<T> DistributedMemPool::Shard::allocate_shared(As &&... args) {
+RemSharedPtr<T> DistributedMemPool::Heap::allocate_shared(As &&... args) {
   return make_rem_shared<T>(std::forward<As>(args)...);
 }
 
-template <typename T> void DistributedMemPool::Shard::free_raw(T *raw_ptr) {
+template <typename T> void DistributedMemPool::Heap::free_raw(T *raw_ptr) {
   delete raw_ptr;
 }
 
-inline bool DistributedMemPool::Shard::has_space_for(uint32_t size) {
+inline bool DistributedMemPool::Heap::has_space_for(uint32_t size) {
   auto buf = new uint8_t[size];
   if (!buf) {
     return false;
@@ -44,17 +44,16 @@ inline bool DistributedMemPool::Shard::has_space_for(uint32_t size) {
   return true;
 }
 
-inline DistributedMemPool::FullShard::FullShard() {}
+inline DistributedMemPool::Shard::Shard() {}
 
-inline DistributedMemPool::FullShard::FullShard(uint32_t size,
-                                                RemObj<Shard> &&obj)
-    : failed_alloc_size(size), rem_obj(std::move(obj)) {}
+inline DistributedMemPool::Shard::Shard(RemObj<Heap> &&obj)
+    : rem_obj(std::move(obj)) {}
 
-inline DistributedMemPool::FullShard::FullShard(FullShard &&o)
+inline DistributedMemPool::Shard::Shard(Shard &&o)
     : failed_alloc_size(o.failed_alloc_size), rem_obj(std::move(o.rem_obj)) {}
 
-inline DistributedMemPool::FullShard &
-DistributedMemPool::FullShard::operator=(FullShard &&o) {
+inline DistributedMemPool::Shard &
+DistributedMemPool::Shard::operator=(Shard &&o) {
   failed_alloc_size = o.failed_alloc_size;
   rem_obj = std::move(o.rem_obj);
   return *this;
@@ -71,8 +70,11 @@ inline DistributedMemPool::DistributedMemPool(DistributedMemPool &&o)
 inline DistributedMemPool &
 DistributedMemPool::operator=(DistributedMemPool &&o) {
   o.halt_probing();
-  free_shards_ = std::move(o.free_shards_);
-  full_shards_ = std::move(o.full_shards_);
+  for (uint32_t i = 0; i < kNumCores; i++) {
+    local_free_shards_[i] = std::move(o.local_free_shards_[i]);
+  }
+  global_free_shards_ = std::move(o.global_free_shards_);
+  global_full_shards_ = std::move(o.global_full_shards_);
   last_probing_us_ = o.last_probing_us_;
   return *this;
 }
@@ -81,17 +83,17 @@ inline DistributedMemPool::~DistributedMemPool() { halt_probing(); }
 
 inline void DistributedMemPool::halt_probing() {
   {
-    rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
+    rt::ScopedLock<rt::Mutex> scope(&global_mutex_);
     done_ = true;
   }
-  if (probing_active_) {
-    probing_thread_.Join();
+  if (probing_thread_) {
+    probing_thread_->Join();
   }
 }
 
 template <typename T, typename... As>
 RemRawPtr<T> DistributedMemPool::allocate_raw(As &&... args) {
-  return general_allocate<T>(&Shard::allocate_raw<T, As...>,
+  return general_allocate<T>(&Heap::allocate_raw<T, As...>,
                              std::forward<As>(args)...);
 }
 
@@ -105,8 +107,9 @@ Future<RemRawPtr<T>> DistributedMemPool::allocate_raw_async(As &&... args) {
 
 template <typename T>
 void DistributedMemPool::free_raw(const RemRawPtr<T> &ptr) {
-  RemObj<Shard> shard(ptr.rem_obj_id_, false);
-  shard.__run(&Shard::free_raw<T>, const_cast<RemRawPtr<T> &>(ptr).get());
+  RemObj<Heap> shard(ptr.rem_obj_id_, false);
+  shard.__run(&Heap::free_raw<T>, const_cast<RemRawPtr<T> &>(ptr).get());
+  check_probing();
 }
 
 template <typename T>
@@ -119,9 +122,7 @@ inline void DistributedMemPool::check_probing() {
   auto cur_us = microtime();
   if (unlikely(cur_us >
                last_probing_us_ + kFullShardProbingIntervalMs * 1000)) {
-    if (likely(!done_)) {
-      __check_probing(cur_us);
-    }
+    __check_probing(cur_us);
   }
 }
 
@@ -130,12 +131,12 @@ template <class Archive> void DistributedMemPool::save(Archive &ar) const {
 }
 
 template <class Archive> void DistributedMemPool::save(Archive &ar) {
-  rt::ScopedLock<rt::Mutex> scope(&probing_mutex_);
-  ar(free_shards_, full_shards_);
+  halt_probing();
+  ar(local_free_shards_, global_free_shards_, global_full_shards_);
 }
 
 template <class Archive> void DistributedMemPool::load(Archive &ar) {
-  ar(free_shards_, full_shards_);
+  ar(local_free_shards_, global_free_shards_, global_full_shards_);
 
   last_probing_us_ = microtime();
   probing_active_ = false;
@@ -144,7 +145,7 @@ template <class Archive> void DistributedMemPool::load(Archive &ar) {
 
 template <typename T, typename... As>
 RemUniquePtr<T> DistributedMemPool::allocate_unique(As &&... args) {
-  return general_allocate<T>(&Shard::allocate_unique<T, As...>,
+  return general_allocate<T>(&Heap::allocate_unique<T, As...>,
                              std::forward<As>(args)...);
 }
 
@@ -159,7 +160,7 @@ DistributedMemPool::allocate_unique_async(As &&... args) {
 
 template <typename T, typename... As>
 RemSharedPtr<T> DistributedMemPool::allocate_shared(As &&... args) {
-  return general_allocate<T>(&Shard::allocate_shared<T, As...>,
+  return general_allocate<T>(&Heap::allocate_shared<T, As...>,
                              std::forward<As>(args)...);
 }
 
@@ -175,15 +176,41 @@ DistributedMemPool::allocate_shared_async(As &&... args) {
 template <typename T, typename AllocFn, typename... As>
 auto DistributedMemPool::general_allocate(AllocFn &&alloc_fn, As &&... args) {
 retry:
-  auto free_shard = atomic_pick_free_shard();
-  auto ptr = free_shard.__run(alloc_fn, std::forward<As>(args)...);
-  if (!ptr) {
-    atomic_put_full_shard(sizeof(T), std::move(free_shard));
-    goto retry;
+  auto cpu = get_cpu();
+  auto &free_shard_optional = local_free_shards_[cpu].shard;
+
+  if (likely(free_shard_optional)) {
+    auto &free_shard = *free_shard_optional;
+
+    // The free shard has been marked as full.
+    if (unlikely(ACCESS_ONCE(free_shard.failed_alloc_size))) {
+      __handle_local_free_shard_full();
+      goto retry;
+    }
+
+    auto cap = free_shard.rem_obj.get_cap();
+    put_cpu();
+    // Try to allocate.
+    auto ptr = free_shard.rem_obj.__run(alloc_fn, std::forward<As>(args)...);
+    // The shard turns out to be full, add a mark.
+    if (unlikely(!ptr)) {
+      // For the performance consideration, here we intentionally allow race
+      // conditions which may cause the free shard to be marked as full. It's
+      // fine since the mis-classification will soon be rectified by the probing
+      // thread.
+      if (free_shard.rem_obj.get_cap() == cap) {
+        ACCESS_ONCE(free_shard.failed_alloc_size) = sizeof(T);
+      }
+      goto retry;
+    }
+
+    // Allocation succeeds, done.
+    return ptr;
   } else {
-    atomic_put_free_shard(std::move(free_shard));
+    // The local cache is empty.
+    __handle_no_local_free_shard();
+    goto retry;
   }
-  return ptr;
 }
 
 } // namespace nu

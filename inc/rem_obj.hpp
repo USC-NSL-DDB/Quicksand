@@ -20,6 +20,7 @@ public:
   struct Cap {
     RemObjID id;
 
+    bool operator==(const Cap &o) const { return id == o.id; }
     template <class Archive> void serialize(Archive &ar) { ar(id); }
   };
 

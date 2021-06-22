@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cereal/types/optional.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -13,6 +15,7 @@ extern "C" {
 #include <base/time.h>
 }
 
+#include "defs.hpp"
 #include "rem_obj.hpp"
 #include "utils/future.hpp"
 
@@ -22,7 +25,6 @@ template <typename T> class RemRawPtr;
 template <typename T> class RemUniquePtr;
 template <typename T> class RemSharedPtr;
 
-// TODO: make it thread-safe.
 // TODO: add batch interface.
 class DistributedMemPool {
 public:
@@ -55,8 +57,8 @@ public:
   template <class Archive> void load(Archive &ar);
 
 private:
-  struct Shard {
-    Shard(uint32_t shard_size);
+  struct Heap {
+    Heap(uint32_t shard_size);
     template <typename T, typename... As>
     RemRawPtr<T> allocate_raw(As &&... args);
     template <typename T, typename... As>
@@ -67,29 +69,33 @@ private:
     bool has_space_for(uint32_t size);
   };
 
-  struct FullShard {
-    uint32_t failed_alloc_size;
-    RemObj<Shard> rem_obj;
+  struct Shard {
+    uint32_t failed_alloc_size = 0;
+    RemObj<Heap> rem_obj;
 
-    FullShard();
-    FullShard(uint32_t failed_alloc_size, RemObj<Shard> &&obj);
-    FullShard(FullShard &&o);
-    FullShard &operator=(FullShard &&o);
+    Shard();
+    Shard(RemObj<Heap> &&obj);
+    Shard(Shard &&o);
+    Shard &operator=(Shard &&o);
 
     template <class Archive> void serialize(Archive &ar) {
       ar(failed_alloc_size, rem_obj);
     }
   };
 
-  using FreeShard = RemObj<Shard>;
+  struct alignas(kCacheLineBytes) FreeShardPerCoreCache {
+    std::optional<Shard> shard;
 
-  std::deque<FreeShard> free_shards_;
-  std::deque<FullShard> full_shards_;
+    template <class Archive> void serialize(Archive &ar) { ar(shard); }
+  };
 
+  FreeShardPerCoreCache local_free_shards_[kNumCores];
+  std::deque<Shard> global_free_shards_;
+  std::deque<Shard> global_full_shards_;
+  rt::Mutex global_mutex_;
   uint64_t last_probing_us_;
-  rt::Thread probing_thread_;
+  std::unique_ptr<rt::Thread> probing_thread_;
   bool probing_active_;
-  rt::Mutex probing_mutex_;
 
   bool done_;
 
@@ -97,10 +103,8 @@ private:
 
   template <typename T, typename AllocFn, typename... As>
   auto general_allocate(AllocFn &&alloc_fn, As &&... args);
-  FreeShard atomic_pick_free_shard();
-  void atomic_put_free_shard(FreeShard &&free_shard);
-  void atomic_put_full_shard(uint32_t failed_alloc_size,
-                             FreeShard &&free_shard);
+  void __handle_local_free_shard_full();
+  void __handle_no_local_free_shard();
   void check_probing();
   void __check_probing(uint64_t cur_us);
   void probing_fn();
