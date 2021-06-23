@@ -1,4 +1,5 @@
 #include <sys/mman.h>
+#include <new>
 
 extern "C" {
 #include <base/assert.h>
@@ -171,7 +172,7 @@ void Runtime::reserve_migration_conns(uint32_t num, netaddr dest_server_addr) {
 
 } // namespace nu
 
-void *operator new(size_t size) {
+inline void *__new(size_t size) {
   void *ptr;
   auto *slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
 
@@ -187,7 +188,20 @@ void *operator new(size_t size) {
   return ptr;
 }
 
-void operator delete(void *ptr) {
+void *operator new(size_t size) {
+  auto *ptr = __new(size);
+  if (ptr) {
+    return ptr;
+  } else {
+    throw std::bad_alloc();
+  }
+}
+
+void *operator new(size_t size, const std::nothrow_t &nothrow_value) noexcept {
+  return __new(size);
+}
+
+void operator delete(void *ptr) noexcept {
   auto *slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
 
   if (slab) {
