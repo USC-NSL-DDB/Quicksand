@@ -24,7 +24,12 @@ public:
   template <class Archive> void load(Archive &ar);
 
 private:
+  RemSharedPtr(std::shared_ptr<T> *shared_ptr);
+
   std::shared_ptr<T> *shared_ptr_ = nullptr;
+
+  template <typename U, typename... Args>
+  friend RemSharedPtr<U> make_rem_shared(Args &&... args);
 };
 
 template <typename T, typename... Args>

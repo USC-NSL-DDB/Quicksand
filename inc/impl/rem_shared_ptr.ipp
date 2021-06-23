@@ -40,6 +40,12 @@ RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> &&shared_ptr) noexcept
     : RemPtr<T>(Runtime::get_current_obj_id(), shared_ptr.get()),
       shared_ptr_(new std::shared_ptr<T>(std::move(shared_ptr))) {}
 
+template <typename T>
+RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> *shared_ptr)
+    : RemPtr<T>(Runtime::get_current_obj_id(),
+                shared_ptr ? shared_ptr->get() : nullptr),
+      shared_ptr_(shared_ptr) {}
+
 template <typename T> RemSharedPtr<T>::~RemSharedPtr() noexcept { reset(); }
 
 template <typename T>
@@ -108,7 +114,13 @@ template <typename T> void RemSharedPtr<T>::reset_bg() {
 
 template <typename T, typename... Args>
 RemSharedPtr<T> make_rem_shared(Args &&... args) {
-  return RemSharedPtr<T>(std::make_shared<T>(std::forward<Args>(args)...));
+  try {
+    auto *shared_ptr = new std::shared_ptr<T>(
+        std::make_shared<T>(std::forward<Args>(args)...));
+    return RemSharedPtr<T>(shared_ptr);
+  } catch (std::bad_alloc &) {
+    return RemSharedPtr<T>();
+  }
 }
 
 } // namespace nu
