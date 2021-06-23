@@ -19,27 +19,28 @@ template <typename T> consteval auto get_free_fn() {
   return +[](T &t) { delete &t; };
 }
 
-template <typename T> RemUniquePtr<T>::RemUniquePtr() {}
+template <typename T> RemUniquePtr<T>::RemUniquePtr() noexcept {}
 
 template <typename T>
 RemUniquePtr<T>::RemUniquePtr(T *raw_ptr)
     : RemPtr<T>(Runtime::get_current_obj_id(), raw_ptr) {}
 
 template <typename T>
-RemUniquePtr<T>::RemUniquePtr(std::unique_ptr<T> &&unique_ptr)
+RemUniquePtr<T>::RemUniquePtr(std::unique_ptr<T> &&unique_ptr) noexcept
     : RemUniquePtr(unique_ptr.get()) {
   unique_ptr.release();
 }
 
-template <typename T> RemUniquePtr<T>::~RemUniquePtr() { reset(); }
+template <typename T> RemUniquePtr<T>::~RemUniquePtr() noexcept { reset(); }
 
 template <typename T>
-RemUniquePtr<T>::RemUniquePtr(RemUniquePtr<T> &&o) : RemPtr<T>(std::move(o)) {
+RemUniquePtr<T>::RemUniquePtr(RemUniquePtr<T> &&o) noexcept
+    : RemPtr<T>(std::move(o)) {
   o.release();
 }
 
 template <typename T>
-RemUniquePtr<T> &RemUniquePtr<T>::operator=(RemUniquePtr<T> &&o) {
+RemUniquePtr<T> &RemUniquePtr<T>::operator=(RemUniquePtr<T> &&o) noexcept {
   reset();
   RemPtr<T>::operator=(std::move(o));
   o.release();

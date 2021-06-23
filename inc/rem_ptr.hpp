@@ -9,11 +9,11 @@ namespace nu {
 
 template <typename T> class RemPtr {
 public:
-  RemPtr();
-  RemPtr(const RemPtr &);
-  RemPtr &operator=(const RemPtr &);
-  RemPtr(RemPtr &&);
-  RemPtr &operator=(RemPtr &&);
+  RemPtr() noexcept;
+  RemPtr(const RemPtr &) noexcept;
+  RemPtr &operator=(const RemPtr &) noexcept;
+  RemPtr(RemPtr &&) noexcept;
+  RemPtr &operator=(RemPtr &&) noexcept;
   operator bool() const;
   T operator*();
   bool is_local() const;

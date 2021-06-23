@@ -33,22 +33,23 @@ template <typename T> consteval auto get_copy_shared_ptr_fn() {
   };
 }
 
-template <typename T> RemSharedPtr<T>::RemSharedPtr() {}
+template <typename T> RemSharedPtr<T>::RemSharedPtr() noexcept {}
 
 template <typename T>
-RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> &&shared_ptr)
+RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> &&shared_ptr) noexcept
     : RemPtr<T>(Runtime::get_current_obj_id(), shared_ptr.get()),
       shared_ptr_(new std::shared_ptr<T>(std::move(shared_ptr))) {}
 
-template <typename T> RemSharedPtr<T>::~RemSharedPtr() { reset(); }
+template <typename T> RemSharedPtr<T>::~RemSharedPtr() noexcept { reset(); }
 
 template <typename T>
-RemSharedPtr<T>::RemSharedPtr(const RemSharedPtr<T> &o) : RemPtr<T>(o) {
+RemSharedPtr<T>::RemSharedPtr(const RemSharedPtr<T> &o) noexcept
+    : RemPtr<T>(o) {
   shared_ptr_ = RemPtr<T>::__run(get_copy_shared_ptr_fn<T>(), o.shared_ptr_);
 }
 
 template <typename T>
-RemSharedPtr<T> &RemSharedPtr<T>::operator=(const RemSharedPtr<T> &o) {
+RemSharedPtr<T> &RemSharedPtr<T>::operator=(const RemSharedPtr<T> &o) noexcept {
   reset();
   RemPtr<T>::operator=(o);
   shared_ptr_ = RemPtr<T>::__run(get_copy_shared_ptr_fn<T>(), o.shared_ptr_);
@@ -56,13 +57,13 @@ RemSharedPtr<T> &RemSharedPtr<T>::operator=(const RemSharedPtr<T> &o) {
 }
 
 template <typename T>
-RemSharedPtr<T>::RemSharedPtr(RemSharedPtr<T> &&o)
+RemSharedPtr<T>::RemSharedPtr(RemSharedPtr<T> &&o) noexcept
     : RemPtr<T>(std::move(o)), shared_ptr_(o.shared_ptr_) {
   o.raw_ptr_ = nullptr;
 }
 
 template <typename T>
-RemSharedPtr<T> &RemSharedPtr<T>::operator=(RemSharedPtr<T> &&o) {
+RemSharedPtr<T> &RemSharedPtr<T>::operator=(RemSharedPtr<T> &&o) noexcept {
   reset();
   RemPtr<T>::operator=(std::move(o));
   shared_ptr_ = o.shared_ptr_;

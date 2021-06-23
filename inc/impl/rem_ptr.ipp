@@ -17,23 +17,24 @@ void RemPtr<T>::load(Archive &ar) {
   rem_obj_id_ = id;
 }
 
-template <typename T> RemPtr<T>::RemPtr() {}
+template <typename T> RemPtr<T>::RemPtr() noexcept {}
 
 template <typename T>
-RemPtr<T>::RemPtr(const RemPtr<T> &o)
+RemPtr<T>::RemPtr(const RemPtr<T> &o) noexcept
     : rem_obj_id_(o.rem_obj_id_), raw_ptr_(o.raw_ptr_) {}
 
-template <typename T> RemPtr<T> &RemPtr<T>::operator=(const RemPtr<T> &o) {
+template <typename T>
+RemPtr<T> &RemPtr<T>::operator=(const RemPtr<T> &o) noexcept {
   rem_obj_id_ = o.rem_obj_id_;
   raw_ptr_ = o.raw_ptr_;
   return *this;
 }
 
 template <typename T>
-RemPtr<T>::RemPtr(RemPtr<T> &&o)
+RemPtr<T>::RemPtr(RemPtr<T> &&o) noexcept
     : rem_obj_id_(o.rem_obj_id_), raw_ptr_(o.raw_ptr_) {}
 
-template <typename T> RemPtr<T> &RemPtr<T>::operator=(RemPtr<T> &&o) {
+template <typename T> RemPtr<T> &RemPtr<T>::operator=(RemPtr<T> &&o) noexcept {
   rem_obj_id_ = o.rem_obj_id_;
   raw_ptr_ = o.raw_ptr_;
   return *this;

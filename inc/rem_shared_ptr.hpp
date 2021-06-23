@@ -8,13 +8,13 @@ namespace nu {
 
 template <typename T> class RemSharedPtr : public RemPtr<T> {
 public:
-  RemSharedPtr();
-  RemSharedPtr(std::shared_ptr<T> &&shared_ptr);
-  ~RemSharedPtr();
-  RemSharedPtr(const RemSharedPtr &);
-  RemSharedPtr &operator=(const RemSharedPtr &);
-  RemSharedPtr(RemSharedPtr &&);
-  RemSharedPtr &operator=(RemSharedPtr &&);
+  RemSharedPtr() noexcept;
+  RemSharedPtr(std::shared_ptr<T> &&shared_ptr) noexcept;
+  ~RemSharedPtr() noexcept;
+  RemSharedPtr(const RemSharedPtr &) noexcept;
+  RemSharedPtr &operator=(const RemSharedPtr &) noexcept;
+  RemSharedPtr(RemSharedPtr &&) noexcept;
+  RemSharedPtr &operator=(RemSharedPtr &&) noexcept;
   void reset();
   Future<void> reset_async();
   void reset_bg();

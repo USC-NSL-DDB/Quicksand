@@ -8,13 +8,13 @@ namespace nu {
 
 template <typename T> class RemUniquePtr : public RemPtr<T> {
 public:
-  RemUniquePtr();
-  RemUniquePtr(std::unique_ptr<T> &&unique_ptr);
-  ~RemUniquePtr();
+  RemUniquePtr() noexcept;
+  RemUniquePtr(std::unique_ptr<T> &&unique_ptr) noexcept;
+  ~RemUniquePtr() noexcept;
   RemUniquePtr(const RemUniquePtr &) = delete;
   RemUniquePtr &operator=(const RemUniquePtr &) = delete;
-  RemUniquePtr(RemUniquePtr &&);
-  RemUniquePtr &operator=(RemUniquePtr &&);
+  RemUniquePtr(RemUniquePtr &&) noexcept;
+  RemUniquePtr &operator=(RemUniquePtr &&) noexcept;
   void release();
   void reset();
   Future<void> reset_async();
