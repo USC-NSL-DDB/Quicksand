@@ -15,35 +15,13 @@ if(Boost_FOUND)
   link_directories(${Boost_LIBRARY_DIRS})
 endif()
 
-#set(POCO_PREFIX      "/usr/local")
-#set(POCO_INCLUDE_DIR "${POCO_PREFIX}/include")
-#set(POCO_LIB_DIR     "${POCO_PREFIX}/lib")
-#set(POCO_LIBS        "${POCO_LIB_DIR}/libPocoNet.so"
-#                     "${POCO_LIB_DIR}/libPocoUtil.so"
-#                     "${POCO_LIB_DIR}/libPocoFoundation.so")
-
-
-#add_library(jaegertracing SHARED IMPORTED)
-#set_target_properties(jaegertracing PROPERTIES IMPORTED_LOCATION
-#    /usr/local/lib/libjaegertracing.so)
-
-#add_library(cpp_redis STATIC IMPORTED)
-#set_target_properties(cpp_redis PROPERTIES IMPORTED_LOCATION
-#    /usr/local/lib/libcpp_redis.a)
-#
-#add_library(tacopie STATIC IMPORTED)
-#set_target_properties(tacopie PROPERTIES IMPORTED_LOCATION
-#    /usr/local/lib/libtacopie.a)
-
-
-
 set(THRIFT_GEN_CPP_DIR ../../gen-cpp)
 
+add_subdirectory(FrontEndProxy)
 add_subdirectory(TextService)
 add_subdirectory(UniqueIdService)
 add_subdirectory(UserService)
 add_subdirectory(SocialGraphService)
-# add_subdirectory(WriteHomeTimelineService)
 add_subdirectory(PostStorageSerivce)
 add_subdirectory(UserTimelineService)
 add_subdirectory(ComposePostService)

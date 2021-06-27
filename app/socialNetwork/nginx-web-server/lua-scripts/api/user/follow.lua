@@ -8,7 +8,7 @@ function _M.Follow()
   local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local SocialGraphServiceClient = require "social_network_SocialGraphService".SocialGraphServiceClient
+  local FrontEndProxyClient = require "social_network_FrontEndProxy".FrontEndProxyClient
   local jwt = require "resty.jwt"
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
@@ -24,7 +24,7 @@ function _M.Follow()
   local post = ngx.req.get_post_args()
 
   local client = GenericObjectPool:connection(
-      SocialGraphServiceClient, "social-graph-service", 9090)
+      FrontEndProxyClient, "front-end-proxy", 9102)
 
   -- -- new start -- 
   -- if (_StrIsEmpty(ngx.var.cookie_login_token)) then

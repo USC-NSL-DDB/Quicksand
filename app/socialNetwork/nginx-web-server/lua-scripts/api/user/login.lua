@@ -8,7 +8,7 @@ function _M.Login()
   local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local UserServiceClient = require "social_network_UserService".UserServiceClient
+  local FrontEndProxyClient = require "social_network_FrontEndProxy".FrontEndProxyClient
   local cjson = require "cjson"
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
@@ -33,7 +33,7 @@ function _M.Login()
     return ngx.redirect("/login.html")
   end
 
-  local client = GenericObjectPool:connection(UserServiceClient, "user-service", 9095)
+  local client = GenericObjectPool:connection(FrontEndProxyClient, "front-end-proxy", 9102)
 
   local status, ret = pcall(client.Login, client, req_id,
       args.username, args.password, carrier)

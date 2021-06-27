@@ -1,5 +1,12 @@
 {
   "secret": "secret",
+  "front-end-proxy": {
+    "addr": "front-end-proxy",
+    "port": 9102,
+    "connections": 512,
+    "timeout_ms": 10000,
+    "keepalive_ms": 10000
+  },
   "social-graph-service": {
     "addr": "social-graph-service",
     "port": 9090,

@@ -22,7 +22,7 @@ function _M.GetFollowee()
   local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local SocialGraphServiceClient = require "social_network_SocialGraphService".SocialGraphServiceClient
+  local FrontEndProxyClient = require "social_network_FrontEndProxy".FrontEndProxyClient
   local cjson = require "cjson"
   local jwt = require "resty.jwt"
   local liblualongnumber = require "liblualongnumber"
@@ -59,7 +59,7 @@ function _M.GetFollowee()
     ngx.exit(ngx.HTTP_OK)
   else
     local client = GenericObjectPool:connection(
-      SocialGraphServiceClient, "social-graph-service", 9090)
+      FrontEndProxyClient, "front-end-proxy", 9102)
     local status, ret = pcall(client.GetFollowees, client, req_id,
         user_id, carrier)
     GenericObjectPool:returnConnection(client)

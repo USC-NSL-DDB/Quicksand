@@ -283,3 +283,98 @@ service MediaService {
       4: map<string, string> carrier
   ) throws (1: ServiceException se)
 }
+
+service FrontEndProxy {
+  list<Post> ReadHomeTimeline(
+    1: i64 req_id,
+    2: i64 user_id,
+    3: i32 start,
+    4: i32 stop,
+    5: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  void ComposePost(
+    1: i64 req_id,
+    2: string username,
+    3: i64 user_id,
+    4: string text,
+    5: list<i64> media_ids,
+    6: list<string> media_types,
+    7: PostType post_type,
+    8: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  list<i64> GetFollowers(
+      1: i64 req_id,
+      2: i64 user_id,
+      3: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  void Unfollow(
+      1: i64 req_id,
+      2: i64 user_id,
+      3: i64 followee_id,
+      4: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  void UnfollowWithUsername(
+      1: i64 req_id,
+      2: string user_usernmae,
+      3: string followee_username,
+      4: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  string Login(
+      1: i64 req_id,
+      2: string username,
+      3: string password,
+      4: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  void Follow(
+      1: i64 req_id,
+      2: i64 user_id,
+      3: i64 followee_id,
+      4: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  void FollowWithUsername(
+      1: i64 req_id,
+      2: string user_usernmae,
+      3: string followee_username,
+      4: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  void RegisterUser (
+      1: i64 req_id,
+      2: string first_name,
+      3: string last_name,
+      4: string username,
+      5: string password,
+      6: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  list<i64> GetFollowees(
+      1: i64 req_id,
+      2: i64 user_id,
+      3: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  list<Post> ReadUserTimeline(
+    1: i64 req_id,
+    2: i64 user_id,
+    3: i32 start,
+    4: i32 stop,
+    5: map<string, string> carrier
+  ) throws (1: ServiceException se)
+
+  void RegisterUserWithId (
+      1: i64 req_id,
+      2: string first_name,
+      3: string last_name,
+      4: string username,
+      5: string password,
+      6: i64 user_id,
+      7: map<string, string> carrier
+  ) throws (1: ServiceException se)
+}

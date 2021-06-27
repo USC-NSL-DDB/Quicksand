@@ -49,7 +49,7 @@ function _M.ReadHomeTimeline()
   local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local HomeTimelineServiceClient = require "social_network_HomeTimelineService".HomeTimelineServiceClient
+  local FrontEndProxyClient = require "social_network_FrontEndProxy".FrontEndProxyClient
   local cjson = require "cjson"
   local jwt = require "resty.jwt"
   local liblualongnumber = require "liblualongnumber"
@@ -106,7 +106,7 @@ function _M.ReadHomeTimeline()
     
   else
     local client = GenericObjectPool:connection(
-        HomeTimelineServiceClient, "home-timeline-service", 9100)
+        FrontEndProxyClient, "front-end-proxy", 9102)
     local status, ret = pcall(client.ReadHomeTimeline, client, req_id,
         user_id, tonumber(args.start), tonumber(args.stop), carrier)
     GenericObjectPool:returnConnection(client)

@@ -92,6 +92,14 @@
 					"target": "acme.com",
 					"ttl": 255,
 					"type": "A"
+				},
+				{
+					"id": 1624675106176773289,
+					"hostname": "front-end-proxy",
+					"ip": "172.17.0.1",
+					"target": "acme.com",
+					"ttl": 255,
+					"type": "A"
 				}
 			]
 		}

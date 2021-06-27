@@ -12,8 +12,7 @@ function _M.ComposePost()
   local jwt = require "resty.jwt"
 
   local GenericObjectPool = require "GenericObjectPool"
-  local social_network_ComposePostService = require "social_network_ComposePostService"
-  local ComposePostServiceClient = social_network_ComposePostService.ComposePostServiceClient
+  local FrontEndProxyClient = require "social_network_FrontEndProxy".FrontEndProxyClient
 
   GenericObjectPool:setMaxTotal(512)
 
@@ -59,7 +58,7 @@ function _M.ComposePost()
   else
     local status, ret
     local client = GenericObjectPool:connection(
-      ComposePostServiceClient, "compose-post-service", 9091)
+      FrontEndProxyClient, "front-end-proxy", 9102)
 
     local span = tracer:start_span("compose_post_client",
       { ["references"] = { { "child_of", parent_span_context } } })

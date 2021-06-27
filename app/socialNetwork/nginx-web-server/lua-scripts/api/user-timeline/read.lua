@@ -48,7 +48,7 @@ function _M.ReadUserTimeline()
   local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local UserTimelineServiceClient = require "social_network_UserTimelineService".UserTimelineServiceClient
+  local FrontEndProxyClient = require "social_network_FrontEndProxy".FrontEndProxyClient
   local cjson = require "cjson"
   local jwt = require "resty.jwt"
   local liblualongnumber = require "liblualongnumber"
@@ -101,7 +101,7 @@ function _M.ReadUserTimeline()
     ngx.exit(ngx.HTTP_UNAUTHORIZED)
   else
     local client = GenericObjectPool:connection(
-        UserTimelineServiceClient, "user-timeline-service", 9093)
+        FrontEndProxyClient, "front-end-proxy", 9102)
     local status, ret = pcall(client.ReadUserTimeline, client, req_id,
         user_id, tonumber(args.start), tonumber(args.stop), carrier)
     GenericObjectPool:returnConnection(client)
