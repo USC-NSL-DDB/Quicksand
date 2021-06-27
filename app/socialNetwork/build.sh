@@ -97,8 +97,7 @@ mkdir build
 cd build
 cmake -DREDIS_PLUS_PLUS_USE_TLS=ON -DREDIS_PLUS_PLUS_CXX_STANDARD=2a ..
 make -j
-sudo sudo make install
-make install
+sudo make install
 cd ../..
 
 git clone https://github.com/CopernicaMarketingSoftware/AMQP-CPP.git

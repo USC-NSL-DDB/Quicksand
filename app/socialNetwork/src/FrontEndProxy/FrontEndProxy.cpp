@@ -1,3 +1,5 @@
+#include <runtime.h>
+
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/server/TThreadedServer.h>
 #include <thrift/transport/TBufferTransports.h>
@@ -326,7 +328,7 @@ private:
 
 void sigintHandler(int sig) { exit(EXIT_SUCCESS); }
 
-int main() {
+void do_work() {
   signal(SIGINT, sigintHandler);
   init_logger();
   SetUpTracer("config/jaeger-config.yml", "FrontEndProxy");
@@ -422,7 +424,23 @@ int main() {
     LOG(info) << "Starting the text-service server...";
     server.serve();
   } else {
-    exit(EXIT_FAILURE);
+    LOG(error) << "Failed to load the config json file.";
+  }
+}
+
+int main(int argc, char **argv) {
+  int ret;
+
+  if (argc < 2) {
+    std::cerr << "usage: [cfg_file]" << std::endl;
+    return -EINVAL;
+  }
+
+  ret = rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
+
+  if (ret) {
+    std::cerr << "failed to start runtime" << std::endl;
+    return ret;
   }
 
   return 0;

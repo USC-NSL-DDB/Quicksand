@@ -24,6 +24,11 @@ target_include_directories(
     ${FOLLY_DIR}/include
 )
 
+target_link_directories(
+    FrontEndProxy PRIVATE
+    ${NU_DIR}/../glibc/build/install/lib
+)
+
 target_link_libraries(
     FrontEndProxy
     nlohmann_json::nlohmann_json

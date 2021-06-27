@@ -20,10 +20,14 @@ set(NU_DIR ../../../)
 set(CALADAN_DIR ${NU_DIR}/caladan/)
 set(FOLLY_DIR ${CALADAN_DIR}/deps/folly/)
 
+include_directories(${NU_DIR}/inc)
+include_directories(${CALADAN_DIR}/inc)
+include_directories(${CALADAN_DIR}/bindings/cc)
+include_directories(${FOLLY_DIR}/include)
+
 link_directories(${CALADAN_DIR})
 link_directories(${CALADAN_DIR}/bindings/cc)
 link_directories(${CALADAN_DIR}/rdma-core/build/lib/statics/)
-link_directories(${NU_DIR}/glibc/build/install/lib)
 link_directories(${NU_DIR})
 
 add_subdirectory(FrontEndProxy)
