@@ -1,3 +1,8 @@
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_EXE_LINKER_FLAGS "-T ${CALADAN_DIR}/base/base.ld \
+                            -static -static-libstdc++ -static-libgcc")
+
 add_executable(
     FrontEndProxy
     FrontEndProxy.cpp
@@ -13,17 +18,39 @@ add_executable(
 target_include_directories(
     FrontEndProxy PRIVATE
     /usr/local/include/jaegertracing
+    ${NU_DIR}/inc
+    ${CALADAN_DIR}/inc
+    ${CALADAN_DIR}/bindings/cc
+    ${FOLLY_DIR}/include
 )
 
 target_link_libraries(
     FrontEndProxy
     nlohmann_json::nlohmann_json
-    ${THRIFT_LIB}
+    yaml-cpp
+    opentracing
+    jaegertracing
+    nlohmann_json::nlohmann_json
+    ${THRIFT_STATIC_LIB}
     ${CMAKE_THREAD_LIBS_INIT}
     ${Boost_LIBRARIES}
     Boost::log
     Boost::log_setup
-    jaegertracing
+    ssl
+    crypto
+    # Nu
+    nu
+    # Caladan
+    rt++
+    runtime
+    net
+    base
+    mlx5
+    ibverbs
+    nl-3
+    nl-route-3
+    pthread
+    dl
 )
 
 install(TARGETS FrontEndProxy DESTINATION ./)

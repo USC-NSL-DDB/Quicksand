@@ -77,7 +77,7 @@ bench_fragmentation_obj = $(bench_fragmentation_src:.cpp=.o)
 bench_real_mem_pressure_src = bench/bench_real_mem_pressure.cpp
 bench_real_mem_pressure_obj = $(bench_real_mem_pressure_src:.cpp=.o)
 
-all: libservless.a bin/test_slab bin/test_rem_obj bin/test_multi_objs \
+all: libnu.a bin/test_slab bin/test_rem_obj bin/test_multi_objs \
 bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
 bin/bench_rpc_lat bin/bench_rpc_tput bin/bench_tcp_tput bin/bench_tcp_lat \
 bin/bench_thread bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
@@ -85,7 +85,7 @@ bin/bench_dis_hash_table bin/bench_fake_migration bin/test_nested_rem_obj \
 bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/bench_real_mem_pressure
 
-libservless.a: $(lib_obj)
+libnu.a: $(lib_obj)
 	$(AR) rcs $@ $^
 
 %.d: %.cpp
