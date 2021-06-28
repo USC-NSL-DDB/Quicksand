@@ -59,5 +59,4 @@ sudo build/src/UrlShortenService/UrlShortenService >logs/UrlShortenService 2>&1 
 sudo build/src/UserService/UserService >logs/UserService 2>&1 &
 sudo build/src/MediaService/MediaService >logs/MediaService 2>&1 &
 sudo build/src/TextService/TextService >logs/TextService 2>&1 &
-sudo build/src/UniqueIdService/UniqueIdService >logs/UniqueIdService 2>&1 & 
 sudo build/src/UserMentionService/UserMentionService >logs/UserMentionService 2>&1 &
