@@ -39,9 +39,9 @@ docker-compose -f media-frontend.yml start
 docker-compose -f nginx-thrift.yml start
 popd
 
+sudo ../../caladan/iokerneld >logs/iokerneld 2>&1 &
 sleep 5
 
-sudo ../../caladan/iokerneld >logs/iokerneld 2>&1 &
 sudo build/src/FrontEndProxy/FrontEndProxy ../../conf/server1 >logs/FrontEndProxy 2>&1 &
 sudo build/src/SocialGraphService/SocialGraphService >logs/SocialGraphService 2>&1 &
 sudo build/src/HomeTimelineService/HomeTimelineService >logs/HomeTimelineService 2>&1 &
