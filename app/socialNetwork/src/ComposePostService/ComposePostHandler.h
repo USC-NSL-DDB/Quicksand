@@ -1,5 +1,4 @@
-#ifndef SOCIAL_NETWORK_MICROSERVICES_SRC_COMPOSEPOSTSERVICE_COMPOSEPOSTHANDLER_H_
-#define SOCIAL_NETWORK_MICROSERVICES_SRC_COMPOSEPOSTSERVICE_COMPOSEPOSTHANDLER_H_
+#pragma once
 
 #include <chrono>
 #include <future>
@@ -7,6 +6,9 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
+#include <mutex>
+
+#include <nu/rem_obj.hpp>
 
 #include "../../gen-cpp/ComposePostService.h"
 #include "../../gen-cpp/HomeTimelineService.h"
@@ -19,6 +21,7 @@
 #include "../../gen-cpp/social_network_types.h"
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
+#include "UniqueIdService.h"
 
 namespace social_network {
 using json = nlohmann::json;
@@ -43,6 +46,15 @@ class ComposePostHandler : public ComposePostServiceIf {
                    const std::vector<std::string> &media_types,
                    PostType::type post_type) override;
 
+  // For compatibility purpose, To be removed in the future.
+  bool _pending_req = false;
+  bool _pending_resp = false;
+  int64_t _arg_req_id;
+  PostType::type _arg_post_type;
+  int64_t _resp;
+  std::mutex _mutex;
+  void poller();
+
  private:
   ClientPool<ThriftClient<PostStorageServiceClient>> *_post_storage_client_pool;
   ClientPool<ThriftClient<UserTimelineServiceClient>>
@@ -55,6 +67,8 @@ class ComposePostHandler : public ComposePostServiceIf {
   ClientPool<ThriftClient<TextServiceClient>> *_text_service_client_pool;
   ClientPool<ThriftClient<HomeTimelineServiceClient>>
       *_home_timeline_client_pool;
+
+  nu::RemObj<UniqueIdService> _unique_id_service_obj;
 
   void _UploadUserTimelineHelper(int64_t req_id, int64_t post_id,
                                  int64_t user_id, int64_t timestamp);
@@ -94,6 +108,7 @@ ComposePostHandler::ComposePostHandler(
   _media_service_client_pool = media_service_client_pool;
   _text_service_client_pool = text_service_client_pool;
   _home_timeline_client_pool = home_timeline_client_pool;
+  _unique_id_service_obj = nu::RemObj<UniqueIdService>::create_pinned();
 }
 
 Creator ComposePostHandler::_ComposeCreaterHelper(int64_t req_id,
@@ -175,27 +190,8 @@ std::vector<Media> ComposePostHandler::_ComposeMediaHelper(
 int64_t
 ComposePostHandler::_ComposeUniqueIdHelper(int64_t req_id,
                                            const PostType::type post_type) {
-  auto unique_id_client_wrapper = _unique_id_service_client_pool->Pop();
-  if (!unique_id_client_wrapper) {
-    ServiceException se;
-    se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-    se.message = "Failed to connect to unique_id-service";
-    LOG(error) << se.message;
-    throw se;
-  }
-
-  auto unique_id_client = unique_id_client_wrapper->GetClient();
-  int64_t _return_unique_id;
-  try {
-    _return_unique_id =
-        unique_id_client->ComposeUniqueId(req_id, post_type);
-  } catch (...) {
-    LOG(error) << "Failed to send compose-unique_id to unique_id-service";
-    _unique_id_service_client_pool->Remove(unique_id_client_wrapper);
-    throw;
-  }
-  _unique_id_service_client_pool->Keepalive(unique_id_client_wrapper);
-  return _return_unique_id;
+  return _unique_id_service_obj.run(&UniqueIdService::ComposeUniqueId, req_id,
+                                    post_type);
 }
 
 void ComposePostHandler::_UploadPostHelper(int64_t req_id, const Post &post) {
@@ -267,6 +263,8 @@ void ComposePostHandler::ComposePost(
     const int64_t req_id, const std::string &username, int64_t user_id,
     const std::string &text, const std::vector<int64_t> &media_ids,
     const std::vector<std::string> &media_types, const PostType::type post_type) {
+  std::scoped_lock<std::mutex> lock(_mutex);
+
   auto text_future =
       std::async(std::launch::async, &ComposePostHandler::_ComposeTextHelper,
                  this, req_id, text);
@@ -276,9 +274,10 @@ void ComposePostHandler::ComposePost(
   auto media_future =
       std::async(std::launch::async, &ComposePostHandler::_ComposeMediaHelper,
                  this, req_id, media_types, media_ids);
-  auto unique_id_future = std::async(
-      std::launch::async, &ComposePostHandler::_ComposeUniqueIdHelper, this,
-      req_id, post_type);
+
+  _arg_req_id = req_id;
+  _arg_post_type = post_type;
+  store_release(&_pending_req, true);
 
   Post post;
   auto timestamp =
@@ -288,7 +287,11 @@ void ComposePostHandler::ComposePost(
 
   // try
   // {
-  post.post_id = unique_id_future.get();
+  while (!load_acquire(&_pending_resp))
+    ;
+  post.post_id = _resp;
+  store_release(&_pending_resp, false);
+
   post.creator = creator_future.get();
   post.media = media_future.get();
   auto text_return = text_future.get();
@@ -330,6 +333,16 @@ void ComposePostHandler::ComposePost(
   // }
 }
 
+void ComposePostHandler::poller() {
+  while (true) {
+    if (load_acquire(&_pending_req)) {
+      _pending_req = false;
+      _resp = ComposePostHandler::_ComposeUniqueIdHelper(_arg_req_id,
+                                                         _arg_post_type);
+      store_release(&_pending_resp, true);
+    }
+  }
+}
+
 }  // namespace social_network
 
-#endif  // SOCIAL_NETWORK_MICROSERVICES_SRC_COMPOSEPOSTSERVICE_COMPOSEPOSTHANDLER_H_

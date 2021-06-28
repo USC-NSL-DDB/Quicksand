@@ -34,7 +34,6 @@ link_directories(${NU_DIR})
 
 add_subdirectory(FrontEndProxy)
 add_subdirectory(TextService)
-add_subdirectory(UniqueIdService)
 add_subdirectory(UserService)
 add_subdirectory(SocialGraphService)
 add_subdirectory(PostStorageSerivce)

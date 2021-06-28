@@ -1,5 +1,17 @@
-#ifndef SOCIAL_NETWORK_MICROSERVICES_UNIQUEIDHANDLER_H
-#define SOCIAL_NETWORK_MICROSERVICES_UNIQUEIDHANDLER_H
+/*
+ * 64-bit Unique Id Generator
+ *
+ * ------------------------------------------------------------------------
+ * |0| 11 bit machine ID |      40-bit timestamp         | 12-bit counter |
+ * ------------------------------------------------------------------------
+ *
+ * 11-bit machine Id code by hasing the MAC address
+ * 40-bit UNIX timestamp in millisecond precision with custom epoch
+ * 12 bit counter which increases monotonically on single process
+ *
+ */
+
+#pragma once
 
 #include <chrono>
 #include <iomanip>
@@ -7,10 +19,9 @@
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <nu/mutex.hpp>
 
-#include "../../gen-cpp/UniqueIdService.h"
 #include "../../gen-cpp/social_network_types.h"
-#include "../logger.h"
 
 // Custom Epoch (January 1, 2018 Midnight GMT = 2018-01-01T00:00:00Z)
 #define CUSTOM_EPOCH 1514764800000
@@ -21,50 +32,60 @@ using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::system_clock;
 
-static int64_t current_timestamp = -1;
-static int counter = 0;
+class UniqueIdService {
+public:
+  UniqueIdService();
+  int64_t ComposeUniqueId(int64_t req_id, const PostType::type post_type);
 
-static int GetCounter(int64_t timestamp) {
-  if (current_timestamp > timestamp) {
-    LOG(fatal) << "Timestamps are not incremental.";
-    exit(EXIT_FAILURE);
-  }
-  if (current_timestamp == timestamp) {
-    return counter++;
-  } else {
-    current_timestamp = timestamp;
-    counter = 0;
-    return counter++;
-  }
-}
-
-class UniqueIdHandler : public UniqueIdServiceIf {
- public:
-  ~UniqueIdHandler() override = default;
-  UniqueIdHandler(std::mutex *, const std::string &);
-
-  int64_t ComposeUniqueId(int64_t, PostType::type) override;
-
- private:
-  std::mutex *_thread_lock;
+private:
+  int64_t _current_timestamp = -1;
+  int _counter = 0;
+  nu::Mutex _thread_lock;
   std::string _machine_id;
+
+  int GetCounter(int64_t timestamp);
+  std::string GetMachineId(std::string &netif);
+  u_int16_t HashMacAddressPid(const std::string &mac);
 };
 
-UniqueIdHandler::UniqueIdHandler(std::mutex *thread_lock,
-                                 const std::string &machine_id) {
-  _thread_lock = thread_lock;
-  _machine_id = machine_id;
+int UniqueIdService::GetCounter(int64_t timestamp) {
+  if (_current_timestamp > timestamp) {
+    std::cerr << "Timestamps are not incremental.";
+    exit(EXIT_FAILURE);
+  }
+  if (_current_timestamp == timestamp) {
+    return _counter++;
+  } else {
+    _current_timestamp = timestamp;
+    _counter = 0;
+    return _counter++;
+  }
 }
 
-int64_t UniqueIdHandler::ComposeUniqueId(
-    int64_t req_id, PostType::type post_type) {
-  _thread_lock->lock();
+UniqueIdService::UniqueIdService() {
+  json config_json;
+  if (load_config_file("config/service-config.json", &config_json) != 0) {
+    exit(EXIT_FAILURE);
+  }
+
+  int port = config_json["unique-id-service"]["port"];
+  std::string netif = config_json["unique-id-service"]["netif"];
+  _machine_id = GetMachineId(netif);
+  if (_machine_id == "") {
+    exit(EXIT_FAILURE);
+  }
+  std::cout << "machine_id = " << _machine_id;
+}
+
+int64_t UniqueIdService::ComposeUniqueId(int64_t req_id,
+                                         PostType::type post_type) {
+  _thread_lock.Lock();
   int64_t timestamp =
       duration_cast<milliseconds>(system_clock::now().time_since_epoch())
           .count() -
       CUSTOM_EPOCH;
   int idx = GetCounter(timestamp);
-  _thread_lock->unlock();
+  _thread_lock.Unlock();
 
   std::stringstream sstream;
   sstream << std::hex << timestamp;
@@ -90,7 +111,6 @@ int64_t UniqueIdHandler::ComposeUniqueId(
   }
   std::string post_id_str = _machine_id + timestamp_hex + counter_hex;
   int64_t post_id = stoul(post_id_str, nullptr, 16) & 0x7FFFFFFFFFFFFFFF;
-  LOG(debug) << "The post_id of the request " << req_id << " is " << post_id;
 
   return post_id;
 }
@@ -101,7 +121,7 @@ int64_t UniqueIdHandler::ComposeUniqueId(
  *
  * MAC address is obtained from /sys/class/net/<netif>/address
  */
-u_int16_t HashMacAddressPid(const std::string &mac) {
+u_int16_t UniqueIdService::HashMacAddressPid(const std::string &mac) {
   u_int16_t hash = 0;
   std::string mac_pid = mac + std::to_string(getpid());
   for (unsigned int i = 0; i < mac_pid.size(); i++) {
@@ -110,25 +130,25 @@ u_int16_t HashMacAddressPid(const std::string &mac) {
   return hash;
 }
 
-std::string GetMachineId(std::string &netif) {
+std::string UniqueIdService::GetMachineId(std::string &netif) {
   std::string mac_hash;
 
   std::string mac_addr_filename = "/sys/class/net/" + netif + "/address";
   std::ifstream mac_addr_file;
   mac_addr_file.open(mac_addr_filename);
   if (!mac_addr_file) {
-    LOG(fatal) << "Cannot read MAC address from net interface " << netif;
+    std::cerr << "Cannot read MAC address from net interface " << netif;
     return "";
   }
   std::string mac;
   mac_addr_file >> mac;
   if (mac == "") {
-    LOG(fatal) << "Cannot read MAC address from net interface " << netif;
+    std::cerr << "Cannot read MAC address from net interface " << netif;
     return "";
   }
   mac_addr_file.close();
 
-  LOG(info) << "MAC address = " << mac;
+  std::cout << "MAC address = " << mac;
 
   std::stringstream stream;
   stream << std::hex << HashMacAddressPid(mac);
@@ -142,6 +162,4 @@ std::string GetMachineId(std::string &netif) {
   return mac_hash;
 }
 
-}  // namespace social_network
-
-#endif  // SOCIAL_NETWORK_MICROSERVICES_UNIQUEIDHANDLER_H
+} // namespace social_network

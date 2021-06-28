@@ -1,10 +1,9 @@
+#include <nu/runtime.hpp>
 #include <signal.h>
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/server/TThreadedServer.h>
 #include <thrift/transport/TBufferTransports.h>
 #include <thrift/transport/TServerSocket.h>
-
-#include <nu/runtime.hpp>
 
 #include "../utils.h"
 #include "../utils_thrift.h"
@@ -104,14 +103,21 @@ void do_work() {
 
   std::shared_ptr<TServerSocket> server_socket =
       get_server_socket(config_json, "0.0.0.0", port);
-  TThreadedServer server(
-      std::make_shared<ComposePostServiceProcessor>(
-          std::make_shared<ComposePostHandler>(
-              &post_storage_client_pool, &user_timeline_client_pool,
-              &user_client_pool, &unique_id_client_pool, &media_client_pool,
-              &text_client_pool, &home_timeline_client_pool)),
-      server_socket, std::make_shared<TFramedTransportFactory>(),
-      std::make_shared<TBinaryProtocolFactory>());
+
+  auto compose_post_handler = std::make_shared<ComposePostHandler>(
+      &post_storage_client_pool, &user_timeline_client_pool, &user_client_pool,
+      &unique_id_client_pool, &media_client_pool, &text_client_pool,
+      &home_timeline_client_pool);
+
+  rt::Thread([compose_post_handler = compose_post_handler.get()] {
+    compose_post_handler->poller();
+  }).Detach();
+
+  TThreadedServer server(std::make_shared<ComposePostServiceProcessor>(
+                             std::move(compose_post_handler)),
+                         server_socket,
+                         std::make_shared<TFramedTransportFactory>(),
+                         std::make_shared<TBinaryProtocolFactory>());
   LOG(info) << "Starting the compose-post-service server ...";
   server.serve();
 }
