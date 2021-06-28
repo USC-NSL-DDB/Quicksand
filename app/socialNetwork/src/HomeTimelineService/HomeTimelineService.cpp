@@ -8,7 +8,6 @@
 
 #include "../ClientPool.h"
 #include "../logger.h"
-#include "../tracing.h"
 #include "../utils.h"
 #include "../utils_redis.h"
 #include "../utils_thrift.h"
@@ -25,7 +24,6 @@ void sigintHandler(int sig) { exit(EXIT_SUCCESS); }
 int main(int argc, char *argv[]) {
   signal(SIGINT, sigintHandler);
   init_logger();
-  SetUpTracer("config/jaeger-config.yml", "home-timeline-service");
 
   json config_json;
   if (load_config_file("config/service-config.json", &config_json) != 0) {

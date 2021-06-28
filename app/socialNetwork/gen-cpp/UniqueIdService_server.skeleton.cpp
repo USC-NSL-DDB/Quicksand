@@ -20,7 +20,7 @@ class UniqueIdServiceHandler : virtual public UniqueIdServiceIf {
     // Your initialization goes here
   }
 
-  int64_t ComposeUniqueId(const int64_t req_id, const PostType::type post_type, const std::map<std::string, std::string> & carrier) {
+  int64_t ComposeUniqueId(const int64_t req_id, const PostType::type post_type) {
     // Your implementation goes here
     printf("ComposeUniqueId\n");
   }

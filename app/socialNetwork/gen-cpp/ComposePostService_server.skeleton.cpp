@@ -20,7 +20,7 @@ class ComposePostServiceHandler : virtual public ComposePostServiceIf {
     // Your initialization goes here
   }
 
-  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier) {
+  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) {
     // Your implementation goes here
     printf("ComposePost\n");
   }

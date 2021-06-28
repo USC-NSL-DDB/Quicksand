@@ -70,14 +70,14 @@ uint32_t ComposePostService_ComposePost_args::read(::apache::thrift::protocol::T
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->media_ids.clear();
-            uint32_t _size121;
-            ::apache::thrift::protocol::TType _etype124;
-            xfer += iprot->readListBegin(_etype124, _size121);
-            this->media_ids.resize(_size121);
-            uint32_t _i125;
-            for (_i125 = 0; _i125 < _size121; ++_i125)
+            uint32_t _size49;
+            ::apache::thrift::protocol::TType _etype52;
+            xfer += iprot->readListBegin(_etype52, _size49);
+            this->media_ids.resize(_size49);
+            uint32_t _i53;
+            for (_i53 = 0; _i53 < _size49; ++_i53)
             {
-              xfer += iprot->readI64(this->media_ids[_i125]);
+              xfer += iprot->readI64(this->media_ids[_i53]);
             }
             xfer += iprot->readListEnd();
           }
@@ -90,14 +90,14 @@ uint32_t ComposePostService_ComposePost_args::read(::apache::thrift::protocol::T
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->media_types.clear();
-            uint32_t _size126;
-            ::apache::thrift::protocol::TType _etype129;
-            xfer += iprot->readListBegin(_etype129, _size126);
-            this->media_types.resize(_size126);
-            uint32_t _i130;
-            for (_i130 = 0; _i130 < _size126; ++_i130)
+            uint32_t _size54;
+            ::apache::thrift::protocol::TType _etype57;
+            xfer += iprot->readListBegin(_etype57, _size54);
+            this->media_types.resize(_size54);
+            uint32_t _i58;
+            for (_i58 = 0; _i58 < _size54; ++_i58)
             {
-              xfer += iprot->readString(this->media_types[_i130]);
+              xfer += iprot->readString(this->media_types[_i58]);
             }
             xfer += iprot->readListEnd();
           }
@@ -108,33 +108,10 @@ uint32_t ComposePostService_ComposePost_args::read(::apache::thrift::protocol::T
         break;
       case 7:
         if (ftype == ::apache::thrift::protocol::T_I32) {
-          int32_t ecast131;
-          xfer += iprot->readI32(ecast131);
-          this->post_type = (PostType::type)ecast131;
+          int32_t ecast59;
+          xfer += iprot->readI32(ecast59);
+          this->post_type = (PostType::type)ecast59;
           this->__isset.post_type = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 8:
-        if (ftype == ::apache::thrift::protocol::T_MAP) {
-          {
-            this->carrier.clear();
-            uint32_t _size132;
-            ::apache::thrift::protocol::TType _ktype133;
-            ::apache::thrift::protocol::TType _vtype134;
-            xfer += iprot->readMapBegin(_ktype133, _vtype134, _size132);
-            uint32_t _i136;
-            for (_i136 = 0; _i136 < _size132; ++_i136)
-            {
-              std::string _key137;
-              xfer += iprot->readString(_key137);
-              std::string& _val138 = this->carrier[_key137];
-              xfer += iprot->readString(_val138);
-            }
-            xfer += iprot->readMapEnd();
-          }
-          this->__isset.carrier = true;
         } else {
           xfer += iprot->skip(ftype);
         }
@@ -175,10 +152,10 @@ uint32_t ComposePostService_ComposePost_args::write(::apache::thrift::protocol::
   xfer += oprot->writeFieldBegin("media_ids", ::apache::thrift::protocol::T_LIST, 5);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_I64, static_cast<uint32_t>(this->media_ids.size()));
-    std::vector<int64_t> ::const_iterator _iter139;
-    for (_iter139 = this->media_ids.begin(); _iter139 != this->media_ids.end(); ++_iter139)
+    std::vector<int64_t> ::const_iterator _iter60;
+    for (_iter60 = this->media_ids.begin(); _iter60 != this->media_ids.end(); ++_iter60)
     {
-      xfer += oprot->writeI64((*_iter139));
+      xfer += oprot->writeI64((*_iter60));
     }
     xfer += oprot->writeListEnd();
   }
@@ -187,10 +164,10 @@ uint32_t ComposePostService_ComposePost_args::write(::apache::thrift::protocol::
   xfer += oprot->writeFieldBegin("media_types", ::apache::thrift::protocol::T_LIST, 6);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRING, static_cast<uint32_t>(this->media_types.size()));
-    std::vector<std::string> ::const_iterator _iter140;
-    for (_iter140 = this->media_types.begin(); _iter140 != this->media_types.end(); ++_iter140)
+    std::vector<std::string> ::const_iterator _iter61;
+    for (_iter61 = this->media_types.begin(); _iter61 != this->media_types.end(); ++_iter61)
     {
-      xfer += oprot->writeString((*_iter140));
+      xfer += oprot->writeString((*_iter61));
     }
     xfer += oprot->writeListEnd();
   }
@@ -198,19 +175,6 @@ uint32_t ComposePostService_ComposePost_args::write(::apache::thrift::protocol::
 
   xfer += oprot->writeFieldBegin("post_type", ::apache::thrift::protocol::T_I32, 7);
   xfer += oprot->writeI32((int32_t)this->post_type);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("carrier", ::apache::thrift::protocol::T_MAP, 8);
-  {
-    xfer += oprot->writeMapBegin(::apache::thrift::protocol::T_STRING, ::apache::thrift::protocol::T_STRING, static_cast<uint32_t>(this->carrier.size()));
-    std::map<std::string, std::string> ::const_iterator _iter141;
-    for (_iter141 = this->carrier.begin(); _iter141 != this->carrier.end(); ++_iter141)
-    {
-      xfer += oprot->writeString(_iter141->first);
-      xfer += oprot->writeString(_iter141->second);
-    }
-    xfer += oprot->writeMapEnd();
-  }
   xfer += oprot->writeFieldEnd();
 
   xfer += oprot->writeFieldStop();
@@ -247,10 +211,10 @@ uint32_t ComposePostService_ComposePost_pargs::write(::apache::thrift::protocol:
   xfer += oprot->writeFieldBegin("media_ids", ::apache::thrift::protocol::T_LIST, 5);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_I64, static_cast<uint32_t>((*(this->media_ids)).size()));
-    std::vector<int64_t> ::const_iterator _iter142;
-    for (_iter142 = (*(this->media_ids)).begin(); _iter142 != (*(this->media_ids)).end(); ++_iter142)
+    std::vector<int64_t> ::const_iterator _iter62;
+    for (_iter62 = (*(this->media_ids)).begin(); _iter62 != (*(this->media_ids)).end(); ++_iter62)
     {
-      xfer += oprot->writeI64((*_iter142));
+      xfer += oprot->writeI64((*_iter62));
     }
     xfer += oprot->writeListEnd();
   }
@@ -259,10 +223,10 @@ uint32_t ComposePostService_ComposePost_pargs::write(::apache::thrift::protocol:
   xfer += oprot->writeFieldBegin("media_types", ::apache::thrift::protocol::T_LIST, 6);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRING, static_cast<uint32_t>((*(this->media_types)).size()));
-    std::vector<std::string> ::const_iterator _iter143;
-    for (_iter143 = (*(this->media_types)).begin(); _iter143 != (*(this->media_types)).end(); ++_iter143)
+    std::vector<std::string> ::const_iterator _iter63;
+    for (_iter63 = (*(this->media_types)).begin(); _iter63 != (*(this->media_types)).end(); ++_iter63)
     {
-      xfer += oprot->writeString((*_iter143));
+      xfer += oprot->writeString((*_iter63));
     }
     xfer += oprot->writeListEnd();
   }
@@ -270,19 +234,6 @@ uint32_t ComposePostService_ComposePost_pargs::write(::apache::thrift::protocol:
 
   xfer += oprot->writeFieldBegin("post_type", ::apache::thrift::protocol::T_I32, 7);
   xfer += oprot->writeI32((int32_t)(*(this->post_type)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("carrier", ::apache::thrift::protocol::T_MAP, 8);
-  {
-    xfer += oprot->writeMapBegin(::apache::thrift::protocol::T_STRING, ::apache::thrift::protocol::T_STRING, static_cast<uint32_t>((*(this->carrier)).size()));
-    std::map<std::string, std::string> ::const_iterator _iter144;
-    for (_iter144 = (*(this->carrier)).begin(); _iter144 != (*(this->carrier)).end(); ++_iter144)
-    {
-      xfer += oprot->writeString(_iter144->first);
-      xfer += oprot->writeString(_iter144->second);
-    }
-    xfer += oprot->writeMapEnd();
-  }
   xfer += oprot->writeFieldEnd();
 
   xfer += oprot->writeFieldStop();
@@ -398,13 +349,13 @@ uint32_t ComposePostService_ComposePost_presult::read(::apache::thrift::protocol
   return xfer;
 }
 
-void ComposePostServiceClient::ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier)
+void ComposePostServiceClient::ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
 {
-  send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type, carrier);
+  send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type);
   recv_ComposePost();
 }
 
-void ComposePostServiceClient::send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier)
+void ComposePostServiceClient::send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("ComposePost", ::apache::thrift::protocol::T_CALL, cseqid);
@@ -417,7 +368,6 @@ void ComposePostServiceClient::send_ComposePost(const int64_t req_id, const std:
   args.media_ids = &media_ids;
   args.media_types = &media_types;
   args.post_type = &post_type;
-  args.carrier = &carrier;
   args.write(oprot_);
 
   oprot_->writeMessageEnd();
@@ -503,7 +453,7 @@ void ComposePostServiceProcessor::process_ComposePost(int32_t seqid, ::apache::t
 
   ComposePostService_ComposePost_result result;
   try {
-    iface_->ComposePost(args.req_id, args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type, args.carrier);
+    iface_->ComposePost(args.req_id, args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type);
   } catch (ServiceException &se) {
     result.se = se;
     result.__isset.se = true;
@@ -543,13 +493,13 @@ void ComposePostServiceProcessor::process_ComposePost(int32_t seqid, ::apache::t
   return processor;
 }
 
-void ComposePostServiceConcurrentClient::ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier)
+void ComposePostServiceConcurrentClient::ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
 {
-  int32_t seqid = send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type, carrier);
+  int32_t seqid = send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type);
   recv_ComposePost(seqid);
 }
 
-int32_t ComposePostServiceConcurrentClient::send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier)
+int32_t ComposePostServiceConcurrentClient::send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
@@ -563,7 +513,6 @@ int32_t ComposePostServiceConcurrentClient::send_ComposePost(const int64_t req_i
   args.media_ids = &media_ids;
   args.media_types = &media_types;
   args.post_type = &post_type;
-  args.carrier = &carrier;
   args.write(oprot_);
 
   oprot_->writeMessageEnd();

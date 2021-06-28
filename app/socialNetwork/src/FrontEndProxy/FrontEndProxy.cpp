@@ -14,7 +14,6 @@
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
 #include "../logger.h"
-#include "../tracing.h"
 #include "../utils.h"
 #include "../utils_thrift.h"
 
@@ -46,8 +45,7 @@ public:
 
   void ReadHomeTimeline(std::vector<Post> &_return, const int64_t req_id,
                         const int64_t user_id, const int32_t start,
-                        const int32_t stop,
-                        const std::map<std::string, std::string> &carrier) {
+                        const int32_t stop) {
     auto home_timeline_client_wrapper = home_timeline_client_pool_->Pop();
     if (!home_timeline_client_wrapper) {
       ServiceException se;
@@ -58,7 +56,7 @@ public:
     auto home_timeline_client = home_timeline_client_wrapper->GetClient();
     try {
       home_timeline_client->ReadHomeTimeline(_return, req_id, user_id, start,
-                                             stop, carrier);
+                                             stop);
     } catch (...) {
       home_timeline_client_pool_->Remove(home_timeline_client_wrapper);
       LOG(error) << "Failed to read posts from home-timeline-service";
@@ -71,8 +69,7 @@ public:
                    const int64_t user_id, const std::string &text,
                    const std::vector<int64_t> &media_ids,
                    const std::vector<std::string> &media_types,
-                   const PostType::type post_type,
-                   const std::map<std::string, std::string> &carrier) {
+                   const PostType::type post_type) {
     auto compose_post_client_wrapper = compose_post_client_pool_->Pop();
     if (!compose_post_client_wrapper) {
       ServiceException se;
@@ -83,8 +80,7 @@ public:
     auto compose_post_client = compose_post_client_wrapper->GetClient();
     try {
       compose_post_client->ComposePost(req_id, username, user_id, text,
-                                       media_ids, media_types, post_type,
-                                       carrier);
+                                       media_ids, media_types, post_type);
     } catch (...) {
       compose_post_client_pool_->Remove(compose_post_client_wrapper);
       LOG(error) << "Failed to read posts from compose-post-service";
@@ -94,8 +90,7 @@ public:
   }
 
   void GetFollowers(std::vector<int64_t> &_return, const int64_t req_id,
-                    const int64_t user_id,
-                    const std::map<std::string, std::string> &carrier) {
+                    const int64_t user_id) {
     auto social_graph_client_wrapper = social_graph_client_pool_->Pop();
     if (!social_graph_client_wrapper) {
       ServiceException se;
@@ -105,7 +100,7 @@ public:
     }
     auto social_graph_client = social_graph_client_wrapper->GetClient();
     try {
-      social_graph_client->GetFollowers(_return, req_id, user_id, carrier);
+      social_graph_client->GetFollowers(_return, req_id, user_id);
     } catch (...) {
       social_graph_client_pool_->Remove(social_graph_client_wrapper);
       LOG(error) << "Failed to read posts from social-graph-service";
@@ -115,8 +110,7 @@ public:
   }
 
   void Unfollow(const int64_t req_id, const int64_t user_id,
-                const int64_t followee_id,
-                const std::map<std::string, std::string> &carrier) {
+                const int64_t followee_id) {
     auto social_graph_client_wrapper = social_graph_client_pool_->Pop();
     if (!social_graph_client_wrapper) {
       ServiceException se;
@@ -126,7 +120,7 @@ public:
     }
     auto social_graph_client = social_graph_client_wrapper->GetClient();
     try {
-      social_graph_client->Unfollow(req_id, user_id, followee_id, carrier);
+      social_graph_client->Unfollow(req_id, user_id, followee_id);
     } catch (...) {
       social_graph_client_pool_->Remove(social_graph_client_wrapper);
       LOG(error) << "Failed to read posts from social-graph-service";
@@ -137,8 +131,7 @@ public:
 
   void UnfollowWithUsername(const int64_t req_id,
                             const std::string &user_usernmae,
-                            const std::string &followee_username,
-                            const std::map<std::string, std::string> &carrier) {
+                            const std::string &followee_username) {
     auto social_graph_client_wrapper = social_graph_client_pool_->Pop();
     if (!social_graph_client_wrapper) {
       ServiceException se;
@@ -149,7 +142,7 @@ public:
     auto social_graph_client = social_graph_client_wrapper->GetClient();
     try {
       social_graph_client->UnfollowWithUsername(req_id, user_usernmae,
-                                                followee_username, carrier);
+                                                followee_username);
     } catch (...) {
       social_graph_client_pool_->Remove(social_graph_client_wrapper);
       LOG(error) << "Failed to read posts from social-graph-service";
@@ -159,8 +152,7 @@ public:
   }
 
   void Login(std::string &_return, const int64_t req_id,
-             const std::string &username, const std::string &password,
-             const std::map<std::string, std::string> &carrier) {
+             const std::string &username, const std::string &password) {
     auto user_client_wrapper = user_client_pool_->Pop();
     if (!user_client_wrapper) {
       ServiceException se;
@@ -170,7 +162,7 @@ public:
     }
     auto user_client = user_client_wrapper->GetClient();
     try {
-      user_client->Login(_return, req_id, username, password, carrier);
+      user_client->Login(_return, req_id, username, password);
     } catch (...) {
       user_client_pool_->Remove(user_client_wrapper);
       LOG(error) << "Failed to read posts from user-service";
@@ -180,8 +172,7 @@ public:
   }
 
   void Follow(const int64_t req_id, const int64_t user_id,
-              const int64_t followee_id,
-              const std::map<std::string, std::string> &carrier) {
+              const int64_t followee_id) {
     auto social_graph_client_wrapper = social_graph_client_pool_->Pop();
     if (!social_graph_client_wrapper) {
       ServiceException se;
@@ -191,7 +182,7 @@ public:
     }
     auto social_graph_client = social_graph_client_wrapper->GetClient();
     try {
-      social_graph_client->Follow(req_id, user_id, followee_id, carrier);
+      social_graph_client->Follow(req_id, user_id, followee_id);
     } catch (...) {
       social_graph_client_pool_->Remove(social_graph_client_wrapper);
       LOG(error) << "Failed to read posts from social-graph-service";
@@ -202,8 +193,7 @@ public:
 
   void FollowWithUsername(const int64_t req_id,
                           const std::string &user_usernmae,
-                          const std::string &followee_username,
-                          const std::map<std::string, std::string> &carrier) {
+                          const std::string &followee_username) {
     auto social_graph_client_wrapper = social_graph_client_pool_->Pop();
     if (!social_graph_client_wrapper) {
       ServiceException se;
@@ -214,7 +204,7 @@ public:
     auto social_graph_client = social_graph_client_wrapper->GetClient();
     try {
       social_graph_client->FollowWithUsername(req_id, user_usernmae,
-                                              followee_username, carrier);
+                                              followee_username);
     } catch (...) {
       social_graph_client_pool_->Remove(social_graph_client_wrapper);
       LOG(error) << "Failed to read posts from social-graph-service";
@@ -225,8 +215,7 @@ public:
 
   void RegisterUser(const int64_t req_id, const std::string &first_name,
                     const std::string &last_name, const std::string &username,
-                    const std::string &password,
-                    const std::map<std::string, std::string> &carrier) {
+                    const std::string &password) {
     auto user_client_wrapper = user_client_pool_->Pop();
     if (!user_client_wrapper) {
       ServiceException se;
@@ -237,7 +226,7 @@ public:
     auto user_client = user_client_wrapper->GetClient();
     try {
       user_client->RegisterUser(req_id, first_name, last_name, username,
-                                password, carrier);
+                                password);
     } catch (...) {
       user_client_pool_->Remove(user_client_wrapper);
       LOG(error) << "Failed to read posts from user-service";
@@ -247,8 +236,7 @@ public:
   }
 
   void GetFollowees(std::vector<int64_t> &_return, const int64_t req_id,
-                    const int64_t user_id,
-                    const std::map<std::string, std::string> &carrier) {
+                    const int64_t user_id) {
     auto social_graph_client_wrapper = social_graph_client_pool_->Pop();
     if (!social_graph_client_wrapper) {
       ServiceException se;
@@ -258,7 +246,7 @@ public:
     }
     auto social_graph_client = social_graph_client_wrapper->GetClient();
     try {
-      social_graph_client->GetFollowees(_return, req_id, user_id, carrier);
+      social_graph_client->GetFollowees(_return, req_id, user_id);
     } catch (...) {
       social_graph_client_pool_->Remove(social_graph_client_wrapper);
       LOG(error) << "Failed to read posts from social-graph-service";
@@ -269,8 +257,7 @@ public:
 
   void ReadUserTimeline(std::vector<Post> &_return, const int64_t req_id,
                         const int64_t user_id, const int32_t start,
-                        const int32_t stop,
-                        const std::map<std::string, std::string> &carrier) {
+                        const int32_t stop) {
     auto user_timeline_client_wrapper = user_timeline_client_pool_->Pop();
     if (!user_timeline_client_wrapper) {
       ServiceException se;
@@ -281,7 +268,7 @@ public:
     auto user_timeline_client = user_timeline_client_wrapper->GetClient();
     try {
       user_timeline_client->ReadUserTimeline(_return, req_id, user_id, start,
-                                             stop, carrier);
+                                             stop);
     } catch (...) {
       user_timeline_client_pool_->Remove(user_timeline_client_wrapper);
       LOG(error) << "Failed to read posts from user-timeline-service";
@@ -293,8 +280,7 @@ public:
   void RegisterUserWithId(const int64_t req_id, const std::string &first_name,
                           const std::string &last_name,
                           const std::string &username,
-                          const std::string &password, const int64_t user_id,
-                          const std::map<std::string, std::string> &carrier) {
+                          const std::string &password, const int64_t user_id) {
     auto user_client_wrapper = user_client_pool_->Pop();
     if (!user_client_wrapper) {
       ServiceException se;
@@ -305,7 +291,7 @@ public:
     auto user_client = user_client_wrapper->GetClient();
     try {
       user_client->RegisterUserWithId(req_id, first_name, last_name, username,
-                                      password, user_id, carrier);
+                                      password, user_id);
     } catch (...) {
       user_client_pool_->Remove(user_client_wrapper);
       LOG(error) << "Failed to read posts from user-service";
@@ -331,7 +317,6 @@ void sigintHandler(int sig) { exit(EXIT_SUCCESS); }
 void do_work() {
   signal(SIGINT, sigintHandler);
   init_logger();
-  SetUpTracer("config/jaeger-config.yml", "FrontEndProxy");
 
   json config_json;
   if (load_config_file("config/service-config.json", &config_json) == 0) {
@@ -421,7 +406,7 @@ void do_work() {
                 &compose_post_client_pool)),
         server_socket, std::make_shared<TFramedTransportFactory>(),
         std::make_shared<TBinaryProtocolFactory>());
-    LOG(info) << "Starting the text-service server...";
+    LOG(info) << "Starting the front-end-proxy server...";
     server.serve();
   } else {
     LOG(error) << "Failed to load the config json file.";

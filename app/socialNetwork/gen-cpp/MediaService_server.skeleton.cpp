@@ -20,7 +20,7 @@ class MediaServiceHandler : virtual public MediaServiceIf {
     // Your initialization goes here
   }
 
-  void ComposeMedia(std::vector<Media> & _return, const int64_t req_id, const std::vector<std::string> & media_types, const std::vector<int64_t> & media_ids, const std::map<std::string, std::string> & carrier) {
+  void ComposeMedia(std::vector<Media> & _return, const int64_t req_id, const std::vector<std::string> & media_types, const std::vector<int64_t> & media_ids) {
     // Your implementation goes here
     printf("ComposeMedia\n");
   }

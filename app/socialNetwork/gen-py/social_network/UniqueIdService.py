@@ -19,12 +19,11 @@ all_structs = []
 
 
 class Iface(object):
-    def ComposeUniqueId(self, req_id, post_type, carrier):
+    def ComposeUniqueId(self, req_id, post_type):
         """
         Parameters:
          - req_id
          - post_type
-         - carrier
 
         """
         pass
@@ -37,23 +36,21 @@ class Client(Iface):
             self._oprot = oprot
         self._seqid = 0
 
-    def ComposeUniqueId(self, req_id, post_type, carrier):
+    def ComposeUniqueId(self, req_id, post_type):
         """
         Parameters:
          - req_id
          - post_type
-         - carrier
 
         """
-        self.send_ComposeUniqueId(req_id, post_type, carrier)
+        self.send_ComposeUniqueId(req_id, post_type)
         return self.recv_ComposeUniqueId()
 
-    def send_ComposeUniqueId(self, req_id, post_type, carrier):
+    def send_ComposeUniqueId(self, req_id, post_type):
         self._oprot.writeMessageBegin('ComposeUniqueId', TMessageType.CALL, self._seqid)
         args = ComposeUniqueId_args()
         args.req_id = req_id
         args.post_type = post_type
-        args.carrier = carrier
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -103,7 +100,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = ComposeUniqueId_result()
         try:
-            result.success = self._handler.ComposeUniqueId(args.req_id, args.post_type, args.carrier)
+            result.success = self._handler.ComposeUniqueId(args.req_id, args.post_type)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -131,15 +128,13 @@ class ComposeUniqueId_args(object):
     Attributes:
      - req_id
      - post_type
-     - carrier
 
     """
 
 
-    def __init__(self, req_id=None, post_type=None, carrier=None,):
+    def __init__(self, req_id=None, post_type=None,):
         self.req_id = req_id
         self.post_type = post_type
-        self.carrier = carrier
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -160,17 +155,6 @@ class ComposeUniqueId_args(object):
                     self.post_type = iprot.readI32()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
-                if ftype == TType.MAP:
-                    self.carrier = {}
-                    (_ktype22, _vtype23, _size21) = iprot.readMapBegin()
-                    for _i25 in range(_size21):
-                        _key26 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val27 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.carrier[_key26] = _val27
-                    iprot.readMapEnd()
-                else:
-                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -188,14 +172,6 @@ class ComposeUniqueId_args(object):
         if self.post_type is not None:
             oprot.writeFieldBegin('post_type', TType.I32, 2)
             oprot.writeI32(self.post_type)
-            oprot.writeFieldEnd()
-        if self.carrier is not None:
-            oprot.writeFieldBegin('carrier', TType.MAP, 3)
-            oprot.writeMapBegin(TType.STRING, TType.STRING, len(self.carrier))
-            for kiter28, viter29 in self.carrier.items():
-                oprot.writeString(kiter28.encode('utf-8') if sys.version_info[0] == 2 else kiter28)
-                oprot.writeString(viter29.encode('utf-8') if sys.version_info[0] == 2 else viter29)
-            oprot.writeMapEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -218,7 +194,6 @@ ComposeUniqueId_args.thrift_spec = (
     None,  # 0
     (1, TType.I64, 'req_id', None, None, ),  # 1
     (2, TType.I32, 'post_type', None, None, ),  # 2
-    (3, TType.MAP, 'carrier', (TType.STRING, 'UTF8', TType.STRING, 'UTF8', False), None, ),  # 3
 )
 
 

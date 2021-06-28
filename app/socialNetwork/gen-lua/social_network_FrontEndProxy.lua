@@ -19,31 +19,28 @@ local social_network_ttypes = require 'social_network_ttypes'
 local ServiceException = social_network_ttypes.ServiceException
 local Post = social_network_ttypes.Post
 
-require 'social_network_ttypes'
-
 FrontEndProxyClient = __TObject.new(__TClient, {
   __type = 'FrontEndProxyClient'
 })
 
-function FrontEndProxyClient:ReadHomeTimeline(req_id, user_id, start, stop, carrier)
-  self:send_ReadHomeTimeline(req_id, user_id, start, stop, carrier)
-  return self:recv_ReadHomeTimeline(req_id, user_id, start, stop, carrier)
+function FrontEndProxyClient:ReadHomeTimeline(req_id, user_id, start, stop)
+  self:send_ReadHomeTimeline(req_id, user_id, start, stop)
+  return self:recv_ReadHomeTimeline(req_id, user_id, start, stop)
 end
 
-function FrontEndProxyClient:send_ReadHomeTimeline(req_id, user_id, start, stop, carrier)
+function FrontEndProxyClient:send_ReadHomeTimeline(req_id, user_id, start, stop)
   self.oprot:writeMessageBegin('ReadHomeTimeline', TMessageType.CALL, self._seqid)
   local args = ReadHomeTimeline_args:new{}
   args.req_id = req_id
   args.user_id = user_id
   args.start = start
   args.stop = stop
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_ReadHomeTimeline(req_id, user_id, start, stop, carrier)
+function FrontEndProxyClient:recv_ReadHomeTimeline(req_id, user_id, start, stop)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -62,12 +59,12 @@ function FrontEndProxyClient:recv_ReadHomeTimeline(req_id, user_id, start, stop,
   error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
 end
 
-function FrontEndProxyClient:ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type, carrier)
-  self:send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type, carrier)
-  self:recv_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type, carrier)
+function FrontEndProxyClient:ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
+  self:send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
+  self:recv_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
 end
 
-function FrontEndProxyClient:send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type, carrier)
+function FrontEndProxyClient:send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
   self.oprot:writeMessageBegin('ComposePost', TMessageType.CALL, self._seqid)
   local args = ComposePost_args:new{}
   args.req_id = req_id
@@ -77,13 +74,12 @@ function FrontEndProxyClient:send_ComposePost(req_id, username, user_id, text, m
   args.media_ids = media_ids
   args.media_types = media_types
   args.post_type = post_type
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type, carrier)
+function FrontEndProxyClient:recv_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -96,23 +92,22 @@ function FrontEndProxyClient:recv_ComposePost(req_id, username, user_id, text, m
   self.iprot:readMessageEnd()
 end
 
-function FrontEndProxyClient:GetFollowers(req_id, user_id, carrier)
-  self:send_GetFollowers(req_id, user_id, carrier)
-  return self:recv_GetFollowers(req_id, user_id, carrier)
+function FrontEndProxyClient:GetFollowers(req_id, user_id)
+  self:send_GetFollowers(req_id, user_id)
+  return self:recv_GetFollowers(req_id, user_id)
 end
 
-function FrontEndProxyClient:send_GetFollowers(req_id, user_id, carrier)
+function FrontEndProxyClient:send_GetFollowers(req_id, user_id)
   self.oprot:writeMessageBegin('GetFollowers', TMessageType.CALL, self._seqid)
   local args = GetFollowers_args:new{}
   args.req_id = req_id
   args.user_id = user_id
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_GetFollowers(req_id, user_id, carrier)
+function FrontEndProxyClient:recv_GetFollowers(req_id, user_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -131,24 +126,23 @@ function FrontEndProxyClient:recv_GetFollowers(req_id, user_id, carrier)
   error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
 end
 
-function FrontEndProxyClient:Unfollow(req_id, user_id, followee_id, carrier)
-  self:send_Unfollow(req_id, user_id, followee_id, carrier)
-  self:recv_Unfollow(req_id, user_id, followee_id, carrier)
+function FrontEndProxyClient:Unfollow(req_id, user_id, followee_id)
+  self:send_Unfollow(req_id, user_id, followee_id)
+  self:recv_Unfollow(req_id, user_id, followee_id)
 end
 
-function FrontEndProxyClient:send_Unfollow(req_id, user_id, followee_id, carrier)
+function FrontEndProxyClient:send_Unfollow(req_id, user_id, followee_id)
   self.oprot:writeMessageBegin('Unfollow', TMessageType.CALL, self._seqid)
   local args = Unfollow_args:new{}
   args.req_id = req_id
   args.user_id = user_id
   args.followee_id = followee_id
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_Unfollow(req_id, user_id, followee_id, carrier)
+function FrontEndProxyClient:recv_Unfollow(req_id, user_id, followee_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -161,24 +155,23 @@ function FrontEndProxyClient:recv_Unfollow(req_id, user_id, followee_id, carrier
   self.iprot:readMessageEnd()
 end
 
-function FrontEndProxyClient:UnfollowWithUsername(req_id, user_usernmae, followee_username, carrier)
-  self:send_UnfollowWithUsername(req_id, user_usernmae, followee_username, carrier)
-  self:recv_UnfollowWithUsername(req_id, user_usernmae, followee_username, carrier)
+function FrontEndProxyClient:UnfollowWithUsername(req_id, user_usernmae, followee_username)
+  self:send_UnfollowWithUsername(req_id, user_usernmae, followee_username)
+  self:recv_UnfollowWithUsername(req_id, user_usernmae, followee_username)
 end
 
-function FrontEndProxyClient:send_UnfollowWithUsername(req_id, user_usernmae, followee_username, carrier)
+function FrontEndProxyClient:send_UnfollowWithUsername(req_id, user_usernmae, followee_username)
   self.oprot:writeMessageBegin('UnfollowWithUsername', TMessageType.CALL, self._seqid)
   local args = UnfollowWithUsername_args:new{}
   args.req_id = req_id
   args.user_usernmae = user_usernmae
   args.followee_username = followee_username
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_UnfollowWithUsername(req_id, user_usernmae, followee_username, carrier)
+function FrontEndProxyClient:recv_UnfollowWithUsername(req_id, user_usernmae, followee_username)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -191,24 +184,23 @@ function FrontEndProxyClient:recv_UnfollowWithUsername(req_id, user_usernmae, fo
   self.iprot:readMessageEnd()
 end
 
-function FrontEndProxyClient:Login(req_id, username, password, carrier)
-  self:send_Login(req_id, username, password, carrier)
-  return self:recv_Login(req_id, username, password, carrier)
+function FrontEndProxyClient:Login(req_id, username, password)
+  self:send_Login(req_id, username, password)
+  return self:recv_Login(req_id, username, password)
 end
 
-function FrontEndProxyClient:send_Login(req_id, username, password, carrier)
+function FrontEndProxyClient:send_Login(req_id, username, password)
   self.oprot:writeMessageBegin('Login', TMessageType.CALL, self._seqid)
   local args = Login_args:new{}
   args.req_id = req_id
   args.username = username
   args.password = password
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_Login(req_id, username, password, carrier)
+function FrontEndProxyClient:recv_Login(req_id, username, password)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -227,24 +219,23 @@ function FrontEndProxyClient:recv_Login(req_id, username, password, carrier)
   error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
 end
 
-function FrontEndProxyClient:Follow(req_id, user_id, followee_id, carrier)
-  self:send_Follow(req_id, user_id, followee_id, carrier)
-  self:recv_Follow(req_id, user_id, followee_id, carrier)
+function FrontEndProxyClient:Follow(req_id, user_id, followee_id)
+  self:send_Follow(req_id, user_id, followee_id)
+  self:recv_Follow(req_id, user_id, followee_id)
 end
 
-function FrontEndProxyClient:send_Follow(req_id, user_id, followee_id, carrier)
+function FrontEndProxyClient:send_Follow(req_id, user_id, followee_id)
   self.oprot:writeMessageBegin('Follow', TMessageType.CALL, self._seqid)
   local args = Follow_args:new{}
   args.req_id = req_id
   args.user_id = user_id
   args.followee_id = followee_id
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_Follow(req_id, user_id, followee_id, carrier)
+function FrontEndProxyClient:recv_Follow(req_id, user_id, followee_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -257,24 +248,23 @@ function FrontEndProxyClient:recv_Follow(req_id, user_id, followee_id, carrier)
   self.iprot:readMessageEnd()
 end
 
-function FrontEndProxyClient:FollowWithUsername(req_id, user_usernmae, followee_username, carrier)
-  self:send_FollowWithUsername(req_id, user_usernmae, followee_username, carrier)
-  self:recv_FollowWithUsername(req_id, user_usernmae, followee_username, carrier)
+function FrontEndProxyClient:FollowWithUsername(req_id, user_usernmae, followee_username)
+  self:send_FollowWithUsername(req_id, user_usernmae, followee_username)
+  self:recv_FollowWithUsername(req_id, user_usernmae, followee_username)
 end
 
-function FrontEndProxyClient:send_FollowWithUsername(req_id, user_usernmae, followee_username, carrier)
+function FrontEndProxyClient:send_FollowWithUsername(req_id, user_usernmae, followee_username)
   self.oprot:writeMessageBegin('FollowWithUsername', TMessageType.CALL, self._seqid)
   local args = FollowWithUsername_args:new{}
   args.req_id = req_id
   args.user_usernmae = user_usernmae
   args.followee_username = followee_username
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_FollowWithUsername(req_id, user_usernmae, followee_username, carrier)
+function FrontEndProxyClient:recv_FollowWithUsername(req_id, user_usernmae, followee_username)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -287,12 +277,12 @@ function FrontEndProxyClient:recv_FollowWithUsername(req_id, user_usernmae, foll
   self.iprot:readMessageEnd()
 end
 
-function FrontEndProxyClient:RegisterUser(req_id, first_name, last_name, username, password, carrier)
-  self:send_RegisterUser(req_id, first_name, last_name, username, password, carrier)
-  self:recv_RegisterUser(req_id, first_name, last_name, username, password, carrier)
+function FrontEndProxyClient:RegisterUser(req_id, first_name, last_name, username, password)
+  self:send_RegisterUser(req_id, first_name, last_name, username, password)
+  self:recv_RegisterUser(req_id, first_name, last_name, username, password)
 end
 
-function FrontEndProxyClient:send_RegisterUser(req_id, first_name, last_name, username, password, carrier)
+function FrontEndProxyClient:send_RegisterUser(req_id, first_name, last_name, username, password)
   self.oprot:writeMessageBegin('RegisterUser', TMessageType.CALL, self._seqid)
   local args = RegisterUser_args:new{}
   args.req_id = req_id
@@ -300,13 +290,12 @@ function FrontEndProxyClient:send_RegisterUser(req_id, first_name, last_name, us
   args.last_name = last_name
   args.username = username
   args.password = password
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_RegisterUser(req_id, first_name, last_name, username, password, carrier)
+function FrontEndProxyClient:recv_RegisterUser(req_id, first_name, last_name, username, password)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -319,23 +308,22 @@ function FrontEndProxyClient:recv_RegisterUser(req_id, first_name, last_name, us
   self.iprot:readMessageEnd()
 end
 
-function FrontEndProxyClient:GetFollowees(req_id, user_id, carrier)
-  self:send_GetFollowees(req_id, user_id, carrier)
-  return self:recv_GetFollowees(req_id, user_id, carrier)
+function FrontEndProxyClient:GetFollowees(req_id, user_id)
+  self:send_GetFollowees(req_id, user_id)
+  return self:recv_GetFollowees(req_id, user_id)
 end
 
-function FrontEndProxyClient:send_GetFollowees(req_id, user_id, carrier)
+function FrontEndProxyClient:send_GetFollowees(req_id, user_id)
   self.oprot:writeMessageBegin('GetFollowees', TMessageType.CALL, self._seqid)
   local args = GetFollowees_args:new{}
   args.req_id = req_id
   args.user_id = user_id
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_GetFollowees(req_id, user_id, carrier)
+function FrontEndProxyClient:recv_GetFollowees(req_id, user_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -354,25 +342,24 @@ function FrontEndProxyClient:recv_GetFollowees(req_id, user_id, carrier)
   error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
 end
 
-function FrontEndProxyClient:ReadUserTimeline(req_id, user_id, start, stop, carrier)
-  self:send_ReadUserTimeline(req_id, user_id, start, stop, carrier)
-  return self:recv_ReadUserTimeline(req_id, user_id, start, stop, carrier)
+function FrontEndProxyClient:ReadUserTimeline(req_id, user_id, start, stop)
+  self:send_ReadUserTimeline(req_id, user_id, start, stop)
+  return self:recv_ReadUserTimeline(req_id, user_id, start, stop)
 end
 
-function FrontEndProxyClient:send_ReadUserTimeline(req_id, user_id, start, stop, carrier)
+function FrontEndProxyClient:send_ReadUserTimeline(req_id, user_id, start, stop)
   self.oprot:writeMessageBegin('ReadUserTimeline', TMessageType.CALL, self._seqid)
   local args = ReadUserTimeline_args:new{}
   args.req_id = req_id
   args.user_id = user_id
   args.start = start
   args.stop = stop
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_ReadUserTimeline(req_id, user_id, start, stop, carrier)
+function FrontEndProxyClient:recv_ReadUserTimeline(req_id, user_id, start, stop)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -391,12 +378,12 @@ function FrontEndProxyClient:recv_ReadUserTimeline(req_id, user_id, start, stop,
   error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
 end
 
-function FrontEndProxyClient:RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
-  self:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
-  self:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
+function FrontEndProxyClient:RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+  self:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+  self:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
 end
 
-function FrontEndProxyClient:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
+function FrontEndProxyClient:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
   self.oprot:writeMessageBegin('RegisterUserWithId', TMessageType.CALL, self._seqid)
   local args = RegisterUserWithId_args:new{}
   args.req_id = req_id
@@ -405,13 +392,12 @@ function FrontEndProxyClient:send_RegisterUserWithId(req_id, first_name, last_na
   args.username = username
   args.password = password
   args.user_id = user_id
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function FrontEndProxyClient:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
+function FrontEndProxyClient:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -457,7 +443,7 @@ function FrontEndProxyProcessor:process_ReadHomeTimeline(seqid, iprot, oprot, se
   args:read(iprot)
   iprot:readMessageEnd()
   local result = ReadHomeTimeline_result:new{}
-  local status, res = pcall(self.handler.ReadHomeTimeline, self.handler, args.req_id, args.user_id, args.start, args.stop, args.carrier)
+  local status, res = pcall(self.handler.ReadHomeTimeline, self.handler, args.req_id, args.user_id, args.start, args.stop)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -478,7 +464,7 @@ function FrontEndProxyProcessor:process_ComposePost(seqid, iprot, oprot, server_
   args:read(iprot)
   iprot:readMessageEnd()
   local result = ComposePost_result:new{}
-  local status, res = pcall(self.handler.ComposePost, self.handler, args.req_id, args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type, args.carrier)
+  local status, res = pcall(self.handler.ComposePost, self.handler, args.req_id, args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -499,7 +485,7 @@ function FrontEndProxyProcessor:process_GetFollowers(seqid, iprot, oprot, server
   args:read(iprot)
   iprot:readMessageEnd()
   local result = GetFollowers_result:new{}
-  local status, res = pcall(self.handler.GetFollowers, self.handler, args.req_id, args.user_id, args.carrier)
+  local status, res = pcall(self.handler.GetFollowers, self.handler, args.req_id, args.user_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -520,7 +506,7 @@ function FrontEndProxyProcessor:process_Unfollow(seqid, iprot, oprot, server_ctx
   args:read(iprot)
   iprot:readMessageEnd()
   local result = Unfollow_result:new{}
-  local status, res = pcall(self.handler.Unfollow, self.handler, args.req_id, args.user_id, args.followee_id, args.carrier)
+  local status, res = pcall(self.handler.Unfollow, self.handler, args.req_id, args.user_id, args.followee_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -541,7 +527,7 @@ function FrontEndProxyProcessor:process_UnfollowWithUsername(seqid, iprot, oprot
   args:read(iprot)
   iprot:readMessageEnd()
   local result = UnfollowWithUsername_result:new{}
-  local status, res = pcall(self.handler.UnfollowWithUsername, self.handler, args.req_id, args.user_usernmae, args.followee_username, args.carrier)
+  local status, res = pcall(self.handler.UnfollowWithUsername, self.handler, args.req_id, args.user_usernmae, args.followee_username)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -562,7 +548,7 @@ function FrontEndProxyProcessor:process_Login(seqid, iprot, oprot, server_ctx)
   args:read(iprot)
   iprot:readMessageEnd()
   local result = Login_result:new{}
-  local status, res = pcall(self.handler.Login, self.handler, args.req_id, args.username, args.password, args.carrier)
+  local status, res = pcall(self.handler.Login, self.handler, args.req_id, args.username, args.password)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -583,7 +569,7 @@ function FrontEndProxyProcessor:process_Follow(seqid, iprot, oprot, server_ctx)
   args:read(iprot)
   iprot:readMessageEnd()
   local result = Follow_result:new{}
-  local status, res = pcall(self.handler.Follow, self.handler, args.req_id, args.user_id, args.followee_id, args.carrier)
+  local status, res = pcall(self.handler.Follow, self.handler, args.req_id, args.user_id, args.followee_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -604,7 +590,7 @@ function FrontEndProxyProcessor:process_FollowWithUsername(seqid, iprot, oprot, 
   args:read(iprot)
   iprot:readMessageEnd()
   local result = FollowWithUsername_result:new{}
-  local status, res = pcall(self.handler.FollowWithUsername, self.handler, args.req_id, args.user_usernmae, args.followee_username, args.carrier)
+  local status, res = pcall(self.handler.FollowWithUsername, self.handler, args.req_id, args.user_usernmae, args.followee_username)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -625,7 +611,7 @@ function FrontEndProxyProcessor:process_RegisterUser(seqid, iprot, oprot, server
   args:read(iprot)
   iprot:readMessageEnd()
   local result = RegisterUser_result:new{}
-  local status, res = pcall(self.handler.RegisterUser, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password, args.carrier)
+  local status, res = pcall(self.handler.RegisterUser, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -646,7 +632,7 @@ function FrontEndProxyProcessor:process_GetFollowees(seqid, iprot, oprot, server
   args:read(iprot)
   iprot:readMessageEnd()
   local result = GetFollowees_result:new{}
-  local status, res = pcall(self.handler.GetFollowees, self.handler, args.req_id, args.user_id, args.carrier)
+  local status, res = pcall(self.handler.GetFollowees, self.handler, args.req_id, args.user_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -667,7 +653,7 @@ function FrontEndProxyProcessor:process_ReadUserTimeline(seqid, iprot, oprot, se
   args:read(iprot)
   iprot:readMessageEnd()
   local result = ReadUserTimeline_result:new{}
-  local status, res = pcall(self.handler.ReadUserTimeline, self.handler, args.req_id, args.user_id, args.start, args.stop, args.carrier)
+  local status, res = pcall(self.handler.ReadUserTimeline, self.handler, args.req_id, args.user_id, args.start, args.stop)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -688,7 +674,7 @@ function FrontEndProxyProcessor:process_RegisterUserWithId(seqid, iprot, oprot, 
   args:read(iprot)
   iprot:readMessageEnd()
   local result = RegisterUserWithId_result:new{}
-  local status, res = pcall(self.handler.RegisterUserWithId, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password, args.user_id, args.carrier)
+  local status, res = pcall(self.handler.RegisterUserWithId, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password, args.user_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -709,8 +695,7 @@ ReadHomeTimeline_args = __TObject:new{
   req_id,
   user_id,
   start,
-  stop,
-  carrier
+  stop
 }
 
 function ReadHomeTimeline_args:read(iprot)
@@ -740,19 +725,6 @@ function ReadHomeTimeline_args:read(iprot)
     elseif fid == 4 then
       if ftype == TType.I32 then
         self.stop = iprot:readI32()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 5 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype355, _vtype356, _size354 = iprot:readMapBegin() 
-        for _i=1,_size354 do
-          local _key358 = iprot:readString()
-          local _val359 = iprot:readString()
-          self.carrier[_key358] = _val359
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -786,16 +758,6 @@ function ReadHomeTimeline_args:write(oprot)
     oprot:writeI32(self.stop)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 5)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter360,viter361 in pairs(self.carrier) do
-      oprot:writeString(kiter360)
-      oprot:writeString(viter361)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
@@ -814,11 +776,11 @@ function ReadHomeTimeline_result:read(iprot)
     elseif fid == 0 then
       if ftype == TType.LIST then
         self.success = {}
-        local _etype365, _size362 = iprot:readListBegin()
-        for _i=1,_size362 do
-          local _elem366 = Post:new{}
-          _elem366:read(iprot)
-          table.insert(self.success, _elem366)
+        local _etype141, _size138 = iprot:readListBegin()
+        for _i=1,_size138 do
+          local _elem142 = Post:new{}
+          _elem142:read(iprot)
+          table.insert(self.success, _elem142)
         end
         iprot:readListEnd()
       else
@@ -844,8 +806,8 @@ function ReadHomeTimeline_result:write(oprot)
   if self.success ~= nil then
     oprot:writeFieldBegin('success', TType.LIST, 0)
     oprot:writeListBegin(TType.STRUCT, #self.success)
-    for _,iter367 in ipairs(self.success) do
-      iter367:write(oprot)
+    for _,iter143 in ipairs(self.success) do
+      iter143:write(oprot)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -866,8 +828,7 @@ ComposePost_args = __TObject:new{
   text,
   media_ids,
   media_types,
-  post_type,
-  carrier
+  post_type
 }
 
 function ComposePost_args:read(iprot)
@@ -903,10 +864,10 @@ function ComposePost_args:read(iprot)
     elseif fid == 5 then
       if ftype == TType.LIST then
         self.media_ids = {}
-        local _etype371, _size368 = iprot:readListBegin()
-        for _i=1,_size368 do
-          local _elem372 = iprot:readI64()
-          table.insert(self.media_ids, _elem372)
+        local _etype147, _size144 = iprot:readListBegin()
+        for _i=1,_size144 do
+          local _elem148 = iprot:readI64()
+          table.insert(self.media_ids, _elem148)
         end
         iprot:readListEnd()
       else
@@ -915,10 +876,10 @@ function ComposePost_args:read(iprot)
     elseif fid == 6 then
       if ftype == TType.LIST then
         self.media_types = {}
-        local _etype376, _size373 = iprot:readListBegin()
-        for _i=1,_size373 do
-          local _elem377 = iprot:readString()
-          table.insert(self.media_types, _elem377)
+        local _etype152, _size149 = iprot:readListBegin()
+        for _i=1,_size149 do
+          local _elem153 = iprot:readString()
+          table.insert(self.media_types, _elem153)
         end
         iprot:readListEnd()
       else
@@ -927,19 +888,6 @@ function ComposePost_args:read(iprot)
     elseif fid == 7 then
       if ftype == TType.I32 then
         self.post_type = iprot:readI32()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 8 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype379, _vtype380, _size378 = iprot:readMapBegin() 
-        for _i=1,_size378 do
-          local _key382 = iprot:readString()
-          local _val383 = iprot:readString()
-          self.carrier[_key382] = _val383
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -976,8 +924,8 @@ function ComposePost_args:write(oprot)
   if self.media_ids ~= nil then
     oprot:writeFieldBegin('media_ids', TType.LIST, 5)
     oprot:writeListBegin(TType.I64, #self.media_ids)
-    for _,iter384 in ipairs(self.media_ids) do
-      oprot:writeI64(iter384)
+    for _,iter154 in ipairs(self.media_ids) do
+      oprot:writeI64(iter154)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -985,8 +933,8 @@ function ComposePost_args:write(oprot)
   if self.media_types ~= nil then
     oprot:writeFieldBegin('media_types', TType.LIST, 6)
     oprot:writeListBegin(TType.STRING, #self.media_types)
-    for _,iter385 in ipairs(self.media_types) do
-      oprot:writeString(iter385)
+    for _,iter155 in ipairs(self.media_types) do
+      oprot:writeString(iter155)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -994,16 +942,6 @@ function ComposePost_args:write(oprot)
   if self.post_type ~= nil then
     oprot:writeFieldBegin('post_type', TType.I32, 7)
     oprot:writeI32(self.post_type)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 8)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter386,viter387 in pairs(self.carrier) do
-      oprot:writeString(kiter386)
-      oprot:writeString(viter387)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()
@@ -1048,8 +986,7 @@ end
 
 GetFollowers_args = __TObject:new{
   req_id,
-  user_id,
-  carrier
+  user_id
 }
 
 function GetFollowers_args:read(iprot)
@@ -1067,19 +1004,6 @@ function GetFollowers_args:read(iprot)
     elseif fid == 2 then
       if ftype == TType.I64 then
         self.user_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 3 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype389, _vtype390, _size388 = iprot:readMapBegin() 
-        for _i=1,_size388 do
-          local _key392 = iprot:readString()
-          local _val393 = iprot:readString()
-          self.carrier[_key392] = _val393
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -1103,16 +1027,6 @@ function GetFollowers_args:write(oprot)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 3)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter394,viter395 in pairs(self.carrier) do
-      oprot:writeString(kiter394)
-      oprot:writeString(viter395)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
@@ -1131,10 +1045,10 @@ function GetFollowers_result:read(iprot)
     elseif fid == 0 then
       if ftype == TType.LIST then
         self.success = {}
-        local _etype399, _size396 = iprot:readListBegin()
-        for _i=1,_size396 do
-          local _elem400 = iprot:readI64()
-          table.insert(self.success, _elem400)
+        local _etype159, _size156 = iprot:readListBegin()
+        for _i=1,_size156 do
+          local _elem160 = iprot:readI64()
+          table.insert(self.success, _elem160)
         end
         iprot:readListEnd()
       else
@@ -1160,8 +1074,8 @@ function GetFollowers_result:write(oprot)
   if self.success ~= nil then
     oprot:writeFieldBegin('success', TType.LIST, 0)
     oprot:writeListBegin(TType.I64, #self.success)
-    for _,iter401 in ipairs(self.success) do
-      oprot:writeI64(iter401)
+    for _,iter161 in ipairs(self.success) do
+      oprot:writeI64(iter161)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -1178,8 +1092,7 @@ end
 Unfollow_args = __TObject:new{
   req_id,
   user_id,
-  followee_id,
-  carrier
+  followee_id
 }
 
 function Unfollow_args:read(iprot)
@@ -1206,19 +1119,6 @@ function Unfollow_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype403, _vtype404, _size402 = iprot:readMapBegin() 
-        for _i=1,_size402 do
-          local _key406 = iprot:readString()
-          local _val407 = iprot:readString()
-          self.carrier[_key406] = _val407
-        end
-        iprot:readMapEnd()
-      else
-        iprot:skip(ftype)
-      end
     else
       iprot:skip(ftype)
     end
@@ -1242,16 +1142,6 @@ function Unfollow_args:write(oprot)
   if self.followee_id ~= nil then
     oprot:writeFieldBegin('followee_id', TType.I64, 3)
     oprot:writeI64(self.followee_id)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 4)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter408,viter409 in pairs(self.carrier) do
-      oprot:writeString(kiter408)
-      oprot:writeString(viter409)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()
@@ -1297,8 +1187,7 @@ end
 UnfollowWithUsername_args = __TObject:new{
   req_id,
   user_usernmae,
-  followee_username,
-  carrier
+  followee_username
 }
 
 function UnfollowWithUsername_args:read(iprot)
@@ -1325,19 +1214,6 @@ function UnfollowWithUsername_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype411, _vtype412, _size410 = iprot:readMapBegin() 
-        for _i=1,_size410 do
-          local _key414 = iprot:readString()
-          local _val415 = iprot:readString()
-          self.carrier[_key414] = _val415
-        end
-        iprot:readMapEnd()
-      else
-        iprot:skip(ftype)
-      end
     else
       iprot:skip(ftype)
     end
@@ -1361,16 +1237,6 @@ function UnfollowWithUsername_args:write(oprot)
   if self.followee_username ~= nil then
     oprot:writeFieldBegin('followee_username', TType.STRING, 3)
     oprot:writeString(self.followee_username)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 4)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter416,viter417 in pairs(self.carrier) do
-      oprot:writeString(kiter416)
-      oprot:writeString(viter417)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()
@@ -1416,8 +1282,7 @@ end
 Login_args = __TObject:new{
   req_id,
   username,
-  password,
-  carrier
+  password
 }
 
 function Login_args:read(iprot)
@@ -1444,19 +1309,6 @@ function Login_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype419, _vtype420, _size418 = iprot:readMapBegin() 
-        for _i=1,_size418 do
-          local _key422 = iprot:readString()
-          local _val423 = iprot:readString()
-          self.carrier[_key422] = _val423
-        end
-        iprot:readMapEnd()
-      else
-        iprot:skip(ftype)
-      end
     else
       iprot:skip(ftype)
     end
@@ -1480,16 +1332,6 @@ function Login_args:write(oprot)
   if self.password ~= nil then
     oprot:writeFieldBegin('password', TType.STRING, 3)
     oprot:writeString(self.password)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 4)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter424,viter425 in pairs(self.carrier) do
-      oprot:writeString(kiter424)
-      oprot:writeString(viter425)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()
@@ -1547,8 +1389,7 @@ end
 Follow_args = __TObject:new{
   req_id,
   user_id,
-  followee_id,
-  carrier
+  followee_id
 }
 
 function Follow_args:read(iprot)
@@ -1575,19 +1416,6 @@ function Follow_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype427, _vtype428, _size426 = iprot:readMapBegin() 
-        for _i=1,_size426 do
-          local _key430 = iprot:readString()
-          local _val431 = iprot:readString()
-          self.carrier[_key430] = _val431
-        end
-        iprot:readMapEnd()
-      else
-        iprot:skip(ftype)
-      end
     else
       iprot:skip(ftype)
     end
@@ -1611,16 +1439,6 @@ function Follow_args:write(oprot)
   if self.followee_id ~= nil then
     oprot:writeFieldBegin('followee_id', TType.I64, 3)
     oprot:writeI64(self.followee_id)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 4)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter432,viter433 in pairs(self.carrier) do
-      oprot:writeString(kiter432)
-      oprot:writeString(viter433)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()
@@ -1666,8 +1484,7 @@ end
 FollowWithUsername_args = __TObject:new{
   req_id,
   user_usernmae,
-  followee_username,
-  carrier
+  followee_username
 }
 
 function FollowWithUsername_args:read(iprot)
@@ -1694,19 +1511,6 @@ function FollowWithUsername_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype435, _vtype436, _size434 = iprot:readMapBegin() 
-        for _i=1,_size434 do
-          local _key438 = iprot:readString()
-          local _val439 = iprot:readString()
-          self.carrier[_key438] = _val439
-        end
-        iprot:readMapEnd()
-      else
-        iprot:skip(ftype)
-      end
     else
       iprot:skip(ftype)
     end
@@ -1730,16 +1534,6 @@ function FollowWithUsername_args:write(oprot)
   if self.followee_username ~= nil then
     oprot:writeFieldBegin('followee_username', TType.STRING, 3)
     oprot:writeString(self.followee_username)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 4)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter440,viter441 in pairs(self.carrier) do
-      oprot:writeString(kiter440)
-      oprot:writeString(viter441)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()
@@ -1787,8 +1581,7 @@ RegisterUser_args = __TObject:new{
   first_name,
   last_name,
   username,
-  password,
-  carrier
+  password
 }
 
 function RegisterUser_args:read(iprot)
@@ -1827,19 +1620,6 @@ function RegisterUser_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 6 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype443, _vtype444, _size442 = iprot:readMapBegin() 
-        for _i=1,_size442 do
-          local _key446 = iprot:readString()
-          local _val447 = iprot:readString()
-          self.carrier[_key446] = _val447
-        end
-        iprot:readMapEnd()
-      else
-        iprot:skip(ftype)
-      end
     else
       iprot:skip(ftype)
     end
@@ -1873,16 +1653,6 @@ function RegisterUser_args:write(oprot)
   if self.password ~= nil then
     oprot:writeFieldBegin('password', TType.STRING, 5)
     oprot:writeString(self.password)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 6)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter448,viter449 in pairs(self.carrier) do
-      oprot:writeString(kiter448)
-      oprot:writeString(viter449)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()
@@ -1927,8 +1697,7 @@ end
 
 GetFollowees_args = __TObject:new{
   req_id,
-  user_id,
-  carrier
+  user_id
 }
 
 function GetFollowees_args:read(iprot)
@@ -1946,19 +1715,6 @@ function GetFollowees_args:read(iprot)
     elseif fid == 2 then
       if ftype == TType.I64 then
         self.user_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 3 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype451, _vtype452, _size450 = iprot:readMapBegin() 
-        for _i=1,_size450 do
-          local _key454 = iprot:readString()
-          local _val455 = iprot:readString()
-          self.carrier[_key454] = _val455
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -1982,16 +1738,6 @@ function GetFollowees_args:write(oprot)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 3)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter456,viter457 in pairs(self.carrier) do
-      oprot:writeString(kiter456)
-      oprot:writeString(viter457)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
@@ -2010,10 +1756,10 @@ function GetFollowees_result:read(iprot)
     elseif fid == 0 then
       if ftype == TType.LIST then
         self.success = {}
-        local _etype461, _size458 = iprot:readListBegin()
-        for _i=1,_size458 do
-          local _elem462 = iprot:readI64()
-          table.insert(self.success, _elem462)
+        local _etype165, _size162 = iprot:readListBegin()
+        for _i=1,_size162 do
+          local _elem166 = iprot:readI64()
+          table.insert(self.success, _elem166)
         end
         iprot:readListEnd()
       else
@@ -2039,8 +1785,8 @@ function GetFollowees_result:write(oprot)
   if self.success ~= nil then
     oprot:writeFieldBegin('success', TType.LIST, 0)
     oprot:writeListBegin(TType.I64, #self.success)
-    for _,iter463 in ipairs(self.success) do
-      oprot:writeI64(iter463)
+    for _,iter167 in ipairs(self.success) do
+      oprot:writeI64(iter167)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -2058,8 +1804,7 @@ ReadUserTimeline_args = __TObject:new{
   req_id,
   user_id,
   start,
-  stop,
-  carrier
+  stop
 }
 
 function ReadUserTimeline_args:read(iprot)
@@ -2089,19 +1834,6 @@ function ReadUserTimeline_args:read(iprot)
     elseif fid == 4 then
       if ftype == TType.I32 then
         self.stop = iprot:readI32()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 5 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype465, _vtype466, _size464 = iprot:readMapBegin() 
-        for _i=1,_size464 do
-          local _key468 = iprot:readString()
-          local _val469 = iprot:readString()
-          self.carrier[_key468] = _val469
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -2135,16 +1867,6 @@ function ReadUserTimeline_args:write(oprot)
     oprot:writeI32(self.stop)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 5)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter470,viter471 in pairs(self.carrier) do
-      oprot:writeString(kiter470)
-      oprot:writeString(viter471)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
@@ -2163,11 +1885,11 @@ function ReadUserTimeline_result:read(iprot)
     elseif fid == 0 then
       if ftype == TType.LIST then
         self.success = {}
-        local _etype475, _size472 = iprot:readListBegin()
-        for _i=1,_size472 do
-          local _elem476 = Post:new{}
-          _elem476:read(iprot)
-          table.insert(self.success, _elem476)
+        local _etype171, _size168 = iprot:readListBegin()
+        for _i=1,_size168 do
+          local _elem172 = Post:new{}
+          _elem172:read(iprot)
+          table.insert(self.success, _elem172)
         end
         iprot:readListEnd()
       else
@@ -2193,8 +1915,8 @@ function ReadUserTimeline_result:write(oprot)
   if self.success ~= nil then
     oprot:writeFieldBegin('success', TType.LIST, 0)
     oprot:writeListBegin(TType.STRUCT, #self.success)
-    for _,iter477 in ipairs(self.success) do
-      iter477:write(oprot)
+    for _,iter173 in ipairs(self.success) do
+      iter173:write(oprot)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -2214,8 +1936,7 @@ RegisterUserWithId_args = __TObject:new{
   last_name,
   username,
   password,
-  user_id,
-  carrier
+  user_id
 }
 
 function RegisterUserWithId_args:read(iprot)
@@ -2260,19 +1981,6 @@ function RegisterUserWithId_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 7 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype479, _vtype480, _size478 = iprot:readMapBegin() 
-        for _i=1,_size478 do
-          local _key482 = iprot:readString()
-          local _val483 = iprot:readString()
-          self.carrier[_key482] = _val483
-        end
-        iprot:readMapEnd()
-      else
-        iprot:skip(ftype)
-      end
     else
       iprot:skip(ftype)
     end
@@ -2311,16 +2019,6 @@ function RegisterUserWithId_args:write(oprot)
   if self.user_id ~= nil then
     oprot:writeFieldBegin('user_id', TType.I64, 6)
     oprot:writeI64(self.user_id)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 7)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter484,viter485 in pairs(self.carrier) do
-      oprot:writeString(kiter484)
-      oprot:writeString(viter485)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()

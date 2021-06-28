@@ -20,7 +20,7 @@ class TextServiceHandler : virtual public TextServiceIf {
     // Your initialization goes here
   }
 
-  void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text, const std::map<std::string, std::string> & carrier) {
+  void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text) {
     // Your implementation goes here
     printf("ComposeText\n");
   }

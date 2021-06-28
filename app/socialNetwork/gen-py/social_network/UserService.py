@@ -19,7 +19,7 @@ all_structs = []
 
 
 class Iface(object):
-    def RegisterUser(self, req_id, first_name, last_name, username, password, carrier):
+    def RegisterUser(self, req_id, first_name, last_name, username, password):
         """
         Parameters:
          - req_id
@@ -27,12 +27,11 @@ class Iface(object):
          - last_name
          - username
          - password
-         - carrier
 
         """
         pass
 
-    def RegisterUserWithId(self, req_id, first_name, last_name, username, password, user_id, carrier):
+    def RegisterUserWithId(self, req_id, first_name, last_name, username, password, user_id):
         """
         Parameters:
          - req_id
@@ -41,49 +40,44 @@ class Iface(object):
          - username
          - password
          - user_id
-         - carrier
 
         """
         pass
 
-    def Login(self, req_id, username, password, carrier):
+    def Login(self, req_id, username, password):
         """
         Parameters:
          - req_id
          - username
          - password
-         - carrier
 
         """
         pass
 
-    def ComposeCreatorWithUserId(self, req_id, user_id, username, carrier):
+    def ComposeCreatorWithUserId(self, req_id, user_id, username):
         """
         Parameters:
          - req_id
          - user_id
          - username
-         - carrier
 
         """
         pass
 
-    def ComposeCreatorWithUsername(self, req_id, username, carrier):
+    def ComposeCreatorWithUsername(self, req_id, username):
         """
         Parameters:
          - req_id
          - username
-         - carrier
 
         """
         pass
 
-    def GetUserId(self, req_id, username, carrier):
+    def GetUserId(self, req_id, username):
         """
         Parameters:
          - req_id
          - username
-         - carrier
 
         """
         pass
@@ -96,7 +90,7 @@ class Client(Iface):
             self._oprot = oprot
         self._seqid = 0
 
-    def RegisterUser(self, req_id, first_name, last_name, username, password, carrier):
+    def RegisterUser(self, req_id, first_name, last_name, username, password):
         """
         Parameters:
          - req_id
@@ -104,13 +98,12 @@ class Client(Iface):
          - last_name
          - username
          - password
-         - carrier
 
         """
-        self.send_RegisterUser(req_id, first_name, last_name, username, password, carrier)
+        self.send_RegisterUser(req_id, first_name, last_name, username, password)
         self.recv_RegisterUser()
 
-    def send_RegisterUser(self, req_id, first_name, last_name, username, password, carrier):
+    def send_RegisterUser(self, req_id, first_name, last_name, username, password):
         self._oprot.writeMessageBegin('RegisterUser', TMessageType.CALL, self._seqid)
         args = RegisterUser_args()
         args.req_id = req_id
@@ -118,7 +111,6 @@ class Client(Iface):
         args.last_name = last_name
         args.username = username
         args.password = password
-        args.carrier = carrier
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -138,7 +130,7 @@ class Client(Iface):
             raise result.se
         return
 
-    def RegisterUserWithId(self, req_id, first_name, last_name, username, password, user_id, carrier):
+    def RegisterUserWithId(self, req_id, first_name, last_name, username, password, user_id):
         """
         Parameters:
          - req_id
@@ -147,13 +139,12 @@ class Client(Iface):
          - username
          - password
          - user_id
-         - carrier
 
         """
-        self.send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
+        self.send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
         self.recv_RegisterUserWithId()
 
-    def send_RegisterUserWithId(self, req_id, first_name, last_name, username, password, user_id, carrier):
+    def send_RegisterUserWithId(self, req_id, first_name, last_name, username, password, user_id):
         self._oprot.writeMessageBegin('RegisterUserWithId', TMessageType.CALL, self._seqid)
         args = RegisterUserWithId_args()
         args.req_id = req_id
@@ -162,7 +153,6 @@ class Client(Iface):
         args.username = username
         args.password = password
         args.user_id = user_id
-        args.carrier = carrier
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -182,25 +172,23 @@ class Client(Iface):
             raise result.se
         return
 
-    def Login(self, req_id, username, password, carrier):
+    def Login(self, req_id, username, password):
         """
         Parameters:
          - req_id
          - username
          - password
-         - carrier
 
         """
-        self.send_Login(req_id, username, password, carrier)
+        self.send_Login(req_id, username, password)
         return self.recv_Login()
 
-    def send_Login(self, req_id, username, password, carrier):
+    def send_Login(self, req_id, username, password):
         self._oprot.writeMessageBegin('Login', TMessageType.CALL, self._seqid)
         args = Login_args()
         args.req_id = req_id
         args.username = username
         args.password = password
-        args.carrier = carrier
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -222,25 +210,23 @@ class Client(Iface):
             raise result.se
         raise TApplicationException(TApplicationException.MISSING_RESULT, "Login failed: unknown result")
 
-    def ComposeCreatorWithUserId(self, req_id, user_id, username, carrier):
+    def ComposeCreatorWithUserId(self, req_id, user_id, username):
         """
         Parameters:
          - req_id
          - user_id
          - username
-         - carrier
 
         """
-        self.send_ComposeCreatorWithUserId(req_id, user_id, username, carrier)
+        self.send_ComposeCreatorWithUserId(req_id, user_id, username)
         return self.recv_ComposeCreatorWithUserId()
 
-    def send_ComposeCreatorWithUserId(self, req_id, user_id, username, carrier):
+    def send_ComposeCreatorWithUserId(self, req_id, user_id, username):
         self._oprot.writeMessageBegin('ComposeCreatorWithUserId', TMessageType.CALL, self._seqid)
         args = ComposeCreatorWithUserId_args()
         args.req_id = req_id
         args.user_id = user_id
         args.username = username
-        args.carrier = carrier
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -262,23 +248,21 @@ class Client(Iface):
             raise result.se
         raise TApplicationException(TApplicationException.MISSING_RESULT, "ComposeCreatorWithUserId failed: unknown result")
 
-    def ComposeCreatorWithUsername(self, req_id, username, carrier):
+    def ComposeCreatorWithUsername(self, req_id, username):
         """
         Parameters:
          - req_id
          - username
-         - carrier
 
         """
-        self.send_ComposeCreatorWithUsername(req_id, username, carrier)
+        self.send_ComposeCreatorWithUsername(req_id, username)
         return self.recv_ComposeCreatorWithUsername()
 
-    def send_ComposeCreatorWithUsername(self, req_id, username, carrier):
+    def send_ComposeCreatorWithUsername(self, req_id, username):
         self._oprot.writeMessageBegin('ComposeCreatorWithUsername', TMessageType.CALL, self._seqid)
         args = ComposeCreatorWithUsername_args()
         args.req_id = req_id
         args.username = username
-        args.carrier = carrier
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -300,23 +284,21 @@ class Client(Iface):
             raise result.se
         raise TApplicationException(TApplicationException.MISSING_RESULT, "ComposeCreatorWithUsername failed: unknown result")
 
-    def GetUserId(self, req_id, username, carrier):
+    def GetUserId(self, req_id, username):
         """
         Parameters:
          - req_id
          - username
-         - carrier
 
         """
-        self.send_GetUserId(req_id, username, carrier)
+        self.send_GetUserId(req_id, username)
         return self.recv_GetUserId()
 
-    def send_GetUserId(self, req_id, username, carrier):
+    def send_GetUserId(self, req_id, username):
         self._oprot.writeMessageBegin('GetUserId', TMessageType.CALL, self._seqid)
         args = GetUserId_args()
         args.req_id = req_id
         args.username = username
-        args.carrier = carrier
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -371,7 +353,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = RegisterUser_result()
         try:
-            self._handler.RegisterUser(args.req_id, args.first_name, args.last_name, args.username, args.password, args.carrier)
+            self._handler.RegisterUser(args.req_id, args.first_name, args.last_name, args.username, args.password)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -397,7 +379,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = RegisterUserWithId_result()
         try:
-            self._handler.RegisterUserWithId(args.req_id, args.first_name, args.last_name, args.username, args.password, args.user_id, args.carrier)
+            self._handler.RegisterUserWithId(args.req_id, args.first_name, args.last_name, args.username, args.password, args.user_id)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -423,7 +405,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = Login_result()
         try:
-            result.success = self._handler.Login(args.req_id, args.username, args.password, args.carrier)
+            result.success = self._handler.Login(args.req_id, args.username, args.password)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -449,7 +431,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = ComposeCreatorWithUserId_result()
         try:
-            result.success = self._handler.ComposeCreatorWithUserId(args.req_id, args.user_id, args.username, args.carrier)
+            result.success = self._handler.ComposeCreatorWithUserId(args.req_id, args.user_id, args.username)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -475,7 +457,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = ComposeCreatorWithUsername_result()
         try:
-            result.success = self._handler.ComposeCreatorWithUsername(args.req_id, args.username, args.carrier)
+            result.success = self._handler.ComposeCreatorWithUsername(args.req_id, args.username)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -501,7 +483,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = GetUserId_result()
         try:
-            result.success = self._handler.GetUserId(args.req_id, args.username, args.carrier)
+            result.success = self._handler.GetUserId(args.req_id, args.username)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -532,18 +514,16 @@ class RegisterUser_args(object):
      - last_name
      - username
      - password
-     - carrier
 
     """
 
 
-    def __init__(self, req_id=None, first_name=None, last_name=None, username=None, password=None, carrier=None,):
+    def __init__(self, req_id=None, first_name=None, last_name=None, username=None, password=None,):
         self.req_id = req_id
         self.first_name = first_name
         self.last_name = last_name
         self.username = username
         self.password = password
-        self.carrier = carrier
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -579,17 +559,6 @@ class RegisterUser_args(object):
                     self.password = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 6:
-                if ftype == TType.MAP:
-                    self.carrier = {}
-                    (_ktype40, _vtype41, _size39) = iprot.readMapBegin()
-                    for _i43 in range(_size39):
-                        _key44 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val45 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.carrier[_key44] = _val45
-                    iprot.readMapEnd()
-                else:
-                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -620,14 +589,6 @@ class RegisterUser_args(object):
             oprot.writeFieldBegin('password', TType.STRING, 5)
             oprot.writeString(self.password.encode('utf-8') if sys.version_info[0] == 2 else self.password)
             oprot.writeFieldEnd()
-        if self.carrier is not None:
-            oprot.writeFieldBegin('carrier', TType.MAP, 6)
-            oprot.writeMapBegin(TType.STRING, TType.STRING, len(self.carrier))
-            for kiter46, viter47 in self.carrier.items():
-                oprot.writeString(kiter46.encode('utf-8') if sys.version_info[0] == 2 else kiter46)
-                oprot.writeString(viter47.encode('utf-8') if sys.version_info[0] == 2 else viter47)
-            oprot.writeMapEnd()
-            oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
@@ -652,7 +613,6 @@ RegisterUser_args.thrift_spec = (
     (3, TType.STRING, 'last_name', 'UTF8', None, ),  # 3
     (4, TType.STRING, 'username', 'UTF8', None, ),  # 4
     (5, TType.STRING, 'password', 'UTF8', None, ),  # 5
-    (6, TType.MAP, 'carrier', (TType.STRING, 'UTF8', TType.STRING, 'UTF8', False), None, ),  # 6
 )
 
 
@@ -728,19 +688,17 @@ class RegisterUserWithId_args(object):
      - username
      - password
      - user_id
-     - carrier
 
     """
 
 
-    def __init__(self, req_id=None, first_name=None, last_name=None, username=None, password=None, user_id=None, carrier=None,):
+    def __init__(self, req_id=None, first_name=None, last_name=None, username=None, password=None, user_id=None,):
         self.req_id = req_id
         self.first_name = first_name
         self.last_name = last_name
         self.username = username
         self.password = password
         self.user_id = user_id
-        self.carrier = carrier
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -781,17 +739,6 @@ class RegisterUserWithId_args(object):
                     self.user_id = iprot.readI64()
                 else:
                     iprot.skip(ftype)
-            elif fid == 7:
-                if ftype == TType.MAP:
-                    self.carrier = {}
-                    (_ktype49, _vtype50, _size48) = iprot.readMapBegin()
-                    for _i52 in range(_size48):
-                        _key53 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val54 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.carrier[_key53] = _val54
-                    iprot.readMapEnd()
-                else:
-                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -826,14 +773,6 @@ class RegisterUserWithId_args(object):
             oprot.writeFieldBegin('user_id', TType.I64, 6)
             oprot.writeI64(self.user_id)
             oprot.writeFieldEnd()
-        if self.carrier is not None:
-            oprot.writeFieldBegin('carrier', TType.MAP, 7)
-            oprot.writeMapBegin(TType.STRING, TType.STRING, len(self.carrier))
-            for kiter55, viter56 in self.carrier.items():
-                oprot.writeString(kiter55.encode('utf-8') if sys.version_info[0] == 2 else kiter55)
-                oprot.writeString(viter56.encode('utf-8') if sys.version_info[0] == 2 else viter56)
-            oprot.writeMapEnd()
-            oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
@@ -859,7 +798,6 @@ RegisterUserWithId_args.thrift_spec = (
     (4, TType.STRING, 'username', 'UTF8', None, ),  # 4
     (5, TType.STRING, 'password', 'UTF8', None, ),  # 5
     (6, TType.I64, 'user_id', None, None, ),  # 6
-    (7, TType.MAP, 'carrier', (TType.STRING, 'UTF8', TType.STRING, 'UTF8', False), None, ),  # 7
 )
 
 
@@ -932,16 +870,14 @@ class Login_args(object):
      - req_id
      - username
      - password
-     - carrier
 
     """
 
 
-    def __init__(self, req_id=None, username=None, password=None, carrier=None,):
+    def __init__(self, req_id=None, username=None, password=None,):
         self.req_id = req_id
         self.username = username
         self.password = password
-        self.carrier = carrier
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -967,17 +903,6 @@ class Login_args(object):
                     self.password = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 4:
-                if ftype == TType.MAP:
-                    self.carrier = {}
-                    (_ktype58, _vtype59, _size57) = iprot.readMapBegin()
-                    for _i61 in range(_size57):
-                        _key62 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val63 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.carrier[_key62] = _val63
-                    iprot.readMapEnd()
-                else:
-                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -999,14 +924,6 @@ class Login_args(object):
         if self.password is not None:
             oprot.writeFieldBegin('password', TType.STRING, 3)
             oprot.writeString(self.password.encode('utf-8') if sys.version_info[0] == 2 else self.password)
-            oprot.writeFieldEnd()
-        if self.carrier is not None:
-            oprot.writeFieldBegin('carrier', TType.MAP, 4)
-            oprot.writeMapBegin(TType.STRING, TType.STRING, len(self.carrier))
-            for kiter64, viter65 in self.carrier.items():
-                oprot.writeString(kiter64.encode('utf-8') if sys.version_info[0] == 2 else kiter64)
-                oprot.writeString(viter65.encode('utf-8') if sys.version_info[0] == 2 else viter65)
-            oprot.writeMapEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -1030,7 +947,6 @@ Login_args.thrift_spec = (
     (1, TType.I64, 'req_id', None, None, ),  # 1
     (2, TType.STRING, 'username', 'UTF8', None, ),  # 2
     (3, TType.STRING, 'password', 'UTF8', None, ),  # 3
-    (4, TType.MAP, 'carrier', (TType.STRING, 'UTF8', TType.STRING, 'UTF8', False), None, ),  # 4
 )
 
 
@@ -1114,16 +1030,14 @@ class ComposeCreatorWithUserId_args(object):
      - req_id
      - user_id
      - username
-     - carrier
 
     """
 
 
-    def __init__(self, req_id=None, user_id=None, username=None, carrier=None,):
+    def __init__(self, req_id=None, user_id=None, username=None,):
         self.req_id = req_id
         self.user_id = user_id
         self.username = username
-        self.carrier = carrier
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -1149,17 +1063,6 @@ class ComposeCreatorWithUserId_args(object):
                     self.username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 4:
-                if ftype == TType.MAP:
-                    self.carrier = {}
-                    (_ktype67, _vtype68, _size66) = iprot.readMapBegin()
-                    for _i70 in range(_size66):
-                        _key71 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val72 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.carrier[_key71] = _val72
-                    iprot.readMapEnd()
-                else:
-                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -1181,14 +1084,6 @@ class ComposeCreatorWithUserId_args(object):
         if self.username is not None:
             oprot.writeFieldBegin('username', TType.STRING, 3)
             oprot.writeString(self.username.encode('utf-8') if sys.version_info[0] == 2 else self.username)
-            oprot.writeFieldEnd()
-        if self.carrier is not None:
-            oprot.writeFieldBegin('carrier', TType.MAP, 4)
-            oprot.writeMapBegin(TType.STRING, TType.STRING, len(self.carrier))
-            for kiter73, viter74 in self.carrier.items():
-                oprot.writeString(kiter73.encode('utf-8') if sys.version_info[0] == 2 else kiter73)
-                oprot.writeString(viter74.encode('utf-8') if sys.version_info[0] == 2 else viter74)
-            oprot.writeMapEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -1212,7 +1107,6 @@ ComposeCreatorWithUserId_args.thrift_spec = (
     (1, TType.I64, 'req_id', None, None, ),  # 1
     (2, TType.I64, 'user_id', None, None, ),  # 2
     (3, TType.STRING, 'username', 'UTF8', None, ),  # 3
-    (4, TType.MAP, 'carrier', (TType.STRING, 'UTF8', TType.STRING, 'UTF8', False), None, ),  # 4
 )
 
 
@@ -1296,15 +1190,13 @@ class ComposeCreatorWithUsername_args(object):
     Attributes:
      - req_id
      - username
-     - carrier
 
     """
 
 
-    def __init__(self, req_id=None, username=None, carrier=None,):
+    def __init__(self, req_id=None, username=None,):
         self.req_id = req_id
         self.username = username
-        self.carrier = carrier
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -1325,17 +1217,6 @@ class ComposeCreatorWithUsername_args(object):
                     self.username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
-                if ftype == TType.MAP:
-                    self.carrier = {}
-                    (_ktype76, _vtype77, _size75) = iprot.readMapBegin()
-                    for _i79 in range(_size75):
-                        _key80 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val81 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.carrier[_key80] = _val81
-                    iprot.readMapEnd()
-                else:
-                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -1353,14 +1234,6 @@ class ComposeCreatorWithUsername_args(object):
         if self.username is not None:
             oprot.writeFieldBegin('username', TType.STRING, 2)
             oprot.writeString(self.username.encode('utf-8') if sys.version_info[0] == 2 else self.username)
-            oprot.writeFieldEnd()
-        if self.carrier is not None:
-            oprot.writeFieldBegin('carrier', TType.MAP, 3)
-            oprot.writeMapBegin(TType.STRING, TType.STRING, len(self.carrier))
-            for kiter82, viter83 in self.carrier.items():
-                oprot.writeString(kiter82.encode('utf-8') if sys.version_info[0] == 2 else kiter82)
-                oprot.writeString(viter83.encode('utf-8') if sys.version_info[0] == 2 else viter83)
-            oprot.writeMapEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -1383,7 +1256,6 @@ ComposeCreatorWithUsername_args.thrift_spec = (
     None,  # 0
     (1, TType.I64, 'req_id', None, None, ),  # 1
     (2, TType.STRING, 'username', 'UTF8', None, ),  # 2
-    (3, TType.MAP, 'carrier', (TType.STRING, 'UTF8', TType.STRING, 'UTF8', False), None, ),  # 3
 )
 
 
@@ -1467,15 +1339,13 @@ class GetUserId_args(object):
     Attributes:
      - req_id
      - username
-     - carrier
 
     """
 
 
-    def __init__(self, req_id=None, username=None, carrier=None,):
+    def __init__(self, req_id=None, username=None,):
         self.req_id = req_id
         self.username = username
-        self.carrier = carrier
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -1496,17 +1366,6 @@ class GetUserId_args(object):
                     self.username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
-                if ftype == TType.MAP:
-                    self.carrier = {}
-                    (_ktype85, _vtype86, _size84) = iprot.readMapBegin()
-                    for _i88 in range(_size84):
-                        _key89 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val90 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.carrier[_key89] = _val90
-                    iprot.readMapEnd()
-                else:
-                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -1524,14 +1383,6 @@ class GetUserId_args(object):
         if self.username is not None:
             oprot.writeFieldBegin('username', TType.STRING, 2)
             oprot.writeString(self.username.encode('utf-8') if sys.version_info[0] == 2 else self.username)
-            oprot.writeFieldEnd()
-        if self.carrier is not None:
-            oprot.writeFieldBegin('carrier', TType.MAP, 3)
-            oprot.writeMapBegin(TType.STRING, TType.STRING, len(self.carrier))
-            for kiter91, viter92 in self.carrier.items():
-                oprot.writeString(kiter91.encode('utf-8') if sys.version_info[0] == 2 else kiter91)
-                oprot.writeString(viter92.encode('utf-8') if sys.version_info[0] == 2 else viter92)
-            oprot.writeMapEnd()
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -1554,7 +1405,6 @@ GetUserId_args.thrift_spec = (
     None,  # 0
     (1, TType.I64, 'req_id', None, None, ),  # 1
     (2, TType.STRING, 'username', 'UTF8', None, ),  # 2
-    (3, TType.MAP, 'carrier', (TType.STRING, 'UTF8', TType.STRING, 'UTF8', False), None, ),  # 3
 )
 
 

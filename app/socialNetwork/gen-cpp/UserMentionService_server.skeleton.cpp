@@ -20,7 +20,7 @@ class UserMentionServiceHandler : virtual public UserMentionServiceIf {
     // Your initialization goes here
   }
 
-  void ComposeUserMentions(std::vector<UserMention> & _return, const int64_t req_id, const std::vector<std::string> & usernames, const std::map<std::string, std::string> & carrier) {
+  void ComposeUserMentions(std::vector<UserMention> & _return, const int64_t req_id, const std::vector<std::string> & usernames) {
     // Your implementation goes here
     printf("ComposeUserMentions\n");
   }

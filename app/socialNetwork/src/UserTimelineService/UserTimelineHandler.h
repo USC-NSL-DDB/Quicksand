@@ -14,7 +14,6 @@
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
 #include "../logger.h"
-#include "../tracing.h"
 
 using namespace sw::redis;
 
@@ -26,14 +25,13 @@ class UserTimelineHandler : public UserTimelineServiceIf {
                       ClientPool<ThriftClient<PostStorageServiceClient>> *);
   ~UserTimelineHandler() override = default;
 
-  void WriteUserTimeline(
-      int64_t req_id, int64_t post_id, int64_t user_id, int64_t timestamp,
-      const std::map<std::string, std::string> &carrier) override;
+  void WriteUserTimeline(int64_t req_id, int64_t post_id, int64_t user_id,
+                         int64_t timestamp) override;
 
-  void ReadUserTimeline(std::vector<Post> &, int64_t, int64_t, int, int,
-                        const std::map<std::string, std::string> &) override;
+  void ReadUserTimeline(std::vector<Post> &, int64_t, int64_t, int,
+                        int) override;
 
- private:
+private:
   Redis *_redis_client_pool;
   mongoc_client_pool_t *_mongodb_client_pool;
   ClientPool<ThriftClient<PostStorageServiceClient>> *_post_client_pool;
@@ -47,18 +45,9 @@ UserTimelineHandler::UserTimelineHandler(
   _post_client_pool = post_client_pool;
 }
 
-void UserTimelineHandler::WriteUserTimeline(
-    int64_t req_id, int64_t post_id, int64_t user_id, int64_t timestamp,
-    const std::map<std::string, std::string> &carrier) {
-  // Initialize a span
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "write_user_timeline_server", {opentracing::ChildOf(parent_span->get())});
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+void UserTimelineHandler::WriteUserTimeline(int64_t req_id, int64_t post_id,
+                                            int64_t user_id,
+                                            int64_t timestamp) {
   mongoc_client_t *mongodb_client =
       mongoc_client_pool_pop(_mongodb_client_pool);
   if (!mongodb_client) {
@@ -85,13 +74,9 @@ void UserTimelineHandler::WriteUserTimeline(
                "]", "$position", BCON_INT32(0), "}", "}");
   bson_error_t error;
   bson_t reply;
-  auto update_span = opentracing::Tracer::Global()->StartSpan(
-      "write_user_timeline_mongo_insert_client",
-      {opentracing::ChildOf(&span->context())});
   bool updated = mongoc_collection_find_and_modify(collection, query, nullptr,
                                                    update, nullptr, false, true,
                                                    true, &reply, &error);
-  update_span->Finish();
 
   if (!updated) {
     // update the newly inserted document (upsert: false)
@@ -120,9 +105,6 @@ void UserTimelineHandler::WriteUserTimeline(
   mongoc_client_pool_push(_mongodb_client_pool, mongodb_client);
 
   // Update user's timeline in redis
-  auto redis_span = opentracing::Tracer::Global()->StartSpan(
-      "write_user_timeline_redis_update_client",
-      {opentracing::ChildOf(&span->context())});
   try {
     _redis_client_pool->zadd(std::to_string(user_id), std::to_string(post_id),
                              timestamp, UpdateType::NOT_EXIST);
@@ -130,29 +112,14 @@ void UserTimelineHandler::WriteUserTimeline(
     LOG(error) << err.what();
     throw err;
   }
-  redis_span->Finish();
-  span->Finish();
 }
 
-void UserTimelineHandler::ReadUserTimeline(
-    std::vector<Post> &_return, int64_t req_id, int64_t user_id, int start,
-    int stop, const std::map<std::string, std::string> &carrier) {
-  // Initialize a span
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "read_user_timeline_server", {opentracing::ChildOf(parent_span->get())});
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+void UserTimelineHandler::ReadUserTimeline(std::vector<Post> &_return,
+                                           int64_t req_id, int64_t user_id,
+                                           int start, int stop) {
   if (stop <= start || start < 0) {
     return;
   }
-
-  auto redis_span = opentracing::Tracer::Global()->StartSpan(
-      "read_user_timeline_redis_find_client",
-      {opentracing::ChildOf(&span->context())});
 
   std::vector<std::string> post_ids_str;
   try {
@@ -162,7 +129,6 @@ void UserTimelineHandler::ReadUserTimeline(
     LOG(error) << err.what();
     throw err;
   }
-  redis_span->Finish();
 
   std::vector<int64_t> post_ids;
   for (auto &post_id_str : post_ids_str) {
@@ -195,12 +161,8 @@ void UserTimelineHandler::ReadUserTimeline(
     bson_t *opts = BCON_NEW("projection", "{", "posts", "{", "$slice", "[",
                             BCON_INT32(0), BCON_INT32(stop), "]", "}", "}");
 
-    auto find_span = opentracing::Tracer::Global()->StartSpan(
-        "user_timeline_mongo_find_client",
-        {opentracing::ChildOf(&span->context())});
     mongoc_cursor_t *cursor =
         mongoc_collection_find_with_opts(collection, query, opts, nullptr);
-    find_span->Finish();
     const bson_t *doc;
     bool found = mongoc_cursor_next(cursor, &doc);
     if (found) {
@@ -251,8 +213,7 @@ void UserTimelineHandler::ReadUserTimeline(
         std::vector<Post> _return_posts;
         auto post_client = post_client_wrapper->GetClient();
         try {
-          post_client->ReadPosts(_return_posts, req_id, post_ids,
-                                 writer_text_map);
+          post_client->ReadPosts(_return_posts, req_id, post_ids);
         } catch (...) {
           _post_client_pool->Remove(post_client_wrapper);
           LOG(error) << "Failed to read posts from post-storage-service";
@@ -263,9 +224,6 @@ void UserTimelineHandler::ReadUserTimeline(
       });
 
   if (redis_update_map.size() > 0) {
-    auto redis_update_span = opentracing::Tracer::Global()->StartSpan(
-        "user_timeline_redis_update_client",
-        {opentracing::ChildOf(&span->context())});
     try {
       _redis_client_pool->zadd(std::to_string(user_id),
                                redis_update_map.begin(),
@@ -274,7 +232,6 @@ void UserTimelineHandler::ReadUserTimeline(
       LOG(error) << err.what();
       throw err;
     }
-    redis_update_span->Finish();
   }
 
   try {
@@ -283,7 +240,6 @@ void UserTimelineHandler::ReadUserTimeline(
     LOG(error) << "Failed to get post from post-storage-service";
     throw;
   }
-  span->Finish();
 }
 
 }  // namespace social_network

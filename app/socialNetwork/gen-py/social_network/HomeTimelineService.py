@@ -19,14 +19,25 @@ all_structs = []
 
 
 class Iface(object):
-    def ReadHomeTimeline(self, req_id, user_id, start, stop, carrier):
+    def ReadHomeTimeline(self, req_id, user_id, start, stop):
         """
         Parameters:
          - req_id
          - user_id
          - start
          - stop
-         - carrier
+
+        """
+        pass
+
+    def WriteHomeTimeline(self, req_id, post_id, user_id, timestamp, user_mentions_id):
+        """
+        Parameters:
+         - req_id
+         - post_id
+         - user_id
+         - timestamp
+         - user_mentions_id
 
         """
         pass
@@ -39,27 +50,25 @@ class Client(Iface):
             self._oprot = oprot
         self._seqid = 0
 
-    def ReadHomeTimeline(self, req_id, user_id, start, stop, carrier):
+    def ReadHomeTimeline(self, req_id, user_id, start, stop):
         """
         Parameters:
          - req_id
          - user_id
          - start
          - stop
-         - carrier
 
         """
-        self.send_ReadHomeTimeline(req_id, user_id, start, stop, carrier)
+        self.send_ReadHomeTimeline(req_id, user_id, start, stop)
         return self.recv_ReadHomeTimeline()
 
-    def send_ReadHomeTimeline(self, req_id, user_id, start, stop, carrier):
+    def send_ReadHomeTimeline(self, req_id, user_id, start, stop):
         self._oprot.writeMessageBegin('ReadHomeTimeline', TMessageType.CALL, self._seqid)
         args = ReadHomeTimeline_args()
         args.req_id = req_id
         args.user_id = user_id
         args.start = start
         args.stop = stop
-        args.carrier = carrier
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
         self._oprot.trans.flush()
@@ -81,12 +90,53 @@ class Client(Iface):
             raise result.se
         raise TApplicationException(TApplicationException.MISSING_RESULT, "ReadHomeTimeline failed: unknown result")
 
+    def WriteHomeTimeline(self, req_id, post_id, user_id, timestamp, user_mentions_id):
+        """
+        Parameters:
+         - req_id
+         - post_id
+         - user_id
+         - timestamp
+         - user_mentions_id
+
+        """
+        self.send_WriteHomeTimeline(req_id, post_id, user_id, timestamp, user_mentions_id)
+        self.recv_WriteHomeTimeline()
+
+    def send_WriteHomeTimeline(self, req_id, post_id, user_id, timestamp, user_mentions_id):
+        self._oprot.writeMessageBegin('WriteHomeTimeline', TMessageType.CALL, self._seqid)
+        args = WriteHomeTimeline_args()
+        args.req_id = req_id
+        args.post_id = post_id
+        args.user_id = user_id
+        args.timestamp = timestamp
+        args.user_mentions_id = user_mentions_id
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_WriteHomeTimeline(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = WriteHomeTimeline_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        if result.se is not None:
+            raise result.se
+        return
+
 
 class Processor(Iface, TProcessor):
     def __init__(self, handler):
         self._handler = handler
         self._processMap = {}
         self._processMap["ReadHomeTimeline"] = Processor.process_ReadHomeTimeline
+        self._processMap["WriteHomeTimeline"] = Processor.process_WriteHomeTimeline
 
     def process(self, iprot, oprot):
         (name, type, seqid) = iprot.readMessageBegin()
@@ -109,7 +159,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = ReadHomeTimeline_result()
         try:
-            result.success = self._handler.ReadHomeTimeline(args.req_id, args.user_id, args.start, args.stop, args.carrier)
+            result.success = self._handler.ReadHomeTimeline(args.req_id, args.user_id, args.start, args.stop)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -129,6 +179,32 @@ class Processor(Iface, TProcessor):
         oprot.writeMessageEnd()
         oprot.trans.flush()
 
+    def process_WriteHomeTimeline(self, seqid, iprot, oprot):
+        args = WriteHomeTimeline_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = WriteHomeTimeline_result()
+        try:
+            self._handler.WriteHomeTimeline(args.req_id, args.post_id, args.user_id, args.timestamp, args.user_mentions_id)
+            msg_type = TMessageType.REPLY
+        except TTransport.TTransportException:
+            raise
+        except ServiceException as se:
+            msg_type = TMessageType.REPLY
+            result.se = se
+        except TApplicationException as ex:
+            logging.exception('TApplication exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = ex
+        except Exception:
+            logging.exception('Unexpected exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("WriteHomeTimeline", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
 # HELPER FUNCTIONS AND STRUCTURES
 
 
@@ -139,17 +215,15 @@ class ReadHomeTimeline_args(object):
      - user_id
      - start
      - stop
-     - carrier
 
     """
 
 
-    def __init__(self, req_id=None, user_id=None, start=None, stop=None, carrier=None,):
+    def __init__(self, req_id=None, user_id=None, start=None, stop=None,):
         self.req_id = req_id
         self.user_id = user_id
         self.start = start
         self.stop = stop
-        self.carrier = carrier
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -180,17 +254,6 @@ class ReadHomeTimeline_args(object):
                     self.stop = iprot.readI32()
                 else:
                     iprot.skip(ftype)
-            elif fid == 5:
-                if ftype == TType.MAP:
-                    self.carrier = {}
-                    (_ktype149, _vtype150, _size148) = iprot.readMapBegin()
-                    for _i152 in range(_size148):
-                        _key153 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        _val154 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.carrier[_key153] = _val154
-                    iprot.readMapEnd()
-                else:
-                    iprot.skip(ftype)
             else:
                 iprot.skip(ftype)
             iprot.readFieldEnd()
@@ -217,14 +280,6 @@ class ReadHomeTimeline_args(object):
             oprot.writeFieldBegin('stop', TType.I32, 4)
             oprot.writeI32(self.stop)
             oprot.writeFieldEnd()
-        if self.carrier is not None:
-            oprot.writeFieldBegin('carrier', TType.MAP, 5)
-            oprot.writeMapBegin(TType.STRING, TType.STRING, len(self.carrier))
-            for kiter155, viter156 in self.carrier.items():
-                oprot.writeString(kiter155.encode('utf-8') if sys.version_info[0] == 2 else kiter155)
-                oprot.writeString(viter156.encode('utf-8') if sys.version_info[0] == 2 else viter156)
-            oprot.writeMapEnd()
-            oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
 
@@ -248,7 +303,6 @@ ReadHomeTimeline_args.thrift_spec = (
     (2, TType.I64, 'user_id', None, None, ),  # 2
     (3, TType.I32, 'start', None, None, ),  # 3
     (4, TType.I32, 'stop', None, None, ),  # 4
-    (5, TType.MAP, 'carrier', (TType.STRING, 'UTF8', TType.STRING, 'UTF8', False), None, ),  # 5
 )
 
 
@@ -277,11 +331,11 @@ class ReadHomeTimeline_result(object):
             if fid == 0:
                 if ftype == TType.LIST:
                     self.success = []
-                    (_etype160, _size157) = iprot.readListBegin()
-                    for _i161 in range(_size157):
-                        _elem162 = Post()
-                        _elem162.read(iprot)
-                        self.success.append(_elem162)
+                    (_etype66, _size63) = iprot.readListBegin()
+                    for _i67 in range(_size63):
+                        _elem68 = Post()
+                        _elem68.read(iprot)
+                        self.success.append(_elem68)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
@@ -304,8 +358,8 @@ class ReadHomeTimeline_result(object):
         if self.success is not None:
             oprot.writeFieldBegin('success', TType.LIST, 0)
             oprot.writeListBegin(TType.STRUCT, len(self.success))
-            for iter163 in self.success:
-                iter163.write(oprot)
+            for iter69 in self.success:
+                iter69.write(oprot)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.se is not None:
@@ -331,6 +385,187 @@ class ReadHomeTimeline_result(object):
 all_structs.append(ReadHomeTimeline_result)
 ReadHomeTimeline_result.thrift_spec = (
     (0, TType.LIST, 'success', (TType.STRUCT, [Post, None], False), None, ),  # 0
+    (1, TType.STRUCT, 'se', [ServiceException, None], None, ),  # 1
+)
+
+
+class WriteHomeTimeline_args(object):
+    """
+    Attributes:
+     - req_id
+     - post_id
+     - user_id
+     - timestamp
+     - user_mentions_id
+
+    """
+
+
+    def __init__(self, req_id=None, post_id=None, user_id=None, timestamp=None, user_mentions_id=None,):
+        self.req_id = req_id
+        self.post_id = post_id
+        self.user_id = user_id
+        self.timestamp = timestamp
+        self.user_mentions_id = user_mentions_id
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.I64:
+                    self.req_id = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.I64:
+                    self.post_id = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.I64:
+                    self.user_id = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 4:
+                if ftype == TType.I64:
+                    self.timestamp = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 5:
+                if ftype == TType.LIST:
+                    self.user_mentions_id = []
+                    (_etype73, _size70) = iprot.readListBegin()
+                    for _i74 in range(_size70):
+                        _elem75 = iprot.readI64()
+                        self.user_mentions_id.append(_elem75)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('WriteHomeTimeline_args')
+        if self.req_id is not None:
+            oprot.writeFieldBegin('req_id', TType.I64, 1)
+            oprot.writeI64(self.req_id)
+            oprot.writeFieldEnd()
+        if self.post_id is not None:
+            oprot.writeFieldBegin('post_id', TType.I64, 2)
+            oprot.writeI64(self.post_id)
+            oprot.writeFieldEnd()
+        if self.user_id is not None:
+            oprot.writeFieldBegin('user_id', TType.I64, 3)
+            oprot.writeI64(self.user_id)
+            oprot.writeFieldEnd()
+        if self.timestamp is not None:
+            oprot.writeFieldBegin('timestamp', TType.I64, 4)
+            oprot.writeI64(self.timestamp)
+            oprot.writeFieldEnd()
+        if self.user_mentions_id is not None:
+            oprot.writeFieldBegin('user_mentions_id', TType.LIST, 5)
+            oprot.writeListBegin(TType.I64, len(self.user_mentions_id))
+            for iter76 in self.user_mentions_id:
+                oprot.writeI64(iter76)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(WriteHomeTimeline_args)
+WriteHomeTimeline_args.thrift_spec = (
+    None,  # 0
+    (1, TType.I64, 'req_id', None, None, ),  # 1
+    (2, TType.I64, 'post_id', None, None, ),  # 2
+    (3, TType.I64, 'user_id', None, None, ),  # 3
+    (4, TType.I64, 'timestamp', None, None, ),  # 4
+    (5, TType.LIST, 'user_mentions_id', (TType.I64, None, False), None, ),  # 5
+)
+
+
+class WriteHomeTimeline_result(object):
+    """
+    Attributes:
+     - se
+
+    """
+
+
+    def __init__(self, se=None,):
+        self.se = se
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRUCT:
+                    self.se = ServiceException()
+                    self.se.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('WriteHomeTimeline_result')
+        if self.se is not None:
+            oprot.writeFieldBegin('se', TType.STRUCT, 1)
+            self.se.write(oprot)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(WriteHomeTimeline_result)
+WriteHomeTimeline_result.thrift_spec = (
+    None,  # 0
     (1, TType.STRUCT, 'se', [ServiceException, None], None, ),  # 1
 )
 fix_spec(all_structs)

@@ -19,11 +19,11 @@ all_structs = []
 
 
 class Iface(object):
-    def ComposePost(self, req_id, user_name, user_id, text, media_ids, media_types, post_type):
+    def ComposePost(self, req_id, username, user_id, text, media_ids, media_types, post_type):
         """
         Parameters:
          - req_id
-         - user_name
+         - username
          - user_id
          - text
          - media_ids
@@ -41,11 +41,11 @@ class Client(Iface):
             self._oprot = oprot
         self._seqid = 0
 
-    def ComposePost(self, req_id, user_name, user_id, text, media_ids, media_types, post_type):
+    def ComposePost(self, req_id, username, user_id, text, media_ids, media_types, post_type):
         """
         Parameters:
          - req_id
-         - user_name
+         - username
          - user_id
          - text
          - media_ids
@@ -53,14 +53,14 @@ class Client(Iface):
          - post_type
 
         """
-        self.send_ComposePost(req_id, user_name, user_id, text, media_ids, media_types, post_type)
+        self.send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
         self.recv_ComposePost()
 
-    def send_ComposePost(self, req_id, user_name, user_id, text, media_ids, media_types, post_type):
+    def send_ComposePost(self, req_id, username, user_id, text, media_ids, media_types, post_type):
         self._oprot.writeMessageBegin('ComposePost', TMessageType.CALL, self._seqid)
         args = ComposePost_args()
         args.req_id = req_id
-        args.user_name = user_name
+        args.username = username
         args.user_id = user_id
         args.text = text
         args.media_ids = media_ids
@@ -113,7 +113,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = ComposePost_result()
         try:
-            self._handler.ComposePost(args.req_id, args.user_name, args.user_id, args.text, args.media_ids, args.media_types, args.post_type)
+            self._handler.ComposePost(args.req_id, args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -140,7 +140,7 @@ class ComposePost_args(object):
     """
     Attributes:
      - req_id
-     - user_name
+     - username
      - user_id
      - text
      - media_ids
@@ -150,9 +150,9 @@ class ComposePost_args(object):
     """
 
 
-    def __init__(self, req_id=None, user_name=None, user_id=None, text=None, media_ids=None, media_types=None, post_type=None,):
+    def __init__(self, req_id=None, username=None, user_id=None, text=None, media_ids=None, media_types=None, post_type=None,):
         self.req_id = req_id
-        self.user_name = user_name
+        self.username = username
         self.user_id = user_id
         self.text = text
         self.media_ids = media_ids
@@ -175,7 +175,7 @@ class ComposePost_args(object):
                     iprot.skip(ftype)
             elif fid == 2:
                 if ftype == TType.STRING:
-                    self.user_name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                    self.username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
             elif fid == 3:
@@ -191,20 +191,20 @@ class ComposePost_args(object):
             elif fid == 5:
                 if ftype == TType.LIST:
                     self.media_ids = []
-                    (_etype96, _size93) = iprot.readListBegin()
-                    for _i97 in range(_size93):
-                        _elem98 = iprot.readI64()
-                        self.media_ids.append(_elem98)
+                    (_etype38, _size35) = iprot.readListBegin()
+                    for _i39 in range(_size35):
+                        _elem40 = iprot.readI64()
+                        self.media_ids.append(_elem40)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
             elif fid == 6:
                 if ftype == TType.LIST:
                     self.media_types = []
-                    (_etype102, _size99) = iprot.readListBegin()
-                    for _i103 in range(_size99):
-                        _elem104 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.media_types.append(_elem104)
+                    (_etype44, _size41) = iprot.readListBegin()
+                    for _i45 in range(_size41):
+                        _elem46 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                        self.media_types.append(_elem46)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
@@ -227,9 +227,9 @@ class ComposePost_args(object):
             oprot.writeFieldBegin('req_id', TType.I64, 1)
             oprot.writeI64(self.req_id)
             oprot.writeFieldEnd()
-        if self.user_name is not None:
-            oprot.writeFieldBegin('user_name', TType.STRING, 2)
-            oprot.writeString(self.user_name.encode('utf-8') if sys.version_info[0] == 2 else self.user_name)
+        if self.username is not None:
+            oprot.writeFieldBegin('username', TType.STRING, 2)
+            oprot.writeString(self.username.encode('utf-8') if sys.version_info[0] == 2 else self.username)
             oprot.writeFieldEnd()
         if self.user_id is not None:
             oprot.writeFieldBegin('user_id', TType.I64, 3)
@@ -242,15 +242,15 @@ class ComposePost_args(object):
         if self.media_ids is not None:
             oprot.writeFieldBegin('media_ids', TType.LIST, 5)
             oprot.writeListBegin(TType.I64, len(self.media_ids))
-            for iter105 in self.media_ids:
-                oprot.writeI64(iter105)
+            for iter47 in self.media_ids:
+                oprot.writeI64(iter47)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.media_types is not None:
             oprot.writeFieldBegin('media_types', TType.LIST, 6)
             oprot.writeListBegin(TType.STRING, len(self.media_types))
-            for iter106 in self.media_types:
-                oprot.writeString(iter106.encode('utf-8') if sys.version_info[0] == 2 else iter106)
+            for iter48 in self.media_types:
+                oprot.writeString(iter48.encode('utf-8') if sys.version_info[0] == 2 else iter48)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.post_type is not None:
@@ -277,7 +277,7 @@ all_structs.append(ComposePost_args)
 ComposePost_args.thrift_spec = (
     None,  # 0
     (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.STRING, 'user_name', 'UTF8', None, ),  # 2
+    (2, TType.STRING, 'username', 'UTF8', None, ),  # 2
     (3, TType.I64, 'user_id', None, None, ),  # 3
     (4, TType.STRING, 'text', 'UTF8', None, ),  # 4
     (5, TType.LIST, 'media_ids', (TType.I64, None, False), None, ),  # 5

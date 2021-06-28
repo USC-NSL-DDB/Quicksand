@@ -17,7 +17,6 @@ add_executable(
 
 target_include_directories(
     FrontEndProxy PRIVATE
-    /usr/local/include/jaegertracing
     ${NU_DIR}/inc
     ${CALADAN_DIR}/inc
     ${CALADAN_DIR}/bindings/cc
@@ -33,8 +32,6 @@ target_link_libraries(
     FrontEndProxy
     nlohmann_json::nlohmann_json
     yaml-cpp
-    opentracing
-    jaegertracing
     nlohmann_json::nlohmann_json
     ${THRIFT_STATIC_LIB}
     ${CMAKE_THREAD_LIBS_INIT}

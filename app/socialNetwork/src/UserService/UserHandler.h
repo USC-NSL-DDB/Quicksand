@@ -20,7 +20,6 @@
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
 #include "../logger.h"
-#include "../tracing.h"
 
 // Custom Epoch (January 1, 2018 Midnight GMT = 2018-01-01T00:00:00Z)
 #define CUSTOM_EPOCH 1514764800000
@@ -74,22 +73,18 @@ class UserHandler : public UserServiceIf {
               ClientPool<ThriftClient<SocialGraphServiceClient>> *);
   ~UserHandler() override = default;
   void RegisterUser(int64_t, const std::string &, const std::string &,
-                    const std::string &, const std::string &,
-                    const std::map<std::string, std::string> &) override;
+                    const std::string &, const std::string &) override;
   void RegisterUserWithId(int64_t, const std::string &, const std::string &,
-                          const std::string &, const std::string &, int64_t,
-                          const std::map<std::string, std::string> &) override;
+                          const std::string &, const std::string &,
+                          int64_t) override;
 
-  void ComposeCreatorWithUserId(
-      Creator &, int64_t, int64_t, const std::string &,
-      const std::map<std::string, std::string> &) override;
-  void ComposeCreatorWithUsername(
-      Creator &, int64_t, const std::string &,
-      const std::map<std::string, std::string> &) override;
-  void Login(std::string &, int64_t, const std::string &, const std::string &,
-             const std::map<std::string, std::string> &) override;
-  int64_t GetUserId(int64_t, const std::string &,
-                    const std::map<std::string, std::string> &) override;
+  void ComposeCreatorWithUserId(Creator &, int64_t, int64_t,
+                                const std::string &) override;
+  void ComposeCreatorWithUsername(Creator &, int64_t,
+                                  const std::string &) override;
+  void Login(std::string &, int64_t, const std::string &,
+             const std::string &) override;
+  int64_t GetUserId(int64_t, const std::string &) override;
 
  private:
   std::string _machine_id;
@@ -117,18 +112,7 @@ UserHandler::UserHandler(std::mutex *thread_lock, const std::string &machine_id,
 void UserHandler::RegisterUserWithId(
     const int64_t req_id, const std::string &first_name,
     const std::string &last_name, const std::string &username,
-    const std::string &password, const int64_t user_id,
-    const std::map<std::string, std::string> &carrier) {
-  // Initialize a span
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "register_user_withid_server",
-      {opentracing::ChildOf(parent_span->get())});
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+    const std::string &password, const int64_t user_id) {
   // Store user info into mongodb
   mongoc_client_t *mongodb_client =
       mongoc_client_pool_pop(_mongodb_client_pool);
@@ -181,8 +165,6 @@ void UserHandler::RegisterUserWithId(
     BSON_APPEND_UTF8(new_doc, "password", password_hashed.c_str());
 
     bson_error_t error;
-    auto user_insert_span = opentracing::Tracer::Global()->StartSpan(
-        "user_mongo_insert_cilent", {opentracing::ChildOf(&span->context())});
     if (!mongoc_collection_insert_one(collection, new_doc, nullptr, nullptr,
                                       &error)) {
       LOG(error) << "Failed to insert user " << username
@@ -199,7 +181,6 @@ void UserHandler::RegisterUserWithId(
     } else {
       LOG(debug) << "User: " << username << " registered";
     }
-    user_insert_span->Finish();
     bson_destroy(new_doc);
   }
   bson_destroy(query);
@@ -217,7 +198,7 @@ void UserHandler::RegisterUserWithId(
     }
     auto social_graph_client = social_graph_client_wrapper->GetClient();
     try {
-      social_graph_client->InsertUser(req_id, user_id, writer_text_map);
+      social_graph_client->InsertUser(req_id, user_id);
     } catch (...) {
       _social_graph_client_pool->Remove(social_graph_client_wrapper);
       LOG(error) << "Failed to insert user to social-graph-client";
@@ -225,24 +206,12 @@ void UserHandler::RegisterUserWithId(
     }
     _social_graph_client_pool->Keepalive(social_graph_client_wrapper);
   }
-
-  span->Finish();
 }
 
 void UserHandler::RegisterUser(
     const int64_t req_id, const std::string &first_name,
     const std::string &last_name, const std::string &username,
-    const std::string &password,
-    const std::map<std::string, std::string> &carrier) {
-  // Initialize a span
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "register_user_server", {opentracing::ChildOf(parent_span->get())});
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+    const std::string &password) {
   // Compose user_id
   _thread_lock->lock();
   int64_t timestamp =
@@ -328,8 +297,6 @@ void UserHandler::RegisterUser(
     std::string password_hashed = picosha2::hash256_hex_string(password + salt);
     BSON_APPEND_UTF8(new_doc, "password", password_hashed.c_str());
 
-    auto user_insert_span = opentracing::Tracer::Global()->StartSpan(
-        "user_mongo_insert_client", {opentracing::ChildOf(&span->context())});
     if (!mongoc_collection_insert_one(collection, new_doc, nullptr, nullptr,
                                       &error)) {
       LOG(error) << "Failed to insert user " << username
@@ -346,7 +313,6 @@ void UserHandler::RegisterUser(
     } else {
       LOG(debug) << "User: " << username << " registered";
     }
-    user_insert_span->Finish();
     bson_destroy(new_doc);
   }
   bson_destroy(query);
@@ -364,7 +330,7 @@ void UserHandler::RegisterUser(
     }
     auto social_graph_client = social_graph_client_wrapper->GetClient();
     try {
-      social_graph_client->InsertUser(req_id, user_id, writer_text_map);
+      social_graph_client->InsertUser(req_id, user_id);
     } catch (...) {
       _social_graph_client_pool->Remove(social_graph_client_wrapper);
       LOG(error) << "Failed to insert user to social-graph-service";
@@ -373,21 +339,10 @@ void UserHandler::RegisterUser(
 
     _social_graph_client_pool->Keepalive(social_graph_client_wrapper);
   }
-
-  span->Finish();
 }
 
 void UserHandler::ComposeCreatorWithUsername(
-    Creator &_return, const int64_t req_id, const std::string &username,
-    const std::map<std::string, std::string> &carrier) {
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "compose_creator_server", {opentracing::ChildOf(parent_span->get())});
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+    Creator &_return, const int64_t req_id, const std::string &username) {
   size_t user_id_size;
   uint32_t memcached_flags;
 
@@ -396,13 +351,10 @@ void UserHandler::ComposeCreatorWithUsername(
       memcached_pool_pop(_memcached_client_pool, true, &memcached_rc);
   char *user_id_mmc;
   if (memcached_client) {
-    auto id_get_span = opentracing::Tracer::Global()->StartSpan(
-        "user_mmc_get_client", {opentracing::ChildOf(&span->context())});
     user_id_mmc =
         memcached_get(memcached_client, (username + ":user_id").c_str(),
                       (username + ":user_id").length(), &user_id_size,
                       &memcached_flags, &memcached_rc);
-    id_get_span->Finish();
     if (!user_id_mmc && memcached_rc != MEMCACHED_NOTFOUND) {
       ServiceException se;
       se.errorCode = ErrorCode::SE_MEMCACHED_ERROR;
@@ -446,13 +398,10 @@ void UserHandler::ComposeCreatorWithUsername(
     bson_t *query = bson_new();
     BSON_APPEND_UTF8(query, "username", username.c_str());
 
-    auto find_span = opentracing::Tracer::Global()->StartSpan(
-        "user_mongo_find_client", {opentracing::ChildOf(&span->context())});
     mongoc_cursor_t *cursor =
         mongoc_collection_find_with_opts(collection, query, nullptr, nullptr);
     const bson_t *doc;
     bool found = mongoc_cursor_next(cursor, &doc);
-    find_span->Finish();
     if (!found) {
       bson_error_t error;
       if (mongoc_cursor_error(cursor, &error)) {
@@ -513,15 +462,12 @@ void UserHandler::ComposeCreatorWithUsername(
       memcached_pool_pop(_memcached_client_pool, true, &memcached_rc);
   if (memcached_client) {
     if (user_id != -1 && !cached) {
-      auto id_set_span = opentracing::Tracer::Global()->StartSpan(
-          "user_mmc_set_cilent", {opentracing::ChildOf(&span->context())});
       std::string user_id_str = std::to_string(user_id);
       memcached_rc =
           memcached_set(memcached_client, (username + ":user_id").c_str(),
                         (username + ":user_id").length(), user_id_str.c_str(),
                         user_id_str.length(), static_cast<time_t>(0),
                         static_cast<uint32_t>(0));
-      id_set_span->Finish();
       if (memcached_rc != MEMCACHED_SUCCESS) {
         LOG(warning) << "Failed to set the user_id of user " << username
                      << " to Memcached: "
@@ -532,42 +478,21 @@ void UserHandler::ComposeCreatorWithUsername(
   } else {
     LOG(warning) << "Failed to pop a client from memcached pool";
   }
-  span->Finish();
 }
 
 void UserHandler::ComposeCreatorWithUserId(
     Creator &_return, int64_t req_id, int64_t user_id,
-    const std::string &username,
-    const std::map<std::string, std::string> &carrier) {
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "compose_creator_server", {opentracing::ChildOf(parent_span->get())});
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+    const std::string &username) {
   Creator creator;
   creator.username = username;
   creator.user_id = user_id;
 
   _return = creator;
-
-  span->Finish();
 }
 
 void UserHandler::Login(std::string &_return, int64_t req_id,
                         const std::string &username,
-                        const std::string &password,
-                        const std::map<std::string, std::string> &carrier) {
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "login_server", {opentracing::ChildOf(parent_span->get())});
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+                        const std::string &password) {
   size_t login_size;
   uint32_t memcached_flags;
 
@@ -578,12 +503,9 @@ void UserHandler::Login(std::string &_return, int64_t req_id,
   if (!memcached_client) {
     LOG(warning) << "Failed to pop a client from memcached pool";
   } else {
-    auto get_login_span = opentracing::Tracer::Global()->StartSpan(
-        "user_mmc_get_client", {opentracing::ChildOf(&span->context())});
     login_mmc = memcached_get(memcached_client, (username + ":login").c_str(),
                               (username + ":login").length(), &login_size,
                               &memcached_flags, &memcached_rc);
-    get_login_span->Finish();
     if (!login_mmc && memcached_rc != MEMCACHED_NOTFOUND) {
       LOG(warning) << "Memcached error: "
                    << memcached_strerror(memcached_client, memcached_rc);
@@ -631,13 +553,10 @@ void UserHandler::Login(std::string &_return, int64_t req_id,
     bson_t *query = bson_new();
     BSON_APPEND_UTF8(query, "username", username.c_str());
 
-    auto find_span = opentracing::Tracer::Global()->StartSpan(
-        "user_mongo_find_client", {opentracing::ChildOf(&span->context())});
     mongoc_cursor_t *cursor =
         mongoc_collection_find_with_opts(collection, query, nullptr, nullptr);
     const bson_t *doc;
     bool found = mongoc_cursor_next(cursor, &doc);
-    find_span->Finish();
 
     bson_error_t error;
     if (mongoc_cursor_error(cursor, &error)) {
@@ -728,14 +647,11 @@ void UserHandler::Login(std::string &_return, int64_t req_id,
     if (!memcached_client) {
       LOG(warning) << "Failed to pop a client from memcached pool";
     } else {
-      auto set_login_span = opentracing::Tracer::Global()->StartSpan(
-          "user_mmc_set_client", {opentracing::ChildOf(&span->context())});
       std::string login_str = login_json.dump();
       memcached_rc =
           memcached_set(memcached_client, (username + ":login").c_str(),
                         (username + ":login").length(), login_str.c_str(),
                         login_str.length(), 0, 0);
-      set_login_span->Finish();
       if (memcached_rc != MEMCACHED_SUCCESS) {
         LOG(warning) << "Failed to set the login info of user " << username
                      << " to Memcached: "
@@ -744,19 +660,9 @@ void UserHandler::Login(std::string &_return, int64_t req_id,
       memcached_pool_push(_memcached_client_pool, memcached_client);
     }
   }
-  span->Finish();
 }
 int64_t UserHandler::GetUserId(
-    int64_t req_id, const std::string &username,
-    const std::map<std::string, std::string> &carrier) {
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "get_user_id_server", {opentracing::ChildOf(parent_span->get())});
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+    int64_t req_id, const std::string &username) {
   size_t user_id_size;
   uint32_t memcached_flags;
 
@@ -765,14 +671,10 @@ int64_t UserHandler::GetUserId(
       memcached_pool_pop(_memcached_client_pool, true, &memcached_rc);
   char *user_id_mmc;
   if (memcached_client) {
-    auto id_get_span = opentracing::Tracer::Global()->StartSpan(
-        "user_mmc_get_user_id_client",
-        {opentracing::ChildOf(&span->context())});
     user_id_mmc =
         memcached_get(memcached_client, (username + ":user_id").c_str(),
                       (username + ":user_id").length(), &user_id_size,
                       &memcached_flags, &memcached_rc);
-    id_get_span->Finish();
     if (!user_id_mmc && memcached_rc != MEMCACHED_NOTFOUND) {
       ServiceException se;
       se.errorCode = ErrorCode::SE_MEMCACHED_ERROR;
@@ -814,13 +716,10 @@ int64_t UserHandler::GetUserId(
     bson_t *query = bson_new();
     BSON_APPEND_UTF8(query, "username", username.c_str());
 
-    auto find_span = opentracing::Tracer::Global()->StartSpan(
-        "user_mongo_find_client", {opentracing::ChildOf(&span->context())});
     mongoc_cursor_t *cursor =
         mongoc_collection_find_with_opts(collection, query, nullptr, nullptr);
     const bson_t *doc;
     bool found = mongoc_cursor_next(cursor, &doc);
-    find_span->Finish();
     if (!found) {
       bson_error_t error;
       if (mongoc_cursor_error(cursor, &error)) {
@@ -876,13 +775,10 @@ int64_t UserHandler::GetUserId(
       LOG(warning) << "Failed to pop a client from memcached pool";
     } else {
       std::string user_id_str = std::to_string(user_id);
-      auto set_login_span = opentracing::Tracer::Global()->StartSpan(
-          "user_mmc_set_client", {opentracing::ChildOf(&span->context())});
       memcached_rc =
           memcached_set(memcached_client, (username + ":user_id").c_str(),
                         (username + ":user_id").length(), user_id_str.c_str(),
                         user_id_str.length(), 0, 0);
-      set_login_span->Finish();
       if (memcached_rc != MEMCACHED_SUCCESS) {
         LOG(warning) << "Failed to set the login info of user " << username
                      << " to Memcached: "
@@ -892,7 +788,6 @@ int64_t UserHandler::GetUserId(
     }
   }
 
-  span->Finish();
   return user_id;
 }
 

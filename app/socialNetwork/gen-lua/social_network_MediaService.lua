@@ -13,24 +13,23 @@ MediaServiceClient = __TObject.new(__TClient, {
   __type = 'MediaServiceClient'
 })
 
-function MediaServiceClient:ComposeMedia(req_id, media_types, media_ids, carrier)
-  self:send_ComposeMedia(req_id, media_types, media_ids, carrier)
-  return self:recv_ComposeMedia(req_id, media_types, media_ids, carrier)
+function MediaServiceClient:ComposeMedia(req_id, media_types, media_ids)
+  self:send_ComposeMedia(req_id, media_types, media_ids)
+  return self:recv_ComposeMedia(req_id, media_types, media_ids)
 end
 
-function MediaServiceClient:send_ComposeMedia(req_id, media_types, media_ids, carrier)
+function MediaServiceClient:send_ComposeMedia(req_id, media_types, media_ids)
   self.oprot:writeMessageBegin('ComposeMedia', TMessageType.CALL, self._seqid)
   local args = ComposeMedia_args:new{}
   args.req_id = req_id
   args.media_types = media_types
   args.media_ids = media_ids
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function MediaServiceClient:recv_ComposeMedia(req_id, media_types, media_ids, carrier)
+function MediaServiceClient:recv_ComposeMedia(req_id, media_types, media_ids)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -82,7 +81,7 @@ function MediaServiceProcessor:process_ComposeMedia(seqid, iprot, oprot, server_
   args:read(iprot)
   iprot:readMessageEnd()
   local result = ComposeMedia_result:new{}
-  local status, res = pcall(self.handler.ComposeMedia, self.handler, args.req_id, args.media_types, args.media_ids, args.carrier)
+  local status, res = pcall(self.handler.ComposeMedia, self.handler, args.req_id, args.media_types, args.media_ids)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -102,8 +101,7 @@ end
 ComposeMedia_args = __TObject:new{
   req_id,
   media_types,
-  media_ids,
-  carrier
+  media_ids
 }
 
 function ComposeMedia_args:read(iprot)
@@ -121,10 +119,10 @@ function ComposeMedia_args:read(iprot)
     elseif fid == 2 then
       if ftype == TType.LIST then
         self.media_types = {}
-        local _etype323, _size320 = iprot:readListBegin()
-        for _i=1,_size320 do
-          local _elem324 = iprot:readString()
-          table.insert(self.media_types, _elem324)
+        local _etype123, _size120 = iprot:readListBegin()
+        for _i=1,_size120 do
+          local _elem124 = iprot:readString()
+          table.insert(self.media_types, _elem124)
         end
         iprot:readListEnd()
       else
@@ -133,25 +131,12 @@ function ComposeMedia_args:read(iprot)
     elseif fid == 3 then
       if ftype == TType.LIST then
         self.media_ids = {}
-        local _etype328, _size325 = iprot:readListBegin()
-        for _i=1,_size325 do
-          local _elem329 = iprot:readI64()
-          table.insert(self.media_ids, _elem329)
+        local _etype128, _size125 = iprot:readListBegin()
+        for _i=1,_size125 do
+          local _elem129 = iprot:readI64()
+          table.insert(self.media_ids, _elem129)
         end
         iprot:readListEnd()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 4 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype331, _vtype332, _size330 = iprot:readMapBegin() 
-        for _i=1,_size330 do
-          local _key334 = iprot:readString()
-          local _val335 = iprot:readString()
-          self.carrier[_key334] = _val335
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -173,8 +158,8 @@ function ComposeMedia_args:write(oprot)
   if self.media_types ~= nil then
     oprot:writeFieldBegin('media_types', TType.LIST, 2)
     oprot:writeListBegin(TType.STRING, #self.media_types)
-    for _,iter336 in ipairs(self.media_types) do
-      oprot:writeString(iter336)
+    for _,iter130 in ipairs(self.media_types) do
+      oprot:writeString(iter130)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -182,20 +167,10 @@ function ComposeMedia_args:write(oprot)
   if self.media_ids ~= nil then
     oprot:writeFieldBegin('media_ids', TType.LIST, 3)
     oprot:writeListBegin(TType.I64, #self.media_ids)
-    for _,iter337 in ipairs(self.media_ids) do
-      oprot:writeI64(iter337)
+    for _,iter131 in ipairs(self.media_ids) do
+      oprot:writeI64(iter131)
     end
     oprot:writeListEnd()
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 4)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter338,viter339 in pairs(self.carrier) do
-      oprot:writeString(kiter338)
-      oprot:writeString(viter339)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()
@@ -216,11 +191,11 @@ function ComposeMedia_result:read(iprot)
     elseif fid == 0 then
       if ftype == TType.LIST then
         self.success = {}
-        local _etype343, _size340 = iprot:readListBegin()
-        for _i=1,_size340 do
-          local _elem344 = Media:new{}
-          _elem344:read(iprot)
-          table.insert(self.success, _elem344)
+        local _etype135, _size132 = iprot:readListBegin()
+        for _i=1,_size132 do
+          local _elem136 = Media:new{}
+          _elem136:read(iprot)
+          table.insert(self.success, _elem136)
         end
         iprot:readListEnd()
       else
@@ -246,8 +221,8 @@ function ComposeMedia_result:write(oprot)
   if self.success ~= nil then
     oprot:writeFieldBegin('success', TType.LIST, 0)
     oprot:writeListBegin(TType.STRUCT, #self.success)
-    for _,iter345 in ipairs(self.success) do
-      iter345:write(oprot)
+    for _,iter137 in ipairs(self.success) do
+      iter137:write(oprot)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()

@@ -7,7 +7,6 @@
 
 #include "../../gen-cpp/MediaService.h"
 #include "../logger.h"
-#include "../tracing.h"
 
 // 2018-01-01 00:00:00 UTC
 #define CUSTOM_EPOCH 1514764800000
@@ -21,8 +20,7 @@ class MediaHandler : public MediaServiceIf {
 
   void ComposeMedia(std::vector<Media> &_return, int64_t,
                     const std::vector<std::string> &,
-                    const std::vector<int64_t> &,
-                    const std::map<std::string, std::string> &) override;
+                    const std::vector<int64_t> &) override;
 
  private:
 };
@@ -30,17 +28,7 @@ class MediaHandler : public MediaServiceIf {
 void MediaHandler::ComposeMedia(
     std::vector<Media> &_return, int64_t req_id,
     const std::vector<std::string> &media_types,
-    const std::vector<int64_t> &media_ids,
-    const std::map<std::string, std::string> &carrier) {
-  // Initialize a span
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "compose_media_server", {opentracing::ChildOf(parent_span->get())});
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+    const std::vector<int64_t> &media_ids) {
   if (media_types.size() != media_ids.size()) {
     ServiceException se;
     se.errorCode = ErrorCode::SE_THRIFT_HANDLER_ERROR;
@@ -55,8 +43,6 @@ void MediaHandler::ComposeMedia(
     new_media.media_type = media_types[i];
     _return.emplace_back(new_media);
   }
-
-  span->Finish();
 }
 
 }  // namespace social_network

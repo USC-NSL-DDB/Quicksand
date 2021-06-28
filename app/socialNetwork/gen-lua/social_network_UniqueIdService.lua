@@ -13,23 +13,22 @@ UniqueIdServiceClient = __TObject.new(__TClient, {
   __type = 'UniqueIdServiceClient'
 })
 
-function UniqueIdServiceClient:ComposeUniqueId(req_id, post_type, carrier)
-  self:send_ComposeUniqueId(req_id, post_type, carrier)
-  return self:recv_ComposeUniqueId(req_id, post_type, carrier)
+function UniqueIdServiceClient:ComposeUniqueId(req_id, post_type)
+  self:send_ComposeUniqueId(req_id, post_type)
+  return self:recv_ComposeUniqueId(req_id, post_type)
 end
 
-function UniqueIdServiceClient:send_ComposeUniqueId(req_id, post_type, carrier)
+function UniqueIdServiceClient:send_ComposeUniqueId(req_id, post_type)
   self.oprot:writeMessageBegin('ComposeUniqueId', TMessageType.CALL, self._seqid)
   local args = ComposeUniqueId_args:new{}
   args.req_id = req_id
   args.post_type = post_type
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function UniqueIdServiceClient:recv_ComposeUniqueId(req_id, post_type, carrier)
+function UniqueIdServiceClient:recv_ComposeUniqueId(req_id, post_type)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -81,7 +80,7 @@ function UniqueIdServiceProcessor:process_ComposeUniqueId(seqid, iprot, oprot, s
   args:read(iprot)
   iprot:readMessageEnd()
   local result = ComposeUniqueId_result:new{}
-  local status, res = pcall(self.handler.ComposeUniqueId, self.handler, args.req_id, args.post_type, args.carrier)
+  local status, res = pcall(self.handler.ComposeUniqueId, self.handler, args.req_id, args.post_type)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -100,8 +99,7 @@ end
 
 ComposeUniqueId_args = __TObject:new{
   req_id,
-  post_type,
-  carrier
+  post_type
 }
 
 function ComposeUniqueId_args:read(iprot)
@@ -119,19 +117,6 @@ function ComposeUniqueId_args:read(iprot)
     elseif fid == 2 then
       if ftype == TType.I32 then
         self.post_type = iprot:readI32()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 3 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype31, _vtype32, _size30 = iprot:readMapBegin() 
-        for _i=1,_size30 do
-          local _key34 = iprot:readString()
-          local _val35 = iprot:readString()
-          self.carrier[_key34] = _val35
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -153,16 +138,6 @@ function ComposeUniqueId_args:write(oprot)
   if self.post_type ~= nil then
     oprot:writeFieldBegin('post_type', TType.I32, 2)
     oprot:writeI32(self.post_type)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 3)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter36,viter37 in pairs(self.carrier) do
-      oprot:writeString(kiter36)
-      oprot:writeString(viter37)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()

@@ -9,7 +9,6 @@ target_include_directories(
     UrlShortenService PRIVATE
     ${LIBMEMCACHED_INCLUDE_DIR}
     ${MONGOC_INCLUDE_DIRS}
-    /usr/local/include/jaegertracing
 )
 
 target_link_libraries(
@@ -22,7 +21,6 @@ target_link_libraries(
     ${Boost_LIBRARIES}
     Boost::log
     Boost::log_setup
-    jaegertracing
 )
 
 install(TARGETS UrlShortenService DESTINATION ./)

@@ -21,18 +21,18 @@ namespace social_network {
 class FrontEndProxyIf {
  public:
   virtual ~FrontEndProxyIf() {}
-  virtual void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier) = 0;
+  virtual void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
+  virtual void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) = 0;
+  virtual void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) = 0;
+  virtual void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) = 0;
+  virtual void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) = 0;
+  virtual void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) = 0;
+  virtual void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) = 0;
+  virtual void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) = 0;
+  virtual void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) = 0;
+  virtual void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) = 0;
+  virtual void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
+  virtual void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) = 0;
 };
 
 class FrontEndProxyIfFactory {
@@ -62,51 +62,50 @@ class FrontEndProxyIfSingletonFactory : virtual public FrontEndProxyIfFactory {
 class FrontEndProxyNull : virtual public FrontEndProxyIf {
  public:
   virtual ~FrontEndProxyNull() {}
-  void ReadHomeTimeline(std::vector<Post> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */, const std::map<std::string, std::string> & /* carrier */) {
+  void ReadHomeTimeline(std::vector<Post> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
     return;
   }
-  void ComposePost(const int64_t /* req_id */, const std::string& /* username */, const int64_t /* user_id */, const std::string& /* text */, const std::vector<int64_t> & /* media_ids */, const std::vector<std::string> & /* media_types */, const PostType::type /* post_type */, const std::map<std::string, std::string> & /* carrier */) {
+  void ComposePost(const int64_t /* req_id */, const std::string& /* username */, const int64_t /* user_id */, const std::string& /* text */, const std::vector<int64_t> & /* media_ids */, const std::vector<std::string> & /* media_types */, const PostType::type /* post_type */) {
     return;
   }
-  void GetFollowers(std::vector<int64_t> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const std::map<std::string, std::string> & /* carrier */) {
+  void GetFollowers(std::vector<int64_t> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */) {
     return;
   }
-  void Unfollow(const int64_t /* req_id */, const int64_t /* user_id */, const int64_t /* followee_id */, const std::map<std::string, std::string> & /* carrier */) {
+  void Unfollow(const int64_t /* req_id */, const int64_t /* user_id */, const int64_t /* followee_id */) {
     return;
   }
-  void UnfollowWithUsername(const int64_t /* req_id */, const std::string& /* user_usernmae */, const std::string& /* followee_username */, const std::map<std::string, std::string> & /* carrier */) {
+  void UnfollowWithUsername(const int64_t /* req_id */, const std::string& /* user_usernmae */, const std::string& /* followee_username */) {
     return;
   }
-  void Login(std::string& /* _return */, const int64_t /* req_id */, const std::string& /* username */, const std::string& /* password */, const std::map<std::string, std::string> & /* carrier */) {
+  void Login(std::string& /* _return */, const int64_t /* req_id */, const std::string& /* username */, const std::string& /* password */) {
     return;
   }
-  void Follow(const int64_t /* req_id */, const int64_t /* user_id */, const int64_t /* followee_id */, const std::map<std::string, std::string> & /* carrier */) {
+  void Follow(const int64_t /* req_id */, const int64_t /* user_id */, const int64_t /* followee_id */) {
     return;
   }
-  void FollowWithUsername(const int64_t /* req_id */, const std::string& /* user_usernmae */, const std::string& /* followee_username */, const std::map<std::string, std::string> & /* carrier */) {
+  void FollowWithUsername(const int64_t /* req_id */, const std::string& /* user_usernmae */, const std::string& /* followee_username */) {
     return;
   }
-  void RegisterUser(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */, const std::map<std::string, std::string> & /* carrier */) {
+  void RegisterUser(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */) {
     return;
   }
-  void GetFollowees(std::vector<int64_t> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const std::map<std::string, std::string> & /* carrier */) {
+  void GetFollowees(std::vector<int64_t> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */) {
     return;
   }
-  void ReadUserTimeline(std::vector<Post> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */, const std::map<std::string, std::string> & /* carrier */) {
+  void ReadUserTimeline(std::vector<Post> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
     return;
   }
-  void RegisterUserWithId(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */, const int64_t /* user_id */, const std::map<std::string, std::string> & /* carrier */) {
+  void RegisterUserWithId(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */, const int64_t /* user_id */) {
     return;
   }
 };
 
 typedef struct _FrontEndProxy_ReadHomeTimeline_args__isset {
-  _FrontEndProxy_ReadHomeTimeline_args__isset() : req_id(false), user_id(false), start(false), stop(false), carrier(false) {}
+  _FrontEndProxy_ReadHomeTimeline_args__isset() : req_id(false), user_id(false), start(false), stop(false) {}
   bool req_id :1;
   bool user_id :1;
   bool start :1;
   bool stop :1;
-  bool carrier :1;
 } _FrontEndProxy_ReadHomeTimeline_args__isset;
 
 class FrontEndProxy_ReadHomeTimeline_args {
@@ -122,7 +121,6 @@ class FrontEndProxy_ReadHomeTimeline_args {
   int64_t user_id;
   int32_t start;
   int32_t stop;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_ReadHomeTimeline_args__isset __isset;
 
@@ -134,8 +132,6 @@ class FrontEndProxy_ReadHomeTimeline_args {
 
   void __set_stop(const int32_t val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_ReadHomeTimeline_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -145,8 +141,6 @@ class FrontEndProxy_ReadHomeTimeline_args {
     if (!(start == rhs.start))
       return false;
     if (!(stop == rhs.stop))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -171,7 +165,6 @@ class FrontEndProxy_ReadHomeTimeline_pargs {
   const int64_t* user_id;
   const int32_t* start;
   const int32_t* stop;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -241,7 +234,7 @@ class FrontEndProxy_ReadHomeTimeline_presult {
 };
 
 typedef struct _FrontEndProxy_ComposePost_args__isset {
-  _FrontEndProxy_ComposePost_args__isset() : req_id(false), username(false), user_id(false), text(false), media_ids(false), media_types(false), post_type(false), carrier(false) {}
+  _FrontEndProxy_ComposePost_args__isset() : req_id(false), username(false), user_id(false), text(false), media_ids(false), media_types(false), post_type(false) {}
   bool req_id :1;
   bool username :1;
   bool user_id :1;
@@ -249,7 +242,6 @@ typedef struct _FrontEndProxy_ComposePost_args__isset {
   bool media_ids :1;
   bool media_types :1;
   bool post_type :1;
-  bool carrier :1;
 } _FrontEndProxy_ComposePost_args__isset;
 
 class FrontEndProxy_ComposePost_args {
@@ -268,7 +260,6 @@ class FrontEndProxy_ComposePost_args {
   std::vector<int64_t>  media_ids;
   std::vector<std::string>  media_types;
   PostType::type post_type;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_ComposePost_args__isset __isset;
 
@@ -286,8 +277,6 @@ class FrontEndProxy_ComposePost_args {
 
   void __set_post_type(const PostType::type val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_ComposePost_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -303,8 +292,6 @@ class FrontEndProxy_ComposePost_args {
     if (!(media_types == rhs.media_types))
       return false;
     if (!(post_type == rhs.post_type))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -332,7 +319,6 @@ class FrontEndProxy_ComposePost_pargs {
   const std::vector<int64_t> * media_ids;
   const std::vector<std::string> * media_types;
   const PostType::type* post_type;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -394,10 +380,9 @@ class FrontEndProxy_ComposePost_presult {
 };
 
 typedef struct _FrontEndProxy_GetFollowers_args__isset {
-  _FrontEndProxy_GetFollowers_args__isset() : req_id(false), user_id(false), carrier(false) {}
+  _FrontEndProxy_GetFollowers_args__isset() : req_id(false), user_id(false) {}
   bool req_id :1;
   bool user_id :1;
-  bool carrier :1;
 } _FrontEndProxy_GetFollowers_args__isset;
 
 class FrontEndProxy_GetFollowers_args {
@@ -411,7 +396,6 @@ class FrontEndProxy_GetFollowers_args {
   virtual ~FrontEndProxy_GetFollowers_args() throw();
   int64_t req_id;
   int64_t user_id;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_GetFollowers_args__isset __isset;
 
@@ -419,15 +403,11 @@ class FrontEndProxy_GetFollowers_args {
 
   void __set_user_id(const int64_t val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_GetFollowers_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
       return false;
     if (!(user_id == rhs.user_id))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -450,7 +430,6 @@ class FrontEndProxy_GetFollowers_pargs {
   virtual ~FrontEndProxy_GetFollowers_pargs() throw();
   const int64_t* req_id;
   const int64_t* user_id;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -520,11 +499,10 @@ class FrontEndProxy_GetFollowers_presult {
 };
 
 typedef struct _FrontEndProxy_Unfollow_args__isset {
-  _FrontEndProxy_Unfollow_args__isset() : req_id(false), user_id(false), followee_id(false), carrier(false) {}
+  _FrontEndProxy_Unfollow_args__isset() : req_id(false), user_id(false), followee_id(false) {}
   bool req_id :1;
   bool user_id :1;
   bool followee_id :1;
-  bool carrier :1;
 } _FrontEndProxy_Unfollow_args__isset;
 
 class FrontEndProxy_Unfollow_args {
@@ -539,7 +517,6 @@ class FrontEndProxy_Unfollow_args {
   int64_t req_id;
   int64_t user_id;
   int64_t followee_id;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_Unfollow_args__isset __isset;
 
@@ -549,8 +526,6 @@ class FrontEndProxy_Unfollow_args {
 
   void __set_followee_id(const int64_t val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_Unfollow_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -558,8 +533,6 @@ class FrontEndProxy_Unfollow_args {
     if (!(user_id == rhs.user_id))
       return false;
     if (!(followee_id == rhs.followee_id))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -583,7 +556,6 @@ class FrontEndProxy_Unfollow_pargs {
   const int64_t* req_id;
   const int64_t* user_id;
   const int64_t* followee_id;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -645,11 +617,10 @@ class FrontEndProxy_Unfollow_presult {
 };
 
 typedef struct _FrontEndProxy_UnfollowWithUsername_args__isset {
-  _FrontEndProxy_UnfollowWithUsername_args__isset() : req_id(false), user_usernmae(false), followee_username(false), carrier(false) {}
+  _FrontEndProxy_UnfollowWithUsername_args__isset() : req_id(false), user_usernmae(false), followee_username(false) {}
   bool req_id :1;
   bool user_usernmae :1;
   bool followee_username :1;
-  bool carrier :1;
 } _FrontEndProxy_UnfollowWithUsername_args__isset;
 
 class FrontEndProxy_UnfollowWithUsername_args {
@@ -664,7 +635,6 @@ class FrontEndProxy_UnfollowWithUsername_args {
   int64_t req_id;
   std::string user_usernmae;
   std::string followee_username;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_UnfollowWithUsername_args__isset __isset;
 
@@ -674,8 +644,6 @@ class FrontEndProxy_UnfollowWithUsername_args {
 
   void __set_followee_username(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_UnfollowWithUsername_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -683,8 +651,6 @@ class FrontEndProxy_UnfollowWithUsername_args {
     if (!(user_usernmae == rhs.user_usernmae))
       return false;
     if (!(followee_username == rhs.followee_username))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -708,7 +674,6 @@ class FrontEndProxy_UnfollowWithUsername_pargs {
   const int64_t* req_id;
   const std::string* user_usernmae;
   const std::string* followee_username;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -770,11 +735,10 @@ class FrontEndProxy_UnfollowWithUsername_presult {
 };
 
 typedef struct _FrontEndProxy_Login_args__isset {
-  _FrontEndProxy_Login_args__isset() : req_id(false), username(false), password(false), carrier(false) {}
+  _FrontEndProxy_Login_args__isset() : req_id(false), username(false), password(false) {}
   bool req_id :1;
   bool username :1;
   bool password :1;
-  bool carrier :1;
 } _FrontEndProxy_Login_args__isset;
 
 class FrontEndProxy_Login_args {
@@ -789,7 +753,6 @@ class FrontEndProxy_Login_args {
   int64_t req_id;
   std::string username;
   std::string password;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_Login_args__isset __isset;
 
@@ -799,8 +762,6 @@ class FrontEndProxy_Login_args {
 
   void __set_password(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_Login_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -808,8 +769,6 @@ class FrontEndProxy_Login_args {
     if (!(username == rhs.username))
       return false;
     if (!(password == rhs.password))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -833,7 +792,6 @@ class FrontEndProxy_Login_pargs {
   const int64_t* req_id;
   const std::string* username;
   const std::string* password;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -903,11 +861,10 @@ class FrontEndProxy_Login_presult {
 };
 
 typedef struct _FrontEndProxy_Follow_args__isset {
-  _FrontEndProxy_Follow_args__isset() : req_id(false), user_id(false), followee_id(false), carrier(false) {}
+  _FrontEndProxy_Follow_args__isset() : req_id(false), user_id(false), followee_id(false) {}
   bool req_id :1;
   bool user_id :1;
   bool followee_id :1;
-  bool carrier :1;
 } _FrontEndProxy_Follow_args__isset;
 
 class FrontEndProxy_Follow_args {
@@ -922,7 +879,6 @@ class FrontEndProxy_Follow_args {
   int64_t req_id;
   int64_t user_id;
   int64_t followee_id;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_Follow_args__isset __isset;
 
@@ -932,8 +888,6 @@ class FrontEndProxy_Follow_args {
 
   void __set_followee_id(const int64_t val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_Follow_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -941,8 +895,6 @@ class FrontEndProxy_Follow_args {
     if (!(user_id == rhs.user_id))
       return false;
     if (!(followee_id == rhs.followee_id))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -966,7 +918,6 @@ class FrontEndProxy_Follow_pargs {
   const int64_t* req_id;
   const int64_t* user_id;
   const int64_t* followee_id;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -1028,11 +979,10 @@ class FrontEndProxy_Follow_presult {
 };
 
 typedef struct _FrontEndProxy_FollowWithUsername_args__isset {
-  _FrontEndProxy_FollowWithUsername_args__isset() : req_id(false), user_usernmae(false), followee_username(false), carrier(false) {}
+  _FrontEndProxy_FollowWithUsername_args__isset() : req_id(false), user_usernmae(false), followee_username(false) {}
   bool req_id :1;
   bool user_usernmae :1;
   bool followee_username :1;
-  bool carrier :1;
 } _FrontEndProxy_FollowWithUsername_args__isset;
 
 class FrontEndProxy_FollowWithUsername_args {
@@ -1047,7 +997,6 @@ class FrontEndProxy_FollowWithUsername_args {
   int64_t req_id;
   std::string user_usernmae;
   std::string followee_username;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_FollowWithUsername_args__isset __isset;
 
@@ -1057,8 +1006,6 @@ class FrontEndProxy_FollowWithUsername_args {
 
   void __set_followee_username(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_FollowWithUsername_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -1066,8 +1013,6 @@ class FrontEndProxy_FollowWithUsername_args {
     if (!(user_usernmae == rhs.user_usernmae))
       return false;
     if (!(followee_username == rhs.followee_username))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -1091,7 +1036,6 @@ class FrontEndProxy_FollowWithUsername_pargs {
   const int64_t* req_id;
   const std::string* user_usernmae;
   const std::string* followee_username;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -1153,13 +1097,12 @@ class FrontEndProxy_FollowWithUsername_presult {
 };
 
 typedef struct _FrontEndProxy_RegisterUser_args__isset {
-  _FrontEndProxy_RegisterUser_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false), carrier(false) {}
+  _FrontEndProxy_RegisterUser_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false) {}
   bool req_id :1;
   bool first_name :1;
   bool last_name :1;
   bool username :1;
   bool password :1;
-  bool carrier :1;
 } _FrontEndProxy_RegisterUser_args__isset;
 
 class FrontEndProxy_RegisterUser_args {
@@ -1176,7 +1119,6 @@ class FrontEndProxy_RegisterUser_args {
   std::string last_name;
   std::string username;
   std::string password;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_RegisterUser_args__isset __isset;
 
@@ -1190,8 +1132,6 @@ class FrontEndProxy_RegisterUser_args {
 
   void __set_password(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_RegisterUser_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -1203,8 +1143,6 @@ class FrontEndProxy_RegisterUser_args {
     if (!(username == rhs.username))
       return false;
     if (!(password == rhs.password))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -1230,7 +1168,6 @@ class FrontEndProxy_RegisterUser_pargs {
   const std::string* last_name;
   const std::string* username;
   const std::string* password;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -1292,10 +1229,9 @@ class FrontEndProxy_RegisterUser_presult {
 };
 
 typedef struct _FrontEndProxy_GetFollowees_args__isset {
-  _FrontEndProxy_GetFollowees_args__isset() : req_id(false), user_id(false), carrier(false) {}
+  _FrontEndProxy_GetFollowees_args__isset() : req_id(false), user_id(false) {}
   bool req_id :1;
   bool user_id :1;
-  bool carrier :1;
 } _FrontEndProxy_GetFollowees_args__isset;
 
 class FrontEndProxy_GetFollowees_args {
@@ -1309,7 +1245,6 @@ class FrontEndProxy_GetFollowees_args {
   virtual ~FrontEndProxy_GetFollowees_args() throw();
   int64_t req_id;
   int64_t user_id;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_GetFollowees_args__isset __isset;
 
@@ -1317,15 +1252,11 @@ class FrontEndProxy_GetFollowees_args {
 
   void __set_user_id(const int64_t val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_GetFollowees_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
       return false;
     if (!(user_id == rhs.user_id))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -1348,7 +1279,6 @@ class FrontEndProxy_GetFollowees_pargs {
   virtual ~FrontEndProxy_GetFollowees_pargs() throw();
   const int64_t* req_id;
   const int64_t* user_id;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -1418,12 +1348,11 @@ class FrontEndProxy_GetFollowees_presult {
 };
 
 typedef struct _FrontEndProxy_ReadUserTimeline_args__isset {
-  _FrontEndProxy_ReadUserTimeline_args__isset() : req_id(false), user_id(false), start(false), stop(false), carrier(false) {}
+  _FrontEndProxy_ReadUserTimeline_args__isset() : req_id(false), user_id(false), start(false), stop(false) {}
   bool req_id :1;
   bool user_id :1;
   bool start :1;
   bool stop :1;
-  bool carrier :1;
 } _FrontEndProxy_ReadUserTimeline_args__isset;
 
 class FrontEndProxy_ReadUserTimeline_args {
@@ -1439,7 +1368,6 @@ class FrontEndProxy_ReadUserTimeline_args {
   int64_t user_id;
   int32_t start;
   int32_t stop;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_ReadUserTimeline_args__isset __isset;
 
@@ -1451,8 +1379,6 @@ class FrontEndProxy_ReadUserTimeline_args {
 
   void __set_stop(const int32_t val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_ReadUserTimeline_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -1462,8 +1388,6 @@ class FrontEndProxy_ReadUserTimeline_args {
     if (!(start == rhs.start))
       return false;
     if (!(stop == rhs.stop))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -1488,7 +1412,6 @@ class FrontEndProxy_ReadUserTimeline_pargs {
   const int64_t* user_id;
   const int32_t* start;
   const int32_t* stop;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -1558,14 +1481,13 @@ class FrontEndProxy_ReadUserTimeline_presult {
 };
 
 typedef struct _FrontEndProxy_RegisterUserWithId_args__isset {
-  _FrontEndProxy_RegisterUserWithId_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false), user_id(false), carrier(false) {}
+  _FrontEndProxy_RegisterUserWithId_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false), user_id(false) {}
   bool req_id :1;
   bool first_name :1;
   bool last_name :1;
   bool username :1;
   bool password :1;
   bool user_id :1;
-  bool carrier :1;
 } _FrontEndProxy_RegisterUserWithId_args__isset;
 
 class FrontEndProxy_RegisterUserWithId_args {
@@ -1583,7 +1505,6 @@ class FrontEndProxy_RegisterUserWithId_args {
   std::string username;
   std::string password;
   int64_t user_id;
-  std::map<std::string, std::string>  carrier;
 
   _FrontEndProxy_RegisterUserWithId_args__isset __isset;
 
@@ -1599,8 +1520,6 @@ class FrontEndProxy_RegisterUserWithId_args {
 
   void __set_user_id(const int64_t val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const FrontEndProxy_RegisterUserWithId_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -1614,8 +1533,6 @@ class FrontEndProxy_RegisterUserWithId_args {
     if (!(password == rhs.password))
       return false;
     if (!(user_id == rhs.user_id))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -1642,7 +1559,6 @@ class FrontEndProxy_RegisterUserWithId_pargs {
   const std::string* username;
   const std::string* password;
   const int64_t* user_id;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -1728,41 +1644,41 @@ class FrontEndProxyClient : virtual public FrontEndProxyIf {
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
-  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier);
-  void send_ReadHomeTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier);
+  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  void send_ReadHomeTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadHomeTimeline(std::vector<Post> & _return);
-  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier);
-  void send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier);
+  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
+  void send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
   void recv_ComposePost();
-  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier);
-  void send_GetFollowers(const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier);
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
+  void send_GetFollowers(const int64_t req_id, const int64_t user_id);
   void recv_GetFollowers(std::vector<int64_t> & _return);
-  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier);
-  void send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier);
+  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
   void recv_Unfollow();
-  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier);
-  void send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier);
+  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
   void recv_UnfollowWithUsername();
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
-  void send_Login(const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password);
+  void send_Login(const int64_t req_id, const std::string& username, const std::string& password);
   void recv_Login(std::string& _return);
-  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier);
-  void send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier);
+  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
   void recv_Follow();
-  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier);
-  void send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier);
+  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
   void recv_FollowWithUsername();
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
-  void send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  void send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
   void recv_RegisterUser();
-  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier);
-  void send_GetFollowees(const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier);
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
+  void send_GetFollowees(const int64_t req_id, const int64_t user_id);
   void recv_GetFollowees(std::vector<int64_t> & _return);
-  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier);
-  void send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier);
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  void send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadUserTimeline(std::vector<Post> & _return);
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier);
-  void send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier);
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  void send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
   void recv_RegisterUserWithId();
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
@@ -1834,117 +1750,117 @@ class FrontEndProxyMultiface : virtual public FrontEndProxyIf {
     ifaces_.push_back(iface);
   }
  public:
-  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier) {
+  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ReadHomeTimeline(_return, req_id, user_id, start, stop, carrier);
+      ifaces_[i]->ReadHomeTimeline(_return, req_id, user_id, start, stop);
     }
-    ifaces_[i]->ReadHomeTimeline(_return, req_id, user_id, start, stop, carrier);
+    ifaces_[i]->ReadHomeTimeline(_return, req_id, user_id, start, stop);
     return;
   }
 
-  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier) {
+  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type, carrier);
+      ifaces_[i]->ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type);
     }
-    ifaces_[i]->ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type, carrier);
+    ifaces_[i]->ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type);
   }
 
-  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier) {
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->GetFollowers(_return, req_id, user_id, carrier);
+      ifaces_[i]->GetFollowers(_return, req_id, user_id);
     }
-    ifaces_[i]->GetFollowers(_return, req_id, user_id, carrier);
+    ifaces_[i]->GetFollowers(_return, req_id, user_id);
     return;
   }
 
-  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier) {
+  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->Unfollow(req_id, user_id, followee_id, carrier);
+      ifaces_[i]->Unfollow(req_id, user_id, followee_id);
     }
-    ifaces_[i]->Unfollow(req_id, user_id, followee_id, carrier);
+    ifaces_[i]->Unfollow(req_id, user_id, followee_id);
   }
 
-  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier) {
+  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->UnfollowWithUsername(req_id, user_usernmae, followee_username, carrier);
+      ifaces_[i]->UnfollowWithUsername(req_id, user_usernmae, followee_username);
     }
-    ifaces_[i]->UnfollowWithUsername(req_id, user_usernmae, followee_username, carrier);
+    ifaces_[i]->UnfollowWithUsername(req_id, user_usernmae, followee_username);
   }
 
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) {
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->Login(_return, req_id, username, password, carrier);
+      ifaces_[i]->Login(_return, req_id, username, password);
     }
-    ifaces_[i]->Login(_return, req_id, username, password, carrier);
+    ifaces_[i]->Login(_return, req_id, username, password);
     return;
   }
 
-  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier) {
+  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->Follow(req_id, user_id, followee_id, carrier);
+      ifaces_[i]->Follow(req_id, user_id, followee_id);
     }
-    ifaces_[i]->Follow(req_id, user_id, followee_id, carrier);
+    ifaces_[i]->Follow(req_id, user_id, followee_id);
   }
 
-  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier) {
+  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->FollowWithUsername(req_id, user_usernmae, followee_username, carrier);
+      ifaces_[i]->FollowWithUsername(req_id, user_usernmae, followee_username);
     }
-    ifaces_[i]->FollowWithUsername(req_id, user_usernmae, followee_username, carrier);
+    ifaces_[i]->FollowWithUsername(req_id, user_usernmae, followee_username);
   }
 
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) {
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password, carrier);
+      ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password);
     }
-    ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password, carrier);
+    ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password);
   }
 
-  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier) {
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->GetFollowees(_return, req_id, user_id, carrier);
+      ifaces_[i]->GetFollowees(_return, req_id, user_id);
     }
-    ifaces_[i]->GetFollowees(_return, req_id, user_id, carrier);
+    ifaces_[i]->GetFollowees(_return, req_id, user_id);
     return;
   }
 
-  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier) {
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ReadUserTimeline(_return, req_id, user_id, start, stop, carrier);
+      ifaces_[i]->ReadUserTimeline(_return, req_id, user_id, start, stop);
     }
-    ifaces_[i]->ReadUserTimeline(_return, req_id, user_id, start, stop, carrier);
+    ifaces_[i]->ReadUserTimeline(_return, req_id, user_id, start, stop);
     return;
   }
 
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier) {
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier);
+      ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
     }
-    ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier);
+    ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
   }
 
 };
@@ -1977,41 +1893,41 @@ class FrontEndProxyConcurrentClient : virtual public FrontEndProxyIf {
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
-  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier);
-  int32_t send_ReadHomeTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier);
+  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  int32_t send_ReadHomeTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadHomeTimeline(std::vector<Post> & _return, const int32_t seqid);
-  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier);
-  int32_t send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier);
+  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
+  int32_t send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
   void recv_ComposePost(const int32_t seqid);
-  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier);
-  int32_t send_GetFollowers(const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier);
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
+  int32_t send_GetFollowers(const int64_t req_id, const int64_t user_id);
   void recv_GetFollowers(std::vector<int64_t> & _return, const int32_t seqid);
-  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier);
-  int32_t send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier);
+  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  int32_t send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
   void recv_Unfollow(const int32_t seqid);
-  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier);
-  int32_t send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier);
+  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  int32_t send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
   void recv_UnfollowWithUsername(const int32_t seqid);
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
-  int32_t send_Login(const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password);
+  int32_t send_Login(const int64_t req_id, const std::string& username, const std::string& password);
   void recv_Login(std::string& _return, const int32_t seqid);
-  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier);
-  int32_t send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier);
+  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  int32_t send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
   void recv_Follow(const int32_t seqid);
-  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier);
-  int32_t send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier);
+  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  int32_t send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
   void recv_FollowWithUsername(const int32_t seqid);
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
-  int32_t send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  int32_t send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
   void recv_RegisterUser(const int32_t seqid);
-  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier);
-  int32_t send_GetFollowees(const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier);
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
+  int32_t send_GetFollowees(const int64_t req_id, const int64_t user_id);
   void recv_GetFollowees(std::vector<int64_t> & _return, const int32_t seqid);
-  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier);
-  int32_t send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier);
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  int32_t send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadUserTimeline(std::vector<Post> & _return, const int32_t seqid);
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier);
-  int32_t send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier);
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  int32_t send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
   void recv_RegisterUserWithId(const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;

@@ -20,62 +20,62 @@ class FrontEndProxyHandler : virtual public FrontEndProxyIf {
     // Your initialization goes here
   }
 
-  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier) {
+  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
     // Your implementation goes here
     printf("ReadHomeTimeline\n");
   }
 
-  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type, const std::map<std::string, std::string> & carrier) {
+  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) {
     // Your implementation goes here
     printf("ComposePost\n");
   }
 
-  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier) {
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
     // Your implementation goes here
     printf("GetFollowers\n");
   }
 
-  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier) {
+  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
     // Your implementation goes here
     printf("Unfollow\n");
   }
 
-  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier) {
+  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
     // Your implementation goes here
     printf("UnfollowWithUsername\n");
   }
 
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) {
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) {
     // Your implementation goes here
     printf("Login\n");
   }
 
-  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id, const std::map<std::string, std::string> & carrier) {
+  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
     // Your implementation goes here
     printf("Follow\n");
   }
 
-  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username, const std::map<std::string, std::string> & carrier) {
+  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
     // Your implementation goes here
     printf("FollowWithUsername\n");
   }
 
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) {
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) {
     // Your implementation goes here
     printf("RegisterUser\n");
   }
 
-  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id, const std::map<std::string, std::string> & carrier) {
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
     // Your implementation goes here
     printf("GetFollowees\n");
   }
 
-  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop, const std::map<std::string, std::string> & carrier) {
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
     // Your implementation goes here
     printf("ReadUserTimeline\n");
   }
 
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier) {
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) {
     // Your implementation goes here
     printf("RegisterUserWithId\n");
   }

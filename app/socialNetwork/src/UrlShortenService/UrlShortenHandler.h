@@ -12,8 +12,6 @@
 
 #include "../../gen-cpp/UrlShortenService.h"
 #include "../../gen-cpp/social_network_types.h"
-#include "../logger.h"
-#include "../tracing.h"
 
 #define HOSTNAME "http://short-url/"
 
@@ -25,12 +23,10 @@ class UrlShortenHandler : public UrlShortenServiceIf {
   ~UrlShortenHandler() override = default;
 
   void ComposeUrls(std::vector<Url> &, int64_t,
-      const std::vector<std::string> &,
-      const std::map<std::string, std::string> &) override;
+      const std::vector<std::string> &) override;
 
   void GetExtendedUrls(std::vector<std::string> &, int64_t,
-                       const std::vector<std::string> &,
-                       const std::map<std::string, std::string> &) override ;
+                       const std::vector<std::string> &) override;
 
  private:
   memcached_pool_st *_memcached_client_pool;
@@ -65,22 +61,8 @@ std::string UrlShortenHandler::_GenRandomStr(int length) {
   _thread_lock->unlock();
   return return_str;
 }
-void UrlShortenHandler::ComposeUrls(
-    std::vector<Url> &_return,
-    int64_t req_id,
-    const std::vector<std::string> &urls,
-    const std::map<std::string, std::string> &carrier) {
-
-  // Initialize a span
-  TextMapReader reader(carrier);
-  std::map<std::string, std::string> writer_text_map;
-  TextMapWriter writer(writer_text_map);
-  auto parent_span = opentracing::Tracer::Global()->Extract(reader);
-  auto span = opentracing::Tracer::Global()->StartSpan(
-      "compose_urls_server",
-      { opentracing::ChildOf(parent_span->get()) });
-  opentracing::Tracer::Global()->Inject(span->context(), writer);
-
+void UrlShortenHandler::ComposeUrls(std::vector<Url> &_return, int64_t req_id,
+                                    const std::vector<std::string> &urls) {
   std::vector<Url> target_urls;
   std::future<void> mongo_future;
 
@@ -113,10 +95,6 @@ void UrlShortenHandler::ComposeUrls(
             throw se;
           }
 
-          auto mongo_span = opentracing::Tracer::Global()->StartSpan(
-              "url_mongo_insert_client",
-              { opentracing::ChildOf(&span->context()) });
-
           mongoc_bulk_operation_t *bulk;
           bson_t *doc;
           bson_error_t error;
@@ -147,7 +125,6 @@ void UrlShortenHandler::ComposeUrls(
           mongoc_bulk_operation_destroy(bulk);
           mongoc_collection_destroy(collection);
           mongoc_client_pool_push(_mongodb_client_pool, mongodb_client);
-          mongo_span->Finish();
         });
 
   }
@@ -162,15 +139,12 @@ void UrlShortenHandler::ComposeUrls(
   }
 
   _return = target_urls;
-  span->Finish();
-
 }
 
 void UrlShortenHandler::GetExtendedUrls(
     std::vector<std::string> &_return,
     int64_t req_id,
-    const std::vector<std::string> &shortened_id,
-    const std::map<std::string, std::string> &carrier) {
+    const std::vector<std::string> &shortened_id) {
 
   // TODO: Implement GetExtendedUrls
 }

@@ -13,23 +13,22 @@ TextServiceClient = __TObject.new(__TClient, {
   __type = 'TextServiceClient'
 })
 
-function TextServiceClient:ComposeText(req_id, text, carrier)
-  self:send_ComposeText(req_id, text, carrier)
-  return self:recv_ComposeText(req_id, text, carrier)
+function TextServiceClient:ComposeText(req_id, text)
+  self:send_ComposeText(req_id, text)
+  return self:recv_ComposeText(req_id, text)
 end
 
-function TextServiceClient:send_ComposeText(req_id, text, carrier)
+function TextServiceClient:send_ComposeText(req_id, text)
   self.oprot:writeMessageBegin('ComposeText', TMessageType.CALL, self._seqid)
   local args = ComposeText_args:new{}
   args.req_id = req_id
   args.text = text
-  args.carrier = carrier
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function TextServiceClient:recv_ComposeText(req_id, text, carrier)
+function TextServiceClient:recv_ComposeText(req_id, text)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -81,7 +80,7 @@ function TextServiceProcessor:process_ComposeText(seqid, iprot, oprot, server_ct
   args:read(iprot)
   iprot:readMessageEnd()
   local result = ComposeText_result:new{}
-  local status, res = pcall(self.handler.ComposeText, self.handler, args.req_id, args.text, args.carrier)
+  local status, res = pcall(self.handler.ComposeText, self.handler, args.req_id, args.text)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -100,8 +99,7 @@ end
 
 ComposeText_args = __TObject:new{
   req_id,
-  text,
-  carrier
+  text
 }
 
 function ComposeText_args:read(iprot)
@@ -119,19 +117,6 @@ function ComposeText_args:read(iprot)
     elseif fid == 2 then
       if ftype == TType.STRING then
         self.text = iprot:readString()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 3 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype39, _vtype40, _size38 = iprot:readMapBegin() 
-        for _i=1,_size38 do
-          local _key42 = iprot:readString()
-          local _val43 = iprot:readString()
-          self.carrier[_key42] = _val43
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -153,16 +138,6 @@ function ComposeText_args:write(oprot)
   if self.text ~= nil then
     oprot:writeFieldBegin('text', TType.STRING, 2)
     oprot:writeString(self.text)
-    oprot:writeFieldEnd()
-  end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 3)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter44,viter45 in pairs(self.carrier) do
-      oprot:writeString(kiter44)
-      oprot:writeString(viter45)
-    end
-    oprot:writeMapEnd()
     oprot:writeFieldEnd()
   end
   oprot:writeFieldStop()

@@ -21,12 +21,12 @@ namespace social_network {
 class UserServiceIf {
  public:
   virtual ~UserServiceIf() {}
-  virtual void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void ComposeCreatorWithUserId(Creator& _return, const int64_t req_id, const int64_t user_id, const std::string& username, const std::map<std::string, std::string> & carrier) = 0;
-  virtual void ComposeCreatorWithUsername(Creator& _return, const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier) = 0;
-  virtual int64_t GetUserId(const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier) = 0;
+  virtual void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) = 0;
+  virtual void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) = 0;
+  virtual void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) = 0;
+  virtual void ComposeCreatorWithUserId(Creator& _return, const int64_t req_id, const int64_t user_id, const std::string& username) = 0;
+  virtual void ComposeCreatorWithUsername(Creator& _return, const int64_t req_id, const std::string& username) = 0;
+  virtual int64_t GetUserId(const int64_t req_id, const std::string& username) = 0;
 };
 
 class UserServiceIfFactory {
@@ -56,35 +56,34 @@ class UserServiceIfSingletonFactory : virtual public UserServiceIfFactory {
 class UserServiceNull : virtual public UserServiceIf {
  public:
   virtual ~UserServiceNull() {}
-  void RegisterUser(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */, const std::map<std::string, std::string> & /* carrier */) {
+  void RegisterUser(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */) {
     return;
   }
-  void RegisterUserWithId(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */, const int64_t /* user_id */, const std::map<std::string, std::string> & /* carrier */) {
+  void RegisterUserWithId(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */, const int64_t /* user_id */) {
     return;
   }
-  void Login(std::string& /* _return */, const int64_t /* req_id */, const std::string& /* username */, const std::string& /* password */, const std::map<std::string, std::string> & /* carrier */) {
+  void Login(std::string& /* _return */, const int64_t /* req_id */, const std::string& /* username */, const std::string& /* password */) {
     return;
   }
-  void ComposeCreatorWithUserId(Creator& /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const std::string& /* username */, const std::map<std::string, std::string> & /* carrier */) {
+  void ComposeCreatorWithUserId(Creator& /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const std::string& /* username */) {
     return;
   }
-  void ComposeCreatorWithUsername(Creator& /* _return */, const int64_t /* req_id */, const std::string& /* username */, const std::map<std::string, std::string> & /* carrier */) {
+  void ComposeCreatorWithUsername(Creator& /* _return */, const int64_t /* req_id */, const std::string& /* username */) {
     return;
   }
-  int64_t GetUserId(const int64_t /* req_id */, const std::string& /* username */, const std::map<std::string, std::string> & /* carrier */) {
+  int64_t GetUserId(const int64_t /* req_id */, const std::string& /* username */) {
     int64_t _return = 0;
     return _return;
   }
 };
 
 typedef struct _UserService_RegisterUser_args__isset {
-  _UserService_RegisterUser_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false), carrier(false) {}
+  _UserService_RegisterUser_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false) {}
   bool req_id :1;
   bool first_name :1;
   bool last_name :1;
   bool username :1;
   bool password :1;
-  bool carrier :1;
 } _UserService_RegisterUser_args__isset;
 
 class UserService_RegisterUser_args {
@@ -101,7 +100,6 @@ class UserService_RegisterUser_args {
   std::string last_name;
   std::string username;
   std::string password;
-  std::map<std::string, std::string>  carrier;
 
   _UserService_RegisterUser_args__isset __isset;
 
@@ -115,8 +113,6 @@ class UserService_RegisterUser_args {
 
   void __set_password(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const UserService_RegisterUser_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -128,8 +124,6 @@ class UserService_RegisterUser_args {
     if (!(username == rhs.username))
       return false;
     if (!(password == rhs.password))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -155,7 +149,6 @@ class UserService_RegisterUser_pargs {
   const std::string* last_name;
   const std::string* username;
   const std::string* password;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -217,14 +210,13 @@ class UserService_RegisterUser_presult {
 };
 
 typedef struct _UserService_RegisterUserWithId_args__isset {
-  _UserService_RegisterUserWithId_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false), user_id(false), carrier(false) {}
+  _UserService_RegisterUserWithId_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false), user_id(false) {}
   bool req_id :1;
   bool first_name :1;
   bool last_name :1;
   bool username :1;
   bool password :1;
   bool user_id :1;
-  bool carrier :1;
 } _UserService_RegisterUserWithId_args__isset;
 
 class UserService_RegisterUserWithId_args {
@@ -242,7 +234,6 @@ class UserService_RegisterUserWithId_args {
   std::string username;
   std::string password;
   int64_t user_id;
-  std::map<std::string, std::string>  carrier;
 
   _UserService_RegisterUserWithId_args__isset __isset;
 
@@ -258,8 +249,6 @@ class UserService_RegisterUserWithId_args {
 
   void __set_user_id(const int64_t val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const UserService_RegisterUserWithId_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -273,8 +262,6 @@ class UserService_RegisterUserWithId_args {
     if (!(password == rhs.password))
       return false;
     if (!(user_id == rhs.user_id))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -301,7 +288,6 @@ class UserService_RegisterUserWithId_pargs {
   const std::string* username;
   const std::string* password;
   const int64_t* user_id;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -363,11 +349,10 @@ class UserService_RegisterUserWithId_presult {
 };
 
 typedef struct _UserService_Login_args__isset {
-  _UserService_Login_args__isset() : req_id(false), username(false), password(false), carrier(false) {}
+  _UserService_Login_args__isset() : req_id(false), username(false), password(false) {}
   bool req_id :1;
   bool username :1;
   bool password :1;
-  bool carrier :1;
 } _UserService_Login_args__isset;
 
 class UserService_Login_args {
@@ -382,7 +367,6 @@ class UserService_Login_args {
   int64_t req_id;
   std::string username;
   std::string password;
-  std::map<std::string, std::string>  carrier;
 
   _UserService_Login_args__isset __isset;
 
@@ -392,8 +376,6 @@ class UserService_Login_args {
 
   void __set_password(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const UserService_Login_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -401,8 +383,6 @@ class UserService_Login_args {
     if (!(username == rhs.username))
       return false;
     if (!(password == rhs.password))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -426,7 +406,6 @@ class UserService_Login_pargs {
   const int64_t* req_id;
   const std::string* username;
   const std::string* password;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -496,11 +475,10 @@ class UserService_Login_presult {
 };
 
 typedef struct _UserService_ComposeCreatorWithUserId_args__isset {
-  _UserService_ComposeCreatorWithUserId_args__isset() : req_id(false), user_id(false), username(false), carrier(false) {}
+  _UserService_ComposeCreatorWithUserId_args__isset() : req_id(false), user_id(false), username(false) {}
   bool req_id :1;
   bool user_id :1;
   bool username :1;
-  bool carrier :1;
 } _UserService_ComposeCreatorWithUserId_args__isset;
 
 class UserService_ComposeCreatorWithUserId_args {
@@ -515,7 +493,6 @@ class UserService_ComposeCreatorWithUserId_args {
   int64_t req_id;
   int64_t user_id;
   std::string username;
-  std::map<std::string, std::string>  carrier;
 
   _UserService_ComposeCreatorWithUserId_args__isset __isset;
 
@@ -525,8 +502,6 @@ class UserService_ComposeCreatorWithUserId_args {
 
   void __set_username(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const UserService_ComposeCreatorWithUserId_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
@@ -534,8 +509,6 @@ class UserService_ComposeCreatorWithUserId_args {
     if (!(user_id == rhs.user_id))
       return false;
     if (!(username == rhs.username))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -559,7 +532,6 @@ class UserService_ComposeCreatorWithUserId_pargs {
   const int64_t* req_id;
   const int64_t* user_id;
   const std::string* username;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -629,10 +601,9 @@ class UserService_ComposeCreatorWithUserId_presult {
 };
 
 typedef struct _UserService_ComposeCreatorWithUsername_args__isset {
-  _UserService_ComposeCreatorWithUsername_args__isset() : req_id(false), username(false), carrier(false) {}
+  _UserService_ComposeCreatorWithUsername_args__isset() : req_id(false), username(false) {}
   bool req_id :1;
   bool username :1;
-  bool carrier :1;
 } _UserService_ComposeCreatorWithUsername_args__isset;
 
 class UserService_ComposeCreatorWithUsername_args {
@@ -646,7 +617,6 @@ class UserService_ComposeCreatorWithUsername_args {
   virtual ~UserService_ComposeCreatorWithUsername_args() throw();
   int64_t req_id;
   std::string username;
-  std::map<std::string, std::string>  carrier;
 
   _UserService_ComposeCreatorWithUsername_args__isset __isset;
 
@@ -654,15 +624,11 @@ class UserService_ComposeCreatorWithUsername_args {
 
   void __set_username(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const UserService_ComposeCreatorWithUsername_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
       return false;
     if (!(username == rhs.username))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -685,7 +651,6 @@ class UserService_ComposeCreatorWithUsername_pargs {
   virtual ~UserService_ComposeCreatorWithUsername_pargs() throw();
   const int64_t* req_id;
   const std::string* username;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -755,10 +720,9 @@ class UserService_ComposeCreatorWithUsername_presult {
 };
 
 typedef struct _UserService_GetUserId_args__isset {
-  _UserService_GetUserId_args__isset() : req_id(false), username(false), carrier(false) {}
+  _UserService_GetUserId_args__isset() : req_id(false), username(false) {}
   bool req_id :1;
   bool username :1;
-  bool carrier :1;
 } _UserService_GetUserId_args__isset;
 
 class UserService_GetUserId_args {
@@ -772,7 +736,6 @@ class UserService_GetUserId_args {
   virtual ~UserService_GetUserId_args() throw();
   int64_t req_id;
   std::string username;
-  std::map<std::string, std::string>  carrier;
 
   _UserService_GetUserId_args__isset __isset;
 
@@ -780,15 +743,11 @@ class UserService_GetUserId_args {
 
   void __set_username(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const UserService_GetUserId_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
       return false;
     if (!(username == rhs.username))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -811,7 +770,6 @@ class UserService_GetUserId_pargs {
   virtual ~UserService_GetUserId_pargs() throw();
   const int64_t* req_id;
   const std::string* username;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -905,23 +863,23 @@ class UserServiceClient : virtual public UserServiceIf {
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
-  void send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  void send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
   void recv_RegisterUser();
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier);
-  void send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier);
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  void send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
   void recv_RegisterUserWithId();
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
-  void send_Login(const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password);
+  void send_Login(const int64_t req_id, const std::string& username, const std::string& password);
   void recv_Login(std::string& _return);
-  void ComposeCreatorWithUserId(Creator& _return, const int64_t req_id, const int64_t user_id, const std::string& username, const std::map<std::string, std::string> & carrier);
-  void send_ComposeCreatorWithUserId(const int64_t req_id, const int64_t user_id, const std::string& username, const std::map<std::string, std::string> & carrier);
+  void ComposeCreatorWithUserId(Creator& _return, const int64_t req_id, const int64_t user_id, const std::string& username);
+  void send_ComposeCreatorWithUserId(const int64_t req_id, const int64_t user_id, const std::string& username);
   void recv_ComposeCreatorWithUserId(Creator& _return);
-  void ComposeCreatorWithUsername(Creator& _return, const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier);
-  void send_ComposeCreatorWithUsername(const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier);
+  void ComposeCreatorWithUsername(Creator& _return, const int64_t req_id, const std::string& username);
+  void send_ComposeCreatorWithUsername(const int64_t req_id, const std::string& username);
   void recv_ComposeCreatorWithUsername(Creator& _return);
-  int64_t GetUserId(const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier);
-  void send_GetUserId(const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier);
+  int64_t GetUserId(const int64_t req_id, const std::string& username);
+  void send_GetUserId(const int64_t req_id, const std::string& username);
   int64_t recv_GetUserId();
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
@@ -981,61 +939,61 @@ class UserServiceMultiface : virtual public UserServiceIf {
     ifaces_.push_back(iface);
   }
  public:
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) {
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password, carrier);
+      ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password);
     }
-    ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password, carrier);
+    ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password);
   }
 
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier) {
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier);
+      ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
     }
-    ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier);
+    ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
   }
 
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier) {
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->Login(_return, req_id, username, password, carrier);
+      ifaces_[i]->Login(_return, req_id, username, password);
     }
-    ifaces_[i]->Login(_return, req_id, username, password, carrier);
+    ifaces_[i]->Login(_return, req_id, username, password);
     return;
   }
 
-  void ComposeCreatorWithUserId(Creator& _return, const int64_t req_id, const int64_t user_id, const std::string& username, const std::map<std::string, std::string> & carrier) {
+  void ComposeCreatorWithUserId(Creator& _return, const int64_t req_id, const int64_t user_id, const std::string& username) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ComposeCreatorWithUserId(_return, req_id, user_id, username, carrier);
+      ifaces_[i]->ComposeCreatorWithUserId(_return, req_id, user_id, username);
     }
-    ifaces_[i]->ComposeCreatorWithUserId(_return, req_id, user_id, username, carrier);
+    ifaces_[i]->ComposeCreatorWithUserId(_return, req_id, user_id, username);
     return;
   }
 
-  void ComposeCreatorWithUsername(Creator& _return, const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier) {
+  void ComposeCreatorWithUsername(Creator& _return, const int64_t req_id, const std::string& username) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ComposeCreatorWithUsername(_return, req_id, username, carrier);
+      ifaces_[i]->ComposeCreatorWithUsername(_return, req_id, username);
     }
-    ifaces_[i]->ComposeCreatorWithUsername(_return, req_id, username, carrier);
+    ifaces_[i]->ComposeCreatorWithUsername(_return, req_id, username);
     return;
   }
 
-  int64_t GetUserId(const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier) {
+  int64_t GetUserId(const int64_t req_id, const std::string& username) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->GetUserId(req_id, username, carrier);
+      ifaces_[i]->GetUserId(req_id, username);
     }
-    return ifaces_[i]->GetUserId(req_id, username, carrier);
+    return ifaces_[i]->GetUserId(req_id, username);
   }
 
 };
@@ -1068,23 +1026,23 @@ class UserServiceConcurrentClient : virtual public UserServiceIf {
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
-  int32_t send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  int32_t send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
   void recv_RegisterUser(const int32_t seqid);
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier);
-  int32_t send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id, const std::map<std::string, std::string> & carrier);
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  int32_t send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
   void recv_RegisterUserWithId(const int32_t seqid);
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
-  int32_t send_Login(const int64_t req_id, const std::string& username, const std::string& password, const std::map<std::string, std::string> & carrier);
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password);
+  int32_t send_Login(const int64_t req_id, const std::string& username, const std::string& password);
   void recv_Login(std::string& _return, const int32_t seqid);
-  void ComposeCreatorWithUserId(Creator& _return, const int64_t req_id, const int64_t user_id, const std::string& username, const std::map<std::string, std::string> & carrier);
-  int32_t send_ComposeCreatorWithUserId(const int64_t req_id, const int64_t user_id, const std::string& username, const std::map<std::string, std::string> & carrier);
+  void ComposeCreatorWithUserId(Creator& _return, const int64_t req_id, const int64_t user_id, const std::string& username);
+  int32_t send_ComposeCreatorWithUserId(const int64_t req_id, const int64_t user_id, const std::string& username);
   void recv_ComposeCreatorWithUserId(Creator& _return, const int32_t seqid);
-  void ComposeCreatorWithUsername(Creator& _return, const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier);
-  int32_t send_ComposeCreatorWithUsername(const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier);
+  void ComposeCreatorWithUsername(Creator& _return, const int64_t req_id, const std::string& username);
+  int32_t send_ComposeCreatorWithUsername(const int64_t req_id, const std::string& username);
   void recv_ComposeCreatorWithUsername(Creator& _return, const int32_t seqid);
-  int64_t GetUserId(const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier);
-  int32_t send_GetUserId(const int64_t req_id, const std::string& username, const std::map<std::string, std::string> & carrier);
+  int64_t GetUserId(const int64_t req_id, const std::string& username);
+  int32_t send_GetUserId(const int64_t req_id, const std::string& username);
   int64_t recv_GetUserId(const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;

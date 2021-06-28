@@ -9,7 +9,6 @@
 #include "../../gen-cpp/social_network_types.h"
 #include "../ClientPool.h"
 #include "../logger.h"
-#include "../tracing.h"
 #include "../utils.h"
 #include "../utils_mongodb.h"
 #include "../utils_redis.h"
@@ -27,7 +26,6 @@ void sigintHandler(int sig) { exit(EXIT_SUCCESS); }
 int main(int argc, char *argv[]) {
   signal(SIGINT, sigintHandler);
   init_logger();
-  SetUpTracer("config/jaeger-config.yml", "user-timeline-service");
 
   json config_json;
   if (load_config_file("config/service-config.json", &config_json) != 0) {

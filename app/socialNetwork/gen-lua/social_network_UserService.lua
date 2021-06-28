@@ -6,28 +6,375 @@
 --
 
 
-local Thrift = require 'Thrift'
-local TType = Thrift.TType
-local TMessageType = Thrift.TMessageType
-local __TObject = Thrift.__TObject
-local TApplicationException = Thrift.TApplicationException
-local __TClient = Thrift.__TClient
-local __TProcessor = Thrift.__TProcessor
-local ttype = Thrift.ttype
-local ttable_size = Thrift.ttable_size
-local social_network_ttypes = require 'social_network_ttypes'
-local ServiceException = social_network_ttypes.ServiceException
-local Creator = social_network_ttypes.Creator
+require 'Thrift'
+require 'social_network_ttypes'
+
+UserServiceClient = __TObject.new(__TClient, {
+  __type = 'UserServiceClient'
+})
+
+function UserServiceClient:RegisterUser(req_id, first_name, last_name, username, password)
+  self:send_RegisterUser(req_id, first_name, last_name, username, password)
+  self:recv_RegisterUser(req_id, first_name, last_name, username, password)
+end
+
+function UserServiceClient:send_RegisterUser(req_id, first_name, last_name, username, password)
+  self.oprot:writeMessageBegin('RegisterUser', TMessageType.CALL, self._seqid)
+  local args = RegisterUser_args:new{}
+  args.req_id = req_id
+  args.first_name = first_name
+  args.last_name = last_name
+  args.username = username
+  args.password = password
+  args:write(self.oprot)
+  self.oprot:writeMessageEnd()
+  self.oprot.trans:flush()
+end
+
+function UserServiceClient:recv_RegisterUser(req_id, first_name, last_name, username, password)
+  local fname, mtype, rseqid = self.iprot:readMessageBegin()
+  if mtype == TMessageType.EXCEPTION then
+    local x = TApplicationException:new{}
+    x:read(self.iprot)
+    self.iprot:readMessageEnd()
+    error(x)
+  end
+  local result = RegisterUser_result:new{}
+  result:read(self.iprot)
+  self.iprot:readMessageEnd()
+end
+
+function UserServiceClient:RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+  self:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+  self:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+end
+
+function UserServiceClient:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+  self.oprot:writeMessageBegin('RegisterUserWithId', TMessageType.CALL, self._seqid)
+  local args = RegisterUserWithId_args:new{}
+  args.req_id = req_id
+  args.first_name = first_name
+  args.last_name = last_name
+  args.username = username
+  args.password = password
+  args.user_id = user_id
+  args:write(self.oprot)
+  self.oprot:writeMessageEnd()
+  self.oprot.trans:flush()
+end
+
+function UserServiceClient:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+  local fname, mtype, rseqid = self.iprot:readMessageBegin()
+  if mtype == TMessageType.EXCEPTION then
+    local x = TApplicationException:new{}
+    x:read(self.iprot)
+    self.iprot:readMessageEnd()
+    error(x)
+  end
+  local result = RegisterUserWithId_result:new{}
+  result:read(self.iprot)
+  self.iprot:readMessageEnd()
+end
+
+function UserServiceClient:Login(req_id, username, password)
+  self:send_Login(req_id, username, password)
+  return self:recv_Login(req_id, username, password)
+end
+
+function UserServiceClient:send_Login(req_id, username, password)
+  self.oprot:writeMessageBegin('Login', TMessageType.CALL, self._seqid)
+  local args = Login_args:new{}
+  args.req_id = req_id
+  args.username = username
+  args.password = password
+  args:write(self.oprot)
+  self.oprot:writeMessageEnd()
+  self.oprot.trans:flush()
+end
+
+function UserServiceClient:recv_Login(req_id, username, password)
+  local fname, mtype, rseqid = self.iprot:readMessageBegin()
+  if mtype == TMessageType.EXCEPTION then
+    local x = TApplicationException:new{}
+    x:read(self.iprot)
+    self.iprot:readMessageEnd()
+    error(x)
+  end
+  local result = Login_result:new{}
+  result:read(self.iprot)
+  self.iprot:readMessageEnd()
+  if result.success ~= nil then
+    return result.success
+  elseif result.se then
+    error(result.se)
+  end
+  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
+end
+
+function UserServiceClient:ComposeCreatorWithUserId(req_id, user_id, username)
+  self:send_ComposeCreatorWithUserId(req_id, user_id, username)
+  return self:recv_ComposeCreatorWithUserId(req_id, user_id, username)
+end
+
+function UserServiceClient:send_ComposeCreatorWithUserId(req_id, user_id, username)
+  self.oprot:writeMessageBegin('ComposeCreatorWithUserId', TMessageType.CALL, self._seqid)
+  local args = ComposeCreatorWithUserId_args:new{}
+  args.req_id = req_id
+  args.user_id = user_id
+  args.username = username
+  args:write(self.oprot)
+  self.oprot:writeMessageEnd()
+  self.oprot.trans:flush()
+end
+
+function UserServiceClient:recv_ComposeCreatorWithUserId(req_id, user_id, username)
+  local fname, mtype, rseqid = self.iprot:readMessageBegin()
+  if mtype == TMessageType.EXCEPTION then
+    local x = TApplicationException:new{}
+    x:read(self.iprot)
+    self.iprot:readMessageEnd()
+    error(x)
+  end
+  local result = ComposeCreatorWithUserId_result:new{}
+  result:read(self.iprot)
+  self.iprot:readMessageEnd()
+  if result.success ~= nil then
+    return result.success
+  elseif result.se then
+    error(result.se)
+  end
+  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
+end
+
+function UserServiceClient:ComposeCreatorWithUsername(req_id, username)
+  self:send_ComposeCreatorWithUsername(req_id, username)
+  return self:recv_ComposeCreatorWithUsername(req_id, username)
+end
+
+function UserServiceClient:send_ComposeCreatorWithUsername(req_id, username)
+  self.oprot:writeMessageBegin('ComposeCreatorWithUsername', TMessageType.CALL, self._seqid)
+  local args = ComposeCreatorWithUsername_args:new{}
+  args.req_id = req_id
+  args.username = username
+  args:write(self.oprot)
+  self.oprot:writeMessageEnd()
+  self.oprot.trans:flush()
+end
+
+function UserServiceClient:recv_ComposeCreatorWithUsername(req_id, username)
+  local fname, mtype, rseqid = self.iprot:readMessageBegin()
+  if mtype == TMessageType.EXCEPTION then
+    local x = TApplicationException:new{}
+    x:read(self.iprot)
+    self.iprot:readMessageEnd()
+    error(x)
+  end
+  local result = ComposeCreatorWithUsername_result:new{}
+  result:read(self.iprot)
+  self.iprot:readMessageEnd()
+  if result.success ~= nil then
+    return result.success
+  elseif result.se then
+    error(result.se)
+  end
+  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
+end
+
+function UserServiceClient:GetUserId(req_id, username)
+  self:send_GetUserId(req_id, username)
+  return self:recv_GetUserId(req_id, username)
+end
+
+function UserServiceClient:send_GetUserId(req_id, username)
+  self.oprot:writeMessageBegin('GetUserId', TMessageType.CALL, self._seqid)
+  local args = GetUserId_args:new{}
+  args.req_id = req_id
+  args.username = username
+  args:write(self.oprot)
+  self.oprot:writeMessageEnd()
+  self.oprot.trans:flush()
+end
+
+function UserServiceClient:recv_GetUserId(req_id, username)
+  local fname, mtype, rseqid = self.iprot:readMessageBegin()
+  if mtype == TMessageType.EXCEPTION then
+    local x = TApplicationException:new{}
+    x:read(self.iprot)
+    self.iprot:readMessageEnd()
+    error(x)
+  end
+  local result = GetUserId_result:new{}
+  result:read(self.iprot)
+  self.iprot:readMessageEnd()
+  if result.success ~= nil then
+    return result.success
+  elseif result.se then
+    error(result.se)
+  end
+  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
+end
+UserServiceIface = __TObject:new{
+  __type = 'UserServiceIface'
+}
+
+
+UserServiceProcessor = __TObject.new(__TProcessor
+, {
+ __type = 'UserServiceProcessor'
+})
+
+function UserServiceProcessor:process(iprot, oprot, server_ctx)
+  local name, mtype, seqid = iprot:readMessageBegin()
+  local func_name = 'process_' .. name
+  if not self[func_name] or ttype(self[func_name]) ~= 'function' then
+    iprot:skip(TType.STRUCT)
+    iprot:readMessageEnd()
+    x = TApplicationException:new{
+      errorCode = TApplicationException.UNKNOWN_METHOD
+    }
+    oprot:writeMessageBegin(name, TMessageType.EXCEPTION, seqid)
+    x:write(oprot)
+    oprot:writeMessageEnd()
+    oprot.trans:flush()
+  else
+    self[func_name](self, seqid, iprot, oprot, server_ctx)
+  end
+end
+
+function UserServiceProcessor:process_RegisterUser(seqid, iprot, oprot, server_ctx)
+  local args = RegisterUser_args:new{}
+  local reply_type = TMessageType.REPLY
+  args:read(iprot)
+  iprot:readMessageEnd()
+  local result = RegisterUser_result:new{}
+  local status, res = pcall(self.handler.RegisterUser, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password)
+  if not status then
+    reply_type = TMessageType.EXCEPTION
+    result = TApplicationException:new{message = res}
+  elseif ttype(res) == 'ServiceException' then
+    result.se = res
+  else
+    result.success = res
+  end
+  oprot:writeMessageBegin('RegisterUser', reply_type, seqid)
+  result:write(oprot)
+  oprot:writeMessageEnd()
+  oprot.trans:flush()
+end
+
+function UserServiceProcessor:process_RegisterUserWithId(seqid, iprot, oprot, server_ctx)
+  local args = RegisterUserWithId_args:new{}
+  local reply_type = TMessageType.REPLY
+  args:read(iprot)
+  iprot:readMessageEnd()
+  local result = RegisterUserWithId_result:new{}
+  local status, res = pcall(self.handler.RegisterUserWithId, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password, args.user_id)
+  if not status then
+    reply_type = TMessageType.EXCEPTION
+    result = TApplicationException:new{message = res}
+  elseif ttype(res) == 'ServiceException' then
+    result.se = res
+  else
+    result.success = res
+  end
+  oprot:writeMessageBegin('RegisterUserWithId', reply_type, seqid)
+  result:write(oprot)
+  oprot:writeMessageEnd()
+  oprot.trans:flush()
+end
+
+function UserServiceProcessor:process_Login(seqid, iprot, oprot, server_ctx)
+  local args = Login_args:new{}
+  local reply_type = TMessageType.REPLY
+  args:read(iprot)
+  iprot:readMessageEnd()
+  local result = Login_result:new{}
+  local status, res = pcall(self.handler.Login, self.handler, args.req_id, args.username, args.password)
+  if not status then
+    reply_type = TMessageType.EXCEPTION
+    result = TApplicationException:new{message = res}
+  elseif ttype(res) == 'ServiceException' then
+    result.se = res
+  else
+    result.success = res
+  end
+  oprot:writeMessageBegin('Login', reply_type, seqid)
+  result:write(oprot)
+  oprot:writeMessageEnd()
+  oprot.trans:flush()
+end
+
+function UserServiceProcessor:process_ComposeCreatorWithUserId(seqid, iprot, oprot, server_ctx)
+  local args = ComposeCreatorWithUserId_args:new{}
+  local reply_type = TMessageType.REPLY
+  args:read(iprot)
+  iprot:readMessageEnd()
+  local result = ComposeCreatorWithUserId_result:new{}
+  local status, res = pcall(self.handler.ComposeCreatorWithUserId, self.handler, args.req_id, args.user_id, args.username)
+  if not status then
+    reply_type = TMessageType.EXCEPTION
+    result = TApplicationException:new{message = res}
+  elseif ttype(res) == 'ServiceException' then
+    result.se = res
+  else
+    result.success = res
+  end
+  oprot:writeMessageBegin('ComposeCreatorWithUserId', reply_type, seqid)
+  result:write(oprot)
+  oprot:writeMessageEnd()
+  oprot.trans:flush()
+end
+
+function UserServiceProcessor:process_ComposeCreatorWithUsername(seqid, iprot, oprot, server_ctx)
+  local args = ComposeCreatorWithUsername_args:new{}
+  local reply_type = TMessageType.REPLY
+  args:read(iprot)
+  iprot:readMessageEnd()
+  local result = ComposeCreatorWithUsername_result:new{}
+  local status, res = pcall(self.handler.ComposeCreatorWithUsername, self.handler, args.req_id, args.username)
+  if not status then
+    reply_type = TMessageType.EXCEPTION
+    result = TApplicationException:new{message = res}
+  elseif ttype(res) == 'ServiceException' then
+    result.se = res
+  else
+    result.success = res
+  end
+  oprot:writeMessageBegin('ComposeCreatorWithUsername', reply_type, seqid)
+  result:write(oprot)
+  oprot:writeMessageEnd()
+  oprot.trans:flush()
+end
+
+function UserServiceProcessor:process_GetUserId(seqid, iprot, oprot, server_ctx)
+  local args = GetUserId_args:new{}
+  local reply_type = TMessageType.REPLY
+  args:read(iprot)
+  iprot:readMessageEnd()
+  local result = GetUserId_result:new{}
+  local status, res = pcall(self.handler.GetUserId, self.handler, args.req_id, args.username)
+  if not status then
+    reply_type = TMessageType.EXCEPTION
+    result = TApplicationException:new{message = res}
+  elseif ttype(res) == 'ServiceException' then
+    result.se = res
+  else
+    result.success = res
+  end
+  oprot:writeMessageBegin('GetUserId', reply_type, seqid)
+  result:write(oprot)
+  oprot:writeMessageEnd()
+  oprot.trans:flush()
+end
 
 -- HELPER FUNCTIONS AND STRUCTURES
 
-local RegisterUser_args = __TObject:new{
+RegisterUser_args = __TObject:new{
   req_id,
   first_name,
   last_name,
   username,
-  password,
-  carrier
+  password
 }
 
 function RegisterUser_args:read(iprot)
@@ -66,19 +413,6 @@ function RegisterUser_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 6 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype47, _vtype48, _size46 = iprot:readMapBegin()
-        for _i=1,_size46 do
-          local _key50 = iprot:readString()
-          local _val51 = iprot:readString()
-          self.carrier[_key50] = _val51
-        end
-        iprot:readMapEnd()
-      else
-        iprot:skip(ftype)
-      end
     else
       iprot:skip(ftype)
     end
@@ -114,21 +448,11 @@ function RegisterUser_args:write(oprot)
     oprot:writeString(self.password)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 6)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter52,viter53 in pairs(self.carrier) do
-      oprot:writeString(kiter52)
-      oprot:writeString(viter53)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
 
-local RegisterUser_result = __TObject:new{
+RegisterUser_result = __TObject:new{
   se
 }
 
@@ -164,14 +488,13 @@ function RegisterUser_result:write(oprot)
   oprot:writeStructEnd()
 end
 
-local RegisterUserWithId_args = __TObject:new{
+RegisterUserWithId_args = __TObject:new{
   req_id,
   first_name,
   last_name,
   username,
   password,
-  user_id,
-  carrier
+  user_id
 }
 
 function RegisterUserWithId_args:read(iprot)
@@ -216,19 +539,6 @@ function RegisterUserWithId_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 7 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype55, _vtype56, _size54 = iprot:readMapBegin()
-        for _i=1,_size54 do
-          local _key58 = iprot:readString()
-          local _val59 = iprot:readString()
-          self.carrier[_key58] = _val59
-        end
-        iprot:readMapEnd()
-      else
-        iprot:skip(ftype)
-      end
     else
       iprot:skip(ftype)
     end
@@ -269,21 +579,11 @@ function RegisterUserWithId_args:write(oprot)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 7)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter60,viter61 in pairs(self.carrier) do
-      oprot:writeString(kiter60)
-      oprot:writeString(viter61)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
 
-local RegisterUserWithId_result = __TObject:new{
+RegisterUserWithId_result = __TObject:new{
   se
 }
 
@@ -319,11 +619,10 @@ function RegisterUserWithId_result:write(oprot)
   oprot:writeStructEnd()
 end
 
-local Login_args = __TObject:new{
+Login_args = __TObject:new{
   req_id,
   username,
-  password,
-  carrier
+  password
 }
 
 function Login_args:read(iprot)
@@ -347,19 +646,6 @@ function Login_args:read(iprot)
     elseif fid == 3 then
       if ftype == TType.STRING then
         self.password = iprot:readString()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 4 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype63, _vtype64, _size62 = iprot:readMapBegin()
-        for _i=1,_size62 do
-          local _key66 = iprot:readString()
-          local _val67 = iprot:readString()
-          self.carrier[_key66] = _val67
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -388,21 +674,11 @@ function Login_args:write(oprot)
     oprot:writeString(self.password)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 4)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter68,viter69 in pairs(self.carrier) do
-      oprot:writeString(kiter68)
-      oprot:writeString(viter69)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
 
-local Login_result = __TObject:new{
+Login_result = __TObject:new{
   success,
   se
 }
@@ -450,11 +726,10 @@ function Login_result:write(oprot)
   oprot:writeStructEnd()
 end
 
-local ComposeCreatorWithUserId_args = __TObject:new{
+ComposeCreatorWithUserId_args = __TObject:new{
   req_id,
   user_id,
-  username,
-  carrier
+  username
 }
 
 function ComposeCreatorWithUserId_args:read(iprot)
@@ -478,19 +753,6 @@ function ComposeCreatorWithUserId_args:read(iprot)
     elseif fid == 3 then
       if ftype == TType.STRING then
         self.username = iprot:readString()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 4 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype71, _vtype72, _size70 = iprot:readMapBegin()
-        for _i=1,_size70 do
-          local _key74 = iprot:readString()
-          local _val75 = iprot:readString()
-          self.carrier[_key74] = _val75
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -519,21 +781,11 @@ function ComposeCreatorWithUserId_args:write(oprot)
     oprot:writeString(self.username)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 4)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter76,viter77 in pairs(self.carrier) do
-      oprot:writeString(kiter76)
-      oprot:writeString(viter77)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
 
-local ComposeCreatorWithUserId_result = __TObject:new{
+ComposeCreatorWithUserId_result = __TObject:new{
   success,
   se
 }
@@ -582,10 +834,9 @@ function ComposeCreatorWithUserId_result:write(oprot)
   oprot:writeStructEnd()
 end
 
-local ComposeCreatorWithUsername_args = __TObject:new{
+ComposeCreatorWithUsername_args = __TObject:new{
   req_id,
-  username,
-  carrier
+  username
 }
 
 function ComposeCreatorWithUsername_args:read(iprot)
@@ -603,19 +854,6 @@ function ComposeCreatorWithUsername_args:read(iprot)
     elseif fid == 2 then
       if ftype == TType.STRING then
         self.username = iprot:readString()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 3 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype79, _vtype80, _size78 = iprot:readMapBegin()
-        for _i=1,_size78 do
-          local _key82 = iprot:readString()
-          local _val83 = iprot:readString()
-          self.carrier[_key82] = _val83
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -639,21 +877,11 @@ function ComposeCreatorWithUsername_args:write(oprot)
     oprot:writeString(self.username)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 3)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter84,viter85 in pairs(self.carrier) do
-      oprot:writeString(kiter84)
-      oprot:writeString(viter85)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
 
-local ComposeCreatorWithUsername_result = __TObject:new{
+ComposeCreatorWithUsername_result = __TObject:new{
   success,
   se
 }
@@ -702,10 +930,9 @@ function ComposeCreatorWithUsername_result:write(oprot)
   oprot:writeStructEnd()
 end
 
-local GetUserId_args = __TObject:new{
+GetUserId_args = __TObject:new{
   req_id,
-  username,
-  carrier
+  username
 }
 
 function GetUserId_args:read(iprot)
@@ -723,19 +950,6 @@ function GetUserId_args:read(iprot)
     elseif fid == 2 then
       if ftype == TType.STRING then
         self.username = iprot:readString()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 3 then
-      if ftype == TType.MAP then
-        self.carrier = {}
-        local _ktype87, _vtype88, _size86 = iprot:readMapBegin()
-        for _i=1,_size86 do
-          local _key90 = iprot:readString()
-          local _val91 = iprot:readString()
-          self.carrier[_key90] = _val91
-        end
-        iprot:readMapEnd()
       else
         iprot:skip(ftype)
       end
@@ -759,21 +973,11 @@ function GetUserId_args:write(oprot)
     oprot:writeString(self.username)
     oprot:writeFieldEnd()
   end
-  if self.carrier ~= nil then
-    oprot:writeFieldBegin('carrier', TType.MAP, 3)
-    oprot:writeMapBegin(TType.STRING, TType.STRING, ttable_size(self.carrier))
-    for kiter92,viter93 in pairs(self.carrier) do
-      oprot:writeString(kiter92)
-      oprot:writeString(viter93)
-    end
-    oprot:writeMapEnd()
-    oprot:writeFieldEnd()
-  end
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
 
-local GetUserId_result = __TObject:new{
+GetUserId_result = __TObject:new{
   success,
   se
 }
@@ -820,371 +1024,3 @@ function GetUserId_result:write(oprot)
   oprot:writeFieldStop()
   oprot:writeStructEnd()
 end
-
-local UserServiceClient = __TObject.new(__TClient, {
-  __type = 'UserServiceClient'
-})
-
-function UserServiceClient:RegisterUser(req_id, first_name, last_name, username, password, carrier)
-  self:send_RegisterUser(req_id, first_name, last_name, username, password, carrier)
-  self:recv_RegisterUser(req_id, first_name, last_name, username, password, carrier)
-end
-
-function UserServiceClient:send_RegisterUser(req_id, first_name, last_name, username, password, carrier)
-  self.oprot:writeMessageBegin('RegisterUser', TMessageType.CALL, self._seqid)
-  local args = RegisterUser_args:new{}
-  args.req_id = req_id
-  args.first_name = first_name
-  args.last_name = last_name
-  args.username = username
-  args.password = password
-  args.carrier = carrier
-  args:write(self.oprot)
-  self.oprot:writeMessageEnd()
-  self.oprot.trans:flush()
-end
-
-function UserServiceClient:recv_RegisterUser(req_id, first_name, last_name, username, password, carrier)
-  local fname, mtype, rseqid = self.iprot:readMessageBegin()
-  if mtype == TMessageType.EXCEPTION then
-    local x = TApplicationException:new{}
-    x:read(self.iprot)
-    self.iprot:readMessageEnd()
-    error(x)
-  end
-  local result = RegisterUser_result:new{}
-  result:read(self.iprot)
-  self.iprot:readMessageEnd()
-end
-
-function UserServiceClient:RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
-  self:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
-  self:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
-end
-
-function UserServiceClient:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
-  self.oprot:writeMessageBegin('RegisterUserWithId', TMessageType.CALL, self._seqid)
-  local args = RegisterUserWithId_args:new{}
-  args.req_id = req_id
-  args.first_name = first_name
-  args.last_name = last_name
-  args.username = username
-  args.password = password
-  args.user_id = user_id
-  args.carrier = carrier
-  args:write(self.oprot)
-  self.oprot:writeMessageEnd()
-  self.oprot.trans:flush()
-end
-
-function UserServiceClient:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id, carrier)
-  local fname, mtype, rseqid = self.iprot:readMessageBegin()
-  if mtype == TMessageType.EXCEPTION then
-    local x = TApplicationException:new{}
-    x:read(self.iprot)
-    self.iprot:readMessageEnd()
-    error(x)
-  end
-  local result = RegisterUserWithId_result:new{}
-  result:read(self.iprot)
-  self.iprot:readMessageEnd()
-end
-
-function UserServiceClient:Login(req_id, username, password, carrier)
-  self:send_Login(req_id, username, password, carrier)
-  return self:recv_Login(req_id, username, password, carrier)
-end
-
-function UserServiceClient:send_Login(req_id, username, password, carrier)
-  self.oprot:writeMessageBegin('Login', TMessageType.CALL, self._seqid)
-  local args = Login_args:new{}
-  args.req_id = req_id
-  args.username = username
-  args.password = password
-  args.carrier = carrier
-  args:write(self.oprot)
-  self.oprot:writeMessageEnd()
-  self.oprot.trans:flush()
-end
-
-function UserServiceClient:recv_Login(req_id, username, password, carrier)
-  local fname, mtype, rseqid = self.iprot:readMessageBegin()
-  if mtype == TMessageType.EXCEPTION then
-    local x = TApplicationException:new{}
-    x:read(self.iprot)
-    self.iprot:readMessageEnd()
-    error(x)
-  end
-  local result = Login_result:new{}
-  result:read(self.iprot)
-  self.iprot:readMessageEnd()
-  if result.success ~= nil then
-    return result.success
-  elseif result.se then
-    error(result.se)
-  end
-  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
-end
-
-function UserServiceClient:ComposeCreatorWithUserId(req_id, user_id, username, carrier)
-  self:send_ComposeCreatorWithUserId(req_id, user_id, username, carrier)
-  return self:recv_ComposeCreatorWithUserId(req_id, user_id, username, carrier)
-end
-
-function UserServiceClient:send_ComposeCreatorWithUserId(req_id, user_id, username, carrier)
-  self.oprot:writeMessageBegin('ComposeCreatorWithUserId', TMessageType.CALL, self._seqid)
-  local args = ComposeCreatorWithUserId_args:new{}
-  args.req_id = req_id
-  args.user_id = user_id
-  args.username = username
-  args.carrier = carrier
-  args:write(self.oprot)
-  self.oprot:writeMessageEnd()
-  self.oprot.trans:flush()
-end
-
-function UserServiceClient:recv_ComposeCreatorWithUserId(req_id, user_id, username, carrier)
-  local fname, mtype, rseqid = self.iprot:readMessageBegin()
-  if mtype == TMessageType.EXCEPTION then
-    local x = TApplicationException:new{}
-    x:read(self.iprot)
-    self.iprot:readMessageEnd()
-    error(x)
-  end
-  local result = ComposeCreatorWithUserId_result:new{}
-  result:read(self.iprot)
-  self.iprot:readMessageEnd()
-  if result.success ~= nil then
-    return result.success
-  elseif result.se then
-    error(result.se)
-  end
-  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
-end
-
-function UserServiceClient:ComposeCreatorWithUsername(req_id, username, carrier)
-  self:send_ComposeCreatorWithUsername(req_id, username, carrier)
-  return self:recv_ComposeCreatorWithUsername(req_id, username, carrier)
-end
-
-function UserServiceClient:send_ComposeCreatorWithUsername(req_id, username, carrier)
-  self.oprot:writeMessageBegin('ComposeCreatorWithUsername', TMessageType.CALL, self._seqid)
-  local args = ComposeCreatorWithUsername_args:new{}
-  args.req_id = req_id
-  args.username = username
-  args.carrier = carrier
-  args:write(self.oprot)
-  self.oprot:writeMessageEnd()
-  self.oprot.trans:flush()
-end
-
-function UserServiceClient:recv_ComposeCreatorWithUsername(req_id, username, carrier)
-  local fname, mtype, rseqid = self.iprot:readMessageBegin()
-  if mtype == TMessageType.EXCEPTION then
-    local x = TApplicationException:new{}
-    x:read(self.iprot)
-    self.iprot:readMessageEnd()
-    error(x)
-  end
-  local result = ComposeCreatorWithUsername_result:new{}
-  result:read(self.iprot)
-  self.iprot:readMessageEnd()
-  if result.success ~= nil then
-    return result.success
-  elseif result.se then
-    error(result.se)
-  end
-  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
-end
-
-function UserServiceClient:GetUserId(req_id, username, carrier)
-  self:send_GetUserId(req_id, username, carrier)
-  return self:recv_GetUserId(req_id, username, carrier)
-end
-
-function UserServiceClient:send_GetUserId(req_id, username, carrier)
-  self.oprot:writeMessageBegin('GetUserId', TMessageType.CALL, self._seqid)
-  local args = GetUserId_args:new{}
-  args.req_id = req_id
-  args.username = username
-  args.carrier = carrier
-  args:write(self.oprot)
-  self.oprot:writeMessageEnd()
-  self.oprot.trans:flush()
-end
-
-function UserServiceClient:recv_GetUserId(req_id, username, carrier)
-  local fname, mtype, rseqid = self.iprot:readMessageBegin()
-  if mtype == TMessageType.EXCEPTION then
-    local x = TApplicationException:new{}
-    x:read(self.iprot)
-    self.iprot:readMessageEnd()
-    error(x)
-  end
-  local result = GetUserId_result:new{}
-  result:read(self.iprot)
-  self.iprot:readMessageEnd()
-  if result.success ~= nil then
-    return result.success
-  elseif result.se then
-    error(result.se)
-  end
-  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
-end
-local UserServiceIface = __TObject:new{
-  __type = 'UserServiceIface'
-}
-
-
-local UserServiceProcessor = __TObject.new(__TProcessor
-, {
- __type = 'UserServiceProcessor'
-})
-
-function UserServiceProcessor:process(iprot, oprot, server_ctx)
-  local name, mtype, seqid = iprot:readMessageBegin()
-  local func_name = 'process_' .. name
-  if not self[func_name] or ttype(self[func_name]) ~= 'function' then
-    iprot:skip(TType.STRUCT)
-    iprot:readMessageEnd()
-    x = TApplicationException:new{
-      errorCode = TApplicationException.UNKNOWN_METHOD
-    }
-    oprot:writeMessageBegin(name, TMessageType.EXCEPTION, seqid)
-    x:write(oprot)
-    oprot:writeMessageEnd()
-    oprot.trans:flush()
-  else
-    self[func_name](self, seqid, iprot, oprot, server_ctx)
-  end
-end
-
-function UserServiceProcessor:process_RegisterUser(seqid, iprot, oprot, server_ctx)
-  local args = RegisterUser_args:new{}
-  local reply_type = TMessageType.REPLY
-  args:read(iprot)
-  iprot:readMessageEnd()
-  local result = RegisterUser_result:new{}
-  local status, res = pcall(self.handler.RegisterUser, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password, args.carrier)
-  if not status then
-    reply_type = TMessageType.EXCEPTION
-    result = TApplicationException:new{message = res}
-  elseif ttype(res) == 'ServiceException' then
-    result.se = res
-  else
-    result.success = res
-  end
-  oprot:writeMessageBegin('RegisterUser', reply_type, seqid)
-  result:write(oprot)
-  oprot:writeMessageEnd()
-  oprot.trans:flush()
-end
-
-function UserServiceProcessor:process_RegisterUserWithId(seqid, iprot, oprot, server_ctx)
-  local args = RegisterUserWithId_args:new{}
-  local reply_type = TMessageType.REPLY
-  args:read(iprot)
-  iprot:readMessageEnd()
-  local result = RegisterUserWithId_result:new{}
-  local status, res = pcall(self.handler.RegisterUserWithId, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password, args.user_id, args.carrier)
-  if not status then
-    reply_type = TMessageType.EXCEPTION
-    result = TApplicationException:new{message = res}
-  elseif ttype(res) == 'ServiceException' then
-    result.se = res
-  else
-    result.success = res
-  end
-  oprot:writeMessageBegin('RegisterUserWithId', reply_type, seqid)
-  result:write(oprot)
-  oprot:writeMessageEnd()
-  oprot.trans:flush()
-end
-
-function UserServiceProcessor:process_Login(seqid, iprot, oprot, server_ctx)
-  local args = Login_args:new{}
-  local reply_type = TMessageType.REPLY
-  args:read(iprot)
-  iprot:readMessageEnd()
-  local result = Login_result:new{}
-  local status, res = pcall(self.handler.Login, self.handler, args.req_id, args.username, args.password, args.carrier)
-  if not status then
-    reply_type = TMessageType.EXCEPTION
-    result = TApplicationException:new{message = res}
-  elseif ttype(res) == 'ServiceException' then
-    result.se = res
-  else
-    result.success = res
-  end
-  oprot:writeMessageBegin('Login', reply_type, seqid)
-  result:write(oprot)
-  oprot:writeMessageEnd()
-  oprot.trans:flush()
-end
-
-function UserServiceProcessor:process_ComposeCreatorWithUserId(seqid, iprot, oprot, server_ctx)
-  local args = ComposeCreatorWithUserId_args:new{}
-  local reply_type = TMessageType.REPLY
-  args:read(iprot)
-  iprot:readMessageEnd()
-  local result = ComposeCreatorWithUserId_result:new{}
-  local status, res = pcall(self.handler.ComposeCreatorWithUserId, self.handler, args.req_id, args.user_id, args.username, args.carrier)
-  if not status then
-    reply_type = TMessageType.EXCEPTION
-    result = TApplicationException:new{message = res}
-  elseif ttype(res) == 'ServiceException' then
-    result.se = res
-  else
-    result.success = res
-  end
-  oprot:writeMessageBegin('ComposeCreatorWithUserId', reply_type, seqid)
-  result:write(oprot)
-  oprot:writeMessageEnd()
-  oprot.trans:flush()
-end
-
-function UserServiceProcessor:process_ComposeCreatorWithUsername(seqid, iprot, oprot, server_ctx)
-  local args = ComposeCreatorWithUsername_args:new{}
-  local reply_type = TMessageType.REPLY
-  args:read(iprot)
-  iprot:readMessageEnd()
-  local result = ComposeCreatorWithUsername_result:new{}
-  local status, res = pcall(self.handler.ComposeCreatorWithUsername, self.handler, args.req_id, args.username, args.carrier)
-  if not status then
-    reply_type = TMessageType.EXCEPTION
-    result = TApplicationException:new{message = res}
-  elseif ttype(res) == 'ServiceException' then
-    result.se = res
-  else
-    result.success = res
-  end
-  oprot:writeMessageBegin('ComposeCreatorWithUsername', reply_type, seqid)
-  result:write(oprot)
-  oprot:writeMessageEnd()
-  oprot.trans:flush()
-end
-
-function UserServiceProcessor:process_GetUserId(seqid, iprot, oprot, server_ctx)
-  local args = GetUserId_args:new{}
-  local reply_type = TMessageType.REPLY
-  args:read(iprot)
-  iprot:readMessageEnd()
-  local result = GetUserId_result:new{}
-  local status, res = pcall(self.handler.GetUserId, self.handler, args.req_id, args.username, args.carrier)
-  if not status then
-    reply_type = TMessageType.EXCEPTION
-    result = TApplicationException:new{message = res}
-  elseif ttype(res) == 'ServiceException' then
-    result.se = res
-  else
-    result.success = res
-  end
-  oprot:writeMessageBegin('GetUserId', reply_type, seqid)
-  result:write(oprot)
-  oprot:writeMessageEnd()
-  oprot.trans:flush()
-end
-
-return {
-  UserServiceClient=UserServiceClient
-}

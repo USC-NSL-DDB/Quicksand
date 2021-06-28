@@ -14,7 +14,6 @@ add_executable(
 
 target_include_directories(
     ComposePostService PRIVATE
-    /usr/local/include/jaegertracing
 )
 
 target_link_libraries(
@@ -26,9 +25,7 @@ target_link_libraries(
     Boost::log
     Boost::log_setup
     OpenSSL::SSL
-    /usr/local/lib/libjaegertracing.so
     /usr/local/lib/libSimpleAmqpClient.so
-
 )
 
 install(TARGETS ComposePostService DESTINATION ./)

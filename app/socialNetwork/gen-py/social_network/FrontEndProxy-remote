@@ -24,18 +24,18 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('Usage: ' + sys.argv[0] + ' [-h host[:port]] [-u url] [-f[ramed]] [-s[sl]] [-novalidate] [-ca_certs certs] [-keyfile keyfile] [-certfile certfile] function [arg1 [arg2...]]')
     print('')
     print('Functions:')
-    print('   ReadHomeTimeline(i64 req_id, i64 user_id, i32 start, i32 stop,  carrier)')
-    print('  void ComposePost(i64 req_id, string username, i64 user_id, string text,  media_ids,  media_types, PostType post_type,  carrier)')
-    print('   GetFollowers(i64 req_id, i64 user_id,  carrier)')
-    print('  void Unfollow(i64 req_id, i64 user_id, i64 followee_id,  carrier)')
-    print('  void UnfollowWithUsername(i64 req_id, string user_usernmae, string followee_username,  carrier)')
-    print('  string Login(i64 req_id, string username, string password,  carrier)')
-    print('  void Follow(i64 req_id, i64 user_id, i64 followee_id,  carrier)')
-    print('  void FollowWithUsername(i64 req_id, string user_usernmae, string followee_username,  carrier)')
-    print('  void RegisterUser(i64 req_id, string first_name, string last_name, string username, string password,  carrier)')
-    print('   GetFollowees(i64 req_id, i64 user_id,  carrier)')
-    print('   ReadUserTimeline(i64 req_id, i64 user_id, i32 start, i32 stop,  carrier)')
-    print('  void RegisterUserWithId(i64 req_id, string first_name, string last_name, string username, string password, i64 user_id,  carrier)')
+    print('   ReadHomeTimeline(i64 req_id, i64 user_id, i32 start, i32 stop)')
+    print('  void ComposePost(i64 req_id, string username, i64 user_id, string text,  media_ids,  media_types, PostType post_type)')
+    print('   GetFollowers(i64 req_id, i64 user_id)')
+    print('  void Unfollow(i64 req_id, i64 user_id, i64 followee_id)')
+    print('  void UnfollowWithUsername(i64 req_id, string user_usernmae, string followee_username)')
+    print('  string Login(i64 req_id, string username, string password)')
+    print('  void Follow(i64 req_id, i64 user_id, i64 followee_id)')
+    print('  void FollowWithUsername(i64 req_id, string user_usernmae, string followee_username)')
+    print('  void RegisterUser(i64 req_id, string first_name, string last_name, string username, string password)')
+    print('   GetFollowees(i64 req_id, i64 user_id)')
+    print('   ReadUserTimeline(i64 req_id, i64 user_id, i32 start, i32 stop)')
+    print('  void RegisterUserWithId(i64 req_id, string first_name, string last_name, string username, string password, i64 user_id)')
     print('')
     sys.exit(0)
 
@@ -116,76 +116,76 @@ client = FrontEndProxy.Client(protocol)
 transport.open()
 
 if cmd == 'ReadHomeTimeline':
-    if len(args) != 5:
-        print('ReadHomeTimeline requires 5 args')
+    if len(args) != 4:
+        print('ReadHomeTimeline requires 4 args')
         sys.exit(1)
-    pp.pprint(client.ReadHomeTimeline(eval(args[0]), eval(args[1]), eval(args[2]), eval(args[3]), eval(args[4]),))
+    pp.pprint(client.ReadHomeTimeline(eval(args[0]), eval(args[1]), eval(args[2]), eval(args[3]),))
 
 elif cmd == 'ComposePost':
-    if len(args) != 8:
-        print('ComposePost requires 8 args')
+    if len(args) != 7:
+        print('ComposePost requires 7 args')
         sys.exit(1)
-    pp.pprint(client.ComposePost(eval(args[0]), args[1], eval(args[2]), args[3], eval(args[4]), eval(args[5]), eval(args[6]), eval(args[7]),))
+    pp.pprint(client.ComposePost(eval(args[0]), args[1], eval(args[2]), args[3], eval(args[4]), eval(args[5]), eval(args[6]),))
 
 elif cmd == 'GetFollowers':
-    if len(args) != 3:
-        print('GetFollowers requires 3 args')
+    if len(args) != 2:
+        print('GetFollowers requires 2 args')
         sys.exit(1)
-    pp.pprint(client.GetFollowers(eval(args[0]), eval(args[1]), eval(args[2]),))
+    pp.pprint(client.GetFollowers(eval(args[0]), eval(args[1]),))
 
 elif cmd == 'Unfollow':
-    if len(args) != 4:
-        print('Unfollow requires 4 args')
+    if len(args) != 3:
+        print('Unfollow requires 3 args')
         sys.exit(1)
-    pp.pprint(client.Unfollow(eval(args[0]), eval(args[1]), eval(args[2]), eval(args[3]),))
+    pp.pprint(client.Unfollow(eval(args[0]), eval(args[1]), eval(args[2]),))
 
 elif cmd == 'UnfollowWithUsername':
-    if len(args) != 4:
-        print('UnfollowWithUsername requires 4 args')
+    if len(args) != 3:
+        print('UnfollowWithUsername requires 3 args')
         sys.exit(1)
-    pp.pprint(client.UnfollowWithUsername(eval(args[0]), args[1], args[2], eval(args[3]),))
+    pp.pprint(client.UnfollowWithUsername(eval(args[0]), args[1], args[2],))
 
 elif cmd == 'Login':
-    if len(args) != 4:
-        print('Login requires 4 args')
+    if len(args) != 3:
+        print('Login requires 3 args')
         sys.exit(1)
-    pp.pprint(client.Login(eval(args[0]), args[1], args[2], eval(args[3]),))
+    pp.pprint(client.Login(eval(args[0]), args[1], args[2],))
 
 elif cmd == 'Follow':
-    if len(args) != 4:
-        print('Follow requires 4 args')
+    if len(args) != 3:
+        print('Follow requires 3 args')
         sys.exit(1)
-    pp.pprint(client.Follow(eval(args[0]), eval(args[1]), eval(args[2]), eval(args[3]),))
+    pp.pprint(client.Follow(eval(args[0]), eval(args[1]), eval(args[2]),))
 
 elif cmd == 'FollowWithUsername':
-    if len(args) != 4:
-        print('FollowWithUsername requires 4 args')
+    if len(args) != 3:
+        print('FollowWithUsername requires 3 args')
         sys.exit(1)
-    pp.pprint(client.FollowWithUsername(eval(args[0]), args[1], args[2], eval(args[3]),))
+    pp.pprint(client.FollowWithUsername(eval(args[0]), args[1], args[2],))
 
 elif cmd == 'RegisterUser':
-    if len(args) != 6:
-        print('RegisterUser requires 6 args')
+    if len(args) != 5:
+        print('RegisterUser requires 5 args')
         sys.exit(1)
-    pp.pprint(client.RegisterUser(eval(args[0]), args[1], args[2], args[3], args[4], eval(args[5]),))
+    pp.pprint(client.RegisterUser(eval(args[0]), args[1], args[2], args[3], args[4],))
 
 elif cmd == 'GetFollowees':
-    if len(args) != 3:
-        print('GetFollowees requires 3 args')
+    if len(args) != 2:
+        print('GetFollowees requires 2 args')
         sys.exit(1)
-    pp.pprint(client.GetFollowees(eval(args[0]), eval(args[1]), eval(args[2]),))
+    pp.pprint(client.GetFollowees(eval(args[0]), eval(args[1]),))
 
 elif cmd == 'ReadUserTimeline':
-    if len(args) != 5:
-        print('ReadUserTimeline requires 5 args')
+    if len(args) != 4:
+        print('ReadUserTimeline requires 4 args')
         sys.exit(1)
-    pp.pprint(client.ReadUserTimeline(eval(args[0]), eval(args[1]), eval(args[2]), eval(args[3]), eval(args[4]),))
+    pp.pprint(client.ReadUserTimeline(eval(args[0]), eval(args[1]), eval(args[2]), eval(args[3]),))
 
 elif cmd == 'RegisterUserWithId':
-    if len(args) != 7:
-        print('RegisterUserWithId requires 7 args')
+    if len(args) != 6:
+        print('RegisterUserWithId requires 6 args')
         sys.exit(1)
-    pp.pprint(client.RegisterUserWithId(eval(args[0]), args[1], args[2], args[3], args[4], eval(args[5]), eval(args[6]),))
+    pp.pprint(client.RegisterUserWithId(eval(args[0]), args[1], args[2], args[3], args[4], eval(args[5]),))
 
 else:
     print('Unrecognized method %s' % cmd)

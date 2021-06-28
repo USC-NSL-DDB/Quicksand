@@ -52,29 +52,6 @@ uint32_t UniqueIdService_ComposeUniqueId_args::read(::apache::thrift::protocol::
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
-        if (ftype == ::apache::thrift::protocol::T_MAP) {
-          {
-            this->carrier.clear();
-            uint32_t _size49;
-            ::apache::thrift::protocol::TType _ktype50;
-            ::apache::thrift::protocol::TType _vtype51;
-            xfer += iprot->readMapBegin(_ktype50, _vtype51, _size49);
-            uint32_t _i53;
-            for (_i53 = 0; _i53 < _size49; ++_i53)
-            {
-              std::string _key54;
-              xfer += iprot->readString(_key54);
-              std::string& _val55 = this->carrier[_key54];
-              xfer += iprot->readString(_val55);
-            }
-            xfer += iprot->readMapEnd();
-          }
-          this->__isset.carrier = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
       default:
         xfer += iprot->skip(ftype);
         break;
@@ -100,19 +77,6 @@ uint32_t UniqueIdService_ComposeUniqueId_args::write(::apache::thrift::protocol:
   xfer += oprot->writeI32((int32_t)this->post_type);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("carrier", ::apache::thrift::protocol::T_MAP, 3);
-  {
-    xfer += oprot->writeMapBegin(::apache::thrift::protocol::T_STRING, ::apache::thrift::protocol::T_STRING, static_cast<uint32_t>(this->carrier.size()));
-    std::map<std::string, std::string> ::const_iterator _iter56;
-    for (_iter56 = this->carrier.begin(); _iter56 != this->carrier.end(); ++_iter56)
-    {
-      xfer += oprot->writeString(_iter56->first);
-      xfer += oprot->writeString(_iter56->second);
-    }
-    xfer += oprot->writeMapEnd();
-  }
-  xfer += oprot->writeFieldEnd();
-
   xfer += oprot->writeFieldStop();
   xfer += oprot->writeStructEnd();
   return xfer;
@@ -134,19 +98,6 @@ uint32_t UniqueIdService_ComposeUniqueId_pargs::write(::apache::thrift::protocol
 
   xfer += oprot->writeFieldBegin("post_type", ::apache::thrift::protocol::T_I32, 2);
   xfer += oprot->writeI32((int32_t)(*(this->post_type)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("carrier", ::apache::thrift::protocol::T_MAP, 3);
-  {
-    xfer += oprot->writeMapBegin(::apache::thrift::protocol::T_STRING, ::apache::thrift::protocol::T_STRING, static_cast<uint32_t>((*(this->carrier)).size()));
-    std::map<std::string, std::string> ::const_iterator _iter57;
-    for (_iter57 = (*(this->carrier)).begin(); _iter57 != (*(this->carrier)).end(); ++_iter57)
-    {
-      xfer += oprot->writeString(_iter57->first);
-      xfer += oprot->writeString(_iter57->second);
-    }
-    xfer += oprot->writeMapEnd();
-  }
   xfer += oprot->writeFieldEnd();
 
   xfer += oprot->writeFieldStop();
@@ -282,13 +233,13 @@ uint32_t UniqueIdService_ComposeUniqueId_presult::read(::apache::thrift::protoco
   return xfer;
 }
 
-int64_t UniqueIdServiceClient::ComposeUniqueId(const int64_t req_id, const PostType::type post_type, const std::map<std::string, std::string> & carrier)
+int64_t UniqueIdServiceClient::ComposeUniqueId(const int64_t req_id, const PostType::type post_type)
 {
-  send_ComposeUniqueId(req_id, post_type, carrier);
+  send_ComposeUniqueId(req_id, post_type);
   return recv_ComposeUniqueId();
 }
 
-void UniqueIdServiceClient::send_ComposeUniqueId(const int64_t req_id, const PostType::type post_type, const std::map<std::string, std::string> & carrier)
+void UniqueIdServiceClient::send_ComposeUniqueId(const int64_t req_id, const PostType::type post_type)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("ComposeUniqueId", ::apache::thrift::protocol::T_CALL, cseqid);
@@ -296,7 +247,6 @@ void UniqueIdServiceClient::send_ComposeUniqueId(const int64_t req_id, const Pos
   UniqueIdService_ComposeUniqueId_pargs args;
   args.req_id = &req_id;
   args.post_type = &post_type;
-  args.carrier = &carrier;
   args.write(oprot_);
 
   oprot_->writeMessageEnd();
@@ -387,7 +337,7 @@ void UniqueIdServiceProcessor::process_ComposeUniqueId(int32_t seqid, ::apache::
 
   UniqueIdService_ComposeUniqueId_result result;
   try {
-    result.success = iface_->ComposeUniqueId(args.req_id, args.post_type, args.carrier);
+    result.success = iface_->ComposeUniqueId(args.req_id, args.post_type);
     result.__isset.success = true;
   } catch (ServiceException &se) {
     result.se = se;
@@ -428,13 +378,13 @@ void UniqueIdServiceProcessor::process_ComposeUniqueId(int32_t seqid, ::apache::
   return processor;
 }
 
-int64_t UniqueIdServiceConcurrentClient::ComposeUniqueId(const int64_t req_id, const PostType::type post_type, const std::map<std::string, std::string> & carrier)
+int64_t UniqueIdServiceConcurrentClient::ComposeUniqueId(const int64_t req_id, const PostType::type post_type)
 {
-  int32_t seqid = send_ComposeUniqueId(req_id, post_type, carrier);
+  int32_t seqid = send_ComposeUniqueId(req_id, post_type);
   return recv_ComposeUniqueId(seqid);
 }
 
-int32_t UniqueIdServiceConcurrentClient::send_ComposeUniqueId(const int64_t req_id, const PostType::type post_type, const std::map<std::string, std::string> & carrier)
+int32_t UniqueIdServiceConcurrentClient::send_ComposeUniqueId(const int64_t req_id, const PostType::type post_type)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
@@ -443,7 +393,6 @@ int32_t UniqueIdServiceConcurrentClient::send_ComposeUniqueId(const int64_t req_
   UniqueIdService_ComposeUniqueId_pargs args;
   args.req_id = &req_id;
   args.post_type = &post_type;
-  args.carrier = &carrier;
   args.write(oprot_);
 
   oprot_->writeMessageEnd();

@@ -9,7 +9,6 @@ add_executable(
 
 target_include_directories(
     HomeTimelineService PRIVATE
-    /usr/local/include/jaegertracing
     /usr/local/include/hiredis
     /usr/local/include/sw
 )
@@ -22,7 +21,6 @@ target_link_libraries(
     ${Boost_LIBRARIES}
     Boost::log
     Boost::log_setup
-    jaegertracing
     /usr/local/lib/libhiredis.a
     /usr/local/lib/libhiredis_ssl.a
     /usr/local/lib/libredis++.a

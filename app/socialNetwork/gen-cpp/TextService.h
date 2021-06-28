@@ -21,7 +21,7 @@ namespace social_network {
 class TextServiceIf {
  public:
   virtual ~TextServiceIf() {}
-  virtual void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text, const std::map<std::string, std::string> & carrier) = 0;
+  virtual void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text) = 0;
 };
 
 class TextServiceIfFactory {
@@ -51,16 +51,15 @@ class TextServiceIfSingletonFactory : virtual public TextServiceIfFactory {
 class TextServiceNull : virtual public TextServiceIf {
  public:
   virtual ~TextServiceNull() {}
-  void ComposeText(TextServiceReturn& /* _return */, const int64_t /* req_id */, const std::string& /* text */, const std::map<std::string, std::string> & /* carrier */) {
+  void ComposeText(TextServiceReturn& /* _return */, const int64_t /* req_id */, const std::string& /* text */) {
     return;
   }
 };
 
 typedef struct _TextService_ComposeText_args__isset {
-  _TextService_ComposeText_args__isset() : req_id(false), text(false), carrier(false) {}
+  _TextService_ComposeText_args__isset() : req_id(false), text(false) {}
   bool req_id :1;
   bool text :1;
-  bool carrier :1;
 } _TextService_ComposeText_args__isset;
 
 class TextService_ComposeText_args {
@@ -74,7 +73,6 @@ class TextService_ComposeText_args {
   virtual ~TextService_ComposeText_args() throw();
   int64_t req_id;
   std::string text;
-  std::map<std::string, std::string>  carrier;
 
   _TextService_ComposeText_args__isset __isset;
 
@@ -82,15 +80,11 @@ class TextService_ComposeText_args {
 
   void __set_text(const std::string& val);
 
-  void __set_carrier(const std::map<std::string, std::string> & val);
-
   bool operator == (const TextService_ComposeText_args & rhs) const
   {
     if (!(req_id == rhs.req_id))
       return false;
     if (!(text == rhs.text))
-      return false;
-    if (!(carrier == rhs.carrier))
       return false;
     return true;
   }
@@ -113,7 +107,6 @@ class TextService_ComposeText_pargs {
   virtual ~TextService_ComposeText_pargs() throw();
   const int64_t* req_id;
   const std::string* text;
-  const std::map<std::string, std::string> * carrier;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -207,8 +200,8 @@ class TextServiceClient : virtual public TextServiceIf {
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
-  void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text, const std::map<std::string, std::string> & carrier);
-  void send_ComposeText(const int64_t req_id, const std::string& text, const std::map<std::string, std::string> & carrier);
+  void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text);
+  void send_ComposeText(const int64_t req_id, const std::string& text);
   void recv_ComposeText(TextServiceReturn& _return);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
@@ -258,13 +251,13 @@ class TextServiceMultiface : virtual public TextServiceIf {
     ifaces_.push_back(iface);
   }
  public:
-  void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text, const std::map<std::string, std::string> & carrier) {
+  void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ComposeText(_return, req_id, text, carrier);
+      ifaces_[i]->ComposeText(_return, req_id, text);
     }
-    ifaces_[i]->ComposeText(_return, req_id, text, carrier);
+    ifaces_[i]->ComposeText(_return, req_id, text);
     return;
   }
 
@@ -298,8 +291,8 @@ class TextServiceConcurrentClient : virtual public TextServiceIf {
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
-  void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text, const std::map<std::string, std::string> & carrier);
-  int32_t send_ComposeText(const int64_t req_id, const std::string& text, const std::map<std::string, std::string> & carrier);
+  void ComposeText(TextServiceReturn& _return, const int64_t req_id, const std::string& text);
+  int32_t send_ComposeText(const int64_t req_id, const std::string& text);
   void recv_ComposeText(TextServiceReturn& _return, const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
