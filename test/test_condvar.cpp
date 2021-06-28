@@ -11,11 +11,11 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "cond_var.hpp"
-#include "monitor.hpp"
-#include "mutex.hpp"
-#include "rem_obj.hpp"
-#include "runtime.hpp"
+#include "nu/cond_var.hpp"
+#include "nu/monitor.hpp"
+#include "nu/mutex.hpp"
+#include "nu/rem_obj.hpp"
+#include "nu/runtime.hpp"
 
 using namespace nu;
 

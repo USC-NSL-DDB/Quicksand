@@ -15,7 +15,7 @@ extern "C" {
 #include <runtime.h>
 #include <thread.h>
 
-#include "defs.hpp"
+#include "nu/defs.hpp"
 
 using namespace nu;
 using namespace std;

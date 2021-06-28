@@ -6,10 +6,10 @@ extern "C" {
 #include <base/compiler.h>
 #include <net/ip.h>
 }
-#include "thread.h"
+#include <thread.h>
 
-#include "ctrl.hpp"
-#include "obj_server.hpp"
+#include "nu/ctrl.hpp"
+#include "nu/obj_server.hpp"
 
 namespace nu {
 

@@ -11,13 +11,13 @@ extern "C" {
 #include <runtime/net.h>
 #include <runtime/tcp.h>
 }
-#include "thread.h"
+#include <thread.h>
 
-#include "defs.hpp"
-#include "heap_mgr.hpp"
-#include "obj_server.hpp"
-#include "runtime.hpp"
-#include "runtime_alloc.hpp"
+#include "nu/defs.hpp"
+#include "nu/heap_mgr.hpp"
+#include "nu/obj_server.hpp"
+#include "nu/runtime.hpp"
+#include "nu/runtime_alloc.hpp"
 
 constexpr static bool kEnableLogging = false;
 constexpr static uint32_t kPrintLoggingIntervalUs = 200 * 1000;

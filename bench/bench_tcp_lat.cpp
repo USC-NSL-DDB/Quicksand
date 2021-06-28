@@ -15,8 +15,8 @@ extern "C" {
 #include <runtime.h>
 #include <thread.h>
 
-#include "defs.hpp"
-#include "utils/bench.hpp"
+#include "nu/defs.hpp"
+#include "nu/utils/bench.hpp"
 
 using namespace nu;
 using namespace std;

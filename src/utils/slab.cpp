@@ -1,6 +1,6 @@
 #include <algorithm>
 
-#include "utils/slab.hpp"
+#include "nu/utils/slab.hpp"
 
 namespace nu {
 

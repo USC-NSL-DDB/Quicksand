@@ -4,12 +4,12 @@
 extern "C" {
 #include <runtime/timer.h>
 }
-#include "thread.h"
+#include <thread.h>
 
-#include "defs.hpp"
-#include "migrator.hpp"
-#include "monitor.hpp"
-#include "runtime.hpp"
+#include "nu/defs.hpp"
+#include "nu/migrator.hpp"
+#include "nu/monitor.hpp"
+#include "nu/runtime.hpp"
 
 constexpr static bool kEnableLogging = false;
 

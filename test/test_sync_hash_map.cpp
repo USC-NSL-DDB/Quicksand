@@ -6,9 +6,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "runtime.hpp"
-#include "utils/farmhash.hpp"
-#include "utils/sync_hash_map.hpp"
+#include "nu/runtime.hpp"
+#include "nu/utils/farmhash.hpp"
+#include "nu/utils/sync_hash_map.hpp"
 
 using namespace nu;
 

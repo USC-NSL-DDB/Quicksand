@@ -7,7 +7,7 @@ extern "C" {
 }
 #include <thread.h>
 
-#include "utils/rcu_lock.hpp"
+#include "nu/utils/rcu_lock.hpp"
 
 namespace nu {
 

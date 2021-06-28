@@ -11,11 +11,11 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "monitor.hpp"
-#include "mutex.hpp"
-#include "rem_obj.hpp"
-#include "runtime.hpp"
-#include "utils/spinlock.hpp"
+#include "nu/monitor.hpp"
+#include "nu/mutex.hpp"
+#include "nu/rem_obj.hpp"
+#include "nu/runtime.hpp"
+#include "nu/utils/spinlock.hpp"
 
 using namespace nu;
 

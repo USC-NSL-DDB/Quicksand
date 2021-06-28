@@ -6,12 +6,12 @@ extern "C" {
 #include <runtime/thread.h>
 }
 
-#include "cond_var.hpp"
-#include "heap_mgr.hpp"
-#include "monitor.hpp"
-#include "mutex.hpp"
-#include "runtime.hpp"
-#include "runtime_alloc.hpp"
+#include "nu/cond_var.hpp"
+#include "nu/heap_mgr.hpp"
+#include "nu/monitor.hpp"
+#include "nu/mutex.hpp"
+#include "nu/runtime.hpp"
+#include "nu/runtime_alloc.hpp"
 
 namespace nu {
 

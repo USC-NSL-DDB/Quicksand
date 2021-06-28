@@ -3,9 +3,9 @@ extern "C" {
 #include <runtime/tcp.h>
 }
 
-#include "ctrl_client.hpp"
-#include "obj_conn_mgr.hpp"
-#include "runtime.hpp"
+#include "nu/ctrl_client.hpp"
+#include "nu/obj_conn_mgr.hpp"
+#include "nu/runtime.hpp"
 
 namespace nu {
 

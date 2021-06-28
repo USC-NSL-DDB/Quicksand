@@ -8,7 +8,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "utils/slab.hpp"
+#include "nu/utils/slab.hpp"
 
 using namespace nu;
 

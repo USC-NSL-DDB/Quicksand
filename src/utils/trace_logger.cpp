@@ -5,7 +5,7 @@ extern "C" {
 #include <base/time.h>
 }
 
-#include "utils/trace_logger.hpp"
+#include "nu/utils/trace_logger.hpp"
 
 namespace nu {
 

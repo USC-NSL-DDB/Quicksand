@@ -6,7 +6,7 @@ extern "C" {
 #include <runtime/preempt.h>
 }
 
-#include "stack_manager.hpp"
+#include "nu/stack_manager.hpp"
 
 namespace nu {
 

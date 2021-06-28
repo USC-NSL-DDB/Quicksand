@@ -11,8 +11,8 @@ extern "C" {
 #include <runtime.h>
 #include <thread.h>
 
-#include "rem_obj.hpp"
-#include "runtime.hpp"
+#include "nu/rem_obj.hpp"
+#include "nu/runtime.hpp"
 
 using namespace nu;
 

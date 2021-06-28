@@ -11,9 +11,9 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "monitor.hpp"
-#include "rem_obj.hpp"
-#include "runtime.hpp"
+#include "nu/monitor.hpp"
+#include "nu/rem_obj.hpp"
+#include "nu/runtime.hpp"
 
 using namespace nu;
 

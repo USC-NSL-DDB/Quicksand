@@ -10,9 +10,9 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "rem_obj.hpp"
-#include "rem_raw_ptr.hpp"
-#include "runtime.hpp"
+#include "nu/rem_obj.hpp"
+#include "nu/rem_raw_ptr.hpp"
+#include "nu/runtime.hpp"
 
 using namespace nu;
 

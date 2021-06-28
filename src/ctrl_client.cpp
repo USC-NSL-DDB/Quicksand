@@ -3,11 +3,11 @@ extern "C" {
 #include <runtime/net.h>
 }
 
-#include "ctrl_client.hpp"
-#include "ctrl_server.hpp"
-#include "migrator.hpp"
-#include "obj_server.hpp"
-#include "runtime.hpp"
+#include "nu/ctrl_client.hpp"
+#include "nu/ctrl_server.hpp"
+#include "nu/migrator.hpp"
+#include "nu/obj_server.hpp"
+#include "nu/runtime.hpp"
 
 namespace nu {
 
