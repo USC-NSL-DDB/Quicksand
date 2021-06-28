@@ -116,16 +116,16 @@ static struct port_matcher_tbl *alloc_port_matcher(uint8_t ipproto,
 	if (ret)
 		return NULL;
 
-	if (ipproto == IPPROTO_TCP && use_dst) {
+	if (ipproto == CALADAN_IPPROTO_TCP && use_dst) {
 		t->match_bit_off = __devx_bit_off(fte_match_param, outer_headers.tcp_dport);
 		t->match_bit_sz = __devx_bit_sz(fte_match_param, outer_headers.tcp_dport);
-	} else if (ipproto == IPPROTO_TCP && !use_dst) {
+	} else if (ipproto == CALADAN_IPPROTO_TCP && !use_dst) {
 		t->match_bit_off = __devx_bit_off(fte_match_param, outer_headers.tcp_sport);
 		t->match_bit_sz = __devx_bit_sz(fte_match_param, outer_headers.tcp_sport);
-	} else if (ipproto == IPPROTO_UDP && use_dst) {
+	} else if (ipproto == CALADAN_IPPROTO_UDP && use_dst) {
 		t->match_bit_off = __devx_bit_off(fte_match_param, outer_headers.udp_dport);
 		t->match_bit_sz = __devx_bit_sz(fte_match_param, outer_headers.udp_dport);
-	} else if (ipproto == IPPROTO_UDP && !use_dst) {
+	} else if (ipproto == CALADAN_IPPROTO_UDP && !use_dst) {
 		t->match_bit_off = __devx_bit_off(fte_match_param, outer_headers.udp_sport);
 		t->match_bit_sz = __devx_bit_sz(fte_match_param, outer_headers.udp_sport);
 	} else {
@@ -178,11 +178,13 @@ static int mlx5_init_udp(void)
 	int ret;
 	union match mask = {0};
 
-	udp_dport_tbl = alloc_port_matcher(IPPROTO_UDP, true, PORT_MATCH_BITS);
+	udp_dport_tbl = alloc_port_matcher(CALADAN_IPPROTO_UDP, true,
+					   PORT_MATCH_BITS);
 	if (!udp_dport_tbl)
 		return -EINVAL;
 
-	udp_sport_tbl = alloc_port_matcher(IPPROTO_UDP, false, PORT_MATCH_BITS);
+	udp_sport_tbl = alloc_port_matcher(CALADAN_IPPROTO_UDP, false,
+					   PORT_MATCH_BITS);
 	if (!udp_sport_tbl)
 		return -EINVAL;
 
@@ -207,11 +209,13 @@ static int mlx5_init_tcp(void)
 	int ret;
 	union match mask = {0};
 
-	tcp_dport_tbl = alloc_port_matcher(IPPROTO_TCP, true, PORT_MATCH_BITS);
+	tcp_dport_tbl = alloc_port_matcher(CALADAN_IPPROTO_TCP, true,
+					   PORT_MATCH_BITS);
 	if (!tcp_dport_tbl)
 		return -EINVAL;
 
-	tcp_sport_tbl = alloc_port_matcher(IPPROTO_TCP, false, PORT_MATCH_BITS);
+	tcp_sport_tbl = alloc_port_matcher(CALADAN_IPPROTO_TCP, false,
+					   PORT_MATCH_BITS);
 	if (!tcp_sport_tbl)
 		return -EINVAL;
 
@@ -256,13 +260,13 @@ static int mlx5_init_root_table(void)
 
 	DEVX_SET(fte_match_param, mask.buf, outer_headers.dmac_47_16, hton32(*(uint32_t *)&netcfg.mac.addr[0]));
 	DEVX_SET(fte_match_param, mask.buf, outer_headers.dmac_15_0, hton16(*(uint16_t *)&netcfg.mac.addr[4]));
-	DEVX_SET(fte_match_param, mask.buf, outer_headers.ip_protocol, IPPROTO_TCP);
+	DEVX_SET(fte_match_param, mask.buf, outer_headers.ip_protocol, CALADAN_IPPROTO_TCP);
 	action[0] = tcp_tbl.ingress_action;
 	root_tcp_rule = mlx5dv_dr_rule_create(match_mac_and_tport, &mask.params, 1, action);
 	if (!root_tcp_rule)
 		return -errno;
 
-	DEVX_SET(fte_match_param, mask.buf, outer_headers.ip_protocol, IPPROTO_UDP);
+	DEVX_SET(fte_match_param, mask.buf, outer_headers.ip_protocol, CALADAN_IPPROTO_UDP);
 	action[0] = udp_tbl.ingress_action;
 	root_udp_rule = mlx5dv_dr_rule_create(match_mac_and_tport, &mask.params, 1, action);
 	if (!root_udp_rule)
@@ -294,13 +298,13 @@ int mlx5_register_flow(unsigned int affinity, struct trans_entry *e, void **hand
 	DEVX_SET(fte_match_param, key.buf, outer_headers.ip_version, 4);
 
 	switch (e->proto) {
-		case IPPROTO_TCP:
+		case CALADAN_IPPROTO_TCP:
 			map = tcp_listen_ports;
 			match = tcp_tbl_dport_match;
 			dst_tbl = tcp_sport_tbl;
 			DEVX_SET(fte_match_param, key.buf, outer_headers.tcp_dport, e->laddr.port);
 			break;
-		case IPPROTO_UDP:
+		case CALADAN_IPPROTO_UDP:
 			map = udp_listen_ports;
 			match = udp_tbl_dport_match;
 			dst_tbl = udp_sport_tbl;
@@ -334,9 +338,9 @@ int mlx5_deregister_flow(struct trans_entry *e, void *handle)
 {
 	int ret;
 
-	if (e->proto == IPPROTO_TCP)
+	if (e->proto == CALADAN_IPPROTO_TCP)
 		bitmap_atomic_clear(tcp_listen_ports, e->laddr.port);
-	else if (e->proto == IPPROTO_UDP)
+	else if (e->proto == CALADAN_IPPROTO_UDP)
 		bitmap_atomic_clear(udp_listen_ports, e->laddr.port);
 	else
 		return -EINVAL;
@@ -381,7 +385,7 @@ int mlx5_steer_flows(unsigned int *new_fg_assignment)
 
 uint32_t mlx5_get_flow_affinity(uint8_t ipproto, uint16_t local_port, struct netaddr remote)
 {
-	bitmap_ptr_t map = ipproto == IPPROTO_TCP ? tcp_listen_ports :
+	bitmap_ptr_t map = ipproto == CALADAN_IPPROTO_TCP ? tcp_listen_ports :
 			  udp_listen_ports;
 
 	if (bitmap_atomic_test(map, local_port))

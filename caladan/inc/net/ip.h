@@ -232,126 +232,126 @@ struct ip_pseudo {
 };
 
 /* Protocols common to RFC 1700, POSIX, and X/Open. */
-#define	IPPROTO_IP		0		/* dummy for IP */
-#define	IPPROTO_ICMP		1		/* control message protocol */
-#define	IPPROTO_TCP		6		/* tcp */
-#define	IPPROTO_UDP		17		/* user datagram protocol */
+#define	CALADAN_IPPROTO_IP		0		/* dummy for IP */
+#define	CALADAN_IPPROTO_ICMP		1		/* control message protocol */
+#define	CALADAN_IPPROTO_TCP		6		/* tcp */
+#define	CALADAN_IPPROTO_UDP		17		/* user datagram protocol */
 
 /* Protocols (RFC 1700) */
-#define	IPPROTO_HOPOPTS		0		/* IP6 hop-by-hop options */
-#define	IPPROTO_IGMP		2		/* group mgmt protocol */
-#define	IPPROTO_GGP		3		/* gateway^2 (deprecated) */
-#define	IPPROTO_IPV4		4		/* IPv4 encapsulation */
-#define	IPPROTO_IPIP		IPPROTO_IPV4	/* for compatibility */
-#define	IPPROTO_ST		7		/* Stream protocol II */
-#define	IPPROTO_EGP		8		/* exterior gateway protocol */
-#define	IPPROTO_PIGP		9		/* private interior gateway */
-#define	IPPROTO_RCCMON		10		/* BBN RCC Monitoring */
-#define	IPPROTO_NVPII		11		/* network voice protocol*/
-#define	IPPROTO_PUP		12		/* pup */
-#define	IPPROTO_ARGUS		13		/* Argus */
-#define	IPPROTO_EMCON		14		/* EMCON */
-#define	IPPROTO_XNET		15		/* Cross Net Debugger */
-#define	IPPROTO_CHAOS		16		/* Chaos*/
-#define	IPPROTO_MUX		18		/* Multiplexing */
-#define	IPPROTO_MEAS		19		/* DCN Measurement Subsystems */
-#define	IPPROTO_HMP		20		/* Host Monitoring */
-#define	IPPROTO_PRM		21		/* Packet Radio Measurement */
-#define	IPPROTO_IDP		22		/* xns idp */
-#define	IPPROTO_TRUNK1		23		/* Trunk-1 */
-#define	IPPROTO_TRUNK2		24		/* Trunk-2 */
-#define	IPPROTO_LEAF1		25		/* Leaf-1 */
-#define	IPPROTO_LEAF2		26		/* Leaf-2 */
-#define	IPPROTO_RDP		27		/* Reliable Data */
-#define	IPPROTO_IRTP		28		/* Reliable Transaction */
-#define	IPPROTO_TP		29		/* tp-4 w/ class negotiation */
-#define	IPPROTO_BLT		30		/* Bulk Data Transfer */
-#define	IPPROTO_NSP		31		/* Network Services */
-#define	IPPROTO_INP		32		/* Merit Internodal */
-#define	IPPROTO_SEP		33		/* Sequential Exchange */
-#define	IPPROTO_3PC		34		/* Third Party Connect */
-#define	IPPROTO_IDPR		35		/* InterDomain Policy Routing */
-#define	IPPROTO_XTP		36		/* XTP */
-#define	IPPROTO_DDP		37		/* Datagram Delivery */
-#define	IPPROTO_CMTP		38		/* Control Message Transport */
-#define	IPPROTO_TPXX		39		/* TP++ Transport */
-#define	IPPROTO_IL		40		/* IL transport protocol */
-#define	IPPROTO_IPV6		41		/* IP6 header */
-#define	IPPROTO_SDRP		42		/* Source Demand Routing */
-#define	IPPROTO_ROUTING		43		/* IP6 routing header */
-#define	IPPROTO_FRAGMENT	44		/* IP6 fragmentation header */
-#define	IPPROTO_IDRP		45		/* InterDomain Routing*/
-#define	IPPROTO_RSVP		46		/* resource reservation */
-#define	IPPROTO_GRE		47		/* General Routing Encap. */
-#define	IPPROTO_MHRP		48		/* Mobile Host Routing */
-#define	IPPROTO_BHA		49		/* BHA */
-#define	IPPROTO_ESP		50		/* IP6 Encap Sec. Payload */
-#define	IPPROTO_AH		51		/* IP6 Auth Header */
-#define	IPPROTO_INLSP		52		/* Integ. Net Layer Security */
-#define	IPPROTO_SWIPE		53		/* IP with encryption */
-#define	IPPROTO_NHRP		54		/* Next Hop Resolution */
-#define	IPPROTO_MOBILE		55		/* IP Mobility */
-#define	IPPROTO_TLSP		56		/* Transport Layer Security */
-#define	IPPROTO_SKIP		57		/* SKIP */
-#define	IPPROTO_ICMPV6		58		/* ICMP6 */
-#define	IPPROTO_NONE		59		/* IP6 no next header */
-#define	IPPROTO_DSTOPTS		60		/* IP6 destination option */
-#define	IPPROTO_AHIP		61		/* any host internal protocol */
-#define	IPPROTO_CFTP		62		/* CFTP */
-#define	IPPROTO_HELLO		63		/* "hello" routing protocol */
-#define	IPPROTO_SATEXPAK	64		/* SATNET/Backroom EXPAK */
-#define	IPPROTO_KRYPTOLAN	65		/* Kryptolan */
-#define	IPPROTO_RVD		66		/* Remote Virtual Disk */
-#define	IPPROTO_IPPC		67		/* Pluribus Packet Core */
-#define	IPPROTO_ADFS		68		/* Any distributed FS */
-#define	IPPROTO_SATMON		69		/* Satnet Monitoring */
-#define	IPPROTO_VISA		70		/* VISA Protocol */
-#define	IPPROTO_IPCV		71		/* Packet Core Utility */
-#define	IPPROTO_CPNX		72		/* Comp. Prot. Net. Executive */
-#define	IPPROTO_CPHB		73		/* Comp. Prot. HeartBeat */
-#define	IPPROTO_WSN		74		/* Wang Span Network */
-#define	IPPROTO_PVP		75		/* Packet Video Protocol */
-#define	IPPROTO_BRSATMON	76		/* BackRoom SATNET Monitoring */
-#define	IPPROTO_ND		77		/* Sun net disk proto (temp.) */
-#define	IPPROTO_WBMON		78		/* WIDEBAND Monitoring */
-#define	IPPROTO_WBEXPAK		79		/* WIDEBAND EXPAK */
-#define	IPPROTO_EON		80		/* ISO cnlp */
-#define	IPPROTO_VMTP		81		/* VMTP */
-#define	IPPROTO_SVMTP		82		/* Secure VMTP */
-#define	IPPROTO_VINES		83		/* Banyon VINES */
-#define	IPPROTO_TTP		84		/* TTP */
-#define	IPPROTO_IGP		85		/* NSFNET-IGP */
-#define	IPPROTO_DGP		86		/* dissimilar gateway prot. */
-#define	IPPROTO_TCF		87		/* TCF */
-#define	IPPROTO_IGRP		88		/* Cisco/GXS IGRP */
-#define	IPPROTO_OSPFIGP		89		/* OSPFIGP */
-#define	IPPROTO_SRPC		90		/* Strite RPC protocol */
-#define	IPPROTO_LARP		91		/* Locus Address Resoloution */
-#define	IPPROTO_MTP		92		/* Multicast Transport */
-#define	IPPROTO_AX25		93		/* AX.25 Frames */
-#define	IPPROTO_IPEIP		94		/* IP encapsulated in IP */
-#define	IPPROTO_MICP		95		/* Mobile Int.ing control */
-#define	IPPROTO_SCCSP		96		/* Semaphore Comm. security */
-#define	IPPROTO_ETHERIP		97		/* Ethernet IP encapsulation */
-#define	IPPROTO_ENCAP		98		/* encapsulation header */
-#define	IPPROTO_APES		99		/* any private encr. scheme */
-#define	IPPROTO_GMTP		100		/* GMTP*/
-#define	IPPROTO_IPCOMP		108		/* payload compression (IPComp) */
-#define	IPPROTO_SCTP		132		/* SCTP */
-#define	IPPROTO_MH		135		/* IPv6 Mobility Header */
-#define	IPPROTO_HIP		139		/* IP6 Host Identity Protocol */
-#define	IPPROTO_SHIM6		140		/* IP6 Shim6 Protocol */
+#define	CALADAN_IPPROTO_HOPOPTS		0		/* IP6 hop-by-hop options */
+#define	CALADAN_IPPROTO_IGMP		2		/* group mgmt protocol */
+#define	CALADAN_IPPROTO_GGP		3		/* gateway^2 (deprecated) */
+#define	CALADAN_IPPROTO_IPV4		4		/* IPv4 encapsulation */
+#define	CALADAN_IPPROTO_IPIP		CALADAN_IPPROTO_IPV4	/* for compatibility */
+#define	CALADAN_IPPROTO_ST		7		/* Stream protocol II */
+#define	CALADAN_IPPROTO_EGP		8		/* exterior gateway protocol */
+#define	CALADAN_IPPROTO_PIGP		9		/* private interior gateway */
+#define	CALADAN_IPPROTO_RCCMON		10		/* BBN RCC Monitoring */
+#define	CALADAN_IPPROTO_NVPII		11		/* network voice protocol*/
+#define	CALADAN_IPPROTO_PUP		12		/* pup */
+#define	CALADAN_IPPROTO_ARGUS		13		/* Argus */
+#define	CALADAN_IPPROTO_EMCON		14		/* EMCON */
+#define	CALADAN_IPPROTO_XNET		15		/* Cross Net Debugger */
+#define	CALADAN_IPPROTO_CHAOS		16		/* Chaos*/
+#define	CALADAN_IPPROTO_MUX		18		/* Multiplexing */
+#define	CALADAN_IPPROTO_MEAS		19		/* DCN Measurement Subsystems */
+#define	CALADAN_IPPROTO_HMP		20		/* Host Monitoring */
+#define	CALADAN_IPPROTO_PRM		21		/* Packet Radio Measurement */
+#define	CALADAN_IPPROTO_IDP		22		/* xns idp */
+#define	CALADAN_IPPROTO_TRUNK1		23		/* Trunk-1 */
+#define	CALADAN_IPPROTO_TRUNK2		24		/* Trunk-2 */
+#define	CALADAN_IPPROTO_LEAF1		25		/* Leaf-1 */
+#define	CALADAN_IPPROTO_LEAF2		26		/* Leaf-2 */
+#define	CALADAN_IPPROTO_RDP		27		/* Reliable Data */
+#define	CALADAN_IPPROTO_IRTP		28		/* Reliable Transaction */
+#define	CALADAN_IPPROTO_TP		29		/* tp-4 w/ class negotiation */
+#define	CALADAN_IPPROTO_BLT		30		/* Bulk Data Transfer */
+#define	CALADAN_IPPROTO_NSP		31		/* Network Services */
+#define	CALADAN_IPPROTO_INP		32		/* Merit Internodal */
+#define	CALADAN_IPPROTO_SEP		33		/* Sequential Exchange */
+#define	CALADAN_IPPROTO_3PC		34		/* Third Party Connect */
+#define	CALADAN_IPPROTO_IDPR		35		/* InterDomain Policy Routing */
+#define	CALADAN_IPPROTO_XTP		36		/* XTP */
+#define	CALADAN_IPPROTO_DDP		37		/* Datagram Delivery */
+#define	CALADAN_IPPROTO_CMTP		38		/* Control Message Transport */
+#define	CALADAN_IPPROTO_TPXX		39		/* TP++ Transport */
+#define	CALADAN_IPPROTO_IL		40		/* IL transport protocol */
+#define	CALADAN_IPPROTO_IPV6		41		/* IP6 header */
+#define	CALADAN_IPPROTO_SDRP		42		/* Source Demand Routing */
+#define	CALADAN_IPPROTO_ROUTING		43		/* IP6 routing header */
+#define	CALADAN_IPPROTO_FRAGMENT	44		/* IP6 fragmentation header */
+#define	CALADAN_IPPROTO_IDRP		45		/* InterDomain Routing*/
+#define	CALADAN_IPPROTO_RSVP		46		/* resource reservation */
+#define	CALADAN_IPPROTO_GRE		47		/* General Routing Encap. */
+#define	CALADAN_IPPROTO_MHRP		48		/* Mobile Host Routing */
+#define	CALADAN_IPPROTO_BHA		49		/* BHA */
+#define	CALADAN_IPPROTO_ESP		50		/* IP6 Encap Sec. Payload */
+#define	CALADAN_IPPROTO_AH		51		/* IP6 Auth Header */
+#define	CALADAN_IPPROTO_INLSP		52		/* Integ. Net Layer Security */
+#define	CALADAN_IPPROTO_SWIPE		53		/* IP with encryption */
+#define	CALADAN_IPPROTO_NHRP		54		/* Next Hop Resolution */
+#define	CALADAN_IPPROTO_MOBILE		55		/* IP Mobility */
+#define	CALADAN_IPPROTO_TLSP		56		/* Transport Layer Security */
+#define	CALADAN_IPPROTO_SKIP		57		/* SKIP */
+#define	CALADAN_IPPROTO_ICMPV6		58		/* ICMP6 */
+#define	CALADAN_IPPROTO_NONE		59		/* IP6 no next header */
+#define	CALADAN_IPPROTO_DSTOPTS		60		/* IP6 destination option */
+#define	CALADAN_IPPROTO_AHIP		61		/* any host internal protocol */
+#define	CALADAN_IPPROTO_CFTP		62		/* CFTP */
+#define	CALADAN_IPPROTO_HELLO		63		/* "hello" routing protocol */
+#define	CALADAN_IPPROTO_SATEXPAK	64		/* SATNET/Backroom EXPAK */
+#define	CALADAN_IPPROTO_KRYPTOLAN	65		/* Kryptolan */
+#define	CALADAN_IPPROTO_RVD		66		/* Remote Virtual Disk */
+#define	CALADAN_IPPROTO_IPPC		67		/* Pluribus Packet Core */
+#define	CALADAN_IPPROTO_ADFS		68		/* Any distributed FS */
+#define	CALADAN_IPPROTO_SATMON		69		/* Satnet Monitoring */
+#define	CALADAN_IPPROTO_VISA		70		/* VISA Protocol */
+#define	CALADAN_IPPROTO_IPCV		71		/* Packet Core Utility */
+#define	CALADAN_IPPROTO_CPNX		72		/* Comp. Prot. Net. Executive */
+#define	CALADAN_IPPROTO_CPHB		73		/* Comp. Prot. HeartBeat */
+#define	CALADAN_IPPROTO_WSN		74		/* Wang Span Network */
+#define	CALADAN_IPPROTO_PVP		75		/* Packet Video Protocol */
+#define	CALADAN_IPPROTO_BRSATMON	76		/* BackRoom SATNET Monitoring */
+#define	CALADAN_IPPROTO_ND		77		/* Sun net disk proto (temp.) */
+#define	CALADAN_IPPROTO_WBMON		78		/* WIDEBAND Monitoring */
+#define	CALADAN_IPPROTO_WBEXPAK		79		/* WIDEBAND EXPAK */
+#define	CALADAN_IPPROTO_EON		80		/* ISO cnlp */
+#define	CALADAN_IPPROTO_VMTP		81		/* VMTP */
+#define	CALADAN_IPPROTO_SVMTP		82		/* Secure VMTP */
+#define	CALADAN_IPPROTO_VINES		83		/* Banyon VINES */
+#define	CALADAN_IPPROTO_TTP		84		/* TTP */
+#define	CALADAN_IPPROTO_IGP		85		/* NSFNET-IGP */
+#define	CALADAN_IPPROTO_DGP		86		/* dissimilar gateway prot. */
+#define	CALADAN_IPPROTO_TCF		87		/* TCF */
+#define	CALADAN_IPPROTO_IGRP		88		/* Cisco/GXS IGRP */
+#define	CALADAN_IPPROTO_OSPFIGP		89		/* OSPFIGP */
+#define	CALADAN_IPPROTO_SRPC		90		/* Strite RPC protocol */
+#define	CALADAN_IPPROTO_LARP		91		/* Locus Address Resoloution */
+#define	CALADAN_IPPROTO_MTP		92		/* Multicast Transport */
+#define	CALADAN_IPPROTO_AX25		93		/* AX.25 Frames */
+#define	CALADAN_IPPROTO_IPEIP		94		/* IP encapsulated in IP */
+#define	CALADAN_IPPROTO_MICP		95		/* Mobile Int.ing control */
+#define	CALADAN_IPPROTO_SCCSP		96		/* Semaphore Comm. security */
+#define	CALADAN_IPPROTO_ETHERIP		97		/* Ethernet IP encapsulation */
+#define	CALADAN_IPPROTO_ENCAP		98		/* encapsulation header */
+#define	CALADAN_IPPROTO_APES		99		/* any private encr. scheme */
+#define	CALADAN_IPPROTO_GMTP		100		/* GMTP*/
+#define	CALADAN_IPPROTO_IPCOMP		108		/* payload compression (IPComp) */
+#define	CALADAN_IPPROTO_SCTP		132		/* SCTP */
+#define	CALADAN_IPPROTO_MH		135		/* IPv6 Mobility Header */
+#define	CALADAN_IPPROTO_HIP		139		/* IP6 Host Identity Protocol */
+#define	CALADAN_IPPROTO_SHIM6		140		/* IP6 Shim6 Protocol */
 /* 101-254: Partly Unassigned */
-#define	IPPROTO_PIM		103		/* Protocol Independent Mcast */
-#define	IPPROTO_CARP		112		/* CARP */
-#define	IPPROTO_PGM		113		/* PGM */
-#define	IPPROTO_MPLS		137		/* MPLS-in-IP */
-#define	IPPROTO_PFSYNC		240		/* PFSYNC */
-#define	IPPROTO_RESERVED_253	253		/* Reserved */
-#define	IPPROTO_RESERVED_254	254		/* Reserved */
+#define	CALADAN_IPPROTO_PIM		103		/* Protocol Independent Mcast */
+#define	CALADAN_IPPROTO_CARP		112		/* CARP */
+#define	CALADAN_IPPROTO_PGM		113		/* PGM */
+#define	CALADAN_IPPROTO_MPLS		137		/* MPLS-in-IP */
+#define	CALADAN_IPPROTO_PFSYNC		240		/* PFSYNC */
+#define	CALADAN_IPPROTO_RESERVED_253	253		/* Reserved */
+#define	CALADAN_IPPROTO_RESERVED_254	254		/* Reserved */
 /* 255: Reserved */
 /* BSD Private, local use, namespace incursion, no longer used */
-#define	IPPROTO_OLD_DIVERT	254		/* OLD divert pseudo-proto */
-#define	IPPROTO_RAW		255		/* raw IP packet */
-#define	IPPROTO_MAX		256
+#define	CALADAN_IPPROTO_OLD_DIVERT	254		/* OLD divert pseudo-proto */
+#define	CALADAN_IPPROTO_RAW		255		/* raw IP packet */
+#define	CALADAN_IPPROTO_MAX		256
 

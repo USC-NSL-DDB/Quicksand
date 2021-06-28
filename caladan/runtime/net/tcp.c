@@ -303,7 +303,8 @@ int tcp_conn_attach(tcpconn_t *c, struct netaddr laddr, struct netaddr raddr)
 	else if (laddr.ip != netcfg.addr)
 		return -EINVAL;
 
-	trans_init_5tuple(&c->e, IPPROTO_TCP, &tcp_conn_ops, laddr, raddr);
+	trans_init_5tuple(&c->e, CALADAN_IPPROTO_TCP, &tcp_conn_ops, laddr,
+			  raddr);
 	if (laddr.port == 0)
 		ret = trans_table_add_with_ephemeral_port(&c->e);
 	else
@@ -446,7 +447,8 @@ int __tcp_listen(struct netaddr laddr, int backlog, tcpqueue_t **q_out,
 	if (!q)
 		return -ENOMEM;
 
-	trans_init_3tuple(&q->e, IPPROTO_TCP, &tcp_queue_ops, laddr);
+	trans_init_3tuple(&q->e, CALADAN_IPPROTO_TCP, &tcp_queue_ops,
+			  laddr);
 	spin_lock_init(&q->l);
 	waitq_init(&q->wq);
 	list_head_init(&q->conns);
@@ -619,7 +621,7 @@ int __tcp_dial_conn_affinity(tcpconn_t *in, struct netaddr raddr,
                              tcpconn_t **c_out, uint8_t dscp)
 {
 	uint32_t in_aff = net_ops.get_flow_affinity(
-			  IPPROTO_TCP, in->e.laddr.port, in->e.raddr);
+			  CALADAN_IPPROTO_TCP, in->e.laddr.port, in->e.raddr);
 	return __tcp_dial_affinity(in_aff, raddr, c_out, dscp);
 }
 
@@ -636,7 +638,8 @@ int __tcp_dial_affinity(uint32_t in_aff, struct netaddr raddr,
 
 	while (true) {
 		do {
-			out_aff = net_ops.get_flow_affinity(IPPROTO_TCP, ++base_port, raddr);
+			out_aff = net_ops.get_flow_affinity(CALADAN_IPPROTO_TCP,
+							    ++base_port, raddr);
 			if (base_port == start_port)
 				return -EAGAIN;
 		} while (out_aff != in_aff || base_port == 0);
