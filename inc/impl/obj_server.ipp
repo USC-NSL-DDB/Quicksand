@@ -15,7 +15,7 @@ extern "C" {
 namespace nu {
 
 inline netaddr ObjServer::get_addr() const {
-  netaddr addr = {.ip = get_cfg_ip(), .port = port_};
+  netaddr addr = {.ip = get_cfg_ip(), .port = kObjServerPort};
   return addr;
 }
 

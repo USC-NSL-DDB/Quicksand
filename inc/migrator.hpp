@@ -64,9 +64,10 @@ class Migrator {
 public:
   constexpr static uint32_t kDefaultNumReservedConns = 32;
   constexpr static uint32_t kTransmitHeapNumThreads = 2;
+  constexpr static uint32_t kMigratorServerPort = 8002;
 
   ~Migrator();
-  void run_loop(uint16_t port);
+  void run_loop();
   void migrate(Resource pressure, std::list<void *> heaps);
   void forward_to_original_server(rt::TcpConn *conn_to_client,
                                   uint64_t stack_top, const ObjRPCRespHdr &hdr,
@@ -77,7 +78,6 @@ private:
   constexpr static uint32_t kTCPListenBackLog = 64;
   MigratorConnManager conn_mgr_;
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
-  uint16_t port_;
 
   void handle_copy(rt::TcpConn *c);
   void handle_load(rt::TcpConn *c);

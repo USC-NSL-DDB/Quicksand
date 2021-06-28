@@ -4,16 +4,22 @@ extern "C" {
 }
 
 #include "ctrl_client.hpp"
+#include "ctrl_server.hpp"
+#include "migrator.hpp"
+#include "obj_server.hpp"
 #include "runtime.hpp"
 
 namespace nu {
 
-ControllerConnManager::ControllerConnManager(netaddr remote_ctrl_addr)
-    : creator_([remote_ctrl_addr](bool unused) {
+ControllerConnManager::ControllerConnManager(uint32_t ctrl_server_ip)
+    : creator_([ctrl_server_ip](bool unused) {
         netaddr local_ctrl_client_addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0),
                                           .port = 0};
+        netaddr remote_ctrl_server_addr = {
+            .ip = ctrl_server_ip,
+            .port = ControllerServer::kControllerServerPort};
         auto tcp_conn =
-            rt::TcpConn::Dial(local_ctrl_client_addr, remote_ctrl_addr);
+            rt::TcpConn::Dial(local_ctrl_client_addr, remote_ctrl_server_addr);
         BUG_ON(!tcp_conn);
         return tcp_conn;
       }),
@@ -31,17 +37,21 @@ inline void ControllerConnManager::reserve_conns(uint32_t num) {
   mgr_.reserve_conns(false, num);
 }
 
-ControllerClient::ControllerClient(netaddr remote_ctrl_addr)
-    : conn_mgr_(remote_ctrl_addr) {}
-
-ControllerClient::ControllerClient(uint16_t local_obj_srv_port,
-                                   uint16_t local_migrator_port,
-                                   netaddr remote_ctrl_addr)
-    : conn_mgr_(remote_ctrl_addr) {
-  Node node;
-  node.obj_srv_addr = {.ip = get_cfg_ip(), .port = local_obj_srv_port};
-  node.migrator_addr = {.ip = get_cfg_ip(), .port = local_migrator_port};
-  stack_cluster_ = register_node(node);
+ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode)
+    : conn_mgr_(ctrl_server_ip) {
+  switch (mode) {
+  case Runtime::SERVER:
+    Node node;
+    node.obj_srv_addr = {.ip = get_cfg_ip(), .port = ObjServer::kObjServerPort};
+    node.migrator_addr = {.ip = get_cfg_ip(),
+                          .port = Migrator::kMigratorServerPort};
+    stack_cluster_ = register_node(node);
+    break;
+  case Runtime::CLIENT:
+    break;
+  default:
+    BUG();
+  }
 }
 
 VAddrRange ControllerClient::register_node(const Node &node) {

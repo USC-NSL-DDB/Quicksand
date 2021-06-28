@@ -24,11 +24,10 @@ struct ObjRPCRespHdr {
 class ObjServer {
 public:
   constexpr static uint32_t kTCPListenBackLog = 64;
+  constexpr static uint32_t kObjServerPort = 8001;
 
   ObjServer();
   ~ObjServer();
-  ObjServer(uint16_t port);
-  void init(uint16_t port);
   netaddr get_addr() const;
   void run_loop();
   template <typename Cls>
@@ -50,7 +49,6 @@ public:
 private:
   using GenericHandler = void (*)(cereal::BinaryInputArchive &ia,
                                   rt::TcpConn *rpc_conn);
-  uint16_t port_;
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   TraceLogger trace_logger_;
   friend class Migrator;

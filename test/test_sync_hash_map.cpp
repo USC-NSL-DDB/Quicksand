@@ -6,11 +6,7 @@
 #include <string>
 #include <unordered_map>
 
-extern "C" {
-#include <runtime/runtime.h>
-}
-#include <runtime.h>
-
+#include "runtime.hpp"
 #include "utils/farmhash.hpp"
 #include "utils/sync_hash_map.hpp"
 
@@ -78,19 +74,5 @@ done:
 }
 
 int main(int argc, char **argv) {
-  int ret;
-
-  if (argc < 2) {
-    std::cerr << "usage: [cfg_file]" << std::endl;
-    return -EINVAL;
-  }
-
-  ret = rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
-
-  if (ret) {
-    std::cerr << "failed to start runtime" << std::endl;
-    return ret;
-  }
-
-  return 0;
+  return runtime_main_init(argc, argv, [](int, char **) { do_work(); });
 }

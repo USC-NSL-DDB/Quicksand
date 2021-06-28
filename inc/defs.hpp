@@ -1,5 +1,9 @@
 #pragma once
 
+extern "C" {
+#include <runtime/thread.h>
+}
+
 namespace nu {
 
 #ifndef NCORES

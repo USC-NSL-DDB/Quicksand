@@ -75,8 +75,9 @@ struct RPCRespGetMigrationDest {
 class ControllerServer {
 public:
   constexpr static uint32_t kTCPListenBackLog = 64;
+  constexpr static uint32_t kControllerServerPort = 8000;
 
-  ControllerServer(uint16_t port);
+  ControllerServer();
   void run_loop();
 
 private:

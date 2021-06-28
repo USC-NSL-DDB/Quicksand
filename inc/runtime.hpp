@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <functional>
 
 extern "C" {
 #include <runtime/net.h>
@@ -36,9 +37,7 @@ public:
   static SlabAllocator runtime_slab;
 
   ~Runtime();
-  static std::unique_ptr<Runtime> init(uint16_t local_obj_srv_port,
-                                       uint16_t local_migrator_port,
-                                       netaddr ctrl_server_addr, Mode mode);
+  static std::unique_ptr<Runtime> init(uint32_t remote_ctrl_ip, Mode mode);
   static void reserve_ctrl_server_conns(uint32_t num);
   static void reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr);
   static void reserve_migration_conns(uint32_t num, netaddr dest_server_addr);
@@ -70,14 +69,11 @@ private:
   template <typename T> friend class RemSharedPtr;
   template <typename T> friend class RuntimeDeleter;
 
-  Runtime(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
-          netaddr ctrl_server_addr, Mode mode);
+  Runtime(uint32_t remote_ctrl_ip, Mode mode);
   static void init_runtime_heap();
-  static void init_as_controller(netaddr ctrl_server_addr);
-  static void init_as_server(uint16_t local_obj_srv_port,
-                             uint16_t local_migrator_port,
-                             netaddr ctrl_server_addr);
-  static void init_as_client(netaddr ctrl_server_addr);
+  static void init_as_controller();
+  static void init_as_server(uint32_t remote_ctrl_ip);
+  static void init_as_client(uint32_t remote_ctrl_ip);
   template <typename Cls, typename Fn, typename... As>
   static bool run_within_obj_env(void *heap_base, Fn fn, As &&... args);
   template <typename Cls, typename Fn, typename... As>
@@ -97,6 +93,10 @@ private:
   template <typename T> static T *get_current_obj();
   template <typename T> static T *get_obj(RemObjID id);
 };
+
+int runtime_main_init(int argc, char **argv,
+                      std::function<void(int argc, char **argv)> main_func);
+
 } // namespace nu
 
 #include "impl/runtime.ipp"

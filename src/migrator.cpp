@@ -95,9 +95,8 @@ void Migrator::handle_unmap(rt::TcpConn *c) {
   }
 }
 
-void Migrator::run_loop(uint16_t port) {
-  port_ = port;
-  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
+void Migrator::run_loop() {
+  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = kMigratorServerPort};
   auto tcp_queue =
       rt::TcpQueue::Listen(addr, kTCPListenBackLog, kMigrationDSCP);
   tcp_queue_.reset(tcp_queue);
@@ -661,7 +660,8 @@ void Migrator::forward_to_original_server(rt::TcpConn *conn_to_client,
                                           const void *payload) {
   uint8_t type = FORWARD;
   auto *heap_header = Runtime::get_current_obj_heap_header();
-  netaddr old_server_addr = {.ip = heap_header->old_server_ip, .port = port_};
+  netaddr old_server_addr = {.ip = heap_header->old_server_ip,
+                             .port = kMigratorServerPort};
   auto conn = conn_mgr_.get_conn(old_server_addr);
 
   const iovec iovecs[] = {{&type, sizeof(type)},

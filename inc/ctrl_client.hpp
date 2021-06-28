@@ -12,6 +12,7 @@ extern "C" {
 
 #include "conn_mgr.hpp"
 #include "ctrl_server.hpp"
+#include "runtime.hpp"
 
 namespace nu {
 
@@ -19,7 +20,7 @@ class ControllerConnManager {
 public:
   constexpr static uint32_t kNumPerCoreCachedConns = 1;
 
-  ControllerConnManager(netaddr remote_ctrl_addr);
+  ControllerConnManager(uint32_t ctrl_server_ip);
   rt::TcpConn *get_conn();
   void put_conn(rt::TcpConn *conn);
   void reserve_conns(uint32_t num);
@@ -31,9 +32,7 @@ private:
 
 class ControllerClient {
 public:
-  ControllerClient(netaddr remote_ctrl_addr);
-  ControllerClient(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
-                   netaddr remote_ctrl_addr);
+  ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode);
   VAddrRange register_node(const Node &node);
   std::optional<std::pair<RemObjID, netaddr>>
   allocate_obj(std::optional<netaddr> hint);

@@ -24,27 +24,22 @@ constexpr static uint32_t kPrintLoggingIntervalUs = 200 * 1000;
 
 namespace nu {
 
-ObjServer::ObjServer() {}
+ObjServer::ObjServer() {
+  if constexpr (kEnableLogging) {
+    trace_logger_.enable_print(kPrintLoggingIntervalUs);
+  }
+
+  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = kObjServerPort};
+
+  auto *tcp_queue = rt::TcpQueue::Listen(addr, kTCPListenBackLog);
+  BUG_ON(!tcp_queue);
+  tcp_queue_.reset(tcp_queue);
+}
 
 ObjServer::~ObjServer() {
   if (tcp_queue_) {
     tcp_queue_->Shutdown();
   }
-}
-
-ObjServer::ObjServer(uint16_t port) { init(port); }
-
-void ObjServer::init(uint16_t port) {
-  if constexpr (kEnableLogging) {
-    trace_logger_.enable_print(kPrintLoggingIntervalUs);
-  }
-
-  port_ = port;
-  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
-
-  auto *tcp_queue = rt::TcpQueue::Listen(addr, kTCPListenBackLog);
-  BUG_ON(!tcp_queue);
-  tcp_queue_.reset(tcp_queue);
 }
 
 void ObjServer::run_loop() {

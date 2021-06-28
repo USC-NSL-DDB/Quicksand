@@ -1,11 +1,14 @@
-#include <sys/mman.h>
 #include <new>
+#include <string>
+#include <sys/mman.h>
 
 extern "C" {
 #include <base/assert.h>
 #include <base/compiler.h>
+#include <net/ip.h>
 #include <runtime/thread.h>
 }
+#include <runtime.h>
 #include <thread.h>
 
 #include "ctrl_client.hpp"
@@ -45,20 +48,18 @@ void Runtime::init_runtime_heap() {
   runtime_slab.init(sentinel, mmap_addr, kRuntimeHeapSize);
 }
 
-void Runtime::init_as_controller(netaddr ctrl_server_addr) {
-  controller_server.reset(new ControllerServer(ctrl_server_addr.port));
+void Runtime::init_as_controller() {
+  controller_server.reset(new ControllerServer());
   controller_server->run_loop();
 }
 
-void Runtime::init_as_server(uint16_t local_obj_srv_port,
-                             uint16_t local_migrator_port,
-                             netaddr ctrl_server_addr) {
-  obj_server.reset(new decltype(obj_server)::element_type(local_obj_srv_port));
+void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
+  obj_server.reset(new decltype(obj_server)::element_type());
   rt::Thread obj_srv_thread([&] { obj_server->run_loop(); });
   migrator.reset(new decltype(migrator)::element_type());
-  rt::Thread migrator_thread([&] { migrator->run_loop(local_migrator_port); });
-  controller_client.reset(new decltype(controller_client)::element_type(
-      local_obj_srv_port, local_migrator_port, ctrl_server_addr));
+  rt::Thread migrator_thread([&] { migrator->run_loop(); });
+  controller_client.reset(
+      new decltype(controller_client)::element_type(remote_ctrl_ip, SERVER));
   heap_manager.reset(new decltype(heap_manager)::element_type());
   stack_manager.reset(new decltype(stack_manager)::element_type(
       controller_client->get_stack_cluster()));
@@ -70,39 +71,35 @@ void Runtime::init_as_server(uint16_t local_obj_srv_port,
   obj_srv_thread.Join();
 }
 
-void Runtime::init_as_client(netaddr ctrl_server_addr) {
+void Runtime::init_as_client(uint32_t remote_ctrl_ip) {
   controller_client.reset(
-      new decltype(controller_client)::element_type(ctrl_server_addr));
+      new decltype(controller_client)::element_type(remote_ctrl_ip, CLIENT));
   rem_obj_conn_mgr.reset(new decltype(rem_obj_conn_mgr)::element_type());
   archive_pool.reset(new decltype(archive_pool)::element_type());
 }
 
-Runtime::Runtime(uint16_t local_obj_srv_port, uint16_t local_migrator_port,
-                 netaddr ctrl_server_addr, Mode mode) {
+Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode) {
   init_runtime_heap();
   active_runtime = true;
 
   switch (mode) {
   case CONTROLLER:
-    init_as_controller(ctrl_server_addr);
+    init_as_controller();
     break;
   case SERVER:
-    init_as_server(local_obj_srv_port, local_migrator_port, ctrl_server_addr);
+    init_as_server(remote_ctrl_ip);
     break;
   case CLIENT:
-    init_as_client(ctrl_server_addr);
+    init_as_client(remote_ctrl_ip);
     break;
   default:
     BUG();
   }
 }
 
-std::unique_ptr<Runtime> Runtime::init(uint16_t local_obj_srv_port,
-                                       uint16_t local_migrator_port,
-                                       netaddr ctrl_server_addr, Mode mode) {
+std::unique_ptr<Runtime> Runtime::init(uint32_t remote_ctrl_ip, Mode mode) {
   BUG_ON(active_runtime);
-  auto runtime_ptr = new Runtime(local_obj_srv_port, local_migrator_port,
-                                 ctrl_server_addr, mode);
+  auto runtime_ptr = new Runtime(remote_ctrl_ip, mode);
   return std::unique_ptr<Runtime>(runtime_ptr);
 }
 
@@ -168,6 +165,62 @@ void Runtime::reserve_migration_conns(uint32_t num, netaddr dest_server_addr) {
   if (migrator) {
     migrator->reserve_conns(num, dest_server_addr);
   }
+}
+
+uint32_t str_to_ip(std::string ip_str) {
+  auto pos0 = ip_str.find('.');
+  BUG_ON(pos0 == std::string::npos);
+  auto pos1 = ip_str.find('.', pos0 + 1);
+  BUG_ON(pos1 == std::string::npos);
+  auto pos2 = ip_str.find('.', pos1 + 1);
+  BUG_ON(pos2 == std::string::npos);
+  auto addr0 = stoi(ip_str.substr(0, pos0));
+  auto addr1 = stoi(ip_str.substr(pos0 + 1, pos1 - pos0));
+  auto addr2 = stoi(ip_str.substr(pos1 + 1, pos2 - pos1));
+  auto addr3 = stoi(ip_str.substr(pos2 + 1));
+  return MAKE_IP_ADDR(addr0, addr1, addr2, addr3);
+}
+
+int runtime_main_init(int argc, char **argv,
+                      std::function<void(int argc, char **argv)> main_func) {
+  int ret;
+  std::string mode_str;
+  Runtime::Mode mode;
+  uint32_t remote_ctrl_ip;
+
+  if (argc < 4) {
+    goto wrong_args;
+  }
+
+  mode_str = std::string(argv[2]);
+  if (mode_str == "CLT") {
+    mode = nu::Runtime::Mode::CLIENT;
+  } else if (mode_str == "SRV") {
+    mode = nu::Runtime::Mode::SERVER;
+  } else if (mode_str == "CTL") {
+    mode = nu::Runtime::Mode::CONTROLLER;
+  } else {
+    goto wrong_args;
+  }
+
+  remote_ctrl_ip = str_to_ip(std::string(argv[3]));
+
+  ret = rt::RuntimeInit(std::string(argv[1]), [&] {
+    auto runtime = nu::Runtime::init(remote_ctrl_ip, mode);
+    argv[3] = argv[0];
+    main_func(argc - 3, &argv[3]);
+  });
+
+  if (ret) {
+    std::cerr << "failed to start runtime" << std::endl;
+    return ret;
+  }
+
+  return 0;
+
+wrong_args:
+  std::cerr << "usage: cfg_file CLT/SRV/CTL ctrl_ip [app args] " << std::endl;
+  return -EINVAL;
 }
 
 } // namespace nu

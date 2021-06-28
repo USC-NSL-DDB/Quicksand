@@ -8,8 +8,9 @@ extern "C" {
 
 namespace nu {
 
-ControllerServer::ControllerServer(uint16_t port) {
-  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = port};
+ControllerServer::ControllerServer() {
+  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0),
+                  .port = kControllerServerPort};
   auto tcp_queue = rt::TcpQueue::Listen(addr, kTCPListenBackLog);
   BUG_ON(!tcp_queue);
   tcp_queue_.reset(tcp_queue);

@@ -7,7 +7,6 @@
 extern "C" {
 #include <base/compiler.h>
 #include <net/ip.h>
-#include <runtime/runtime.h>
 }
 #include <runtime.h>
 #include <thread.h>
@@ -78,43 +77,5 @@ void do_work() {
 }
 
 int main(int argc, char **argv) {
-  int ret;
-  std::string mode_str;
-
-  if (argc < 3) {
-    goto wrong_args;
-  }
-
-  mode_str = std::string(argv[2]);
-  if (mode_str == "CLT") {
-    mode = Runtime::Mode::CLIENT;
-  } else if (mode_str == "SRV") {
-    mode = Runtime::Mode::SERVER;
-  } else if (mode_str == "CTL") {
-    mode = Runtime::Mode::CONTROLLER;
-  } else {
-    goto wrong_args;
-  }
-
-  ret = rt::RuntimeInit(std::string(argv[1]), [] {
-    std::cout << "Running " << __FILE__ "..." << std::endl;
-
-    netaddr remote_ctrl_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 3), .port = 8000};
-    auto runtime = Runtime::init(/* local_obj_srv_port = */ 8001,
-                                 /* local_migrator_port = */ 8002,
-                                 /* remote_ctrl_addr = */ remote_ctrl_addr,
-                                 /* mode = */ mode);
-    do_work();
-  });
-
-  if (ret) {
-    std::cerr << "failed to start runtime" << std::endl;
-    return ret;
-  }
-
-  return 0;
-
-wrong_args:
-  std::cerr << "usage: [cfg_file] CLT/SRV/CTL" << std::endl;
-  return -EINVAL;
+  return runtime_main_init(argc, argv, [](int, char **) { do_work(); });
 }
