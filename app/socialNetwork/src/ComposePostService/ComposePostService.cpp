@@ -1,3 +1,5 @@
+#include <runtime.h>
+
 #include <signal.h>
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/server/TThreadedServer.h>
@@ -16,7 +18,7 @@ using namespace social_network;
 
 void sigintHandler(int sig) { exit(EXIT_SUCCESS); }
 
-int main(int argc, char *argv[]) {
+void do_work() {
   signal(SIGINT, sigintHandler);
 
   json config_json;
@@ -75,10 +77,12 @@ int main(int argc, char *argv[]) {
 
   ClientPool<ThriftClient<PostStorageServiceClient>> post_storage_client_pool(
       "post-storage-client", post_storage_addr, post_storage_port, 0,
-      post_storage_conns, post_storage_timeout, post_storage_keepalive, config_json);
+      post_storage_conns, post_storage_timeout, post_storage_keepalive,
+      config_json);
   ClientPool<ThriftClient<UserTimelineServiceClient>> user_timeline_client_pool(
       "user-timeline-client", user_timeline_addr, user_timeline_port, 0,
-      user_timeline_conns, user_timeline_timeout, user_timeline_keepalive, config_json);
+      user_timeline_conns, user_timeline_timeout, user_timeline_keepalive,
+      config_json);
   ClientPool<ThriftClient<TextServiceClient>> text_client_pool(
       "text-service-client", text_addr, text_port, 0, text_conns, text_timeout,
       text_keepalive, config_json);
@@ -90,21 +94,40 @@ int main(int argc, char *argv[]) {
       media_timeout, media_keepalive, config_json);
   ClientPool<ThriftClient<HomeTimelineServiceClient>> home_timeline_client_pool(
       "home-timeline-service-client", home_timeline_addr, home_timeline_port, 0,
-      home_timeline_conns, home_timeline_timeout, home_timeline_keepalive, config_json);
+      home_timeline_conns, home_timeline_timeout, home_timeline_keepalive,
+      config_json);
   ClientPool<ThriftClient<UniqueIdServiceClient>> unique_id_client_pool(
       "unique-id-service-client", unique_id_addr, unique_id_port, 0,
       unique_id_conns, unique_id_timeout, unique_id_keepalive, config_json);
 
-  std::shared_ptr<TServerSocket> server_socket = get_server_socket(config_json, "0.0.0.0", port);
+  std::shared_ptr<TServerSocket> server_socket =
+      get_server_socket(config_json, "0.0.0.0", port);
   TThreadedServer server(
       std::make_shared<ComposePostServiceProcessor>(
           std::make_shared<ComposePostHandler>(
               &post_storage_client_pool, &user_timeline_client_pool,
               &user_client_pool, &unique_id_client_pool, &media_client_pool,
               &text_client_pool, &home_timeline_client_pool)),
-      server_socket,
-      std::make_shared<TFramedTransportFactory>(),
+      server_socket, std::make_shared<TFramedTransportFactory>(),
       std::make_shared<TBinaryProtocolFactory>());
   LOG(info) << "Starting the compose-post-service server ...";
   server.serve();
+}
+
+int main(int argc, char **argv) {
+  int ret;
+
+  if (argc < 2) {
+    std::cerr << "usage: [cfg_file]" << std::endl;
+    return -EINVAL;
+  }
+
+  ret = rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
+
+  if (ret) {
+    std::cerr << "failed to start runtime" << std::endl;
+    return ret;
+  }
+
+  return 0;
 }

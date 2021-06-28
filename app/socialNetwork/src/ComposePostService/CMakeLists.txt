@@ -1,3 +1,9 @@
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_EXE_LINKER_FLAGS "-T ${CALADAN_DIR}/base/base.ld \
+                            -static -static-libstdc++ -static-libgcc \
+                            -L${NU_DIR}/../../glibc/build/install/lib")
+
 add_executable(
     ComposePostService
     ComposePostService.cpp
@@ -14,18 +20,35 @@ add_executable(
 
 target_include_directories(
     ComposePostService PRIVATE
+    ${NU_DIR}/inc
+    ${CALADAN_DIR}/inc
+    ${CALADAN_DIR}/bindings/cc
+    ${FOLLY_DIR}/include
 )
 
 target_link_libraries(
     ComposePostService
-    ${THRIFT_LIB}
+    ${THRIFT_STATIC_LIB}
     ${CMAKE_THREAD_LIBS_INIT}
     ${Boost_LIBRARIES}
     nlohmann_json::nlohmann_json
     Boost::log
     Boost::log_setup
-    OpenSSL::SSL
-    /usr/local/lib/libSimpleAmqpClient.so
+    ssl
+    crypto
+    # Nu
+    nu
+    # Caladan
+    rt++
+    runtime
+    net
+    base
+    mlx5
+    ibverbs
+    nl-3
+    nl-route-3
+    pthread
+    dl
 )
 
 install(TARGETS ComposePostService DESTINATION ./)

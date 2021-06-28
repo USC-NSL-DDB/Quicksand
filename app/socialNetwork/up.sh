@@ -43,6 +43,7 @@ sudo ../../caladan/iokerneld >logs/iokerneld 2>&1 &
 sleep 5
 
 sudo build/src/FrontEndProxy/FrontEndProxy ../../conf/server1 >logs/FrontEndProxy 2>&1 &
+sudo build/src/ComposePostService/ComposePostService ../../conf/server2 >logs/ComposePostService 2>&1 &
 sudo build/src/SocialGraphService/SocialGraphService >logs/SocialGraphService 2>&1 &
 sudo build/src/HomeTimelineService/HomeTimelineService >logs/HomeTimelineService 2>&1 &
 sudo build/src/PostStorageSerivce/PostStorageService >logs/PostStorageService 2>&1 &
@@ -50,7 +51,6 @@ sudo build/src/UserTimelineService/UserTimelineService >logs/UserTimelineService
 sudo build/src/UrlShortenService/UrlShortenService >logs/UrlShortenService 2>&1 &
 sudo build/src/UserService/UserService >logs/UserService 2>&1 &
 sudo build/src/MediaService/MediaService >logs/MediaService 2>&1 &
-sudo build/src/ComposePostService/ComposePostService >logs/ComposePostService 2>&1 &
 sudo build/src/TextService/TextService >logs/TextService 2>&1 &
 sudo build/src/UniqueIdService/UniqueIdService >logs/UniqueIdService 2>&1 & 
 sudo build/src/UserMentionService/UserMentionService >logs/UserMentionService 2>&1 &
