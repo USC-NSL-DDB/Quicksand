@@ -1,7 +1,8 @@
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 set(BUILD_SHARED_LIBS OFF)
 set(CMAKE_EXE_LINKER_FLAGS "-T ${CALADAN_DIR}/base/base.ld \
-                            -static -static-libstdc++ -static-libgcc")
+                            -static -static-libstdc++ -static-libgcc \
+                            -L${NU_DIR}/../../glibc/build/install/lib")
 
 add_executable(
     FrontEndProxy
@@ -23,15 +24,8 @@ target_include_directories(
     ${FOLLY_DIR}/include
 )
 
-target_link_directories(
-    FrontEndProxy PRIVATE
-    ${NU_DIR}/../glibc/build/install/lib
-)
-
 target_link_libraries(
     FrontEndProxy
-    nlohmann_json::nlohmann_json
-    yaml-cpp
     nlohmann_json::nlohmann_json
     ${THRIFT_STATIC_LIB}
     ${CMAKE_THREAD_LIBS_INIT}
