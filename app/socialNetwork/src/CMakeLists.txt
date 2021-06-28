@@ -19,6 +19,8 @@ set(THRIFT_GEN_CPP_DIR ../../gen-cpp)
 set(NU_DIR ../../../)
 set(CALADAN_DIR ${NU_DIR}/caladan/)
 set(FOLLY_DIR ${CALADAN_DIR}/deps/folly/)
+execute_process(COMMAND nproc OUTPUT_VARIABLE NCORES)
+add_compile_definitions(NCORES=${NCORES})
 
 include_directories(${NU_DIR}/inc)
 include_directories(${CALADAN_DIR}/inc)

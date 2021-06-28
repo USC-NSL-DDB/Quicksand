@@ -1,5 +1,7 @@
 #!/bin/bash
 
+NU_CTRL_IP=18.18.1.3
+
 docker run -d --rm --hostname dns.mageddo -p 5380:5380 \
        -v /var/run/docker.sock:/var/run/docker.sock \
        -v /etc/resolv.conf:/etc/resolv.conf \
@@ -42,8 +44,13 @@ popd
 sudo ../../caladan/iokerneld >logs/iokerneld 2>&1 &
 sleep 5
 
-sudo build/src/FrontEndProxy/FrontEndProxy ../../conf/server1 >logs/FrontEndProxy 2>&1 &
-sudo build/src/ComposePostService/ComposePostService ../../conf/server2 >logs/ComposePostService 2>&1 &
+sudo build/src/ComposePostService/ComposePostService ../../conf/controller CTL $NU_CTRL_IP >logs/ComposePostService.ctl 2>&1 &
+sleep 3
+sudo build/src/ComposePostService/ComposePostService ../../conf/server1 SRV $NU_CTRL_IP >logs/ComposePostService.srv 2>&1 &
+sleep 3
+sudo build/src/ComposePostService/ComposePostService ../../conf/client1 CLT $NU_CTRL_IP >logs/ComposePostService.clt 2>&1 &
+
+sudo build/src/FrontEndProxy/FrontEndProxy ../../conf/client2 >logs/FrontEndProxy 2>&1 &
 sudo build/src/SocialGraphService/SocialGraphService >logs/SocialGraphService 2>&1 &
 sudo build/src/HomeTimelineService/HomeTimelineService >logs/HomeTimelineService 2>&1 &
 sudo build/src/PostStorageSerivce/PostStorageService >logs/PostStorageService 2>&1 &

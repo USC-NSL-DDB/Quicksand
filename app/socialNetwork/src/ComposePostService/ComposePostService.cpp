@@ -1,10 +1,10 @@
-#include <runtime.h>
-
 #include <signal.h>
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/server/TThreadedServer.h>
 #include <thrift/transport/TBufferTransports.h>
 #include <thrift/transport/TServerSocket.h>
+
+#include <nu/runtime.hpp>
 
 #include "../utils.h"
 #include "../utils_thrift.h"
@@ -15,6 +15,8 @@ using apache::thrift::server::TThreadedServer;
 using apache::thrift::transport::TFramedTransportFactory;
 using apache::thrift::transport::TServerSocket;
 using namespace social_network;
+
+nu::Runtime::Mode mode;
 
 void sigintHandler(int sig) { exit(EXIT_SUCCESS); }
 
@@ -115,19 +117,5 @@ void do_work() {
 }
 
 int main(int argc, char **argv) {
-  int ret;
-
-  if (argc < 2) {
-    std::cerr << "usage: [cfg_file]" << std::endl;
-    return -EINVAL;
-  }
-
-  ret = rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
-
-  if (ret) {
-    std::cerr << "failed to start runtime" << std::endl;
-    return ret;
-  }
-
-  return 0;
+  return nu::runtime_main_init(argc, argv, [](int, char **) { do_work(); });
 }
