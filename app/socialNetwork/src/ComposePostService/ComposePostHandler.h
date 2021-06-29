@@ -8,19 +8,20 @@
 #include <vector>
 #include <mutex>
 
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
 #include <nu/rem_obj.hpp>
 
 #include "../../gen-cpp/ComposePostService.h"
 #include "../../gen-cpp/HomeTimelineService.h"
-#include "../../gen-cpp/MediaService.h"
 #include "../../gen-cpp/PostStorageService.h"
 #include "../../gen-cpp/TextService.h"
-#include "../../gen-cpp/UniqueIdService.h"
 #include "../../gen-cpp/UserService.h"
 #include "../../gen-cpp/UserTimelineService.h"
 #include "../../gen-cpp/social_network_types.h"
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
+#include "MediaService.h"
 #include "UniqueIdService.h"
 
 namespace social_network {
@@ -34,8 +35,6 @@ class ComposePostHandler : public ComposePostServiceIf {
   ComposePostHandler(ClientPool<ThriftClient<PostStorageServiceClient>> *,
                      ClientPool<ThriftClient<UserTimelineServiceClient>> *,
                      ClientPool<ThriftClient<UserServiceClient>> *,
-                     ClientPool<ThriftClient<UniqueIdServiceClient>> *,
-                     ClientPool<ThriftClient<MediaServiceClient>> *,
                      ClientPool<ThriftClient<TextServiceClient>> *,
                      ClientPool<ThriftClient<HomeTimelineServiceClient>> *);
   ~ComposePostHandler() override = default;
@@ -47,11 +46,17 @@ class ComposePostHandler : public ComposePostServiceIf {
                    PostType::type post_type) override;
 
   // For compatibility purpose, To be removed in the future.
-  bool _pending_req = false;
-  bool _pending_resp = false;
-  int64_t _arg_req_id;
-  PostType::type _arg_post_type;
-  int64_t _resp;
+  bool _unique_id_pending_req = false;
+  bool _unique_id_pending_resp = false;
+  int64_t _unique_id_arg_req_id;
+  PostType::type _unique_id_arg_post_type;
+  int64_t _unique_id_resp;
+  bool _media_pending_req = false;
+  bool _media_pending_resp = false;
+  int64_t _media_arg_req_id;
+  std::vector<std::string> _media_arg_media_types;
+  std::vector<int64_t> _media_arg_media_ids;
+  std::vector<Media> _media_resp;
   std::mutex _mutex;
   void poller();
 
@@ -61,14 +66,12 @@ class ComposePostHandler : public ComposePostServiceIf {
       *_user_timeline_client_pool;
 
   ClientPool<ThriftClient<UserServiceClient>> *_user_service_client_pool;
-  ClientPool<ThriftClient<UniqueIdServiceClient>>
-      *_unique_id_service_client_pool;
-  ClientPool<ThriftClient<MediaServiceClient>> *_media_service_client_pool;
   ClientPool<ThriftClient<TextServiceClient>> *_text_service_client_pool;
   ClientPool<ThriftClient<HomeTimelineServiceClient>>
       *_home_timeline_client_pool;
 
   nu::RemObj<UniqueIdService> _unique_id_service_obj;
+  nu::RemObj<MediaService> _media_service_obj;
 
   void _UploadUserTimelineHelper(int64_t req_id, int64_t post_id,
                                  int64_t user_id, int64_t timestamp);
@@ -84,8 +87,8 @@ class ComposePostHandler : public ComposePostServiceIf {
   TextServiceReturn _ComposeTextHelper(int64_t req_id, const std::string &text);
   std::vector<Media>
   _ComposeMediaHelper(int64_t req_id,
-                      const std::vector<std::string> &media_types,
-                      const std::vector<int64_t> &media_ids);
+                      std::vector<std::string> &&media_types,
+                      std::vector<int64_t> &&media_ids);
   int64_t _ComposeUniqueIdHelper(int64_t req_id, PostType::type post_type);
 };
 
@@ -95,20 +98,16 @@ ComposePostHandler::ComposePostHandler(
     ClientPool<social_network::ThriftClient<UserTimelineServiceClient>>
         *user_timeline_client_pool,
     ClientPool<ThriftClient<UserServiceClient>> *user_service_client_pool,
-    ClientPool<ThriftClient<UniqueIdServiceClient>>
-        *unique_id_service_client_pool,
-    ClientPool<ThriftClient<MediaServiceClient>> *media_service_client_pool,
     ClientPool<ThriftClient<TextServiceClient>> *text_service_client_pool,
     ClientPool<ThriftClient<HomeTimelineServiceClient>>
         *home_timeline_client_pool) {
   _post_storage_client_pool = post_storage_client_pool;
   _user_timeline_client_pool = user_timeline_client_pool;
   _user_service_client_pool = user_service_client_pool;
-  _unique_id_service_client_pool = unique_id_service_client_pool;
-  _media_service_client_pool = media_service_client_pool;
   _text_service_client_pool = text_service_client_pool;
   _home_timeline_client_pool = home_timeline_client_pool;
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create_pinned();
+  _media_service_obj = nu::RemObj<MediaService>::create_pinned();
 }
 
 Creator ComposePostHandler::_ComposeCreaterHelper(int64_t req_id,
@@ -162,29 +161,12 @@ ComposePostHandler::_ComposeTextHelper(int64_t req_id,
   return _return_text;
 }
 
-std::vector<Media> ComposePostHandler::_ComposeMediaHelper(
-    int64_t req_id, const std::vector<std::string> &media_types,
-    const std::vector<int64_t> &media_ids) {
-  auto media_client_wrapper = _media_service_client_pool->Pop();
-  if (!media_client_wrapper) {
-    ServiceException se;
-    se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-    se.message = "Failed to connect to media-service";
-    LOG(error) << se.message;
-    throw se;
-  }
-
-  auto media_client = media_client_wrapper->GetClient();
-  std::vector<Media> _return_media;
-  try {
-    media_client->ComposeMedia(_return_media, req_id, media_types, media_ids);
-  } catch (...) {
-    LOG(error) << "Failed to send compose-media to media-service";
-    _media_service_client_pool->Remove(media_client_wrapper);
-    throw;
-  }
-  _media_service_client_pool->Keepalive(media_client_wrapper);
-  return _return_media;
+std::vector<Media>
+ComposePostHandler::_ComposeMediaHelper(int64_t req_id,
+                                        std::vector<std::string> &&media_types,
+                                        std::vector<int64_t> &&media_ids) {
+  return _media_service_obj.run(&MediaService::ComposeMedia, req_id,
+                                std::move(media_types), std::move(media_ids));
 }
 
 int64_t
@@ -271,13 +253,15 @@ void ComposePostHandler::ComposePost(
   auto creator_future =
       std::async(std::launch::async, &ComposePostHandler::_ComposeCreaterHelper,
                  this, req_id, user_id, username);
-  auto media_future =
-      std::async(std::launch::async, &ComposePostHandler::_ComposeMediaHelper,
-                 this, req_id, media_types, media_ids);
 
-  _arg_req_id = req_id;
-  _arg_post_type = post_type;
-  store_release(&_pending_req, true);
+  _unique_id_arg_req_id = req_id;
+  _unique_id_arg_post_type = post_type;
+  store_release(&_unique_id_pending_req, true);
+
+  _media_arg_req_id = req_id;
+  _media_arg_media_types = media_types;
+  _media_arg_media_ids = media_ids;
+  store_release(&_media_pending_req, true);
 
   Post post;
   auto timestamp =
@@ -285,26 +269,23 @@ void ComposePostHandler::ComposePost(
           .count();
   post.timestamp = timestamp;
 
-  // try
-  // {
-  while (!load_acquire(&_pending_resp))
+  while (!load_acquire(&_unique_id_pending_resp))
     ;
-  post.post_id = _resp;
-  store_release(&_pending_resp, false);
+  post.post_id = _unique_id_resp;
+  store_release(&_unique_id_pending_resp, false);
+
+  while (!load_acquire(&_media_pending_resp))
+    ;
+  post.media = _media_resp;
+  store_release(&_media_pending_resp, false);
 
   post.creator = creator_future.get();
-  post.media = media_future.get();
   auto text_return = text_future.get();
   post.text = text_return.text;
   post.urls = text_return.urls;
   post.user_mentions = text_return.user_mentions;
   post.req_id = req_id;
   post.post_type = post_type;
-  // }
-  // catch (...)
-  // {
-  //   throw;
-  // }
 
   std::vector<int64_t> user_mention_ids;
   for (auto &item : post.user_mentions) {
@@ -335,11 +316,19 @@ void ComposePostHandler::ComposePost(
 
 void ComposePostHandler::poller() {
   while (true) {
-    if (load_acquire(&_pending_req)) {
-      _pending_req = false;
-      _resp = ComposePostHandler::_ComposeUniqueIdHelper(_arg_req_id,
-                                                         _arg_post_type);
-      store_release(&_pending_resp, true);
+    if (load_acquire(&_unique_id_pending_req)) {
+      _unique_id_pending_req = false;
+      _unique_id_resp = _ComposeUniqueIdHelper(_unique_id_arg_req_id,
+                                               _unique_id_arg_post_type);
+      store_release(&_unique_id_pending_resp, true);
+    }
+
+    if (load_acquire(&_media_pending_req)) {
+      _media_pending_req = false;
+      _media_resp = _ComposeMediaHelper(_media_arg_req_id,
+                                        std::move(_media_arg_media_types),
+                                        std::move(_media_arg_media_ids));
+      store_release(&_media_pending_resp, true);
     }
   }
 }

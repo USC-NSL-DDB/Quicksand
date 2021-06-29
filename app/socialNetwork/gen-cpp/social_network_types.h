@@ -17,6 +17,7 @@
 
 #include <thrift/stdcxx.h>
 
+#include <cereal/archives/binary.hpp>
 
 namespace social_network {
 
@@ -192,6 +193,7 @@ typedef struct _Media__isset {
   _Media__isset() : media_id(false), media_type(false) {}
   bool media_id :1;
   bool media_type :1;
+
 } _Media__isset;
 
 class Media : public virtual ::apache::thrift::TBase {
@@ -207,6 +209,20 @@ class Media : public virtual ::apache::thrift::TBase {
   std::string media_type;
 
   _Media__isset __isset;
+
+  template <class Archive> void save(Archive &ar) const {
+    bool is_set_media_id = __isset.media_id;
+    bool is_set_media_type = __isset.media_type;
+    ar(media_id, media_type, is_set_media_id, is_set_media_type);
+  }
+
+  template <class Archive> void load(Archive &ar) {
+    bool is_set_media_id;
+    bool is_set_media_type;
+    ar(media_id, media_type, is_set_media_id, is_set_media_type);
+    __isset.media_id = is_set_media_id;
+    __isset.media_type = is_set_media_type;
+  }
 
   void __set_media_id(const int64_t val);
 
