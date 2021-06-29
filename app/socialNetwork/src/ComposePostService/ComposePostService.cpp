@@ -44,12 +44,6 @@ void do_work() {
   int user_timeline_keepalive =
       config_json["user-timeline-service"]["keepalive_ms"];
 
-  int text_port = config_json["text-service"]["port"];
-  std::string text_addr = config_json["text-service"]["addr"];
-  int text_conns = config_json["text-service"]["connections"];
-  int text_timeout = config_json["text-service"]["timeout_ms"];
-  int text_keepalive = config_json["text-service"]["keepalive_ms"];
-
   int user_port = config_json["user-service"]["port"];
   std::string user_addr = config_json["user-service"]["addr"];
   int user_conns = config_json["user-service"]["connections"];
@@ -72,9 +66,6 @@ void do_work() {
       "user-timeline-client", user_timeline_addr, user_timeline_port, 0,
       user_timeline_conns, user_timeline_timeout, user_timeline_keepalive,
       config_json);
-  ClientPool<ThriftClient<TextServiceClient>> text_client_pool(
-      "text-service-client", text_addr, text_port, 0, text_conns, text_timeout,
-      text_keepalive, config_json);
   ClientPool<ThriftClient<UserServiceClient>> user_client_pool(
       "user-service-client", user_addr, user_port, 0, user_conns, user_timeout,
       user_keepalive, config_json);
@@ -88,7 +79,7 @@ void do_work() {
 
   auto compose_post_handler = std::make_shared<ComposePostHandler>(
       &post_storage_client_pool, &user_timeline_client_pool, &user_client_pool,
-      &text_client_pool, &home_timeline_client_pool);
+      &home_timeline_client_pool);
 
   rt::Thread([compose_post_handler = compose_post_handler.get()] {
     compose_post_handler->poller();

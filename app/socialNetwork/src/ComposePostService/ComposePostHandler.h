@@ -15,13 +15,13 @@
 #include "../../gen-cpp/ComposePostService.h"
 #include "../../gen-cpp/HomeTimelineService.h"
 #include "../../gen-cpp/PostStorageService.h"
-#include "../../gen-cpp/TextService.h"
 #include "../../gen-cpp/UserService.h"
 #include "../../gen-cpp/UserTimelineService.h"
 #include "../../gen-cpp/social_network_types.h"
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
 #include "MediaService.h"
+#include "TextService.h"
 #include "UniqueIdService.h"
 
 namespace social_network {
@@ -35,7 +35,6 @@ class ComposePostHandler : public ComposePostServiceIf {
   ComposePostHandler(ClientPool<ThriftClient<PostStorageServiceClient>> *,
                      ClientPool<ThriftClient<UserTimelineServiceClient>> *,
                      ClientPool<ThriftClient<UserServiceClient>> *,
-                     ClientPool<ThriftClient<TextServiceClient>> *,
                      ClientPool<ThriftClient<HomeTimelineServiceClient>> *);
   ~ComposePostHandler() override = default;
 
@@ -57,6 +56,11 @@ class ComposePostHandler : public ComposePostServiceIf {
   std::vector<std::string> _media_arg_media_types;
   std::vector<int64_t> _media_arg_media_ids;
   std::vector<Media> _media_resp;
+  bool _text_pending_req = false;
+  bool _text_pending_resp = false;
+  int64_t _text_arg_req_id;
+  std::string _text_arg_text;
+  TextServiceReturn _text_resp;
   std::mutex _mutex;
   void poller();
 
@@ -66,10 +70,10 @@ class ComposePostHandler : public ComposePostServiceIf {
       *_user_timeline_client_pool;
 
   ClientPool<ThriftClient<UserServiceClient>> *_user_service_client_pool;
-  ClientPool<ThriftClient<TextServiceClient>> *_text_service_client_pool;
   ClientPool<ThriftClient<HomeTimelineServiceClient>>
       *_home_timeline_client_pool;
 
+  nu::RemObj<TextService> _text_service_obj;
   nu::RemObj<UniqueIdService> _unique_id_service_obj;
   nu::RemObj<MediaService> _media_service_obj;
 
@@ -84,7 +88,7 @@ class ComposePostHandler : public ComposePostServiceIf {
 
   Creator _ComposeCreaterHelper(int64_t req_id, int64_t user_id,
                                 const std::string &username);
-  TextServiceReturn _ComposeTextHelper(int64_t req_id, const std::string &text);
+  TextServiceReturn _ComposeTextHelper(int64_t req_id, std::string &&text);
   std::vector<Media>
   _ComposeMediaHelper(int64_t req_id,
                       std::vector<std::string> &&media_types,
@@ -98,14 +102,13 @@ ComposePostHandler::ComposePostHandler(
     ClientPool<social_network::ThriftClient<UserTimelineServiceClient>>
         *user_timeline_client_pool,
     ClientPool<ThriftClient<UserServiceClient>> *user_service_client_pool,
-    ClientPool<ThriftClient<TextServiceClient>> *text_service_client_pool,
     ClientPool<ThriftClient<HomeTimelineServiceClient>>
         *home_timeline_client_pool) {
   _post_storage_client_pool = post_storage_client_pool;
   _user_timeline_client_pool = user_timeline_client_pool;
   _user_service_client_pool = user_service_client_pool;
-  _text_service_client_pool = text_service_client_pool;
   _home_timeline_client_pool = home_timeline_client_pool;
+  _text_service_obj = nu::RemObj<TextService>::create_pinned();
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create_pinned();
   _media_service_obj = nu::RemObj<MediaService>::create_pinned();
 }
@@ -136,29 +139,10 @@ Creator ComposePostHandler::_ComposeCreaterHelper(int64_t req_id,
   return _return_creator;
 }
 
-TextServiceReturn
-ComposePostHandler::_ComposeTextHelper(int64_t req_id,
-                                       const std::string &text) {
-  auto text_client_wrapper = _text_service_client_pool->Pop();
-  if (!text_client_wrapper) {
-    ServiceException se;
-    se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-    se.message = "Failed to connect to text-service";
-    LOG(error) << se.message;
-    throw se;
-  }
-
-  auto text_client = text_client_wrapper->GetClient();
-  TextServiceReturn _return_text;
-  try {
-    text_client->ComposeText(_return_text, req_id, text);
-  } catch (...) {
-    LOG(error) << "Failed to send compose-text to text-service";
-    _text_service_client_pool->Remove(text_client_wrapper);
-    throw;
-  }
-  _text_service_client_pool->Keepalive(text_client_wrapper);
-  return _return_text;
+TextServiceReturn ComposePostHandler::_ComposeTextHelper(int64_t req_id,
+                                                         std::string &&text) {
+  return _text_service_obj.run(&TextService::ComposeText, req_id,
+                               std::move(text));
 }
 
 std::vector<Media>
@@ -247,12 +231,13 @@ void ComposePostHandler::ComposePost(
     const std::vector<std::string> &media_types, const PostType::type post_type) {
   std::scoped_lock<std::mutex> lock(_mutex);
 
-  auto text_future =
-      std::async(std::launch::async, &ComposePostHandler::_ComposeTextHelper,
-                 this, req_id, text);
   auto creator_future =
       std::async(std::launch::async, &ComposePostHandler::_ComposeCreaterHelper,
                  this, req_id, user_id, username);
+
+  _text_arg_req_id = req_id;
+  _text_arg_text = text;
+  store_release(&_text_pending_req, true);
 
   _unique_id_arg_req_id = req_id;
   _unique_id_arg_post_type = post_type;
@@ -269,6 +254,13 @@ void ComposePostHandler::ComposePost(
           .count();
   post.timestamp = timestamp;
 
+  while (!load_acquire(&_text_pending_resp))
+    ;
+  post.text = _text_resp.text;
+  post.urls = _text_resp.urls;
+  post.user_mentions = _text_resp.user_mentions;
+  store_release(&_text_pending_resp, false);
+
   while (!load_acquire(&_unique_id_pending_resp))
     ;
   post.post_id = _unique_id_resp;
@@ -280,10 +272,6 @@ void ComposePostHandler::ComposePost(
   store_release(&_media_pending_resp, false);
 
   post.creator = creator_future.get();
-  auto text_return = text_future.get();
-  post.text = text_return.text;
-  post.urls = text_return.urls;
-  post.user_mentions = text_return.user_mentions;
   post.req_id = req_id;
   post.post_type = post_type;
 
@@ -329,6 +317,13 @@ void ComposePostHandler::poller() {
                                         std::move(_media_arg_media_types),
                                         std::move(_media_arg_media_ids));
       store_release(&_media_pending_resp, true);
+    }
+
+    if (load_acquire(&_text_pending_req)) {
+      _text_pending_req = false;
+      _text_resp =
+          _ComposeTextHelper(_text_arg_req_id, std::move(_text_arg_text));
+      store_release(&_text_pending_resp, true);
     }
   }
 }

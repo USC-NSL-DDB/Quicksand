@@ -272,6 +272,20 @@ class Url : public virtual ::apache::thrift::TBase {
 
   _Url__isset __isset;
 
+  template <class Archive> void save(Archive &ar) const {
+    bool is_set_shortened_url = __isset.shortened_url;
+    bool is_set_expanded_url = __isset.expanded_url;
+    ar(shortened_url, expanded_url, is_set_shortened_url, is_set_expanded_url);
+  }
+
+  template <class Archive> void load(Archive &ar) {
+    bool is_set_shortened_url;
+    bool is_set_expanded_url;
+    ar(shortened_url, expanded_url, is_set_shortened_url, is_set_expanded_url);
+    __isset.shortened_url = is_set_shortened_url;
+    __isset.expanded_url = is_set_expanded_url;
+  }
+
   void __set_shortened_url(const std::string& val);
 
   void __set_expanded_url(const std::string& val);
@@ -319,6 +333,20 @@ class UserMention : public virtual ::apache::thrift::TBase {
   std::string username;
 
   _UserMention__isset __isset;
+
+  template <class Archive> void save(Archive &ar) const {
+    bool is_set_user_id = __isset.user_id;
+    bool is_set_username = __isset.username;
+    ar(user_id, username, is_set_user_id, is_set_username);
+  }
+
+  template <class Archive> void load(Archive &ar) {
+    bool is_set_user_id;
+    bool is_set_username;
+    ar(user_id, username, is_set_user_id, is_set_username);
+    __isset.user_id = is_set_user_id;
+    __isset.username = is_set_username;
+  }
 
   void __set_user_id(const int64_t val);
 
@@ -417,6 +445,25 @@ class TextServiceReturn : public virtual ::apache::thrift::TBase {
   std::vector<Url>  urls;
 
   _TextServiceReturn__isset __isset;
+
+  template <class Archive> void save(Archive &ar) const {
+    bool is_set_text = __isset.text;
+    bool is_set_user_mentions = __isset.user_mentions;
+    bool is_set_urls = __isset.urls;
+    ar(text, user_mentions, urls, is_set_text, is_set_user_mentions,
+       is_set_urls);
+  }
+
+  template <class Archive> void load(Archive &ar) {
+    bool is_set_text;
+    bool is_set_user_mentions;
+    bool is_set_urls;
+    ar(text, user_mentions, urls, is_set_text, is_set_user_mentions,
+       is_set_urls);
+    __isset.text = is_set_text;
+    __isset.user_mentions = is_set_user_mentions;
+    __isset.urls = is_set_urls;
+  }
 
   void __set_text(const std::string& val);
 

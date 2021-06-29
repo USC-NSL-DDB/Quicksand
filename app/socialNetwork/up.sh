@@ -55,7 +55,4 @@ sudo build/src/SocialGraphService/SocialGraphService >logs/SocialGraphService 2>
 sudo build/src/HomeTimelineService/HomeTimelineService >logs/HomeTimelineService 2>&1 &
 sudo build/src/PostStorageSerivce/PostStorageService >logs/PostStorageService 2>&1 &
 sudo build/src/UserTimelineService/UserTimelineService >logs/UserTimelineService 2>&1 &
-sudo build/src/UrlShortenService/UrlShortenService >logs/UrlShortenService 2>&1 &
 sudo build/src/UserService/UserService >logs/UserService 2>&1 &
-sudo build/src/TextService/TextService >logs/TextService 2>&1 &
-sudo build/src/UserMentionService/UserMentionService >logs/UserMentionService 2>&1 &

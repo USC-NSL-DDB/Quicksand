@@ -74,7 +74,7 @@ UniqueIdService::UniqueIdService() {
   if (_machine_id == "") {
     exit(EXIT_FAILURE);
   }
-  std::cout << "machine_id = " << _machine_id;
+  std::cout << "machine_id = " << _machine_id << std::endl;
 }
 
 int64_t UniqueIdService::ComposeUniqueId(int64_t req_id,
@@ -148,7 +148,7 @@ std::string UniqueIdService::GetMachineId(std::string &netif) {
   }
   mac_addr_file.close();
 
-  std::cout << "MAC address = " << mac;
+  std::cout << "MAC address = " << mac << std::endl;
 
   std::stringstream stream;
   stream << std::hex << HashMacAddressPid(mac);
