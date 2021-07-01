@@ -1,5 +1,4 @@
-#ifndef SOCIAL_NETWORK_MICROSERVICES_SRC_USERTIMELINESERVICE_USERTIMELINEHANDLER_H_
-#define SOCIAL_NETWORK_MICROSERVICES_SRC_USERTIMELINESERVICE_USERTIMELINEHANDLER_H_
+#pragma once
 
 #include <bson/bson.h>
 #include <mongoc.h>
@@ -9,7 +8,7 @@
 #include <iostream>
 #include <string>
 
-#include "../../gen-cpp/PostStorageService.h"
+#include "../../gen-cpp/ComposePostService.h"
 #include "../../gen-cpp/UserTimelineService.h"
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
@@ -22,7 +21,7 @@ namespace social_network {
 class UserTimelineHandler : public UserTimelineServiceIf {
  public:
   UserTimelineHandler(Redis *, mongoc_client_pool_t *,
-                      ClientPool<ThriftClient<PostStorageServiceClient>> *);
+                      ClientPool<ThriftClient<ComposePostServiceClient>> *);
   ~UserTimelineHandler() override = default;
 
   void WriteUserTimeline(int64_t req_id, int64_t post_id, int64_t user_id,
@@ -34,12 +33,12 @@ class UserTimelineHandler : public UserTimelineServiceIf {
 private:
   Redis *_redis_client_pool;
   mongoc_client_pool_t *_mongodb_client_pool;
-  ClientPool<ThriftClient<PostStorageServiceClient>> *_post_client_pool;
+  ClientPool<ThriftClient<ComposePostServiceClient>> *_post_client_pool;
 };
 
 UserTimelineHandler::UserTimelineHandler(
     Redis *redis_pool, mongoc_client_pool_t *mongodb_pool,
-    ClientPool<ThriftClient<PostStorageServiceClient>> *post_client_pool) {
+    ClientPool<ThriftClient<ComposePostServiceClient>> *post_client_pool) {
   _redis_client_pool = redis_pool;
   _mongodb_client_pool = mongodb_pool;
   _post_client_pool = post_client_pool;
@@ -207,7 +206,7 @@ void UserTimelineHandler::ReadUserTimeline(std::vector<Post> &_return,
         if (!post_client_wrapper) {
           ServiceException se;
           se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-          se.message = "Failed to connect to post-storage-service";
+          se.message = "Failed to connect to compose-post-service";
           throw se;
         }
         std::vector<Post> _return_posts;
@@ -216,7 +215,7 @@ void UserTimelineHandler::ReadUserTimeline(std::vector<Post> &_return,
           post_client->ReadPosts(_return_posts, req_id, post_ids);
         } catch (...) {
           _post_client_pool->Remove(post_client_wrapper);
-          LOG(error) << "Failed to read posts from post-storage-service";
+          LOG(error) << "Failed to read posts from compose-post-service";
           throw;
         }
         _post_client_pool->Keepalive(post_client_wrapper);
@@ -237,11 +236,9 @@ void UserTimelineHandler::ReadUserTimeline(std::vector<Post> &_return,
   try {
     _return = post_future.get();
   } catch (...) {
-    LOG(error) << "Failed to get post from post-storage-service";
+    LOG(error) << "Failed to get post from compose-post-service";
     throw;
   }
 }
 
 }  // namespace social_network
-
-#endif  // SOCIAL_NETWORK_MICROSERVICES_SRC_USERTIMELINESERVICE_USERTIMELINEHANDLER_H_

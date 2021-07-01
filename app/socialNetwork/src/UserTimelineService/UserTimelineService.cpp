@@ -34,12 +34,12 @@ int main(int argc, char *argv[]) {
 
   int port = config_json["user-timeline-service"]["port"];
 
-  int post_storage_port = config_json["post-storage-service"]["port"];
-  std::string post_storage_addr = config_json["post-storage-service"]["addr"];
-  int post_storage_conns = config_json["post-storage-service"]["connections"];
-  int post_storage_timeout = config_json["post-storage-service"]["timeout_ms"];
-  int post_storage_keepalive =
-      config_json["post-storage-service"]["keepalive_ms"];
+  int compose_post_port = config_json["compose-post-service"]["port"];
+  std::string compose_post_addr = config_json["compose-post-service"]["addr"];
+  int compose_post_conns = config_json["compose-post-service"]["connections"];
+  int compose_post_timeout = config_json["compose-post-service"]["timeout_ms"];
+  int compose_post_keepalive =
+      config_json["compose-post-service"]["keepalive_ms"];
 
   int mongodb_conns = config_json["user-timeline-mongodb"]["connections"];
   int mongodb_timeout = config_json["user-timeline-mongodb"]["timeout_ms"];
@@ -51,9 +51,9 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  ClientPool<ThriftClient<PostStorageServiceClient>> post_storage_client_pool(
-      "post-storage-client", post_storage_addr, post_storage_port, 0,
-      post_storage_conns, post_storage_timeout, post_storage_keepalive, config_json);
+  ClientPool<ThriftClient<ComposePostServiceClient>> compose_post_client_pool(
+      "compose-post-client", compose_post_addr, compose_post_port, 0,
+      compose_post_conns, compose_post_timeout, compose_post_keepalive, config_json);
 
   mongoc_client_t *mongodb_client = mongoc_client_pool_pop(mongodb_client_pool);
   if (!mongodb_client) {
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
   TThreadedServer server(std::make_shared<UserTimelineServiceProcessor>(
                              std::make_shared<UserTimelineHandler>(
                                  &redis_client_pool, mongodb_client_pool,
-                                 &post_storage_client_pool)),
+                                 &compose_post_client_pool)),
                          server_socket,
                          std::make_shared<TFramedTransportFactory>(),
                          std::make_shared<TBinaryProtocolFactory>());

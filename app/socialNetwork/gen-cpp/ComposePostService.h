@@ -22,6 +22,9 @@ class ComposePostServiceIf {
  public:
   virtual ~ComposePostServiceIf() {}
   virtual void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) = 0;
+  virtual void StorePost(const int64_t req_id, const Post& post) = 0;
+  virtual void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id) = 0;
+  virtual void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids) = 0;
 };
 
 class ComposePostServiceIfFactory {
@@ -52,6 +55,15 @@ class ComposePostServiceNull : virtual public ComposePostServiceIf {
  public:
   virtual ~ComposePostServiceNull() {}
   void ComposePost(const int64_t /* req_id */, const std::string& /* username */, const int64_t /* user_id */, const std::string& /* text */, const std::vector<int64_t> & /* media_ids */, const std::vector<std::string> & /* media_types */, const PostType::type /* post_type */) {
+    return;
+  }
+  void StorePost(const int64_t /* req_id */, const Post& /* post */) {
+    return;
+  }
+  void ReadPost(Post& /* _return */, const int64_t /* req_id */, const int64_t /* post_id */) {
+    return;
+  }
+  void ReadPosts(std::vector<Post> & /* _return */, const int64_t /* req_id */, const std::vector<int64_t> & /* post_ids */) {
     return;
   }
 };
@@ -202,6 +214,355 @@ class ComposePostService_ComposePost_presult {
 
 };
 
+typedef struct _ComposePostService_StorePost_args__isset {
+  _ComposePostService_StorePost_args__isset() : req_id(false), post(false) {}
+  bool req_id :1;
+  bool post :1;
+} _ComposePostService_StorePost_args__isset;
+
+class ComposePostService_StorePost_args {
+ public:
+
+  ComposePostService_StorePost_args(const ComposePostService_StorePost_args&);
+  ComposePostService_StorePost_args& operator=(const ComposePostService_StorePost_args&);
+  ComposePostService_StorePost_args() : req_id(0) {
+  }
+
+  virtual ~ComposePostService_StorePost_args() throw();
+  int64_t req_id;
+  Post post;
+
+  _ComposePostService_StorePost_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_post(const Post& val);
+
+  bool operator == (const ComposePostService_StorePost_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(post == rhs.post))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_StorePost_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_StorePost_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_StorePost_pargs {
+ public:
+
+
+  virtual ~ComposePostService_StorePost_pargs() throw();
+  const int64_t* req_id;
+  const Post* post;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_StorePost_result__isset {
+  _ComposePostService_StorePost_result__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_StorePost_result__isset;
+
+class ComposePostService_StorePost_result {
+ public:
+
+  ComposePostService_StorePost_result(const ComposePostService_StorePost_result&);
+  ComposePostService_StorePost_result& operator=(const ComposePostService_StorePost_result&);
+  ComposePostService_StorePost_result() {
+  }
+
+  virtual ~ComposePostService_StorePost_result() throw();
+  ServiceException se;
+
+  _ComposePostService_StorePost_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_StorePost_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_StorePost_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_StorePost_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_StorePost_presult__isset {
+  _ComposePostService_StorePost_presult__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_StorePost_presult__isset;
+
+class ComposePostService_StorePost_presult {
+ public:
+
+
+  virtual ~ComposePostService_StorePost_presult() throw();
+  ServiceException se;
+
+  _ComposePostService_StorePost_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_ReadPost_args__isset {
+  _ComposePostService_ReadPost_args__isset() : req_id(false), post_id(false) {}
+  bool req_id :1;
+  bool post_id :1;
+} _ComposePostService_ReadPost_args__isset;
+
+class ComposePostService_ReadPost_args {
+ public:
+
+  ComposePostService_ReadPost_args(const ComposePostService_ReadPost_args&);
+  ComposePostService_ReadPost_args& operator=(const ComposePostService_ReadPost_args&);
+  ComposePostService_ReadPost_args() : req_id(0), post_id(0) {
+  }
+
+  virtual ~ComposePostService_ReadPost_args() throw();
+  int64_t req_id;
+  int64_t post_id;
+
+  _ComposePostService_ReadPost_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_post_id(const int64_t val);
+
+  bool operator == (const ComposePostService_ReadPost_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(post_id == rhs.post_id))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_ReadPost_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_ReadPost_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_ReadPost_pargs {
+ public:
+
+
+  virtual ~ComposePostService_ReadPost_pargs() throw();
+  const int64_t* req_id;
+  const int64_t* post_id;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_ReadPost_result__isset {
+  _ComposePostService_ReadPost_result__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_ReadPost_result__isset;
+
+class ComposePostService_ReadPost_result {
+ public:
+
+  ComposePostService_ReadPost_result(const ComposePostService_ReadPost_result&);
+  ComposePostService_ReadPost_result& operator=(const ComposePostService_ReadPost_result&);
+  ComposePostService_ReadPost_result() {
+  }
+
+  virtual ~ComposePostService_ReadPost_result() throw();
+  Post success;
+  ServiceException se;
+
+  _ComposePostService_ReadPost_result__isset __isset;
+
+  void __set_success(const Post& val);
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_ReadPost_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_ReadPost_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_ReadPost_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_ReadPost_presult__isset {
+  _ComposePostService_ReadPost_presult__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_ReadPost_presult__isset;
+
+class ComposePostService_ReadPost_presult {
+ public:
+
+
+  virtual ~ComposePostService_ReadPost_presult() throw();
+  Post* success;
+  ServiceException se;
+
+  _ComposePostService_ReadPost_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_ReadPosts_args__isset {
+  _ComposePostService_ReadPosts_args__isset() : req_id(false), post_ids(false) {}
+  bool req_id :1;
+  bool post_ids :1;
+} _ComposePostService_ReadPosts_args__isset;
+
+class ComposePostService_ReadPosts_args {
+ public:
+
+  ComposePostService_ReadPosts_args(const ComposePostService_ReadPosts_args&);
+  ComposePostService_ReadPosts_args& operator=(const ComposePostService_ReadPosts_args&);
+  ComposePostService_ReadPosts_args() : req_id(0) {
+  }
+
+  virtual ~ComposePostService_ReadPosts_args() throw();
+  int64_t req_id;
+  std::vector<int64_t>  post_ids;
+
+  _ComposePostService_ReadPosts_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_post_ids(const std::vector<int64_t> & val);
+
+  bool operator == (const ComposePostService_ReadPosts_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(post_ids == rhs.post_ids))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_ReadPosts_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_ReadPosts_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_ReadPosts_pargs {
+ public:
+
+
+  virtual ~ComposePostService_ReadPosts_pargs() throw();
+  const int64_t* req_id;
+  const std::vector<int64_t> * post_ids;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_ReadPosts_result__isset {
+  _ComposePostService_ReadPosts_result__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_ReadPosts_result__isset;
+
+class ComposePostService_ReadPosts_result {
+ public:
+
+  ComposePostService_ReadPosts_result(const ComposePostService_ReadPosts_result&);
+  ComposePostService_ReadPosts_result& operator=(const ComposePostService_ReadPosts_result&);
+  ComposePostService_ReadPosts_result() {
+  }
+
+  virtual ~ComposePostService_ReadPosts_result() throw();
+  std::vector<Post>  success;
+  ServiceException se;
+
+  _ComposePostService_ReadPosts_result__isset __isset;
+
+  void __set_success(const std::vector<Post> & val);
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_ReadPosts_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_ReadPosts_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_ReadPosts_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_ReadPosts_presult__isset {
+  _ComposePostService_ReadPosts_presult__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_ReadPosts_presult__isset;
+
+class ComposePostService_ReadPosts_presult {
+ public:
+
+
+  virtual ~ComposePostService_ReadPosts_presult() throw();
+  std::vector<Post> * success;
+  ServiceException se;
+
+  _ComposePostService_ReadPosts_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
 class ComposePostServiceClient : virtual public ComposePostServiceIf {
  public:
   ComposePostServiceClient(apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> prot) {
@@ -230,6 +591,15 @@ class ComposePostServiceClient : virtual public ComposePostServiceIf {
   void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
   void send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
   void recv_ComposePost();
+  void StorePost(const int64_t req_id, const Post& post);
+  void send_StorePost(const int64_t req_id, const Post& post);
+  void recv_StorePost();
+  void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id);
+  void send_ReadPost(const int64_t req_id, const int64_t post_id);
+  void recv_ReadPost(Post& _return);
+  void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids);
+  void send_ReadPosts(const int64_t req_id, const std::vector<int64_t> & post_ids);
+  void recv_ReadPosts(std::vector<Post> & _return);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;
@@ -246,10 +616,16 @@ class ComposePostServiceProcessor : public ::apache::thrift::TDispatchProcessor 
   typedef std::map<std::string, ProcessFunction> ProcessMap;
   ProcessMap processMap_;
   void process_ComposePost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_StorePost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_ReadPost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_ReadPosts(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
  public:
   ComposePostServiceProcessor(::apache::thrift::stdcxx::shared_ptr<ComposePostServiceIf> iface) :
     iface_(iface) {
     processMap_["ComposePost"] = &ComposePostServiceProcessor::process_ComposePost;
+    processMap_["StorePost"] = &ComposePostServiceProcessor::process_StorePost;
+    processMap_["ReadPost"] = &ComposePostServiceProcessor::process_ReadPost;
+    processMap_["ReadPosts"] = &ComposePostServiceProcessor::process_ReadPosts;
   }
 
   virtual ~ComposePostServiceProcessor() {}
@@ -287,6 +663,35 @@ class ComposePostServiceMultiface : virtual public ComposePostServiceIf {
     ifaces_[i]->ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type);
   }
 
+  void StorePost(const int64_t req_id, const Post& post) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->StorePost(req_id, post);
+    }
+    ifaces_[i]->StorePost(req_id, post);
+  }
+
+  void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->ReadPost(_return, req_id, post_id);
+    }
+    ifaces_[i]->ReadPost(_return, req_id, post_id);
+    return;
+  }
+
+  void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->ReadPosts(_return, req_id, post_ids);
+    }
+    ifaces_[i]->ReadPosts(_return, req_id, post_ids);
+    return;
+  }
+
 };
 
 // The 'concurrent' client is a thread safe client that correctly handles
@@ -320,6 +725,15 @@ class ComposePostServiceConcurrentClient : virtual public ComposePostServiceIf {
   void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
   int32_t send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
   void recv_ComposePost(const int32_t seqid);
+  void StorePost(const int64_t req_id, const Post& post);
+  int32_t send_StorePost(const int64_t req_id, const Post& post);
+  void recv_StorePost(const int32_t seqid);
+  void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id);
+  int32_t send_ReadPost(const int64_t req_id, const int64_t post_id);
+  void recv_ReadPost(Post& _return, const int32_t seqid);
+  void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids);
+  int32_t send_ReadPosts(const int64_t req_id, const std::vector<int64_t> & post_ids);
+  void recv_ReadPosts(std::vector<Post> & _return, const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;

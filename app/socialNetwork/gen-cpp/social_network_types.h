@@ -396,6 +396,20 @@ class Creator : public virtual ::apache::thrift::TBase {
 
   _Creator__isset __isset;
 
+  template <class Archive> void save(Archive &ar) const {
+    bool is_set_user_id = __isset.user_id;
+    bool is_set_username = __isset.username;
+    ar(user_id, username);
+  }
+
+  template <class Archive> void load(Archive &ar) {
+    bool is_set_user_id;
+    bool is_set_username;
+    ar(user_id, username);
+    __isset.user_id = is_set_user_id;
+    __isset.username = is_set_username;
+  }
+
   void __set_user_id(const int64_t val);
 
   void __set_username(const std::string& val);
@@ -530,6 +544,47 @@ class Post : public virtual ::apache::thrift::TBase {
   PostType::type post_type;
 
   _Post__isset __isset;
+
+  template <class Archive> void save(Archive &ar) const {
+    bool is_set_post_id = __isset.post_id;
+    bool is_set_creator = __isset.creator;
+    bool is_set_req_id = __isset.req_id;
+    bool is_set_text = __isset.text;
+    bool is_set_user_mentions = __isset.user_mentions;
+    bool is_set_media = __isset.media;
+    bool is_set_urls = __isset.urls;
+    bool is_set_timestamp = __isset.timestamp;
+    bool is_set_post_type = __isset.post_type;
+    ar(post_id, creator, req_id, text, user_mentions, media, urls, timestamp,
+       post_type, is_set_post_id, is_set_creator, is_set_req_id, is_set_text,
+       is_set_user_mentions, is_set_media, is_set_urls, is_set_timestamp,
+       is_set_post_type);
+  }
+
+  template <class Archive> void load(Archive &ar) {
+    bool is_set_post_id;
+    bool is_set_creator;
+    bool is_set_req_id;
+    bool is_set_text;
+    bool is_set_user_mentions;
+    bool is_set_media;
+    bool is_set_urls;
+    bool is_set_timestamp;
+    bool is_set_post_type;
+    ar(post_id, creator, req_id, text, user_mentions, media, urls, timestamp,
+       post_type, is_set_post_id, is_set_creator, is_set_req_id, is_set_text,
+       is_set_user_mentions, is_set_media, is_set_urls, is_set_timestamp,
+       is_set_post_type);
+    __isset.post_id = is_set_post_id;
+    __isset.creator = is_set_creator;
+    __isset.req_id = is_set_req_id;
+    __isset.text = is_set_text;
+    __isset.user_mentions = is_set_user_mentions;
+    __isset.media = is_set_media;
+    __isset.urls = is_set_urls;
+    __isset.timestamp = is_set_timestamp;
+    __isset.post_type = is_set_post_type;
+  }
 
   void __set_post_id(const int64_t val);
 

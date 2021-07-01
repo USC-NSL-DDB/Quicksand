@@ -14,7 +14,6 @@
 
 #include "../../gen-cpp/ComposePostService.h"
 #include "../../gen-cpp/HomeTimelineService.h"
-#include "../../gen-cpp/PostStorageService.h"
 #include "../../gen-cpp/UserService.h"
 #include "../../gen-cpp/UserTimelineService.h"
 #include "../../gen-cpp/social_network_types.h"
@@ -23,6 +22,7 @@
 #include "MediaService.h"
 #include "TextService.h"
 #include "UniqueIdService.h"
+#include "PostStorageService.h"
 
 namespace social_network {
 using json = nlohmann::json;
@@ -32,40 +32,60 @@ using std::chrono::system_clock;
 
 class ComposePostHandler : public ComposePostServiceIf {
  public:
-  ComposePostHandler(ClientPool<ThriftClient<PostStorageServiceClient>> *,
-                     ClientPool<ThriftClient<UserTimelineServiceClient>> *,
-                     ClientPool<ThriftClient<UserServiceClient>> *,
-                     ClientPool<ThriftClient<HomeTimelineServiceClient>> *);
-  ~ComposePostHandler() override = default;
+   ComposePostHandler(ClientPool<ThriftClient<UserTimelineServiceClient>> *,
+                      ClientPool<ThriftClient<UserServiceClient>> *,
+                      ClientPool<ThriftClient<HomeTimelineServiceClient>> *);
+   ~ComposePostHandler() override = default;
 
-  void ComposePost(int64_t req_id, const std::string &username, int64_t user_id,
-                   const std::string &text,
-                   const std::vector<int64_t> &media_ids,
-                   const std::vector<std::string> &media_types,
-                   PostType::type post_type) override;
+   void ComposePost(int64_t req_id, const std::string &username,
+                    int64_t user_id, const std::string &text,
+                    const std::vector<int64_t> &media_ids,
+                    const std::vector<std::string> &media_types,
+                    PostType::type post_type) override;
+   // TODO: remove those helpers in the future.
+   void StorePost(int64_t req_id, const Post &post) override;
+   void ReadPost(Post &_return, int64_t req_id, int64_t post_id) override;
+   void ReadPosts(std::vector<Post> &_return, int64_t req_id,
+                  const std::vector<int64_t> &post_ids) override;
 
-  // For compatibility purpose, To be removed in the future.
-  bool _unique_id_pending_req = false;
-  bool _unique_id_pending_resp = false;
-  int64_t _unique_id_arg_req_id;
-  PostType::type _unique_id_arg_post_type;
-  int64_t _unique_id_resp;
-  bool _media_pending_req = false;
-  bool _media_pending_resp = false;
-  int64_t _media_arg_req_id;
-  std::vector<std::string> _media_arg_media_types;
-  std::vector<int64_t> _media_arg_media_ids;
-  std::vector<Media> _media_resp;
-  bool _text_pending_req = false;
-  bool _text_pending_resp = false;
-  int64_t _text_arg_req_id;
-  std::string _text_arg_text;
-  TextServiceReturn _text_resp;
-  std::mutex _mutex;
-  void poller();
+   // For compatibility purpose, To be removed in the future.
+   bool _unique_id_pending_req = false;
+   bool _unique_id_pending_resp = false;
+   int64_t _unique_id_arg_req_id;
+   PostType::type _unique_id_arg_post_type;
+   int64_t _unique_id_resp;
+   bool _media_pending_req = false;
+   bool _media_pending_resp = false;
+   int64_t _media_arg_req_id;
+   std::vector<std::string> _media_arg_media_types;
+   std::vector<int64_t> _media_arg_media_ids;
+   std::vector<Media> _media_resp;
+   bool _text_pending_req = false;
+   bool _text_pending_resp = false;
+   int64_t _text_arg_req_id;
+   std::string _text_arg_text;
+   TextServiceReturn _text_resp;
+   bool _post_storage_storepost_pending_req = false;
+   bool _post_storage_storepost_pending_resp = false;
+   int64_t _post_storage_storepost_arg_req_id;
+   Post _post_storage_storepost_arg_post;
+   bool _post_storage_readpost_pending_req = false;
+   bool _post_storage_readpost_pending_resp = false;
+   int64_t _post_storage_readpost_arg_req_id;
+   int64_t _post_storage_readpost_arg_post_id;
+   Post _post_storage_readpost_resp;
+   bool _post_storage_readposts_pending_req = false;
+   bool _post_storage_readposts_pending_resp = false;
+   int64_t _post_storage_readposts_arg_req_id;
+   std::vector<int64_t> _post_storage_readposts_arg_post_ids;
+   std::vector<Post> _post_storage_readposts_resp;
+   std::mutex _mutex_composepost;
+   std::mutex _mutex_storepost;
+   std::mutex _mutex_readpost;
+   std::mutex _mutex_readposts;
+   void poller();
 
  private:
-  ClientPool<ThriftClient<PostStorageServiceClient>> *_post_storage_client_pool;
   ClientPool<ThriftClient<UserTimelineServiceClient>>
       *_user_timeline_client_pool;
 
@@ -76,6 +96,12 @@ class ComposePostHandler : public ComposePostServiceIf {
   nu::RemObj<TextService> _text_service_obj;
   nu::RemObj<UniqueIdService> _unique_id_service_obj;
   nu::RemObj<MediaService> _media_service_obj;
+  nu::RemObj<PostStorageService> _post_storage_service_obj;
+
+  // TODO: remove those helpers in the future.
+  void _StorePost(int64_t req_id, Post &&post);
+  Post _ReadPost(int64_t req_id, int64_t post_id);
+  std::vector<Post> _ReadPosts(int64_t req_id, std::vector<int64_t> &&post_ids);
 
   void _UploadUserTimelineHelper(int64_t req_id, int64_t post_id,
                                  int64_t user_id, int64_t timestamp);
@@ -97,20 +123,19 @@ class ComposePostHandler : public ComposePostServiceIf {
 };
 
 ComposePostHandler::ComposePostHandler(
-    ClientPool<social_network::ThriftClient<PostStorageServiceClient>>
-        *post_storage_client_pool,
     ClientPool<social_network::ThriftClient<UserTimelineServiceClient>>
         *user_timeline_client_pool,
     ClientPool<ThriftClient<UserServiceClient>> *user_service_client_pool,
     ClientPool<ThriftClient<HomeTimelineServiceClient>>
         *home_timeline_client_pool) {
-  _post_storage_client_pool = post_storage_client_pool;
   _user_timeline_client_pool = user_timeline_client_pool;
   _user_service_client_pool = user_service_client_pool;
   _home_timeline_client_pool = home_timeline_client_pool;
+  // TODO: use the non-pinned variant.
   _text_service_obj = nu::RemObj<TextService>::create_pinned();
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create_pinned();
   _media_service_obj = nu::RemObj<MediaService>::create_pinned();
+  _post_storage_service_obj = nu::RemObj<PostStorageService>::create_pinned();
 }
 
 Creator ComposePostHandler::_ComposeCreaterHelper(int64_t req_id,
@@ -161,23 +186,7 @@ ComposePostHandler::_ComposeUniqueIdHelper(int64_t req_id,
 }
 
 void ComposePostHandler::_UploadPostHelper(int64_t req_id, const Post &post) {
-  auto post_storage_client_wrapper = _post_storage_client_pool->Pop();
-  if (!post_storage_client_wrapper) {
-    ServiceException se;
-    se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-    se.message = "Failed to connect to post-storage-service";
-    LOG(error) << se.message;
-    throw se;
-  }
-  auto post_storage_client = post_storage_client_wrapper->GetClient();
-  try {
-    post_storage_client->StorePost(req_id, post);
-  } catch (...) {
-    _post_storage_client_pool->Remove(post_storage_client_wrapper);
-    LOG(error) << "Failed to store post to post-storage-service";
-    throw;
-  }
-  _post_storage_client_pool->Keepalive(post_storage_client_wrapper);
+  StorePost(req_id, post);
 }
 
 void ComposePostHandler::_UploadUserTimelineHelper(int64_t req_id,
@@ -229,7 +238,7 @@ void ComposePostHandler::ComposePost(
     const int64_t req_id, const std::string &username, int64_t user_id,
     const std::string &text, const std::vector<int64_t> &media_ids,
     const std::vector<std::string> &media_types, const PostType::type post_type) {
-  std::scoped_lock<std::mutex> lock(_mutex);
+  std::scoped_lock<std::mutex> lock(_mutex_composepost);
 
   auto creator_future =
       std::async(std::launch::async, &ComposePostHandler::_ComposeCreaterHelper,
@@ -302,6 +311,63 @@ void ComposePostHandler::ComposePost(
   // }
 }
 
+void ComposePostHandler::_StorePost(int64_t req_id, Post &&post) {
+  _post_storage_service_obj.run(&PostStorageService::StorePost, req_id,
+                                std::move(post));
+}
+
+Post ComposePostHandler::_ReadPost(int64_t req_id, int64_t post_id) {
+  return _post_storage_service_obj.run(&PostStorageService::ReadPost, req_id,
+                                       post_id);
+}
+
+std::vector<Post>
+ComposePostHandler::_ReadPosts(int64_t req_id,
+                               std::vector<int64_t> &&post_ids) {
+  return _post_storage_service_obj.run(&PostStorageService::ReadPosts, req_id,
+                                       std::move(post_ids));
+}
+
+void ComposePostHandler::StorePost(int64_t req_id, const Post &post) {
+  std::scoped_lock<std::mutex> lock(_mutex_storepost);
+
+  _post_storage_storepost_arg_req_id = req_id;
+  _post_storage_storepost_arg_post = post;
+  store_release(&_post_storage_storepost_pending_req, true);
+
+  while (!load_acquire(&_post_storage_storepost_pending_resp))
+    ;
+  store_release(&_post_storage_storepost_pending_resp, false);
+}
+
+void ComposePostHandler::ReadPost(Post &_return, int64_t req_id,
+                                  int64_t post_id) {
+  std::scoped_lock<std::mutex> lock(_mutex_readpost);
+
+  _post_storage_readpost_arg_req_id = req_id;
+  _post_storage_readpost_arg_post_id = post_id;
+  store_release(&_post_storage_readpost_pending_req, true);
+
+  while (!load_acquire(&_post_storage_readpost_pending_resp))
+    ;
+  _return = _post_storage_readpost_resp;
+  store_release(&_post_storage_readpost_pending_resp, false);
+}
+
+void ComposePostHandler::ReadPosts(std::vector<Post> &_return, int64_t req_id,
+                                   const std::vector<int64_t> &post_ids) {
+  std::scoped_lock<std::mutex> lock(_mutex_readposts);
+
+  _post_storage_readposts_arg_req_id = req_id;
+  _post_storage_readposts_arg_post_ids = post_ids;
+  store_release(&_post_storage_readposts_pending_req, true);
+
+  while (!load_acquire(&_post_storage_readposts_pending_resp))
+    ;
+  _return = _post_storage_readposts_resp;
+  store_release(&_post_storage_readposts_pending_resp, false);
+}
+
 void ComposePostHandler::poller() {
   while (true) {
     if (load_acquire(&_unique_id_pending_req)) {
@@ -325,8 +391,30 @@ void ComposePostHandler::poller() {
           _ComposeTextHelper(_text_arg_req_id, std::move(_text_arg_text));
       store_release(&_text_pending_resp, true);
     }
+
+    if (load_acquire(&_post_storage_storepost_pending_req)) {
+      _post_storage_storepost_pending_req = false;
+      _StorePost(_post_storage_storepost_arg_req_id,
+                 std::move(_post_storage_storepost_arg_post));
+      store_release(&_post_storage_storepost_pending_resp, true);
+    }
+
+    if (load_acquire(&_post_storage_readpost_pending_req)) {
+      _post_storage_readpost_pending_req = false;
+      _post_storage_readpost_resp =
+          _ReadPost(_post_storage_readpost_arg_req_id,
+                    _post_storage_readpost_arg_post_id);
+      store_release(&_post_storage_readpost_pending_resp, true);
+    }
+
+    if (load_acquire(&_post_storage_readposts_pending_req)) {
+      _post_storage_readposts_pending_req = false;
+      _post_storage_readposts_resp =
+          _ReadPosts(_post_storage_readposts_arg_req_id,
+                     std::move(_post_storage_readposts_arg_post_ids));
+      store_release(&_post_storage_readposts_pending_resp, true);
+    }
   }
 }
 
 }  // namespace social_network
-

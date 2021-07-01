@@ -137,6 +137,21 @@ service ComposePostService {
     6: list<string> media_types,
     7: PostType post_type
   ) throws (1: ServiceException se)
+
+  void StorePost(
+    1: i64 req_id,
+    2: Post post
+  ) throws (1: ServiceException se)
+
+  Post ReadPost(
+    1: i64 req_id,
+    2: i64 post_id
+  ) throws (1: ServiceException se)
+
+  list<Post> ReadPosts(
+    1: i64 req_id,
+    2: list<i64> post_ids
+  ) throws (1: ServiceException se)
 }
 
 service PostStorageService {

@@ -25,6 +25,21 @@ class ComposePostServiceHandler : virtual public ComposePostServiceIf {
     printf("ComposePost\n");
   }
 
+  void StorePost(const int64_t req_id, const Post& post) {
+    // Your implementation goes here
+    printf("StorePost\n");
+  }
+
+  void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id) {
+    // Your implementation goes here
+    printf("ReadPost\n");
+  }
+
+  void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids) {
+    // Your implementation goes here
+    printf("ReadPosts\n");
+  }
+
 };
 
 int main(int argc, char **argv) {

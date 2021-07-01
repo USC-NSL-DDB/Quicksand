@@ -3,7 +3,7 @@ add_executable(
     UserTimelineService.cpp
     ${THRIFT_GEN_CPP_DIR}/UserTimelineService.cpp
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
-    ${THRIFT_GEN_CPP_DIR}/PostStorageService.cpp
+    ${THRIFT_GEN_CPP_DIR}/ComposePostService.cpp
 )
 
 target_include_directories(

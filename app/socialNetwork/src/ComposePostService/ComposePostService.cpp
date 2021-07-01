@@ -29,13 +29,6 @@ void do_work() {
 
   int port = config_json["compose-post-service"]["port"];
 
-  int post_storage_port = config_json["post-storage-service"]["port"];
-  std::string post_storage_addr = config_json["post-storage-service"]["addr"];
-  int post_storage_conns = config_json["post-storage-service"]["connections"];
-  int post_storage_timeout = config_json["post-storage-service"]["timeout_ms"];
-  int post_storage_keepalive =
-      config_json["post-storage-service"]["keepalive_ms"];
-
   int user_timeline_port = config_json["user-timeline-service"]["port"];
   std::string user_timeline_addr = config_json["user-timeline-service"]["addr"];
   int user_timeline_conns = config_json["user-timeline-service"]["connections"];
@@ -58,10 +51,6 @@ void do_work() {
   int home_timeline_keepalive =
       config_json["home-timeline-service"]["keepalive_ms"];
 
-  ClientPool<ThriftClient<PostStorageServiceClient>> post_storage_client_pool(
-      "post-storage-client", post_storage_addr, post_storage_port, 0,
-      post_storage_conns, post_storage_timeout, post_storage_keepalive,
-      config_json);
   ClientPool<ThriftClient<UserTimelineServiceClient>> user_timeline_client_pool(
       "user-timeline-client", user_timeline_addr, user_timeline_port, 0,
       user_timeline_conns, user_timeline_timeout, user_timeline_keepalive,
@@ -78,7 +67,7 @@ void do_work() {
       get_server_socket(config_json, "0.0.0.0", port);
 
   auto compose_post_handler = std::make_shared<ComposePostHandler>(
-      &post_storage_client_pool, &user_timeline_client_pool, &user_client_pool,
+      &user_timeline_client_pool, &user_client_pool,
       &home_timeline_client_pool);
 
   rt::Thread([compose_post_handler = compose_post_handler.get()] {

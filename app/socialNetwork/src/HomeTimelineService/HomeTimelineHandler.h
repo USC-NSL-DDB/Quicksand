@@ -1,5 +1,4 @@
-#ifndef SOCIAL_NETWORK_MICROSERVICES_SRC_HOMETIMELINESERVICE_HOMETIMELINEHANDLER_H_
-#define SOCIAL_NETWORK_MICROSERVICES_SRC_HOMETIMELINESERVICE_HOMETIMELINEHANDLER_H_
+#pragma once
 
 #include <sw/redis++/redis++.h>
 
@@ -7,8 +6,8 @@
 #include <iostream>
 #include <string>
 
+#include "../../gen-cpp/ComposePostService.h"
 #include "../../gen-cpp/HomeTimelineService.h"
-#include "../../gen-cpp/PostStorageService.h"
 #include "../../gen-cpp/SocialGraphService.h"
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
@@ -19,7 +18,7 @@ namespace social_network {
 class HomeTimelineHandler : public HomeTimelineServiceIf {
  public:
   explicit HomeTimelineHandler(
-      Redis *, ClientPool<ThriftClient<PostStorageServiceClient>> *,
+      Redis *, ClientPool<ThriftClient<ComposePostServiceClient>> *,
       ClientPool<ThriftClient<SocialGraphServiceClient>> *);
   ~HomeTimelineHandler() override = default;
 
@@ -31,13 +30,13 @@ class HomeTimelineHandler : public HomeTimelineServiceIf {
 
  private:
   Redis *_redis_client_pool;
-  ClientPool<ThriftClient<PostStorageServiceClient>> *_post_client_pool;
+  ClientPool<ThriftClient<ComposePostServiceClient>> *_post_client_pool;
   ClientPool<ThriftClient<SocialGraphServiceClient>> *_social_graph_client_pool;
 };
 
 HomeTimelineHandler::HomeTimelineHandler(
     Redis *redis_pool,
-    ClientPool<ThriftClient<PostStorageServiceClient>> *post_client_pool,
+    ClientPool<ThriftClient<ComposePostServiceClient>> *post_client_pool,
     ClientPool<ThriftClient<SocialGraphServiceClient>>
         *social_graph_client_pool) {
   _redis_client_pool = redis_pool;
@@ -113,7 +112,7 @@ void HomeTimelineHandler::ReadHomeTimeline(std::vector<Post> &_return,
   if (!post_client_wrapper) {
     ServiceException se;
     se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-    se.message = "Failed to connect to post-storage-service";
+    se.message = "Failed to connect to compose-post-service";
     throw se;
   }
   auto post_client = post_client_wrapper->GetClient();
@@ -121,7 +120,7 @@ void HomeTimelineHandler::ReadHomeTimeline(std::vector<Post> &_return,
     post_client->ReadPosts(_return, req_id, post_ids);
   } catch (...) {
     _post_client_pool->Remove(post_client_wrapper);
-    LOG(error) << "Failed to read posts from post-storage-service";
+    LOG(error) << "Failed to read posts from compose-post-service";
     throw;
   }
   _post_client_pool->Keepalive(post_client_wrapper);
@@ -129,4 +128,3 @@ void HomeTimelineHandler::ReadHomeTimeline(std::vector<Post> &_return,
 
 }  // namespace social_network
 
-#endif  // SOCIAL_NETWORK_MICROSERVICES_SRC_HOMETIMELINESERVICE_HOMETIMELINEHANDLER_H_

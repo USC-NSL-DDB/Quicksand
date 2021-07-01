@@ -53,6 +53,5 @@ sudo build/src/ComposePostService/ComposePostService ../../conf/client1 CLT $NU_
 sudo build/src/FrontEndProxy/FrontEndProxy ../../conf/client2 >logs/FrontEndProxy 2>&1 &
 sudo build/src/SocialGraphService/SocialGraphService >logs/SocialGraphService 2>&1 &
 sudo build/src/HomeTimelineService/HomeTimelineService >logs/HomeTimelineService 2>&1 &
-sudo build/src/PostStorageSerivce/PostStorageService >logs/PostStorageService 2>&1 &
 sudo build/src/UserTimelineService/UserTimelineService >logs/UserTimelineService 2>&1 &
 sudo build/src/UserService/UserService >logs/UserService 2>&1 &
