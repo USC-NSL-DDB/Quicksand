@@ -152,6 +152,13 @@ service ComposePostService {
     1: i64 req_id,
     2: list<i64> post_ids
   ) throws (1: ServiceException se)
+
+  list<Post> ReadUserTimeline(
+    1: i64 req_id,
+    2: i64 user_id,
+    3: i32 start,
+    4: i32 stop
+  ) throws (1: ServiceException se)
 }
 
 service PostStorageService {

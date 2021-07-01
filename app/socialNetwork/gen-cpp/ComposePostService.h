@@ -25,6 +25,7 @@ class ComposePostServiceIf {
   virtual void StorePost(const int64_t req_id, const Post& post) = 0;
   virtual void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id) = 0;
   virtual void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids) = 0;
+  virtual void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
 };
 
 class ComposePostServiceIfFactory {
@@ -64,6 +65,9 @@ class ComposePostServiceNull : virtual public ComposePostServiceIf {
     return;
   }
   void ReadPosts(std::vector<Post> & /* _return */, const int64_t /* req_id */, const std::vector<int64_t> & /* post_ids */) {
+    return;
+  }
+  void ReadUserTimeline(std::vector<Post> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
     return;
   }
 };
@@ -563,6 +567,139 @@ class ComposePostService_ReadPosts_presult {
 
 };
 
+typedef struct _ComposePostService_ReadUserTimeline_args__isset {
+  _ComposePostService_ReadUserTimeline_args__isset() : req_id(false), user_id(false), start(false), stop(false) {}
+  bool req_id :1;
+  bool user_id :1;
+  bool start :1;
+  bool stop :1;
+} _ComposePostService_ReadUserTimeline_args__isset;
+
+class ComposePostService_ReadUserTimeline_args {
+ public:
+
+  ComposePostService_ReadUserTimeline_args(const ComposePostService_ReadUserTimeline_args&);
+  ComposePostService_ReadUserTimeline_args& operator=(const ComposePostService_ReadUserTimeline_args&);
+  ComposePostService_ReadUserTimeline_args() : req_id(0), user_id(0), start(0), stop(0) {
+  }
+
+  virtual ~ComposePostService_ReadUserTimeline_args() throw();
+  int64_t req_id;
+  int64_t user_id;
+  int32_t start;
+  int32_t stop;
+
+  _ComposePostService_ReadUserTimeline_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_user_id(const int64_t val);
+
+  void __set_start(const int32_t val);
+
+  void __set_stop(const int32_t val);
+
+  bool operator == (const ComposePostService_ReadUserTimeline_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(user_id == rhs.user_id))
+      return false;
+    if (!(start == rhs.start))
+      return false;
+    if (!(stop == rhs.stop))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_ReadUserTimeline_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_ReadUserTimeline_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_ReadUserTimeline_pargs {
+ public:
+
+
+  virtual ~ComposePostService_ReadUserTimeline_pargs() throw();
+  const int64_t* req_id;
+  const int64_t* user_id;
+  const int32_t* start;
+  const int32_t* stop;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_ReadUserTimeline_result__isset {
+  _ComposePostService_ReadUserTimeline_result__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_ReadUserTimeline_result__isset;
+
+class ComposePostService_ReadUserTimeline_result {
+ public:
+
+  ComposePostService_ReadUserTimeline_result(const ComposePostService_ReadUserTimeline_result&);
+  ComposePostService_ReadUserTimeline_result& operator=(const ComposePostService_ReadUserTimeline_result&);
+  ComposePostService_ReadUserTimeline_result() {
+  }
+
+  virtual ~ComposePostService_ReadUserTimeline_result() throw();
+  std::vector<Post>  success;
+  ServiceException se;
+
+  _ComposePostService_ReadUserTimeline_result__isset __isset;
+
+  void __set_success(const std::vector<Post> & val);
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_ReadUserTimeline_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_ReadUserTimeline_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_ReadUserTimeline_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_ReadUserTimeline_presult__isset {
+  _ComposePostService_ReadUserTimeline_presult__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_ReadUserTimeline_presult__isset;
+
+class ComposePostService_ReadUserTimeline_presult {
+ public:
+
+
+  virtual ~ComposePostService_ReadUserTimeline_presult() throw();
+  std::vector<Post> * success;
+  ServiceException se;
+
+  _ComposePostService_ReadUserTimeline_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
 class ComposePostServiceClient : virtual public ComposePostServiceIf {
  public:
   ComposePostServiceClient(apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> prot) {
@@ -600,6 +737,9 @@ class ComposePostServiceClient : virtual public ComposePostServiceIf {
   void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids);
   void send_ReadPosts(const int64_t req_id, const std::vector<int64_t> & post_ids);
   void recv_ReadPosts(std::vector<Post> & _return);
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  void send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  void recv_ReadUserTimeline(std::vector<Post> & _return);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;
@@ -619,6 +759,7 @@ class ComposePostServiceProcessor : public ::apache::thrift::TDispatchProcessor 
   void process_StorePost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_ReadPost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_ReadPosts(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_ReadUserTimeline(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
  public:
   ComposePostServiceProcessor(::apache::thrift::stdcxx::shared_ptr<ComposePostServiceIf> iface) :
     iface_(iface) {
@@ -626,6 +767,7 @@ class ComposePostServiceProcessor : public ::apache::thrift::TDispatchProcessor 
     processMap_["StorePost"] = &ComposePostServiceProcessor::process_StorePost;
     processMap_["ReadPost"] = &ComposePostServiceProcessor::process_ReadPost;
     processMap_["ReadPosts"] = &ComposePostServiceProcessor::process_ReadPosts;
+    processMap_["ReadUserTimeline"] = &ComposePostServiceProcessor::process_ReadUserTimeline;
   }
 
   virtual ~ComposePostServiceProcessor() {}
@@ -692,6 +834,16 @@ class ComposePostServiceMultiface : virtual public ComposePostServiceIf {
     return;
   }
 
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->ReadUserTimeline(_return, req_id, user_id, start, stop);
+    }
+    ifaces_[i]->ReadUserTimeline(_return, req_id, user_id, start, stop);
+    return;
+  }
+
 };
 
 // The 'concurrent' client is a thread safe client that correctly handles
@@ -734,6 +886,9 @@ class ComposePostServiceConcurrentClient : virtual public ComposePostServiceIf {
   void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids);
   int32_t send_ReadPosts(const int64_t req_id, const std::vector<int64_t> & post_ids);
   void recv_ReadPosts(std::vector<Post> & _return, const int32_t seqid);
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  int32_t send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  void recv_ReadUserTimeline(std::vector<Post> & _return, const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;

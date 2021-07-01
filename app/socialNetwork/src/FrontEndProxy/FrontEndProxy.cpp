@@ -10,7 +10,6 @@
 #include "../../gen-cpp/HomeTimelineService.h"
 #include "../../gen-cpp/SocialGraphService.h"
 #include "../../gen-cpp/UserService.h"
-#include "../../gen-cpp/UserTimelineService.h"
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
 #include "../logger.h"
@@ -31,15 +30,12 @@ public:
       ClientPool<ThriftClient<HomeTimelineServiceClient>>
           *home_timeline_client_pool,
       ClientPool<ThriftClient<UserServiceClient>> *user_client_pool,
-      ClientPool<ThriftClient<UserTimelineServiceClient>>
-          *user_timeline_client_pool,
       ClientPool<ThriftClient<SocialGraphServiceClient>>
           *social_graph_client_pool,
       ClientPool<ThriftClient<ComposePostServiceClient>>
           *compose_post_client_pool)
       : home_timeline_client_pool_(home_timeline_client_pool),
         user_client_pool_(user_client_pool),
-        user_timeline_client_pool_(user_timeline_client_pool),
         social_graph_client_pool_(social_graph_client_pool),
         compose_post_client_pool_(compose_post_client_pool) {}
 
@@ -258,23 +254,23 @@ public:
   void ReadUserTimeline(std::vector<Post> &_return, const int64_t req_id,
                         const int64_t user_id, const int32_t start,
                         const int32_t stop) {
-    auto user_timeline_client_wrapper = user_timeline_client_pool_->Pop();
-    if (!user_timeline_client_wrapper) {
+    auto compose_post_client_wrapper = compose_post_client_pool_->Pop();
+    if (!compose_post_client_wrapper) {
       ServiceException se;
       se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-      se.message = "Failed to connect to user-timeline-service";
+      se.message = "Failed to connect to compose-post-service";
       throw se;
     }
-    auto user_timeline_client = user_timeline_client_wrapper->GetClient();
+    auto compose_post_client = compose_post_client_wrapper->GetClient();
     try {
-      user_timeline_client->ReadUserTimeline(_return, req_id, user_id, start,
-                                             stop);
+      compose_post_client->ReadUserTimeline(_return, req_id, user_id, start,
+                                            stop);
     } catch (...) {
-      user_timeline_client_pool_->Remove(user_timeline_client_wrapper);
-      LOG(error) << "Failed to read posts from user-timeline-service";
+      compose_post_client_pool_->Remove(compose_post_client_wrapper);
+      LOG(error) << "Failed to read posts from compose-post-service";
       throw;
     }
-    user_timeline_client_pool_->Keepalive(user_timeline_client_wrapper);
+    compose_post_client_pool_->Keepalive(compose_post_client_wrapper);
   }
 
   void RegisterUserWithId(const int64_t req_id, const std::string &first_name,
@@ -304,8 +300,6 @@ private:
   ClientPool<ThriftClient<HomeTimelineServiceClient>>
       *home_timeline_client_pool_;
   ClientPool<ThriftClient<UserServiceClient>> *user_client_pool_;
-  ClientPool<ThriftClient<UserTimelineServiceClient>>
-      *user_timeline_client_pool_;
   ClientPool<ThriftClient<SocialGraphServiceClient>> *social_graph_client_pool_;
   ClientPool<ThriftClient<ComposePostServiceClient>> *compose_post_client_pool_;
 };
@@ -338,16 +332,6 @@ void do_work() {
     int user_timeout = config_json["user-service"]["timeout_ms"];
     int user_keepalive = config_json["user-service"]["keepalive_ms"];
 
-    int user_timeline_port = config_json["user-timeline-service"]["port"];
-    std::string user_timeline_addr =
-        config_json["user-timeline-service"]["addr"];
-    int user_timeline_conns =
-        config_json["user-timeline-service"]["connections"];
-    int user_timeline_timeout =
-        config_json["user-timeline-service"]["timeout_ms"];
-    int user_timeline_keepalive =
-        config_json["user-timeline-service"]["keepalive_ms"];
-
     std::string social_graph_service_addr =
         config_json["social-graph-service"]["addr"];
     int social_graph_service_port = config_json["social-graph-service"]["port"];
@@ -378,12 +362,6 @@ void do_work() {
         "user-service-client", user_addr, user_port, 0, user_conns,
         user_timeout, user_keepalive, config_json);
 
-    ClientPool<ThriftClient<UserTimelineServiceClient>>
-        user_timeline_client_pool("user-timeline-client", user_timeline_addr,
-                                  user_timeline_port, 0, user_timeline_conns,
-                                  user_timeline_timeout,
-                                  user_timeline_keepalive, config_json);
-
     ClientPool<ThriftClient<SocialGraphServiceClient>> social_graph_client_pool(
         "social-graph-service", social_graph_service_addr,
         social_graph_service_port, 0, social_graph_service_conns,
@@ -402,8 +380,7 @@ void do_work() {
         std::make_shared<FrontEndProxyProcessor>(
             std::make_shared<FrontEndProxyHandler>(
                 &home_timeline_client_pool, &user_client_pool,
-                &user_timeline_client_pool, &social_graph_client_pool,
-                &compose_post_client_pool)),
+                &social_graph_client_pool, &compose_post_client_pool)),
         server_socket, std::make_shared<TFramedTransportFactory>(),
         std::make_shared<TBinaryProtocolFactory>());
     LOG(info) << "Starting the front-end-proxy server...";

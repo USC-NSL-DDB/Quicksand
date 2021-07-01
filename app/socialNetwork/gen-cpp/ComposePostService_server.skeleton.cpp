@@ -40,6 +40,11 @@ class ComposePostServiceHandler : virtual public ComposePostServiceIf {
     printf("ReadPosts\n");
   }
 
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
+    // Your implementation goes here
+    printf("ReadUserTimeline\n");
+  }
+
 };
 
 int main(int argc, char **argv) {

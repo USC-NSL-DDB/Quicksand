@@ -29,14 +29,6 @@ void do_work() {
 
   int port = config_json["compose-post-service"]["port"];
 
-  int user_timeline_port = config_json["user-timeline-service"]["port"];
-  std::string user_timeline_addr = config_json["user-timeline-service"]["addr"];
-  int user_timeline_conns = config_json["user-timeline-service"]["connections"];
-  int user_timeline_timeout =
-      config_json["user-timeline-service"]["timeout_ms"];
-  int user_timeline_keepalive =
-      config_json["user-timeline-service"]["keepalive_ms"];
-
   int user_port = config_json["user-service"]["port"];
   std::string user_addr = config_json["user-service"]["addr"];
   int user_conns = config_json["user-service"]["connections"];
@@ -51,10 +43,6 @@ void do_work() {
   int home_timeline_keepalive =
       config_json["home-timeline-service"]["keepalive_ms"];
 
-  ClientPool<ThriftClient<UserTimelineServiceClient>> user_timeline_client_pool(
-      "user-timeline-client", user_timeline_addr, user_timeline_port, 0,
-      user_timeline_conns, user_timeline_timeout, user_timeline_keepalive,
-      config_json);
   ClientPool<ThriftClient<UserServiceClient>> user_client_pool(
       "user-service-client", user_addr, user_port, 0, user_conns, user_timeout,
       user_keepalive, config_json);
@@ -67,8 +55,7 @@ void do_work() {
       get_server_socket(config_json, "0.0.0.0", port);
 
   auto compose_post_handler = std::make_shared<ComposePostHandler>(
-      &user_timeline_client_pool, &user_client_pool,
-      &home_timeline_client_pool);
+      &user_client_pool, &home_timeline_client_pool);
 
   rt::Thread([compose_post_handler = compose_post_handler.get()] {
     compose_post_handler->poller();
