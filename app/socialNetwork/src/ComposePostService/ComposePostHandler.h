@@ -3,25 +3,26 @@
 #include <chrono>
 #include <future>
 #include <iostream>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
-#include <mutex>
 
-#include <cereal/types/vector.hpp>
 #include <cereal/types/string.hpp>
+#include <cereal/types/vector.hpp>
 #include <nu/rem_obj.hpp>
 
 #include "../../gen-cpp/ComposePostService.h"
 #include "../../gen-cpp/HomeTimelineService.h"
-#include "../../gen-cpp/UserService.h"
 #include "../../gen-cpp/social_network_types.h"
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
 #include "MediaService.h"
 #include "PostStorageService.h"
+#include "SocialGraphService.h"
 #include "TextService.h"
 #include "UniqueIdService.h"
+#include "UserService.h"
 #include "UserTimelineService.h"
 
 namespace social_network {
@@ -32,8 +33,7 @@ using std::chrono::system_clock;
 
 class ComposePostHandler : public ComposePostServiceIf {
  public:
-   ComposePostHandler(ClientPool<ThriftClient<UserServiceClient>> *,
-                      ClientPool<ThriftClient<HomeTimelineServiceClient>> *);
+   ComposePostHandler(ClientPool<ThriftClient<HomeTimelineServiceClient>> *);
    ~ComposePostHandler() override = default;
 
    void ComposePost(int64_t req_id, const std::string &username,
@@ -48,6 +48,31 @@ class ComposePostHandler : public ComposePostServiceIf {
                   const std::vector<int64_t> &post_ids) override;
    void ReadUserTimeline(std::vector<Post> &, int64_t, int64_t, int,
                          int) override;
+   void Login(std::string &_return, const int64_t req_id,
+              const std::string &username,
+              const std::string &password) override;
+   void RegisterUser(const int64_t req_id, const std::string &first_name,
+                     const std::string &last_name, const std::string &username,
+                     const std::string &password) override;
+   void RegisterUserWithId(const int64_t req_id, const std::string &first_name,
+                           const std::string &last_name,
+                           const std::string &username,
+                           const std::string &password,
+                           const int64_t user_id) override;
+   void GetFollowers(std::vector<int64_t> &_return, const int64_t req_id,
+                     const int64_t user_id) override;
+   void Unfollow(const int64_t req_id, const int64_t user_id,
+                 const int64_t followee_id) override;
+   void UnfollowWithUsername(const int64_t req_id,
+                             const std::string &user_usernmae,
+                             const std::string &followee_username) override;
+   void Follow(const int64_t req_id, const int64_t user_id,
+               const int64_t followee_id) override;
+   void FollowWithUsername(const int64_t req_id,
+                           const std::string &user_usernmae,
+                           const std::string &followee_username) override;
+   void GetFollowees(std::vector<int64_t> &_return, const int64_t req_id,
+                     const int64_t user_id) override;
 
    // For compatibility purpose, To be removed in the future.
    bool _unique_id_pending_req = false;
@@ -93,55 +118,144 @@ class ComposePostHandler : public ComposePostServiceIf {
    int64_t _user_timeline_readusertimeline_arg_start;
    int64_t _user_timeline_readusertimeline_arg_stop;
    std::vector<Post> _user_timeline_readusertimeline_resp;
+   bool _user_login_pending_req = false;
+   bool _user_login_pending_resp = false;
+   int64_t _user_login_arg_req_id;
+   std::string _user_login_arg_username;
+   std::string _user_login_arg_password;
+   std::variant<LoginErrorCode, std::string> _user_login_resp;
+   bool _user_registeruser_pending_req = false;
+   bool _user_registeruser_pending_resp = false;
+   int64_t _user_registeruser_arg_req_id;
+   std::string _user_registeruser_arg_first_name;
+   std::string _user_registeruser_arg_last_name;
+   std::string _user_registeruser_arg_username;
+   std::string _user_registeruser_arg_password;
+   bool _user_registeruserwithid_pending_req = false;
+   bool _user_registeruserwithid_pending_resp = false;
+   int64_t _user_registeruserwithid_arg_req_id;
+   std::string _user_registeruserwithid_arg_first_name;
+   std::string _user_registeruserwithid_arg_last_name;
+   std::string _user_registeruserwithid_arg_username;
+   std::string _user_registeruserwithid_arg_password;
+   int64_t _user_registeruserwithid_arg_user_id;
+   bool _social_graph_getfollowers_pending_req = false;
+   bool _social_graph_getfollowers_pending_resp = false;
+   int64_t _social_graph_getfollowers_arg_req_id;
+   int64_t _social_graph_getfollowers_arg_user_id;
+   std::vector<int64_t> _social_graph_getfollowers_resp;
+   bool _social_graph_unfollow_pending_req = false;
+   bool _social_graph_unfollow_pending_resp = false;
+   int64_t _social_graph_unfollow_arg_req_id;
+   int64_t _social_graph_unfollow_arg_user_id;
+   int64_t _social_graph_unfollow_arg_followee_id;
+   bool _social_graph_unfollowwithusername_pending_req = false;
+   bool _social_graph_unfollowwithusername_pending_resp = false;
+   int64_t _social_graph_unfollowwithusername_arg_req_id;
+   std::string _social_graph_unfollowwithusername_arg_user_username;
+   std::string _social_graph_unfollowwithusername_arg_followee_username;
+   bool _social_graph_follow_pending_req = false;
+   bool _social_graph_follow_pending_resp = false;
+   int64_t _social_graph_follow_arg_req_id;
+   int64_t _social_graph_follow_arg_user_id;
+   int64_t _social_graph_follow_arg_followee_id;
+   bool _social_graph_followwithusername_pending_req = false;
+   bool _social_graph_followwithusername_pending_resp = false;
+   int64_t _social_graph_followwithusername_arg_req_id;
+   std::string _social_graph_followwithusername_arg_user_username;
+   std::string _social_graph_followwithusername_arg_followee_username;
+   bool _social_graph_getfollowees_pending_req = false;
+   bool _social_graph_getfollowees_pending_resp = false;
+   int64_t _social_graph_getfollowees_arg_req_id;
+   int64_t _social_graph_getfollowees_arg_user_id;
+   std::vector<int64_t> _social_graph_getfollowees_resp;
+   bool _user_composecreator_pending_req = false;
+   bool _user_composecreator_pending_resp = false;
+   int64_t _user_composecreator_arg_req_id;
+   int64_t _user_composecreator_arg_user_id;
+   std::string _user_composecreator_arg_username;
+   Creator _user_composecreator_resp;
    std::mutex _mutex_composepost;
    std::mutex _mutex_storepost;
    std::mutex _mutex_readpost;
    std::mutex _mutex_readposts;
    std::mutex _mutex_readusertimeline;
+   std::mutex _mutex_login;
+   std::mutex _mutex_registeruser;
+   std::mutex _mutex_registeruserwithid;
+   std::mutex _mutex_getfollowers;
+   std::mutex _mutex_unfollow;
+   std::mutex _mutex_unfollowwithusername;
+   std::mutex _mutex_follow;
+   std::mutex _mutex_followwithusername;
+   std::mutex _mutex_getfollowees;
    void poller();
 
  private:
-  ClientPool<ThriftClient<UserServiceClient>> *_user_service_client_pool;
-  ClientPool<ThriftClient<HomeTimelineServiceClient>>
-      *_home_timeline_client_pool;
+   ClientPool<ThriftClient<HomeTimelineServiceClient>>
+       *_home_timeline_client_pool;
 
-  nu::RemObj<TextService> _text_service_obj;
-  nu::RemObj<UniqueIdService> _unique_id_service_obj;
-  nu::RemObj<MediaService> _media_service_obj;
-  nu::RemObj<PostStorageService> _post_storage_service_obj;
-  nu::RemObj<UserTimelineService> _user_timeline_service_obj;
+   nu::RemObj<TextService> _text_service_obj;
+   nu::RemObj<UniqueIdService> _unique_id_service_obj;
+   nu::RemObj<MediaService> _media_service_obj;
+   nu::RemObj<PostStorageService> _post_storage_service_obj;
+   nu::RemObj<UserTimelineService> _user_timeline_service_obj;
+   nu::RemObj<UserService> _user_service_obj;
+   nu::RemObj<SocialGraphService> _social_graph_service_obj;
 
-  // TODO: remove those helpers in the future.
-  void _StorePost(int64_t req_id, Post &&post);
-  Post _ReadPost(int64_t req_id, int64_t post_id);
-  std::vector<Post> _ReadPosts(int64_t req_id, std::vector<int64_t> &&post_ids);
-  std::vector<Post> _ReadUserTimeline(int64_t req_id, int64_t user_id,
-                                      int start, int stop);
+   // TODO: remove those helpers in the future.
+   void _StorePost(int64_t req_id, Post &&post);
+   Post _ReadPost(int64_t req_id, int64_t post_id);
+   std::vector<Post> _ReadPosts(int64_t req_id,
+                                std::vector<int64_t> &&post_ids);
+   std::vector<Post> _ReadUserTimeline(int64_t req_id, int64_t user_id,
+                                       int start, int stop);
 
-  void _UploadUserTimelineHelper(int64_t req_id, int64_t post_id,
-                                 int64_t user_id, int64_t timestamp);
+   void _UploadUserTimelineHelper(int64_t req_id, int64_t post_id,
+                                  int64_t user_id, int64_t timestamp);
 
-  void _UploadPostHelper(int64_t req_id, const Post &post);
+   void _UploadPostHelper(int64_t req_id, const Post &post);
 
-  void _UploadHomeTimelineHelper(int64_t req_id, int64_t post_id,
-                                 int64_t user_id, int64_t timestamp,
-                                 const std::vector<int64_t> &user_mentions_id);
+   void _UploadHomeTimelineHelper(int64_t req_id, int64_t post_id,
+                                  int64_t user_id, int64_t timestamp,
+                                  const std::vector<int64_t> &user_mentions_id);
 
-  Creator _ComposeCreaterHelper(int64_t req_id, int64_t user_id,
-                                const std::string &username);
-  TextServiceReturn _ComposeTextHelper(int64_t req_id, std::string &&text);
-  std::vector<Media>
-  _ComposeMediaHelper(int64_t req_id,
-                      std::vector<std::string> &&media_types,
-                      std::vector<int64_t> &&media_ids);
-  int64_t _ComposeUniqueIdHelper(int64_t req_id, PostType::type post_type);
+   Creator _ComposeCreaterHelper(int64_t req_id, int64_t user_id,
+                                 const std::string &username);
+   TextServiceReturn _ComposeTextHelper(int64_t req_id, std::string &&text);
+   std::vector<Media>
+   _ComposeMediaHelper(int64_t req_id, std::vector<std::string> &&media_types,
+                       std::vector<int64_t> &&media_ids);
+   int64_t _ComposeUniqueIdHelper(int64_t req_id, PostType::type post_type);
+   void _Login(std::variant<LoginErrorCode, std::string> &_return,
+               const int64_t req_id, const std::string &username,
+               const std::string &password);
+   void _RegisterUser(const int64_t req_id, const std::string &first_name,
+                      const std::string &last_name, const std::string &username,
+                      const std::string &password);
+   void _RegisterUserWithId(const int64_t req_id, const std::string &first_name,
+                            const std::string &last_name,
+                            const std::string &username,
+                            const std::string &password, const int64_t user_id);
+   void _GetFollowers(std::vector<int64_t> &_return, const int64_t req_id,
+                      const int64_t user_id);
+   void _Unfollow(const int64_t req_id, const int64_t user_id,
+                  const int64_t followee_id);
+   void _UnfollowWithUsername(const int64_t req_id,
+                              const std::string &user_username,
+                              const std::string &followee_username);
+   void _Follow(const int64_t req_id, const int64_t user_id,
+                const int64_t followee_id);
+   void _FollowWithUsername(const int64_t req_id,
+                            const std::string &user_username,
+                            const std::string &followee_username);
+   void _GetFollowees(std::vector<int64_t> &_return, const int64_t req_id,
+                      const int64_t user_id);
 };
 
 ComposePostHandler::ComposePostHandler(
-    ClientPool<ThriftClient<UserServiceClient>> *user_service_client_pool,
     ClientPool<ThriftClient<HomeTimelineServiceClient>>
         *home_timeline_client_pool) {
-  _user_service_client_pool = user_service_client_pool;
   _home_timeline_client_pool = home_timeline_client_pool;
   // TODO: use the non-pinned variant.
   _text_service_obj = nu::RemObj<TextService>::create_pinned();
@@ -150,32 +264,17 @@ ComposePostHandler::ComposePostHandler(
   _post_storage_service_obj = nu::RemObj<PostStorageService>::create_pinned();
   _user_timeline_service_obj = nu::RemObj<UserTimelineService>::create_pinned(
       _post_storage_service_obj.get_cap());
+  _user_service_obj = nu::RemObj<UserService>::create_pinned();
+  _social_graph_service_obj = nu::RemObj<SocialGraphService>::create_pinned(
+      _user_service_obj.get_cap());
 }
 
-Creator ComposePostHandler::_ComposeCreaterHelper(int64_t req_id,
-                                                  int64_t user_id,
-                                                  const std::string &username) {
-  auto user_client_wrapper = _user_service_client_pool->Pop();
-  if (!user_client_wrapper) {
-    ServiceException se;
-    se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-    se.message = "Failed to connect to user-service";
-    LOG(error) << se.message;
-    throw se;
-  }
-
-  auto user_client = user_client_wrapper->GetClient();
-  Creator _return_creator;
-  try {
-    user_client->ComposeCreatorWithUserId(_return_creator, req_id, user_id,
-                                          username);
-  } catch (...) {
-    LOG(error) << "Failed to send compose-creator to user-service";
-    _user_service_client_pool->Remove(user_client_wrapper);
-    throw;
-  }
-  _user_service_client_pool->Keepalive(user_client_wrapper);
-  return _return_creator;
+Creator
+ComposePostHandler::_ComposeCreaterHelper(int64_t req_id, int64_t user_id,
+                                          const std::string &_username) {
+  auto username = _username;
+  return _user_service_obj.run(&UserService::ComposeCreatorWithUserId, req_id,
+                               user_id, std::move(username));
 }
 
 TextServiceReturn ComposePostHandler::_ComposeTextHelper(int64_t req_id,
@@ -240,9 +339,10 @@ void ComposePostHandler::ComposePost(
     const std::vector<std::string> &media_types, const PostType::type post_type) {
   std::scoped_lock<std::mutex> lock(_mutex_composepost);
 
-  auto creator_future =
-      std::async(std::launch::async, &ComposePostHandler::_ComposeCreaterHelper,
-                 this, req_id, user_id, username);
+  _user_composecreator_arg_req_id = req_id;
+  _user_composecreator_arg_user_id = user_id;
+  _user_composecreator_arg_username = username;
+  store_release(&_user_composecreator_pending_req, true);
 
   _text_arg_req_id = req_id;
   _text_arg_text = text;
@@ -280,7 +380,11 @@ void ComposePostHandler::ComposePost(
   post.media = _media_resp;
   store_release(&_media_pending_resp, false);
 
-  post.creator = creator_future.get();
+  while (!load_acquire(&_user_composecreator_pending_resp))
+    ;
+  post.creator = _user_composecreator_resp;
+  store_release(&_user_composecreator_pending_resp, false);
+
   post.req_id = req_id;
   post.post_type = post_type;
 
@@ -332,6 +436,90 @@ std::vector<Post> ComposePostHandler::_ReadUserTimeline(int64_t req_id,
                                                         int start, int stop) {
   return _user_timeline_service_obj.run(&UserTimelineService::ReadUserTimeline,
                                         req_id, user_id, start, stop);
+}
+
+void ComposePostHandler::_Login(
+    std::variant<LoginErrorCode, std::string> &_return, const int64_t req_id,
+    const std::string &_username, const std::string &_password) {
+  auto username = _username;
+  auto password = _password;
+  _return = _user_service_obj.run(&UserService::Login, req_id,
+                                  std::move(username), std::move(password));
+}
+
+void ComposePostHandler::_RegisterUser(const int64_t req_id,
+                                       const std::string &_first_name,
+                                       const std::string &_last_name,
+                                       const std::string &_username,
+                                       const std::string &_password) {
+  auto first_name = _first_name;
+  auto last_name = _last_name;
+  auto username = _username;
+  auto password = _password;
+  _user_service_obj.run(&UserService::RegisterUser, req_id,
+                        std::move(first_name), std::move(last_name),
+                        std::move(username), std::move(password));
+}
+
+void ComposePostHandler::_RegisterUserWithId(const int64_t req_id,
+                                             const std::string &_first_name,
+                                             const std::string &_last_name,
+                                             const std::string &_username,
+                                             const std::string &_password,
+                                             const int64_t user_id) {
+  auto first_name = _first_name;
+  auto last_name = _last_name;
+  auto username = _username;
+  auto password = _password;
+  _user_service_obj.run(&UserService::RegisterUserWithId, req_id,
+                        std::move(first_name), std::move(last_name),
+                        std::move(username), std::move(password), user_id);
+}
+
+void ComposePostHandler::_GetFollowers(std::vector<int64_t> &_return,
+                                       const int64_t req_id,
+                                       const int64_t user_id) {
+  _return = _social_graph_service_obj.run(&SocialGraphService::GetFollowers,
+                                          req_id, user_id);
+}
+
+void ComposePostHandler::_Unfollow(const int64_t req_id, const int64_t user_id,
+				   const int64_t followee_id) {
+  _social_graph_service_obj.run(&SocialGraphService::Unfollow, req_id, user_id,
+                                followee_id);
+}
+
+void ComposePostHandler::_UnfollowWithUsername(
+    const int64_t req_id, const std::string &_user_username,
+    const std::string &_followee_username) {
+  auto user_username = _user_username;
+  auto followee_username = _followee_username;
+  _social_graph_service_obj.run(&SocialGraphService::UnfollowWithUsername,
+                                req_id, std::move(user_username),
+                                std::move(followee_username));
+}
+
+void ComposePostHandler::_Follow(const int64_t req_id, const int64_t user_id,
+                                 const int64_t followee_id) {
+  _social_graph_service_obj.run(&SocialGraphService::Follow, req_id, user_id,
+                                followee_id);
+}
+
+void ComposePostHandler::_FollowWithUsername(
+    const int64_t req_id, const std::string &_user_username,
+    const std::string &_followee_username) {
+  auto user_username = _user_username;
+  auto followee_username = _followee_username;
+  _social_graph_service_obj.run(&SocialGraphService::FollowWithUsername, req_id,
+                                std::move(user_username),
+                                std::move(followee_username));
+}
+
+void ComposePostHandler::_GetFollowees(std::vector<int64_t> &_return,
+                                       const int64_t req_id,
+                                       const int64_t user_id) {
+  _return = _social_graph_service_obj.run(&SocialGraphService::GetFollowees,
+                                          req_id, user_id);
 }
 
 void ComposePostHandler::StorePost(int64_t req_id, const Post &post) {
@@ -391,6 +579,169 @@ void ComposePostHandler::ReadUserTimeline(std::vector<Post> &_return,
   store_release(&_user_timeline_readusertimeline_pending_resp, false);
 }
 
+void ComposePostHandler::Login(std::string &_return, const int64_t req_id,
+                               const std::string &username,
+                               const std::string &password) {
+  // TODO: handle failure cases.
+  std::scoped_lock<std::mutex> lock(_mutex_login);
+
+  _user_login_arg_req_id = req_id;
+  _user_login_arg_username = username;
+  _user_login_arg_password = password;
+  store_release(&_user_login_pending_req, true);
+
+  while (!load_acquire(&_user_login_pending_resp))
+    ;
+  auto variant = _user_login_resp;
+  store_release(&_user_login_pending_resp, false);
+
+  if (std::holds_alternative<LoginErrorCode>(variant)) {
+    ServiceException se;
+    se.errorCode = ErrorCode::SE_UNAUTHORIZED;
+    auto &login_error_code = std::get<LoginErrorCode>(variant);
+    switch (login_error_code) {
+    case NOT_REGISTERED:
+      se.message = "The username is not registered yet.";
+      break;
+    case WRONG_PASSWORD:
+      se.message = "Wrong password.";
+      break;
+    default:
+      break;
+    }
+    throw se;
+  }
+  _return = std::get<std::string>(variant);
+}
+
+void ComposePostHandler::RegisterUser(const int64_t req_id,
+                                      const std::string &first_name,
+                                      const std::string &last_name,
+                                      const std::string &username,
+                                      const std::string &password) {
+  std::scoped_lock<std::mutex> lock(_mutex_registeruser);
+
+  _user_registeruser_arg_req_id = req_id;
+  _user_registeruser_arg_first_name = first_name;
+  _user_registeruser_arg_last_name = last_name;
+  _user_registeruser_arg_username = username;
+  _user_registeruser_arg_password = password;
+  store_release(&_user_registeruser_pending_req, true);
+
+  while (!load_acquire(&_user_registeruser_pending_resp))
+    ;
+  store_release(&_user_registeruser_pending_resp, false);
+}
+
+void ComposePostHandler::RegisterUserWithId(const int64_t req_id,
+                                            const std::string &first_name,
+                                            const std::string &last_name,
+                                            const std::string &username,
+                                            const std::string &password,
+                                            const int64_t user_id) {
+  std::scoped_lock<std::mutex> lock(_mutex_registeruserwithid);
+
+  _user_registeruserwithid_arg_req_id = req_id;
+  _user_registeruserwithid_arg_first_name = first_name;
+  _user_registeruserwithid_arg_last_name = last_name;
+  _user_registeruserwithid_arg_username = username;
+  _user_registeruserwithid_arg_password = password;
+  _user_registeruserwithid_arg_user_id = user_id;
+  store_release(&_user_registeruserwithid_pending_req, true);
+
+  while (!load_acquire(&_user_registeruserwithid_pending_resp))
+    ;
+  store_release(&_user_registeruserwithid_pending_resp, false);
+}
+
+void ComposePostHandler::GetFollowers(std::vector<int64_t> &_return,
+                                      const int64_t req_id,
+                                      const int64_t user_id) {
+  std::scoped_lock<std::mutex> lock(_mutex_getfollowers);
+
+  _social_graph_getfollowers_arg_req_id = req_id;
+  _social_graph_getfollowers_arg_user_id = user_id;
+  store_release(&_social_graph_getfollowers_pending_req, true);
+
+  while (!load_acquire(&_social_graph_getfollowers_pending_resp))
+    ;
+  _return = _social_graph_getfollowers_resp;
+  store_release(&_social_graph_getfollowers_pending_resp, false);
+}
+
+void ComposePostHandler::Unfollow(const int64_t req_id, const int64_t user_id,
+                                  const int64_t followee_id) {
+  std::scoped_lock<std::mutex> lock(_mutex_unfollow);
+
+  _social_graph_unfollow_arg_req_id = req_id;
+  _social_graph_unfollow_arg_user_id = user_id;
+  _social_graph_unfollow_arg_followee_id = followee_id;
+  store_release(&_social_graph_unfollow_pending_req, true);
+
+  while (!load_acquire(&_social_graph_unfollow_pending_resp))
+    ;
+  store_release(&_social_graph_unfollow_pending_resp, false);
+}
+
+void ComposePostHandler::UnfollowWithUsername(
+    const int64_t req_id, const std::string &user_username,
+    const std::string &followee_username) {
+  std::scoped_lock<std::mutex> lock(_mutex_unfollowwithusername);
+
+  _social_graph_unfollowwithusername_arg_req_id = req_id;
+  _social_graph_unfollowwithusername_arg_user_username = user_username;
+  _social_graph_unfollowwithusername_arg_followee_username = followee_username;
+  store_release(&_social_graph_unfollowwithusername_pending_req, true);
+
+  while (!load_acquire(&_social_graph_unfollowwithusername_pending_resp))
+    ;
+  store_release(&_social_graph_unfollowwithusername_pending_resp, false);
+}
+
+void ComposePostHandler::Follow(const int64_t req_id, const int64_t user_id,
+                                const int64_t followee_id) {
+  std::scoped_lock<std::mutex> lock(_mutex_follow);
+
+  _social_graph_follow_arg_req_id = req_id;
+  _social_graph_follow_arg_user_id = user_id;
+  _social_graph_follow_arg_followee_id = followee_id;
+  store_release(&_social_graph_follow_pending_req, true);
+
+  while (!load_acquire(&_social_graph_follow_pending_resp))
+    ;
+  store_release(&_social_graph_follow_pending_resp, false);
+}
+
+void ComposePostHandler::FollowWithUsername(
+    const int64_t req_id, const std::string &user_username,
+    const std::string &followee_username) {
+  std::scoped_lock<std::mutex> lock(_mutex_followwithusername);
+
+  _social_graph_followwithusername_arg_req_id = req_id;
+  _social_graph_followwithusername_arg_user_username = user_username;
+  _social_graph_followwithusername_arg_followee_username = followee_username;
+  store_release(&_social_graph_followwithusername_pending_req, true);
+
+  while (!load_acquire(&_social_graph_followwithusername_pending_resp))
+    ;
+  store_release(&_social_graph_followwithusername_pending_resp, false);
+}
+
+void ComposePostHandler::GetFollowees(std::vector<int64_t> &_return,
+                                      const int64_t req_id,
+                                      const int64_t user_id) {
+  std::scoped_lock<std::mutex> lock(_mutex_getfollowees);
+
+  _social_graph_getfollowees_arg_req_id = req_id;
+  _social_graph_getfollowees_arg_user_id = user_id;
+  store_release(&_social_graph_getfollowees_pending_req, true);
+
+  while (!load_acquire(&_social_graph_getfollowees_pending_resp))
+    ;
+  _return = _social_graph_getfollowees_resp;
+  store_release(&_social_graph_getfollowees_pending_resp, false);
+}
+
 void ComposePostHandler::poller() {
   while (true) {
     if (load_acquire(&_unique_id_pending_req)) {
@@ -440,9 +791,10 @@ void ComposePostHandler::poller() {
 
     if (load_acquire(&_user_timeline_writeusertimeline_pending_req)) {
       _user_timeline_writeusertimeline_pending_req = false;
-      _UploadUserTimelineHelper(
-          _user_timeline_writeusertimeline_arg_req_id, _user_timeline_writeusertimeline_arg_post_id,
-          _user_timeline_writeusertimeline_arg_user_id, _user_timeline_writeusertimeline_arg_timestamp);
+      _UploadUserTimelineHelper(_user_timeline_writeusertimeline_arg_req_id,
+                                _user_timeline_writeusertimeline_arg_post_id,
+                                _user_timeline_writeusertimeline_arg_user_id,
+                                _user_timeline_writeusertimeline_arg_timestamp);
       store_release(&_user_timeline_writeusertimeline_pending_resp, true);
     }
 
@@ -454,6 +806,90 @@ void ComposePostHandler::poller() {
                             _user_timeline_readusertimeline_arg_start,
                             _user_timeline_readusertimeline_arg_stop);
       store_release(&_user_timeline_readusertimeline_pending_resp, true);
+    }
+
+    if (load_acquire(&_user_login_pending_req)) {
+      _user_login_pending_req = false;
+      _Login(_user_login_resp, _user_login_arg_req_id, _user_login_arg_username,
+             _user_login_arg_password);
+      store_release(&_user_login_pending_resp, true);
+    }
+
+    if (load_acquire(&_user_registeruser_pending_req)) {
+      _user_registeruser_pending_req = false;
+      _RegisterUser(
+          _user_registeruser_arg_req_id, _user_registeruser_arg_first_name,
+          _user_registeruser_arg_last_name, _user_registeruser_arg_username,
+          _user_registeruser_arg_password);
+      store_release(&_user_registeruser_pending_resp, true);
+    }
+
+    if (load_acquire(&_user_registeruserwithid_pending_req)) {
+      _user_registeruserwithid_pending_req = false;
+      _RegisterUserWithId(_user_registeruserwithid_arg_req_id,
+                          _user_registeruserwithid_arg_first_name,
+                          _user_registeruserwithid_arg_last_name,
+                          _user_registeruserwithid_arg_username,
+                          _user_registeruserwithid_arg_password,
+                          _user_registeruserwithid_arg_user_id);
+      store_release(&_user_registeruserwithid_pending_resp, true);
+    }
+
+    if (load_acquire(&_social_graph_getfollowers_pending_req)) {
+      _social_graph_getfollowers_pending_req = false;
+      _GetFollowers(_social_graph_getfollowers_resp,
+                    _social_graph_getfollowers_arg_req_id,
+                    _social_graph_getfollowers_arg_user_id);
+      store_release(&_social_graph_getfollowers_pending_resp, true);
+    }
+
+    if (load_acquire(&_social_graph_unfollow_pending_req)) {
+      _social_graph_unfollow_pending_req = false;
+      _Unfollow(_social_graph_unfollow_arg_req_id,
+                _social_graph_unfollow_arg_user_id,
+                _social_graph_unfollow_arg_user_id);
+      store_release(&_social_graph_unfollow_pending_resp, true);
+    }
+
+    if (load_acquire(&_social_graph_unfollowwithusername_pending_req)) {
+      _social_graph_unfollowwithusername_pending_req = false;
+      _UnfollowWithUsername(
+          _social_graph_unfollowwithusername_arg_req_id,
+          _social_graph_unfollowwithusername_arg_user_username,
+          _social_graph_unfollowwithusername_arg_followee_username);
+      store_release(&_social_graph_unfollowwithusername_pending_resp, true);
+    }
+
+    if (load_acquire(&_social_graph_follow_pending_req)) {
+      _social_graph_follow_pending_req = false;
+      _Follow(_social_graph_follow_arg_req_id, _social_graph_follow_arg_user_id,
+              _social_graph_follow_arg_followee_id);
+      store_release(&_social_graph_follow_pending_resp, true);
+    }
+
+    if (load_acquire(&_social_graph_followwithusername_pending_req)) {
+      _social_graph_followwithusername_pending_req = false;
+      _FollowWithUsername(
+          _social_graph_followwithusername_arg_req_id,
+          _social_graph_followwithusername_arg_user_username,
+          _social_graph_followwithusername_arg_followee_username);
+      store_release(&_social_graph_followwithusername_pending_resp, true);
+    }
+
+    if (load_acquire(&_social_graph_getfollowees_pending_req)) {
+      _social_graph_getfollowees_pending_req = false;
+      _GetFollowees(_social_graph_getfollowees_resp,
+                    _social_graph_getfollowees_arg_req_id,
+                    _social_graph_getfollowees_arg_user_id);
+      store_release(&_social_graph_getfollowees_pending_resp, true);
+    }
+
+    if (load_acquire(&_user_composecreator_pending_req)) {
+      _user_composecreator_pending_req = false;
+      _user_composecreator_resp = _ComposeCreaterHelper(
+          _user_composecreator_arg_req_id, _user_composecreator_arg_user_id,
+          _user_composecreator_arg_username);
+      store_release(&_user_composecreator_pending_resp, true);
     }
   }
 }

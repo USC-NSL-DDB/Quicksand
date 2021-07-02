@@ -159,6 +159,63 @@ service ComposePostService {
     3: i32 start,
     4: i32 stop
   ) throws (1: ServiceException se)
+
+  string Login(
+      1: i64 req_id,
+      2: string username,
+      3: string password
+  ) throws (1: ServiceException se)
+
+  void RegisterUser (
+      1: i64 req_id,
+      2: string first_name,
+      3: string last_name,
+      4: string username,
+      5: string password
+  ) throws (1: ServiceException se)
+
+  void RegisterUserWithId (
+      1: i64 req_id,
+      2: string first_name,
+      3: string last_name,
+      4: string username,
+      5: string password,
+      6: i64 user_id
+  ) throws (1: ServiceException se)
+
+  list<i64> GetFollowers(
+      1: i64 req_id,
+      2: i64 user_id
+  ) throws (1: ServiceException se)
+
+  void Unfollow(
+      1: i64 req_id,
+      2: i64 user_id,
+      3: i64 followee_id
+  ) throws (1: ServiceException se)
+
+  void UnfollowWithUsername(
+      1: i64 req_id,
+      2: string user_usernmae,
+      3: string followee_username
+  ) throws (1: ServiceException se)
+
+  void Follow(
+      1: i64 req_id,
+      2: i64 user_id,
+      3: i64 followee_id
+  ) throws (1: ServiceException se)
+
+  void FollowWithUsername(
+      1: i64 req_id,
+      2: string user_usernmae,
+      3: string followee_username
+  ) throws (1: ServiceException se)
+
+  list<i64> GetFollowees(
+      1: i64 req_id,
+      2: i64 user_id
+  ) throws (1: ServiceException se)
 }
 
 service PostStorageService {

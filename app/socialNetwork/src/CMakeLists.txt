@@ -33,7 +33,5 @@ link_directories(${CALADAN_DIR}/rdma-core/build/lib/statics/)
 link_directories(${NU_DIR})
 
 add_subdirectory(FrontEndProxy)
-add_subdirectory(UserService)
-add_subdirectory(SocialGraphService)
 add_subdirectory(ComposePostService)
 add_subdirectory(HomeTimelineService)

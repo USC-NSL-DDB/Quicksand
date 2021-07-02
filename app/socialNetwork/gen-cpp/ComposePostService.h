@@ -26,6 +26,15 @@ class ComposePostServiceIf {
   virtual void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id) = 0;
   virtual void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids) = 0;
   virtual void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
+  virtual void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) = 0;
+  virtual void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) = 0;
+  virtual void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) = 0;
+  virtual void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) = 0;
+  virtual void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) = 0;
+  virtual void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) = 0;
+  virtual void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) = 0;
+  virtual void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) = 0;
+  virtual void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) = 0;
 };
 
 class ComposePostServiceIfFactory {
@@ -68,6 +77,33 @@ class ComposePostServiceNull : virtual public ComposePostServiceIf {
     return;
   }
   void ReadUserTimeline(std::vector<Post> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
+    return;
+  }
+  void Login(std::string& /* _return */, const int64_t /* req_id */, const std::string& /* username */, const std::string& /* password */) {
+    return;
+  }
+  void RegisterUser(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */) {
+    return;
+  }
+  void RegisterUserWithId(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */, const int64_t /* user_id */) {
+    return;
+  }
+  void GetFollowers(std::vector<int64_t> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */) {
+    return;
+  }
+  void Unfollow(const int64_t /* req_id */, const int64_t /* user_id */, const int64_t /* followee_id */) {
+    return;
+  }
+  void UnfollowWithUsername(const int64_t /* req_id */, const std::string& /* user_usernmae */, const std::string& /* followee_username */) {
+    return;
+  }
+  void Follow(const int64_t /* req_id */, const int64_t /* user_id */, const int64_t /* followee_id */) {
+    return;
+  }
+  void FollowWithUsername(const int64_t /* req_id */, const std::string& /* user_usernmae */, const std::string& /* followee_username */) {
+    return;
+  }
+  void GetFollowees(std::vector<int64_t> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */) {
     return;
   }
 };
@@ -700,6 +736,1113 @@ class ComposePostService_ReadUserTimeline_presult {
 
 };
 
+typedef struct _ComposePostService_Login_args__isset {
+  _ComposePostService_Login_args__isset() : req_id(false), username(false), password(false) {}
+  bool req_id :1;
+  bool username :1;
+  bool password :1;
+} _ComposePostService_Login_args__isset;
+
+class ComposePostService_Login_args {
+ public:
+
+  ComposePostService_Login_args(const ComposePostService_Login_args&);
+  ComposePostService_Login_args& operator=(const ComposePostService_Login_args&);
+  ComposePostService_Login_args() : req_id(0), username(), password() {
+  }
+
+  virtual ~ComposePostService_Login_args() throw();
+  int64_t req_id;
+  std::string username;
+  std::string password;
+
+  _ComposePostService_Login_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_username(const std::string& val);
+
+  void __set_password(const std::string& val);
+
+  bool operator == (const ComposePostService_Login_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(username == rhs.username))
+      return false;
+    if (!(password == rhs.password))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_Login_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_Login_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_Login_pargs {
+ public:
+
+
+  virtual ~ComposePostService_Login_pargs() throw();
+  const int64_t* req_id;
+  const std::string* username;
+  const std::string* password;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_Login_result__isset {
+  _ComposePostService_Login_result__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_Login_result__isset;
+
+class ComposePostService_Login_result {
+ public:
+
+  ComposePostService_Login_result(const ComposePostService_Login_result&);
+  ComposePostService_Login_result& operator=(const ComposePostService_Login_result&);
+  ComposePostService_Login_result() : success() {
+  }
+
+  virtual ~ComposePostService_Login_result() throw();
+  std::string success;
+  ServiceException se;
+
+  _ComposePostService_Login_result__isset __isset;
+
+  void __set_success(const std::string& val);
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_Login_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_Login_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_Login_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_Login_presult__isset {
+  _ComposePostService_Login_presult__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_Login_presult__isset;
+
+class ComposePostService_Login_presult {
+ public:
+
+
+  virtual ~ComposePostService_Login_presult() throw();
+  std::string* success;
+  ServiceException se;
+
+  _ComposePostService_Login_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_RegisterUser_args__isset {
+  _ComposePostService_RegisterUser_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false) {}
+  bool req_id :1;
+  bool first_name :1;
+  bool last_name :1;
+  bool username :1;
+  bool password :1;
+} _ComposePostService_RegisterUser_args__isset;
+
+class ComposePostService_RegisterUser_args {
+ public:
+
+  ComposePostService_RegisterUser_args(const ComposePostService_RegisterUser_args&);
+  ComposePostService_RegisterUser_args& operator=(const ComposePostService_RegisterUser_args&);
+  ComposePostService_RegisterUser_args() : req_id(0), first_name(), last_name(), username(), password() {
+  }
+
+  virtual ~ComposePostService_RegisterUser_args() throw();
+  int64_t req_id;
+  std::string first_name;
+  std::string last_name;
+  std::string username;
+  std::string password;
+
+  _ComposePostService_RegisterUser_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_first_name(const std::string& val);
+
+  void __set_last_name(const std::string& val);
+
+  void __set_username(const std::string& val);
+
+  void __set_password(const std::string& val);
+
+  bool operator == (const ComposePostService_RegisterUser_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(first_name == rhs.first_name))
+      return false;
+    if (!(last_name == rhs.last_name))
+      return false;
+    if (!(username == rhs.username))
+      return false;
+    if (!(password == rhs.password))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_RegisterUser_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_RegisterUser_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_RegisterUser_pargs {
+ public:
+
+
+  virtual ~ComposePostService_RegisterUser_pargs() throw();
+  const int64_t* req_id;
+  const std::string* first_name;
+  const std::string* last_name;
+  const std::string* username;
+  const std::string* password;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_RegisterUser_result__isset {
+  _ComposePostService_RegisterUser_result__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_RegisterUser_result__isset;
+
+class ComposePostService_RegisterUser_result {
+ public:
+
+  ComposePostService_RegisterUser_result(const ComposePostService_RegisterUser_result&);
+  ComposePostService_RegisterUser_result& operator=(const ComposePostService_RegisterUser_result&);
+  ComposePostService_RegisterUser_result() {
+  }
+
+  virtual ~ComposePostService_RegisterUser_result() throw();
+  ServiceException se;
+
+  _ComposePostService_RegisterUser_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_RegisterUser_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_RegisterUser_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_RegisterUser_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_RegisterUser_presult__isset {
+  _ComposePostService_RegisterUser_presult__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_RegisterUser_presult__isset;
+
+class ComposePostService_RegisterUser_presult {
+ public:
+
+
+  virtual ~ComposePostService_RegisterUser_presult() throw();
+  ServiceException se;
+
+  _ComposePostService_RegisterUser_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_RegisterUserWithId_args__isset {
+  _ComposePostService_RegisterUserWithId_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false), user_id(false) {}
+  bool req_id :1;
+  bool first_name :1;
+  bool last_name :1;
+  bool username :1;
+  bool password :1;
+  bool user_id :1;
+} _ComposePostService_RegisterUserWithId_args__isset;
+
+class ComposePostService_RegisterUserWithId_args {
+ public:
+
+  ComposePostService_RegisterUserWithId_args(const ComposePostService_RegisterUserWithId_args&);
+  ComposePostService_RegisterUserWithId_args& operator=(const ComposePostService_RegisterUserWithId_args&);
+  ComposePostService_RegisterUserWithId_args() : req_id(0), first_name(), last_name(), username(), password(), user_id(0) {
+  }
+
+  virtual ~ComposePostService_RegisterUserWithId_args() throw();
+  int64_t req_id;
+  std::string first_name;
+  std::string last_name;
+  std::string username;
+  std::string password;
+  int64_t user_id;
+
+  _ComposePostService_RegisterUserWithId_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_first_name(const std::string& val);
+
+  void __set_last_name(const std::string& val);
+
+  void __set_username(const std::string& val);
+
+  void __set_password(const std::string& val);
+
+  void __set_user_id(const int64_t val);
+
+  bool operator == (const ComposePostService_RegisterUserWithId_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(first_name == rhs.first_name))
+      return false;
+    if (!(last_name == rhs.last_name))
+      return false;
+    if (!(username == rhs.username))
+      return false;
+    if (!(password == rhs.password))
+      return false;
+    if (!(user_id == rhs.user_id))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_RegisterUserWithId_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_RegisterUserWithId_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_RegisterUserWithId_pargs {
+ public:
+
+
+  virtual ~ComposePostService_RegisterUserWithId_pargs() throw();
+  const int64_t* req_id;
+  const std::string* first_name;
+  const std::string* last_name;
+  const std::string* username;
+  const std::string* password;
+  const int64_t* user_id;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_RegisterUserWithId_result__isset {
+  _ComposePostService_RegisterUserWithId_result__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_RegisterUserWithId_result__isset;
+
+class ComposePostService_RegisterUserWithId_result {
+ public:
+
+  ComposePostService_RegisterUserWithId_result(const ComposePostService_RegisterUserWithId_result&);
+  ComposePostService_RegisterUserWithId_result& operator=(const ComposePostService_RegisterUserWithId_result&);
+  ComposePostService_RegisterUserWithId_result() {
+  }
+
+  virtual ~ComposePostService_RegisterUserWithId_result() throw();
+  ServiceException se;
+
+  _ComposePostService_RegisterUserWithId_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_RegisterUserWithId_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_RegisterUserWithId_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_RegisterUserWithId_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_RegisterUserWithId_presult__isset {
+  _ComposePostService_RegisterUserWithId_presult__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_RegisterUserWithId_presult__isset;
+
+class ComposePostService_RegisterUserWithId_presult {
+ public:
+
+
+  virtual ~ComposePostService_RegisterUserWithId_presult() throw();
+  ServiceException se;
+
+  _ComposePostService_RegisterUserWithId_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_GetFollowers_args__isset {
+  _ComposePostService_GetFollowers_args__isset() : req_id(false), user_id(false) {}
+  bool req_id :1;
+  bool user_id :1;
+} _ComposePostService_GetFollowers_args__isset;
+
+class ComposePostService_GetFollowers_args {
+ public:
+
+  ComposePostService_GetFollowers_args(const ComposePostService_GetFollowers_args&);
+  ComposePostService_GetFollowers_args& operator=(const ComposePostService_GetFollowers_args&);
+  ComposePostService_GetFollowers_args() : req_id(0), user_id(0) {
+  }
+
+  virtual ~ComposePostService_GetFollowers_args() throw();
+  int64_t req_id;
+  int64_t user_id;
+
+  _ComposePostService_GetFollowers_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_user_id(const int64_t val);
+
+  bool operator == (const ComposePostService_GetFollowers_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(user_id == rhs.user_id))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_GetFollowers_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_GetFollowers_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_GetFollowers_pargs {
+ public:
+
+
+  virtual ~ComposePostService_GetFollowers_pargs() throw();
+  const int64_t* req_id;
+  const int64_t* user_id;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_GetFollowers_result__isset {
+  _ComposePostService_GetFollowers_result__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_GetFollowers_result__isset;
+
+class ComposePostService_GetFollowers_result {
+ public:
+
+  ComposePostService_GetFollowers_result(const ComposePostService_GetFollowers_result&);
+  ComposePostService_GetFollowers_result& operator=(const ComposePostService_GetFollowers_result&);
+  ComposePostService_GetFollowers_result() {
+  }
+
+  virtual ~ComposePostService_GetFollowers_result() throw();
+  std::vector<int64_t>  success;
+  ServiceException se;
+
+  _ComposePostService_GetFollowers_result__isset __isset;
+
+  void __set_success(const std::vector<int64_t> & val);
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_GetFollowers_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_GetFollowers_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_GetFollowers_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_GetFollowers_presult__isset {
+  _ComposePostService_GetFollowers_presult__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_GetFollowers_presult__isset;
+
+class ComposePostService_GetFollowers_presult {
+ public:
+
+
+  virtual ~ComposePostService_GetFollowers_presult() throw();
+  std::vector<int64_t> * success;
+  ServiceException se;
+
+  _ComposePostService_GetFollowers_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_Unfollow_args__isset {
+  _ComposePostService_Unfollow_args__isset() : req_id(false), user_id(false), followee_id(false) {}
+  bool req_id :1;
+  bool user_id :1;
+  bool followee_id :1;
+} _ComposePostService_Unfollow_args__isset;
+
+class ComposePostService_Unfollow_args {
+ public:
+
+  ComposePostService_Unfollow_args(const ComposePostService_Unfollow_args&);
+  ComposePostService_Unfollow_args& operator=(const ComposePostService_Unfollow_args&);
+  ComposePostService_Unfollow_args() : req_id(0), user_id(0), followee_id(0) {
+  }
+
+  virtual ~ComposePostService_Unfollow_args() throw();
+  int64_t req_id;
+  int64_t user_id;
+  int64_t followee_id;
+
+  _ComposePostService_Unfollow_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_user_id(const int64_t val);
+
+  void __set_followee_id(const int64_t val);
+
+  bool operator == (const ComposePostService_Unfollow_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(user_id == rhs.user_id))
+      return false;
+    if (!(followee_id == rhs.followee_id))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_Unfollow_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_Unfollow_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_Unfollow_pargs {
+ public:
+
+
+  virtual ~ComposePostService_Unfollow_pargs() throw();
+  const int64_t* req_id;
+  const int64_t* user_id;
+  const int64_t* followee_id;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_Unfollow_result__isset {
+  _ComposePostService_Unfollow_result__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_Unfollow_result__isset;
+
+class ComposePostService_Unfollow_result {
+ public:
+
+  ComposePostService_Unfollow_result(const ComposePostService_Unfollow_result&);
+  ComposePostService_Unfollow_result& operator=(const ComposePostService_Unfollow_result&);
+  ComposePostService_Unfollow_result() {
+  }
+
+  virtual ~ComposePostService_Unfollow_result() throw();
+  ServiceException se;
+
+  _ComposePostService_Unfollow_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_Unfollow_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_Unfollow_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_Unfollow_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_Unfollow_presult__isset {
+  _ComposePostService_Unfollow_presult__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_Unfollow_presult__isset;
+
+class ComposePostService_Unfollow_presult {
+ public:
+
+
+  virtual ~ComposePostService_Unfollow_presult() throw();
+  ServiceException se;
+
+  _ComposePostService_Unfollow_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_UnfollowWithUsername_args__isset {
+  _ComposePostService_UnfollowWithUsername_args__isset() : req_id(false), user_usernmae(false), followee_username(false) {}
+  bool req_id :1;
+  bool user_usernmae :1;
+  bool followee_username :1;
+} _ComposePostService_UnfollowWithUsername_args__isset;
+
+class ComposePostService_UnfollowWithUsername_args {
+ public:
+
+  ComposePostService_UnfollowWithUsername_args(const ComposePostService_UnfollowWithUsername_args&);
+  ComposePostService_UnfollowWithUsername_args& operator=(const ComposePostService_UnfollowWithUsername_args&);
+  ComposePostService_UnfollowWithUsername_args() : req_id(0), user_usernmae(), followee_username() {
+  }
+
+  virtual ~ComposePostService_UnfollowWithUsername_args() throw();
+  int64_t req_id;
+  std::string user_usernmae;
+  std::string followee_username;
+
+  _ComposePostService_UnfollowWithUsername_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_user_usernmae(const std::string& val);
+
+  void __set_followee_username(const std::string& val);
+
+  bool operator == (const ComposePostService_UnfollowWithUsername_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(user_usernmae == rhs.user_usernmae))
+      return false;
+    if (!(followee_username == rhs.followee_username))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_UnfollowWithUsername_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_UnfollowWithUsername_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_UnfollowWithUsername_pargs {
+ public:
+
+
+  virtual ~ComposePostService_UnfollowWithUsername_pargs() throw();
+  const int64_t* req_id;
+  const std::string* user_usernmae;
+  const std::string* followee_username;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_UnfollowWithUsername_result__isset {
+  _ComposePostService_UnfollowWithUsername_result__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_UnfollowWithUsername_result__isset;
+
+class ComposePostService_UnfollowWithUsername_result {
+ public:
+
+  ComposePostService_UnfollowWithUsername_result(const ComposePostService_UnfollowWithUsername_result&);
+  ComposePostService_UnfollowWithUsername_result& operator=(const ComposePostService_UnfollowWithUsername_result&);
+  ComposePostService_UnfollowWithUsername_result() {
+  }
+
+  virtual ~ComposePostService_UnfollowWithUsername_result() throw();
+  ServiceException se;
+
+  _ComposePostService_UnfollowWithUsername_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_UnfollowWithUsername_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_UnfollowWithUsername_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_UnfollowWithUsername_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_UnfollowWithUsername_presult__isset {
+  _ComposePostService_UnfollowWithUsername_presult__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_UnfollowWithUsername_presult__isset;
+
+class ComposePostService_UnfollowWithUsername_presult {
+ public:
+
+
+  virtual ~ComposePostService_UnfollowWithUsername_presult() throw();
+  ServiceException se;
+
+  _ComposePostService_UnfollowWithUsername_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_Follow_args__isset {
+  _ComposePostService_Follow_args__isset() : req_id(false), user_id(false), followee_id(false) {}
+  bool req_id :1;
+  bool user_id :1;
+  bool followee_id :1;
+} _ComposePostService_Follow_args__isset;
+
+class ComposePostService_Follow_args {
+ public:
+
+  ComposePostService_Follow_args(const ComposePostService_Follow_args&);
+  ComposePostService_Follow_args& operator=(const ComposePostService_Follow_args&);
+  ComposePostService_Follow_args() : req_id(0), user_id(0), followee_id(0) {
+  }
+
+  virtual ~ComposePostService_Follow_args() throw();
+  int64_t req_id;
+  int64_t user_id;
+  int64_t followee_id;
+
+  _ComposePostService_Follow_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_user_id(const int64_t val);
+
+  void __set_followee_id(const int64_t val);
+
+  bool operator == (const ComposePostService_Follow_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(user_id == rhs.user_id))
+      return false;
+    if (!(followee_id == rhs.followee_id))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_Follow_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_Follow_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_Follow_pargs {
+ public:
+
+
+  virtual ~ComposePostService_Follow_pargs() throw();
+  const int64_t* req_id;
+  const int64_t* user_id;
+  const int64_t* followee_id;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_Follow_result__isset {
+  _ComposePostService_Follow_result__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_Follow_result__isset;
+
+class ComposePostService_Follow_result {
+ public:
+
+  ComposePostService_Follow_result(const ComposePostService_Follow_result&);
+  ComposePostService_Follow_result& operator=(const ComposePostService_Follow_result&);
+  ComposePostService_Follow_result() {
+  }
+
+  virtual ~ComposePostService_Follow_result() throw();
+  ServiceException se;
+
+  _ComposePostService_Follow_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_Follow_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_Follow_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_Follow_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_Follow_presult__isset {
+  _ComposePostService_Follow_presult__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_Follow_presult__isset;
+
+class ComposePostService_Follow_presult {
+ public:
+
+
+  virtual ~ComposePostService_Follow_presult() throw();
+  ServiceException se;
+
+  _ComposePostService_Follow_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_FollowWithUsername_args__isset {
+  _ComposePostService_FollowWithUsername_args__isset() : req_id(false), user_usernmae(false), followee_username(false) {}
+  bool req_id :1;
+  bool user_usernmae :1;
+  bool followee_username :1;
+} _ComposePostService_FollowWithUsername_args__isset;
+
+class ComposePostService_FollowWithUsername_args {
+ public:
+
+  ComposePostService_FollowWithUsername_args(const ComposePostService_FollowWithUsername_args&);
+  ComposePostService_FollowWithUsername_args& operator=(const ComposePostService_FollowWithUsername_args&);
+  ComposePostService_FollowWithUsername_args() : req_id(0), user_usernmae(), followee_username() {
+  }
+
+  virtual ~ComposePostService_FollowWithUsername_args() throw();
+  int64_t req_id;
+  std::string user_usernmae;
+  std::string followee_username;
+
+  _ComposePostService_FollowWithUsername_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_user_usernmae(const std::string& val);
+
+  void __set_followee_username(const std::string& val);
+
+  bool operator == (const ComposePostService_FollowWithUsername_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(user_usernmae == rhs.user_usernmae))
+      return false;
+    if (!(followee_username == rhs.followee_username))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_FollowWithUsername_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_FollowWithUsername_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_FollowWithUsername_pargs {
+ public:
+
+
+  virtual ~ComposePostService_FollowWithUsername_pargs() throw();
+  const int64_t* req_id;
+  const std::string* user_usernmae;
+  const std::string* followee_username;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_FollowWithUsername_result__isset {
+  _ComposePostService_FollowWithUsername_result__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_FollowWithUsername_result__isset;
+
+class ComposePostService_FollowWithUsername_result {
+ public:
+
+  ComposePostService_FollowWithUsername_result(const ComposePostService_FollowWithUsername_result&);
+  ComposePostService_FollowWithUsername_result& operator=(const ComposePostService_FollowWithUsername_result&);
+  ComposePostService_FollowWithUsername_result() {
+  }
+
+  virtual ~ComposePostService_FollowWithUsername_result() throw();
+  ServiceException se;
+
+  _ComposePostService_FollowWithUsername_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_FollowWithUsername_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_FollowWithUsername_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_FollowWithUsername_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_FollowWithUsername_presult__isset {
+  _ComposePostService_FollowWithUsername_presult__isset() : se(false) {}
+  bool se :1;
+} _ComposePostService_FollowWithUsername_presult__isset;
+
+class ComposePostService_FollowWithUsername_presult {
+ public:
+
+
+  virtual ~ComposePostService_FollowWithUsername_presult() throw();
+  ServiceException se;
+
+  _ComposePostService_FollowWithUsername_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _ComposePostService_GetFollowees_args__isset {
+  _ComposePostService_GetFollowees_args__isset() : req_id(false), user_id(false) {}
+  bool req_id :1;
+  bool user_id :1;
+} _ComposePostService_GetFollowees_args__isset;
+
+class ComposePostService_GetFollowees_args {
+ public:
+
+  ComposePostService_GetFollowees_args(const ComposePostService_GetFollowees_args&);
+  ComposePostService_GetFollowees_args& operator=(const ComposePostService_GetFollowees_args&);
+  ComposePostService_GetFollowees_args() : req_id(0), user_id(0) {
+  }
+
+  virtual ~ComposePostService_GetFollowees_args() throw();
+  int64_t req_id;
+  int64_t user_id;
+
+  _ComposePostService_GetFollowees_args__isset __isset;
+
+  void __set_req_id(const int64_t val);
+
+  void __set_user_id(const int64_t val);
+
+  bool operator == (const ComposePostService_GetFollowees_args & rhs) const
+  {
+    if (!(req_id == rhs.req_id))
+      return false;
+    if (!(user_id == rhs.user_id))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_GetFollowees_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_GetFollowees_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ComposePostService_GetFollowees_pargs {
+ public:
+
+
+  virtual ~ComposePostService_GetFollowees_pargs() throw();
+  const int64_t* req_id;
+  const int64_t* user_id;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_GetFollowees_result__isset {
+  _ComposePostService_GetFollowees_result__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_GetFollowees_result__isset;
+
+class ComposePostService_GetFollowees_result {
+ public:
+
+  ComposePostService_GetFollowees_result(const ComposePostService_GetFollowees_result&);
+  ComposePostService_GetFollowees_result& operator=(const ComposePostService_GetFollowees_result&);
+  ComposePostService_GetFollowees_result() {
+  }
+
+  virtual ~ComposePostService_GetFollowees_result() throw();
+  std::vector<int64_t>  success;
+  ServiceException se;
+
+  _ComposePostService_GetFollowees_result__isset __isset;
+
+  void __set_success(const std::vector<int64_t> & val);
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const ComposePostService_GetFollowees_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const ComposePostService_GetFollowees_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ComposePostService_GetFollowees_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ComposePostService_GetFollowees_presult__isset {
+  _ComposePostService_GetFollowees_presult__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _ComposePostService_GetFollowees_presult__isset;
+
+class ComposePostService_GetFollowees_presult {
+ public:
+
+
+  virtual ~ComposePostService_GetFollowees_presult() throw();
+  std::vector<int64_t> * success;
+  ServiceException se;
+
+  _ComposePostService_GetFollowees_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
 class ComposePostServiceClient : virtual public ComposePostServiceIf {
  public:
   ComposePostServiceClient(apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> prot) {
@@ -740,6 +1883,33 @@ class ComposePostServiceClient : virtual public ComposePostServiceIf {
   void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
   void send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadUserTimeline(std::vector<Post> & _return);
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password);
+  void send_Login(const int64_t req_id, const std::string& username, const std::string& password);
+  void recv_Login(std::string& _return);
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  void send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  void recv_RegisterUser();
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  void send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  void recv_RegisterUserWithId();
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
+  void send_GetFollowers(const int64_t req_id, const int64_t user_id);
+  void recv_GetFollowers(std::vector<int64_t> & _return);
+  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void recv_Unfollow();
+  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void recv_UnfollowWithUsername();
+  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void recv_Follow();
+  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void recv_FollowWithUsername();
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
+  void send_GetFollowees(const int64_t req_id, const int64_t user_id);
+  void recv_GetFollowees(std::vector<int64_t> & _return);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;
@@ -760,6 +1930,15 @@ class ComposePostServiceProcessor : public ::apache::thrift::TDispatchProcessor 
   void process_ReadPost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_ReadPosts(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_ReadUserTimeline(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_Login(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_RegisterUser(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_RegisterUserWithId(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_GetFollowers(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_Unfollow(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_UnfollowWithUsername(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_Follow(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_FollowWithUsername(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_GetFollowees(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
  public:
   ComposePostServiceProcessor(::apache::thrift::stdcxx::shared_ptr<ComposePostServiceIf> iface) :
     iface_(iface) {
@@ -768,6 +1947,15 @@ class ComposePostServiceProcessor : public ::apache::thrift::TDispatchProcessor 
     processMap_["ReadPost"] = &ComposePostServiceProcessor::process_ReadPost;
     processMap_["ReadPosts"] = &ComposePostServiceProcessor::process_ReadPosts;
     processMap_["ReadUserTimeline"] = &ComposePostServiceProcessor::process_ReadUserTimeline;
+    processMap_["Login"] = &ComposePostServiceProcessor::process_Login;
+    processMap_["RegisterUser"] = &ComposePostServiceProcessor::process_RegisterUser;
+    processMap_["RegisterUserWithId"] = &ComposePostServiceProcessor::process_RegisterUserWithId;
+    processMap_["GetFollowers"] = &ComposePostServiceProcessor::process_GetFollowers;
+    processMap_["Unfollow"] = &ComposePostServiceProcessor::process_Unfollow;
+    processMap_["UnfollowWithUsername"] = &ComposePostServiceProcessor::process_UnfollowWithUsername;
+    processMap_["Follow"] = &ComposePostServiceProcessor::process_Follow;
+    processMap_["FollowWithUsername"] = &ComposePostServiceProcessor::process_FollowWithUsername;
+    processMap_["GetFollowees"] = &ComposePostServiceProcessor::process_GetFollowees;
   }
 
   virtual ~ComposePostServiceProcessor() {}
@@ -844,6 +2032,90 @@ class ComposePostServiceMultiface : virtual public ComposePostServiceIf {
     return;
   }
 
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->Login(_return, req_id, username, password);
+    }
+    ifaces_[i]->Login(_return, req_id, username, password);
+    return;
+  }
+
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password);
+    }
+    ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password);
+  }
+
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
+    }
+    ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
+  }
+
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->GetFollowers(_return, req_id, user_id);
+    }
+    ifaces_[i]->GetFollowers(_return, req_id, user_id);
+    return;
+  }
+
+  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->Unfollow(req_id, user_id, followee_id);
+    }
+    ifaces_[i]->Unfollow(req_id, user_id, followee_id);
+  }
+
+  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->UnfollowWithUsername(req_id, user_usernmae, followee_username);
+    }
+    ifaces_[i]->UnfollowWithUsername(req_id, user_usernmae, followee_username);
+  }
+
+  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->Follow(req_id, user_id, followee_id);
+    }
+    ifaces_[i]->Follow(req_id, user_id, followee_id);
+  }
+
+  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->FollowWithUsername(req_id, user_usernmae, followee_username);
+    }
+    ifaces_[i]->FollowWithUsername(req_id, user_usernmae, followee_username);
+  }
+
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->GetFollowees(_return, req_id, user_id);
+    }
+    ifaces_[i]->GetFollowees(_return, req_id, user_id);
+    return;
+  }
+
 };
 
 // The 'concurrent' client is a thread safe client that correctly handles
@@ -889,6 +2161,33 @@ class ComposePostServiceConcurrentClient : virtual public ComposePostServiceIf {
   void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
   int32_t send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadUserTimeline(std::vector<Post> & _return, const int32_t seqid);
+  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password);
+  int32_t send_Login(const int64_t req_id, const std::string& username, const std::string& password);
+  void recv_Login(std::string& _return, const int32_t seqid);
+  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  int32_t send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  void recv_RegisterUser(const int32_t seqid);
+  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  int32_t send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  void recv_RegisterUserWithId(const int32_t seqid);
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
+  int32_t send_GetFollowers(const int64_t req_id, const int64_t user_id);
+  void recv_GetFollowers(std::vector<int64_t> & _return, const int32_t seqid);
+  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  int32_t send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void recv_Unfollow(const int32_t seqid);
+  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  int32_t send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void recv_UnfollowWithUsername(const int32_t seqid);
+  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  int32_t send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void recv_Follow(const int32_t seqid);
+  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  int32_t send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void recv_FollowWithUsername(const int32_t seqid);
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
+  int32_t send_GetFollowees(const int64_t req_id, const int64_t user_id);
+  void recv_GetFollowees(std::vector<int64_t> & _return, const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;
