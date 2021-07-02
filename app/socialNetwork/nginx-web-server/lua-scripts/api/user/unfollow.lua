@@ -48,7 +48,10 @@ function _M.Unfollow()
   end
   GenericObjectPool:returnConnection(client)
   span:finish()
-
+  ngx.redirect("../../contact.html")
+  -- ngx.header.content_type = "application/json; charset=utf-8"
+  -- ngx.say(cjson.encode(home_timeline) )
+  ngx.exit(ngx.HTTP_OK)
 end
 
 return _M
