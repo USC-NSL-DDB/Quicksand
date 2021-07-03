@@ -34,4 +34,4 @@ link_directories(${NU_DIR})
 
 add_subdirectory(FrontEndProxy)
 add_subdirectory(ComposePostService)
-add_subdirectory(HomeTimelineService)
+

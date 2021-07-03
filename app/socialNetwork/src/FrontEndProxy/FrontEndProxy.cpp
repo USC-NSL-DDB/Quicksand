@@ -7,7 +7,6 @@
 
 #include "../../gen-cpp/ComposePostService.h"
 #include "../../gen-cpp/FrontEndProxy.h"
-#include "../../gen-cpp/HomeTimelineService.h"
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
 #include "../logger.h"
@@ -24,34 +23,30 @@ namespace social_network {
 
 class FrontEndProxyHandler : public FrontEndProxyIf {
 public:
-  FrontEndProxyHandler(
-      ClientPool<ThriftClient<HomeTimelineServiceClient>>
-          *home_timeline_client_pool,
-      ClientPool<ThriftClient<ComposePostServiceClient>>
-          *compose_post_client_pool)
-      : home_timeline_client_pool_(home_timeline_client_pool),
-        compose_post_client_pool_(compose_post_client_pool) {}
+  FrontEndProxyHandler(ClientPool<ThriftClient<ComposePostServiceClient>>
+                           *compose_post_client_pool)
+      : compose_post_client_pool_(compose_post_client_pool) {}
 
   void ReadHomeTimeline(std::vector<Post> &_return, const int64_t req_id,
                         const int64_t user_id, const int32_t start,
                         const int32_t stop) {
-    auto home_timeline_client_wrapper = home_timeline_client_pool_->Pop();
-    if (!home_timeline_client_wrapper) {
+    auto compose_post_client_wrapper = compose_post_client_pool_->Pop();
+    if (!compose_post_client_wrapper) {
       ServiceException se;
       se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-      se.message = "Failed to connect to home-timeline-service";
+      se.message = "Failed to connect to compose-post-service";
       throw se;
     }
-    auto home_timeline_client = home_timeline_client_wrapper->GetClient();
+    auto compose_post_client = compose_post_client_wrapper->GetClient();
     try {
-      home_timeline_client->ReadHomeTimeline(_return, req_id, user_id, start,
-                                             stop);
+      compose_post_client->ReadHomeTimeline(_return, req_id, user_id, start,
+                                            stop);
     } catch (...) {
-      home_timeline_client_pool_->Remove(home_timeline_client_wrapper);
-      LOG(error) << "Failed to read posts from home-timeline-service";
+      compose_post_client_pool_->Remove(compose_post_client_wrapper);
+      LOG(error) << "Failed to read posts from compose-post-service";
       throw;
     }
-    home_timeline_client_pool_->Keepalive(home_timeline_client_wrapper);
+    compose_post_client_pool_->Keepalive(compose_post_client_wrapper);
   }
 
   void ComposePost(const int64_t req_id, const std::string &username,
@@ -290,8 +285,6 @@ public:
   }
 
 private:
-  ClientPool<ThriftClient<HomeTimelineServiceClient>>
-      *home_timeline_client_pool_;
   ClientPool<ThriftClient<ComposePostServiceClient>> *compose_post_client_pool_;
 };
 
@@ -307,16 +300,6 @@ void do_work() {
   if (load_config_file("config/service-config.json", &config_json) == 0) {
     int port = config_json["front-end-proxy"]["port"];
 
-    int home_timeline_port = config_json["home-timeline-service"]["port"];
-    std::string home_timeline_addr =
-        config_json["home-timeline-service"]["addr"];
-    int home_timeline_conns =
-        config_json["home-timeline-service"]["connections"];
-    int home_timeline_timeout =
-        config_json["home-timeline-service"]["timeout_ms"];
-    int home_timeline_keepalive =
-        config_json["home-timeline-service"]["keepalive_ms"];
-
     std::string compose_post_service_addr =
         config_json["compose-post-service"]["addr"];
     int compose_post_service_port = config_json["compose-post-service"]["port"];
@@ -326,12 +309,6 @@ void do_work() {
         config_json["compose-post-service"]["timeout_ms"];
     int compose_post_service_keepalive =
         config_json["compose-post-service"]["keepalive_ms"];
-
-    ClientPool<ThriftClient<HomeTimelineServiceClient>>
-        home_timeline_client_pool("home-timeline-service-client",
-                                  home_timeline_addr, home_timeline_port, 0,
-                                  home_timeline_conns, home_timeline_timeout,
-                                  home_timeline_keepalive, config_json);
 
     ClientPool<ThriftClient<ComposePostServiceClient>> compose_post_client_pool(
         "compose-post-service", compose_post_service_addr,
@@ -343,8 +320,7 @@ void do_work() {
         get_server_socket(config_json, "0.0.0.0", port);
     TThreadedServer server(
         std::make_shared<FrontEndProxyProcessor>(
-            std::make_shared<FrontEndProxyHandler>(&home_timeline_client_pool,
-                                                   &compose_post_client_pool)),
+            std::make_shared<FrontEndProxyHandler>(&compose_post_client_pool)),
         server_socket, std::make_shared<TFramedTransportFactory>(),
         std::make_shared<TBinaryProtocolFactory>());
     LOG(info) << "Starting the front-end-proxy server...";

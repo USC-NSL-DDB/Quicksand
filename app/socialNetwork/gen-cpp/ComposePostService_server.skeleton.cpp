@@ -90,6 +90,11 @@ class ComposePostServiceHandler : virtual public ComposePostServiceIf {
     printf("GetFollowees\n");
   }
 
+  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
+    // Your implementation goes here
+    printf("ReadHomeTimeline\n");
+  }
+
 };
 
 int main(int argc, char **argv) {

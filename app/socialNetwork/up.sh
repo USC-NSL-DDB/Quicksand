@@ -51,4 +51,4 @@ sleep 3
 sudo build/src/ComposePostService/ComposePostService ../../conf/client1 CLT $NU_CTRL_IP >logs/ComposePostService.clt 2>&1 &
 
 sudo build/src/FrontEndProxy/FrontEndProxy ../../conf/client2 >logs/FrontEndProxy 2>&1 &
-sudo build/src/HomeTimelineService/HomeTimelineService >logs/HomeTimelineService 2>&1 &
+

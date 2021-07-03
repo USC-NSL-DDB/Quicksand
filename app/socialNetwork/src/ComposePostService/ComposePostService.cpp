@@ -29,24 +29,10 @@ void do_work() {
 
   int port = config_json["compose-post-service"]["port"];
 
-  int home_timeline_port = config_json["home-timeline-service"]["port"];
-  std::string home_timeline_addr = config_json["home-timeline-service"]["addr"];
-  int home_timeline_conns = config_json["home-timeline-service"]["connections"];
-  int home_timeline_timeout =
-      config_json["home-timeline-service"]["timeout_ms"];
-  int home_timeline_keepalive =
-      config_json["home-timeline-service"]["keepalive_ms"];
-
-  ClientPool<ThriftClient<HomeTimelineServiceClient>> home_timeline_client_pool(
-      "home-timeline-service-client", home_timeline_addr, home_timeline_port, 0,
-      home_timeline_conns, home_timeline_timeout, home_timeline_keepalive,
-      config_json);
-
   std::shared_ptr<TServerSocket> server_socket =
       get_server_socket(config_json, "0.0.0.0", port);
 
-  auto compose_post_handler =
-      std::make_shared<ComposePostHandler>(&home_timeline_client_pool);
+  auto compose_post_handler = std::make_shared<ComposePostHandler>();
 
   rt::Thread([compose_post_handler = compose_post_handler.get()] {
     compose_post_handler->poller();

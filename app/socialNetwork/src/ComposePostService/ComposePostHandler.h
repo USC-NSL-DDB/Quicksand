@@ -13,10 +13,10 @@
 #include <nu/rem_obj.hpp>
 
 #include "../../gen-cpp/ComposePostService.h"
-#include "../../gen-cpp/HomeTimelineService.h"
 #include "../../gen-cpp/social_network_types.h"
 #include "../ClientPool.h"
 #include "../ThriftClient.h"
+#include "HomeTimelineService.h"
 #include "MediaService.h"
 #include "PostStorageService.h"
 #include "SocialGraphService.h"
@@ -33,15 +33,15 @@ using std::chrono::system_clock;
 
 class ComposePostHandler : public ComposePostServiceIf {
  public:
-   ComposePostHandler(ClientPool<ThriftClient<HomeTimelineServiceClient>> *);
+   ComposePostHandler();
    ~ComposePostHandler() override = default;
 
+   // TODO: remove those helpers in the future.
    void ComposePost(int64_t req_id, const std::string &username,
                     int64_t user_id, const std::string &text,
                     const std::vector<int64_t> &media_ids,
                     const std::vector<std::string> &media_types,
                     PostType::type post_type) override;
-   // TODO: remove those helpers in the future.
    void StorePost(int64_t req_id, const Post &post) override;
    void ReadPost(Post &_return, int64_t req_id, int64_t post_id) override;
    void ReadPosts(std::vector<Post> &_return, int64_t req_id,
@@ -73,6 +73,9 @@ class ComposePostHandler : public ComposePostServiceIf {
                            const std::string &followee_username) override;
    void GetFollowees(std::vector<int64_t> &_return, const int64_t req_id,
                      const int64_t user_id) override;
+   void ReadHomeTimeline(std::vector<Post> &_return, const int64_t req_id,
+                         const int64_t user_id, const int32_t start,
+                         const int32_t stop) override;
 
    // For compatibility purpose, To be removed in the future.
    bool _unique_id_pending_req = false;
@@ -175,6 +178,20 @@ class ComposePostHandler : public ComposePostServiceIf {
    int64_t _user_composecreator_arg_user_id;
    std::string _user_composecreator_arg_username;
    Creator _user_composecreator_resp;
+   bool _home_timeline_readhometimeline_pending_req = false;
+   bool _home_timeline_readhometimeline_pending_resp = false;
+   int64_t _home_timeline_readhometimeline_arg_req_id;
+   int64_t _home_timeline_readhometimeline_arg_user_id;
+   int64_t _home_timeline_readhometimeline_arg_start;
+   int64_t _home_timeline_readhometimeline_arg_stop;
+   std::vector<Post> _home_timeline_readhometimeline_resp;
+   bool _home_timeline_writehometimeline_pending_req = false;
+   bool _home_timeline_writehometimeline_pending_resp = false;
+   int64_t _home_timeline_writehometimeline_arg_req_id;
+   int64_t _home_timeline_writehometimeline_arg_post_id;
+   int64_t _home_timeline_writehometimeline_arg_user_id;
+   int64_t _home_timeline_writehometimeline_arg_timestamp;
+   std::vector<int64_t> _home_timeline_writehometimeline_arg_user_mentions_id;
    std::mutex _mutex_composepost;
    std::mutex _mutex_storepost;
    std::mutex _mutex_readpost;
@@ -189,12 +206,10 @@ class ComposePostHandler : public ComposePostServiceIf {
    std::mutex _mutex_follow;
    std::mutex _mutex_followwithusername;
    std::mutex _mutex_getfollowees;
+   std::mutex _mutex_readhometimeline;
    void poller();
 
  private:
-   ClientPool<ThriftClient<HomeTimelineServiceClient>>
-       *_home_timeline_client_pool;
-
    nu::RemObj<TextService> _text_service_obj;
    nu::RemObj<UniqueIdService> _unique_id_service_obj;
    nu::RemObj<MediaService> _media_service_obj;
@@ -202,6 +217,7 @@ class ComposePostHandler : public ComposePostServiceIf {
    nu::RemObj<UserTimelineService> _user_timeline_service_obj;
    nu::RemObj<UserService> _user_service_obj;
    nu::RemObj<SocialGraphService> _social_graph_service_obj;
+   nu::RemObj<HomeTimelineService> _home_timeline_service_obj;
 
    // TODO: remove those helpers in the future.
    void _StorePost(int64_t req_id, Post &&post);
@@ -251,12 +267,13 @@ class ComposePostHandler : public ComposePostServiceIf {
                             const std::string &followee_username);
    void _GetFollowees(std::vector<int64_t> &_return, const int64_t req_id,
                       const int64_t user_id);
+   std::vector<Post> _ReadHomeTimeline(const int64_t req_id,
+                                       const int64_t user_id,
+                                       const int32_t start,
+                                       const int32_t stop);
 };
 
-ComposePostHandler::ComposePostHandler(
-    ClientPool<ThriftClient<HomeTimelineServiceClient>>
-        *home_timeline_client_pool) {
-  _home_timeline_client_pool = home_timeline_client_pool;
+ComposePostHandler::ComposePostHandler() {
   // TODO: use the non-pinned variant.
   _text_service_obj = nu::RemObj<TextService>::create_pinned();
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create_pinned();
@@ -267,6 +284,8 @@ ComposePostHandler::ComposePostHandler(
   _user_service_obj = nu::RemObj<UserService>::create_pinned();
   _social_graph_service_obj = nu::RemObj<SocialGraphService>::create_pinned(
       _user_service_obj.get_cap());
+  _home_timeline_service_obj = nu::RemObj<HomeTimelineService>::create_pinned(
+      _post_storage_service_obj.get_cap(), _social_graph_service_obj.get_cap());
 }
 
 Creator
@@ -312,25 +331,11 @@ void ComposePostHandler::_UploadUserTimelineHelper(int64_t req_id,
 
 void ComposePostHandler::_UploadHomeTimelineHelper(
     int64_t req_id, int64_t post_id, int64_t user_id, int64_t timestamp,
-    const std::vector<int64_t> &user_mentions_id) {
-  auto home_timeline_client_wrapper = _home_timeline_client_pool->Pop();
-  if (!home_timeline_client_wrapper) {
-    ServiceException se;
-    se.errorCode = ErrorCode::SE_THRIFT_CONN_ERROR;
-    se.message = "Failed to connect to home-timeline-service";
-    LOG(error) << se.message;
-    throw se;
-  }
-  auto home_timeline_client = home_timeline_client_wrapper->GetClient();
-  try {
-    home_timeline_client->WriteHomeTimeline(req_id, post_id, user_id, timestamp,
-                                            user_mentions_id);
-  } catch (...) {
-    _home_timeline_client_pool->Remove(home_timeline_client_wrapper);
-    LOG(error) << "Failed to write home timeline to home-timeline-service";
-    throw;
-  }
-  _home_timeline_client_pool->Keepalive(home_timeline_client_wrapper);
+    const std::vector<int64_t> &_user_mentions_id) {
+  auto user_mentions_id = _user_mentions_id;
+  _home_timeline_service_obj.run(&HomeTimelineService::WriteHomeTimeline,
+                                 req_id, post_id, user_id, timestamp,
+                                 std::move(user_mentions_id));
 }
 
 void ComposePostHandler::ComposePost(
@@ -402,16 +407,23 @@ void ComposePostHandler::ComposePost(
   auto post_future =
       std::async(std::launch::async, &ComposePostHandler::_UploadPostHelper,
                  this, req_id, post);
-  auto home_timeline_future = std::async(
-      std::launch::async, &ComposePostHandler::_UploadHomeTimelineHelper, this,
-      req_id, post.post_id, user_id, timestamp, user_mention_ids);
+
+  _home_timeline_writehometimeline_arg_req_id = req_id;
+  _home_timeline_writehometimeline_arg_post_id = post.post_id;
+  _home_timeline_writehometimeline_arg_user_id = user_id;
+  _home_timeline_writehometimeline_arg_timestamp = timestamp;
+  _home_timeline_writehometimeline_arg_user_mentions_id = user_mention_ids;
+  store_release(&_home_timeline_writehometimeline_pending_req, true);
 
   while (!load_acquire(&_user_timeline_writeusertimeline_pending_resp))
     ;
   store_release(&_user_timeline_writeusertimeline_pending_resp, false);
 
   post_future.get();
-  home_timeline_future.get();
+
+  while (!load_acquire(&_home_timeline_writehometimeline_pending_resp))
+    ;
+  store_release(&_home_timeline_writehometimeline_pending_resp, false);
 }
 
 void ComposePostHandler::_StorePost(int64_t req_id, Post &&post) {
@@ -742,6 +754,33 @@ void ComposePostHandler::GetFollowees(std::vector<int64_t> &_return,
   store_release(&_social_graph_getfollowees_pending_resp, false);
 }
 
+void ComposePostHandler::ReadHomeTimeline(std::vector<Post> &_return,
+                                          const int64_t req_id,
+                                          const int64_t user_id,
+                                          const int32_t start,
+                                          const int32_t stop) {
+  std::scoped_lock<std::mutex> lock(_mutex_readhometimeline);
+
+  _home_timeline_readhometimeline_arg_req_id = req_id;
+  _home_timeline_readhometimeline_arg_user_id = user_id;
+  _home_timeline_readhometimeline_arg_start = start;
+  _home_timeline_readhometimeline_arg_stop = stop;
+  store_release(&_home_timeline_readhometimeline_pending_req, true);
+
+  while (!load_acquire(&_home_timeline_readhometimeline_pending_resp))
+    ;
+  _return = _home_timeline_readhometimeline_resp;
+  store_release(&_home_timeline_readhometimeline_pending_resp, false);
+}
+
+std::vector<Post> ComposePostHandler::_ReadHomeTimeline(const int64_t req_id,
+                                                        const int64_t user_id,
+                                                        const int32_t start,
+                                                        const int32_t stop) {
+  return _home_timeline_service_obj.run(&HomeTimelineService::ReadHomeTimeline,
+                                        req_id, user_id, start, stop);
+}
+
 void ComposePostHandler::poller() {
   while (true) {
     if (load_acquire(&_unique_id_pending_req)) {
@@ -890,6 +929,27 @@ void ComposePostHandler::poller() {
           _user_composecreator_arg_req_id, _user_composecreator_arg_user_id,
           _user_composecreator_arg_username);
       store_release(&_user_composecreator_pending_resp, true);
+    }
+
+    if (load_acquire(&_home_timeline_readhometimeline_pending_req)) {
+      _home_timeline_readhometimeline_pending_req = false;
+      _home_timeline_readhometimeline_resp =
+          _ReadHomeTimeline(_home_timeline_readhometimeline_arg_req_id,
+                            _home_timeline_readhometimeline_arg_user_id,
+                            _home_timeline_readhometimeline_arg_start,
+                            _home_timeline_readhometimeline_arg_stop);
+      store_release(&_home_timeline_readhometimeline_pending_resp, true);
+    }
+
+    if (load_acquire(&_home_timeline_writehometimeline_pending_req)) {
+      _home_timeline_writehometimeline_pending_req = false;
+      _UploadHomeTimelineHelper(
+          _home_timeline_writehometimeline_arg_req_id,
+          _home_timeline_writehometimeline_arg_post_id,
+          _home_timeline_writehometimeline_arg_user_id,
+          _home_timeline_writehometimeline_arg_timestamp,
+          _home_timeline_writehometimeline_arg_user_mentions_id);
+      store_release(&_home_timeline_writehometimeline_pending_resp, true);
     }
   }
 }
