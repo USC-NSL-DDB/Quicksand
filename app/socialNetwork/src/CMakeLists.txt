@@ -22,6 +22,7 @@ set(FOLLY_DIR ${CALADAN_DIR}/deps/folly/)
 execute_process(COMMAND nproc OUTPUT_VARIABLE NCORES)
 add_compile_definitions(NCORES=${NCORES})
 
+include_directories(../thrift/lib/cpp/src)
 include_directories(${NU_DIR}/inc)
 include_directories(${CALADAN_DIR}/inc)
 include_directories(${CALADAN_DIR}/bindings/cc)

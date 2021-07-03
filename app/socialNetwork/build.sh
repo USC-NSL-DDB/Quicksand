@@ -38,13 +38,12 @@ make -j
 sudo make install
 cd ../..
 
-version=0.12.0 && git clone -b $version https://github.com/apache/thrift.git
+cd ..
 cd thrift
 ./bootstrap.sh
 ./configure
 make -j
-sudo make install
-cd ..
+cd ../build
 
 git clone https://github.com/jaegertracing/jaeger-client-cpp.git
 cd jaeger-client-cpp
