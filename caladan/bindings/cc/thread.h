@@ -84,6 +84,9 @@ class Thread {
     thread_ready(th_);
   }
 
+  // Checks if the thread object identifies an active thread of execution.
+  bool Joinable() { return join_data_;  }
+
   // Waits for the thread to exit.
   void Join();
 
