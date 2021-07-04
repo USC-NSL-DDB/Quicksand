@@ -4,8 +4,9 @@
 
 #include <base/lock.h>
 #include <base/log.h>
-#include <runtime/thread.h>
 #include <runtime/sync.h>
+#include <runtime/thread.h>
+#include <runtime/timer.h>
 
 #include "defs.h"
 
@@ -56,6 +57,109 @@ void __mutex_unlock(mutex_t *m)
  * @m: the mutex to initialize
  */
 void mutex_init(mutex_t *m)
+{
+	atomic_write(&m->held, 0);
+	spin_lock_init(&m->waiter_lock);
+	list_head_init(&m->waiters);
+}
+
+/*
+ * Timed mutex support
+ */
+
+struct timed_mutex_waiter {
+	bool                    acquired;
+	thread_t                *th;
+	spinlock_t		*waiter_lock;
+	struct list_node	link;
+};
+
+void __timed_mutex_lock(timed_mutex_t *m)
+{
+	struct timed_mutex_waiter waiter;
+
+	spin_lock_np(&m->waiter_lock);
+
+	/* did we race with mutex_unlock? */
+	if (atomic_fetch_and_or(&m->held, WAITER_FLAG) == 0) {
+		atomic_write(&m->held, 1);
+		spin_unlock_np(&m->waiter_lock);
+		return;
+	}
+
+	waiter.th = thread_self();
+	list_add_tail(&m->waiters, &waiter.link);
+	thread_park_and_unlock_np(&m->waiter_lock);
+}
+
+void __timed_mutex_unlock(timed_mutex_t *m)
+{
+	struct timed_mutex_waiter *waiter;
+
+	spin_lock_np(&m->waiter_lock);
+
+	waiter = list_pop(&m->waiters, struct timed_mutex_waiter, link);
+	if (!waiter) {
+		atomic_write(&m->held, 0);
+		spin_unlock_np(&m->waiter_lock);
+		return;
+	}
+	waiter->acquired = true;
+	spin_unlock_np(&m->waiter_lock);
+	thread_ready(waiter->th);
+}
+
+void timed_mutex_callback(unsigned long arg)
+{
+	struct timed_mutex_waiter *waiter = (struct timed_mutex_waiter *)arg;
+
+	spin_lock_np(waiter->waiter_lock);
+	if (waiter->acquired) {
+		spin_unlock_np(waiter->waiter_lock);
+		return;
+	}
+	list_del(&waiter->link);
+	spin_unlock_np(waiter->waiter_lock);
+	thread_ready(waiter->th);
+}
+
+bool __timed_mutex_try_lock_until(timed_mutex_t *m, uint64_t deadline_us)
+{
+	struct timed_mutex_waiter waiter;
+	struct timer_entry entry;
+
+	if (unlikely(microtime() >= deadline_us))
+		return false;
+
+	spin_lock_np(&m->waiter_lock);
+
+	/* did we race with timed_mutex_unlock? */
+	if (atomic_fetch_and_or(&m->held, WAITER_FLAG) == 0) {
+		atomic_write(&m->held, 1);
+		spin_unlock_np(&m->waiter_lock);
+		return true;
+	}
+
+	waiter.acquired = false;
+	waiter.th = thread_self();
+	waiter.waiter_lock = &m->waiter_lock;
+	list_add_tail(&m->waiters, &waiter.link);
+
+	timer_init(&entry, timed_mutex_callback, (unsigned long)(&waiter));
+	timer_start(&entry, deadline_us);
+	thread_park_and_unlock_np(&m->waiter_lock);
+
+	if (!waiter.acquired)
+		return false;
+	timer_cancel(&entry);
+	return true;
+}
+
+/**
+ * timed_mutex_init - initializes a timed mutex
+ * @m: the timed mutex to initialize
+ */
+void timed_mutex_init(timed_mutex_t *m)
 {
 	atomic_write(&m->held, 0);
 	spin_lock_init(&m->waiter_lock);

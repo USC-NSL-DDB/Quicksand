@@ -178,6 +178,48 @@ class Mutex {
   Mutex& operator=(const Mutex&) = delete;
 };
 
+// std::timed_mutex-like timed mutex support.
+class TimedMutex {
+  friend class CondVar;
+
+ public:
+  TimedMutex() { timed_mutex_init(&mu_); }
+  ~TimedMutex() { assert(!timed_mutex_held(&mu_)); }
+
+  // Locks the mutex.
+  void Lock() { timed_mutex_lock(&mu_); }
+
+  // Unlocks the mutex.
+  void Unlock() { timed_mutex_unlock(&mu_); }
+
+  // Locks the mutex only if it is currently unlocked. Returns true if
+  // successful.
+  bool TryLock() { return timed_mutex_try_lock(&mu_); }
+
+  // Returns true if the mutex is currently held.
+  bool IsHeld() { return timed_mutex_held(&mu_); }
+
+  // Tries to lock the mutex. Blocks until specified duration has elapsed or
+  // the lock is acquired, whichever comes first. On successful lock acquisition
+  // returns true, otherwise returns false.
+  bool TryLockFor(uint64_t duration_us) {
+    return timed_mutex_try_lock_for(&mu_, duration_us);
+  }
+
+  // Tries to lock the mutex. Blocks until specified deadline has been reached
+  // or the lock is acquired, whichever comes first. On successful lock
+  // acquisition returns true, otherwise returns false.
+  bool TryLockUntil(uint64_t deadline_us) {
+    return timed_mutex_try_lock_until(&mu_, deadline_us);
+  }
+
+ private:
+  timed_mutex_t mu_;
+
+  TimedMutex(const TimedMutex&) = delete;
+  TimedMutex& operator=(const TimedMutex&) = delete;
+};
+
 // RAII lock support (works with Spin, Preempt, and Mutex).
 template <typename L>
 class ScopedLock {
