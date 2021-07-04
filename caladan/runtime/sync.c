@@ -309,6 +309,13 @@ void rwmutex_unlock(rwmutex_t *m)
  * Condition variable support
  */
 
+struct timed_condvar_waiter {
+	bool                    signalled;
+	thread_t                *th;
+	spinlock_t		*waiter_lock;
+	struct list_node	link;
+};
+
 /**
  * condvar_wait - waits for a condition variable to be signalled
  * @cv: the condition variable to wait for
@@ -316,13 +323,13 @@ void rwmutex_unlock(rwmutex_t *m)
  */
 void condvar_wait(condvar_t *cv, mutex_t *m)
 {
-	thread_t *myth;
+	struct timed_condvar_waiter waiter;
 
 	assert_mutex_held(m);
 	spin_lock_np(&cv->waiter_lock);
-	myth = thread_self();
+	waiter.th = thread_self();
 	mutex_unlock(m);
-	list_add_tail(&cv->waiters, &myth->link);
+	list_add_tail(&cv->waiters, &waiter.link);
 	thread_park_and_unlock_np(&cv->waiter_lock);
 
 	mutex_lock(m);
@@ -334,13 +341,17 @@ void condvar_wait(condvar_t *cv, mutex_t *m)
  */
 void condvar_signal(condvar_t *cv)
 {
-	thread_t *waketh;
+	struct timed_condvar_waiter *waiter;
 
 	spin_lock_np(&cv->waiter_lock);
-	waketh = list_pop(&cv->waiters, thread_t, link);
+	waiter = list_pop(&cv->waiters, struct timed_condvar_waiter, link);
+	if (waiter) {
+		waiter->signalled = true;
+	}
 	spin_unlock_np(&cv->waiter_lock);
-	if (waketh)
-		thread_ready(waketh);
+	if (waiter) {
+		thread_ready(waiter->th);
+	}
 }
 
 /**
@@ -349,21 +360,78 @@ void condvar_signal(condvar_t *cv)
  */
 void condvar_broadcast(condvar_t *cv)
 {
-	thread_t *waketh;
+	struct timed_condvar_waiter *waiter;
 	struct list_head tmp;
 
 	list_head_init(&tmp);
 
 	spin_lock_np(&cv->waiter_lock);
+	list_for_each(&cv->waiters, waiter, link) {
+		waiter->signalled = true;
+	}
 	list_append_list(&tmp, &cv->waiters);
 	spin_unlock_np(&cv->waiter_lock);
 
 	while (true) {
-		waketh = list_pop(&tmp, thread_t, link);
-		if (!waketh)
+		waiter = list_pop(&tmp, struct timed_condvar_waiter, link);
+		if (!waiter)
 			break;
-		thread_ready(waketh);
+		thread_ready(waiter->th);
 	}
+}
+
+void timed_condvar_callback(unsigned long arg)
+{
+	struct timed_condvar_waiter *waiter =
+		(struct timed_condvar_waiter *)arg;
+
+	spin_lock_np(waiter->waiter_lock);
+	if (waiter->signalled) {
+		spin_unlock_np(waiter->waiter_lock);
+		return;
+	}
+	list_del(&waiter->link);
+	spin_unlock_np(waiter->waiter_lock);
+	thread_ready(waiter->th);
+}
+
+/**
+ * condvar_wait_until - causes the current thread to block until the condition
+ * variable is notified, a specific time is reached, or a spurious wakeup
+ * occurs.
+ *
+ * @cv: the condition variable to signal
+ * @m: the currently held mutex that projects the condition
+ * @deadline_us: the deadline in microsecond.
+ *
+ * Returns false if the deadline has been reached. Otherwise, returns true.
+ */
+bool condvar_wait_until(condvar_t *cv, timed_mutex_t *m, uint64_t deadline_us)
+{
+	struct timed_condvar_waiter waiter;
+	struct timer_entry entry;
+
+	if (unlikely(microtime() >= deadline_us))
+		return false;
+
+	assert_timed_mutex_held(m);
+	spin_lock_np(&cv->waiter_lock);
+	waiter.signalled = false;
+	waiter.th = thread_self();
+	waiter.waiter_lock = &cv->waiter_lock;
+	timed_mutex_unlock(m);
+	list_add_tail(&cv->waiters, &waiter.link);
+
+	timer_init(&entry, timed_condvar_callback, (unsigned long)(&waiter));
+	timer_start(&entry, deadline_us);
+	thread_park_and_unlock_np(&cv->waiter_lock);
+	timed_mutex_lock(m);
+
+	if (!waiter.signalled)
+		return false;
+	timer_cancel(&entry);
+
+	return true;
 }
 
 /**

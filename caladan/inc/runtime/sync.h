@@ -204,10 +204,17 @@ struct condvar {
 typedef struct condvar condvar_t;
 
 extern void condvar_wait(condvar_t *cv, mutex_t *m);
+extern bool condvar_wait_until(condvar_t *cv, timed_mutex_t *m,
+                               uint64_t deadline_us);
 extern void condvar_signal(condvar_t *cv);
 extern void condvar_broadcast(condvar_t *cv);
 extern void condvar_init(condvar_t *cv);
 
+static inline bool condvar_wait_for(condvar_t *cv, timed_mutex_t *m,
+                                    uint64_t duration_us)
+{
+	return condvar_wait_until(cv, m, microtime() + duration_us);
+}
 
 /*
  * Wait group support
