@@ -126,10 +126,10 @@
  */
 #define BIT(n) (1UL << (n))
 
-/* common sizes */
-#define KB	(1024)
-#define MB	(1024 * KB)
-#define GB	(1024 * MB)
+/* /\* common sizes *\/ */
+/* #define KB	(1024) */
+/* #define MB	(1024 * KB) */
+/* #define GB	(1024 * MB) */
 
 /**
  * wraps_lt - a < b ?
