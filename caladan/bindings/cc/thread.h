@@ -48,8 +48,10 @@ inline void Yield(void) { thread_yield(); }
 // A C++11 style thread class
 class Thread {
  public:
+  using id = thread_id_t;
+
   // boilerplate constructors.
-  Thread() : join_data_(nullptr) {}
+  Thread() : th_(nullptr), join_data_(nullptr) {}
   ~Thread();
 
   // disable copy.
@@ -57,9 +59,14 @@ class Thread {
   Thread &operator=(const Thread &) = delete;
 
   // Move support.
-  Thread(Thread &&t) : join_data_(t.join_data_) { t.join_data_ = nullptr; }
+  Thread(Thread &&t) : th_(t.th_), join_data_(t.join_data_) {
+    t.th_ = nullptr;
+    t.join_data_ = nullptr;
+  }
   Thread &operator=(Thread &&t) {
+    th_ = t.th_;
     join_data_ = t.join_data_;
+    t.th_ = nullptr;
     t.join_data_ = nullptr;
     return *this;
   }
@@ -67,14 +74,14 @@ class Thread {
   // Spawns a thread.
   template <typename F> Thread(F&& f) {
     thread_internal::join_data *buf;
-    thread_t *th =
+    th_ =
         thread_create_with_buf(thread_internal::ThreadTrampolineWithJoin,
                                reinterpret_cast<void **>(&buf), sizeof(*buf));
-    if (unlikely(!th))
+    if (unlikely(!th_))
       BUG();
     new (buf) thread_internal::join_data(std::forward<F>(f));
     join_data_ = buf;
-    thread_ready(th);
+    thread_ready(th_);
   }
 
   // Waits for the thread to exit.
@@ -83,7 +90,12 @@ class Thread {
   // Detaches the thread, indicating it won't be joined in the future.
   void Detach();
 
- private:
+  id GetId() { return get_thread_id(th_); }
+
+  static id GetCurrentId() { return get_current_thread_id(); }
+
+private:
+  thread_t *th_;
   thread_internal::join_data* join_data_;
 };
 

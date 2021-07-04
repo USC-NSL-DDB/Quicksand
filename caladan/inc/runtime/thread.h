@@ -4,14 +4,16 @@
 
 #pragma once
 
-#include <base/types.h>
 #include <base/compiler.h>
-#include <runtime/preempt.h>
+#include <base/types.h>
 #include <iokernel/control.h>
+#include <runtime/preempt.h>
+#include <stdint.h>
 
 struct thread;
 typedef void (*thread_fn_t)(void *arg);
 typedef struct thread thread_t;
+typedef uint64_t thread_id_t;
 
 extern const int thread_link_offset;
 
@@ -43,6 +45,18 @@ inline thread_t *thread_self(void)
 	return __self;
 }
 
+/**
+ * get_current_thread_id - get the thread id of the currently running thread
+ */
+static inline thread_id_t get_current_thread_id()  
+{
+	return (thread_id_t)thread_self();
+}
+
+static inline thread_id_t get_thread_id(thread_t *th)
+{
+	return (thread_id_t)th;
+}
 
 extern uint64_t get_uthread_specific(void);
 extern void set_uthread_specific(uint64_t val);
