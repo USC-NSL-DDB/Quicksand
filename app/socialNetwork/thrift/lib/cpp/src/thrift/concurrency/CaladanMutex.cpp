@@ -17,40 +17,56 @@
  * under the License.
  */
 
-#ifndef _THRIFT_CONCURRENCY_PLATFORMTHREADFACTORY_H_
-#define _THRIFT_CONCURRENCY_PLATFORMTHREADFACTORY_H_ 1
-
-// clang-format off
 #include <thrift/thrift-config.h>
-#if USE_CALADAN_THREAD
-#  include <thrift/concurrency/CaladanThreadFactory.h>
-#elif USE_BOOST_THREAD
-#  include <thrift/concurrency/BoostThreadFactory.h>
-#elif USE_STD_THREAD
-#  include <thrift/concurrency/StdThreadFactory.h>
-#else
-#  include <thrift/concurrency/PosixThreadFactory.h>
-#endif
-// clang-format on
+
+#include <thrift/concurrency/Mutex.h>
+#include <thrift/concurrency/Util.h>
+
+#include <cassert>
+#include <chrono>
+
+#include <sync.h>
 
 namespace apache {
 namespace thrift {
 namespace concurrency {
 
-// clang-format off
-#if USE_CALADAN_THREAD
-  typedef CaladanThreadFactory PlatformThreadFactory;
-#elif USE_BOOST_THREAD
-  typedef BoostThreadFactory PlatformThreadFactory;
-#elif USE_STD_THREAD
-  typedef StdThreadFactory PlatformThreadFactory;
-#else
-  typedef PosixThreadFactory PlatformThreadFactory;
-#endif
-// clang-format on
+/**
+ * Implementation of Mutex class using Caladan's rt::Mutex
+ *
+ * Methods throw std::system_error on error.
+ *
+ * @version $Id:$
+ */
+class Mutex::impl : public rt::TimedMutex {};
 
+Mutex::Mutex(Initializer init) : impl_(new Mutex::impl()) {
+  ((void)init);
+}
+
+void* Mutex::getUnderlyingImpl() const {
+  return impl_.get();
+}
+
+void Mutex::lock() const {
+  impl_->Lock();
+}
+
+bool Mutex::trylock() const {
+  return impl_->TryLock();
+}
+
+bool Mutex::timedlock(int64_t ms) const {
+  return impl_->TryLockFor(ms * 1000);
+}
+
+void Mutex::unlock() const {
+  impl_->Unlock();
+}
+
+void Mutex::DEFAULT_INITIALIZER(void* arg) {
+  ((void)arg);
+}
 }
 }
 } // apache::thrift::concurrency
-
-#endif // #ifndef _THRIFT_CONCURRENCY_PLATFORMTHREADFACTORY_H_

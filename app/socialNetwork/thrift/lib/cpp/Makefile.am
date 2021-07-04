@@ -111,9 +111,15 @@ libthrift_la_SOURCES += src/thrift/concurrency/BoostThreadFactory.cpp \
                         src/thrift/concurrency/BoostMonitor.cpp \
                         src/thrift/concurrency/BoostMutex.cpp
 else
+if WITH_CALADANTHREADS
+libthrift_la_SOURCES += src/thrift/concurrency/CaladanThreadFactory.cpp \
+                        src/thrift/concurrency/CaladanMonitor.cpp \
+                        src/thrift/concurrency/CaladanMutex.cpp
+else
 libthrift_la_SOURCES += src/thrift/concurrency/Mutex.cpp \
                         src/thrift/concurrency/Monitor.cpp \
                         src/thrift/concurrency/PosixThreadFactory.cpp
+endif
 endif
 
 libthriftnb_la_SOURCES = src/thrift/server/TNonblockingServer.cpp \

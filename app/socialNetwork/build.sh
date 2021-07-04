@@ -41,7 +41,8 @@ cd ../..
 cd ..
 cd thrift
 ./bootstrap.sh
-./configure
+./configure --enable-caladanthreads=yes --with-caladan=/opt/zainruan/nu/caladan  \
+            --enable-shared=no --enable-tests=no --enable-tutorial=no
 make -j
 cd ../build
 
