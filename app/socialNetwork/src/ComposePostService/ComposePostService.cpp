@@ -1,5 +1,5 @@
 #include <nu/runtime.hpp>
-#include <signal.h>
+#include <iostream>
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/server/TThreadedServer.h>
 #include <thrift/transport/TBufferTransports.h>
@@ -17,11 +17,7 @@ using namespace social_network;
 
 nu::Runtime::Mode mode;
 
-void sigintHandler(int sig) { exit(EXIT_SUCCESS); }
-
 void do_work() {
-  signal(SIGINT, sigintHandler);
-
   json config_json;
   if (load_config_file("config/service-config.json", &config_json) != 0) {
     exit(EXIT_FAILURE);
@@ -39,7 +35,7 @@ void do_work() {
                          server_socket,
                          std::make_shared<TFramedTransportFactory>(),
                          std::make_shared<TBinaryProtocolFactory>());
-  LOG(info) << "Starting the compose-post-service server ...";
+  std::cout << "Starting the compose-post-service server ..." << std::endl;
   server.serve();
 }
 

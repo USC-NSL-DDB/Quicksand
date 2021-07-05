@@ -49,6 +49,3 @@ sleep 3
 sudo build/src/ComposePostService/ComposePostService ../../conf/server1 SRV $NU_CTRL_IP >logs/ComposePostService.srv 2>&1 &
 sleep 3
 sudo build/src/ComposePostService/ComposePostService ../../conf/client1 CLT $NU_CTRL_IP >logs/ComposePostService.clt 2>&1 &
-
-sudo build/src/FrontEndProxy/FrontEndProxy ../../conf/client2 >logs/FrontEndProxy 2>&1 &
-

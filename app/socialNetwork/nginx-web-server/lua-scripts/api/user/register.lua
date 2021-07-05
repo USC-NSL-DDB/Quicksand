@@ -8,7 +8,7 @@ function _M.RegisterUser()
   local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local FrontEndProxyClient = require "social_network_FrontEndProxy".FrontEndProxyClient
+  local ComposePostServiceClient = require "social_network_ComposePostService".ComposePostServiceClient
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
   local tracer = bridge_tracer.new_from_global()
@@ -30,7 +30,7 @@ function _M.RegisterUser()
     ngx.exit(ngx.HTTP_BAD_REQUEST)
   end
 
-  local client = GenericObjectPool:connection(FrontEndProxyClient, "front-end-proxy", 9102)
+  local client = GenericObjectPool:connection(ComposePostServiceClient, "compose-post-service", 9091)
 
   local status, err = pcall(client.RegisterUser, client, req_id, post.first_name,
       post.last_name, post.username, post.password, carrier)
