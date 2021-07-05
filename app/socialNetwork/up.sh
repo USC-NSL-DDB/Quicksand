@@ -9,35 +9,7 @@ docker run -d --rm --hostname dns.mageddo -p 5380:5380 \
        defreitas/dns-proxy-server
 
 pushd ymls
-docker-compose -f jaeger.yml create
-docker-compose -f social-graph-mongodb.yml create
-docker-compose -f social-graph-redis.yml create
-docker-compose -f home-timeline-redis.yml create
-docker-compose -f post-storage-mongodb.yml create
-docker-compose -f post-storage-memcached.yml create
-docker-compose -f user-timeline-mongodb.yml create
-docker-compose -f user-timeline-redis.yml create
-docker-compose -f url-shorten-mongodb.yml create
-docker-compose -f url-shorten-memcached.yml create
-docker-compose -f user-mongodb.yml create
-docker-compose -f user-memcached.yml create
-docker-compose -f media-mongodb.yml create
-docker-compose -f media-frontend.yml create
 docker-compose -f nginx-thrift.yml create
-docker-compose -f jaeger.yml start
-docker-compose -f social-graph-mongodb.yml start
-docker-compose -f social-graph-redis.yml start
-docker-compose -f home-timeline-redis.yml start
-docker-compose -f post-storage-mongodb.yml start
-docker-compose -f post-storage-memcached.yml start
-docker-compose -f user-timeline-mongodb.yml start
-docker-compose -f user-timeline-redis.yml start
-docker-compose -f url-shorten-mongodb.yml start
-docker-compose -f url-shorten-memcached.yml start
-docker-compose -f user-mongodb.yml start
-docker-compose -f user-memcached.yml start
-docker-compose -f media-mongodb.yml start
-docker-compose -f media-frontend.yml start
 docker-compose -f nginx-thrift.yml start
 popd
 
