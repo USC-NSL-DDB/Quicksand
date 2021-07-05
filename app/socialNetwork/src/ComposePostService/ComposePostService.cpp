@@ -34,10 +34,6 @@ void do_work() {
 
   auto compose_post_handler = std::make_shared<ComposePostHandler>();
 
-  rt::Thread([compose_post_handler = compose_post_handler.get()] {
-    compose_post_handler->poller();
-  }).Detach();
-
   TThreadedServer server(std::make_shared<ComposePostServiceProcessor>(
                              std::move(compose_post_handler)),
                          server_socket,
