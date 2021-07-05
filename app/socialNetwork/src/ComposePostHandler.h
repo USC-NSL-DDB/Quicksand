@@ -12,8 +12,8 @@
 #include <cereal/types/vector.hpp>
 #include <nu/rem_obj.hpp>
 
-#include "../../gen-cpp/ComposePostService.h"
-#include "../../gen-cpp/social_network_types.h"
+#include "../gen-cpp/ComposePostService.h"
+#include "../gen-cpp/social_network_types.h"
 #include "HomeTimelineService.h"
 #include "MediaService.h"
 #include "PostStorageService.h"

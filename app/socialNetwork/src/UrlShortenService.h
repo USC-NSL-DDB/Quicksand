@@ -6,8 +6,8 @@
 
 #include <nu/mutex.hpp>
 
-#include "../../gen-cpp/UrlShortenService.h"
-#include "../../gen-cpp/social_network_types.h"
+#include "../gen-cpp/UrlShortenService.h"
+#include "../gen-cpp/social_network_types.h"
 
 #define HOSTNAME "http://short-url/"
 

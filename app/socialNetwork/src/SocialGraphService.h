@@ -10,8 +10,8 @@
 #include <string>
 #include <thread>
 
-#include "../../gen-cpp/SocialGraphService.h"
-#include "../../gen-cpp/UserService.h"
+#include "../gen-cpp/SocialGraphService.h"
+#include "../gen-cpp/UserService.h"
 #include "UserService.h"
 
 #include <nu/rem_obj.hpp>

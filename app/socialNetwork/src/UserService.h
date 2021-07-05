@@ -10,9 +10,9 @@
 #include <string>
 #include <utility>
 
-#include "../../gen-cpp/UserService.h"
-#include "../../gen-cpp/social_network_types.h"
-#include "../../third_party/PicoSHA2/picosha2.h"
+#include "../gen-cpp/UserService.h"
+#include "../gen-cpp/social_network_types.h"
+#include "../third_party/PicoSHA2/picosha2.h"
 
 #include <cereal/types/variant.hpp>
 #include <nu/mutex.hpp>

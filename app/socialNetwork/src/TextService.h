@@ -7,9 +7,9 @@
 
 #include <nu/rem_obj.hpp>
 
-#include "../../gen-cpp/TextService.h"
-#include "../../gen-cpp/UrlShortenService.h"
-#include "../../gen-cpp/UserMentionService.h"
+#include "../gen-cpp/TextService.h"
+#include "../gen-cpp/UrlShortenService.h"
+#include "../gen-cpp/UserMentionService.h"
 #include "UrlShortenService.h"
 #include "UserMentionService.h"
 

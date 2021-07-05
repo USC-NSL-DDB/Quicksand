@@ -3,9 +3,8 @@
 #include <cstdint>
 #include <string>
 
-#include "../../gen-cpp/UserMentionService.h"
-#include "../../gen-cpp/social_network_types.h"
-#include "../utils.h"
+#include "../gen-cpp/UserMentionService.h"
+#include "../gen-cpp/social_network_types.h"
 
 namespace social_network {
 

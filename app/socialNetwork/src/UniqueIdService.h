@@ -21,7 +21,7 @@
 #include <string>
 #include <nu/mutex.hpp>
 
-#include "../../gen-cpp/social_network_types.h"
+#include "../gen-cpp/social_network_types.h"
 
 // Custom Epoch (January 1, 2018 Midnight GMT = 2018-01-01T00:00:00Z)
 #define CUSTOM_EPOCH 1514764800000

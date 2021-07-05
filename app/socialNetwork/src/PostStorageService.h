@@ -3,7 +3,7 @@
 #include <map>
 #include <iostream>
 
-#include "../../gen-cpp/social_network_types.h"
+#include "../gen-cpp/social_network_types.h"
 
 namespace social_network {
 

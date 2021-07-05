@@ -2,32 +2,68 @@ include("../cmake/Findthrift.cmake")
 
 find_package(nlohmann_json 3.5.0 REQUIRED)
 find_package(Threads)
-find_package(OpenSSL REQUIRED)
 
-set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost 1.54.0 REQUIRED COMPONENTS log log_setup)
-if(Boost_FOUND)
-  include_directories(${Boost_INCLUDE_DIRS})
-  link_directories(${Boost_LIBRARY_DIRS})
-endif()
-
-set(THRIFT_GEN_CPP_DIR ../../gen-cpp)
+set(THRIFT_GEN_CPP_DIR ../gen-cpp)
 set(NU_DIR ../../../)
 set(CALADAN_DIR ${NU_DIR}/caladan/)
 set(FOLLY_DIR ${CALADAN_DIR}/deps/folly/)
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_EXE_LINKER_FLAGS "-T ${CALADAN_DIR}/base/base.ld \
+                            -static -static-libstdc++ -static-libgcc \
+                            -L${NU_DIR}/../glibc/build/install/lib")
+
 execute_process(COMMAND nproc OUTPUT_VARIABLE NCORES)
 add_compile_definitions(NCORES=${NCORES})
 
-include_directories(../thrift/lib/cpp/src)
-include_directories(${NU_DIR}/inc)
-include_directories(${CALADAN_DIR}/inc)
-include_directories(${CALADAN_DIR}/bindings/cc)
-include_directories(${FOLLY_DIR}/include)
+add_executable(
+    ComposePostService
+    ComposePostService.cpp
+    ${THRIFT_GEN_CPP_DIR}/ComposePostService.cpp
+    ${THRIFT_GEN_CPP_DIR}/PostStorageService.cpp
+    ${THRIFT_GEN_CPP_DIR}/UserTimelineService.cpp
+    ${THRIFT_GEN_CPP_DIR}/UserService.cpp
+    ${THRIFT_GEN_CPP_DIR}/UniqueIdService.cpp
+    ${THRIFT_GEN_CPP_DIR}/MediaService.cpp
+    ${THRIFT_GEN_CPP_DIR}/TextService.cpp
+    ${THRIFT_GEN_CPP_DIR}/HomeTimelineService.cpp
+    ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
+)
 
-link_directories(${CALADAN_DIR})
-link_directories(${CALADAN_DIR}/bindings/cc)
-link_directories(${CALADAN_DIR}/rdma-core/build/lib/statics/)
-link_directories(${NU_DIR})
+target_include_directories(
+    ComposePostService PRIVATE
+    ../thrift/lib/cpp/src
+    ${NU_DIR}/inc
+    ${CALADAN_DIR}/inc
+    ${CALADAN_DIR}/bindings/cc
+    ${FOLLY_DIR}/include
+)
 
-add_subdirectory(ComposePostService)
+target_link_directories(
+    ComposePostService PRIVATE
+    ${CALADAN_DIR}
+    ${CALADAN_DIR}/bindings/cc
+    ${CALADAN_DIR}/rdma-core/build/lib/statics/
+    ${NU_DIR}
+)
 
+target_link_libraries(
+    ComposePostService
+    ${THRIFT_STATIC_LIB}
+    ${CMAKE_THREAD_LIBS_INIT}
+    nlohmann_json::nlohmann_json
+    crypto
+    # Nu
+    nu
+    # Caladan
+    rt++
+    runtime
+    net
+    base
+    mlx5
+    ibverbs
+    nl-3
+    nl-route-3
+    pthread
+    dl
+)

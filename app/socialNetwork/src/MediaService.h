@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 
-#include "../../gen-cpp/MediaService.h"
+#include "../gen-cpp/MediaService.h"
 
 // 2018-01-01 00:00:00 UTC
 #define CUSTOM_EPOCH 1514764800000

@@ -1,5 +1,4 @@
-#ifndef SOCIAL_NETWORK_MICROSERVICES_UTILS_H
-#define SOCIAL_NETWORK_MICROSERVICES_UTILS_H
+#pragma once
 
 #include <string>
 #include <fstream>
@@ -25,4 +24,3 @@ int load_config_file(const std::string &file_name, json *config_json) {
 
 } //namespace social_network
 
-#endif //SOCIAL_NETWORK_MICROSERVICES_UTILS_H
