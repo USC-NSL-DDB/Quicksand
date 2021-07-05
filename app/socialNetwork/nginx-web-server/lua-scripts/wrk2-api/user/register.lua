@@ -7,7 +7,7 @@ end
 function _M.RegisterUser()
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local ComposePostServiceClient = require "social_network_ComposePostService".ComposePostServiceClient
+  local BackEndServiceClient = require "social_network_BackEndService".BackEndServiceClient
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
 
@@ -23,7 +23,7 @@ function _M.RegisterUser()
     ngx.exit(ngx.HTTP_BAD_REQUEST)
   end
 
-  local client = GenericObjectPool:connection(ComposePostServiceClient, "compose-post-service", 9091)
+  local client = GenericObjectPool:connection(BackEndServiceClient, "back-end-service", 9091)
 
   local status, err = pcall(client.RegisterUserWithId, client, req_id, post.first_name,
       post.last_name, post.username, post.password, tonumber(post.user_id), carrier)

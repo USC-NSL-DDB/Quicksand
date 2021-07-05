@@ -47,7 +47,7 @@ end
 function _M.ReadUserTimeline()
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local ComposePostServiceClient = require "social_network_ComposePostService".ComposePostServiceClient
+  local BackEndServiceClient = require "social_network_BackEndService".BackEndServiceClient
   local cjson = require "cjson"
   local jwt = require "resty.jwt"
   local liblualongnumber = require "liblualongnumber"
@@ -93,7 +93,7 @@ function _M.ReadUserTimeline()
     ngx.exit(ngx.HTTP_UNAUTHORIZED)
   else
     local client = GenericObjectPool:connection(
-        ComposePostServiceClient, "compose-post-service", 9091)
+        BackEndServiceClient, "back-end-service", 9091)
     local status, ret = pcall(client.ReadUserTimeline, client, req_id,
         user_id, tonumber(args.start), tonumber(args.stop), carrier)
     GenericObjectPool:returnConnection(client)

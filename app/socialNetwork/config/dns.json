@@ -15,7 +15,7 @@
 				},
 				{
 					"id": 1624675071246558012,
-					"hostname": "compose-post-service",
+					"hostname": "back-end-service",
 					"ip": "172.17.0.1",
 					"target": "acme.com",
 					"ttl": 255,

@@ -9,7 +9,7 @@ function _M.ComposePost()
   local cjson = require "cjson"
 
   local GenericObjectPool = require "GenericObjectPool"
-  local ComposePostServiceClient = require "social_network_ComposePostService".ComposePostServiceClient
+  local BackEndServiceClient = require "social_network_BackEndService".BackEndServiceClient
 
   GenericObjectPool:setMaxTotal(512)
 
@@ -29,7 +29,7 @@ function _M.ComposePost()
   local status, ret
 
   local client = GenericObjectPool:connection(
-      ComposePostServiceClient, "compose-post-service", 9091)
+      BackEndServiceClient, "back-end-service", 9091)
 
   if (not _StrIsEmpty(post.media_ids) and not _StrIsEmpty(post.media_types)) then
     status, ret = pcall(client.ComposePost, client,

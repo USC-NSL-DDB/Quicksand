@@ -7,7 +7,7 @@ end
 function _M.Follow()
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local ComposePostServiceClient = require "social_network_ComposePostService".ComposePostServiceClient
+  local BackEndServiceClient = require "social_network_BackEndService".BackEndServiceClient
   local jwt = require "resty.jwt"
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
@@ -16,7 +16,7 @@ function _M.Follow()
   local post = ngx.req.get_post_args()
 
   local client = GenericObjectPool:connection(
-      ComposePostServiceClient, "compose-post-service", 9091)
+      BackEndServiceClient, "back-end-service", 9091)
 
   -- -- new start -- 
   -- if (_StrIsEmpty(ngx.var.cookie_login_token)) then

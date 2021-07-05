@@ -127,7 +127,7 @@ service UserService {
   ) throws (1: ServiceException se)
 }
 
-service ComposePostService {
+service BackEndService {
   void ComposePost(
     1: i64 req_id,
     2: string username,

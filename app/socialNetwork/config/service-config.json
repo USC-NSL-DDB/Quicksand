@@ -50,8 +50,8 @@
     "timeout_ms": 10000,
     "keepalive_ms": 10000
   },
-  "compose-post-service": {
-    "addr": "compose-post-service",
+  "back-end-service": {
+    "addr": "back-end-service",
     "port": 9091,
     "connections": 512,
     "timeout_ms": 10000,

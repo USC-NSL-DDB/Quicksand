@@ -7,7 +7,7 @@ end
 function _M.Login()
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
-  local ComposePostServiceClient = require "social_network_ComposePostService".ComposePostServiceClient
+  local BackEndServiceClient = require "social_network_BackEndService".BackEndServiceClient
   local cjson = require "cjson"
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
@@ -25,7 +25,7 @@ function _M.Login()
     return ngx.redirect("/login.html")
   end
 
-  local client = GenericObjectPool:connection(ComposePostServiceClient, "compose-post-service", 9091)
+  local client = GenericObjectPool:connection(BackEndServiceClient, "back-end-service", 9091)
 
   local status, ret = pcall(client.Login, client, req_id,
       args.username, args.password, carrier)
