@@ -6,7 +6,6 @@
 #include <thrift/transport/TServerSocket.h>
 
 #include "../utils.h"
-#include "../utils_thrift.h"
 #include "ComposePostHandler.h"
 
 using apache::thrift::protocol::TBinaryProtocolFactory;
@@ -26,7 +25,7 @@ void do_work() {
   int port = config_json["compose-post-service"]["port"];
 
   std::shared_ptr<TServerSocket> server_socket =
-      get_server_socket(config_json, "0.0.0.0", port);
+      std::make_shared<TServerSocket>("0.0.0.0", port);
 
   auto compose_post_handler = std::make_shared<ComposePostHandler>();
 

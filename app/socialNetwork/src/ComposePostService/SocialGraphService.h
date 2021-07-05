@@ -12,7 +12,6 @@
 
 #include "../../gen-cpp/SocialGraphService.h"
 #include "../../gen-cpp/UserService.h"
-#include "../ThriftClient.h"
 #include "UserService.h"
 
 #include <nu/rem_obj.hpp>

@@ -14,8 +14,6 @@
 
 #include "../../gen-cpp/ComposePostService.h"
 #include "../../gen-cpp/social_network_types.h"
-#include "../ClientPool.h"
-#include "../ThriftClient.h"
 #include "HomeTimelineService.h"
 #include "MediaService.h"
 #include "PostStorageService.h"

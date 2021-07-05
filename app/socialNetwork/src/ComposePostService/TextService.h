@@ -10,8 +10,6 @@
 #include "../../gen-cpp/TextService.h"
 #include "../../gen-cpp/UrlShortenService.h"
 #include "../../gen-cpp/UserMentionService.h"
-#include "../ClientPool.h"
-#include "../ThriftClient.h"
 #include "UrlShortenService.h"
 #include "UserMentionService.h"
 

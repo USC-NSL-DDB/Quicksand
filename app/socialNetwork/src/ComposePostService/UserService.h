@@ -13,7 +13,6 @@
 #include "../../gen-cpp/UserService.h"
 #include "../../gen-cpp/social_network_types.h"
 #include "../../third_party/PicoSHA2/picosha2.h"
-#include "../ThriftClient.h"
 
 #include <cereal/types/variant.hpp>
 #include <nu/mutex.hpp>
@@ -36,7 +35,7 @@ static int counter = 0;
 
 static int GetCounter(int64_t timestamp) {
   if (current_timestamp > timestamp) {
-    LOG(fatal) << "Timestamps are not incremental.";
+    std::cerr << "Timestamps are not incremental." << std::endl;
     exit(EXIT_FAILURE);
   }
   if (current_timestamp == timestamp) {
@@ -85,18 +84,20 @@ std::string GetMachineId(std::string &netif) {
   std::ifstream mac_addr_file;
   mac_addr_file.open(mac_addr_filename);
   if (!mac_addr_file) {
-    LOG(fatal) << "Cannot read MAC address from net interface " << netif;
+    std::cerr << "Cannot read MAC address from net interface " << netif
+              << std::endl;
     return "";
   }
   std::string mac;
   mac_addr_file >> mac;
   if (mac == "") {
-    LOG(fatal) << "Cannot read MAC address from net interface " << netif;
+    std::cerr << "Cannot read MAC address from net interface " << netif
+              << std::endl;
     return "";
   }
   mac_addr_file.close();
 
-  LOG(info) << "MAC address = " << mac;
+  std::cerr << "MAC address = " << mac << std::endl;
 
   std::stringstream stream;
   stream << std::hex << HashMacAddressPid(mac);
