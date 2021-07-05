@@ -5,19 +5,11 @@ local function _StrIsEmpty(s)
 end
 
 function _M.Follow()
-  local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
   local ComposePostServiceClient = require "social_network_ComposePostService".ComposePostServiceClient
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-  local tracer = bridge_tracer.new_from_global()
-  local parent_span_context = tracer:binary_extract(
-      ngx.var.opentracing_binary_context)
-  local span = tracer:start_span("follow_client",
-      {["references"] = {{"child_of", parent_span_context}}})
-  local carrier = {}
-  tracer:text_map_inject(span:context(), carrier)
 
   ngx.req.read_body()
   local post = ngx.req.get_post_args()
@@ -55,7 +47,6 @@ function _M.Follow()
     ngx.say("Success!")
     GenericObjectPool:returnConnection(client)
   end
-  span:finish()
 
 end
 

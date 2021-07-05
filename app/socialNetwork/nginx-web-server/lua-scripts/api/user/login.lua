@@ -5,20 +5,12 @@ local function _StrIsEmpty(s)
 end
 
 function _M.Login()
-  local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
   local ComposePostServiceClient = require "social_network_ComposePostService".ComposePostServiceClient
   local cjson = require "cjson"
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-  local tracer = bridge_tracer.new_from_global()
-  local parent_span_context = tracer:binary_extract(
-      ngx.var.opentracing_binary_context)
-  local span = tracer:start_span("Login",
-      {["references"] = {{"child_of", parent_span_context}}})
-  local carrier = {}
-  tracer:text_map_inject(span:context(), carrier)
 
   ngx.req.read_body()
   local args = ngx.req.get_post_args()
@@ -59,7 +51,6 @@ function _M.Login()
     ngx.redirect("../../main.html?username=" .. args.username)
     ngx.exit(ngx.HTTP_OK)
   end
-  span:finish()
 end
 
 return _M

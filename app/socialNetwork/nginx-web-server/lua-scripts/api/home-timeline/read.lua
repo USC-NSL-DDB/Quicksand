@@ -46,7 +46,6 @@ local function _LoadTimeline(data)
 end
 
 function _M.ReadHomeTimeline()
-  local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local GenericObjectPool = require "GenericObjectPool"
   local ComposePostServiceClient = require "social_network_ComposePostService".ComposePostServiceClient
@@ -55,13 +54,6 @@ function _M.ReadHomeTimeline()
   local liblualongnumber = require "liblualongnumber"
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-  local tracer = bridge_tracer.new_from_global()
-  local parent_span_context = tracer:binary_extract(
-      ngx.var.opentracing_binary_context)
-  local span = tracer:start_span("Login",
-      {["references"] = {{"child_of", parent_span_context}}})
-  local carrier = {}
-  tracer:text_map_inject(span:context(), carrier)
 
   ngx.req.read_body()
   local args = ngx.req.get_uri_args()
