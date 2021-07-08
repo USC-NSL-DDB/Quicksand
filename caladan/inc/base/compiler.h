@@ -43,7 +43,7 @@
 
 #define barrier() asm volatile("" ::: "memory")
 
-#define	ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+#define	ACCESS_ONCE(x) (*(volatile __typeof(x) *)&(x))
 
 #define type_is_native(t) \
 	(sizeof(t) == sizeof(char)  || \

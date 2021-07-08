@@ -50,7 +50,7 @@ do {						\
 #define load_acquire(p)				\
 ({						\
 	BUILD_ASSERT(type_is_native(*p));	\
-	typeof(*p) __p = ACCESS_ONCE(*p);	\
+	__typeof(*p) __p = ACCESS_ONCE(*p);	\
 	barrier();				\
 	__p;					\
 })
@@ -62,7 +62,7 @@ do {						\
 #define load_consume(p)				\
 ({						\
 	BUILD_ASSERT(type_is_native(*p));	\
-	typeof(*p) __p = ACCESS_ONCE(*p);	\
+	__typeof(*p) __p = ACCESS_ONCE(*p);	\
 	barrier();				\
 	__p;					\
 })
