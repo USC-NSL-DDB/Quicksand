@@ -33,6 +33,10 @@
 #include <netdb.h>
 #endif
 
+#ifdef USE_CALADAN_TCP
+#include <net.h>
+#endif
+
 namespace apache {
 namespace thrift {
 namespace transport {
@@ -137,7 +141,12 @@ public:
   // \throws std::logic_error if listen() has been called
   void setInterruptableChildren(bool enable);
 
-  THRIFT_SOCKET getSocketFD() { return serverSocket_; }
+#ifdef USE_CALADAN_TCP
+  rt::TcpQueue *
+#else
+  THRIFT_SOCKET
+#endif
+  getSocketFD() { return serverSocket_; }
 
   int getPort();
 
@@ -158,7 +167,11 @@ private:
   int port_;
   std::string address_;
   std::string path_;
+#ifdef USE_CALADAN_TCP
+  rt::TcpQueue *serverSocket_;
+#else
   THRIFT_SOCKET serverSocket_;
+#endif
   int acceptBacklog_;
   int sendTimeout_;
   int recvTimeout_;
@@ -171,9 +184,11 @@ private:
   bool listening_;
 
   concurrency::Mutex rwMutex_;                                 // thread-safe interrupt
+#ifndef USE_CALADAN_TCP
   THRIFT_SOCKET interruptSockWriter_;                          // is notified on interrupt()
   THRIFT_SOCKET interruptSockReader_;                          // is used in select/poll with serverSocket_ for interruptability
   THRIFT_SOCKET childInterruptSockWriter_;                     // is notified on interruptChildren()
+#endif
 
   socket_func_t listenCallback_;
   socket_func_t acceptCallback_;

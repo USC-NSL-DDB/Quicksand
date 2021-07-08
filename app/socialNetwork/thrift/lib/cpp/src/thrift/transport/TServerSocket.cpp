@@ -72,7 +72,9 @@ inline SOCKOPT_CAST_T* cast_sockopt(T* v) {
 
 void destroyer_of_fine_sockets(THRIFT_SOCKET* ssock) {
   ::THRIFT_CLOSESOCKET(*ssock);
+#ifndef USE_CALADAN_TCP
   delete ssock;
+#endif
 }
 
 using std::string;
@@ -116,11 +118,14 @@ TServerSocket::TServerSocket(int port)
     tcpSendBuffer_(0),
     tcpRecvBuffer_(0),
     keepAlive_(false),
-    listening_(false),
+    listening_(false)
+#ifndef USE_CALADAN_TCP
+    ,
     interruptSockWriter_(THRIFT_INVALID_SOCKET),
     interruptSockReader_(THRIFT_INVALID_SOCKET),
-    childInterruptSockWriter_(THRIFT_INVALID_SOCKET) {
-}
+    childInterruptSockWriter_(THRIFT_INVALID_SOCKET)
+#endif
+{}
 
 TServerSocket::TServerSocket(int port, int sendTimeout, int recvTimeout)
   : interruptableChildren_(true),
@@ -135,11 +140,14 @@ TServerSocket::TServerSocket(int port, int sendTimeout, int recvTimeout)
     tcpSendBuffer_(0),
     tcpRecvBuffer_(0),
     keepAlive_(false),
-    listening_(false),
+    listening_(false)
+#ifndef USE_CALADAN_TCP
+    ,
     interruptSockWriter_(THRIFT_INVALID_SOCKET),
     interruptSockReader_(THRIFT_INVALID_SOCKET),
-    childInterruptSockWriter_(THRIFT_INVALID_SOCKET) {
-}
+    childInterruptSockWriter_(THRIFT_INVALID_SOCKET)
+#endif
+{}
 
 TServerSocket::TServerSocket(const string& address, int port)
   : interruptableChildren_(true),
@@ -155,12 +163,21 @@ TServerSocket::TServerSocket(const string& address, int port)
     tcpSendBuffer_(0),
     tcpRecvBuffer_(0),
     keepAlive_(false),
-    listening_(false),
+    listening_(false)
+#ifndef USE_CALADAN_TCP
+    ,
     interruptSockWriter_(THRIFT_INVALID_SOCKET),
     interruptSockReader_(THRIFT_INVALID_SOCKET),
-    childInterruptSockWriter_(THRIFT_INVALID_SOCKET) {
-}
+    childInterruptSockWriter_(THRIFT_INVALID_SOCKET)
+#endif
+{}
 
+#ifdef USE_CALADAN_TCP
+TServerSocket::TServerSocket(const string& path) {
+  // Not supported.
+  BUG();
+}
+#else
 TServerSocket::TServerSocket(const string& path)
   : interruptableChildren_(true),
     port_(0),
@@ -180,6 +197,7 @@ TServerSocket::TServerSocket(const string& path)
     interruptSockReader_(THRIFT_INVALID_SOCKET),
     childInterruptSockWriter_(THRIFT_INVALID_SOCKET) {
 }
+#endif
 
 TServerSocket::~TServerSocket() {
   close();
@@ -226,6 +244,45 @@ void TServerSocket::setInterruptableChildren(bool enable) {
 
 void TServerSocket::listen() {
   listening_ = true;
+
+#ifdef USE_CALADAN_TCP
+  // Validate port number
+  if (port_ < 0 || port_ > 0xFFFF) {
+    throw TTransportException(TTransportException::BAD_ARGS, "Specified port is invalid");
+  }
+
+  const struct addrinfo* res;
+  int error;
+  char port[sizeof("65535")];
+  THRIFT_SNPRINTF(port, sizeof(port), "%d", port_);
+
+  struct addrinfo hints;
+  std::memset(&hints, 0, sizeof(hints));
+  hints.ai_family = PF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
+
+  // If address is not specified use wildcard address (NULL)
+  TGetAddrInfoWrapper info(address_.empty() ? NULL : &address_[0], port, &hints);
+  error = info.init();
+  if (error) {
+    GlobalOutput.printf("getaddrinfo %d: %s", error, THRIFT_GAI_STRERROR(error));
+    close();
+    throw TTransportException(TTransportException::NOT_OPEN,
+                              "Could not resolve host for server socket.");
+  }
+
+  // Pick IPV4 address since Caladan only supports IPV4.
+  for (res = info.res(); res; res = res->ai_next) {
+    if (res->ai_family == AF_INET || res->ai_next == NULL)
+      break;
+  }
+
+  BUG_ON(!res);
+  struct netaddr laddr = { .ip = *(uint32_t *)(&((sockaddr_in *)(res->ai_addr))->sin_addr),
+			   .port = port_ };
+  serverSocket_ = rt::TcpQueue::Listen(laddr, acceptBacklog_);
+#else
 #ifdef _WIN32
   TWinsockSingleton::create();
 #endif // _WIN32
@@ -528,6 +585,7 @@ void TServerSocket::listen() {
   }
 
   // The socket is now listening!
+#endif
 }
 
 int TServerSocket::getPort() {
@@ -539,6 +597,9 @@ shared_ptr<TTransport> TServerSocket::acceptImpl() {
     throw TTransportException(TTransportException::NOT_OPEN, "TServerSocket not listening");
   }
 
+#ifdef USE_CALADAN_TCP
+  THRIFT_SOCKET clientSocket = serverSocket_->Accept();
+#else
   struct THRIFT_POLLFD fds[2];
 
   int maxEintrs = 5;
@@ -621,6 +682,7 @@ shared_ptr<TTransport> TServerSocket::acceptImpl() {
                               "THRIFT_FCNTL(THRIFT_F_SETFL)",
                               errno_copy);
   }
+#endif
 
   shared_ptr<TSocket> client = createSocket(clientSocket);
   if (sendTimeout_ > 0) {
@@ -632,7 +694,9 @@ shared_ptr<TTransport> TServerSocket::acceptImpl() {
   if (keepAlive_) {
     client->setKeepAlive(keepAlive_);
   }
+#ifndef USE_CALADAN_TCP
   client->setCachedAddress((sockaddr*)&clientAddress, size);
+#endif
 
   if (acceptCallback_)
     acceptCallback_(clientSocket);
@@ -649,34 +713,48 @@ shared_ptr<TSocket> TServerSocket::createSocket(THRIFT_SOCKET clientSocket) {
 }
 
 void TServerSocket::notify(THRIFT_SOCKET notifySocket) {
+#ifdef USE_CALADAN_TCP
+  // Not supported
+  BUG();
+#else
   if (notifySocket != THRIFT_INVALID_SOCKET) {
     int8_t byte = 0;
     if (-1 == send(notifySocket, cast_sockopt(&byte), sizeof(int8_t), 0)) {
       GlobalOutput.perror("TServerSocket::notify() send() ", THRIFT_GET_SOCKET_ERROR);
     }
   }
+#endif
 }
 
 void TServerSocket::interrupt() {
+#ifndef USE_CALADAN_TCP
   concurrency::Guard g(rwMutex_);
   if (interruptSockWriter_ != THRIFT_INVALID_SOCKET) {
     notify(interruptSockWriter_);
   }
+#endif
 }
 
 void TServerSocket::interruptChildren() {
+#ifndef USE_CALADAN_TCP
   concurrency::Guard g(rwMutex_);
   if (childInterruptSockWriter_ != THRIFT_INVALID_SOCKET) {
     notify(childInterruptSockWriter_);
   }
+#endif
 }
 
 void TServerSocket::close() {
   concurrency::Guard g(rwMutex_);
   if (serverSocket_ != THRIFT_INVALID_SOCKET) {
+#ifdef USE_CALADAN_TCP
+    serverSocket_->Shutdown();
+#else
     shutdown(serverSocket_, THRIFT_SHUT_RDWR);
+#endif
     ::THRIFT_CLOSESOCKET(serverSocket_);
   }
+#ifndef USE_CALADAN_TCP
   if (interruptSockWriter_ != THRIFT_INVALID_SOCKET) {
     ::THRIFT_CLOSESOCKET(interruptSockWriter_);
   }
@@ -686,10 +764,13 @@ void TServerSocket::close() {
   if (childInterruptSockWriter_ != THRIFT_INVALID_SOCKET) {
     ::THRIFT_CLOSESOCKET(childInterruptSockWriter_);
   }
+#endif
   serverSocket_ = THRIFT_INVALID_SOCKET;
+#ifndef USE_CALADAN_TCP
   interruptSockWriter_ = THRIFT_INVALID_SOCKET;
   interruptSockReader_ = THRIFT_INVALID_SOCKET;
   childInterruptSockWriter_ = THRIFT_INVALID_SOCKET;
+#endif
   pChildInterruptSockReader_.reset();
   listening_ = false;
 }

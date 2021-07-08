@@ -43,6 +43,10 @@
 #endif
 #include <fcntl.h>
 
+#ifdef USE_CALADAN_TCP
+#include <net.h>
+#endif
+
 #include <thrift/concurrency/Monitor.h>
 #include <thrift/transport/TSocket.h>
 #include <thrift/transport/TTransportException.h>
@@ -106,6 +110,10 @@ TSocket::TSocket(const string& path)
     noDelay_(1),
     maxRecvRetries_(5) {
   cachedPeerAddr_.ipv4.sin_family = AF_UNSPEC;
+#ifdef USE_CALADAN_TCP
+  // Not supported.
+  BUG();
+#endif
 }
 
 TSocket::TSocket()
@@ -136,7 +144,7 @@ TSocket::TSocket(THRIFT_SOCKET socket)
     noDelay_(1),
     maxRecvRetries_(5) {
   cachedPeerAddr_.ipv4.sin_family = AF_UNSPEC;
-#ifdef SO_NOSIGPIPE
+#if defined(SO_NOSIGPIPE) && !defined(USE_CALADAN_TCP)
   {
     int one = 1;
     setsockopt(socket_, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
@@ -158,7 +166,7 @@ TSocket::TSocket(THRIFT_SOCKET socket, stdcxx::shared_ptr<THRIFT_SOCKET> interru
     noDelay_(1),
     maxRecvRetries_(5) {
   cachedPeerAddr_.ipv4.sin_family = AF_UNSPEC;
-#ifdef SO_NOSIGPIPE
+#if defined(SO_NOSIGPIPE) && !defined(USE_CALADAN_TCP)
   {
     int one = 1;
     setsockopt(socket_, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
@@ -175,6 +183,9 @@ bool TSocket::hasPendingDataToRead() {
     return false;
   }
 
+#ifdef USE_CALADAN_TCP
+  return socket_->HasPendingDataToRead();
+#else
   int32_t retries = 0;
   THRIFT_IOCTL_SOCKET_NUM_BYTES_TYPE numBytesAvailable;
 try_again:
@@ -188,6 +199,7 @@ try_again:
     throw TTransportException(TTransportException::UNKNOWN, "Unknown", errno_copy);
   }
   return numBytesAvailable > 0;
+#endif
 }
 
 bool TSocket::isOpen() {
@@ -198,6 +210,10 @@ bool TSocket::peek() {
   if (!isOpen()) {
     return false;
   }
+
+#ifdef USE_CALADAN_TCP
+  return socket_->WaitForRead();
+#else
   if (interruptListener_) {
     for (int retries = 0;;) {
       struct THRIFT_POLLFD fds[2];
@@ -247,10 +263,18 @@ bool TSocket::peek() {
     throw TTransportException(TTransportException::UNKNOWN, "recv()", errno_copy);
   }
   return (r > 0);
+#endif
 }
 
 void TSocket::openConnection(struct addrinfo* res) {
-
+#ifdef USE_CALADAN_TCP
+  struct netaddr laddr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
+  struct netaddr raddr =
+    { .ip = *(uint32_t *)(&((sockaddr_in *)(res->ai_addr))->sin_addr),
+      .port = port_ };
+  socket_ = rt::TcpConn::Dial(laddr, raddr);
+  BUG_ON(!socket_);
+#else
   if (isOpen()) {
     return;
   }
@@ -417,6 +441,7 @@ done:
   if (path_.empty()) {
     setCachedAddress(res->ai_addr, static_cast<socklen_t>(res->ai_addrlen));
   }
+#endif
 }
 
 void TSocket::open() {
@@ -431,6 +456,9 @@ void TSocket::open() {
 }
 
 void TSocket::unix_open() {
+#ifdef USE_CALADAN_TCP
+  BUG();
+#endif
   if (!path_.empty()) {
     // Unix Domain SOcket does not need addrinfo struct, so we pass NULL
     openConnection(NULL);
@@ -504,7 +532,11 @@ void TSocket::local_open() {
 
 void TSocket::close() {
   if (socket_ != THRIFT_INVALID_SOCKET) {
+#ifdef USE_CALADAN_TCP
+    BUG_ON(socket_->Shutdown(SHUT_RDWR));
+#else
     shutdown(socket_, THRIFT_SHUT_RDWR);
+#endif
     ::THRIFT_CLOSESOCKET(socket_);
   }
   socket_ = THRIFT_INVALID_SOCKET;
@@ -522,6 +554,9 @@ uint32_t TSocket::read(uint8_t* buf, uint32_t len) {
     throw TTransportException(TTransportException::NOT_OPEN, "Called read on non-open socket");
   }
 
+#ifdef USE_CALADAN_TCP
+  return socket_->ReadFull(buf, len);
+#else
   int32_t retries = 0;
 
   // THRIFT_EAGAIN can be signalled both when a timeout has occurred and when
@@ -637,9 +672,13 @@ try_again:
   }
 
   return got;
+#endif
 }
 
 void TSocket::write(const uint8_t* buf, uint32_t len) {
+#ifdef USE_CALADAN_TCP
+  BUG_ON(socket_->WriteFull(buf, len) != len);
+#else
   uint32_t sent = 0;
 
   while (sent < len) {
@@ -651,9 +690,13 @@ void TSocket::write(const uint8_t* buf, uint32_t len) {
     }
     sent += b;
   }
+#endif
 }
 
 uint32_t TSocket::write_partial(const uint8_t* buf, uint32_t len) {
+#ifdef USE_CALADAN_TCP
+  return socket_->Write(buf, len);
+#else
   if (socket_ == THRIFT_INVALID_SOCKET) {
     throw TTransportException(TTransportException::NOT_OPEN, "Called write on non-open socket");
   }
@@ -690,6 +733,7 @@ uint32_t TSocket::write_partial(const uint8_t* buf, uint32_t len) {
     throw TTransportException(TTransportException::NOT_OPEN, "Socket send returned 0.");
   }
   return b;
+#endif
 }
 
 std::string TSocket::getHost() {
@@ -709,6 +753,7 @@ void TSocket::setPort(int port) {
 }
 
 void TSocket::setLinger(bool on, int linger) {
+#ifndef USE_CALADAN_TCP
   lingerOn_ = on;
   lingerVal_ = linger;
   if (socket_ == THRIFT_INVALID_SOCKET) {
@@ -727,9 +772,11 @@ void TSocket::setLinger(bool on, int linger) {
         = THRIFT_GET_SOCKET_ERROR; // Copy THRIFT_GET_SOCKET_ERROR because we're allocating memory.
     GlobalOutput.perror("TSocket::setLinger() setsockopt() " + getSocketInfo(), errno_copy);
   }
+#endif
 }
 
 void TSocket::setNoDelay(bool noDelay) {
+#ifndef USE_CALADAN_TCP
   noDelay_ = noDelay;
   if (socket_ == THRIFT_INVALID_SOCKET || !path_.empty()) {
     return;
@@ -743,6 +790,7 @@ void TSocket::setNoDelay(bool noDelay) {
         = THRIFT_GET_SOCKET_ERROR; // Copy THRIFT_GET_SOCKET_ERROR because we're allocating memory.
     GlobalOutput.perror("TSocket::setNoDelay() setsockopt() " + getSocketInfo(), errno_copy);
   }
+#endif
 }
 
 void TSocket::setConnTimeout(int ms) {
@@ -750,6 +798,7 @@ void TSocket::setConnTimeout(int ms) {
 }
 
 void setGenericTimeout(THRIFT_SOCKET s, int timeout_ms, int optname) {
+#ifndef USE_CALADAN_TCP
   if (timeout_ms < 0) {
     char errBuf[512];
     sprintf(errBuf, "TSocket::setGenericTimeout with negative input: %d\n", timeout_ms);
@@ -773,6 +822,7 @@ void setGenericTimeout(THRIFT_SOCKET s, int timeout_ms, int optname) {
         = THRIFT_GET_SOCKET_ERROR; // Copy THRIFT_GET_SOCKET_ERROR because we're allocating memory.
     GlobalOutput.perror("TSocket::setGenericTimeout() setsockopt() ", errno_copy);
   }
+#endif
 }
 
 void TSocket::setRecvTimeout(int ms) {
@@ -786,6 +836,7 @@ void TSocket::setSendTimeout(int ms) {
 }
 
 void TSocket::setKeepAlive(bool keepAlive) {
+#ifndef USE_CALADAN_TCP
   keepAlive_ = keepAlive;
 
   if (socket_ == THRIFT_INVALID_SOCKET) {
@@ -801,6 +852,7 @@ void TSocket::setKeepAlive(bool keepAlive) {
         = THRIFT_GET_SOCKET_ERROR; // Copy THRIFT_GET_SOCKET_ERROR because we're allocating memory.
     GlobalOutput.perror("TSocket::setKeepAlive() setsockopt() " + getSocketInfo(), errno_copy);
   }
+#endif
 }
 
 void TSocket::setMaxRecvRetries(int maxRecvRetries) {
@@ -822,6 +874,19 @@ string TSocket::getSocketInfo() {
   return oss.str();
 }
 
+#ifdef USE_CALADAN_TCP
+void caladan_getpeername(rt::TcpConn* c, struct sockaddr* addr,
+			  socklen_t* addr_len) {
+  struct netaddr raddr = c->RemoteAddr();
+  struct sockaddr_in addr_in;
+  addr_in.sin_family = AF_INET;
+  addr_in.sin_port = htons(raddr.port);
+  memcpy(&addr_in.sin_addr, &raddr.ip, sizeof(raddr.ip));
+  *addr_len = sizeof(addr_in);
+  memcpy(addr, &addr_in, *addr_len);
+}
+#endif
+
 std::string TSocket::getPeerHost() {
   if (peerHost_.empty() && path_.empty()) {
     struct sockaddr_storage addr;
@@ -836,9 +901,13 @@ std::string TSocket::getPeerHost() {
 
     if (addrPtr == NULL) {
       addrLen = sizeof(addr);
+#ifdef USE_CALADAN_TCP
+      caladan_getpeername(socket_, (sockaddr*)&addr, &addrLen);
+#else
       if (getpeername(socket_, (sockaddr*)&addr, &addrLen) != 0) {
         return peerHost_;
       }
+#endif
       addrPtr = (sockaddr*)&addr;
 
       setCachedAddress(addrPtr, addrLen);
@@ -874,9 +943,13 @@ std::string TSocket::getPeerAddress() {
 
     if (addrPtr == NULL) {
       addrLen = sizeof(addr);
+#ifdef USE_CALADAN_TCP
+      caladan_getpeername(socket_, (sockaddr*)&addr, &addrLen);
+#else
       if (getpeername(socket_, (sockaddr*)&addr, &addrLen) != 0) {
         return peerAddress_;
       }
+#endif
       addrPtr = (sockaddr*)&addr;
 
       setCachedAddress(addrPtr, addrLen);

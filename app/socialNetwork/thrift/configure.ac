@@ -102,10 +102,12 @@ AC_PROG_AWK
 AC_PROG_RANLIB
 
 AC_LANG([C++])
-CXXFLAGS="-std=c++2a $CXXFLGAS"
-if test "$ac_success" = "no"; then
-  CXXFLAGS="$CXXFLAGS -Wno-variadic-macros -Wno-long-long -Wno-c++11-long-long"
-fi
+CXX="g++-11"
+CPP="g++-11"
+CXXFLAGS="-std=c++2a $CXXFLAGS"
+#if test "$ac_success" = "no"; then
+#  CXXFLAGS="$CXXFLAGS -Wno-variadic-macros -Wno-long-long -Wno-c++11-long-long"
+#fi
 
 AM_EXTRA_RECURSIVE_TARGETS([style])
 AC_SUBST(CPPSTYLE_CMD, 'find . -type f \( -iname "*.h" -or -iname "*.cpp" -or -iname "*.cc" -or -iname "*.tcc" \) -printf "Reformatting: %h/%f\n" -exec clang-format -i {} \;')
@@ -804,15 +806,34 @@ AC_ARG_ENABLE(caladanthreads,
 if test "x[$]ENABLE_CALADANTHREADS" = "x1"; then
   AC_MSG_WARN(enable caladanthreads)
   AC_DEFINE([USE_CALADAN_THREAD], [1], [experimental --enable-caladanthreads that replaces POSIX pthread by rt::Thread])
+fi
+
+AM_CONDITIONAL([WITH_CALADANTHREADS], [test "x[$]ENABLE_CALADANTHREADS" = "x1"])
+
+AC_ARG_ENABLE(caladantcp,
+              [  --enable-caladantcp     use caladan TCP, instead of Linux Socket (experimental) ],
+              [case "${enableval}" in
+                yes) ENABLE_CALADANTCP=1 ;;
+                no) ENABLE_CALADANTCP=0 ;;
+                *) AC_MSG_ERROR(bad value ${enableval} for --enable-caladantcp) ;;
+              esac],
+              [ENABLE_CALADANTCP=2])
+
+if test "x[$]ENABLE_CALADANTCP" = "x1"; then
+  AC_MSG_WARN(enable caladantcp)
+  AC_DEFINE([USE_CALADAN_TCP], [1], [experimental --enable-caladantcp that replaces Linux socket by rt::TcpConn])
+fi
+
+AM_CONDITIONAL([WITH_CALADANTCP], [test "x[$]ENABLE_CALADANTCP" = "x1"])
+
+if test "x[$]ENABLE_CALADANTHREADS" = "x1" -o "x[$]ENABLE_CALADANTCP" = "x1"; then
   AC_ARG_WITH([caladan],
     [AS_HELP_STRING([--with-caladan@<:@=ARG@:>@],
       [specify the Caladan root location (ARG=<path>).])],
     [CALADAN_PATH="$withval"])
-  CXXFLAGS="-I$CALADAN_PATH/inc -I$CALADAN_PATH/bindings/cc -I$CALADAN_PATH/deps/folly/include $CXXFLGAS"
+  CXXFLAGS="-I$CALADAN_PATH/inc -I$CALADAN_PATH/bindings/cc -I$CALADAN_PATH/deps/folly/include $CXXFLAGS"
   LIBS="-L$CALADAN_PATH/bindings/cc -lrt++ -L$CALADAN_PATH -lruntime -lnet -lbase"
 fi
-
-AM_CONDITIONAL([WITH_CALADANTHREADS], [test "x[$]ENABLE_CALADANTHREADS" = "x1"])
 
 AC_CONFIG_HEADERS(config.h:config.hin)
 AC_CONFIG_HEADERS(lib/cpp/src/thrift/config.h:config.hin)

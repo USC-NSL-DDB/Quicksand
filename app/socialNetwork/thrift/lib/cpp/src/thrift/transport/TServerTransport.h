@@ -89,7 +89,13 @@ public:
   * @throw TTransportException If an error occurs
   */
 
-  virtual THRIFT_SOCKET getSocketFD() { return -1; }
+  virtual
+#ifdef USE_CALADAN_TCP
+  rt::TcpQueue *
+#else
+  THRIFT_SOCKET
+#endif
+  getSocketFD() { return THRIFT_INVALID_SOCKET; }
 
   /**
    * Closes this transport such that future calls to accept will do nothing.

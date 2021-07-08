@@ -19,6 +19,12 @@
 
 // clang-format off
 
+#include <thrift/config.h>
+
+#ifdef USE_CALADAN_TCP
+#include <net.h>
+#endif
+
 #ifndef _THRIFT_TRANSPORT_PLATFORM_SOCKET_H_
 #  define _THRIFT_TRANSPORT_PLATFORM_SOCKET_H_
 
@@ -84,7 +90,7 @@
 #  if !defined(AI_ADDRCONFIG)
 #    define AI_ADDRCONFIG 0x00000400
 #  endif
-#else //not _WIN32
+#else //not _WIN32 and USE_CALADAN_TCP
 #  include <errno.h>
 #  define THRIFT_GET_SOCKET_ERROR errno
 #  define THRIFT_ERRNO errno
@@ -97,15 +103,24 @@
 #  define THRIFT_EAGAIN      EAGAIN
 #  define THRIFT_EPIPE       EPIPE
 #  define THRIFT_NO_SOCKET_CACHING SO_REUSEADDR
+#ifdef USE_CALADAN_TCP
+#  define THRIFT_SOCKET rt::TcpConn *
+#  define THRIFT_INVALID_SOCKET nullptr
+#else
 #  define THRIFT_SOCKET int
 #  define THRIFT_INVALID_SOCKET (-1)
+#endif
 #  define THRIFT_SOCKETPAIR socketpair
 #  define THRIFT_FCNTL fcntl
 #  define THRIFT_O_NONBLOCK O_NONBLOCK
 #  define THRIFT_F_GETFL F_GETFL
 #  define THRIFT_F_SETFL F_SETFL
 #  define THRIFT_GETTIMEOFDAY gettimeofday
+#ifdef USE_CALADAN_TCP
+#  define THRIFT_CLOSESOCKET delete
+#else
 #  define THRIFT_CLOSESOCKET close
+#endif
 #  define THRIFT_CLOSE close
 #  define THRIFT_OPEN open
 #  define THRIFT_FTRUNCATE ftruncate

@@ -91,12 +91,8 @@ libthrift_la_SOURCES = src/thrift/TApplicationException.cpp \
                        src/thrift/transport/TSocket.cpp \
                        src/thrift/transport/TPipe.cpp \
                        src/thrift/transport/TPipeServer.cpp \
-                       src/thrift/transport/TSSLSocket.cpp \
                        src/thrift/transport/TSocketPool.cpp \
                        src/thrift/transport/TServerSocket.cpp \
-                       src/thrift/transport/TSSLServerSocket.cpp \
-                       src/thrift/transport/TNonblockingServerSocket.cpp \
-                       src/thrift/transport/TNonblockingSSLServerSocket.cpp \
                        src/thrift/transport/TTransportUtils.cpp \
                        src/thrift/transport/TBufferTransports.cpp \
                        src/thrift/server/TConnectedClient.cpp \
@@ -105,6 +101,14 @@ libthrift_la_SOURCES = src/thrift/TApplicationException.cpp \
                        src/thrift/server/TSimpleServer.cpp \
                        src/thrift/server/TThreadPoolServer.cpp \
                        src/thrift/server/TThreadedServer.cpp
+
+if !WITH_CALADANTCP
+libthrift_la_SOURCES +=
+                       src/thrift/transport/TSSLSocket.cpp \
+                       src/thrift/transport/TSSLServerSocket.cpp \
+                       src/thrift/transport/TNonblockingSSLServerSocket.cpp \
+                       src/thrift/transport/TNonblockingServerSocket.cpp
+endif
 
 if WITH_BOOSTTHREADS
 libthrift_la_SOURCES += src/thrift/concurrency/BoostThreadFactory.cpp \
