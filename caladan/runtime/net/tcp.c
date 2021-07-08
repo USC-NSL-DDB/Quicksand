@@ -1201,3 +1201,25 @@ int tcp_init_late(void)
 {
 	return thread_spawn(tcp_worker, NULL);
 }
+
+bool tcp_wait_for_read(tcpconn_t *c)
+{
+	bool exception = false;
+
+	spin_lock_np(&c->lock);
+
+	/* block until there is an actionable event */
+	while (!c->rx_closed && (c->rx_exclusive || list_empty(&c->rxq)))
+		waitq_wait(&c->rx_wq, &c->lock);
+	/* is the socket closed? */
+	exception |= c->rx_closed;
+
+	spin_unlock_np(&c->lock);
+
+	return !exception;
+}
+
+bool tcp_has_pending_data_to_read(tcpconn_t *c)
+{
+	return !list_empty(&c->rxq);
+}

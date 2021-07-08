@@ -256,6 +256,13 @@ class TcpConn : public NetConn {
     return WritevFull(std::span{iov, static_cast<size_t>(iovcnt)}, nt);
   }
 
+  // If the connection has pending data to read.
+  bool HasPendingDataToRead() { return tcp_has_pending_data_to_read(c_); }
+
+  // Block until there is any data to read.
+  // Return false if any exception happens.
+  bool WaitForRead() { return tcp_wait_for_read(c_); }
+
   // Gracefully shutdown the TCP connection.
   int Shutdown(int how) { return tcp_shutdown(c_, how); }
   // Ungracefully force the TCP connection to shutdown.

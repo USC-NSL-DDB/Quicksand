@@ -24,6 +24,8 @@ extern struct netaddr tcp_remote_addr(tcpconn_t *c);
 extern int tcp_shutdown(tcpconn_t *c, int how);
 extern void tcp_abort(tcpconn_t *c);
 extern void tcp_close(tcpconn_t *c);
+extern bool tcp_wait_for_read(tcpconn_t *c);
+extern bool tcp_has_pending_data_to_read(tcpconn_t *c);
 
 extern ssize_t __tcp_write(tcpconn_t *c, const void *buf, size_t len, bool nt);
 extern ssize_t __tcp_writev(tcpconn_t *c, const struct iovec *iov, int iovcnt,
@@ -245,4 +247,3 @@ static inline int tcp_listen_dscp(struct netaddr laddr, int backlog,
 {
 	return __tcp_listen(laddr, backlog, q_out, dscp);
 }
-
