@@ -54,7 +54,7 @@ linux_mech_bench_src = linux_mech_bench.cc
 linux_mech_bench_obj = $(linux_mech_bench_src:.cc=.o)
 
 librt_libs = $(ROOT_PATH)/bindings/cc/librt++.a
-INC += -I$(ROOT_PATH)/bindings/cc
+INC += -I$(ROOT_PATH)/bindings/cc -I$(ROOT_PATH)/deps/folly/include/
 
 # must be first
 all: tbench callibrate stress efficiency efficiency_linux \

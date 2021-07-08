@@ -24,7 +24,7 @@ interference_src = interference.cc
 interference_obj = $(interference_src:.cc=.o)
 
 librt_libs = $(ROOT_PATH)/bindings/cc/librt++.a
-INC += -I$(ROOT_PATH)/bindings/cc
+INC += -I$(ROOT_PATH)/bindings/cc -I$(ROOT_PATH)/deps/folly/include/
 
 RUNTIME_LIBS := $(RUNTIME_LIBS) -lnuma
 
