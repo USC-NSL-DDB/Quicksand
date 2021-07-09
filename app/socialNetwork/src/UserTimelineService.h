@@ -1,6 +1,8 @@
 #pragma once
 
 #include <algorithm>
+#include <cereal/types/pbds_tree.hpp>
+#include <ext/pb_ds/assoc_container.hpp>
 #include <future>
 #include <iostream>
 #include <iterator>
@@ -8,7 +10,6 @@
 #include <map>
 #include <nu/dis_hash_table.hpp>
 #include <nu/rem_obj.hpp>
-#include <set>
 #include <string>
 #include <utility>
 
@@ -23,9 +24,11 @@ public:
   std::vector<Post> ReadUserTimeline(int64_t, int, int);
 
 private:
+  using Tree = __gnu_pbds::tree<int64_t, int64_t, std::greater<int64_t>,
+                                __gnu_pbds::rb_tree_tag,
+                                __gnu_pbds::tree_order_statistics_node_update>;
   nu::RemObj<PostStorageService> _post_storage_service_obj;
-  nu::DistributedHashTable<int64_t, std::set<std::pair<int64_t, int64_t>>>
-      _userid_to_timeline_map;
+  nu::DistributedHashTable<int64_t, Tree> _userid_to_timeline_map;
 };
 
 UserTimelineService::UserTimelineService(
@@ -37,12 +40,11 @@ void UserTimelineService::WriteUserTimeline(int64_t post_id, int64_t user_id,
                                             int64_t timestamp) {
   // TODO: need synchronization.
   // TODO: computation offloading.
-  auto timeline_set_optional = _userid_to_timeline_map.get(user_id);
-  auto timeline_set = timeline_set_optional
-                          ? std::move(*timeline_set_optional)
-                          : std::set<std::pair<int64_t, int64_t>>();
-  timeline_set.emplace(timestamp, post_id);
-  _userid_to_timeline_map.put(user_id, timeline_set);
+  auto timeline_tree_optional = _userid_to_timeline_map.get(user_id);
+  auto timeline_tree =
+      timeline_tree_optional ? std::move(*timeline_tree_optional) : Tree();
+  timeline_tree[timestamp] = post_id;
+  _userid_to_timeline_map.put(user_id, timeline_tree);
 }
 
 std::vector<Post> UserTimelineService::ReadUserTimeline(int64_t user_id,
@@ -54,17 +56,11 @@ std::vector<Post> UserTimelineService::ReadUserTimeline(int64_t user_id,
   // TODO: need synchronization.
   // TODO: computation offloading.
   std::vector<int64_t> post_ids;
-  auto timeline_set_optional = _userid_to_timeline_map.get(user_id);
-  auto timeline_set = timeline_set_optional
-                          ? std::move(*timeline_set_optional)
-                          : std::set<std::pair<int64_t, int64_t>>();
-  // TODO: use a better data structure to reduce the time complexity from
-  // O(nlogn) into O(n).
-  auto start_iter = timeline_set.rbegin();
-  std::advance(start_iter, start);
-  auto stop_iter = timeline_set.rbegin();
-  std::advance(stop_iter,
-               std::min(static_cast<int>(timeline_set.size()), stop));
+  auto timeline_tree_optional = _userid_to_timeline_map.get(user_id);
+  auto timeline_tree =
+      timeline_tree_optional ? std::move(*timeline_tree_optional) : Tree();
+  auto start_iter = timeline_tree.find_by_order(start);
+  auto stop_iter = timeline_tree.find_by_order(stop);
   for (auto iter = start_iter; iter != stop_iter; iter++) {
     post_ids.push_back(iter->second);
   }
