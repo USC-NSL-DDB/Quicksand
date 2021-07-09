@@ -192,6 +192,7 @@ static inline void assert_timed_mutex_held(timed_mutex_t *m)
 	assert(timed_mutex_held(m));
 }
 
+
 /*
  * Condition variable support
  */
@@ -204,16 +205,43 @@ struct condvar {
 typedef struct condvar condvar_t;
 
 extern void condvar_wait(condvar_t *cv, mutex_t *m);
-extern bool condvar_wait_until(condvar_t *cv, timed_mutex_t *m,
-                               uint64_t deadline_us);
 extern void condvar_signal(condvar_t *cv);
 extern void condvar_broadcast(condvar_t *cv);
 extern void condvar_init(condvar_t *cv);
 
-static inline bool condvar_wait_for(condvar_t *cv, timed_mutex_t *m,
-                                    uint64_t duration_us)
+/*
+ * A condition variable variant that supports wait_for() and wait_until().
+ */
+
+struct timed_condvar {
+	spinlock_t		waiter_lock;
+	struct list_head	waiters;
+};
+
+typedef struct timed_condvar timed_condvar_t;
+
+extern void timed_condvar_wait(timed_condvar_t *cv, timed_mutex_t *m);
+extern bool timed_condvar_wait_until(timed_condvar_t *cv, timed_mutex_t *m,
+                                     uint64_t deadline_us);
+extern void timed_condvar_signal(timed_condvar_t *cv);
+extern void timed_condvar_broadcast(timed_condvar_t *cv);
+extern void timed_condvar_init(timed_condvar_t *cv);
+
+/**
+ * timed_condvar_wait_for - causes the current thread to block until the
+ * condition variable is notified, a specific duration elapsed reached, or a
+ * spurious wakeup occurs.
+ *
+ * @cv: the condition variable to signal
+ * @m: the currently held mutex that projects the condition
+ * @duration_us: the duration in microsecond.
+ *
+ * Returns false if the duration has been elapsed. Otherwise, returns true.
+ */
+static inline bool timed_condvar_wait_for(timed_condvar_t *cv, timed_mutex_t *m,
+                                          uint64_t duration_us)
 {
-	return condvar_wait_until(cv, m, microtime() + duration_us);
+	return timed_condvar_wait_until(cv, m, microtime() + duration_us);
 }
 
 /*

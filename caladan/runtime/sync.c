@@ -309,13 +309,6 @@ void rwmutex_unlock(rwmutex_t *m)
  * Condition variable support
  */
 
-struct timed_condvar_waiter {
-	bool                    signalled;
-	thread_t                *th;
-	spinlock_t		*waiter_lock;
-	struct list_node	link;
-};
-
 /**
  * condvar_wait - waits for a condition variable to be signalled
  * @cv: the condition variable to wait for
@@ -323,13 +316,13 @@ struct timed_condvar_waiter {
  */
 void condvar_wait(condvar_t *cv, mutex_t *m)
 {
-	struct timed_condvar_waiter waiter;
+	thread_t *myth;
 
 	assert_mutex_held(m);
 	spin_lock_np(&cv->waiter_lock);
-	waiter.th = thread_self();
+	myth = thread_self();
 	mutex_unlock(m);
-	list_add_tail(&cv->waiters, &waiter.link);
+	list_add_tail(&cv->waiters, &myth->link);
 	thread_park_and_unlock_np(&cv->waiter_lock);
 
 	mutex_lock(m);
@@ -340,6 +333,84 @@ void condvar_wait(condvar_t *cv, mutex_t *m)
  * @cv: the condition variable to signal
  */
 void condvar_signal(condvar_t *cv)
+{
+	thread_t *waketh;
+
+	spin_lock_np(&cv->waiter_lock);
+	waketh = list_pop(&cv->waiters, thread_t, link);
+	spin_unlock_np(&cv->waiter_lock);
+	if (waketh)
+		thread_ready(waketh);
+}
+
+/**
+ * condvar_broadcast - signals all waiting threads on a condition variable
+ * @cv: the condition variable to signal
+ */
+void condvar_broadcast(condvar_t *cv)
+{
+	thread_t *waketh;
+	struct list_head tmp;
+
+	list_head_init(&tmp);
+
+	spin_lock_np(&cv->waiter_lock);
+	list_append_list(&tmp, &cv->waiters);
+	spin_unlock_np(&cv->waiter_lock);
+
+	while (true) {
+		waketh = list_pop(&tmp, thread_t, link);
+		if (!waketh)
+			break;
+		thread_ready(waketh);
+	}
+}
+
+/**
+ * condvar_init - initializes a condition variable
+ * @cv: the condition variable to initialize
+ */
+void condvar_init(condvar_t *cv)
+{
+	spin_lock_init(&cv->waiter_lock);
+	list_head_init(&cv->waiters);
+}
+
+/*
+ * A Condition variable variant that supports wait_for() and wait_until().
+ */
+
+struct timed_condvar_waiter {
+	bool                    signalled;
+	thread_t                *th;
+	spinlock_t		*waiter_lock;
+	struct list_node	link;
+};
+
+/**
+ * timed_condvar_wait - waits for a condition variable to be signalled
+ * @cv: the condition variable to wait for
+ * @m: the currently held mutex that projects the condition
+ */
+void timed_condvar_wait(timed_condvar_t *cv, timed_mutex_t *m)
+{
+	struct timed_condvar_waiter waiter;
+
+	assert_timed_mutex_held(m);
+	spin_lock_np(&cv->waiter_lock);
+	waiter.th = thread_self();
+	timed_mutex_unlock(m);
+	list_add_tail(&cv->waiters, &waiter.link);
+	thread_park_and_unlock_np(&cv->waiter_lock);
+
+	timed_mutex_lock(m);
+}
+
+/**
+ * timed_condvar_signal - signals a thread waiting on a condition variable
+ * @cv: the condition variable to signal
+ */
+void timed_condvar_signal(timed_condvar_t *cv)
 {
 	struct timed_condvar_waiter *waiter;
 
@@ -355,10 +426,10 @@ void condvar_signal(condvar_t *cv)
 }
 
 /**
- * condvar_broadcast - signals all waiting threads on a condition variable
+ * timed_condvar_broadcast - signals all waiting threads on a condition variable
  * @cv: the condition variable to signal
  */
-void condvar_broadcast(condvar_t *cv)
+void timed_condvar_broadcast(timed_condvar_t *cv)
 {
 	struct timed_condvar_waiter *waiter;
 	struct list_head tmp;
@@ -396,9 +467,9 @@ void timed_condvar_callback(unsigned long arg)
 }
 
 /**
- * condvar_wait_until - causes the current thread to block until the condition
- * variable is notified, a specific time is reached, or a spurious wakeup
- * occurs.
+ * timed_condvar_wait_until - causes the current thread to block until the
+ * condition variable is notified, a specific time is reached, or a spurious
+ * wakeup occurs.
  *
  * @cv: the condition variable to signal
  * @m: the currently held mutex that projects the condition
@@ -406,7 +477,8 @@ void timed_condvar_callback(unsigned long arg)
  *
  * Returns false if the deadline has been reached. Otherwise, returns true.
  */
-bool condvar_wait_until(condvar_t *cv, timed_mutex_t *m, uint64_t deadline_us)
+bool timed_condvar_wait_until(timed_condvar_t *cv, timed_mutex_t *m,
+                              uint64_t deadline_us)
 {
 	struct timed_condvar_waiter waiter;
 	struct timer_entry entry;
@@ -435,10 +507,10 @@ bool condvar_wait_until(condvar_t *cv, timed_mutex_t *m, uint64_t deadline_us)
 }
 
 /**
- * condvar_init - initializes a condition variable
+ * timed_condvar_init - initializes a condition variable
  * @cv: the condition variable to initialize
  */
-void condvar_init(condvar_t *cv)
+void timed_condvar_init(timed_condvar_t *cv)
 {
 	spin_lock_init(&cv->waiter_lock);
 	list_head_init(&cv->waiters);

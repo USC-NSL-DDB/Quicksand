@@ -180,7 +180,7 @@ class Mutex {
 
 // std::timed_mutex-like timed mutex support.
 class TimedMutex {
-  friend class CondVar;
+  friend class TimedCondVar;
 
  public:
   TimedMutex() { timed_mutex_init(&mu_); }
@@ -279,14 +279,6 @@ class CondVar {
   // after wakeup, as no guarantees are made about preventing spurious wakeups.
   void Wait(Mutex *mu) { condvar_wait(&cv_, &mu->mu_); }
 
-  bool WaitFor(TimedMutex *mu, uint64_t duration_us) {
-    return condvar_wait_for(&cv_, &mu->mu_, duration_us);
-  }
-
-  bool WaitUntil(TimedMutex *mu, uint64_t deadline_us) {
-    return condvar_wait_until(&cv_, &mu->mu_, deadline_us);
-  }
-
   // Wake up one waiter.
   void Signal() { condvar_signal(&cv_); }
 
@@ -298,6 +290,43 @@ class CondVar {
 
   CondVar(const CondVar&) = delete;
   CondVar& operator=(const CondVar&) = delete;
+};
+
+// A CondVar variant that supports WaitFor() and WaitUntil().
+class TimedCondVar {
+ public:
+  TimedCondVar() { timed_condvar_init(&cv_); };
+  ~TimedCondVar() {}
+
+  // Block until the condition variable is signaled. Recheck the condition
+  // after wakeup, as no guarantees are made about preventing spurious wakeups.
+  void Wait(TimedMutex *mu) { timed_condvar_wait(&cv_, &mu->mu_); }
+
+  // Causes the current thread to block until the condition variable is
+  // notified, a specific duration is elapsed, or a spurious wakeup occurs.
+  // Returns false if the duration has been elapsed. Otherwise, returns true.
+  bool WaitFor(TimedMutex *mu, uint64_t duration_us) {
+    return timed_condvar_wait_for(&cv_, &mu->mu_, duration_us);
+  }
+
+  // Causes the current thread to block until the condition variable is
+  // notified, a specific deadline is reached, or a spurious wakeup occurs.
+  // Returns false if the deadline has been reached. Otherwise, returns true.
+  bool WaitUntil(TimedMutex *mu, uint64_t deadline_us) {
+    return timed_condvar_wait_until(&cv_, &mu->mu_, deadline_us);
+  }
+
+  // Wake up one waiter.
+  void Signal() { timed_condvar_signal(&cv_); }
+
+  // Wake up all waiters.
+  void SignalAll() { timed_condvar_broadcast(&cv_); }
+
+private:
+  timed_condvar_t cv_;
+
+  TimedCondVar(const TimedCondVar&) = delete;
+  TimedCondVar& operator=(const TimedCondVar&) = delete;
 };
 
 // Golang-like waitgroup support.

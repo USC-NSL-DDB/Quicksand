@@ -149,7 +149,7 @@ private:
   void init(Mutex* mutex) { mutex_ = mutex; }
 
   const std::unique_ptr<Mutex> ownedMutex_;
-  rt::CondVar conditionVariable_;
+  rt::TimedCondVar conditionVariable_;
   Mutex* mutex_;
 };
 
