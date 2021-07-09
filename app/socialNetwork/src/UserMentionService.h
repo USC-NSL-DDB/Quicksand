@@ -29,7 +29,7 @@ UserMentionService::ComposeUserMentions(std::vector<std::string> &&usernames) {
   for (auto &username : usernames) {
     UserMention user_mention;
     user_mention.username = username;
-    auto user_id_optional = _username_to_userid_map.get(username);
+    auto user_id_optional = _username_to_userid_map.get(std::move(username));
     BUG_ON(!user_id_optional);
     user_mention.user_id = user_id_optional->user_id;
     user_mentions.push_back(user_mention);

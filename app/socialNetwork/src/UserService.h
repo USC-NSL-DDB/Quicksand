@@ -4,7 +4,6 @@
 #include <iomanip>
 #include <iostream>
 #include <jwt/jwt.hpp>
-#include <map>
 #include <nlohmann/json.hpp>
 #include <nu/mutex.hpp>
 #include <nu/rem_obj.hpp>
@@ -167,13 +166,14 @@ void UserService::RegisterUserWithId(std::string &&first_name,
                                      std::string &&username,
                                      std::string &&password, int64_t user_id) {
   UserProfile user_profile;
-  user_profile.first_name = first_name;
-  user_profile.last_name = last_name;
+  user_profile.first_name = std::move(first_name);
+  user_profile.last_name = std::move(last_name);
   user_profile.user_id = user_id;
   user_profile.salt = GenRandomString(32);
   user_profile.password_hashed =
-      picosha2::hash256_hex_string(password + user_profile.salt);
-  _username_to_userprofile_map.put(username, user_profile);
+      picosha2::hash256_hex_string(std::move(password) + user_profile.salt);
+  _username_to_userprofile_map.put(std::move(username),
+                                   std::move(user_profile));
 }
 
 void UserService::RegisterUser(std::string &&first_name,
@@ -237,8 +237,9 @@ UserService::Login(std::string &&username, std::string &&password) {
     return NOT_REGISTERED;
   }
   auto &user_profile = *user_profile_optional;
-  bool auth = (picosha2::hash256_hex_string(password + user_profile.salt) ==
-               user_profile.password_hashed);
+  bool auth =
+      (picosha2::hash256_hex_string(std::move(password) + user_profile.salt) ==
+       user_profile.password_hashed);
   if (!auth) {
     return WRONG_PASSWORD;
   }
@@ -247,14 +248,14 @@ UserService::Login(std::string &&username, std::string &&password) {
       duration_cast<seconds>(system_clock::now().time_since_epoch()).count());
   jwt::jwt_object obj{algorithm("HS256"), secret(_secret),
                       payload({{"user_id", user_id_str},
-                               {"username", username},
+                               {"username", std::move(username)},
                                {"timestamp", timestamp_str},
                                {"ttl", "3600"}})};
   return obj.signature();
 }
 
 int64_t UserService::GetUserId(std::string &&username) {
-  auto user_id_optional = _username_to_userprofile_map.get(username);
+  auto user_id_optional = _username_to_userprofile_map.get(std::move(username));
   BUG_ON(!user_id_optional);
   return user_id_optional->user_id;
 }

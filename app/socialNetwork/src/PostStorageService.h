@@ -1,7 +1,6 @@
 #pragma once
 
 #include <iostream>
-#include <map>
 #include <nu/dis_hash_table.hpp>
 
 #include "../gen-cpp/social_network_types.h"
@@ -25,7 +24,7 @@ PostStorageService::PostStorageService()
     : _postid_to_post_map(kDefaultHashTablePowerNumShards) {}
 
 void PostStorageService::StorePost(social_network::Post &&post) {
-  _postid_to_post_map.put(post.post_id, post);
+  _postid_to_post_map.put(post.post_id, std::move(post));
 }
 
 Post PostStorageService::ReadPost(int64_t post_id) {

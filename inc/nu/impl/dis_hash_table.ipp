@@ -83,10 +83,11 @@ template <typename K, typename V, typename Hash, typename KeyEqual>
 template <typename K1>
 std::optional<V> DistributedHashTable<K, V, Hash, KeyEqual>::get(K1 &&k) {
   auto hash = Hash();
-  auto key_hash = hash(k);
+  auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
-  return shard.__run(&HashTableShard::template get_with_hash<K1>, k, key_hash);
+  return shard.__run(&HashTableShard::template get_with_hash<K1>,
+                     std::forward<K1>(k), key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
@@ -94,42 +95,44 @@ template <typename K1>
 std::pair<std::optional<V>, uint32_t>
 DistributedHashTable<K, V, Hash, KeyEqual>::get_with_ip(K1 &&k) {
   auto hash = Hash();
-  auto key_hash = hash(k);
+  auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
   return shard.__run(
-      +[](HashTableShard &shard, const K &k, uint64_t key_hash) {
-        return std::make_pair(shard.get_with_hash(k, key_hash), get_cfg_ip());
+      +[](HashTableShard &shard, K1 &&k, uint64_t key_hash) {
+        return std::make_pair(
+            shard.get_with_hash(std::forward<K1>(k), key_hash), get_cfg_ip());
       },
-      k, key_hash);
+      std::forward<K1>(k), key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
 template <typename K1, typename V1>
 void DistributedHashTable<K, V, Hash, KeyEqual>::put(K1 &&k, V1 &&v) {
   auto hash = Hash();
-  auto key_hash = hash(k);
+  auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
-  shard.__run(&HashTableShard::template put_with_hash<K1, V1>, k, v, key_hash);
+  shard.__run(&HashTableShard::template put_with_hash<K1, V1>,
+              std::forward<K1>(k), std::forward<V1>(v), key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
 template <typename K1>
 bool DistributedHashTable<K, V, Hash, KeyEqual>::remove(K1 &&k) {
   auto hash = Hash();
-  auto key_hash = hash(k);
+  auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
-  return shard.__run(&HashTableShard::template remove_with_hash<K1>, k,
-                     key_hash);
+  return shard.__run(&HashTableShard::template remove_with_hash<K1>,
+                     std::forward<K1>(k), key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
 template <typename K1>
 Future<std::optional<V>>
 DistributedHashTable<K, V, Hash, KeyEqual>::get_async(K1 &&k) {
-  auto *promise = Promise<bool>::create([&, k] { return get(k); });
+  auto *promise = Promise<bool>::create([&, k] { return get(std::move(k)); });
   return promise->get_future();
 }
 
@@ -137,14 +140,16 @@ template <typename K, typename V, typename Hash, typename KeyEqual>
 template <typename K1, typename V1>
 Future<void> DistributedHashTable<K, V, Hash, KeyEqual>::put_async(K1 &&k,
                                                                    V1 &&v) {
-  auto *promise = Promise<bool>::create([&, k, v] { return put(k, v); });
+  auto *promise = Promise<bool>::create(
+      [&, k, v] { return put(std::move(k), std::move(v)); });
   return promise->get_future();
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
 template <typename K1>
 Future<bool> DistributedHashTable<K, V, Hash, KeyEqual>::remove_async(K1 &&k) {
-  auto *promise = Promise<bool>::create([&, k] { return remove(k); });
+  auto *promise =
+      Promise<bool>::create([&, k] { return remove(std::move(k)); });
   return promise->get_future();
 }
 

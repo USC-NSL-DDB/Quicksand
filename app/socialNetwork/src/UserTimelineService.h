@@ -7,7 +7,6 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
-#include <map>
 #include <nu/dis_hash_table.hpp>
 #include <nu/rem_obj.hpp>
 #include <string>
@@ -44,7 +43,7 @@ void UserTimelineService::WriteUserTimeline(int64_t post_id, int64_t user_id,
   auto timeline_tree =
       timeline_tree_optional ? std::move(*timeline_tree_optional) : Tree();
   timeline_tree[timestamp] = post_id;
-  _userid_to_timeline_map.put(user_id, timeline_tree);
+  _userid_to_timeline_map.put(user_id, std::move(timeline_tree));
 }
 
 std::vector<Post> UserTimelineService::ReadUserTimeline(int64_t user_id,

@@ -6,7 +6,6 @@
 #include <future>
 #include <iostream>
 #include <iterator>
-#include <map>
 #include <nu/dis_hash_table.hpp>
 #include <nu/rem_obj.hpp>
 #include <set>
@@ -51,14 +50,14 @@ void SocialGraphService::Follow(int64_t user_id, int64_t followee_id) {
                            ? std::move(*followees_set_optional)
                            : std::set<int64_t>();
   followees_set.emplace(followee_id);
-  _userid_to_followees_map.put(user_id, followees_set);
+  _userid_to_followees_map.put(user_id, std::move(followees_set));
 
   auto followers_set_optional = _userid_to_followers_map.get(followee_id);
   auto followers_set = followers_set_optional
                            ? std::move(*followers_set_optional)
                            : std::set<int64_t>();
   followers_set.emplace(user_id);
-  _userid_to_followers_map.put(followee_id, followers_set);
+  _userid_to_followers_map.put(followee_id, std::move(followers_set));
 }
 
 void SocialGraphService::Unfollow(int64_t user_id, int64_t followee_id) {
@@ -68,14 +67,14 @@ void SocialGraphService::Unfollow(int64_t user_id, int64_t followee_id) {
                            ? std::move(*followees_set_optional)
                            : std::set<int64_t>();
   BUG_ON(!followees_set.erase(followee_id));
-  _userid_to_followees_map.put(user_id, followees_set);
+  _userid_to_followees_map.put(user_id, std::move(followees_set));
 
   auto followers_set_optional = _userid_to_followers_map.get(followee_id);
   auto followers_set = followers_set_optional
                            ? std::move(*followers_set_optional)
                            : std::set<int64_t>();
   BUG_ON(!followers_set.erase(user_id));
-  _userid_to_followers_map.put(followee_id, followers_set);
+  _userid_to_followers_map.put(followee_id, std::move(followers_set));
 }
 
 std::vector<int64_t> SocialGraphService::GetFollowers(int64_t user_id) {

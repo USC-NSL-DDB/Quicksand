@@ -1,7 +1,6 @@
 #pragma once
 
 #include <chrono>
-#include <map>
 #include <nu/dis_hash_table.hpp>
 #include <nu/mutex.hpp>
 #include <random>
@@ -75,7 +74,8 @@ std::vector<std::string>
 UrlShortenService::GetExtendedUrls(std::vector<std::string> &&shortened_urls) {
   std::vector<std::string> extended_urls;
   for (auto &shortened_url : shortened_urls) {
-    auto extended_urls_optional = _short_to_extended_map.get(shortened_url);
+    auto extended_urls_optional =
+        _short_to_extended_map.get(std::move(shortened_url));
     BUG_ON(!extended_urls_optional);
     extended_urls.emplace_back(std::move(*extended_urls_optional));
   }

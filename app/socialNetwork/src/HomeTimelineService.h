@@ -51,7 +51,7 @@ void HomeTimelineService::WriteHomeTimeline(
     auto timeline_tree =
         timeline_tree_optional ? std::move(*timeline_tree_optional) : Tree();
     timeline_tree[timestamp] = post_id;
-    _userid_to_timeline_map.put(id, timeline_tree);
+    _userid_to_timeline_map.put(id, std::move(timeline_tree));
   }
 }
 
