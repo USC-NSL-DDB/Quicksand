@@ -13,7 +13,8 @@ namespace social_network {
 
 class TextService {
 public:
-  TextService();
+  TextService(nu::RemObj<UrlShortenService>::Cap url_shorten_service_cap,
+              nu::RemObj<UserMentionService>::Cap user_mention_service_cap);
   TextServiceReturn ComposeText(std::string &&);
 
 private:
@@ -21,10 +22,11 @@ private:
   nu::RemObj<UserMentionService> _user_mention_service_obj;
 };
 
-TextService::TextService() {
-  _url_shorten_service_obj = nu::RemObj<UrlShortenService>::create_pinned();
-  _user_mention_service_obj = nu::RemObj<UserMentionService>::create_pinned();
-}
+TextService::TextService(
+    nu::RemObj<UrlShortenService>::Cap url_shorten_service_cap,
+    nu::RemObj<UserMentionService>::Cap user_mention_service_cap)
+    : _url_shorten_service_obj(url_shorten_service_cap),
+      _user_mention_service_obj(user_mention_service_cap) {}
 
 TextServiceReturn TextService::ComposeText(std::string &&text) {
   std::vector<std::string> mention_usernames;

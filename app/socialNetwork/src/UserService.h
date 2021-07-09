@@ -117,13 +117,20 @@ struct UserProfile {
   std::string last_name;
   std::string salt;
   std::string password_hashed;
+
+  template <class Archive> void serialize(Archive &ar) {
+    ar(user_id, first_name, last_name, salt, password_hashed);
+  }
 };
 
 enum LoginErrorCode { OK, NOT_REGISTERED, WRONG_PASSWORD };
 
 class UserService {
 public:
-  UserService();
+  constexpr static uint32_t kDefaultHashTablePowerNumShards = 9;
+  using UserProfileMap = nu::DistributedHashTable<std::string, UserProfile>;
+
+  UserService(UserProfileMap::Cap &&cap);
   void RegisterUser(std::string &&, std::string &&, std::string &&,
                     std::string &&);
   void RegisterUserWithId(std::string &&, std::string &&, std::string &&,
@@ -137,12 +144,12 @@ public:
 private:
   std::string _machine_id;
   std::string _secret;
-  // TODO: replace it with DistributedHashTable.
-  std::map<std::string, UserProfile> _username_to_userprofile_map;
+  UserProfileMap _username_to_userprofile_map;
   nu::Mutex _mutex;
 };
 
-UserService::UserService() {
+UserService::UserService(UserProfileMap::Cap &&cap)
+    : _username_to_userprofile_map(std::move(cap)) {
   json config_json;
   if (load_config_file("config/service-config.json", &config_json) != 0) {
     exit(EXIT_FAILURE);
@@ -166,7 +173,7 @@ void UserService::RegisterUserWithId(std::string &&first_name,
   user_profile.salt = GenRandomString(32);
   user_profile.password_hashed =
       picosha2::hash256_hex_string(password + user_profile.salt);
-  _username_to_userprofile_map[username] = user_profile;
+  _username_to_userprofile_map.put(username, user_profile);
 }
 
 void UserService::RegisterUser(std::string &&first_name,
@@ -209,8 +216,10 @@ void UserService::RegisterUser(std::string &&first_name,
 }
 
 Creator UserService::ComposeCreatorWithUsername(std::string &&username) {
-  auto user_id = _username_to_userprofile_map[username].user_id;
-  return ComposeCreatorWithUserId(user_id, std::move(username));
+  auto user_id_optional = _username_to_userprofile_map.get(username);
+  BUG_ON(!user_id_optional);
+  return ComposeCreatorWithUserId(user_id_optional->user_id,
+                                  std::move(username));
 }
 
 Creator UserService::ComposeCreatorWithUserId(int64_t user_id,
@@ -223,11 +232,11 @@ Creator UserService::ComposeCreatorWithUserId(int64_t user_id,
 
 std::variant<LoginErrorCode, std::string>
 UserService::Login(std::string &&username, std::string &&password) {
-  auto user_profile_iter = _username_to_userprofile_map.find(username);
-  if (user_profile_iter == _username_to_userprofile_map.end()) {
+  auto user_profile_optional = _username_to_userprofile_map.get(username);
+  if (!user_profile_optional) {
     return NOT_REGISTERED;
   }
-  auto &user_profile = user_profile_iter->second;
+  auto &user_profile = *user_profile_optional;
   bool auth = (picosha2::hash256_hex_string(password + user_profile.salt) ==
                user_profile.password_hashed);
   if (!auth) {
@@ -245,7 +254,9 @@ UserService::Login(std::string &&username, std::string &&password) {
 }
 
 int64_t UserService::GetUserId(std::string &&username) {
-  return _username_to_userprofile_map[username].user_id;
+  auto user_id_optional = _username_to_userprofile_map.get(username);
+  BUG_ON(!user_id_optional);
+  return user_id_optional->user_id;
 }
 
 } // namespace social_network

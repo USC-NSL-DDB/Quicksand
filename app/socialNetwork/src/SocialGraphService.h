@@ -1,15 +1,17 @@
 #pragma once
 
 #include <algorithm>
+#include <cereal/types/set.hpp>
 #include <chrono>
 #include <future>
 #include <iostream>
 #include <iterator>
 #include <map>
+#include <nu/dis_hash_table.hpp>
+#include <nu/rem_obj.hpp>
 #include <set>
 #include <string>
 #include <thread>
-#include <nu/rem_obj.hpp>
 
 #include "UserService.h"
 
@@ -21,6 +23,8 @@ using std::chrono::system_clock;
 
 class SocialGraphService {
 public:
+  constexpr static uint32_t kDefaultHashTablePowerNumShards = 9;
+
   SocialGraphService(nu::RemObj<UserService>::Cap);
   std::vector<int64_t> GetFollowers(int64_t);
   std::vector<int64_t> GetFollowees(int64_t);
@@ -31,27 +35,55 @@ public:
 
 private:
   nu::RemObj<UserService> _user_service_obj;
-  // TODO: replace it with DistributedHashTable.
-  std::map<int64_t, std::set<int64_t>> _userid_to_followers_map;
-  std::map<int64_t, std::set<int64_t>> _userid_to_followees_map;
+  nu::DistributedHashTable<int64_t, std::set<int64_t>> _userid_to_followers_map;
+  nu::DistributedHashTable<int64_t, std::set<int64_t>> _userid_to_followees_map;
 };
 
 SocialGraphService::SocialGraphService(nu::RemObj<UserService>::Cap cap)
-    : _user_service_obj(cap) {}
+    : _user_service_obj(cap),
+      _userid_to_followers_map(kDefaultHashTablePowerNumShards),
+      _userid_to_followees_map(kDefaultHashTablePowerNumShards) {}
 
 void SocialGraphService::Follow(int64_t user_id, int64_t followee_id) {
-  _userid_to_followees_map[user_id].emplace(followee_id);
-  _userid_to_followers_map[followee_id].emplace(user_id);
+  // TODO: offloading.
+  auto followees_set_optional = _userid_to_followees_map.get(user_id);
+  auto followees_set = followees_set_optional
+                           ? std::move(*followees_set_optional)
+                           : std::set<int64_t>();
+  followees_set.emplace(followee_id);
+  _userid_to_followees_map.put(user_id, followees_set);
+
+  auto followers_set_optional = _userid_to_followers_map.get(followee_id);
+  auto followers_set = followers_set_optional
+                           ? std::move(*followers_set_optional)
+                           : std::set<int64_t>();
+  followers_set.emplace(user_id);
+  _userid_to_followers_map.put(followee_id, followers_set);
 }
 
 void SocialGraphService::Unfollow(int64_t user_id, int64_t followee_id) {
-  _userid_to_followees_map[user_id].erase(followee_id);
-  _userid_to_followers_map[followee_id].erase(user_id);
+  // TODO: offloading.
+  auto followees_set_optional = _userid_to_followees_map.get(user_id);
+  auto followees_set = followees_set_optional
+                           ? std::move(*followees_set_optional)
+                           : std::set<int64_t>();
+  BUG_ON(!followees_set.erase(followee_id));
+  _userid_to_followees_map.put(user_id, followees_set);
+
+  auto followers_set_optional = _userid_to_followers_map.get(followee_id);
+  auto followers_set = followers_set_optional
+                           ? std::move(*followers_set_optional)
+                           : std::set<int64_t>();
+  BUG_ON(!followers_set.erase(user_id));
+  _userid_to_followers_map.put(followee_id, followers_set);
 }
 
 std::vector<int64_t> SocialGraphService::GetFollowers(int64_t user_id) {
   std::vector<int64_t> followers_vec;
-  auto &followers_set = _userid_to_followers_map[user_id];
+  auto followers_set_optional = _userid_to_followers_map.get(user_id);
+  auto followers_set = followers_set_optional
+                           ? std::move(*followers_set_optional)
+                           : std::set<int64_t>();
   std::copy(followers_set.begin(), followers_set.end(),
             std::back_inserter(followers_vec));
   return followers_vec;
@@ -59,7 +91,10 @@ std::vector<int64_t> SocialGraphService::GetFollowers(int64_t user_id) {
 
 std::vector<int64_t> SocialGraphService::GetFollowees(int64_t user_id) {
   std::vector<int64_t> followees_vec;
-  auto &followees_set = _userid_to_followees_map[user_id];
+  auto followees_set_optional = _userid_to_followees_map.get(user_id);
+  auto followees_set = followees_set_optional
+                           ? std::move(*followees_set_optional)
+                           : std::set<int64_t>();
   std::copy(followees_set.begin(), followees_set.end(),
             std::back_inserter(followees_vec));
   return followees_vec;
@@ -91,4 +126,4 @@ void SocialGraphService::UnfollowWithUsername(std::string &&user_name,
   }
 }
 
-}  // namespace social_network
+} // namespace social_network

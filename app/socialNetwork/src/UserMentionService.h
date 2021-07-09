@@ -4,18 +4,23 @@
 #include <string>
 
 #include "../gen-cpp/social_network_types.h"
+#include "UserService.h"
 
 namespace social_network {
 
 class UserMentionService {
 public:
+  constexpr static uint32_t kDefaultHashTablePowerNumShards = 9;
+
+  UserMentionService(UserService::UserProfileMap::Cap &&cap);
   std::vector<UserMention> ComposeUserMentions(std::vector<std::string> &&);
 
 private:
-  // TODO: use DistributedHashTable.
-  // TODO: should connect with UserService's hashtable.
-  std::map<std::string, int64_t> _username_to_userid_map;
+  UserService::UserProfileMap _username_to_userid_map;
 };
+
+UserMentionService::UserMentionService(UserService::UserProfileMap::Cap &&cap)
+    : _username_to_userid_map(std::move(cap)) {}
 
 std::vector<UserMention>
 UserMentionService::ComposeUserMentions(std::vector<std::string> &&usernames) {
@@ -24,7 +29,9 @@ UserMentionService::ComposeUserMentions(std::vector<std::string> &&usernames) {
   for (auto &username : usernames) {
     UserMention user_mention;
     user_mention.username = username;
-    user_mention.user_id = _username_to_userid_map[username];
+    auto user_id_optional = _username_to_userid_map.get(username);
+    BUG_ON(!user_id_optional);
+    user_mention.user_id = user_id_optional->user_id;
     user_mentions.push_back(user_mention);
   }
   return user_mentions;

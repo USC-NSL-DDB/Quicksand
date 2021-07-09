@@ -40,62 +40,73 @@ using std::chrono::milliseconds;
 using std::chrono::system_clock;
 
 class BackEndHandler : public BackEndServiceIf {
- public:
-   BackEndHandler();
-   ~BackEndHandler() override = default;
+public:
+  BackEndHandler();
+  ~BackEndHandler() override = default;
 
-   void ComposePost(const std::string &username, int64_t user_id,
-                    const std::string &text,
-                    const std::vector<int64_t> &media_ids,
-                    const std::vector<std::string> &media_types,
-                    PostType::type post_type) override;
-   void ReadUserTimeline(std::vector<Post> &, int64_t, int, int) override;
-   void Login(std::string &_return, const std::string &username,
-              const std::string &password) override;
-   void RegisterUser(const std::string &first_name,
-                     const std::string &last_name, const std::string &username,
-                     const std::string &password) override;
-   void RegisterUserWithId(const std::string &first_name,
-                           const std::string &last_name,
-                           const std::string &username,
-                           const std::string &password,
-                           const int64_t user_id) override;
-   void GetFollowers(std::vector<int64_t> &_return,
-                     const int64_t user_id) override;
-   void Unfollow(const int64_t user_id, const int64_t followee_id) override;
-   void UnfollowWithUsername(const std::string &user_usernmae,
-                             const std::string &followee_username) override;
-   void Follow(const int64_t user_id, const int64_t followee_id) override;
-   void FollowWithUsername(const std::string &user_usernmae,
-                           const std::string &followee_username) override;
-   void GetFollowees(std::vector<int64_t> &_return,
-                     const int64_t user_id) override;
-   void ReadHomeTimeline(std::vector<Post> &_return, const int64_t user_id,
-                         const int32_t start, const int32_t stop) override;
+  void ComposePost(const std::string &username, int64_t user_id,
+                   const std::string &text,
+                   const std::vector<int64_t> &media_ids,
+                   const std::vector<std::string> &media_types,
+                   PostType::type post_type) override;
+  void ReadUserTimeline(std::vector<Post> &, int64_t, int, int) override;
+  void Login(std::string &_return, const std::string &username,
+             const std::string &password) override;
+  void RegisterUser(const std::string &first_name, const std::string &last_name,
+                    const std::string &username,
+                    const std::string &password) override;
+  void RegisterUserWithId(const std::string &first_name,
+                          const std::string &last_name,
+                          const std::string &username,
+                          const std::string &password,
+                          const int64_t user_id) override;
+  void GetFollowers(std::vector<int64_t> &_return,
+                    const int64_t user_id) override;
+  void Unfollow(const int64_t user_id, const int64_t followee_id) override;
+  void UnfollowWithUsername(const std::string &user_usernmae,
+                            const std::string &followee_username) override;
+  void Follow(const int64_t user_id, const int64_t followee_id) override;
+  void FollowWithUsername(const std::string &user_usernmae,
+                          const std::string &followee_username) override;
+  void GetFollowees(std::vector<int64_t> &_return,
+                    const int64_t user_id) override;
+  void ReadHomeTimeline(std::vector<Post> &_return, const int64_t user_id,
+                        const int32_t start, const int32_t stop) override;
 
- private:
-   nu::RemObj<TextService> _text_service_obj;
-   nu::RemObj<UniqueIdService> _unique_id_service_obj;
-   nu::RemObj<MediaService> _media_service_obj;
-   nu::RemObj<PostStorageService> _post_storage_service_obj;
-   nu::RemObj<UserTimelineService> _user_timeline_service_obj;
-   nu::RemObj<UserService> _user_service_obj;
-   nu::RemObj<SocialGraphService> _social_graph_service_obj;
-   nu::RemObj<HomeTimelineService> _home_timeline_service_obj;
+private:
+  UserService::UserProfileMap _username_to_userprofile_map;
+
+  nu::RemObj<UniqueIdService> _unique_id_service_obj;
+  nu::RemObj<MediaService> _media_service_obj;
+  nu::RemObj<PostStorageService> _post_storage_service_obj;
+  nu::RemObj<UserTimelineService> _user_timeline_service_obj;
+  nu::RemObj<UserService> _user_service_obj;
+  nu::RemObj<SocialGraphService> _social_graph_service_obj;
+  nu::RemObj<HomeTimelineService> _home_timeline_service_obj;
+  nu::RemObj<UrlShortenService> _url_shorten_service_obj;
+  nu::RemObj<UserMentionService> _user_mention_service_obj;
+  nu::RemObj<TextService> _text_service_obj;
 };
 
-BackEndHandler::BackEndHandler() {
-  _text_service_obj = nu::RemObj<TextService>::create();
+BackEndHandler::BackEndHandler()
+    : _username_to_userprofile_map(
+          UserService::kDefaultHashTablePowerNumShards) {
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create();
   _media_service_obj = nu::RemObj<MediaService>::create();
   _post_storage_service_obj = nu::RemObj<PostStorageService>::create();
   _user_timeline_service_obj = nu::RemObj<UserTimelineService>::create(
       _post_storage_service_obj.get_cap());
-  _user_service_obj = nu::RemObj<UserService>::create();
+  _user_service_obj =
+      nu::RemObj<UserService>::create(_username_to_userprofile_map.get_cap());
   _social_graph_service_obj =
       nu::RemObj<SocialGraphService>::create(_user_service_obj.get_cap());
   _home_timeline_service_obj = nu::RemObj<HomeTimelineService>::create(
       _post_storage_service_obj.get_cap(), _social_graph_service_obj.get_cap());
+  _url_shorten_service_obj = nu::RemObj<UrlShortenService>::create();
+  _user_mention_service_obj = nu::RemObj<UserMentionService>::create(
+      _username_to_userprofile_map.get_cap());
+  _text_service_obj = nu::RemObj<TextService>::create(
+      _url_shorten_service_obj.get_cap(), _user_mention_service_obj.get_cap());
 }
 
 void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
