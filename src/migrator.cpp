@@ -13,7 +13,7 @@ extern "C" {
 
 #include "nu/cond_var.hpp"
 #include "nu/ctrl_client.hpp"
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/migrator.hpp"
 #include "nu/mutex.hpp"

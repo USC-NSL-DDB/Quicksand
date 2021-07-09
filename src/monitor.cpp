@@ -6,7 +6,7 @@ extern "C" {
 }
 #include <thread.h>
 
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 #include "nu/migrator.hpp"
 #include "nu/monitor.hpp"
 #include "nu/runtime.hpp"

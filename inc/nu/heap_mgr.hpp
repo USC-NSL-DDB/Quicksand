@@ -12,7 +12,7 @@ extern "C" {
 }
 #include <sync.h>
 
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 #include "nu/utils/rcu_hash_set.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/refcount_hash_set.hpp"

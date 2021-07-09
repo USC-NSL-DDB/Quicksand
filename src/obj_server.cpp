@@ -13,7 +13,7 @@ extern "C" {
 }
 #include <thread.h>
 
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/obj_server.hpp"
 #include "nu/runtime.hpp"

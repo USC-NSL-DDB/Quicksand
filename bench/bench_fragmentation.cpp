@@ -71,7 +71,8 @@ namespace nu {
 // A hack for reading DistributedHashTable's private members.
 struct Test {
   constexpr static size_t kTotalNumBuckets =
-      DSHashTable::kNumShards * DSHashTable::kNumBucketsPerShard;
+      (1 << DSHashTable::kDefaultPowerNumShards) *
+      DSHashTable::kNumBucketsPerShard;
   constexpr static size_t kNumPairs = kTotalNumBuckets * kLoadFactor;
 
   Test() {}

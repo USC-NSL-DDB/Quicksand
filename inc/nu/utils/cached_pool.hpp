@@ -5,7 +5,7 @@
 
 #include <sync.h>
 
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 
 namespace nu {
 template <typename T, typename Allocator = std::allocator<T>> class CachedPool {

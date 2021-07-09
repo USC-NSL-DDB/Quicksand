@@ -18,7 +18,7 @@ extern "C" {
 #include <sync.h>
 #include <thread.h>
 
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 
 using namespace nu;
 using namespace std;

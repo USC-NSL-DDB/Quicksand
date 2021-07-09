@@ -1,11 +1,5 @@
 namespace nu {
 
-inline uint64_t bsr_64(uint64_t a) {
-  uint64_t ret;
-  asm("bsr %q1, %q0" : "=r"(ret) : "m"(a));
-  return ret;
-}
-  
 inline SlabAllocator::SlabAllocator() noexcept {}
 
 inline SlabAllocator::SlabAllocator(uint16_t sentinel, void *buf,

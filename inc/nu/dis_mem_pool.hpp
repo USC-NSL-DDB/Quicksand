@@ -15,7 +15,7 @@ extern "C" {
 #include <sync.h>
 #include <thread.h>
 
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/utils/future.hpp"
 

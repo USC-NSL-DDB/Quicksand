@@ -2,6 +2,8 @@
 #include <cereal/types/utility.hpp>
 #include <limits>
 
+#include "nu/commons.hpp"
+
 namespace nu {
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
@@ -14,23 +16,41 @@ template <typename K, typename V, typename Hash, typename KeyEqual>
 DistributedHashTable<K, V, Hash, KeyEqual> &
 DistributedHashTable<K, V, Hash, KeyEqual>::operator=(
     DistributedHashTable &&o) {
-  for (uint32_t i = 0; i < kNumShards; i++) {
+  power_num_shards_ = o.power_num_shards_;
+  num_shards_ = o.num_shards_;
+  shards_ = std::make_unique<RemObj<HashTableShard>[]>(num_shards_);
+  for (uint32_t i = 0; i < num_shards_; i++) {
     shards_[i] = std::move(o.shards_[i]);
   }
   return *this;
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
-DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(
-    const Cap &cap) {
-  for (uint32_t i = 0; i < kNumShards; i++) {
-    shards_[i] = std::move(RemObj<HashTableShard>(cap.shard_caps[i]));
+DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(const Cap &cap)
+    : power_num_shards_(bsr_64(cap.shard_caps.size())),
+      num_shards_(cap.shard_caps.size()) {
+  shards_ = std::make_unique<RemObj<HashTableShard>[]>(num_shards_);
+  for (uint32_t i = 0; i < num_shards_; i++) {
+    std::construct_at(&shards_[i], cap.shard_caps[i]);
   }
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
-DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(bool pinned) {
-  for (uint32_t i = 0; i < kNumShards; i++) {
+DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(Cap &&cap)
+    : power_num_shards_(bsr_64(cap.shard_caps.size())),
+      num_shards_(cap.shard_caps.size()) {
+  shards_ = std::make_unique<RemObj<HashTableShard>[]>(num_shards_);
+  for (uint32_t i = 0; i < num_shards_; i++) {
+    std::construct_at(&shards_[i], cap.shard_caps[i]);
+  }
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
+DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(
+    uint32_t power_num_shards, bool pinned)
+    : power_num_shards_(power_num_shards), num_shards_(1 << power_num_shards_) {
+  shards_ = std::make_unique<RemObj<HashTableShard>[]>(num_shards_);
+  for (uint32_t i = 0; i < num_shards_; i++) {
     if (pinned) {
       shards_[i] = std::move(RemObj<HashTableShard>::create_pinned());
     } else {
@@ -40,9 +60,11 @@ DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(bool pinned) {
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
-DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(netaddr addr,
-                                                                 bool pinned) {
-  for (uint32_t i = 0; i < kNumShards; i++) {
+DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(
+    netaddr addr, uint32_t power_num_shards, bool pinned)
+    : power_num_shards_(power_num_shards), num_shards_(1 << power_num_shards_) {
+  shards_ = std::make_unique<RemObj<HashTableShard>[]>(num_shards_);
+  for (uint32_t i = 0; i < num_shards_; i++) {
     if (pinned) {
       shards_[i] = std::move(RemObj<HashTableShard>::create_pinned_at(addr));
     } else {
@@ -54,7 +76,7 @@ DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(netaddr addr,
 template <typename K, typename V, typename Hash, typename KeyEqual>
 uint32_t
 DistributedHashTable<K, V, Hash, KeyEqual>::get_shard_idx(uint64_t key_hash) {
-  return key_hash / (std::numeric_limits<uint64_t>::max() / kNumShards);
+  return key_hash / (std::numeric_limits<uint64_t>::max() >> power_num_shards_);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
@@ -130,8 +152,8 @@ template <typename K, typename V, typename Hash, typename KeyEqual>
 DistributedHashTable<K, V, Hash, KeyEqual>::Cap
 DistributedHashTable<K, V, Hash, KeyEqual>::get_cap() const {
   Cap cap;
-  for (uint32_t i = 0; i < kNumShards; i++) {
-    cap.shard_caps[i] = shards_[i].get_cap();
+  for (uint32_t i = 0; i < num_shards_; i++) {
+    cap.shard_caps.push_back(shards_[i].get_cap());
   }
   return cap;
 }

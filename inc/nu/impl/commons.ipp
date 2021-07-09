@@ -4,6 +4,12 @@ extern "C" {
 
 namespace nu {
 
+inline uint64_t bsr_64(uint64_t a) {
+  uint64_t ret;
+  asm("bsr %q1, %q0" : "=r"(ret) : "m"(a));
+  return ret;
+}
+
 inline void *to_heap_base(RemObjID id) { return reinterpret_cast<void *>(id); }
 
 inline RemObjID to_obj_id(void *heap_base) {

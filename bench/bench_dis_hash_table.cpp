@@ -70,7 +70,8 @@ public:
   using DSHashTable =
       DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
   constexpr static size_t kNumPairs =
-      DSHashTable::kNumShards * DSHashTable::kNumBucketsPerShard * kLoadFactor;
+      (1 << DSHashTable::kDefaultPowerNumShards) *
+      DSHashTable::kNumBucketsPerShard * kLoadFactor;
 
   Test(uint32_t pressure_mem_mbs) : pressure_mem_mbs_(pressure_mem_mbs) {}
 

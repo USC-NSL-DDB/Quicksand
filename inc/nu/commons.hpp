@@ -46,6 +46,7 @@ constexpr static uint64_t kRuntimeHeapSize = 48ULL << 30;
 
 constexpr static uint64_t kOneMB = 1ULL << 20;
 
+uint64_t bsr_64(uint64_t a);
 void *to_heap_base(RemObjID id);
 RemObjID to_obj_id(void *heap_base);
 void *switch_to_obj_stack(void *stack);
@@ -54,4 +55,4 @@ VAddrRange get_obj_stack_range(thread_t *thread);
 
 } // namespace nu
 
-#include "nu/impl/defs.ipp"
+#include "nu/impl/commons.ipp"

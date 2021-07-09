@@ -8,7 +8,7 @@
 #include <sync.h>
 #include <thread.h>
 
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 
 namespace nu {
 

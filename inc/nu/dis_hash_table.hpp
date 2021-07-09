@@ -1,6 +1,9 @@
 #pragma once
 
+#include <cereal/types/vector.hpp>
+#include <memory>
 #include <utility>
+#include <vector>
 
 extern "C" {
 #include <runtime/net.h>
@@ -18,25 +21,29 @@ template <typename K, typename V, typename Hash = std::hash<K>,
           typename KeyEqual = std::equal_to<K>>
 class DistributedHashTable {
 public:
-  constexpr static uint32_t kNumShards = 8192;
+  constexpr static uint32_t kDefaultPowerNumShards = 13;
   constexpr static uint32_t kNumBucketsPerShard = 65536;
 
   using HashTableShard =
       SyncHashMap<kNumBucketsPerShard, K, V, Hash, std::equal_to<K>,
                   std::allocator<std::pair<const K, V>>, SpinLock>;
   struct Cap {
-    RemObj<HashTableShard>::Cap shard_caps[kNumShards];
+    std::vector<typename RemObj<HashTableShard>::Cap> shard_caps;
 
     template <class Archive> void serialize(Archive &ar) { ar(shard_caps); }
   };
 
   DistributedHashTable(const Cap &cap);
+  DistributedHashTable(Cap &&cap);
   DistributedHashTable(const DistributedHashTable &) = delete;
   DistributedHashTable &operator=(const DistributedHashTable &) = delete;
   DistributedHashTable(DistributedHashTable &&);
   DistributedHashTable &operator=(DistributedHashTable &&);
-  DistributedHashTable(bool pinned = false);
-  DistributedHashTable(netaddr addr, bool pinned = false);
+  DistributedHashTable(uint32_t power_num_shards = kDefaultPowerNumShards,
+                       bool pinned = false);
+  DistributedHashTable(netaddr addr,
+                       uint32_t power_num_shards = kDefaultPowerNumShards,
+                       bool pinned = false);
   template <typename K1> std::optional<V> get(K1 &&k);
   template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
   template <typename K1> bool remove(K1 &&k);
@@ -54,7 +61,9 @@ private:
 
   uint32_t get_shard_idx(uint64_t key_hash);
 
-  RemObj<HashTableShard> shards_[kNumShards];
+  uint32_t power_num_shards_;
+  uint32_t num_shards_;
+  std::unique_ptr<RemObj<HashTableShard>[]> shards_;
 };
 
 } // namespace nu

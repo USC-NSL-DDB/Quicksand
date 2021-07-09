@@ -9,7 +9,7 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/conn_mgr.hpp"
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 #include "nu/runtime_alloc.hpp"
 #include "nu/utils/netaddr.hpp"
 #include "nu/utils/rcu_hash_map.hpp"

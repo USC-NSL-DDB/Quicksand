@@ -15,7 +15,7 @@ extern "C" {
 #include <net.h>
 #include <sync.h>
 
-#include "nu/defs.hpp"
+#include "nu/commons.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/utils/netaddr.hpp"
 
