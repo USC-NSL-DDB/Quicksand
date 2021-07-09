@@ -35,14 +35,6 @@ uint32_t BackEndService_ComposePost_args::read(::apache::thrift::protocol::TProt
     switch (fid)
     {
       case 1:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->username);
           this->__isset.username = true;
@@ -50,7 +42,7 @@ uint32_t BackEndService_ComposePost_args::read(::apache::thrift::protocol::TProt
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->user_id);
           this->__isset.user_id = true;
@@ -58,7 +50,7 @@ uint32_t BackEndService_ComposePost_args::read(::apache::thrift::protocol::TProt
           xfer += iprot->skip(ftype);
         }
         break;
-      case 4:
+      case 3:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->text);
           this->__isset.text = true;
@@ -66,18 +58,18 @@ uint32_t BackEndService_ComposePost_args::read(::apache::thrift::protocol::TProt
           xfer += iprot->skip(ftype);
         }
         break;
-      case 5:
+      case 4:
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->media_ids.clear();
-            uint32_t _size49;
-            ::apache::thrift::protocol::TType _etype52;
-            xfer += iprot->readListBegin(_etype52, _size49);
-            this->media_ids.resize(_size49);
-            uint32_t _i53;
-            for (_i53 = 0; _i53 < _size49; ++_i53)
+            uint32_t _size48;
+            ::apache::thrift::protocol::TType _etype51;
+            xfer += iprot->readListBegin(_etype51, _size48);
+            this->media_ids.resize(_size48);
+            uint32_t _i52;
+            for (_i52 = 0; _i52 < _size48; ++_i52)
             {
-              xfer += iprot->readI64(this->media_ids[_i53]);
+              xfer += iprot->readI64(this->media_ids[_i52]);
             }
             xfer += iprot->readListEnd();
           }
@@ -86,18 +78,18 @@ uint32_t BackEndService_ComposePost_args::read(::apache::thrift::protocol::TProt
           xfer += iprot->skip(ftype);
         }
         break;
-      case 6:
+      case 5:
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->media_types.clear();
-            uint32_t _size54;
-            ::apache::thrift::protocol::TType _etype57;
-            xfer += iprot->readListBegin(_etype57, _size54);
-            this->media_types.resize(_size54);
-            uint32_t _i58;
-            for (_i58 = 0; _i58 < _size54; ++_i58)
+            uint32_t _size53;
+            ::apache::thrift::protocol::TType _etype56;
+            xfer += iprot->readListBegin(_etype56, _size53);
+            this->media_types.resize(_size53);
+            uint32_t _i57;
+            for (_i57 = 0; _i57 < _size53; ++_i57)
             {
-              xfer += iprot->readString(this->media_types[_i58]);
+              xfer += iprot->readString(this->media_types[_i57]);
             }
             xfer += iprot->readListEnd();
           }
@@ -106,11 +98,11 @@ uint32_t BackEndService_ComposePost_args::read(::apache::thrift::protocol::TProt
           xfer += iprot->skip(ftype);
         }
         break;
-      case 7:
+      case 6:
         if (ftype == ::apache::thrift::protocol::T_I32) {
-          int32_t ecast59;
-          xfer += iprot->readI32(ecast59);
-          this->post_type = (PostType::type)ecast59;
+          int32_t ecast58;
+          xfer += iprot->readI32(ecast58);
+          this->post_type = (PostType::type)ecast58;
           this->__isset.post_type = true;
         } else {
           xfer += iprot->skip(ftype);
@@ -133,47 +125,43 @@ uint32_t BackEndService_ComposePost_args::write(::apache::thrift::protocol::TPro
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_ComposePost_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString(this->username);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 3);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
   xfer += oprot->writeI64(this->user_id);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("text", ::apache::thrift::protocol::T_STRING, 4);
+  xfer += oprot->writeFieldBegin("text", ::apache::thrift::protocol::T_STRING, 3);
   xfer += oprot->writeString(this->text);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("media_ids", ::apache::thrift::protocol::T_LIST, 5);
+  xfer += oprot->writeFieldBegin("media_ids", ::apache::thrift::protocol::T_LIST, 4);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_I64, static_cast<uint32_t>(this->media_ids.size()));
-    std::vector<int64_t> ::const_iterator _iter60;
-    for (_iter60 = this->media_ids.begin(); _iter60 != this->media_ids.end(); ++_iter60)
+    std::vector<int64_t> ::const_iterator _iter59;
+    for (_iter59 = this->media_ids.begin(); _iter59 != this->media_ids.end(); ++_iter59)
     {
-      xfer += oprot->writeI64((*_iter60));
+      xfer += oprot->writeI64((*_iter59));
     }
     xfer += oprot->writeListEnd();
   }
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("media_types", ::apache::thrift::protocol::T_LIST, 6);
+  xfer += oprot->writeFieldBegin("media_types", ::apache::thrift::protocol::T_LIST, 5);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRING, static_cast<uint32_t>(this->media_types.size()));
-    std::vector<std::string> ::const_iterator _iter61;
-    for (_iter61 = this->media_types.begin(); _iter61 != this->media_types.end(); ++_iter61)
+    std::vector<std::string> ::const_iterator _iter60;
+    for (_iter60 = this->media_types.begin(); _iter60 != this->media_types.end(); ++_iter60)
     {
-      xfer += oprot->writeString((*_iter61));
+      xfer += oprot->writeString((*_iter60));
     }
     xfer += oprot->writeListEnd();
   }
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("post_type", ::apache::thrift::protocol::T_I32, 7);
+  xfer += oprot->writeFieldBegin("post_type", ::apache::thrift::protocol::T_I32, 6);
   xfer += oprot->writeI32((int32_t)this->post_type);
   xfer += oprot->writeFieldEnd();
 
@@ -192,47 +180,43 @@ uint32_t BackEndService_ComposePost_pargs::write(::apache::thrift::protocol::TPr
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_ComposePost_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString((*(this->username)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 3);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
   xfer += oprot->writeI64((*(this->user_id)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("text", ::apache::thrift::protocol::T_STRING, 4);
+  xfer += oprot->writeFieldBegin("text", ::apache::thrift::protocol::T_STRING, 3);
   xfer += oprot->writeString((*(this->text)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("media_ids", ::apache::thrift::protocol::T_LIST, 5);
+  xfer += oprot->writeFieldBegin("media_ids", ::apache::thrift::protocol::T_LIST, 4);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_I64, static_cast<uint32_t>((*(this->media_ids)).size()));
-    std::vector<int64_t> ::const_iterator _iter62;
-    for (_iter62 = (*(this->media_ids)).begin(); _iter62 != (*(this->media_ids)).end(); ++_iter62)
+    std::vector<int64_t> ::const_iterator _iter61;
+    for (_iter61 = (*(this->media_ids)).begin(); _iter61 != (*(this->media_ids)).end(); ++_iter61)
     {
-      xfer += oprot->writeI64((*_iter62));
+      xfer += oprot->writeI64((*_iter61));
     }
     xfer += oprot->writeListEnd();
   }
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("media_types", ::apache::thrift::protocol::T_LIST, 6);
+  xfer += oprot->writeFieldBegin("media_types", ::apache::thrift::protocol::T_LIST, 5);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRING, static_cast<uint32_t>((*(this->media_types)).size()));
-    std::vector<std::string> ::const_iterator _iter63;
-    for (_iter63 = (*(this->media_types)).begin(); _iter63 != (*(this->media_types)).end(); ++_iter63)
+    std::vector<std::string> ::const_iterator _iter62;
+    for (_iter62 = (*(this->media_types)).begin(); _iter62 != (*(this->media_types)).end(); ++_iter62)
     {
-      xfer += oprot->writeString((*_iter63));
+      xfer += oprot->writeString((*_iter62));
     }
     xfer += oprot->writeListEnd();
   }
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("post_type", ::apache::thrift::protocol::T_I32, 7);
+  xfer += oprot->writeFieldBegin("post_type", ::apache::thrift::protocol::T_I32, 6);
   xfer += oprot->writeI32((int32_t)(*(this->post_type)));
   xfer += oprot->writeFieldEnd();
 
@@ -350,715 +334,6 @@ uint32_t BackEndService_ComposePost_presult::read(::apache::thrift::protocol::TP
 }
 
 
-BackEndService_StorePost_args::~BackEndService_StorePost_args() throw() {
-}
-
-
-uint32_t BackEndService_StorePost_args::read(::apache::thrift::protocol::TProtocol* iprot) {
-
-  ::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
-  uint32_t xfer = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TType ftype;
-  int16_t fid;
-
-  xfer += iprot->readStructBegin(fname);
-
-  using ::apache::thrift::protocol::TProtocolException;
-
-
-  while (true)
-  {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == ::apache::thrift::protocol::T_STOP) {
-      break;
-    }
-    switch (fid)
-    {
-      case 1:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
-        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-          xfer += this->post.read(iprot);
-          this->__isset.post = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      default:
-        xfer += iprot->skip(ftype);
-        break;
-    }
-    xfer += iprot->readFieldEnd();
-  }
-
-  xfer += iprot->readStructEnd();
-
-  return xfer;
-}
-
-uint32_t BackEndService_StorePost_args::write(::apache::thrift::protocol::TProtocol* oprot) const {
-  uint32_t xfer = 0;
-  ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
-  xfer += oprot->writeStructBegin("BackEndService_StorePost_args");
-
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("post", ::apache::thrift::protocol::T_STRUCT, 2);
-  xfer += this->post.write(oprot);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldStop();
-  xfer += oprot->writeStructEnd();
-  return xfer;
-}
-
-
-BackEndService_StorePost_pargs::~BackEndService_StorePost_pargs() throw() {
-}
-
-
-uint32_t BackEndService_StorePost_pargs::write(::apache::thrift::protocol::TProtocol* oprot) const {
-  uint32_t xfer = 0;
-  ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
-  xfer += oprot->writeStructBegin("BackEndService_StorePost_pargs");
-
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("post", ::apache::thrift::protocol::T_STRUCT, 2);
-  xfer += (*(this->post)).write(oprot);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldStop();
-  xfer += oprot->writeStructEnd();
-  return xfer;
-}
-
-
-BackEndService_StorePost_result::~BackEndService_StorePost_result() throw() {
-}
-
-
-uint32_t BackEndService_StorePost_result::read(::apache::thrift::protocol::TProtocol* iprot) {
-
-  ::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
-  uint32_t xfer = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TType ftype;
-  int16_t fid;
-
-  xfer += iprot->readStructBegin(fname);
-
-  using ::apache::thrift::protocol::TProtocolException;
-
-
-  while (true)
-  {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == ::apache::thrift::protocol::T_STOP) {
-      break;
-    }
-    switch (fid)
-    {
-      case 1:
-        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-          xfer += this->se.read(iprot);
-          this->__isset.se = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      default:
-        xfer += iprot->skip(ftype);
-        break;
-    }
-    xfer += iprot->readFieldEnd();
-  }
-
-  xfer += iprot->readStructEnd();
-
-  return xfer;
-}
-
-uint32_t BackEndService_StorePost_result::write(::apache::thrift::protocol::TProtocol* oprot) const {
-
-  uint32_t xfer = 0;
-
-  xfer += oprot->writeStructBegin("BackEndService_StorePost_result");
-
-  if (this->__isset.se) {
-    xfer += oprot->writeFieldBegin("se", ::apache::thrift::protocol::T_STRUCT, 1);
-    xfer += this->se.write(oprot);
-    xfer += oprot->writeFieldEnd();
-  }
-  xfer += oprot->writeFieldStop();
-  xfer += oprot->writeStructEnd();
-  return xfer;
-}
-
-
-BackEndService_StorePost_presult::~BackEndService_StorePost_presult() throw() {
-}
-
-
-uint32_t BackEndService_StorePost_presult::read(::apache::thrift::protocol::TProtocol* iprot) {
-
-  ::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
-  uint32_t xfer = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TType ftype;
-  int16_t fid;
-
-  xfer += iprot->readStructBegin(fname);
-
-  using ::apache::thrift::protocol::TProtocolException;
-
-
-  while (true)
-  {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == ::apache::thrift::protocol::T_STOP) {
-      break;
-    }
-    switch (fid)
-    {
-      case 1:
-        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-          xfer += this->se.read(iprot);
-          this->__isset.se = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      default:
-        xfer += iprot->skip(ftype);
-        break;
-    }
-    xfer += iprot->readFieldEnd();
-  }
-
-  xfer += iprot->readStructEnd();
-
-  return xfer;
-}
-
-
-BackEndService_ReadPost_args::~BackEndService_ReadPost_args() throw() {
-}
-
-
-uint32_t BackEndService_ReadPost_args::read(::apache::thrift::protocol::TProtocol* iprot) {
-
-  ::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
-  uint32_t xfer = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TType ftype;
-  int16_t fid;
-
-  xfer += iprot->readStructBegin(fname);
-
-  using ::apache::thrift::protocol::TProtocolException;
-
-
-  while (true)
-  {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == ::apache::thrift::protocol::T_STOP) {
-      break;
-    }
-    switch (fid)
-    {
-      case 1:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->post_id);
-          this->__isset.post_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      default:
-        xfer += iprot->skip(ftype);
-        break;
-    }
-    xfer += iprot->readFieldEnd();
-  }
-
-  xfer += iprot->readStructEnd();
-
-  return xfer;
-}
-
-uint32_t BackEndService_ReadPost_args::write(::apache::thrift::protocol::TProtocol* oprot) const {
-  uint32_t xfer = 0;
-  ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
-  xfer += oprot->writeStructBegin("BackEndService_ReadPost_args");
-
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("post_id", ::apache::thrift::protocol::T_I64, 2);
-  xfer += oprot->writeI64(this->post_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldStop();
-  xfer += oprot->writeStructEnd();
-  return xfer;
-}
-
-
-BackEndService_ReadPost_pargs::~BackEndService_ReadPost_pargs() throw() {
-}
-
-
-uint32_t BackEndService_ReadPost_pargs::write(::apache::thrift::protocol::TProtocol* oprot) const {
-  uint32_t xfer = 0;
-  ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
-  xfer += oprot->writeStructBegin("BackEndService_ReadPost_pargs");
-
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("post_id", ::apache::thrift::protocol::T_I64, 2);
-  xfer += oprot->writeI64((*(this->post_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldStop();
-  xfer += oprot->writeStructEnd();
-  return xfer;
-}
-
-
-BackEndService_ReadPost_result::~BackEndService_ReadPost_result() throw() {
-}
-
-
-uint32_t BackEndService_ReadPost_result::read(::apache::thrift::protocol::TProtocol* iprot) {
-
-  ::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
-  uint32_t xfer = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TType ftype;
-  int16_t fid;
-
-  xfer += iprot->readStructBegin(fname);
-
-  using ::apache::thrift::protocol::TProtocolException;
-
-
-  while (true)
-  {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == ::apache::thrift::protocol::T_STOP) {
-      break;
-    }
-    switch (fid)
-    {
-      case 0:
-        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-          xfer += this->success.read(iprot);
-          this->__isset.success = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 1:
-        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-          xfer += this->se.read(iprot);
-          this->__isset.se = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      default:
-        xfer += iprot->skip(ftype);
-        break;
-    }
-    xfer += iprot->readFieldEnd();
-  }
-
-  xfer += iprot->readStructEnd();
-
-  return xfer;
-}
-
-uint32_t BackEndService_ReadPost_result::write(::apache::thrift::protocol::TProtocol* oprot) const {
-
-  uint32_t xfer = 0;
-
-  xfer += oprot->writeStructBegin("BackEndService_ReadPost_result");
-
-  if (this->__isset.success) {
-    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_STRUCT, 0);
-    xfer += this->success.write(oprot);
-    xfer += oprot->writeFieldEnd();
-  } else if (this->__isset.se) {
-    xfer += oprot->writeFieldBegin("se", ::apache::thrift::protocol::T_STRUCT, 1);
-    xfer += this->se.write(oprot);
-    xfer += oprot->writeFieldEnd();
-  }
-  xfer += oprot->writeFieldStop();
-  xfer += oprot->writeStructEnd();
-  return xfer;
-}
-
-
-BackEndService_ReadPost_presult::~BackEndService_ReadPost_presult() throw() {
-}
-
-
-uint32_t BackEndService_ReadPost_presult::read(::apache::thrift::protocol::TProtocol* iprot) {
-
-  ::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
-  uint32_t xfer = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TType ftype;
-  int16_t fid;
-
-  xfer += iprot->readStructBegin(fname);
-
-  using ::apache::thrift::protocol::TProtocolException;
-
-
-  while (true)
-  {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == ::apache::thrift::protocol::T_STOP) {
-      break;
-    }
-    switch (fid)
-    {
-      case 0:
-        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-          xfer += (*(this->success)).read(iprot);
-          this->__isset.success = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 1:
-        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-          xfer += this->se.read(iprot);
-          this->__isset.se = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      default:
-        xfer += iprot->skip(ftype);
-        break;
-    }
-    xfer += iprot->readFieldEnd();
-  }
-
-  xfer += iprot->readStructEnd();
-
-  return xfer;
-}
-
-
-BackEndService_ReadPosts_args::~BackEndService_ReadPosts_args() throw() {
-}
-
-
-uint32_t BackEndService_ReadPosts_args::read(::apache::thrift::protocol::TProtocol* iprot) {
-
-  ::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
-  uint32_t xfer = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TType ftype;
-  int16_t fid;
-
-  xfer += iprot->readStructBegin(fname);
-
-  using ::apache::thrift::protocol::TProtocolException;
-
-
-  while (true)
-  {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == ::apache::thrift::protocol::T_STOP) {
-      break;
-    }
-    switch (fid)
-    {
-      case 1:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
-        if (ftype == ::apache::thrift::protocol::T_LIST) {
-          {
-            this->post_ids.clear();
-            uint32_t _size64;
-            ::apache::thrift::protocol::TType _etype67;
-            xfer += iprot->readListBegin(_etype67, _size64);
-            this->post_ids.resize(_size64);
-            uint32_t _i68;
-            for (_i68 = 0; _i68 < _size64; ++_i68)
-            {
-              xfer += iprot->readI64(this->post_ids[_i68]);
-            }
-            xfer += iprot->readListEnd();
-          }
-          this->__isset.post_ids = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      default:
-        xfer += iprot->skip(ftype);
-        break;
-    }
-    xfer += iprot->readFieldEnd();
-  }
-
-  xfer += iprot->readStructEnd();
-
-  return xfer;
-}
-
-uint32_t BackEndService_ReadPosts_args::write(::apache::thrift::protocol::TProtocol* oprot) const {
-  uint32_t xfer = 0;
-  ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
-  xfer += oprot->writeStructBegin("BackEndService_ReadPosts_args");
-
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("post_ids", ::apache::thrift::protocol::T_LIST, 2);
-  {
-    xfer += oprot->writeListBegin(::apache::thrift::protocol::T_I64, static_cast<uint32_t>(this->post_ids.size()));
-    std::vector<int64_t> ::const_iterator _iter69;
-    for (_iter69 = this->post_ids.begin(); _iter69 != this->post_ids.end(); ++_iter69)
-    {
-      xfer += oprot->writeI64((*_iter69));
-    }
-    xfer += oprot->writeListEnd();
-  }
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldStop();
-  xfer += oprot->writeStructEnd();
-  return xfer;
-}
-
-
-BackEndService_ReadPosts_pargs::~BackEndService_ReadPosts_pargs() throw() {
-}
-
-
-uint32_t BackEndService_ReadPosts_pargs::write(::apache::thrift::protocol::TProtocol* oprot) const {
-  uint32_t xfer = 0;
-  ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
-  xfer += oprot->writeStructBegin("BackEndService_ReadPosts_pargs");
-
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("post_ids", ::apache::thrift::protocol::T_LIST, 2);
-  {
-    xfer += oprot->writeListBegin(::apache::thrift::protocol::T_I64, static_cast<uint32_t>((*(this->post_ids)).size()));
-    std::vector<int64_t> ::const_iterator _iter70;
-    for (_iter70 = (*(this->post_ids)).begin(); _iter70 != (*(this->post_ids)).end(); ++_iter70)
-    {
-      xfer += oprot->writeI64((*_iter70));
-    }
-    xfer += oprot->writeListEnd();
-  }
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldStop();
-  xfer += oprot->writeStructEnd();
-  return xfer;
-}
-
-
-BackEndService_ReadPosts_result::~BackEndService_ReadPosts_result() throw() {
-}
-
-
-uint32_t BackEndService_ReadPosts_result::read(::apache::thrift::protocol::TProtocol* iprot) {
-
-  ::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
-  uint32_t xfer = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TType ftype;
-  int16_t fid;
-
-  xfer += iprot->readStructBegin(fname);
-
-  using ::apache::thrift::protocol::TProtocolException;
-
-
-  while (true)
-  {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == ::apache::thrift::protocol::T_STOP) {
-      break;
-    }
-    switch (fid)
-    {
-      case 0:
-        if (ftype == ::apache::thrift::protocol::T_LIST) {
-          {
-            this->success.clear();
-            uint32_t _size71;
-            ::apache::thrift::protocol::TType _etype74;
-            xfer += iprot->readListBegin(_etype74, _size71);
-            this->success.resize(_size71);
-            uint32_t _i75;
-            for (_i75 = 0; _i75 < _size71; ++_i75)
-            {
-              xfer += this->success[_i75].read(iprot);
-            }
-            xfer += iprot->readListEnd();
-          }
-          this->__isset.success = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 1:
-        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-          xfer += this->se.read(iprot);
-          this->__isset.se = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      default:
-        xfer += iprot->skip(ftype);
-        break;
-    }
-    xfer += iprot->readFieldEnd();
-  }
-
-  xfer += iprot->readStructEnd();
-
-  return xfer;
-}
-
-uint32_t BackEndService_ReadPosts_result::write(::apache::thrift::protocol::TProtocol* oprot) const {
-
-  uint32_t xfer = 0;
-
-  xfer += oprot->writeStructBegin("BackEndService_ReadPosts_result");
-
-  if (this->__isset.success) {
-    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_LIST, 0);
-    {
-      xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(this->success.size()));
-      std::vector<Post> ::const_iterator _iter76;
-      for (_iter76 = this->success.begin(); _iter76 != this->success.end(); ++_iter76)
-      {
-        xfer += (*_iter76).write(oprot);
-      }
-      xfer += oprot->writeListEnd();
-    }
-    xfer += oprot->writeFieldEnd();
-  } else if (this->__isset.se) {
-    xfer += oprot->writeFieldBegin("se", ::apache::thrift::protocol::T_STRUCT, 1);
-    xfer += this->se.write(oprot);
-    xfer += oprot->writeFieldEnd();
-  }
-  xfer += oprot->writeFieldStop();
-  xfer += oprot->writeStructEnd();
-  return xfer;
-}
-
-
-BackEndService_ReadPosts_presult::~BackEndService_ReadPosts_presult() throw() {
-}
-
-
-uint32_t BackEndService_ReadPosts_presult::read(::apache::thrift::protocol::TProtocol* iprot) {
-
-  ::apache::thrift::protocol::TInputRecursionTracker tracker(*iprot);
-  uint32_t xfer = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TType ftype;
-  int16_t fid;
-
-  xfer += iprot->readStructBegin(fname);
-
-  using ::apache::thrift::protocol::TProtocolException;
-
-
-  while (true)
-  {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == ::apache::thrift::protocol::T_STOP) {
-      break;
-    }
-    switch (fid)
-    {
-      case 0:
-        if (ftype == ::apache::thrift::protocol::T_LIST) {
-          {
-            (*(this->success)).clear();
-            uint32_t _size77;
-            ::apache::thrift::protocol::TType _etype80;
-            xfer += iprot->readListBegin(_etype80, _size77);
-            (*(this->success)).resize(_size77);
-            uint32_t _i81;
-            for (_i81 = 0; _i81 < _size77; ++_i81)
-            {
-              xfer += (*(this->success))[_i81].read(iprot);
-            }
-            xfer += iprot->readListEnd();
-          }
-          this->__isset.success = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 1:
-        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-          xfer += this->se.read(iprot);
-          this->__isset.se = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      default:
-        xfer += iprot->skip(ftype);
-        break;
-    }
-    xfer += iprot->readFieldEnd();
-  }
-
-  xfer += iprot->readStructEnd();
-
-  return xfer;
-}
-
-
 BackEndService_ReadUserTimeline_args::~BackEndService_ReadUserTimeline_args() throw() {
 }
 
@@ -1086,21 +361,13 @@ uint32_t BackEndService_ReadUserTimeline_args::read(::apache::thrift::protocol::
     {
       case 1:
         if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->user_id);
           this->__isset.user_id = true;
         } else {
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_I32) {
           xfer += iprot->readI32(this->start);
           this->__isset.start = true;
@@ -1108,7 +375,7 @@ uint32_t BackEndService_ReadUserTimeline_args::read(::apache::thrift::protocol::
           xfer += iprot->skip(ftype);
         }
         break;
-      case 4:
+      case 3:
         if (ftype == ::apache::thrift::protocol::T_I32) {
           xfer += iprot->readI32(this->stop);
           this->__isset.stop = true;
@@ -1133,19 +400,15 @@ uint32_t BackEndService_ReadUserTimeline_args::write(::apache::thrift::protocol:
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_ReadUserTimeline_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64(this->user_id);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("start", ::apache::thrift::protocol::T_I32, 3);
+  xfer += oprot->writeFieldBegin("start", ::apache::thrift::protocol::T_I32, 2);
   xfer += oprot->writeI32(this->start);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("stop", ::apache::thrift::protocol::T_I32, 4);
+  xfer += oprot->writeFieldBegin("stop", ::apache::thrift::protocol::T_I32, 3);
   xfer += oprot->writeI32(this->stop);
   xfer += oprot->writeFieldEnd();
 
@@ -1164,19 +427,15 @@ uint32_t BackEndService_ReadUserTimeline_pargs::write(::apache::thrift::protocol
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_ReadUserTimeline_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64((*(this->user_id)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("start", ::apache::thrift::protocol::T_I32, 3);
+  xfer += oprot->writeFieldBegin("start", ::apache::thrift::protocol::T_I32, 2);
   xfer += oprot->writeI32((*(this->start)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("stop", ::apache::thrift::protocol::T_I32, 4);
+  xfer += oprot->writeFieldBegin("stop", ::apache::thrift::protocol::T_I32, 3);
   xfer += oprot->writeI32((*(this->stop)));
   xfer += oprot->writeFieldEnd();
 
@@ -1215,14 +474,14 @@ uint32_t BackEndService_ReadUserTimeline_result::read(::apache::thrift::protocol
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->success.clear();
-            uint32_t _size82;
-            ::apache::thrift::protocol::TType _etype85;
-            xfer += iprot->readListBegin(_etype85, _size82);
-            this->success.resize(_size82);
-            uint32_t _i86;
-            for (_i86 = 0; _i86 < _size82; ++_i86)
+            uint32_t _size63;
+            ::apache::thrift::protocol::TType _etype66;
+            xfer += iprot->readListBegin(_etype66, _size63);
+            this->success.resize(_size63);
+            uint32_t _i67;
+            for (_i67 = 0; _i67 < _size63; ++_i67)
             {
-              xfer += this->success[_i86].read(iprot);
+              xfer += this->success[_i67].read(iprot);
             }
             xfer += iprot->readListEnd();
           }
@@ -1261,10 +520,10 @@ uint32_t BackEndService_ReadUserTimeline_result::write(::apache::thrift::protoco
     xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_LIST, 0);
     {
       xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(this->success.size()));
-      std::vector<Post> ::const_iterator _iter87;
-      for (_iter87 = this->success.begin(); _iter87 != this->success.end(); ++_iter87)
+      std::vector<Post> ::const_iterator _iter68;
+      for (_iter68 = this->success.begin(); _iter68 != this->success.end(); ++_iter68)
       {
-        xfer += (*_iter87).write(oprot);
+        xfer += (*_iter68).write(oprot);
       }
       xfer += oprot->writeListEnd();
     }
@@ -1309,14 +568,14 @@ uint32_t BackEndService_ReadUserTimeline_presult::read(::apache::thrift::protoco
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             (*(this->success)).clear();
-            uint32_t _size88;
-            ::apache::thrift::protocol::TType _etype91;
-            xfer += iprot->readListBegin(_etype91, _size88);
-            (*(this->success)).resize(_size88);
-            uint32_t _i92;
-            for (_i92 = 0; _i92 < _size88; ++_i92)
+            uint32_t _size69;
+            ::apache::thrift::protocol::TType _etype72;
+            xfer += iprot->readListBegin(_etype72, _size69);
+            (*(this->success)).resize(_size69);
+            uint32_t _i73;
+            for (_i73 = 0; _i73 < _size69; ++_i73)
             {
-              xfer += (*(this->success))[_i92].read(iprot);
+              xfer += (*(this->success))[_i73].read(iprot);
             }
             xfer += iprot->readListEnd();
           }
@@ -1372,14 +631,6 @@ uint32_t BackEndService_Login_args::read(::apache::thrift::protocol::TProtocol* 
     switch (fid)
     {
       case 1:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->username);
           this->__isset.username = true;
@@ -1387,7 +638,7 @@ uint32_t BackEndService_Login_args::read(::apache::thrift::protocol::TProtocol* 
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->password);
           this->__isset.password = true;
@@ -1412,15 +663,11 @@ uint32_t BackEndService_Login_args::write(::apache::thrift::protocol::TProtocol*
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_Login_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString(this->username);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString(this->password);
   xfer += oprot->writeFieldEnd();
 
@@ -1439,15 +686,11 @@ uint32_t BackEndService_Login_pargs::write(::apache::thrift::protocol::TProtocol
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_Login_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString((*(this->username)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString((*(this->password)));
   xfer += oprot->writeFieldEnd();
 
@@ -1611,14 +854,6 @@ uint32_t BackEndService_RegisterUser_args::read(::apache::thrift::protocol::TPro
     switch (fid)
     {
       case 1:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->first_name);
           this->__isset.first_name = true;
@@ -1626,7 +861,7 @@ uint32_t BackEndService_RegisterUser_args::read(::apache::thrift::protocol::TPro
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->last_name);
           this->__isset.last_name = true;
@@ -1634,7 +869,7 @@ uint32_t BackEndService_RegisterUser_args::read(::apache::thrift::protocol::TPro
           xfer += iprot->skip(ftype);
         }
         break;
-      case 4:
+      case 3:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->username);
           this->__isset.username = true;
@@ -1642,7 +877,7 @@ uint32_t BackEndService_RegisterUser_args::read(::apache::thrift::protocol::TPro
           xfer += iprot->skip(ftype);
         }
         break;
-      case 5:
+      case 4:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->password);
           this->__isset.password = true;
@@ -1667,23 +902,19 @@ uint32_t BackEndService_RegisterUser_args::write(::apache::thrift::protocol::TPr
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_RegisterUser_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("first_name", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("first_name", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString(this->first_name);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("last_name", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("last_name", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString(this->last_name);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 4);
+  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 3);
   xfer += oprot->writeString(this->username);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 5);
+  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 4);
   xfer += oprot->writeString(this->password);
   xfer += oprot->writeFieldEnd();
 
@@ -1702,23 +933,19 @@ uint32_t BackEndService_RegisterUser_pargs::write(::apache::thrift::protocol::TP
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_RegisterUser_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("first_name", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("first_name", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString((*(this->first_name)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("last_name", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("last_name", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString((*(this->last_name)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 4);
+  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 3);
   xfer += oprot->writeString((*(this->username)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 5);
+  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 4);
   xfer += oprot->writeString((*(this->password)));
   xfer += oprot->writeFieldEnd();
 
@@ -1862,14 +1089,6 @@ uint32_t BackEndService_RegisterUserWithId_args::read(::apache::thrift::protocol
     switch (fid)
     {
       case 1:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->first_name);
           this->__isset.first_name = true;
@@ -1877,7 +1096,7 @@ uint32_t BackEndService_RegisterUserWithId_args::read(::apache::thrift::protocol
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->last_name);
           this->__isset.last_name = true;
@@ -1885,7 +1104,7 @@ uint32_t BackEndService_RegisterUserWithId_args::read(::apache::thrift::protocol
           xfer += iprot->skip(ftype);
         }
         break;
-      case 4:
+      case 3:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->username);
           this->__isset.username = true;
@@ -1893,7 +1112,7 @@ uint32_t BackEndService_RegisterUserWithId_args::read(::apache::thrift::protocol
           xfer += iprot->skip(ftype);
         }
         break;
-      case 5:
+      case 4:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->password);
           this->__isset.password = true;
@@ -1901,7 +1120,7 @@ uint32_t BackEndService_RegisterUserWithId_args::read(::apache::thrift::protocol
           xfer += iprot->skip(ftype);
         }
         break;
-      case 6:
+      case 5:
         if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->user_id);
           this->__isset.user_id = true;
@@ -1926,27 +1145,23 @@ uint32_t BackEndService_RegisterUserWithId_args::write(::apache::thrift::protoco
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_RegisterUserWithId_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("first_name", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("first_name", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString(this->first_name);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("last_name", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("last_name", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString(this->last_name);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 4);
+  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 3);
   xfer += oprot->writeString(this->username);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 5);
+  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 4);
   xfer += oprot->writeString(this->password);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 6);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 5);
   xfer += oprot->writeI64(this->user_id);
   xfer += oprot->writeFieldEnd();
 
@@ -1965,27 +1180,23 @@ uint32_t BackEndService_RegisterUserWithId_pargs::write(::apache::thrift::protoc
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_RegisterUserWithId_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("first_name", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("first_name", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString((*(this->first_name)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("last_name", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("last_name", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString((*(this->last_name)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 4);
+  xfer += oprot->writeFieldBegin("username", ::apache::thrift::protocol::T_STRING, 3);
   xfer += oprot->writeString((*(this->username)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 5);
+  xfer += oprot->writeFieldBegin("password", ::apache::thrift::protocol::T_STRING, 4);
   xfer += oprot->writeString((*(this->password)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 6);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 5);
   xfer += oprot->writeI64((*(this->user_id)));
   xfer += oprot->writeFieldEnd();
 
@@ -2130,14 +1341,6 @@ uint32_t BackEndService_GetFollowers_args::read(::apache::thrift::protocol::TPro
     {
       case 1:
         if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->user_id);
           this->__isset.user_id = true;
         } else {
@@ -2161,11 +1364,7 @@ uint32_t BackEndService_GetFollowers_args::write(::apache::thrift::protocol::TPr
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_GetFollowers_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64(this->user_id);
   xfer += oprot->writeFieldEnd();
 
@@ -2184,11 +1383,7 @@ uint32_t BackEndService_GetFollowers_pargs::write(::apache::thrift::protocol::TP
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_GetFollowers_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64((*(this->user_id)));
   xfer += oprot->writeFieldEnd();
 
@@ -2227,14 +1422,14 @@ uint32_t BackEndService_GetFollowers_result::read(::apache::thrift::protocol::TP
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->success.clear();
-            uint32_t _size93;
-            ::apache::thrift::protocol::TType _etype96;
-            xfer += iprot->readListBegin(_etype96, _size93);
-            this->success.resize(_size93);
-            uint32_t _i97;
-            for (_i97 = 0; _i97 < _size93; ++_i97)
+            uint32_t _size74;
+            ::apache::thrift::protocol::TType _etype77;
+            xfer += iprot->readListBegin(_etype77, _size74);
+            this->success.resize(_size74);
+            uint32_t _i78;
+            for (_i78 = 0; _i78 < _size74; ++_i78)
             {
-              xfer += iprot->readI64(this->success[_i97]);
+              xfer += iprot->readI64(this->success[_i78]);
             }
             xfer += iprot->readListEnd();
           }
@@ -2273,10 +1468,10 @@ uint32_t BackEndService_GetFollowers_result::write(::apache::thrift::protocol::T
     xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_LIST, 0);
     {
       xfer += oprot->writeListBegin(::apache::thrift::protocol::T_I64, static_cast<uint32_t>(this->success.size()));
-      std::vector<int64_t> ::const_iterator _iter98;
-      for (_iter98 = this->success.begin(); _iter98 != this->success.end(); ++_iter98)
+      std::vector<int64_t> ::const_iterator _iter79;
+      for (_iter79 = this->success.begin(); _iter79 != this->success.end(); ++_iter79)
       {
-        xfer += oprot->writeI64((*_iter98));
+        xfer += oprot->writeI64((*_iter79));
       }
       xfer += oprot->writeListEnd();
     }
@@ -2321,14 +1516,14 @@ uint32_t BackEndService_GetFollowers_presult::read(::apache::thrift::protocol::T
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             (*(this->success)).clear();
-            uint32_t _size99;
-            ::apache::thrift::protocol::TType _etype102;
-            xfer += iprot->readListBegin(_etype102, _size99);
-            (*(this->success)).resize(_size99);
-            uint32_t _i103;
-            for (_i103 = 0; _i103 < _size99; ++_i103)
+            uint32_t _size80;
+            ::apache::thrift::protocol::TType _etype83;
+            xfer += iprot->readListBegin(_etype83, _size80);
+            (*(this->success)).resize(_size80);
+            uint32_t _i84;
+            for (_i84 = 0; _i84 < _size80; ++_i84)
             {
-              xfer += iprot->readI64((*(this->success))[_i103]);
+              xfer += iprot->readI64((*(this->success))[_i84]);
             }
             xfer += iprot->readListEnd();
           }
@@ -2385,21 +1580,13 @@ uint32_t BackEndService_Unfollow_args::read(::apache::thrift::protocol::TProtoco
     {
       case 1:
         if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->user_id);
           this->__isset.user_id = true;
         } else {
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->followee_id);
           this->__isset.followee_id = true;
@@ -2424,15 +1611,11 @@ uint32_t BackEndService_Unfollow_args::write(::apache::thrift::protocol::TProtoc
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_Unfollow_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64(this->user_id);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("followee_id", ::apache::thrift::protocol::T_I64, 3);
+  xfer += oprot->writeFieldBegin("followee_id", ::apache::thrift::protocol::T_I64, 2);
   xfer += oprot->writeI64(this->followee_id);
   xfer += oprot->writeFieldEnd();
 
@@ -2451,15 +1634,11 @@ uint32_t BackEndService_Unfollow_pargs::write(::apache::thrift::protocol::TProto
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_Unfollow_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64((*(this->user_id)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("followee_id", ::apache::thrift::protocol::T_I64, 3);
+  xfer += oprot->writeFieldBegin("followee_id", ::apache::thrift::protocol::T_I64, 2);
   xfer += oprot->writeI64((*(this->followee_id)));
   xfer += oprot->writeFieldEnd();
 
@@ -2603,14 +1782,6 @@ uint32_t BackEndService_UnfollowWithUsername_args::read(::apache::thrift::protoc
     switch (fid)
     {
       case 1:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->user_usernmae);
           this->__isset.user_usernmae = true;
@@ -2618,7 +1789,7 @@ uint32_t BackEndService_UnfollowWithUsername_args::read(::apache::thrift::protoc
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->followee_username);
           this->__isset.followee_username = true;
@@ -2643,15 +1814,11 @@ uint32_t BackEndService_UnfollowWithUsername_args::write(::apache::thrift::proto
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_UnfollowWithUsername_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_usernmae", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("user_usernmae", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString(this->user_usernmae);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("followee_username", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("followee_username", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString(this->followee_username);
   xfer += oprot->writeFieldEnd();
 
@@ -2670,15 +1837,11 @@ uint32_t BackEndService_UnfollowWithUsername_pargs::write(::apache::thrift::prot
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_UnfollowWithUsername_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_usernmae", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("user_usernmae", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString((*(this->user_usernmae)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("followee_username", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("followee_username", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString((*(this->followee_username)));
   xfer += oprot->writeFieldEnd();
 
@@ -2823,21 +1986,13 @@ uint32_t BackEndService_Follow_args::read(::apache::thrift::protocol::TProtocol*
     {
       case 1:
         if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->user_id);
           this->__isset.user_id = true;
         } else {
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->followee_id);
           this->__isset.followee_id = true;
@@ -2862,15 +2017,11 @@ uint32_t BackEndService_Follow_args::write(::apache::thrift::protocol::TProtocol
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_Follow_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64(this->user_id);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("followee_id", ::apache::thrift::protocol::T_I64, 3);
+  xfer += oprot->writeFieldBegin("followee_id", ::apache::thrift::protocol::T_I64, 2);
   xfer += oprot->writeI64(this->followee_id);
   xfer += oprot->writeFieldEnd();
 
@@ -2889,15 +2040,11 @@ uint32_t BackEndService_Follow_pargs::write(::apache::thrift::protocol::TProtoco
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_Follow_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64((*(this->user_id)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("followee_id", ::apache::thrift::protocol::T_I64, 3);
+  xfer += oprot->writeFieldBegin("followee_id", ::apache::thrift::protocol::T_I64, 2);
   xfer += oprot->writeI64((*(this->followee_id)));
   xfer += oprot->writeFieldEnd();
 
@@ -3041,14 +2188,6 @@ uint32_t BackEndService_FollowWithUsername_args::read(::apache::thrift::protocol
     switch (fid)
     {
       case 1:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->user_usernmae);
           this->__isset.user_usernmae = true;
@@ -3056,7 +2195,7 @@ uint32_t BackEndService_FollowWithUsername_args::read(::apache::thrift::protocol
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->followee_username);
           this->__isset.followee_username = true;
@@ -3081,15 +2220,11 @@ uint32_t BackEndService_FollowWithUsername_args::write(::apache::thrift::protoco
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_FollowWithUsername_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_usernmae", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("user_usernmae", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString(this->user_usernmae);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("followee_username", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("followee_username", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString(this->followee_username);
   xfer += oprot->writeFieldEnd();
 
@@ -3108,15 +2243,11 @@ uint32_t BackEndService_FollowWithUsername_pargs::write(::apache::thrift::protoc
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_FollowWithUsername_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_usernmae", ::apache::thrift::protocol::T_STRING, 2);
+  xfer += oprot->writeFieldBegin("user_usernmae", ::apache::thrift::protocol::T_STRING, 1);
   xfer += oprot->writeString((*(this->user_usernmae)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("followee_username", ::apache::thrift::protocol::T_STRING, 3);
+  xfer += oprot->writeFieldBegin("followee_username", ::apache::thrift::protocol::T_STRING, 2);
   xfer += oprot->writeString((*(this->followee_username)));
   xfer += oprot->writeFieldEnd();
 
@@ -3261,14 +2392,6 @@ uint32_t BackEndService_GetFollowees_args::read(::apache::thrift::protocol::TPro
     {
       case 1:
         if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->user_id);
           this->__isset.user_id = true;
         } else {
@@ -3292,11 +2415,7 @@ uint32_t BackEndService_GetFollowees_args::write(::apache::thrift::protocol::TPr
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_GetFollowees_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64(this->user_id);
   xfer += oprot->writeFieldEnd();
 
@@ -3315,11 +2434,7 @@ uint32_t BackEndService_GetFollowees_pargs::write(::apache::thrift::protocol::TP
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_GetFollowees_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64((*(this->user_id)));
   xfer += oprot->writeFieldEnd();
 
@@ -3358,14 +2473,14 @@ uint32_t BackEndService_GetFollowees_result::read(::apache::thrift::protocol::TP
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->success.clear();
-            uint32_t _size104;
-            ::apache::thrift::protocol::TType _etype107;
-            xfer += iprot->readListBegin(_etype107, _size104);
-            this->success.resize(_size104);
-            uint32_t _i108;
-            for (_i108 = 0; _i108 < _size104; ++_i108)
+            uint32_t _size85;
+            ::apache::thrift::protocol::TType _etype88;
+            xfer += iprot->readListBegin(_etype88, _size85);
+            this->success.resize(_size85);
+            uint32_t _i89;
+            for (_i89 = 0; _i89 < _size85; ++_i89)
             {
-              xfer += iprot->readI64(this->success[_i108]);
+              xfer += iprot->readI64(this->success[_i89]);
             }
             xfer += iprot->readListEnd();
           }
@@ -3404,10 +2519,10 @@ uint32_t BackEndService_GetFollowees_result::write(::apache::thrift::protocol::T
     xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_LIST, 0);
     {
       xfer += oprot->writeListBegin(::apache::thrift::protocol::T_I64, static_cast<uint32_t>(this->success.size()));
-      std::vector<int64_t> ::const_iterator _iter109;
-      for (_iter109 = this->success.begin(); _iter109 != this->success.end(); ++_iter109)
+      std::vector<int64_t> ::const_iterator _iter90;
+      for (_iter90 = this->success.begin(); _iter90 != this->success.end(); ++_iter90)
       {
-        xfer += oprot->writeI64((*_iter109));
+        xfer += oprot->writeI64((*_iter90));
       }
       xfer += oprot->writeListEnd();
     }
@@ -3452,14 +2567,14 @@ uint32_t BackEndService_GetFollowees_presult::read(::apache::thrift::protocol::T
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             (*(this->success)).clear();
-            uint32_t _size110;
-            ::apache::thrift::protocol::TType _etype113;
-            xfer += iprot->readListBegin(_etype113, _size110);
-            (*(this->success)).resize(_size110);
-            uint32_t _i114;
-            for (_i114 = 0; _i114 < _size110; ++_i114)
+            uint32_t _size91;
+            ::apache::thrift::protocol::TType _etype94;
+            xfer += iprot->readListBegin(_etype94, _size91);
+            (*(this->success)).resize(_size91);
+            uint32_t _i95;
+            for (_i95 = 0; _i95 < _size91; ++_i95)
             {
-              xfer += iprot->readI64((*(this->success))[_i114]);
+              xfer += iprot->readI64((*(this->success))[_i95]);
             }
             xfer += iprot->readListEnd();
           }
@@ -3516,21 +2631,13 @@ uint32_t BackEndService_ReadHomeTimeline_args::read(::apache::thrift::protocol::
     {
       case 1:
         if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 2:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->user_id);
           this->__isset.user_id = true;
         } else {
           xfer += iprot->skip(ftype);
         }
         break;
-      case 3:
+      case 2:
         if (ftype == ::apache::thrift::protocol::T_I32) {
           xfer += iprot->readI32(this->start);
           this->__isset.start = true;
@@ -3538,7 +2645,7 @@ uint32_t BackEndService_ReadHomeTimeline_args::read(::apache::thrift::protocol::
           xfer += iprot->skip(ftype);
         }
         break;
-      case 4:
+      case 3:
         if (ftype == ::apache::thrift::protocol::T_I32) {
           xfer += iprot->readI32(this->stop);
           this->__isset.stop = true;
@@ -3563,19 +2670,15 @@ uint32_t BackEndService_ReadHomeTimeline_args::write(::apache::thrift::protocol:
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_ReadHomeTimeline_args");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64(this->user_id);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("start", ::apache::thrift::protocol::T_I32, 3);
+  xfer += oprot->writeFieldBegin("start", ::apache::thrift::protocol::T_I32, 2);
   xfer += oprot->writeI32(this->start);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("stop", ::apache::thrift::protocol::T_I32, 4);
+  xfer += oprot->writeFieldBegin("stop", ::apache::thrift::protocol::T_I32, 3);
   xfer += oprot->writeI32(this->stop);
   xfer += oprot->writeFieldEnd();
 
@@ -3594,19 +2697,15 @@ uint32_t BackEndService_ReadHomeTimeline_pargs::write(::apache::thrift::protocol
   ::apache::thrift::protocol::TOutputRecursionTracker tracker(*oprot);
   xfer += oprot->writeStructBegin("BackEndService_ReadHomeTimeline_pargs");
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 1);
-  xfer += oprot->writeI64((*(this->req_id)));
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 2);
+  xfer += oprot->writeFieldBegin("user_id", ::apache::thrift::protocol::T_I64, 1);
   xfer += oprot->writeI64((*(this->user_id)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("start", ::apache::thrift::protocol::T_I32, 3);
+  xfer += oprot->writeFieldBegin("start", ::apache::thrift::protocol::T_I32, 2);
   xfer += oprot->writeI32((*(this->start)));
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("stop", ::apache::thrift::protocol::T_I32, 4);
+  xfer += oprot->writeFieldBegin("stop", ::apache::thrift::protocol::T_I32, 3);
   xfer += oprot->writeI32((*(this->stop)));
   xfer += oprot->writeFieldEnd();
 
@@ -3645,14 +2744,14 @@ uint32_t BackEndService_ReadHomeTimeline_result::read(::apache::thrift::protocol
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->success.clear();
-            uint32_t _size115;
-            ::apache::thrift::protocol::TType _etype118;
-            xfer += iprot->readListBegin(_etype118, _size115);
-            this->success.resize(_size115);
-            uint32_t _i119;
-            for (_i119 = 0; _i119 < _size115; ++_i119)
+            uint32_t _size96;
+            ::apache::thrift::protocol::TType _etype99;
+            xfer += iprot->readListBegin(_etype99, _size96);
+            this->success.resize(_size96);
+            uint32_t _i100;
+            for (_i100 = 0; _i100 < _size96; ++_i100)
             {
-              xfer += this->success[_i119].read(iprot);
+              xfer += this->success[_i100].read(iprot);
             }
             xfer += iprot->readListEnd();
           }
@@ -3691,10 +2790,10 @@ uint32_t BackEndService_ReadHomeTimeline_result::write(::apache::thrift::protoco
     xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_LIST, 0);
     {
       xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(this->success.size()));
-      std::vector<Post> ::const_iterator _iter120;
-      for (_iter120 = this->success.begin(); _iter120 != this->success.end(); ++_iter120)
+      std::vector<Post> ::const_iterator _iter101;
+      for (_iter101 = this->success.begin(); _iter101 != this->success.end(); ++_iter101)
       {
-        xfer += (*_iter120).write(oprot);
+        xfer += (*_iter101).write(oprot);
       }
       xfer += oprot->writeListEnd();
     }
@@ -3739,14 +2838,14 @@ uint32_t BackEndService_ReadHomeTimeline_presult::read(::apache::thrift::protoco
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             (*(this->success)).clear();
-            uint32_t _size121;
-            ::apache::thrift::protocol::TType _etype124;
-            xfer += iprot->readListBegin(_etype124, _size121);
-            (*(this->success)).resize(_size121);
-            uint32_t _i125;
-            for (_i125 = 0; _i125 < _size121; ++_i125)
+            uint32_t _size102;
+            ::apache::thrift::protocol::TType _etype105;
+            xfer += iprot->readListBegin(_etype105, _size102);
+            (*(this->success)).resize(_size102);
+            uint32_t _i106;
+            for (_i106 = 0; _i106 < _size102; ++_i106)
             {
-              xfer += (*(this->success))[_i125].read(iprot);
+              xfer += (*(this->success))[_i106].read(iprot);
             }
             xfer += iprot->readListEnd();
           }
@@ -3775,19 +2874,18 @@ uint32_t BackEndService_ReadHomeTimeline_presult::read(::apache::thrift::protoco
   return xfer;
 }
 
-void BackEndServiceClient::ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
+void BackEndServiceClient::ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
 {
-  send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type);
+  send_ComposePost(username, user_id, text, media_ids, media_types, post_type);
   recv_ComposePost();
 }
 
-void BackEndServiceClient::send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
+void BackEndServiceClient::send_ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("ComposePost", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_ComposePost_pargs args;
-  args.req_id = &req_id;
   args.username = &username;
   args.user_id = &user_id;
   args.text = &text;
@@ -3837,200 +2935,18 @@ void BackEndServiceClient::recv_ComposePost()
   return;
 }
 
-void BackEndServiceClient::StorePost(const int64_t req_id, const Post& post)
+void BackEndServiceClient::ReadUserTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop)
 {
-  send_StorePost(req_id, post);
-  recv_StorePost();
-}
-
-void BackEndServiceClient::send_StorePost(const int64_t req_id, const Post& post)
-{
-  int32_t cseqid = 0;
-  oprot_->writeMessageBegin("StorePost", ::apache::thrift::protocol::T_CALL, cseqid);
-
-  BackEndService_StorePost_pargs args;
-  args.req_id = &req_id;
-  args.post = &post;
-  args.write(oprot_);
-
-  oprot_->writeMessageEnd();
-  oprot_->getTransport()->writeEnd();
-  oprot_->getTransport()->flush();
-}
-
-void BackEndServiceClient::recv_StorePost()
-{
-
-  int32_t rseqid = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TMessageType mtype;
-
-  iprot_->readMessageBegin(fname, mtype, rseqid);
-  if (mtype == ::apache::thrift::protocol::T_EXCEPTION) {
-    ::apache::thrift::TApplicationException x;
-    x.read(iprot_);
-    iprot_->readMessageEnd();
-    iprot_->getTransport()->readEnd();
-    throw x;
-  }
-  if (mtype != ::apache::thrift::protocol::T_REPLY) {
-    iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-    iprot_->readMessageEnd();
-    iprot_->getTransport()->readEnd();
-  }
-  if (fname.compare("StorePost") != 0) {
-    iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-    iprot_->readMessageEnd();
-    iprot_->getTransport()->readEnd();
-  }
-  BackEndService_StorePost_presult result;
-  result.read(iprot_);
-  iprot_->readMessageEnd();
-  iprot_->getTransport()->readEnd();
-
-  if (result.__isset.se) {
-    throw result.se;
-  }
-  return;
-}
-
-void BackEndServiceClient::ReadPost(Post& _return, const int64_t req_id, const int64_t post_id)
-{
-  send_ReadPost(req_id, post_id);
-  recv_ReadPost(_return);
-}
-
-void BackEndServiceClient::send_ReadPost(const int64_t req_id, const int64_t post_id)
-{
-  int32_t cseqid = 0;
-  oprot_->writeMessageBegin("ReadPost", ::apache::thrift::protocol::T_CALL, cseqid);
-
-  BackEndService_ReadPost_pargs args;
-  args.req_id = &req_id;
-  args.post_id = &post_id;
-  args.write(oprot_);
-
-  oprot_->writeMessageEnd();
-  oprot_->getTransport()->writeEnd();
-  oprot_->getTransport()->flush();
-}
-
-void BackEndServiceClient::recv_ReadPost(Post& _return)
-{
-
-  int32_t rseqid = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TMessageType mtype;
-
-  iprot_->readMessageBegin(fname, mtype, rseqid);
-  if (mtype == ::apache::thrift::protocol::T_EXCEPTION) {
-    ::apache::thrift::TApplicationException x;
-    x.read(iprot_);
-    iprot_->readMessageEnd();
-    iprot_->getTransport()->readEnd();
-    throw x;
-  }
-  if (mtype != ::apache::thrift::protocol::T_REPLY) {
-    iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-    iprot_->readMessageEnd();
-    iprot_->getTransport()->readEnd();
-  }
-  if (fname.compare("ReadPost") != 0) {
-    iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-    iprot_->readMessageEnd();
-    iprot_->getTransport()->readEnd();
-  }
-  BackEndService_ReadPost_presult result;
-  result.success = &_return;
-  result.read(iprot_);
-  iprot_->readMessageEnd();
-  iprot_->getTransport()->readEnd();
-
-  if (result.__isset.success) {
-    // _return pointer has now been filled
-    return;
-  }
-  if (result.__isset.se) {
-    throw result.se;
-  }
-  throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "ReadPost failed: unknown result");
-}
-
-void BackEndServiceClient::ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids)
-{
-  send_ReadPosts(req_id, post_ids);
-  recv_ReadPosts(_return);
-}
-
-void BackEndServiceClient::send_ReadPosts(const int64_t req_id, const std::vector<int64_t> & post_ids)
-{
-  int32_t cseqid = 0;
-  oprot_->writeMessageBegin("ReadPosts", ::apache::thrift::protocol::T_CALL, cseqid);
-
-  BackEndService_ReadPosts_pargs args;
-  args.req_id = &req_id;
-  args.post_ids = &post_ids;
-  args.write(oprot_);
-
-  oprot_->writeMessageEnd();
-  oprot_->getTransport()->writeEnd();
-  oprot_->getTransport()->flush();
-}
-
-void BackEndServiceClient::recv_ReadPosts(std::vector<Post> & _return)
-{
-
-  int32_t rseqid = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TMessageType mtype;
-
-  iprot_->readMessageBegin(fname, mtype, rseqid);
-  if (mtype == ::apache::thrift::protocol::T_EXCEPTION) {
-    ::apache::thrift::TApplicationException x;
-    x.read(iprot_);
-    iprot_->readMessageEnd();
-    iprot_->getTransport()->readEnd();
-    throw x;
-  }
-  if (mtype != ::apache::thrift::protocol::T_REPLY) {
-    iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-    iprot_->readMessageEnd();
-    iprot_->getTransport()->readEnd();
-  }
-  if (fname.compare("ReadPosts") != 0) {
-    iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-    iprot_->readMessageEnd();
-    iprot_->getTransport()->readEnd();
-  }
-  BackEndService_ReadPosts_presult result;
-  result.success = &_return;
-  result.read(iprot_);
-  iprot_->readMessageEnd();
-  iprot_->getTransport()->readEnd();
-
-  if (result.__isset.success) {
-    // _return pointer has now been filled
-    return;
-  }
-  if (result.__isset.se) {
-    throw result.se;
-  }
-  throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "ReadPosts failed: unknown result");
-}
-
-void BackEndServiceClient::ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop)
-{
-  send_ReadUserTimeline(req_id, user_id, start, stop);
+  send_ReadUserTimeline(user_id, start, stop);
   recv_ReadUserTimeline(_return);
 }
 
-void BackEndServiceClient::send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop)
+void BackEndServiceClient::send_ReadUserTimeline(const int64_t user_id, const int32_t start, const int32_t stop)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("ReadUserTimeline", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_ReadUserTimeline_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.start = &start;
   args.stop = &stop;
@@ -4082,19 +2998,18 @@ void BackEndServiceClient::recv_ReadUserTimeline(std::vector<Post> & _return)
   throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "ReadUserTimeline failed: unknown result");
 }
 
-void BackEndServiceClient::Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password)
+void BackEndServiceClient::Login(std::string& _return, const std::string& username, const std::string& password)
 {
-  send_Login(req_id, username, password);
+  send_Login(username, password);
   recv_Login(_return);
 }
 
-void BackEndServiceClient::send_Login(const int64_t req_id, const std::string& username, const std::string& password)
+void BackEndServiceClient::send_Login(const std::string& username, const std::string& password)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("Login", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_Login_pargs args;
-  args.req_id = &req_id;
   args.username = &username;
   args.password = &password;
   args.write(oprot_);
@@ -4145,19 +3060,18 @@ void BackEndServiceClient::recv_Login(std::string& _return)
   throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "Login failed: unknown result");
 }
 
-void BackEndServiceClient::RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password)
+void BackEndServiceClient::RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password)
 {
-  send_RegisterUser(req_id, first_name, last_name, username, password);
+  send_RegisterUser(first_name, last_name, username, password);
   recv_RegisterUser();
 }
 
-void BackEndServiceClient::send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password)
+void BackEndServiceClient::send_RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("RegisterUser", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_RegisterUser_pargs args;
-  args.req_id = &req_id;
   args.first_name = &first_name;
   args.last_name = &last_name;
   args.username = &username;
@@ -4205,19 +3119,18 @@ void BackEndServiceClient::recv_RegisterUser()
   return;
 }
 
-void BackEndServiceClient::RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id)
+void BackEndServiceClient::RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id)
 {
-  send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
+  send_RegisterUserWithId(first_name, last_name, username, password, user_id);
   recv_RegisterUserWithId();
 }
 
-void BackEndServiceClient::send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id)
+void BackEndServiceClient::send_RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("RegisterUserWithId", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_RegisterUserWithId_pargs args;
-  args.req_id = &req_id;
   args.first_name = &first_name;
   args.last_name = &last_name;
   args.username = &username;
@@ -4266,19 +3179,18 @@ void BackEndServiceClient::recv_RegisterUserWithId()
   return;
 }
 
-void BackEndServiceClient::GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id)
+void BackEndServiceClient::GetFollowers(std::vector<int64_t> & _return, const int64_t user_id)
 {
-  send_GetFollowers(req_id, user_id);
+  send_GetFollowers(user_id);
   recv_GetFollowers(_return);
 }
 
-void BackEndServiceClient::send_GetFollowers(const int64_t req_id, const int64_t user_id)
+void BackEndServiceClient::send_GetFollowers(const int64_t user_id)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("GetFollowers", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_GetFollowers_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.write(oprot_);
 
@@ -4328,19 +3240,18 @@ void BackEndServiceClient::recv_GetFollowers(std::vector<int64_t> & _return)
   throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "GetFollowers failed: unknown result");
 }
 
-void BackEndServiceClient::Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id)
+void BackEndServiceClient::Unfollow(const int64_t user_id, const int64_t followee_id)
 {
-  send_Unfollow(req_id, user_id, followee_id);
+  send_Unfollow(user_id, followee_id);
   recv_Unfollow();
 }
 
-void BackEndServiceClient::send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id)
+void BackEndServiceClient::send_Unfollow(const int64_t user_id, const int64_t followee_id)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("Unfollow", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_Unfollow_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.followee_id = &followee_id;
   args.write(oprot_);
@@ -4386,19 +3297,18 @@ void BackEndServiceClient::recv_Unfollow()
   return;
 }
 
-void BackEndServiceClient::UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username)
+void BackEndServiceClient::UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username)
 {
-  send_UnfollowWithUsername(req_id, user_usernmae, followee_username);
+  send_UnfollowWithUsername(user_usernmae, followee_username);
   recv_UnfollowWithUsername();
 }
 
-void BackEndServiceClient::send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username)
+void BackEndServiceClient::send_UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("UnfollowWithUsername", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_UnfollowWithUsername_pargs args;
-  args.req_id = &req_id;
   args.user_usernmae = &user_usernmae;
   args.followee_username = &followee_username;
   args.write(oprot_);
@@ -4444,19 +3354,18 @@ void BackEndServiceClient::recv_UnfollowWithUsername()
   return;
 }
 
-void BackEndServiceClient::Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id)
+void BackEndServiceClient::Follow(const int64_t user_id, const int64_t followee_id)
 {
-  send_Follow(req_id, user_id, followee_id);
+  send_Follow(user_id, followee_id);
   recv_Follow();
 }
 
-void BackEndServiceClient::send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id)
+void BackEndServiceClient::send_Follow(const int64_t user_id, const int64_t followee_id)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("Follow", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_Follow_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.followee_id = &followee_id;
   args.write(oprot_);
@@ -4502,19 +3411,18 @@ void BackEndServiceClient::recv_Follow()
   return;
 }
 
-void BackEndServiceClient::FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username)
+void BackEndServiceClient::FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username)
 {
-  send_FollowWithUsername(req_id, user_usernmae, followee_username);
+  send_FollowWithUsername(user_usernmae, followee_username);
   recv_FollowWithUsername();
 }
 
-void BackEndServiceClient::send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username)
+void BackEndServiceClient::send_FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("FollowWithUsername", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_FollowWithUsername_pargs args;
-  args.req_id = &req_id;
   args.user_usernmae = &user_usernmae;
   args.followee_username = &followee_username;
   args.write(oprot_);
@@ -4560,19 +3468,18 @@ void BackEndServiceClient::recv_FollowWithUsername()
   return;
 }
 
-void BackEndServiceClient::GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id)
+void BackEndServiceClient::GetFollowees(std::vector<int64_t> & _return, const int64_t user_id)
 {
-  send_GetFollowees(req_id, user_id);
+  send_GetFollowees(user_id);
   recv_GetFollowees(_return);
 }
 
-void BackEndServiceClient::send_GetFollowees(const int64_t req_id, const int64_t user_id)
+void BackEndServiceClient::send_GetFollowees(const int64_t user_id)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("GetFollowees", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_GetFollowees_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.write(oprot_);
 
@@ -4622,19 +3529,18 @@ void BackEndServiceClient::recv_GetFollowees(std::vector<int64_t> & _return)
   throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "GetFollowees failed: unknown result");
 }
 
-void BackEndServiceClient::ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop)
+void BackEndServiceClient::ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop)
 {
-  send_ReadHomeTimeline(req_id, user_id, start, stop);
+  send_ReadHomeTimeline(user_id, start, stop);
   recv_ReadHomeTimeline(_return);
 }
 
-void BackEndServiceClient::send_ReadHomeTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop)
+void BackEndServiceClient::send_ReadHomeTimeline(const int64_t user_id, const int32_t start, const int32_t stop)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("ReadHomeTimeline", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_ReadHomeTimeline_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.start = &start;
   args.stop = &stop;
@@ -4728,7 +3634,7 @@ void BackEndServiceProcessor::process_ComposePost(int32_t seqid, ::apache::thrif
 
   BackEndService_ComposePost_result result;
   try {
-    iface_->ComposePost(args.req_id, args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type);
+    iface_->ComposePost(args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type);
   } catch (ServiceException &se) {
     result.se = se;
     result.__isset.se = true;
@@ -4761,176 +3667,6 @@ void BackEndServiceProcessor::process_ComposePost(int32_t seqid, ::apache::thrif
   }
 }
 
-void BackEndServiceProcessor::process_StorePost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext)
-{
-  void* ctx = NULL;
-  if (this->eventHandler_.get() != NULL) {
-    ctx = this->eventHandler_->getContext("BackEndService.StorePost", callContext);
-  }
-  ::apache::thrift::TProcessorContextFreer freer(this->eventHandler_.get(), ctx, "BackEndService.StorePost");
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->preRead(ctx, "BackEndService.StorePost");
-  }
-
-  BackEndService_StorePost_args args;
-  args.read(iprot);
-  iprot->readMessageEnd();
-  uint32_t bytes = iprot->getTransport()->readEnd();
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->postRead(ctx, "BackEndService.StorePost", bytes);
-  }
-
-  BackEndService_StorePost_result result;
-  try {
-    iface_->StorePost(args.req_id, args.post);
-  } catch (ServiceException &se) {
-    result.se = se;
-    result.__isset.se = true;
-  } catch (const std::exception& e) {
-    if (this->eventHandler_.get() != NULL) {
-      this->eventHandler_->handlerError(ctx, "BackEndService.StorePost");
-    }
-
-    ::apache::thrift::TApplicationException x(e.what());
-    oprot->writeMessageBegin("StorePost", ::apache::thrift::protocol::T_EXCEPTION, seqid);
-    x.write(oprot);
-    oprot->writeMessageEnd();
-    oprot->getTransport()->writeEnd();
-    oprot->getTransport()->flush();
-    return;
-  }
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->preWrite(ctx, "BackEndService.StorePost");
-  }
-
-  oprot->writeMessageBegin("StorePost", ::apache::thrift::protocol::T_REPLY, seqid);
-  result.write(oprot);
-  oprot->writeMessageEnd();
-  bytes = oprot->getTransport()->writeEnd();
-  oprot->getTransport()->flush();
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->postWrite(ctx, "BackEndService.StorePost", bytes);
-  }
-}
-
-void BackEndServiceProcessor::process_ReadPost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext)
-{
-  void* ctx = NULL;
-  if (this->eventHandler_.get() != NULL) {
-    ctx = this->eventHandler_->getContext("BackEndService.ReadPost", callContext);
-  }
-  ::apache::thrift::TProcessorContextFreer freer(this->eventHandler_.get(), ctx, "BackEndService.ReadPost");
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->preRead(ctx, "BackEndService.ReadPost");
-  }
-
-  BackEndService_ReadPost_args args;
-  args.read(iprot);
-  iprot->readMessageEnd();
-  uint32_t bytes = iprot->getTransport()->readEnd();
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->postRead(ctx, "BackEndService.ReadPost", bytes);
-  }
-
-  BackEndService_ReadPost_result result;
-  try {
-    iface_->ReadPost(result.success, args.req_id, args.post_id);
-    result.__isset.success = true;
-  } catch (ServiceException &se) {
-    result.se = se;
-    result.__isset.se = true;
-  } catch (const std::exception& e) {
-    if (this->eventHandler_.get() != NULL) {
-      this->eventHandler_->handlerError(ctx, "BackEndService.ReadPost");
-    }
-
-    ::apache::thrift::TApplicationException x(e.what());
-    oprot->writeMessageBegin("ReadPost", ::apache::thrift::protocol::T_EXCEPTION, seqid);
-    x.write(oprot);
-    oprot->writeMessageEnd();
-    oprot->getTransport()->writeEnd();
-    oprot->getTransport()->flush();
-    return;
-  }
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->preWrite(ctx, "BackEndService.ReadPost");
-  }
-
-  oprot->writeMessageBegin("ReadPost", ::apache::thrift::protocol::T_REPLY, seqid);
-  result.write(oprot);
-  oprot->writeMessageEnd();
-  bytes = oprot->getTransport()->writeEnd();
-  oprot->getTransport()->flush();
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->postWrite(ctx, "BackEndService.ReadPost", bytes);
-  }
-}
-
-void BackEndServiceProcessor::process_ReadPosts(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext)
-{
-  void* ctx = NULL;
-  if (this->eventHandler_.get() != NULL) {
-    ctx = this->eventHandler_->getContext("BackEndService.ReadPosts", callContext);
-  }
-  ::apache::thrift::TProcessorContextFreer freer(this->eventHandler_.get(), ctx, "BackEndService.ReadPosts");
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->preRead(ctx, "BackEndService.ReadPosts");
-  }
-
-  BackEndService_ReadPosts_args args;
-  args.read(iprot);
-  iprot->readMessageEnd();
-  uint32_t bytes = iprot->getTransport()->readEnd();
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->postRead(ctx, "BackEndService.ReadPosts", bytes);
-  }
-
-  BackEndService_ReadPosts_result result;
-  try {
-    iface_->ReadPosts(result.success, args.req_id, args.post_ids);
-    result.__isset.success = true;
-  } catch (ServiceException &se) {
-    result.se = se;
-    result.__isset.se = true;
-  } catch (const std::exception& e) {
-    if (this->eventHandler_.get() != NULL) {
-      this->eventHandler_->handlerError(ctx, "BackEndService.ReadPosts");
-    }
-
-    ::apache::thrift::TApplicationException x(e.what());
-    oprot->writeMessageBegin("ReadPosts", ::apache::thrift::protocol::T_EXCEPTION, seqid);
-    x.write(oprot);
-    oprot->writeMessageEnd();
-    oprot->getTransport()->writeEnd();
-    oprot->getTransport()->flush();
-    return;
-  }
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->preWrite(ctx, "BackEndService.ReadPosts");
-  }
-
-  oprot->writeMessageBegin("ReadPosts", ::apache::thrift::protocol::T_REPLY, seqid);
-  result.write(oprot);
-  oprot->writeMessageEnd();
-  bytes = oprot->getTransport()->writeEnd();
-  oprot->getTransport()->flush();
-
-  if (this->eventHandler_.get() != NULL) {
-    this->eventHandler_->postWrite(ctx, "BackEndService.ReadPosts", bytes);
-  }
-}
-
 void BackEndServiceProcessor::process_ReadUserTimeline(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext)
 {
   void* ctx = NULL;
@@ -4954,7 +3690,7 @@ void BackEndServiceProcessor::process_ReadUserTimeline(int32_t seqid, ::apache::
 
   BackEndService_ReadUserTimeline_result result;
   try {
-    iface_->ReadUserTimeline(result.success, args.req_id, args.user_id, args.start, args.stop);
+    iface_->ReadUserTimeline(result.success, args.user_id, args.start, args.stop);
     result.__isset.success = true;
   } catch (ServiceException &se) {
     result.se = se;
@@ -5011,7 +3747,7 @@ void BackEndServiceProcessor::process_Login(int32_t seqid, ::apache::thrift::pro
 
   BackEndService_Login_result result;
   try {
-    iface_->Login(result.success, args.req_id, args.username, args.password);
+    iface_->Login(result.success, args.username, args.password);
     result.__isset.success = true;
   } catch (ServiceException &se) {
     result.se = se;
@@ -5068,7 +3804,7 @@ void BackEndServiceProcessor::process_RegisterUser(int32_t seqid, ::apache::thri
 
   BackEndService_RegisterUser_result result;
   try {
-    iface_->RegisterUser(args.req_id, args.first_name, args.last_name, args.username, args.password);
+    iface_->RegisterUser(args.first_name, args.last_name, args.username, args.password);
   } catch (ServiceException &se) {
     result.se = se;
     result.__isset.se = true;
@@ -5124,7 +3860,7 @@ void BackEndServiceProcessor::process_RegisterUserWithId(int32_t seqid, ::apache
 
   BackEndService_RegisterUserWithId_result result;
   try {
-    iface_->RegisterUserWithId(args.req_id, args.first_name, args.last_name, args.username, args.password, args.user_id);
+    iface_->RegisterUserWithId(args.first_name, args.last_name, args.username, args.password, args.user_id);
   } catch (ServiceException &se) {
     result.se = se;
     result.__isset.se = true;
@@ -5180,7 +3916,7 @@ void BackEndServiceProcessor::process_GetFollowers(int32_t seqid, ::apache::thri
 
   BackEndService_GetFollowers_result result;
   try {
-    iface_->GetFollowers(result.success, args.req_id, args.user_id);
+    iface_->GetFollowers(result.success, args.user_id);
     result.__isset.success = true;
   } catch (ServiceException &se) {
     result.se = se;
@@ -5237,7 +3973,7 @@ void BackEndServiceProcessor::process_Unfollow(int32_t seqid, ::apache::thrift::
 
   BackEndService_Unfollow_result result;
   try {
-    iface_->Unfollow(args.req_id, args.user_id, args.followee_id);
+    iface_->Unfollow(args.user_id, args.followee_id);
   } catch (ServiceException &se) {
     result.se = se;
     result.__isset.se = true;
@@ -5293,7 +4029,7 @@ void BackEndServiceProcessor::process_UnfollowWithUsername(int32_t seqid, ::apac
 
   BackEndService_UnfollowWithUsername_result result;
   try {
-    iface_->UnfollowWithUsername(args.req_id, args.user_usernmae, args.followee_username);
+    iface_->UnfollowWithUsername(args.user_usernmae, args.followee_username);
   } catch (ServiceException &se) {
     result.se = se;
     result.__isset.se = true;
@@ -5349,7 +4085,7 @@ void BackEndServiceProcessor::process_Follow(int32_t seqid, ::apache::thrift::pr
 
   BackEndService_Follow_result result;
   try {
-    iface_->Follow(args.req_id, args.user_id, args.followee_id);
+    iface_->Follow(args.user_id, args.followee_id);
   } catch (ServiceException &se) {
     result.se = se;
     result.__isset.se = true;
@@ -5405,7 +4141,7 @@ void BackEndServiceProcessor::process_FollowWithUsername(int32_t seqid, ::apache
 
   BackEndService_FollowWithUsername_result result;
   try {
-    iface_->FollowWithUsername(args.req_id, args.user_usernmae, args.followee_username);
+    iface_->FollowWithUsername(args.user_usernmae, args.followee_username);
   } catch (ServiceException &se) {
     result.se = se;
     result.__isset.se = true;
@@ -5461,7 +4197,7 @@ void BackEndServiceProcessor::process_GetFollowees(int32_t seqid, ::apache::thri
 
   BackEndService_GetFollowees_result result;
   try {
-    iface_->GetFollowees(result.success, args.req_id, args.user_id);
+    iface_->GetFollowees(result.success, args.user_id);
     result.__isset.success = true;
   } catch (ServiceException &se) {
     result.se = se;
@@ -5518,7 +4254,7 @@ void BackEndServiceProcessor::process_ReadHomeTimeline(int32_t seqid, ::apache::
 
   BackEndService_ReadHomeTimeline_result result;
   try {
-    iface_->ReadHomeTimeline(result.success, args.req_id, args.user_id, args.start, args.stop);
+    iface_->ReadHomeTimeline(result.success, args.user_id, args.start, args.stop);
     result.__isset.success = true;
   } catch (ServiceException &se) {
     result.se = se;
@@ -5559,20 +4295,19 @@ void BackEndServiceProcessor::process_ReadHomeTimeline(int32_t seqid, ::apache::
   return processor;
 }
 
-void BackEndServiceConcurrentClient::ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
+void BackEndServiceConcurrentClient::ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
 {
-  int32_t seqid = send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type);
+  int32_t seqid = send_ComposePost(username, user_id, text, media_ids, media_types, post_type);
   recv_ComposePost(seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
+int32_t BackEndServiceConcurrentClient::send_ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("ComposePost", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_ComposePost_pargs args;
-  args.req_id = &req_id;
   args.username = &username;
   args.user_id = &user_id;
   args.text = &text;
@@ -5647,281 +4382,19 @@ void BackEndServiceConcurrentClient::recv_ComposePost(const int32_t seqid)
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::StorePost(const int64_t req_id, const Post& post)
+void BackEndServiceConcurrentClient::ReadUserTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop)
 {
-  int32_t seqid = send_StorePost(req_id, post);
-  recv_StorePost(seqid);
-}
-
-int32_t BackEndServiceConcurrentClient::send_StorePost(const int64_t req_id, const Post& post)
-{
-  int32_t cseqid = this->sync_.generateSeqId();
-  ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
-  oprot_->writeMessageBegin("StorePost", ::apache::thrift::protocol::T_CALL, cseqid);
-
-  BackEndService_StorePost_pargs args;
-  args.req_id = &req_id;
-  args.post = &post;
-  args.write(oprot_);
-
-  oprot_->writeMessageEnd();
-  oprot_->getTransport()->writeEnd();
-  oprot_->getTransport()->flush();
-
-  sentry.commit();
-  return cseqid;
-}
-
-void BackEndServiceConcurrentClient::recv_StorePost(const int32_t seqid)
-{
-
-  int32_t rseqid = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TMessageType mtype;
-
-  // the read mutex gets dropped and reacquired as part of waitForWork()
-  // The destructor of this sentry wakes up other clients
-  ::apache::thrift::async::TConcurrentRecvSentry sentry(&this->sync_, seqid);
-
-  while(true) {
-    if(!this->sync_.getPending(fname, mtype, rseqid)) {
-      iprot_->readMessageBegin(fname, mtype, rseqid);
-    }
-    if(seqid == rseqid) {
-      if (mtype == ::apache::thrift::protocol::T_EXCEPTION) {
-        ::apache::thrift::TApplicationException x;
-        x.read(iprot_);
-        iprot_->readMessageEnd();
-        iprot_->getTransport()->readEnd();
-        sentry.commit();
-        throw x;
-      }
-      if (mtype != ::apache::thrift::protocol::T_REPLY) {
-        iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-        iprot_->readMessageEnd();
-        iprot_->getTransport()->readEnd();
-      }
-      if (fname.compare("StorePost") != 0) {
-        iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-        iprot_->readMessageEnd();
-        iprot_->getTransport()->readEnd();
-
-        // in a bad state, don't commit
-        using ::apache::thrift::protocol::TProtocolException;
-        throw TProtocolException(TProtocolException::INVALID_DATA);
-      }
-      BackEndService_StorePost_presult result;
-      result.read(iprot_);
-      iprot_->readMessageEnd();
-      iprot_->getTransport()->readEnd();
-
-      if (result.__isset.se) {
-        sentry.commit();
-        throw result.se;
-      }
-      sentry.commit();
-      return;
-    }
-    // seqid != rseqid
-    this->sync_.updatePending(fname, mtype, rseqid);
-
-    // this will temporarily unlock the readMutex, and let other clients get work done
-    this->sync_.waitForWork(seqid);
-  } // end while(true)
-}
-
-void BackEndServiceConcurrentClient::ReadPost(Post& _return, const int64_t req_id, const int64_t post_id)
-{
-  int32_t seqid = send_ReadPost(req_id, post_id);
-  recv_ReadPost(_return, seqid);
-}
-
-int32_t BackEndServiceConcurrentClient::send_ReadPost(const int64_t req_id, const int64_t post_id)
-{
-  int32_t cseqid = this->sync_.generateSeqId();
-  ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
-  oprot_->writeMessageBegin("ReadPost", ::apache::thrift::protocol::T_CALL, cseqid);
-
-  BackEndService_ReadPost_pargs args;
-  args.req_id = &req_id;
-  args.post_id = &post_id;
-  args.write(oprot_);
-
-  oprot_->writeMessageEnd();
-  oprot_->getTransport()->writeEnd();
-  oprot_->getTransport()->flush();
-
-  sentry.commit();
-  return cseqid;
-}
-
-void BackEndServiceConcurrentClient::recv_ReadPost(Post& _return, const int32_t seqid)
-{
-
-  int32_t rseqid = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TMessageType mtype;
-
-  // the read mutex gets dropped and reacquired as part of waitForWork()
-  // The destructor of this sentry wakes up other clients
-  ::apache::thrift::async::TConcurrentRecvSentry sentry(&this->sync_, seqid);
-
-  while(true) {
-    if(!this->sync_.getPending(fname, mtype, rseqid)) {
-      iprot_->readMessageBegin(fname, mtype, rseqid);
-    }
-    if(seqid == rseqid) {
-      if (mtype == ::apache::thrift::protocol::T_EXCEPTION) {
-        ::apache::thrift::TApplicationException x;
-        x.read(iprot_);
-        iprot_->readMessageEnd();
-        iprot_->getTransport()->readEnd();
-        sentry.commit();
-        throw x;
-      }
-      if (mtype != ::apache::thrift::protocol::T_REPLY) {
-        iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-        iprot_->readMessageEnd();
-        iprot_->getTransport()->readEnd();
-      }
-      if (fname.compare("ReadPost") != 0) {
-        iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-        iprot_->readMessageEnd();
-        iprot_->getTransport()->readEnd();
-
-        // in a bad state, don't commit
-        using ::apache::thrift::protocol::TProtocolException;
-        throw TProtocolException(TProtocolException::INVALID_DATA);
-      }
-      BackEndService_ReadPost_presult result;
-      result.success = &_return;
-      result.read(iprot_);
-      iprot_->readMessageEnd();
-      iprot_->getTransport()->readEnd();
-
-      if (result.__isset.success) {
-        // _return pointer has now been filled
-        sentry.commit();
-        return;
-      }
-      if (result.__isset.se) {
-        sentry.commit();
-        throw result.se;
-      }
-      // in a bad state, don't commit
-      throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "ReadPost failed: unknown result");
-    }
-    // seqid != rseqid
-    this->sync_.updatePending(fname, mtype, rseqid);
-
-    // this will temporarily unlock the readMutex, and let other clients get work done
-    this->sync_.waitForWork(seqid);
-  } // end while(true)
-}
-
-void BackEndServiceConcurrentClient::ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids)
-{
-  int32_t seqid = send_ReadPosts(req_id, post_ids);
-  recv_ReadPosts(_return, seqid);
-}
-
-int32_t BackEndServiceConcurrentClient::send_ReadPosts(const int64_t req_id, const std::vector<int64_t> & post_ids)
-{
-  int32_t cseqid = this->sync_.generateSeqId();
-  ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
-  oprot_->writeMessageBegin("ReadPosts", ::apache::thrift::protocol::T_CALL, cseqid);
-
-  BackEndService_ReadPosts_pargs args;
-  args.req_id = &req_id;
-  args.post_ids = &post_ids;
-  args.write(oprot_);
-
-  oprot_->writeMessageEnd();
-  oprot_->getTransport()->writeEnd();
-  oprot_->getTransport()->flush();
-
-  sentry.commit();
-  return cseqid;
-}
-
-void BackEndServiceConcurrentClient::recv_ReadPosts(std::vector<Post> & _return, const int32_t seqid)
-{
-
-  int32_t rseqid = 0;
-  std::string fname;
-  ::apache::thrift::protocol::TMessageType mtype;
-
-  // the read mutex gets dropped and reacquired as part of waitForWork()
-  // The destructor of this sentry wakes up other clients
-  ::apache::thrift::async::TConcurrentRecvSentry sentry(&this->sync_, seqid);
-
-  while(true) {
-    if(!this->sync_.getPending(fname, mtype, rseqid)) {
-      iprot_->readMessageBegin(fname, mtype, rseqid);
-    }
-    if(seqid == rseqid) {
-      if (mtype == ::apache::thrift::protocol::T_EXCEPTION) {
-        ::apache::thrift::TApplicationException x;
-        x.read(iprot_);
-        iprot_->readMessageEnd();
-        iprot_->getTransport()->readEnd();
-        sentry.commit();
-        throw x;
-      }
-      if (mtype != ::apache::thrift::protocol::T_REPLY) {
-        iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-        iprot_->readMessageEnd();
-        iprot_->getTransport()->readEnd();
-      }
-      if (fname.compare("ReadPosts") != 0) {
-        iprot_->skip(::apache::thrift::protocol::T_STRUCT);
-        iprot_->readMessageEnd();
-        iprot_->getTransport()->readEnd();
-
-        // in a bad state, don't commit
-        using ::apache::thrift::protocol::TProtocolException;
-        throw TProtocolException(TProtocolException::INVALID_DATA);
-      }
-      BackEndService_ReadPosts_presult result;
-      result.success = &_return;
-      result.read(iprot_);
-      iprot_->readMessageEnd();
-      iprot_->getTransport()->readEnd();
-
-      if (result.__isset.success) {
-        // _return pointer has now been filled
-        sentry.commit();
-        return;
-      }
-      if (result.__isset.se) {
-        sentry.commit();
-        throw result.se;
-      }
-      // in a bad state, don't commit
-      throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "ReadPosts failed: unknown result");
-    }
-    // seqid != rseqid
-    this->sync_.updatePending(fname, mtype, rseqid);
-
-    // this will temporarily unlock the readMutex, and let other clients get work done
-    this->sync_.waitForWork(seqid);
-  } // end while(true)
-}
-
-void BackEndServiceConcurrentClient::ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop)
-{
-  int32_t seqid = send_ReadUserTimeline(req_id, user_id, start, stop);
+  int32_t seqid = send_ReadUserTimeline(user_id, start, stop);
   recv_ReadUserTimeline(_return, seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop)
+int32_t BackEndServiceConcurrentClient::send_ReadUserTimeline(const int64_t user_id, const int32_t start, const int32_t stop)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("ReadUserTimeline", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_ReadUserTimeline_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.start = &start;
   args.stop = &stop;
@@ -5999,20 +4472,19 @@ void BackEndServiceConcurrentClient::recv_ReadUserTimeline(std::vector<Post> & _
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password)
+void BackEndServiceConcurrentClient::Login(std::string& _return, const std::string& username, const std::string& password)
 {
-  int32_t seqid = send_Login(req_id, username, password);
+  int32_t seqid = send_Login(username, password);
   recv_Login(_return, seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_Login(const int64_t req_id, const std::string& username, const std::string& password)
+int32_t BackEndServiceConcurrentClient::send_Login(const std::string& username, const std::string& password)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("Login", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_Login_pargs args;
-  args.req_id = &req_id;
   args.username = &username;
   args.password = &password;
   args.write(oprot_);
@@ -6089,20 +4561,19 @@ void BackEndServiceConcurrentClient::recv_Login(std::string& _return, const int3
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password)
+void BackEndServiceConcurrentClient::RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password)
 {
-  int32_t seqid = send_RegisterUser(req_id, first_name, last_name, username, password);
+  int32_t seqid = send_RegisterUser(first_name, last_name, username, password);
   recv_RegisterUser(seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password)
+int32_t BackEndServiceConcurrentClient::send_RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("RegisterUser", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_RegisterUser_pargs args;
-  args.req_id = &req_id;
   args.first_name = &first_name;
   args.last_name = &last_name;
   args.username = &username;
@@ -6175,20 +4646,19 @@ void BackEndServiceConcurrentClient::recv_RegisterUser(const int32_t seqid)
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id)
+void BackEndServiceConcurrentClient::RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id)
 {
-  int32_t seqid = send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
+  int32_t seqid = send_RegisterUserWithId(first_name, last_name, username, password, user_id);
   recv_RegisterUserWithId(seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id)
+int32_t BackEndServiceConcurrentClient::send_RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("RegisterUserWithId", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_RegisterUserWithId_pargs args;
-  args.req_id = &req_id;
   args.first_name = &first_name;
   args.last_name = &last_name;
   args.username = &username;
@@ -6262,20 +4732,19 @@ void BackEndServiceConcurrentClient::recv_RegisterUserWithId(const int32_t seqid
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id)
+void BackEndServiceConcurrentClient::GetFollowers(std::vector<int64_t> & _return, const int64_t user_id)
 {
-  int32_t seqid = send_GetFollowers(req_id, user_id);
+  int32_t seqid = send_GetFollowers(user_id);
   recv_GetFollowers(_return, seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_GetFollowers(const int64_t req_id, const int64_t user_id)
+int32_t BackEndServiceConcurrentClient::send_GetFollowers(const int64_t user_id)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("GetFollowers", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_GetFollowers_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.write(oprot_);
 
@@ -6351,20 +4820,19 @@ void BackEndServiceConcurrentClient::recv_GetFollowers(std::vector<int64_t> & _r
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id)
+void BackEndServiceConcurrentClient::Unfollow(const int64_t user_id, const int64_t followee_id)
 {
-  int32_t seqid = send_Unfollow(req_id, user_id, followee_id);
+  int32_t seqid = send_Unfollow(user_id, followee_id);
   recv_Unfollow(seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id)
+int32_t BackEndServiceConcurrentClient::send_Unfollow(const int64_t user_id, const int64_t followee_id)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("Unfollow", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_Unfollow_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.followee_id = &followee_id;
   args.write(oprot_);
@@ -6435,20 +4903,19 @@ void BackEndServiceConcurrentClient::recv_Unfollow(const int32_t seqid)
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username)
+void BackEndServiceConcurrentClient::UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username)
 {
-  int32_t seqid = send_UnfollowWithUsername(req_id, user_usernmae, followee_username);
+  int32_t seqid = send_UnfollowWithUsername(user_usernmae, followee_username);
   recv_UnfollowWithUsername(seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username)
+int32_t BackEndServiceConcurrentClient::send_UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("UnfollowWithUsername", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_UnfollowWithUsername_pargs args;
-  args.req_id = &req_id;
   args.user_usernmae = &user_usernmae;
   args.followee_username = &followee_username;
   args.write(oprot_);
@@ -6519,20 +4986,19 @@ void BackEndServiceConcurrentClient::recv_UnfollowWithUsername(const int32_t seq
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id)
+void BackEndServiceConcurrentClient::Follow(const int64_t user_id, const int64_t followee_id)
 {
-  int32_t seqid = send_Follow(req_id, user_id, followee_id);
+  int32_t seqid = send_Follow(user_id, followee_id);
   recv_Follow(seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id)
+int32_t BackEndServiceConcurrentClient::send_Follow(const int64_t user_id, const int64_t followee_id)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("Follow", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_Follow_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.followee_id = &followee_id;
   args.write(oprot_);
@@ -6603,20 +5069,19 @@ void BackEndServiceConcurrentClient::recv_Follow(const int32_t seqid)
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username)
+void BackEndServiceConcurrentClient::FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username)
 {
-  int32_t seqid = send_FollowWithUsername(req_id, user_usernmae, followee_username);
+  int32_t seqid = send_FollowWithUsername(user_usernmae, followee_username);
   recv_FollowWithUsername(seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username)
+int32_t BackEndServiceConcurrentClient::send_FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("FollowWithUsername", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_FollowWithUsername_pargs args;
-  args.req_id = &req_id;
   args.user_usernmae = &user_usernmae;
   args.followee_username = &followee_username;
   args.write(oprot_);
@@ -6687,20 +5152,19 @@ void BackEndServiceConcurrentClient::recv_FollowWithUsername(const int32_t seqid
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id)
+void BackEndServiceConcurrentClient::GetFollowees(std::vector<int64_t> & _return, const int64_t user_id)
 {
-  int32_t seqid = send_GetFollowees(req_id, user_id);
+  int32_t seqid = send_GetFollowees(user_id);
   recv_GetFollowees(_return, seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_GetFollowees(const int64_t req_id, const int64_t user_id)
+int32_t BackEndServiceConcurrentClient::send_GetFollowees(const int64_t user_id)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("GetFollowees", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_GetFollowees_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.write(oprot_);
 
@@ -6776,20 +5240,19 @@ void BackEndServiceConcurrentClient::recv_GetFollowees(std::vector<int64_t> & _r
   } // end while(true)
 }
 
-void BackEndServiceConcurrentClient::ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop)
+void BackEndServiceConcurrentClient::ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop)
 {
-  int32_t seqid = send_ReadHomeTimeline(req_id, user_id, start, stop);
+  int32_t seqid = send_ReadHomeTimeline(user_id, start, stop);
   recv_ReadHomeTimeline(_return, seqid);
 }
 
-int32_t BackEndServiceConcurrentClient::send_ReadHomeTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop)
+int32_t BackEndServiceConcurrentClient::send_ReadHomeTimeline(const int64_t user_id, const int32_t start, const int32_t stop)
 {
   int32_t cseqid = this->sync_.generateSeqId();
   ::apache::thrift::async::TConcurrentSendSentry sentry(&this->sync_);
   oprot_->writeMessageBegin("ReadHomeTimeline", ::apache::thrift::protocol::T_CALL, cseqid);
 
   BackEndService_ReadHomeTimeline_pargs args;
-  args.req_id = &req_id;
   args.user_id = &user_id;
   args.start = &start;
   args.stop = &stop;

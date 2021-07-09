@@ -21,21 +21,18 @@ namespace social_network {
 class BackEndServiceIf {
  public:
   virtual ~BackEndServiceIf() {}
-  virtual void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) = 0;
-  virtual void StorePost(const int64_t req_id, const Post& post) = 0;
-  virtual void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id) = 0;
-  virtual void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids) = 0;
-  virtual void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
-  virtual void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) = 0;
-  virtual void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) = 0;
-  virtual void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) = 0;
-  virtual void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) = 0;
-  virtual void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) = 0;
-  virtual void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) = 0;
-  virtual void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) = 0;
-  virtual void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) = 0;
-  virtual void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) = 0;
-  virtual void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
+  virtual void ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) = 0;
+  virtual void ReadUserTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
+  virtual void Login(std::string& _return, const std::string& username, const std::string& password) = 0;
+  virtual void RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) = 0;
+  virtual void RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) = 0;
+  virtual void GetFollowers(std::vector<int64_t> & _return, const int64_t user_id) = 0;
+  virtual void Unfollow(const int64_t user_id, const int64_t followee_id) = 0;
+  virtual void UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username) = 0;
+  virtual void Follow(const int64_t user_id, const int64_t followee_id) = 0;
+  virtual void FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username) = 0;
+  virtual void GetFollowees(std::vector<int64_t> & _return, const int64_t user_id) = 0;
+  virtual void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
 };
 
 class BackEndServiceIfFactory {
@@ -65,56 +62,46 @@ class BackEndServiceIfSingletonFactory : virtual public BackEndServiceIfFactory 
 class BackEndServiceNull : virtual public BackEndServiceIf {
  public:
   virtual ~BackEndServiceNull() {}
-  void ComposePost(const int64_t /* req_id */, const std::string& /* username */, const int64_t /* user_id */, const std::string& /* text */, const std::vector<int64_t> & /* media_ids */, const std::vector<std::string> & /* media_types */, const PostType::type /* post_type */) {
+  void ComposePost(const std::string& /* username */, const int64_t /* user_id */, const std::string& /* text */, const std::vector<int64_t> & /* media_ids */, const std::vector<std::string> & /* media_types */, const PostType::type /* post_type */) {
     return;
   }
-  void StorePost(const int64_t /* req_id */, const Post& /* post */) {
+  void ReadUserTimeline(std::vector<Post> & /* _return */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
     return;
   }
-  void ReadPost(Post& /* _return */, const int64_t /* req_id */, const int64_t /* post_id */) {
+  void Login(std::string& /* _return */, const std::string& /* username */, const std::string& /* password */) {
     return;
   }
-  void ReadPosts(std::vector<Post> & /* _return */, const int64_t /* req_id */, const std::vector<int64_t> & /* post_ids */) {
+  void RegisterUser(const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */) {
     return;
   }
-  void ReadUserTimeline(std::vector<Post> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
+  void RegisterUserWithId(const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */, const int64_t /* user_id */) {
     return;
   }
-  void Login(std::string& /* _return */, const int64_t /* req_id */, const std::string& /* username */, const std::string& /* password */) {
+  void GetFollowers(std::vector<int64_t> & /* _return */, const int64_t /* user_id */) {
     return;
   }
-  void RegisterUser(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */) {
+  void Unfollow(const int64_t /* user_id */, const int64_t /* followee_id */) {
     return;
   }
-  void RegisterUserWithId(const int64_t /* req_id */, const std::string& /* first_name */, const std::string& /* last_name */, const std::string& /* username */, const std::string& /* password */, const int64_t /* user_id */) {
+  void UnfollowWithUsername(const std::string& /* user_usernmae */, const std::string& /* followee_username */) {
     return;
   }
-  void GetFollowers(std::vector<int64_t> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */) {
+  void Follow(const int64_t /* user_id */, const int64_t /* followee_id */) {
     return;
   }
-  void Unfollow(const int64_t /* req_id */, const int64_t /* user_id */, const int64_t /* followee_id */) {
+  void FollowWithUsername(const std::string& /* user_usernmae */, const std::string& /* followee_username */) {
     return;
   }
-  void UnfollowWithUsername(const int64_t /* req_id */, const std::string& /* user_usernmae */, const std::string& /* followee_username */) {
+  void GetFollowees(std::vector<int64_t> & /* _return */, const int64_t /* user_id */) {
     return;
   }
-  void Follow(const int64_t /* req_id */, const int64_t /* user_id */, const int64_t /* followee_id */) {
-    return;
-  }
-  void FollowWithUsername(const int64_t /* req_id */, const std::string& /* user_usernmae */, const std::string& /* followee_username */) {
-    return;
-  }
-  void GetFollowees(std::vector<int64_t> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */) {
-    return;
-  }
-  void ReadHomeTimeline(std::vector<Post> & /* _return */, const int64_t /* req_id */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
+  void ReadHomeTimeline(std::vector<Post> & /* _return */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
     return;
   }
 };
 
 typedef struct _BackEndService_ComposePost_args__isset {
-  _BackEndService_ComposePost_args__isset() : req_id(false), username(false), user_id(false), text(false), media_ids(false), media_types(false), post_type(false) {}
-  bool req_id :1;
+  _BackEndService_ComposePost_args__isset() : username(false), user_id(false), text(false), media_ids(false), media_types(false), post_type(false) {}
   bool username :1;
   bool user_id :1;
   bool text :1;
@@ -128,11 +115,10 @@ class BackEndService_ComposePost_args {
 
   BackEndService_ComposePost_args(const BackEndService_ComposePost_args&);
   BackEndService_ComposePost_args& operator=(const BackEndService_ComposePost_args&);
-  BackEndService_ComposePost_args() : req_id(0), username(), user_id(0), text(), post_type((PostType::type)0) {
+  BackEndService_ComposePost_args() : username(), user_id(0), text(), post_type((PostType::type)0) {
   }
 
   virtual ~BackEndService_ComposePost_args() throw();
-  int64_t req_id;
   std::string username;
   int64_t user_id;
   std::string text;
@@ -141,8 +127,6 @@ class BackEndService_ComposePost_args {
   PostType::type post_type;
 
   _BackEndService_ComposePost_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_username(const std::string& val);
 
@@ -158,8 +142,6 @@ class BackEndService_ComposePost_args {
 
   bool operator == (const BackEndService_ComposePost_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(username == rhs.username))
       return false;
     if (!(user_id == rhs.user_id))
@@ -191,7 +173,6 @@ class BackEndService_ComposePost_pargs {
 
 
   virtual ~BackEndService_ComposePost_pargs() throw();
-  const int64_t* req_id;
   const std::string* username;
   const int64_t* user_id;
   const std::string* text;
@@ -258,358 +239,8 @@ class BackEndService_ComposePost_presult {
 
 };
 
-typedef struct _BackEndService_StorePost_args__isset {
-  _BackEndService_StorePost_args__isset() : req_id(false), post(false) {}
-  bool req_id :1;
-  bool post :1;
-} _BackEndService_StorePost_args__isset;
-
-class BackEndService_StorePost_args {
- public:
-
-  BackEndService_StorePost_args(const BackEndService_StorePost_args&);
-  BackEndService_StorePost_args& operator=(const BackEndService_StorePost_args&);
-  BackEndService_StorePost_args() : req_id(0) {
-  }
-
-  virtual ~BackEndService_StorePost_args() throw();
-  int64_t req_id;
-  Post post;
-
-  _BackEndService_StorePost_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
-
-  void __set_post(const Post& val);
-
-  bool operator == (const BackEndService_StorePost_args & rhs) const
-  {
-    if (!(req_id == rhs.req_id))
-      return false;
-    if (!(post == rhs.post))
-      return false;
-    return true;
-  }
-  bool operator != (const BackEndService_StorePost_args &rhs) const {
-    return !(*this == rhs);
-  }
-
-  bool operator < (const BackEndService_StorePost_args & ) const;
-
-  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
-  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
-
-};
-
-
-class BackEndService_StorePost_pargs {
- public:
-
-
-  virtual ~BackEndService_StorePost_pargs() throw();
-  const int64_t* req_id;
-  const Post* post;
-
-  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
-
-};
-
-typedef struct _BackEndService_StorePost_result__isset {
-  _BackEndService_StorePost_result__isset() : se(false) {}
-  bool se :1;
-} _BackEndService_StorePost_result__isset;
-
-class BackEndService_StorePost_result {
- public:
-
-  BackEndService_StorePost_result(const BackEndService_StorePost_result&);
-  BackEndService_StorePost_result& operator=(const BackEndService_StorePost_result&);
-  BackEndService_StorePost_result() {
-  }
-
-  virtual ~BackEndService_StorePost_result() throw();
-  ServiceException se;
-
-  _BackEndService_StorePost_result__isset __isset;
-
-  void __set_se(const ServiceException& val);
-
-  bool operator == (const BackEndService_StorePost_result & rhs) const
-  {
-    if (!(se == rhs.se))
-      return false;
-    return true;
-  }
-  bool operator != (const BackEndService_StorePost_result &rhs) const {
-    return !(*this == rhs);
-  }
-
-  bool operator < (const BackEndService_StorePost_result & ) const;
-
-  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
-  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
-
-};
-
-typedef struct _BackEndService_StorePost_presult__isset {
-  _BackEndService_StorePost_presult__isset() : se(false) {}
-  bool se :1;
-} _BackEndService_StorePost_presult__isset;
-
-class BackEndService_StorePost_presult {
- public:
-
-
-  virtual ~BackEndService_StorePost_presult() throw();
-  ServiceException se;
-
-  _BackEndService_StorePost_presult__isset __isset;
-
-  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
-
-};
-
-typedef struct _BackEndService_ReadPost_args__isset {
-  _BackEndService_ReadPost_args__isset() : req_id(false), post_id(false) {}
-  bool req_id :1;
-  bool post_id :1;
-} _BackEndService_ReadPost_args__isset;
-
-class BackEndService_ReadPost_args {
- public:
-
-  BackEndService_ReadPost_args(const BackEndService_ReadPost_args&);
-  BackEndService_ReadPost_args& operator=(const BackEndService_ReadPost_args&);
-  BackEndService_ReadPost_args() : req_id(0), post_id(0) {
-  }
-
-  virtual ~BackEndService_ReadPost_args() throw();
-  int64_t req_id;
-  int64_t post_id;
-
-  _BackEndService_ReadPost_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
-
-  void __set_post_id(const int64_t val);
-
-  bool operator == (const BackEndService_ReadPost_args & rhs) const
-  {
-    if (!(req_id == rhs.req_id))
-      return false;
-    if (!(post_id == rhs.post_id))
-      return false;
-    return true;
-  }
-  bool operator != (const BackEndService_ReadPost_args &rhs) const {
-    return !(*this == rhs);
-  }
-
-  bool operator < (const BackEndService_ReadPost_args & ) const;
-
-  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
-  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
-
-};
-
-
-class BackEndService_ReadPost_pargs {
- public:
-
-
-  virtual ~BackEndService_ReadPost_pargs() throw();
-  const int64_t* req_id;
-  const int64_t* post_id;
-
-  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
-
-};
-
-typedef struct _BackEndService_ReadPost_result__isset {
-  _BackEndService_ReadPost_result__isset() : success(false), se(false) {}
-  bool success :1;
-  bool se :1;
-} _BackEndService_ReadPost_result__isset;
-
-class BackEndService_ReadPost_result {
- public:
-
-  BackEndService_ReadPost_result(const BackEndService_ReadPost_result&);
-  BackEndService_ReadPost_result& operator=(const BackEndService_ReadPost_result&);
-  BackEndService_ReadPost_result() {
-  }
-
-  virtual ~BackEndService_ReadPost_result() throw();
-  Post success;
-  ServiceException se;
-
-  _BackEndService_ReadPost_result__isset __isset;
-
-  void __set_success(const Post& val);
-
-  void __set_se(const ServiceException& val);
-
-  bool operator == (const BackEndService_ReadPost_result & rhs) const
-  {
-    if (!(success == rhs.success))
-      return false;
-    if (!(se == rhs.se))
-      return false;
-    return true;
-  }
-  bool operator != (const BackEndService_ReadPost_result &rhs) const {
-    return !(*this == rhs);
-  }
-
-  bool operator < (const BackEndService_ReadPost_result & ) const;
-
-  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
-  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
-
-};
-
-typedef struct _BackEndService_ReadPost_presult__isset {
-  _BackEndService_ReadPost_presult__isset() : success(false), se(false) {}
-  bool success :1;
-  bool se :1;
-} _BackEndService_ReadPost_presult__isset;
-
-class BackEndService_ReadPost_presult {
- public:
-
-
-  virtual ~BackEndService_ReadPost_presult() throw();
-  Post* success;
-  ServiceException se;
-
-  _BackEndService_ReadPost_presult__isset __isset;
-
-  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
-
-};
-
-typedef struct _BackEndService_ReadPosts_args__isset {
-  _BackEndService_ReadPosts_args__isset() : req_id(false), post_ids(false) {}
-  bool req_id :1;
-  bool post_ids :1;
-} _BackEndService_ReadPosts_args__isset;
-
-class BackEndService_ReadPosts_args {
- public:
-
-  BackEndService_ReadPosts_args(const BackEndService_ReadPosts_args&);
-  BackEndService_ReadPosts_args& operator=(const BackEndService_ReadPosts_args&);
-  BackEndService_ReadPosts_args() : req_id(0) {
-  }
-
-  virtual ~BackEndService_ReadPosts_args() throw();
-  int64_t req_id;
-  std::vector<int64_t>  post_ids;
-
-  _BackEndService_ReadPosts_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
-
-  void __set_post_ids(const std::vector<int64_t> & val);
-
-  bool operator == (const BackEndService_ReadPosts_args & rhs) const
-  {
-    if (!(req_id == rhs.req_id))
-      return false;
-    if (!(post_ids == rhs.post_ids))
-      return false;
-    return true;
-  }
-  bool operator != (const BackEndService_ReadPosts_args &rhs) const {
-    return !(*this == rhs);
-  }
-
-  bool operator < (const BackEndService_ReadPosts_args & ) const;
-
-  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
-  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
-
-};
-
-
-class BackEndService_ReadPosts_pargs {
- public:
-
-
-  virtual ~BackEndService_ReadPosts_pargs() throw();
-  const int64_t* req_id;
-  const std::vector<int64_t> * post_ids;
-
-  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
-
-};
-
-typedef struct _BackEndService_ReadPosts_result__isset {
-  _BackEndService_ReadPosts_result__isset() : success(false), se(false) {}
-  bool success :1;
-  bool se :1;
-} _BackEndService_ReadPosts_result__isset;
-
-class BackEndService_ReadPosts_result {
- public:
-
-  BackEndService_ReadPosts_result(const BackEndService_ReadPosts_result&);
-  BackEndService_ReadPosts_result& operator=(const BackEndService_ReadPosts_result&);
-  BackEndService_ReadPosts_result() {
-  }
-
-  virtual ~BackEndService_ReadPosts_result() throw();
-  std::vector<Post>  success;
-  ServiceException se;
-
-  _BackEndService_ReadPosts_result__isset __isset;
-
-  void __set_success(const std::vector<Post> & val);
-
-  void __set_se(const ServiceException& val);
-
-  bool operator == (const BackEndService_ReadPosts_result & rhs) const
-  {
-    if (!(success == rhs.success))
-      return false;
-    if (!(se == rhs.se))
-      return false;
-    return true;
-  }
-  bool operator != (const BackEndService_ReadPosts_result &rhs) const {
-    return !(*this == rhs);
-  }
-
-  bool operator < (const BackEndService_ReadPosts_result & ) const;
-
-  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
-  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
-
-};
-
-typedef struct _BackEndService_ReadPosts_presult__isset {
-  _BackEndService_ReadPosts_presult__isset() : success(false), se(false) {}
-  bool success :1;
-  bool se :1;
-} _BackEndService_ReadPosts_presult__isset;
-
-class BackEndService_ReadPosts_presult {
- public:
-
-
-  virtual ~BackEndService_ReadPosts_presult() throw();
-  std::vector<Post> * success;
-  ServiceException se;
-
-  _BackEndService_ReadPosts_presult__isset __isset;
-
-  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
-
-};
-
 typedef struct _BackEndService_ReadUserTimeline_args__isset {
-  _BackEndService_ReadUserTimeline_args__isset() : req_id(false), user_id(false), start(false), stop(false) {}
-  bool req_id :1;
+  _BackEndService_ReadUserTimeline_args__isset() : user_id(false), start(false), stop(false) {}
   bool user_id :1;
   bool start :1;
   bool stop :1;
@@ -620,18 +251,15 @@ class BackEndService_ReadUserTimeline_args {
 
   BackEndService_ReadUserTimeline_args(const BackEndService_ReadUserTimeline_args&);
   BackEndService_ReadUserTimeline_args& operator=(const BackEndService_ReadUserTimeline_args&);
-  BackEndService_ReadUserTimeline_args() : req_id(0), user_id(0), start(0), stop(0) {
+  BackEndService_ReadUserTimeline_args() : user_id(0), start(0), stop(0) {
   }
 
   virtual ~BackEndService_ReadUserTimeline_args() throw();
-  int64_t req_id;
   int64_t user_id;
   int32_t start;
   int32_t stop;
 
   _BackEndService_ReadUserTimeline_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_user_id(const int64_t val);
 
@@ -641,8 +269,6 @@ class BackEndService_ReadUserTimeline_args {
 
   bool operator == (const BackEndService_ReadUserTimeline_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(user_id == rhs.user_id))
       return false;
     if (!(start == rhs.start))
@@ -668,7 +294,6 @@ class BackEndService_ReadUserTimeline_pargs {
 
 
   virtual ~BackEndService_ReadUserTimeline_pargs() throw();
-  const int64_t* req_id;
   const int64_t* user_id;
   const int32_t* start;
   const int32_t* stop;
@@ -741,8 +366,7 @@ class BackEndService_ReadUserTimeline_presult {
 };
 
 typedef struct _BackEndService_Login_args__isset {
-  _BackEndService_Login_args__isset() : req_id(false), username(false), password(false) {}
-  bool req_id :1;
+  _BackEndService_Login_args__isset() : username(false), password(false) {}
   bool username :1;
   bool password :1;
 } _BackEndService_Login_args__isset;
@@ -752,17 +376,14 @@ class BackEndService_Login_args {
 
   BackEndService_Login_args(const BackEndService_Login_args&);
   BackEndService_Login_args& operator=(const BackEndService_Login_args&);
-  BackEndService_Login_args() : req_id(0), username(), password() {
+  BackEndService_Login_args() : username(), password() {
   }
 
   virtual ~BackEndService_Login_args() throw();
-  int64_t req_id;
   std::string username;
   std::string password;
 
   _BackEndService_Login_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_username(const std::string& val);
 
@@ -770,8 +391,6 @@ class BackEndService_Login_args {
 
   bool operator == (const BackEndService_Login_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(username == rhs.username))
       return false;
     if (!(password == rhs.password))
@@ -795,7 +414,6 @@ class BackEndService_Login_pargs {
 
 
   virtual ~BackEndService_Login_pargs() throw();
-  const int64_t* req_id;
   const std::string* username;
   const std::string* password;
 
@@ -867,8 +485,7 @@ class BackEndService_Login_presult {
 };
 
 typedef struct _BackEndService_RegisterUser_args__isset {
-  _BackEndService_RegisterUser_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false) {}
-  bool req_id :1;
+  _BackEndService_RegisterUser_args__isset() : first_name(false), last_name(false), username(false), password(false) {}
   bool first_name :1;
   bool last_name :1;
   bool username :1;
@@ -880,19 +497,16 @@ class BackEndService_RegisterUser_args {
 
   BackEndService_RegisterUser_args(const BackEndService_RegisterUser_args&);
   BackEndService_RegisterUser_args& operator=(const BackEndService_RegisterUser_args&);
-  BackEndService_RegisterUser_args() : req_id(0), first_name(), last_name(), username(), password() {
+  BackEndService_RegisterUser_args() : first_name(), last_name(), username(), password() {
   }
 
   virtual ~BackEndService_RegisterUser_args() throw();
-  int64_t req_id;
   std::string first_name;
   std::string last_name;
   std::string username;
   std::string password;
 
   _BackEndService_RegisterUser_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_first_name(const std::string& val);
 
@@ -904,8 +518,6 @@ class BackEndService_RegisterUser_args {
 
   bool operator == (const BackEndService_RegisterUser_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(first_name == rhs.first_name))
       return false;
     if (!(last_name == rhs.last_name))
@@ -933,7 +545,6 @@ class BackEndService_RegisterUser_pargs {
 
 
   virtual ~BackEndService_RegisterUser_pargs() throw();
-  const int64_t* req_id;
   const std::string* first_name;
   const std::string* last_name;
   const std::string* username;
@@ -999,8 +610,7 @@ class BackEndService_RegisterUser_presult {
 };
 
 typedef struct _BackEndService_RegisterUserWithId_args__isset {
-  _BackEndService_RegisterUserWithId_args__isset() : req_id(false), first_name(false), last_name(false), username(false), password(false), user_id(false) {}
-  bool req_id :1;
+  _BackEndService_RegisterUserWithId_args__isset() : first_name(false), last_name(false), username(false), password(false), user_id(false) {}
   bool first_name :1;
   bool last_name :1;
   bool username :1;
@@ -1013,11 +623,10 @@ class BackEndService_RegisterUserWithId_args {
 
   BackEndService_RegisterUserWithId_args(const BackEndService_RegisterUserWithId_args&);
   BackEndService_RegisterUserWithId_args& operator=(const BackEndService_RegisterUserWithId_args&);
-  BackEndService_RegisterUserWithId_args() : req_id(0), first_name(), last_name(), username(), password(), user_id(0) {
+  BackEndService_RegisterUserWithId_args() : first_name(), last_name(), username(), password(), user_id(0) {
   }
 
   virtual ~BackEndService_RegisterUserWithId_args() throw();
-  int64_t req_id;
   std::string first_name;
   std::string last_name;
   std::string username;
@@ -1025,8 +634,6 @@ class BackEndService_RegisterUserWithId_args {
   int64_t user_id;
 
   _BackEndService_RegisterUserWithId_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_first_name(const std::string& val);
 
@@ -1040,8 +647,6 @@ class BackEndService_RegisterUserWithId_args {
 
   bool operator == (const BackEndService_RegisterUserWithId_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(first_name == rhs.first_name))
       return false;
     if (!(last_name == rhs.last_name))
@@ -1071,7 +676,6 @@ class BackEndService_RegisterUserWithId_pargs {
 
 
   virtual ~BackEndService_RegisterUserWithId_pargs() throw();
-  const int64_t* req_id;
   const std::string* first_name;
   const std::string* last_name;
   const std::string* username;
@@ -1138,8 +742,7 @@ class BackEndService_RegisterUserWithId_presult {
 };
 
 typedef struct _BackEndService_GetFollowers_args__isset {
-  _BackEndService_GetFollowers_args__isset() : req_id(false), user_id(false) {}
-  bool req_id :1;
+  _BackEndService_GetFollowers_args__isset() : user_id(false) {}
   bool user_id :1;
 } _BackEndService_GetFollowers_args__isset;
 
@@ -1148,23 +751,18 @@ class BackEndService_GetFollowers_args {
 
   BackEndService_GetFollowers_args(const BackEndService_GetFollowers_args&);
   BackEndService_GetFollowers_args& operator=(const BackEndService_GetFollowers_args&);
-  BackEndService_GetFollowers_args() : req_id(0), user_id(0) {
+  BackEndService_GetFollowers_args() : user_id(0) {
   }
 
   virtual ~BackEndService_GetFollowers_args() throw();
-  int64_t req_id;
   int64_t user_id;
 
   _BackEndService_GetFollowers_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_user_id(const int64_t val);
 
   bool operator == (const BackEndService_GetFollowers_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(user_id == rhs.user_id))
       return false;
     return true;
@@ -1186,7 +784,6 @@ class BackEndService_GetFollowers_pargs {
 
 
   virtual ~BackEndService_GetFollowers_pargs() throw();
-  const int64_t* req_id;
   const int64_t* user_id;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
@@ -1257,8 +854,7 @@ class BackEndService_GetFollowers_presult {
 };
 
 typedef struct _BackEndService_Unfollow_args__isset {
-  _BackEndService_Unfollow_args__isset() : req_id(false), user_id(false), followee_id(false) {}
-  bool req_id :1;
+  _BackEndService_Unfollow_args__isset() : user_id(false), followee_id(false) {}
   bool user_id :1;
   bool followee_id :1;
 } _BackEndService_Unfollow_args__isset;
@@ -1268,17 +864,14 @@ class BackEndService_Unfollow_args {
 
   BackEndService_Unfollow_args(const BackEndService_Unfollow_args&);
   BackEndService_Unfollow_args& operator=(const BackEndService_Unfollow_args&);
-  BackEndService_Unfollow_args() : req_id(0), user_id(0), followee_id(0) {
+  BackEndService_Unfollow_args() : user_id(0), followee_id(0) {
   }
 
   virtual ~BackEndService_Unfollow_args() throw();
-  int64_t req_id;
   int64_t user_id;
   int64_t followee_id;
 
   _BackEndService_Unfollow_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_user_id(const int64_t val);
 
@@ -1286,8 +879,6 @@ class BackEndService_Unfollow_args {
 
   bool operator == (const BackEndService_Unfollow_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(user_id == rhs.user_id))
       return false;
     if (!(followee_id == rhs.followee_id))
@@ -1311,7 +902,6 @@ class BackEndService_Unfollow_pargs {
 
 
   virtual ~BackEndService_Unfollow_pargs() throw();
-  const int64_t* req_id;
   const int64_t* user_id;
   const int64_t* followee_id;
 
@@ -1375,8 +965,7 @@ class BackEndService_Unfollow_presult {
 };
 
 typedef struct _BackEndService_UnfollowWithUsername_args__isset {
-  _BackEndService_UnfollowWithUsername_args__isset() : req_id(false), user_usernmae(false), followee_username(false) {}
-  bool req_id :1;
+  _BackEndService_UnfollowWithUsername_args__isset() : user_usernmae(false), followee_username(false) {}
   bool user_usernmae :1;
   bool followee_username :1;
 } _BackEndService_UnfollowWithUsername_args__isset;
@@ -1386,17 +975,14 @@ class BackEndService_UnfollowWithUsername_args {
 
   BackEndService_UnfollowWithUsername_args(const BackEndService_UnfollowWithUsername_args&);
   BackEndService_UnfollowWithUsername_args& operator=(const BackEndService_UnfollowWithUsername_args&);
-  BackEndService_UnfollowWithUsername_args() : req_id(0), user_usernmae(), followee_username() {
+  BackEndService_UnfollowWithUsername_args() : user_usernmae(), followee_username() {
   }
 
   virtual ~BackEndService_UnfollowWithUsername_args() throw();
-  int64_t req_id;
   std::string user_usernmae;
   std::string followee_username;
 
   _BackEndService_UnfollowWithUsername_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_user_usernmae(const std::string& val);
 
@@ -1404,8 +990,6 @@ class BackEndService_UnfollowWithUsername_args {
 
   bool operator == (const BackEndService_UnfollowWithUsername_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(user_usernmae == rhs.user_usernmae))
       return false;
     if (!(followee_username == rhs.followee_username))
@@ -1429,7 +1013,6 @@ class BackEndService_UnfollowWithUsername_pargs {
 
 
   virtual ~BackEndService_UnfollowWithUsername_pargs() throw();
-  const int64_t* req_id;
   const std::string* user_usernmae;
   const std::string* followee_username;
 
@@ -1493,8 +1076,7 @@ class BackEndService_UnfollowWithUsername_presult {
 };
 
 typedef struct _BackEndService_Follow_args__isset {
-  _BackEndService_Follow_args__isset() : req_id(false), user_id(false), followee_id(false) {}
-  bool req_id :1;
+  _BackEndService_Follow_args__isset() : user_id(false), followee_id(false) {}
   bool user_id :1;
   bool followee_id :1;
 } _BackEndService_Follow_args__isset;
@@ -1504,17 +1086,14 @@ class BackEndService_Follow_args {
 
   BackEndService_Follow_args(const BackEndService_Follow_args&);
   BackEndService_Follow_args& operator=(const BackEndService_Follow_args&);
-  BackEndService_Follow_args() : req_id(0), user_id(0), followee_id(0) {
+  BackEndService_Follow_args() : user_id(0), followee_id(0) {
   }
 
   virtual ~BackEndService_Follow_args() throw();
-  int64_t req_id;
   int64_t user_id;
   int64_t followee_id;
 
   _BackEndService_Follow_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_user_id(const int64_t val);
 
@@ -1522,8 +1101,6 @@ class BackEndService_Follow_args {
 
   bool operator == (const BackEndService_Follow_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(user_id == rhs.user_id))
       return false;
     if (!(followee_id == rhs.followee_id))
@@ -1547,7 +1124,6 @@ class BackEndService_Follow_pargs {
 
 
   virtual ~BackEndService_Follow_pargs() throw();
-  const int64_t* req_id;
   const int64_t* user_id;
   const int64_t* followee_id;
 
@@ -1611,8 +1187,7 @@ class BackEndService_Follow_presult {
 };
 
 typedef struct _BackEndService_FollowWithUsername_args__isset {
-  _BackEndService_FollowWithUsername_args__isset() : req_id(false), user_usernmae(false), followee_username(false) {}
-  bool req_id :1;
+  _BackEndService_FollowWithUsername_args__isset() : user_usernmae(false), followee_username(false) {}
   bool user_usernmae :1;
   bool followee_username :1;
 } _BackEndService_FollowWithUsername_args__isset;
@@ -1622,17 +1197,14 @@ class BackEndService_FollowWithUsername_args {
 
   BackEndService_FollowWithUsername_args(const BackEndService_FollowWithUsername_args&);
   BackEndService_FollowWithUsername_args& operator=(const BackEndService_FollowWithUsername_args&);
-  BackEndService_FollowWithUsername_args() : req_id(0), user_usernmae(), followee_username() {
+  BackEndService_FollowWithUsername_args() : user_usernmae(), followee_username() {
   }
 
   virtual ~BackEndService_FollowWithUsername_args() throw();
-  int64_t req_id;
   std::string user_usernmae;
   std::string followee_username;
 
   _BackEndService_FollowWithUsername_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_user_usernmae(const std::string& val);
 
@@ -1640,8 +1212,6 @@ class BackEndService_FollowWithUsername_args {
 
   bool operator == (const BackEndService_FollowWithUsername_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(user_usernmae == rhs.user_usernmae))
       return false;
     if (!(followee_username == rhs.followee_username))
@@ -1665,7 +1235,6 @@ class BackEndService_FollowWithUsername_pargs {
 
 
   virtual ~BackEndService_FollowWithUsername_pargs() throw();
-  const int64_t* req_id;
   const std::string* user_usernmae;
   const std::string* followee_username;
 
@@ -1729,8 +1298,7 @@ class BackEndService_FollowWithUsername_presult {
 };
 
 typedef struct _BackEndService_GetFollowees_args__isset {
-  _BackEndService_GetFollowees_args__isset() : req_id(false), user_id(false) {}
-  bool req_id :1;
+  _BackEndService_GetFollowees_args__isset() : user_id(false) {}
   bool user_id :1;
 } _BackEndService_GetFollowees_args__isset;
 
@@ -1739,23 +1307,18 @@ class BackEndService_GetFollowees_args {
 
   BackEndService_GetFollowees_args(const BackEndService_GetFollowees_args&);
   BackEndService_GetFollowees_args& operator=(const BackEndService_GetFollowees_args&);
-  BackEndService_GetFollowees_args() : req_id(0), user_id(0) {
+  BackEndService_GetFollowees_args() : user_id(0) {
   }
 
   virtual ~BackEndService_GetFollowees_args() throw();
-  int64_t req_id;
   int64_t user_id;
 
   _BackEndService_GetFollowees_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_user_id(const int64_t val);
 
   bool operator == (const BackEndService_GetFollowees_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(user_id == rhs.user_id))
       return false;
     return true;
@@ -1777,7 +1340,6 @@ class BackEndService_GetFollowees_pargs {
 
 
   virtual ~BackEndService_GetFollowees_pargs() throw();
-  const int64_t* req_id;
   const int64_t* user_id;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
@@ -1848,8 +1410,7 @@ class BackEndService_GetFollowees_presult {
 };
 
 typedef struct _BackEndService_ReadHomeTimeline_args__isset {
-  _BackEndService_ReadHomeTimeline_args__isset() : req_id(false), user_id(false), start(false), stop(false) {}
-  bool req_id :1;
+  _BackEndService_ReadHomeTimeline_args__isset() : user_id(false), start(false), stop(false) {}
   bool user_id :1;
   bool start :1;
   bool stop :1;
@@ -1860,18 +1421,15 @@ class BackEndService_ReadHomeTimeline_args {
 
   BackEndService_ReadHomeTimeline_args(const BackEndService_ReadHomeTimeline_args&);
   BackEndService_ReadHomeTimeline_args& operator=(const BackEndService_ReadHomeTimeline_args&);
-  BackEndService_ReadHomeTimeline_args() : req_id(0), user_id(0), start(0), stop(0) {
+  BackEndService_ReadHomeTimeline_args() : user_id(0), start(0), stop(0) {
   }
 
   virtual ~BackEndService_ReadHomeTimeline_args() throw();
-  int64_t req_id;
   int64_t user_id;
   int32_t start;
   int32_t stop;
 
   _BackEndService_ReadHomeTimeline_args__isset __isset;
-
-  void __set_req_id(const int64_t val);
 
   void __set_user_id(const int64_t val);
 
@@ -1881,8 +1439,6 @@ class BackEndService_ReadHomeTimeline_args {
 
   bool operator == (const BackEndService_ReadHomeTimeline_args & rhs) const
   {
-    if (!(req_id == rhs.req_id))
-      return false;
     if (!(user_id == rhs.user_id))
       return false;
     if (!(start == rhs.start))
@@ -1908,7 +1464,6 @@ class BackEndService_ReadHomeTimeline_pargs {
 
 
   virtual ~BackEndService_ReadHomeTimeline_pargs() throw();
-  const int64_t* req_id;
   const int64_t* user_id;
   const int32_t* start;
   const int32_t* stop;
@@ -2005,50 +1560,41 @@ class BackEndServiceClient : virtual public BackEndServiceIf {
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
-  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
-  void send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
+  void ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
+  void send_ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
   void recv_ComposePost();
-  void StorePost(const int64_t req_id, const Post& post);
-  void send_StorePost(const int64_t req_id, const Post& post);
-  void recv_StorePost();
-  void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id);
-  void send_ReadPost(const int64_t req_id, const int64_t post_id);
-  void recv_ReadPost(Post& _return);
-  void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids);
-  void send_ReadPosts(const int64_t req_id, const std::vector<int64_t> & post_ids);
-  void recv_ReadPosts(std::vector<Post> & _return);
-  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
-  void send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop);
+  void send_ReadUserTimeline(const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadUserTimeline(std::vector<Post> & _return);
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password);
-  void send_Login(const int64_t req_id, const std::string& username, const std::string& password);
+  void Login(std::string& _return, const std::string& username, const std::string& password);
+  void send_Login(const std::string& username, const std::string& password);
   void recv_Login(std::string& _return);
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
-  void send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  void RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  void send_RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
   void recv_RegisterUser();
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
-  void send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  void RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  void send_RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
   void recv_RegisterUserWithId();
-  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
-  void send_GetFollowers(const int64_t req_id, const int64_t user_id);
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t user_id);
+  void send_GetFollowers(const int64_t user_id);
   void recv_GetFollowers(std::vector<int64_t> & _return);
-  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
-  void send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void Unfollow(const int64_t user_id, const int64_t followee_id);
+  void send_Unfollow(const int64_t user_id, const int64_t followee_id);
   void recv_Unfollow();
-  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
-  void send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username);
+  void send_UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username);
   void recv_UnfollowWithUsername();
-  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
-  void send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void Follow(const int64_t user_id, const int64_t followee_id);
+  void send_Follow(const int64_t user_id, const int64_t followee_id);
   void recv_Follow();
-  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
-  void send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username);
+  void send_FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username);
   void recv_FollowWithUsername();
-  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
-  void send_GetFollowees(const int64_t req_id, const int64_t user_id);
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t user_id);
+  void send_GetFollowees(const int64_t user_id);
   void recv_GetFollowees(std::vector<int64_t> & _return);
-  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
-  void send_ReadHomeTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop);
+  void send_ReadHomeTimeline(const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadHomeTimeline(std::vector<Post> & _return);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
@@ -2066,9 +1612,6 @@ class BackEndServiceProcessor : public ::apache::thrift::TDispatchProcessor {
   typedef std::map<std::string, ProcessFunction> ProcessMap;
   ProcessMap processMap_;
   void process_ComposePost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
-  void process_StorePost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
-  void process_ReadPost(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
-  void process_ReadPosts(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_ReadUserTimeline(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_Login(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_RegisterUser(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
@@ -2084,9 +1627,6 @@ class BackEndServiceProcessor : public ::apache::thrift::TDispatchProcessor {
   BackEndServiceProcessor(::apache::thrift::stdcxx::shared_ptr<BackEndServiceIf> iface) :
     iface_(iface) {
     processMap_["ComposePost"] = &BackEndServiceProcessor::process_ComposePost;
-    processMap_["StorePost"] = &BackEndServiceProcessor::process_StorePost;
-    processMap_["ReadPost"] = &BackEndServiceProcessor::process_ReadPost;
-    processMap_["ReadPosts"] = &BackEndServiceProcessor::process_ReadPosts;
     processMap_["ReadUserTimeline"] = &BackEndServiceProcessor::process_ReadUserTimeline;
     processMap_["Login"] = &BackEndServiceProcessor::process_Login;
     processMap_["RegisterUser"] = &BackEndServiceProcessor::process_RegisterUser;
@@ -2126,145 +1666,116 @@ class BackEndServiceMultiface : virtual public BackEndServiceIf {
     ifaces_.push_back(iface);
   }
  public:
-  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) {
+  void ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type);
+      ifaces_[i]->ComposePost(username, user_id, text, media_ids, media_types, post_type);
     }
-    ifaces_[i]->ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type);
+    ifaces_[i]->ComposePost(username, user_id, text, media_ids, media_types, post_type);
   }
 
-  void StorePost(const int64_t req_id, const Post& post) {
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->StorePost(req_id, post);
+      ifaces_[i]->ReadUserTimeline(_return, user_id, start, stop);
     }
-    ifaces_[i]->StorePost(req_id, post);
-  }
-
-  void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id) {
-    size_t sz = ifaces_.size();
-    size_t i = 0;
-    for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ReadPost(_return, req_id, post_id);
-    }
-    ifaces_[i]->ReadPost(_return, req_id, post_id);
+    ifaces_[i]->ReadUserTimeline(_return, user_id, start, stop);
     return;
   }
 
-  void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids) {
+  void Login(std::string& _return, const std::string& username, const std::string& password) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ReadPosts(_return, req_id, post_ids);
+      ifaces_[i]->Login(_return, username, password);
     }
-    ifaces_[i]->ReadPosts(_return, req_id, post_ids);
+    ifaces_[i]->Login(_return, username, password);
     return;
   }
 
-  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
+  void RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ReadUserTimeline(_return, req_id, user_id, start, stop);
+      ifaces_[i]->RegisterUser(first_name, last_name, username, password);
     }
-    ifaces_[i]->ReadUserTimeline(_return, req_id, user_id, start, stop);
+    ifaces_[i]->RegisterUser(first_name, last_name, username, password);
+  }
+
+  void RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->RegisterUserWithId(first_name, last_name, username, password, user_id);
+    }
+    ifaces_[i]->RegisterUserWithId(first_name, last_name, username, password, user_id);
+  }
+
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t user_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->GetFollowers(_return, user_id);
+    }
+    ifaces_[i]->GetFollowers(_return, user_id);
     return;
   }
 
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) {
+  void Unfollow(const int64_t user_id, const int64_t followee_id) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->Login(_return, req_id, username, password);
+      ifaces_[i]->Unfollow(user_id, followee_id);
     }
-    ifaces_[i]->Login(_return, req_id, username, password);
+    ifaces_[i]->Unfollow(user_id, followee_id);
+  }
+
+  void UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->UnfollowWithUsername(user_usernmae, followee_username);
+    }
+    ifaces_[i]->UnfollowWithUsername(user_usernmae, followee_username);
+  }
+
+  void Follow(const int64_t user_id, const int64_t followee_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->Follow(user_id, followee_id);
+    }
+    ifaces_[i]->Follow(user_id, followee_id);
+  }
+
+  void FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->FollowWithUsername(user_usernmae, followee_username);
+    }
+    ifaces_[i]->FollowWithUsername(user_usernmae, followee_username);
+  }
+
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t user_id) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->GetFollowees(_return, user_id);
+    }
+    ifaces_[i]->GetFollowees(_return, user_id);
     return;
   }
 
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) {
+  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password);
+      ifaces_[i]->ReadHomeTimeline(_return, user_id, start, stop);
     }
-    ifaces_[i]->RegisterUser(req_id, first_name, last_name, username, password);
-  }
-
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) {
-    size_t sz = ifaces_.size();
-    size_t i = 0;
-    for (; i < (sz - 1); ++i) {
-      ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
-    }
-    ifaces_[i]->RegisterUserWithId(req_id, first_name, last_name, username, password, user_id);
-  }
-
-  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
-    size_t sz = ifaces_.size();
-    size_t i = 0;
-    for (; i < (sz - 1); ++i) {
-      ifaces_[i]->GetFollowers(_return, req_id, user_id);
-    }
-    ifaces_[i]->GetFollowers(_return, req_id, user_id);
-    return;
-  }
-
-  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
-    size_t sz = ifaces_.size();
-    size_t i = 0;
-    for (; i < (sz - 1); ++i) {
-      ifaces_[i]->Unfollow(req_id, user_id, followee_id);
-    }
-    ifaces_[i]->Unfollow(req_id, user_id, followee_id);
-  }
-
-  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
-    size_t sz = ifaces_.size();
-    size_t i = 0;
-    for (; i < (sz - 1); ++i) {
-      ifaces_[i]->UnfollowWithUsername(req_id, user_usernmae, followee_username);
-    }
-    ifaces_[i]->UnfollowWithUsername(req_id, user_usernmae, followee_username);
-  }
-
-  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
-    size_t sz = ifaces_.size();
-    size_t i = 0;
-    for (; i < (sz - 1); ++i) {
-      ifaces_[i]->Follow(req_id, user_id, followee_id);
-    }
-    ifaces_[i]->Follow(req_id, user_id, followee_id);
-  }
-
-  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
-    size_t sz = ifaces_.size();
-    size_t i = 0;
-    for (; i < (sz - 1); ++i) {
-      ifaces_[i]->FollowWithUsername(req_id, user_usernmae, followee_username);
-    }
-    ifaces_[i]->FollowWithUsername(req_id, user_usernmae, followee_username);
-  }
-
-  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
-    size_t sz = ifaces_.size();
-    size_t i = 0;
-    for (; i < (sz - 1); ++i) {
-      ifaces_[i]->GetFollowees(_return, req_id, user_id);
-    }
-    ifaces_[i]->GetFollowees(_return, req_id, user_id);
-    return;
-  }
-
-  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
-    size_t sz = ifaces_.size();
-    size_t i = 0;
-    for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ReadHomeTimeline(_return, req_id, user_id, start, stop);
-    }
-    ifaces_[i]->ReadHomeTimeline(_return, req_id, user_id, start, stop);
+    ifaces_[i]->ReadHomeTimeline(_return, user_id, start, stop);
     return;
   }
 
@@ -2298,50 +1809,41 @@ class BackEndServiceConcurrentClient : virtual public BackEndServiceIf {
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
-  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
-  int32_t send_ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
+  void ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
+  int32_t send_ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type);
   void recv_ComposePost(const int32_t seqid);
-  void StorePost(const int64_t req_id, const Post& post);
-  int32_t send_StorePost(const int64_t req_id, const Post& post);
-  void recv_StorePost(const int32_t seqid);
-  void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id);
-  int32_t send_ReadPost(const int64_t req_id, const int64_t post_id);
-  void recv_ReadPost(Post& _return, const int32_t seqid);
-  void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids);
-  int32_t send_ReadPosts(const int64_t req_id, const std::vector<int64_t> & post_ids);
-  void recv_ReadPosts(std::vector<Post> & _return, const int32_t seqid);
-  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
-  int32_t send_ReadUserTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop);
+  int32_t send_ReadUserTimeline(const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadUserTimeline(std::vector<Post> & _return, const int32_t seqid);
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password);
-  int32_t send_Login(const int64_t req_id, const std::string& username, const std::string& password);
+  void Login(std::string& _return, const std::string& username, const std::string& password);
+  int32_t send_Login(const std::string& username, const std::string& password);
   void recv_Login(std::string& _return, const int32_t seqid);
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
-  int32_t send_RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  void RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
+  int32_t send_RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password);
   void recv_RegisterUser(const int32_t seqid);
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
-  int32_t send_RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  void RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
+  int32_t send_RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id);
   void recv_RegisterUserWithId(const int32_t seqid);
-  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
-  int32_t send_GetFollowers(const int64_t req_id, const int64_t user_id);
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t user_id);
+  int32_t send_GetFollowers(const int64_t user_id);
   void recv_GetFollowers(std::vector<int64_t> & _return, const int32_t seqid);
-  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
-  int32_t send_Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void Unfollow(const int64_t user_id, const int64_t followee_id);
+  int32_t send_Unfollow(const int64_t user_id, const int64_t followee_id);
   void recv_Unfollow(const int32_t seqid);
-  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
-  int32_t send_UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username);
+  int32_t send_UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username);
   void recv_UnfollowWithUsername(const int32_t seqid);
-  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
-  int32_t send_Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id);
+  void Follow(const int64_t user_id, const int64_t followee_id);
+  int32_t send_Follow(const int64_t user_id, const int64_t followee_id);
   void recv_Follow(const int32_t seqid);
-  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
-  int32_t send_FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username);
+  void FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username);
+  int32_t send_FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username);
   void recv_FollowWithUsername(const int32_t seqid);
-  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id);
-  int32_t send_GetFollowees(const int64_t req_id, const int64_t user_id);
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t user_id);
+  int32_t send_GetFollowees(const int64_t user_id);
   void recv_GetFollowees(std::vector<int64_t> & _return, const int32_t seqid);
-  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
-  int32_t send_ReadHomeTimeline(const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop);
+  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop);
+  int32_t send_ReadHomeTimeline(const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadHomeTimeline(std::vector<Post> & _return, const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;

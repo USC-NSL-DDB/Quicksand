@@ -1,12 +1,11 @@
 #pragma once
 
 #include <iostream>
+#include <nu/rem_obj.hpp>
 #include <string>
 
 #include "PostStorageService.h"
 #include "SocialGraphService.h"
-
-#include <nu/rem_obj.hpp>
 
 namespace social_network {
 
@@ -15,9 +14,8 @@ public:
   HomeTimelineService(
       nu::RemObj<PostStorageService>::Cap post_storage_service_obj_cap,
       nu::RemObj<SocialGraphService>::Cap social_graph_service_obj_cap);
-  std::vector<Post> ReadHomeTimeline(int64_t, int64_t, int, int);
-  void WriteHomeTimeline(int64_t, int64_t, int64_t, int64_t,
-                         std::vector<int64_t> &&);
+  std::vector<Post> ReadHomeTimeline(int64_t, int, int);
+  void WriteHomeTimeline(int64_t, int64_t, int64_t, std::vector<int64_t> &&);
 
 private:
   nu::RemObj<PostStorageService> _post_storage_service_obj;
@@ -34,10 +32,10 @@ HomeTimelineService::HomeTimelineService(
       _social_graph_service_obj(social_graph_service_obj_cap) {}
 
 void HomeTimelineService::WriteHomeTimeline(
-    int64_t req_id, int64_t post_id, int64_t user_id, int64_t timestamp,
+    int64_t post_id, int64_t user_id, int64_t timestamp,
     std::vector<int64_t> &&user_mentions_id) {
-  auto ids = _social_graph_service_obj.run(&SocialGraphService::GetFollowers,
-                                           req_id, user_id);
+  auto ids =
+      _social_graph_service_obj.run(&SocialGraphService::GetFollowers, user_id);
   ids.insert(ids.end(), user_mentions_id.begin(), user_mentions_id.end());
   for (auto id : ids) {
     // TODO: need synchronization.
@@ -45,8 +43,7 @@ void HomeTimelineService::WriteHomeTimeline(
   }
 }
 
-std::vector<Post> HomeTimelineService::ReadHomeTimeline(int64_t req_id,
-                                                        int64_t user_id,
+std::vector<Post> HomeTimelineService::ReadHomeTimeline(int64_t user_id,
                                                         int start, int stop) {
   if (stop <= start || start < 0) {
     return std::vector<Post>();
@@ -65,7 +62,7 @@ std::vector<Post> HomeTimelineService::ReadHomeTimeline(int64_t req_id,
   for (auto iter = start_iter; iter != stop_iter; iter++) {
     post_ids.push_back(iter->second);
   }
-  return _post_storage_service_obj.run(&PostStorageService::ReadPosts, req_id,
+  return _post_storage_service_obj.run(&PostStorageService::ReadPosts,
                                        std::move(post_ids));
 }
 

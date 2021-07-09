@@ -20,13 +20,6 @@ add_executable(
     BackEndService
     BackEndService.cpp
     ${THRIFT_GEN_CPP_DIR}/BackEndService.cpp
-    ${THRIFT_GEN_CPP_DIR}/PostStorageService.cpp
-    ${THRIFT_GEN_CPP_DIR}/UserTimelineService.cpp
-    ${THRIFT_GEN_CPP_DIR}/UserService.cpp
-    ${THRIFT_GEN_CPP_DIR}/UniqueIdService.cpp
-    ${THRIFT_GEN_CPP_DIR}/MediaService.cpp
-    ${THRIFT_GEN_CPP_DIR}/TextService.cpp
-    ${THRIFT_GEN_CPP_DIR}/HomeTimelineService.cpp
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
 )
 

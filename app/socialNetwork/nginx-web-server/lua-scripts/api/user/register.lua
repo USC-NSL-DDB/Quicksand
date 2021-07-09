@@ -9,8 +9,6 @@ function _M.RegisterUser()
   local GenericObjectPool = require "GenericObjectPool"
   local BackEndServiceClient = require "social_network_BackEndService".BackEndServiceClient
 
-  local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-
   ngx.req.read_body()
   local post = ngx.req.get_post_args()
 
@@ -24,7 +22,7 @@ function _M.RegisterUser()
 
   local client = GenericObjectPool:connection(BackEndServiceClient, "back-end-service", 9091)
 
-  local status, err = pcall(client.RegisterUser, client, req_id, post.first_name,
+  local status, err = pcall(client.RegisterUser, client, post.first_name,
       post.last_name, post.username, post.password, carrier)
   GenericObjectPool:returnConnection(client)
 

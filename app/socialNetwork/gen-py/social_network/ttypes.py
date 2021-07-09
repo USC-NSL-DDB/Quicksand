@@ -627,7 +627,6 @@ class Post(object):
     Attributes:
      - post_id
      - creator
-     - req_id
      - text
      - user_mentions
      - media
@@ -638,10 +637,9 @@ class Post(object):
     """
 
 
-    def __init__(self, post_id=None, creator=None, req_id=None, text=None, user_mentions=None, media=None, urls=None, timestamp=None, post_type=None,):
+    def __init__(self, post_id=None, creator=None, text=None, user_mentions=None, media=None, urls=None, timestamp=None, post_type=None,):
         self.post_id = post_id
         self.creator = creator
-        self.req_id = req_id
         self.text = text
         self.user_mentions = user_mentions
         self.media = media
@@ -670,16 +668,11 @@ class Post(object):
                 else:
                     iprot.skip(ftype)
             elif fid == 3:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 4:
                 if ftype == TType.STRING:
                     self.text = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 5:
+            elif fid == 4:
                 if ftype == TType.LIST:
                     self.user_mentions = []
                     (_etype17, _size14) = iprot.readListBegin()
@@ -690,7 +683,7 @@ class Post(object):
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
-            elif fid == 6:
+            elif fid == 5:
                 if ftype == TType.LIST:
                     self.media = []
                     (_etype23, _size20) = iprot.readListBegin()
@@ -701,7 +694,7 @@ class Post(object):
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
-            elif fid == 7:
+            elif fid == 6:
                 if ftype == TType.LIST:
                     self.urls = []
                     (_etype29, _size26) = iprot.readListBegin()
@@ -712,12 +705,12 @@ class Post(object):
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
-            elif fid == 8:
+            elif fid == 7:
                 if ftype == TType.I64:
                     self.timestamp = iprot.readI64()
                 else:
                     iprot.skip(ftype)
-            elif fid == 9:
+            elif fid == 8:
                 if ftype == TType.I32:
                     self.post_type = iprot.readI32()
                 else:
@@ -740,41 +733,37 @@ class Post(object):
             oprot.writeFieldBegin('creator', TType.STRUCT, 2)
             self.creator.write(oprot)
             oprot.writeFieldEnd()
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 3)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.text is not None:
-            oprot.writeFieldBegin('text', TType.STRING, 4)
+            oprot.writeFieldBegin('text', TType.STRING, 3)
             oprot.writeString(self.text.encode('utf-8') if sys.version_info[0] == 2 else self.text)
             oprot.writeFieldEnd()
         if self.user_mentions is not None:
-            oprot.writeFieldBegin('user_mentions', TType.LIST, 5)
+            oprot.writeFieldBegin('user_mentions', TType.LIST, 4)
             oprot.writeListBegin(TType.STRUCT, len(self.user_mentions))
             for iter32 in self.user_mentions:
                 iter32.write(oprot)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.media is not None:
-            oprot.writeFieldBegin('media', TType.LIST, 6)
+            oprot.writeFieldBegin('media', TType.LIST, 5)
             oprot.writeListBegin(TType.STRUCT, len(self.media))
             for iter33 in self.media:
                 iter33.write(oprot)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.urls is not None:
-            oprot.writeFieldBegin('urls', TType.LIST, 7)
+            oprot.writeFieldBegin('urls', TType.LIST, 6)
             oprot.writeListBegin(TType.STRUCT, len(self.urls))
             for iter34 in self.urls:
                 iter34.write(oprot)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.timestamp is not None:
-            oprot.writeFieldBegin('timestamp', TType.I64, 8)
+            oprot.writeFieldBegin('timestamp', TType.I64, 7)
             oprot.writeI64(self.timestamp)
             oprot.writeFieldEnd()
         if self.post_type is not None:
-            oprot.writeFieldBegin('post_type', TType.I32, 9)
+            oprot.writeFieldBegin('post_type', TType.I32, 8)
             oprot.writeI32(self.post_type)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -845,13 +834,12 @@ Post.thrift_spec = (
     None,  # 0
     (1, TType.I64, 'post_id', None, None, ),  # 1
     (2, TType.STRUCT, 'creator', [Creator, None], None, ),  # 2
-    (3, TType.I64, 'req_id', None, None, ),  # 3
-    (4, TType.STRING, 'text', 'UTF8', None, ),  # 4
-    (5, TType.LIST, 'user_mentions', (TType.STRUCT, [UserMention, None], False), None, ),  # 5
-    (6, TType.LIST, 'media', (TType.STRUCT, [Media, None], False), None, ),  # 6
-    (7, TType.LIST, 'urls', (TType.STRUCT, [Url, None], False), None, ),  # 7
-    (8, TType.I64, 'timestamp', None, None, ),  # 8
-    (9, TType.I32, 'post_type', None, None, ),  # 9
+    (3, TType.STRING, 'text', 'UTF8', None, ),  # 3
+    (4, TType.LIST, 'user_mentions', (TType.STRUCT, [UserMention, None], False), None, ),  # 4
+    (5, TType.LIST, 'media', (TType.STRUCT, [Media, None], False), None, ),  # 5
+    (6, TType.LIST, 'urls', (TType.STRUCT, [Url, None], False), None, ),  # 6
+    (7, TType.I64, 'timestamp', None, None, ),  # 7
+    (8, TType.I32, 'post_type', None, None, ),  # 8
 )
 fix_spec(all_structs)
 del all_structs

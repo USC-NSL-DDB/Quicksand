@@ -9,8 +9,6 @@ function _M.Follow()
   local GenericObjectPool = require "GenericObjectPool"
   local BackEndServiceClient = require "social_network_BackEndService".BackEndServiceClient
 
-  local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-
   ngx.req.read_body()
   local post = ngx.req.get_post_args()
 
@@ -20,10 +18,10 @@ function _M.Follow()
   local status
   local err
   if (not _StrIsEmpty(post.user_id) and not _StrIsEmpty(post.followee_id)) then
-    status, err = pcall(client.Follow, client,req_id,
+    status, err = pcall(client.Follow, client,
         tonumber(post.user_id), tonumber(post.followee_id), carrier )
   elseif (not _StrIsEmpty(post.user_name) and not _StrIsEmpty(post.followee_name)) then
-    status, err = pcall(client.FollowWithUsername, client,req_id,
+    status, err = pcall(client.FollowWithUsername, client,
         post.user_name, post.followee_name, carrier )
   else
     ngx.status = ngx.HTTP_BAD_REQUEST

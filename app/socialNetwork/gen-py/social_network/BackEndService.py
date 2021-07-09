@@ -19,10 +19,9 @@ all_structs = []
 
 
 class Iface(object):
-    def ComposePost(self, req_id, username, user_id, text, media_ids, media_types, post_type):
+    def ComposePost(self, username, user_id, text, media_ids, media_types, post_type):
         """
         Parameters:
-         - req_id
          - username
          - user_id
          - text
@@ -33,37 +32,9 @@ class Iface(object):
         """
         pass
 
-    def StorePost(self, req_id, post):
+    def ReadUserTimeline(self, user_id, start, stop):
         """
         Parameters:
-         - req_id
-         - post
-
-        """
-        pass
-
-    def ReadPost(self, req_id, post_id):
-        """
-        Parameters:
-         - req_id
-         - post_id
-
-        """
-        pass
-
-    def ReadPosts(self, req_id, post_ids):
-        """
-        Parameters:
-         - req_id
-         - post_ids
-
-        """
-        pass
-
-    def ReadUserTimeline(self, req_id, user_id, start, stop):
-        """
-        Parameters:
-         - req_id
          - user_id
          - start
          - stop
@@ -71,20 +42,18 @@ class Iface(object):
         """
         pass
 
-    def Login(self, req_id, username, password):
+    def Login(self, username, password):
         """
         Parameters:
-         - req_id
          - username
          - password
 
         """
         pass
 
-    def RegisterUser(self, req_id, first_name, last_name, username, password):
+    def RegisterUser(self, first_name, last_name, username, password):
         """
         Parameters:
-         - req_id
          - first_name
          - last_name
          - username
@@ -93,10 +62,9 @@ class Iface(object):
         """
         pass
 
-    def RegisterUserWithId(self, req_id, first_name, last_name, username, password, user_id):
+    def RegisterUserWithId(self, first_name, last_name, username, password, user_id):
         """
         Parameters:
-         - req_id
          - first_name
          - last_name
          - username
@@ -106,68 +74,61 @@ class Iface(object):
         """
         pass
 
-    def GetFollowers(self, req_id, user_id):
+    def GetFollowers(self, user_id):
         """
         Parameters:
-         - req_id
          - user_id
 
         """
         pass
 
-    def Unfollow(self, req_id, user_id, followee_id):
+    def Unfollow(self, user_id, followee_id):
         """
         Parameters:
-         - req_id
          - user_id
          - followee_id
 
         """
         pass
 
-    def UnfollowWithUsername(self, req_id, user_usernmae, followee_username):
+    def UnfollowWithUsername(self, user_usernmae, followee_username):
         """
         Parameters:
-         - req_id
          - user_usernmae
          - followee_username
 
         """
         pass
 
-    def Follow(self, req_id, user_id, followee_id):
+    def Follow(self, user_id, followee_id):
         """
         Parameters:
-         - req_id
          - user_id
          - followee_id
 
         """
         pass
 
-    def FollowWithUsername(self, req_id, user_usernmae, followee_username):
+    def FollowWithUsername(self, user_usernmae, followee_username):
         """
         Parameters:
-         - req_id
          - user_usernmae
          - followee_username
 
         """
         pass
 
-    def GetFollowees(self, req_id, user_id):
+    def GetFollowees(self, user_id):
         """
         Parameters:
-         - req_id
          - user_id
 
         """
         pass
 
-    def ReadHomeTimeline(self, req_id, user_id, start, stop):
+    def ReadHomeTimeline(self, user_id, start, stop):
         """
         Parameters:
-         - req_id
          - user_id
          - start
          - stop
@@ -183,10 +144,9 @@ class Client(Iface):
             self._oprot = oprot
         self._seqid = 0
 
-    def ComposePost(self, req_id, username, user_id, text, media_ids, media_types, post_type):
+    def ComposePost(self, username, user_id, text, media_ids, media_types, post_type):
         """
         Parameters:
-         - req_id
          - username
          - user_id
          - text
@@ -195,13 +155,12 @@ class Client(Iface):
          - post_type
 
         """
-        self.send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
+        self.send_ComposePost(username, user_id, text, media_ids, media_types, post_type)
         self.recv_ComposePost()
 
-    def send_ComposePost(self, req_id, username, user_id, text, media_ids, media_types, post_type):
+    def send_ComposePost(self, username, user_id, text, media_ids, media_types, post_type):
         self._oprot.writeMessageBegin('ComposePost', TMessageType.CALL, self._seqid)
         args = ComposePost_args()
-        args.req_id = req_id
         args.username = username
         args.user_id = user_id
         args.text = text
@@ -227,128 +186,20 @@ class Client(Iface):
             raise result.se
         return
 
-    def StorePost(self, req_id, post):
+    def ReadUserTimeline(self, user_id, start, stop):
         """
         Parameters:
-         - req_id
-         - post
-
-        """
-        self.send_StorePost(req_id, post)
-        self.recv_StorePost()
-
-    def send_StorePost(self, req_id, post):
-        self._oprot.writeMessageBegin('StorePost', TMessageType.CALL, self._seqid)
-        args = StorePost_args()
-        args.req_id = req_id
-        args.post = post
-        args.write(self._oprot)
-        self._oprot.writeMessageEnd()
-        self._oprot.trans.flush()
-
-    def recv_StorePost(self):
-        iprot = self._iprot
-        (fname, mtype, rseqid) = iprot.readMessageBegin()
-        if mtype == TMessageType.EXCEPTION:
-            x = TApplicationException()
-            x.read(iprot)
-            iprot.readMessageEnd()
-            raise x
-        result = StorePost_result()
-        result.read(iprot)
-        iprot.readMessageEnd()
-        if result.se is not None:
-            raise result.se
-        return
-
-    def ReadPost(self, req_id, post_id):
-        """
-        Parameters:
-         - req_id
-         - post_id
-
-        """
-        self.send_ReadPost(req_id, post_id)
-        return self.recv_ReadPost()
-
-    def send_ReadPost(self, req_id, post_id):
-        self._oprot.writeMessageBegin('ReadPost', TMessageType.CALL, self._seqid)
-        args = ReadPost_args()
-        args.req_id = req_id
-        args.post_id = post_id
-        args.write(self._oprot)
-        self._oprot.writeMessageEnd()
-        self._oprot.trans.flush()
-
-    def recv_ReadPost(self):
-        iprot = self._iprot
-        (fname, mtype, rseqid) = iprot.readMessageBegin()
-        if mtype == TMessageType.EXCEPTION:
-            x = TApplicationException()
-            x.read(iprot)
-            iprot.readMessageEnd()
-            raise x
-        result = ReadPost_result()
-        result.read(iprot)
-        iprot.readMessageEnd()
-        if result.success is not None:
-            return result.success
-        if result.se is not None:
-            raise result.se
-        raise TApplicationException(TApplicationException.MISSING_RESULT, "ReadPost failed: unknown result")
-
-    def ReadPosts(self, req_id, post_ids):
-        """
-        Parameters:
-         - req_id
-         - post_ids
-
-        """
-        self.send_ReadPosts(req_id, post_ids)
-        return self.recv_ReadPosts()
-
-    def send_ReadPosts(self, req_id, post_ids):
-        self._oprot.writeMessageBegin('ReadPosts', TMessageType.CALL, self._seqid)
-        args = ReadPosts_args()
-        args.req_id = req_id
-        args.post_ids = post_ids
-        args.write(self._oprot)
-        self._oprot.writeMessageEnd()
-        self._oprot.trans.flush()
-
-    def recv_ReadPosts(self):
-        iprot = self._iprot
-        (fname, mtype, rseqid) = iprot.readMessageBegin()
-        if mtype == TMessageType.EXCEPTION:
-            x = TApplicationException()
-            x.read(iprot)
-            iprot.readMessageEnd()
-            raise x
-        result = ReadPosts_result()
-        result.read(iprot)
-        iprot.readMessageEnd()
-        if result.success is not None:
-            return result.success
-        if result.se is not None:
-            raise result.se
-        raise TApplicationException(TApplicationException.MISSING_RESULT, "ReadPosts failed: unknown result")
-
-    def ReadUserTimeline(self, req_id, user_id, start, stop):
-        """
-        Parameters:
-         - req_id
          - user_id
          - start
          - stop
 
         """
-        self.send_ReadUserTimeline(req_id, user_id, start, stop)
+        self.send_ReadUserTimeline(user_id, start, stop)
         return self.recv_ReadUserTimeline()
 
-    def send_ReadUserTimeline(self, req_id, user_id, start, stop):
+    def send_ReadUserTimeline(self, user_id, start, stop):
         self._oprot.writeMessageBegin('ReadUserTimeline', TMessageType.CALL, self._seqid)
         args = ReadUserTimeline_args()
-        args.req_id = req_id
         args.user_id = user_id
         args.start = start
         args.stop = stop
@@ -373,21 +224,19 @@ class Client(Iface):
             raise result.se
         raise TApplicationException(TApplicationException.MISSING_RESULT, "ReadUserTimeline failed: unknown result")
 
-    def Login(self, req_id, username, password):
+    def Login(self, username, password):
         """
         Parameters:
-         - req_id
          - username
          - password
 
         """
-        self.send_Login(req_id, username, password)
+        self.send_Login(username, password)
         return self.recv_Login()
 
-    def send_Login(self, req_id, username, password):
+    def send_Login(self, username, password):
         self._oprot.writeMessageBegin('Login', TMessageType.CALL, self._seqid)
         args = Login_args()
-        args.req_id = req_id
         args.username = username
         args.password = password
         args.write(self._oprot)
@@ -411,23 +260,21 @@ class Client(Iface):
             raise result.se
         raise TApplicationException(TApplicationException.MISSING_RESULT, "Login failed: unknown result")
 
-    def RegisterUser(self, req_id, first_name, last_name, username, password):
+    def RegisterUser(self, first_name, last_name, username, password):
         """
         Parameters:
-         - req_id
          - first_name
          - last_name
          - username
          - password
 
         """
-        self.send_RegisterUser(req_id, first_name, last_name, username, password)
+        self.send_RegisterUser(first_name, last_name, username, password)
         self.recv_RegisterUser()
 
-    def send_RegisterUser(self, req_id, first_name, last_name, username, password):
+    def send_RegisterUser(self, first_name, last_name, username, password):
         self._oprot.writeMessageBegin('RegisterUser', TMessageType.CALL, self._seqid)
         args = RegisterUser_args()
-        args.req_id = req_id
         args.first_name = first_name
         args.last_name = last_name
         args.username = username
@@ -451,10 +298,9 @@ class Client(Iface):
             raise result.se
         return
 
-    def RegisterUserWithId(self, req_id, first_name, last_name, username, password, user_id):
+    def RegisterUserWithId(self, first_name, last_name, username, password, user_id):
         """
         Parameters:
-         - req_id
          - first_name
          - last_name
          - username
@@ -462,13 +308,12 @@ class Client(Iface):
          - user_id
 
         """
-        self.send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+        self.send_RegisterUserWithId(first_name, last_name, username, password, user_id)
         self.recv_RegisterUserWithId()
 
-    def send_RegisterUserWithId(self, req_id, first_name, last_name, username, password, user_id):
+    def send_RegisterUserWithId(self, first_name, last_name, username, password, user_id):
         self._oprot.writeMessageBegin('RegisterUserWithId', TMessageType.CALL, self._seqid)
         args = RegisterUserWithId_args()
-        args.req_id = req_id
         args.first_name = first_name
         args.last_name = last_name
         args.username = username
@@ -493,20 +338,18 @@ class Client(Iface):
             raise result.se
         return
 
-    def GetFollowers(self, req_id, user_id):
+    def GetFollowers(self, user_id):
         """
         Parameters:
-         - req_id
          - user_id
 
         """
-        self.send_GetFollowers(req_id, user_id)
+        self.send_GetFollowers(user_id)
         return self.recv_GetFollowers()
 
-    def send_GetFollowers(self, req_id, user_id):
+    def send_GetFollowers(self, user_id):
         self._oprot.writeMessageBegin('GetFollowers', TMessageType.CALL, self._seqid)
         args = GetFollowers_args()
-        args.req_id = req_id
         args.user_id = user_id
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
@@ -529,21 +372,19 @@ class Client(Iface):
             raise result.se
         raise TApplicationException(TApplicationException.MISSING_RESULT, "GetFollowers failed: unknown result")
 
-    def Unfollow(self, req_id, user_id, followee_id):
+    def Unfollow(self, user_id, followee_id):
         """
         Parameters:
-         - req_id
          - user_id
          - followee_id
 
         """
-        self.send_Unfollow(req_id, user_id, followee_id)
+        self.send_Unfollow(user_id, followee_id)
         self.recv_Unfollow()
 
-    def send_Unfollow(self, req_id, user_id, followee_id):
+    def send_Unfollow(self, user_id, followee_id):
         self._oprot.writeMessageBegin('Unfollow', TMessageType.CALL, self._seqid)
         args = Unfollow_args()
-        args.req_id = req_id
         args.user_id = user_id
         args.followee_id = followee_id
         args.write(self._oprot)
@@ -565,21 +406,19 @@ class Client(Iface):
             raise result.se
         return
 
-    def UnfollowWithUsername(self, req_id, user_usernmae, followee_username):
+    def UnfollowWithUsername(self, user_usernmae, followee_username):
         """
         Parameters:
-         - req_id
          - user_usernmae
          - followee_username
 
         """
-        self.send_UnfollowWithUsername(req_id, user_usernmae, followee_username)
+        self.send_UnfollowWithUsername(user_usernmae, followee_username)
         self.recv_UnfollowWithUsername()
 
-    def send_UnfollowWithUsername(self, req_id, user_usernmae, followee_username):
+    def send_UnfollowWithUsername(self, user_usernmae, followee_username):
         self._oprot.writeMessageBegin('UnfollowWithUsername', TMessageType.CALL, self._seqid)
         args = UnfollowWithUsername_args()
-        args.req_id = req_id
         args.user_usernmae = user_usernmae
         args.followee_username = followee_username
         args.write(self._oprot)
@@ -601,21 +440,19 @@ class Client(Iface):
             raise result.se
         return
 
-    def Follow(self, req_id, user_id, followee_id):
+    def Follow(self, user_id, followee_id):
         """
         Parameters:
-         - req_id
          - user_id
          - followee_id
 
         """
-        self.send_Follow(req_id, user_id, followee_id)
+        self.send_Follow(user_id, followee_id)
         self.recv_Follow()
 
-    def send_Follow(self, req_id, user_id, followee_id):
+    def send_Follow(self, user_id, followee_id):
         self._oprot.writeMessageBegin('Follow', TMessageType.CALL, self._seqid)
         args = Follow_args()
-        args.req_id = req_id
         args.user_id = user_id
         args.followee_id = followee_id
         args.write(self._oprot)
@@ -637,21 +474,19 @@ class Client(Iface):
             raise result.se
         return
 
-    def FollowWithUsername(self, req_id, user_usernmae, followee_username):
+    def FollowWithUsername(self, user_usernmae, followee_username):
         """
         Parameters:
-         - req_id
          - user_usernmae
          - followee_username
 
         """
-        self.send_FollowWithUsername(req_id, user_usernmae, followee_username)
+        self.send_FollowWithUsername(user_usernmae, followee_username)
         self.recv_FollowWithUsername()
 
-    def send_FollowWithUsername(self, req_id, user_usernmae, followee_username):
+    def send_FollowWithUsername(self, user_usernmae, followee_username):
         self._oprot.writeMessageBegin('FollowWithUsername', TMessageType.CALL, self._seqid)
         args = FollowWithUsername_args()
-        args.req_id = req_id
         args.user_usernmae = user_usernmae
         args.followee_username = followee_username
         args.write(self._oprot)
@@ -673,20 +508,18 @@ class Client(Iface):
             raise result.se
         return
 
-    def GetFollowees(self, req_id, user_id):
+    def GetFollowees(self, user_id):
         """
         Parameters:
-         - req_id
          - user_id
 
         """
-        self.send_GetFollowees(req_id, user_id)
+        self.send_GetFollowees(user_id)
         return self.recv_GetFollowees()
 
-    def send_GetFollowees(self, req_id, user_id):
+    def send_GetFollowees(self, user_id):
         self._oprot.writeMessageBegin('GetFollowees', TMessageType.CALL, self._seqid)
         args = GetFollowees_args()
-        args.req_id = req_id
         args.user_id = user_id
         args.write(self._oprot)
         self._oprot.writeMessageEnd()
@@ -709,22 +542,20 @@ class Client(Iface):
             raise result.se
         raise TApplicationException(TApplicationException.MISSING_RESULT, "GetFollowees failed: unknown result")
 
-    def ReadHomeTimeline(self, req_id, user_id, start, stop):
+    def ReadHomeTimeline(self, user_id, start, stop):
         """
         Parameters:
-         - req_id
          - user_id
          - start
          - stop
 
         """
-        self.send_ReadHomeTimeline(req_id, user_id, start, stop)
+        self.send_ReadHomeTimeline(user_id, start, stop)
         return self.recv_ReadHomeTimeline()
 
-    def send_ReadHomeTimeline(self, req_id, user_id, start, stop):
+    def send_ReadHomeTimeline(self, user_id, start, stop):
         self._oprot.writeMessageBegin('ReadHomeTimeline', TMessageType.CALL, self._seqid)
         args = ReadHomeTimeline_args()
-        args.req_id = req_id
         args.user_id = user_id
         args.start = start
         args.stop = stop
@@ -755,9 +586,6 @@ class Processor(Iface, TProcessor):
         self._handler = handler
         self._processMap = {}
         self._processMap["ComposePost"] = Processor.process_ComposePost
-        self._processMap["StorePost"] = Processor.process_StorePost
-        self._processMap["ReadPost"] = Processor.process_ReadPost
-        self._processMap["ReadPosts"] = Processor.process_ReadPosts
         self._processMap["ReadUserTimeline"] = Processor.process_ReadUserTimeline
         self._processMap["Login"] = Processor.process_Login
         self._processMap["RegisterUser"] = Processor.process_RegisterUser
@@ -791,7 +619,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = ComposePost_result()
         try:
-            self._handler.ComposePost(args.req_id, args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type)
+            self._handler.ComposePost(args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -811,91 +639,13 @@ class Processor(Iface, TProcessor):
         oprot.writeMessageEnd()
         oprot.trans.flush()
 
-    def process_StorePost(self, seqid, iprot, oprot):
-        args = StorePost_args()
-        args.read(iprot)
-        iprot.readMessageEnd()
-        result = StorePost_result()
-        try:
-            self._handler.StorePost(args.req_id, args.post)
-            msg_type = TMessageType.REPLY
-        except TTransport.TTransportException:
-            raise
-        except ServiceException as se:
-            msg_type = TMessageType.REPLY
-            result.se = se
-        except TApplicationException as ex:
-            logging.exception('TApplication exception in handler')
-            msg_type = TMessageType.EXCEPTION
-            result = ex
-        except Exception:
-            logging.exception('Unexpected exception in handler')
-            msg_type = TMessageType.EXCEPTION
-            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
-        oprot.writeMessageBegin("StorePost", msg_type, seqid)
-        result.write(oprot)
-        oprot.writeMessageEnd()
-        oprot.trans.flush()
-
-    def process_ReadPost(self, seqid, iprot, oprot):
-        args = ReadPost_args()
-        args.read(iprot)
-        iprot.readMessageEnd()
-        result = ReadPost_result()
-        try:
-            result.success = self._handler.ReadPost(args.req_id, args.post_id)
-            msg_type = TMessageType.REPLY
-        except TTransport.TTransportException:
-            raise
-        except ServiceException as se:
-            msg_type = TMessageType.REPLY
-            result.se = se
-        except TApplicationException as ex:
-            logging.exception('TApplication exception in handler')
-            msg_type = TMessageType.EXCEPTION
-            result = ex
-        except Exception:
-            logging.exception('Unexpected exception in handler')
-            msg_type = TMessageType.EXCEPTION
-            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
-        oprot.writeMessageBegin("ReadPost", msg_type, seqid)
-        result.write(oprot)
-        oprot.writeMessageEnd()
-        oprot.trans.flush()
-
-    def process_ReadPosts(self, seqid, iprot, oprot):
-        args = ReadPosts_args()
-        args.read(iprot)
-        iprot.readMessageEnd()
-        result = ReadPosts_result()
-        try:
-            result.success = self._handler.ReadPosts(args.req_id, args.post_ids)
-            msg_type = TMessageType.REPLY
-        except TTransport.TTransportException:
-            raise
-        except ServiceException as se:
-            msg_type = TMessageType.REPLY
-            result.se = se
-        except TApplicationException as ex:
-            logging.exception('TApplication exception in handler')
-            msg_type = TMessageType.EXCEPTION
-            result = ex
-        except Exception:
-            logging.exception('Unexpected exception in handler')
-            msg_type = TMessageType.EXCEPTION
-            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
-        oprot.writeMessageBegin("ReadPosts", msg_type, seqid)
-        result.write(oprot)
-        oprot.writeMessageEnd()
-        oprot.trans.flush()
-
     def process_ReadUserTimeline(self, seqid, iprot, oprot):
         args = ReadUserTimeline_args()
         args.read(iprot)
         iprot.readMessageEnd()
         result = ReadUserTimeline_result()
         try:
-            result.success = self._handler.ReadUserTimeline(args.req_id, args.user_id, args.start, args.stop)
+            result.success = self._handler.ReadUserTimeline(args.user_id, args.start, args.stop)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -921,7 +671,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = Login_result()
         try:
-            result.success = self._handler.Login(args.req_id, args.username, args.password)
+            result.success = self._handler.Login(args.username, args.password)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -947,7 +697,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = RegisterUser_result()
         try:
-            self._handler.RegisterUser(args.req_id, args.first_name, args.last_name, args.username, args.password)
+            self._handler.RegisterUser(args.first_name, args.last_name, args.username, args.password)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -973,7 +723,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = RegisterUserWithId_result()
         try:
-            self._handler.RegisterUserWithId(args.req_id, args.first_name, args.last_name, args.username, args.password, args.user_id)
+            self._handler.RegisterUserWithId(args.first_name, args.last_name, args.username, args.password, args.user_id)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -999,7 +749,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = GetFollowers_result()
         try:
-            result.success = self._handler.GetFollowers(args.req_id, args.user_id)
+            result.success = self._handler.GetFollowers(args.user_id)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -1025,7 +775,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = Unfollow_result()
         try:
-            self._handler.Unfollow(args.req_id, args.user_id, args.followee_id)
+            self._handler.Unfollow(args.user_id, args.followee_id)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -1051,7 +801,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = UnfollowWithUsername_result()
         try:
-            self._handler.UnfollowWithUsername(args.req_id, args.user_usernmae, args.followee_username)
+            self._handler.UnfollowWithUsername(args.user_usernmae, args.followee_username)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -1077,7 +827,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = Follow_result()
         try:
-            self._handler.Follow(args.req_id, args.user_id, args.followee_id)
+            self._handler.Follow(args.user_id, args.followee_id)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -1103,7 +853,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = FollowWithUsername_result()
         try:
-            self._handler.FollowWithUsername(args.req_id, args.user_usernmae, args.followee_username)
+            self._handler.FollowWithUsername(args.user_usernmae, args.followee_username)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -1129,7 +879,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = GetFollowees_result()
         try:
-            result.success = self._handler.GetFollowees(args.req_id, args.user_id)
+            result.success = self._handler.GetFollowees(args.user_id)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -1155,7 +905,7 @@ class Processor(Iface, TProcessor):
         iprot.readMessageEnd()
         result = ReadHomeTimeline_result()
         try:
-            result.success = self._handler.ReadHomeTimeline(args.req_id, args.user_id, args.start, args.stop)
+            result.success = self._handler.ReadHomeTimeline(args.user_id, args.start, args.stop)
             msg_type = TMessageType.REPLY
         except TTransport.TTransportException:
             raise
@@ -1181,7 +931,6 @@ class Processor(Iface, TProcessor):
 class ComposePost_args(object):
     """
     Attributes:
-     - req_id
      - username
      - user_id
      - text
@@ -1192,8 +941,7 @@ class ComposePost_args(object):
     """
 
 
-    def __init__(self, req_id=None, username=None, user_id=None, text=None, media_ids=None, media_types=None, post_type=None,):
-        self.req_id = req_id
+    def __init__(self, username=None, user_id=None, text=None, media_ids=None, media_types=None, post_type=None,):
         self.username = username
         self.user_id = user_id
         self.text = text
@@ -1211,26 +959,21 @@ class ComposePost_args(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
                 if ftype == TType.STRING:
                     self.username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.I64:
                     self.user_id = iprot.readI64()
                 else:
                     iprot.skip(ftype)
-            elif fid == 4:
+            elif fid == 3:
                 if ftype == TType.STRING:
                     self.text = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 5:
+            elif fid == 4:
                 if ftype == TType.LIST:
                     self.media_ids = []
                     (_etype38, _size35) = iprot.readListBegin()
@@ -1240,7 +983,7 @@ class ComposePost_args(object):
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
-            elif fid == 6:
+            elif fid == 5:
                 if ftype == TType.LIST:
                     self.media_types = []
                     (_etype44, _size41) = iprot.readListBegin()
@@ -1250,7 +993,7 @@ class ComposePost_args(object):
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
-            elif fid == 7:
+            elif fid == 6:
                 if ftype == TType.I32:
                     self.post_type = iprot.readI32()
                 else:
@@ -1265,38 +1008,34 @@ class ComposePost_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('ComposePost_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.username is not None:
-            oprot.writeFieldBegin('username', TType.STRING, 2)
+            oprot.writeFieldBegin('username', TType.STRING, 1)
             oprot.writeString(self.username.encode('utf-8') if sys.version_info[0] == 2 else self.username)
             oprot.writeFieldEnd()
         if self.user_id is not None:
-            oprot.writeFieldBegin('user_id', TType.I64, 3)
+            oprot.writeFieldBegin('user_id', TType.I64, 2)
             oprot.writeI64(self.user_id)
             oprot.writeFieldEnd()
         if self.text is not None:
-            oprot.writeFieldBegin('text', TType.STRING, 4)
+            oprot.writeFieldBegin('text', TType.STRING, 3)
             oprot.writeString(self.text.encode('utf-8') if sys.version_info[0] == 2 else self.text)
             oprot.writeFieldEnd()
         if self.media_ids is not None:
-            oprot.writeFieldBegin('media_ids', TType.LIST, 5)
+            oprot.writeFieldBegin('media_ids', TType.LIST, 4)
             oprot.writeListBegin(TType.I64, len(self.media_ids))
             for iter47 in self.media_ids:
                 oprot.writeI64(iter47)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.media_types is not None:
-            oprot.writeFieldBegin('media_types', TType.LIST, 6)
+            oprot.writeFieldBegin('media_types', TType.LIST, 5)
             oprot.writeListBegin(TType.STRING, len(self.media_types))
             for iter48 in self.media_types:
                 oprot.writeString(iter48.encode('utf-8') if sys.version_info[0] == 2 else iter48)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.post_type is not None:
-            oprot.writeFieldBegin('post_type', TType.I32, 7)
+            oprot.writeFieldBegin('post_type', TType.I32, 6)
             oprot.writeI32(self.post_type)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -1318,13 +1057,12 @@ class ComposePost_args(object):
 all_structs.append(ComposePost_args)
 ComposePost_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.STRING, 'username', 'UTF8', None, ),  # 2
-    (3, TType.I64, 'user_id', None, None, ),  # 3
-    (4, TType.STRING, 'text', 'UTF8', None, ),  # 4
-    (5, TType.LIST, 'media_ids', (TType.I64, None, False), None, ),  # 5
-    (6, TType.LIST, 'media_types', (TType.STRING, 'UTF8', False), None, ),  # 6
-    (7, TType.I32, 'post_type', None, None, ),  # 7
+    (1, TType.STRING, 'username', 'UTF8', None, ),  # 1
+    (2, TType.I64, 'user_id', None, None, ),  # 2
+    (3, TType.STRING, 'text', 'UTF8', None, ),  # 3
+    (4, TType.LIST, 'media_ids', (TType.I64, None, False), None, ),  # 4
+    (5, TType.LIST, 'media_types', (TType.STRING, 'UTF8', False), None, ),  # 5
+    (6, TType.I32, 'post_type', None, None, ),  # 6
 )
 
 
@@ -1391,462 +1129,9 @@ ComposePost_result.thrift_spec = (
 )
 
 
-class StorePost_args(object):
-    """
-    Attributes:
-     - req_id
-     - post
-
-    """
-
-
-    def __init__(self, req_id=None, post=None,):
-        self.req_id = req_id
-        self.post = post
-
-    def read(self, iprot):
-        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
-            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
-            return
-        iprot.readStructBegin()
-        while True:
-            (fname, ftype, fid) = iprot.readFieldBegin()
-            if ftype == TType.STOP:
-                break
-            if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.STRUCT:
-                    self.post = Post()
-                    self.post.read(iprot)
-                else:
-                    iprot.skip(ftype)
-            else:
-                iprot.skip(ftype)
-            iprot.readFieldEnd()
-        iprot.readStructEnd()
-
-    def write(self, oprot):
-        if oprot._fast_encode is not None and self.thrift_spec is not None:
-            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
-            return
-        oprot.writeStructBegin('StorePost_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
-        if self.post is not None:
-            oprot.writeFieldBegin('post', TType.STRUCT, 2)
-            self.post.write(oprot)
-            oprot.writeFieldEnd()
-        oprot.writeFieldStop()
-        oprot.writeStructEnd()
-
-    def validate(self):
-        return
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not (self == other)
-all_structs.append(StorePost_args)
-StorePost_args.thrift_spec = (
-    None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.STRUCT, 'post', [Post, None], None, ),  # 2
-)
-
-
-class StorePost_result(object):
-    """
-    Attributes:
-     - se
-
-    """
-
-
-    def __init__(self, se=None,):
-        self.se = se
-
-    def read(self, iprot):
-        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
-            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
-            return
-        iprot.readStructBegin()
-        while True:
-            (fname, ftype, fid) = iprot.readFieldBegin()
-            if ftype == TType.STOP:
-                break
-            if fid == 1:
-                if ftype == TType.STRUCT:
-                    self.se = ServiceException()
-                    self.se.read(iprot)
-                else:
-                    iprot.skip(ftype)
-            else:
-                iprot.skip(ftype)
-            iprot.readFieldEnd()
-        iprot.readStructEnd()
-
-    def write(self, oprot):
-        if oprot._fast_encode is not None and self.thrift_spec is not None:
-            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
-            return
-        oprot.writeStructBegin('StorePost_result')
-        if self.se is not None:
-            oprot.writeFieldBegin('se', TType.STRUCT, 1)
-            self.se.write(oprot)
-            oprot.writeFieldEnd()
-        oprot.writeFieldStop()
-        oprot.writeStructEnd()
-
-    def validate(self):
-        return
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not (self == other)
-all_structs.append(StorePost_result)
-StorePost_result.thrift_spec = (
-    None,  # 0
-    (1, TType.STRUCT, 'se', [ServiceException, None], None, ),  # 1
-)
-
-
-class ReadPost_args(object):
-    """
-    Attributes:
-     - req_id
-     - post_id
-
-    """
-
-
-    def __init__(self, req_id=None, post_id=None,):
-        self.req_id = req_id
-        self.post_id = post_id
-
-    def read(self, iprot):
-        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
-            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
-            return
-        iprot.readStructBegin()
-        while True:
-            (fname, ftype, fid) = iprot.readFieldBegin()
-            if ftype == TType.STOP:
-                break
-            if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.I64:
-                    self.post_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            else:
-                iprot.skip(ftype)
-            iprot.readFieldEnd()
-        iprot.readStructEnd()
-
-    def write(self, oprot):
-        if oprot._fast_encode is not None and self.thrift_spec is not None:
-            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
-            return
-        oprot.writeStructBegin('ReadPost_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
-        if self.post_id is not None:
-            oprot.writeFieldBegin('post_id', TType.I64, 2)
-            oprot.writeI64(self.post_id)
-            oprot.writeFieldEnd()
-        oprot.writeFieldStop()
-        oprot.writeStructEnd()
-
-    def validate(self):
-        return
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not (self == other)
-all_structs.append(ReadPost_args)
-ReadPost_args.thrift_spec = (
-    None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.I64, 'post_id', None, None, ),  # 2
-)
-
-
-class ReadPost_result(object):
-    """
-    Attributes:
-     - success
-     - se
-
-    """
-
-
-    def __init__(self, success=None, se=None,):
-        self.success = success
-        self.se = se
-
-    def read(self, iprot):
-        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
-            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
-            return
-        iprot.readStructBegin()
-        while True:
-            (fname, ftype, fid) = iprot.readFieldBegin()
-            if ftype == TType.STOP:
-                break
-            if fid == 0:
-                if ftype == TType.STRUCT:
-                    self.success = Post()
-                    self.success.read(iprot)
-                else:
-                    iprot.skip(ftype)
-            elif fid == 1:
-                if ftype == TType.STRUCT:
-                    self.se = ServiceException()
-                    self.se.read(iprot)
-                else:
-                    iprot.skip(ftype)
-            else:
-                iprot.skip(ftype)
-            iprot.readFieldEnd()
-        iprot.readStructEnd()
-
-    def write(self, oprot):
-        if oprot._fast_encode is not None and self.thrift_spec is not None:
-            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
-            return
-        oprot.writeStructBegin('ReadPost_result')
-        if self.success is not None:
-            oprot.writeFieldBegin('success', TType.STRUCT, 0)
-            self.success.write(oprot)
-            oprot.writeFieldEnd()
-        if self.se is not None:
-            oprot.writeFieldBegin('se', TType.STRUCT, 1)
-            self.se.write(oprot)
-            oprot.writeFieldEnd()
-        oprot.writeFieldStop()
-        oprot.writeStructEnd()
-
-    def validate(self):
-        return
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not (self == other)
-all_structs.append(ReadPost_result)
-ReadPost_result.thrift_spec = (
-    (0, TType.STRUCT, 'success', [Post, None], None, ),  # 0
-    (1, TType.STRUCT, 'se', [ServiceException, None], None, ),  # 1
-)
-
-
-class ReadPosts_args(object):
-    """
-    Attributes:
-     - req_id
-     - post_ids
-
-    """
-
-
-    def __init__(self, req_id=None, post_ids=None,):
-        self.req_id = req_id
-        self.post_ids = post_ids
-
-    def read(self, iprot):
-        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
-            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
-            return
-        iprot.readStructBegin()
-        while True:
-            (fname, ftype, fid) = iprot.readFieldBegin()
-            if ftype == TType.STOP:
-                break
-            if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.LIST:
-                    self.post_ids = []
-                    (_etype52, _size49) = iprot.readListBegin()
-                    for _i53 in range(_size49):
-                        _elem54 = iprot.readI64()
-                        self.post_ids.append(_elem54)
-                    iprot.readListEnd()
-                else:
-                    iprot.skip(ftype)
-            else:
-                iprot.skip(ftype)
-            iprot.readFieldEnd()
-        iprot.readStructEnd()
-
-    def write(self, oprot):
-        if oprot._fast_encode is not None and self.thrift_spec is not None:
-            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
-            return
-        oprot.writeStructBegin('ReadPosts_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
-        if self.post_ids is not None:
-            oprot.writeFieldBegin('post_ids', TType.LIST, 2)
-            oprot.writeListBegin(TType.I64, len(self.post_ids))
-            for iter55 in self.post_ids:
-                oprot.writeI64(iter55)
-            oprot.writeListEnd()
-            oprot.writeFieldEnd()
-        oprot.writeFieldStop()
-        oprot.writeStructEnd()
-
-    def validate(self):
-        return
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not (self == other)
-all_structs.append(ReadPosts_args)
-ReadPosts_args.thrift_spec = (
-    None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.LIST, 'post_ids', (TType.I64, None, False), None, ),  # 2
-)
-
-
-class ReadPosts_result(object):
-    """
-    Attributes:
-     - success
-     - se
-
-    """
-
-
-    def __init__(self, success=None, se=None,):
-        self.success = success
-        self.se = se
-
-    def read(self, iprot):
-        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
-            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
-            return
-        iprot.readStructBegin()
-        while True:
-            (fname, ftype, fid) = iprot.readFieldBegin()
-            if ftype == TType.STOP:
-                break
-            if fid == 0:
-                if ftype == TType.LIST:
-                    self.success = []
-                    (_etype59, _size56) = iprot.readListBegin()
-                    for _i60 in range(_size56):
-                        _elem61 = Post()
-                        _elem61.read(iprot)
-                        self.success.append(_elem61)
-                    iprot.readListEnd()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 1:
-                if ftype == TType.STRUCT:
-                    self.se = ServiceException()
-                    self.se.read(iprot)
-                else:
-                    iprot.skip(ftype)
-            else:
-                iprot.skip(ftype)
-            iprot.readFieldEnd()
-        iprot.readStructEnd()
-
-    def write(self, oprot):
-        if oprot._fast_encode is not None and self.thrift_spec is not None:
-            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
-            return
-        oprot.writeStructBegin('ReadPosts_result')
-        if self.success is not None:
-            oprot.writeFieldBegin('success', TType.LIST, 0)
-            oprot.writeListBegin(TType.STRUCT, len(self.success))
-            for iter62 in self.success:
-                iter62.write(oprot)
-            oprot.writeListEnd()
-            oprot.writeFieldEnd()
-        if self.se is not None:
-            oprot.writeFieldBegin('se', TType.STRUCT, 1)
-            self.se.write(oprot)
-            oprot.writeFieldEnd()
-        oprot.writeFieldStop()
-        oprot.writeStructEnd()
-
-    def validate(self):
-        return
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
-
-    def __ne__(self, other):
-        return not (self == other)
-all_structs.append(ReadPosts_result)
-ReadPosts_result.thrift_spec = (
-    (0, TType.LIST, 'success', (TType.STRUCT, [Post, None], False), None, ),  # 0
-    (1, TType.STRUCT, 'se', [ServiceException, None], None, ),  # 1
-)
-
-
 class ReadUserTimeline_args(object):
     """
     Attributes:
-     - req_id
      - user_id
      - start
      - stop
@@ -1854,8 +1139,7 @@ class ReadUserTimeline_args(object):
     """
 
 
-    def __init__(self, req_id=None, user_id=None, start=None, stop=None,):
-        self.req_id = req_id
+    def __init__(self, user_id=None, start=None, stop=None,):
         self.user_id = user_id
         self.start = start
         self.stop = stop
@@ -1871,20 +1155,15 @@ class ReadUserTimeline_args(object):
                 break
             if fid == 1:
                 if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.I64:
                     self.user_id = iprot.readI64()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.I32:
                     self.start = iprot.readI32()
                 else:
                     iprot.skip(ftype)
-            elif fid == 4:
+            elif fid == 3:
                 if ftype == TType.I32:
                     self.stop = iprot.readI32()
                 else:
@@ -1899,20 +1178,16 @@ class ReadUserTimeline_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('ReadUserTimeline_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.user_id is not None:
-            oprot.writeFieldBegin('user_id', TType.I64, 2)
+            oprot.writeFieldBegin('user_id', TType.I64, 1)
             oprot.writeI64(self.user_id)
             oprot.writeFieldEnd()
         if self.start is not None:
-            oprot.writeFieldBegin('start', TType.I32, 3)
+            oprot.writeFieldBegin('start', TType.I32, 2)
             oprot.writeI32(self.start)
             oprot.writeFieldEnd()
         if self.stop is not None:
-            oprot.writeFieldBegin('stop', TType.I32, 4)
+            oprot.writeFieldBegin('stop', TType.I32, 3)
             oprot.writeI32(self.stop)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -1934,10 +1209,9 @@ class ReadUserTimeline_args(object):
 all_structs.append(ReadUserTimeline_args)
 ReadUserTimeline_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.I64, 'user_id', None, None, ),  # 2
-    (3, TType.I32, 'start', None, None, ),  # 3
-    (4, TType.I32, 'stop', None, None, ),  # 4
+    (1, TType.I64, 'user_id', None, None, ),  # 1
+    (2, TType.I32, 'start', None, None, ),  # 2
+    (3, TType.I32, 'stop', None, None, ),  # 3
 )
 
 
@@ -1966,11 +1240,11 @@ class ReadUserTimeline_result(object):
             if fid == 0:
                 if ftype == TType.LIST:
                     self.success = []
-                    (_etype66, _size63) = iprot.readListBegin()
-                    for _i67 in range(_size63):
-                        _elem68 = Post()
-                        _elem68.read(iprot)
-                        self.success.append(_elem68)
+                    (_etype52, _size49) = iprot.readListBegin()
+                    for _i53 in range(_size49):
+                        _elem54 = Post()
+                        _elem54.read(iprot)
+                        self.success.append(_elem54)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
@@ -1993,8 +1267,8 @@ class ReadUserTimeline_result(object):
         if self.success is not None:
             oprot.writeFieldBegin('success', TType.LIST, 0)
             oprot.writeListBegin(TType.STRUCT, len(self.success))
-            for iter69 in self.success:
-                iter69.write(oprot)
+            for iter55 in self.success:
+                iter55.write(oprot)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.se is not None:
@@ -2027,15 +1301,13 @@ ReadUserTimeline_result.thrift_spec = (
 class Login_args(object):
     """
     Attributes:
-     - req_id
      - username
      - password
 
     """
 
 
-    def __init__(self, req_id=None, username=None, password=None,):
-        self.req_id = req_id
+    def __init__(self, username=None, password=None,):
         self.username = username
         self.password = password
 
@@ -2049,16 +1321,11 @@ class Login_args(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
                 if ftype == TType.STRING:
                     self.username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.STRING:
                     self.password = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
@@ -2073,16 +1340,12 @@ class Login_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('Login_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.username is not None:
-            oprot.writeFieldBegin('username', TType.STRING, 2)
+            oprot.writeFieldBegin('username', TType.STRING, 1)
             oprot.writeString(self.username.encode('utf-8') if sys.version_info[0] == 2 else self.username)
             oprot.writeFieldEnd()
         if self.password is not None:
-            oprot.writeFieldBegin('password', TType.STRING, 3)
+            oprot.writeFieldBegin('password', TType.STRING, 2)
             oprot.writeString(self.password.encode('utf-8') if sys.version_info[0] == 2 else self.password)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -2104,9 +1367,8 @@ class Login_args(object):
 all_structs.append(Login_args)
 Login_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.STRING, 'username', 'UTF8', None, ),  # 2
-    (3, TType.STRING, 'password', 'UTF8', None, ),  # 3
+    (1, TType.STRING, 'username', 'UTF8', None, ),  # 1
+    (2, TType.STRING, 'password', 'UTF8', None, ),  # 2
 )
 
 
@@ -2187,7 +1449,6 @@ Login_result.thrift_spec = (
 class RegisterUser_args(object):
     """
     Attributes:
-     - req_id
      - first_name
      - last_name
      - username
@@ -2196,8 +1457,7 @@ class RegisterUser_args(object):
     """
 
 
-    def __init__(self, req_id=None, first_name=None, last_name=None, username=None, password=None,):
-        self.req_id = req_id
+    def __init__(self, first_name=None, last_name=None, username=None, password=None,):
         self.first_name = first_name
         self.last_name = last_name
         self.username = username
@@ -2213,26 +1473,21 @@ class RegisterUser_args(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
                 if ftype == TType.STRING:
                     self.first_name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.STRING:
                     self.last_name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 4:
+            elif fid == 3:
                 if ftype == TType.STRING:
                     self.username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 5:
+            elif fid == 4:
                 if ftype == TType.STRING:
                     self.password = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
@@ -2247,24 +1502,20 @@ class RegisterUser_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('RegisterUser_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.first_name is not None:
-            oprot.writeFieldBegin('first_name', TType.STRING, 2)
+            oprot.writeFieldBegin('first_name', TType.STRING, 1)
             oprot.writeString(self.first_name.encode('utf-8') if sys.version_info[0] == 2 else self.first_name)
             oprot.writeFieldEnd()
         if self.last_name is not None:
-            oprot.writeFieldBegin('last_name', TType.STRING, 3)
+            oprot.writeFieldBegin('last_name', TType.STRING, 2)
             oprot.writeString(self.last_name.encode('utf-8') if sys.version_info[0] == 2 else self.last_name)
             oprot.writeFieldEnd()
         if self.username is not None:
-            oprot.writeFieldBegin('username', TType.STRING, 4)
+            oprot.writeFieldBegin('username', TType.STRING, 3)
             oprot.writeString(self.username.encode('utf-8') if sys.version_info[0] == 2 else self.username)
             oprot.writeFieldEnd()
         if self.password is not None:
-            oprot.writeFieldBegin('password', TType.STRING, 5)
+            oprot.writeFieldBegin('password', TType.STRING, 4)
             oprot.writeString(self.password.encode('utf-8') if sys.version_info[0] == 2 else self.password)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -2286,11 +1537,10 @@ class RegisterUser_args(object):
 all_structs.append(RegisterUser_args)
 RegisterUser_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.STRING, 'first_name', 'UTF8', None, ),  # 2
-    (3, TType.STRING, 'last_name', 'UTF8', None, ),  # 3
-    (4, TType.STRING, 'username', 'UTF8', None, ),  # 4
-    (5, TType.STRING, 'password', 'UTF8', None, ),  # 5
+    (1, TType.STRING, 'first_name', 'UTF8', None, ),  # 1
+    (2, TType.STRING, 'last_name', 'UTF8', None, ),  # 2
+    (3, TType.STRING, 'username', 'UTF8', None, ),  # 3
+    (4, TType.STRING, 'password', 'UTF8', None, ),  # 4
 )
 
 
@@ -2360,7 +1610,6 @@ RegisterUser_result.thrift_spec = (
 class RegisterUserWithId_args(object):
     """
     Attributes:
-     - req_id
      - first_name
      - last_name
      - username
@@ -2370,8 +1619,7 @@ class RegisterUserWithId_args(object):
     """
 
 
-    def __init__(self, req_id=None, first_name=None, last_name=None, username=None, password=None, user_id=None,):
-        self.req_id = req_id
+    def __init__(self, first_name=None, last_name=None, username=None, password=None, user_id=None,):
         self.first_name = first_name
         self.last_name = last_name
         self.username = username
@@ -2388,31 +1636,26 @@ class RegisterUserWithId_args(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
                 if ftype == TType.STRING:
                     self.first_name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.STRING:
                     self.last_name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 4:
+            elif fid == 3:
                 if ftype == TType.STRING:
                     self.username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 5:
+            elif fid == 4:
                 if ftype == TType.STRING:
                     self.password = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 6:
+            elif fid == 5:
                 if ftype == TType.I64:
                     self.user_id = iprot.readI64()
                 else:
@@ -2427,28 +1670,24 @@ class RegisterUserWithId_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('RegisterUserWithId_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.first_name is not None:
-            oprot.writeFieldBegin('first_name', TType.STRING, 2)
+            oprot.writeFieldBegin('first_name', TType.STRING, 1)
             oprot.writeString(self.first_name.encode('utf-8') if sys.version_info[0] == 2 else self.first_name)
             oprot.writeFieldEnd()
         if self.last_name is not None:
-            oprot.writeFieldBegin('last_name', TType.STRING, 3)
+            oprot.writeFieldBegin('last_name', TType.STRING, 2)
             oprot.writeString(self.last_name.encode('utf-8') if sys.version_info[0] == 2 else self.last_name)
             oprot.writeFieldEnd()
         if self.username is not None:
-            oprot.writeFieldBegin('username', TType.STRING, 4)
+            oprot.writeFieldBegin('username', TType.STRING, 3)
             oprot.writeString(self.username.encode('utf-8') if sys.version_info[0] == 2 else self.username)
             oprot.writeFieldEnd()
         if self.password is not None:
-            oprot.writeFieldBegin('password', TType.STRING, 5)
+            oprot.writeFieldBegin('password', TType.STRING, 4)
             oprot.writeString(self.password.encode('utf-8') if sys.version_info[0] == 2 else self.password)
             oprot.writeFieldEnd()
         if self.user_id is not None:
-            oprot.writeFieldBegin('user_id', TType.I64, 6)
+            oprot.writeFieldBegin('user_id', TType.I64, 5)
             oprot.writeI64(self.user_id)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -2470,12 +1709,11 @@ class RegisterUserWithId_args(object):
 all_structs.append(RegisterUserWithId_args)
 RegisterUserWithId_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.STRING, 'first_name', 'UTF8', None, ),  # 2
-    (3, TType.STRING, 'last_name', 'UTF8', None, ),  # 3
-    (4, TType.STRING, 'username', 'UTF8', None, ),  # 4
-    (5, TType.STRING, 'password', 'UTF8', None, ),  # 5
-    (6, TType.I64, 'user_id', None, None, ),  # 6
+    (1, TType.STRING, 'first_name', 'UTF8', None, ),  # 1
+    (2, TType.STRING, 'last_name', 'UTF8', None, ),  # 2
+    (3, TType.STRING, 'username', 'UTF8', None, ),  # 3
+    (4, TType.STRING, 'password', 'UTF8', None, ),  # 4
+    (5, TType.I64, 'user_id', None, None, ),  # 5
 )
 
 
@@ -2545,14 +1783,12 @@ RegisterUserWithId_result.thrift_spec = (
 class GetFollowers_args(object):
     """
     Attributes:
-     - req_id
      - user_id
 
     """
 
 
-    def __init__(self, req_id=None, user_id=None,):
-        self.req_id = req_id
+    def __init__(self, user_id=None,):
         self.user_id = user_id
 
     def read(self, iprot):
@@ -2565,11 +1801,6 @@ class GetFollowers_args(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
                 if ftype == TType.I64:
                     self.user_id = iprot.readI64()
                 else:
@@ -2584,12 +1815,8 @@ class GetFollowers_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('GetFollowers_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.user_id is not None:
-            oprot.writeFieldBegin('user_id', TType.I64, 2)
+            oprot.writeFieldBegin('user_id', TType.I64, 1)
             oprot.writeI64(self.user_id)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -2611,8 +1838,7 @@ class GetFollowers_args(object):
 all_structs.append(GetFollowers_args)
 GetFollowers_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.I64, 'user_id', None, None, ),  # 2
+    (1, TType.I64, 'user_id', None, None, ),  # 1
 )
 
 
@@ -2641,10 +1867,10 @@ class GetFollowers_result(object):
             if fid == 0:
                 if ftype == TType.LIST:
                     self.success = []
-                    (_etype73, _size70) = iprot.readListBegin()
-                    for _i74 in range(_size70):
-                        _elem75 = iprot.readI64()
-                        self.success.append(_elem75)
+                    (_etype59, _size56) = iprot.readListBegin()
+                    for _i60 in range(_size56):
+                        _elem61 = iprot.readI64()
+                        self.success.append(_elem61)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
@@ -2667,8 +1893,8 @@ class GetFollowers_result(object):
         if self.success is not None:
             oprot.writeFieldBegin('success', TType.LIST, 0)
             oprot.writeListBegin(TType.I64, len(self.success))
-            for iter76 in self.success:
-                oprot.writeI64(iter76)
+            for iter62 in self.success:
+                oprot.writeI64(iter62)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.se is not None:
@@ -2701,15 +1927,13 @@ GetFollowers_result.thrift_spec = (
 class Unfollow_args(object):
     """
     Attributes:
-     - req_id
      - user_id
      - followee_id
 
     """
 
 
-    def __init__(self, req_id=None, user_id=None, followee_id=None,):
-        self.req_id = req_id
+    def __init__(self, user_id=None, followee_id=None,):
         self.user_id = user_id
         self.followee_id = followee_id
 
@@ -2724,15 +1948,10 @@ class Unfollow_args(object):
                 break
             if fid == 1:
                 if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.I64:
                     self.user_id = iprot.readI64()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.I64:
                     self.followee_id = iprot.readI64()
                 else:
@@ -2747,16 +1966,12 @@ class Unfollow_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('Unfollow_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.user_id is not None:
-            oprot.writeFieldBegin('user_id', TType.I64, 2)
+            oprot.writeFieldBegin('user_id', TType.I64, 1)
             oprot.writeI64(self.user_id)
             oprot.writeFieldEnd()
         if self.followee_id is not None:
-            oprot.writeFieldBegin('followee_id', TType.I64, 3)
+            oprot.writeFieldBegin('followee_id', TType.I64, 2)
             oprot.writeI64(self.followee_id)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -2778,9 +1993,8 @@ class Unfollow_args(object):
 all_structs.append(Unfollow_args)
 Unfollow_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.I64, 'user_id', None, None, ),  # 2
-    (3, TType.I64, 'followee_id', None, None, ),  # 3
+    (1, TType.I64, 'user_id', None, None, ),  # 1
+    (2, TType.I64, 'followee_id', None, None, ),  # 2
 )
 
 
@@ -2850,15 +2064,13 @@ Unfollow_result.thrift_spec = (
 class UnfollowWithUsername_args(object):
     """
     Attributes:
-     - req_id
      - user_usernmae
      - followee_username
 
     """
 
 
-    def __init__(self, req_id=None, user_usernmae=None, followee_username=None,):
-        self.req_id = req_id
+    def __init__(self, user_usernmae=None, followee_username=None,):
         self.user_usernmae = user_usernmae
         self.followee_username = followee_username
 
@@ -2872,16 +2084,11 @@ class UnfollowWithUsername_args(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
                 if ftype == TType.STRING:
                     self.user_usernmae = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.STRING:
                     self.followee_username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
@@ -2896,16 +2103,12 @@ class UnfollowWithUsername_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('UnfollowWithUsername_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.user_usernmae is not None:
-            oprot.writeFieldBegin('user_usernmae', TType.STRING, 2)
+            oprot.writeFieldBegin('user_usernmae', TType.STRING, 1)
             oprot.writeString(self.user_usernmae.encode('utf-8') if sys.version_info[0] == 2 else self.user_usernmae)
             oprot.writeFieldEnd()
         if self.followee_username is not None:
-            oprot.writeFieldBegin('followee_username', TType.STRING, 3)
+            oprot.writeFieldBegin('followee_username', TType.STRING, 2)
             oprot.writeString(self.followee_username.encode('utf-8') if sys.version_info[0] == 2 else self.followee_username)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -2927,9 +2130,8 @@ class UnfollowWithUsername_args(object):
 all_structs.append(UnfollowWithUsername_args)
 UnfollowWithUsername_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.STRING, 'user_usernmae', 'UTF8', None, ),  # 2
-    (3, TType.STRING, 'followee_username', 'UTF8', None, ),  # 3
+    (1, TType.STRING, 'user_usernmae', 'UTF8', None, ),  # 1
+    (2, TType.STRING, 'followee_username', 'UTF8', None, ),  # 2
 )
 
 
@@ -2999,15 +2201,13 @@ UnfollowWithUsername_result.thrift_spec = (
 class Follow_args(object):
     """
     Attributes:
-     - req_id
      - user_id
      - followee_id
 
     """
 
 
-    def __init__(self, req_id=None, user_id=None, followee_id=None,):
-        self.req_id = req_id
+    def __init__(self, user_id=None, followee_id=None,):
         self.user_id = user_id
         self.followee_id = followee_id
 
@@ -3022,15 +2222,10 @@ class Follow_args(object):
                 break
             if fid == 1:
                 if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.I64:
                     self.user_id = iprot.readI64()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.I64:
                     self.followee_id = iprot.readI64()
                 else:
@@ -3045,16 +2240,12 @@ class Follow_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('Follow_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.user_id is not None:
-            oprot.writeFieldBegin('user_id', TType.I64, 2)
+            oprot.writeFieldBegin('user_id', TType.I64, 1)
             oprot.writeI64(self.user_id)
             oprot.writeFieldEnd()
         if self.followee_id is not None:
-            oprot.writeFieldBegin('followee_id', TType.I64, 3)
+            oprot.writeFieldBegin('followee_id', TType.I64, 2)
             oprot.writeI64(self.followee_id)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -3076,9 +2267,8 @@ class Follow_args(object):
 all_structs.append(Follow_args)
 Follow_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.I64, 'user_id', None, None, ),  # 2
-    (3, TType.I64, 'followee_id', None, None, ),  # 3
+    (1, TType.I64, 'user_id', None, None, ),  # 1
+    (2, TType.I64, 'followee_id', None, None, ),  # 2
 )
 
 
@@ -3148,15 +2338,13 @@ Follow_result.thrift_spec = (
 class FollowWithUsername_args(object):
     """
     Attributes:
-     - req_id
      - user_usernmae
      - followee_username
 
     """
 
 
-    def __init__(self, req_id=None, user_usernmae=None, followee_username=None,):
-        self.req_id = req_id
+    def __init__(self, user_usernmae=None, followee_username=None,):
         self.user_usernmae = user_usernmae
         self.followee_username = followee_username
 
@@ -3170,16 +2358,11 @@ class FollowWithUsername_args(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
                 if ftype == TType.STRING:
                     self.user_usernmae = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.STRING:
                     self.followee_username = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
                 else:
@@ -3194,16 +2377,12 @@ class FollowWithUsername_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('FollowWithUsername_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.user_usernmae is not None:
-            oprot.writeFieldBegin('user_usernmae', TType.STRING, 2)
+            oprot.writeFieldBegin('user_usernmae', TType.STRING, 1)
             oprot.writeString(self.user_usernmae.encode('utf-8') if sys.version_info[0] == 2 else self.user_usernmae)
             oprot.writeFieldEnd()
         if self.followee_username is not None:
-            oprot.writeFieldBegin('followee_username', TType.STRING, 3)
+            oprot.writeFieldBegin('followee_username', TType.STRING, 2)
             oprot.writeString(self.followee_username.encode('utf-8') if sys.version_info[0] == 2 else self.followee_username)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -3225,9 +2404,8 @@ class FollowWithUsername_args(object):
 all_structs.append(FollowWithUsername_args)
 FollowWithUsername_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.STRING, 'user_usernmae', 'UTF8', None, ),  # 2
-    (3, TType.STRING, 'followee_username', 'UTF8', None, ),  # 3
+    (1, TType.STRING, 'user_usernmae', 'UTF8', None, ),  # 1
+    (2, TType.STRING, 'followee_username', 'UTF8', None, ),  # 2
 )
 
 
@@ -3297,14 +2475,12 @@ FollowWithUsername_result.thrift_spec = (
 class GetFollowees_args(object):
     """
     Attributes:
-     - req_id
      - user_id
 
     """
 
 
-    def __init__(self, req_id=None, user_id=None,):
-        self.req_id = req_id
+    def __init__(self, user_id=None,):
         self.user_id = user_id
 
     def read(self, iprot):
@@ -3317,11 +2493,6 @@ class GetFollowees_args(object):
             if ftype == TType.STOP:
                 break
             if fid == 1:
-                if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
                 if ftype == TType.I64:
                     self.user_id = iprot.readI64()
                 else:
@@ -3336,12 +2507,8 @@ class GetFollowees_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('GetFollowees_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.user_id is not None:
-            oprot.writeFieldBegin('user_id', TType.I64, 2)
+            oprot.writeFieldBegin('user_id', TType.I64, 1)
             oprot.writeI64(self.user_id)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -3363,8 +2530,7 @@ class GetFollowees_args(object):
 all_structs.append(GetFollowees_args)
 GetFollowees_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.I64, 'user_id', None, None, ),  # 2
+    (1, TType.I64, 'user_id', None, None, ),  # 1
 )
 
 
@@ -3393,10 +2559,10 @@ class GetFollowees_result(object):
             if fid == 0:
                 if ftype == TType.LIST:
                     self.success = []
-                    (_etype80, _size77) = iprot.readListBegin()
-                    for _i81 in range(_size77):
-                        _elem82 = iprot.readI64()
-                        self.success.append(_elem82)
+                    (_etype66, _size63) = iprot.readListBegin()
+                    for _i67 in range(_size63):
+                        _elem68 = iprot.readI64()
+                        self.success.append(_elem68)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
@@ -3419,8 +2585,8 @@ class GetFollowees_result(object):
         if self.success is not None:
             oprot.writeFieldBegin('success', TType.LIST, 0)
             oprot.writeListBegin(TType.I64, len(self.success))
-            for iter83 in self.success:
-                oprot.writeI64(iter83)
+            for iter69 in self.success:
+                oprot.writeI64(iter69)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.se is not None:
@@ -3453,7 +2619,6 @@ GetFollowees_result.thrift_spec = (
 class ReadHomeTimeline_args(object):
     """
     Attributes:
-     - req_id
      - user_id
      - start
      - stop
@@ -3461,8 +2626,7 @@ class ReadHomeTimeline_args(object):
     """
 
 
-    def __init__(self, req_id=None, user_id=None, start=None, stop=None,):
-        self.req_id = req_id
+    def __init__(self, user_id=None, start=None, stop=None,):
         self.user_id = user_id
         self.start = start
         self.stop = stop
@@ -3478,20 +2642,15 @@ class ReadHomeTimeline_args(object):
                 break
             if fid == 1:
                 if ftype == TType.I64:
-                    self.req_id = iprot.readI64()
-                else:
-                    iprot.skip(ftype)
-            elif fid == 2:
-                if ftype == TType.I64:
                     self.user_id = iprot.readI64()
                 else:
                     iprot.skip(ftype)
-            elif fid == 3:
+            elif fid == 2:
                 if ftype == TType.I32:
                     self.start = iprot.readI32()
                 else:
                     iprot.skip(ftype)
-            elif fid == 4:
+            elif fid == 3:
                 if ftype == TType.I32:
                     self.stop = iprot.readI32()
                 else:
@@ -3506,20 +2665,16 @@ class ReadHomeTimeline_args(object):
             oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
             return
         oprot.writeStructBegin('ReadHomeTimeline_args')
-        if self.req_id is not None:
-            oprot.writeFieldBegin('req_id', TType.I64, 1)
-            oprot.writeI64(self.req_id)
-            oprot.writeFieldEnd()
         if self.user_id is not None:
-            oprot.writeFieldBegin('user_id', TType.I64, 2)
+            oprot.writeFieldBegin('user_id', TType.I64, 1)
             oprot.writeI64(self.user_id)
             oprot.writeFieldEnd()
         if self.start is not None:
-            oprot.writeFieldBegin('start', TType.I32, 3)
+            oprot.writeFieldBegin('start', TType.I32, 2)
             oprot.writeI32(self.start)
             oprot.writeFieldEnd()
         if self.stop is not None:
-            oprot.writeFieldBegin('stop', TType.I32, 4)
+            oprot.writeFieldBegin('stop', TType.I32, 3)
             oprot.writeI32(self.stop)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
@@ -3541,10 +2696,9 @@ class ReadHomeTimeline_args(object):
 all_structs.append(ReadHomeTimeline_args)
 ReadHomeTimeline_args.thrift_spec = (
     None,  # 0
-    (1, TType.I64, 'req_id', None, None, ),  # 1
-    (2, TType.I64, 'user_id', None, None, ),  # 2
-    (3, TType.I32, 'start', None, None, ),  # 3
-    (4, TType.I32, 'stop', None, None, ),  # 4
+    (1, TType.I64, 'user_id', None, None, ),  # 1
+    (2, TType.I32, 'start', None, None, ),  # 2
+    (3, TType.I32, 'stop', None, None, ),  # 3
 )
 
 
@@ -3573,11 +2727,11 @@ class ReadHomeTimeline_result(object):
             if fid == 0:
                 if ftype == TType.LIST:
                     self.success = []
-                    (_etype87, _size84) = iprot.readListBegin()
-                    for _i88 in range(_size84):
-                        _elem89 = Post()
-                        _elem89.read(iprot)
-                        self.success.append(_elem89)
+                    (_etype73, _size70) = iprot.readListBegin()
+                    for _i74 in range(_size70):
+                        _elem75 = Post()
+                        _elem75.read(iprot)
+                        self.success.append(_elem75)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
@@ -3600,8 +2754,8 @@ class ReadHomeTimeline_result(object):
         if self.success is not None:
             oprot.writeFieldBegin('success', TType.LIST, 0)
             oprot.writeListBegin(TType.STRUCT, len(self.success))
-            for iter90 in self.success:
-                iter90.write(oprot)
+            for iter76 in self.success:
+                iter76.write(oprot)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.se is not None:

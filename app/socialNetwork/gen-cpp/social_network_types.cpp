@@ -1019,10 +1019,6 @@ void Post::__set_creator(const Creator& val) {
   this->creator = val;
 }
 
-void Post::__set_req_id(const int64_t val) {
-  this->req_id = val;
-}
-
 void Post::__set_text(const std::string& val) {
   this->text = val;
 }
@@ -1091,14 +1087,6 @@ uint32_t Post::read(::apache::thrift::protocol::TProtocol* iprot) {
         }
         break;
       case 3:
-        if (ftype == ::apache::thrift::protocol::T_I64) {
-          xfer += iprot->readI64(this->req_id);
-          this->__isset.req_id = true;
-        } else {
-          xfer += iprot->skip(ftype);
-        }
-        break;
-      case 4:
         if (ftype == ::apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->text);
           this->__isset.text = true;
@@ -1106,7 +1094,7 @@ uint32_t Post::read(::apache::thrift::protocol::TProtocol* iprot) {
           xfer += iprot->skip(ftype);
         }
         break;
-      case 5:
+      case 4:
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->user_mentions.clear();
@@ -1126,7 +1114,7 @@ uint32_t Post::read(::apache::thrift::protocol::TProtocol* iprot) {
           xfer += iprot->skip(ftype);
         }
         break;
-      case 6:
+      case 5:
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->media.clear();
@@ -1146,7 +1134,7 @@ uint32_t Post::read(::apache::thrift::protocol::TProtocol* iprot) {
           xfer += iprot->skip(ftype);
         }
         break;
-      case 7:
+      case 6:
         if (ftype == ::apache::thrift::protocol::T_LIST) {
           {
             this->urls.clear();
@@ -1166,7 +1154,7 @@ uint32_t Post::read(::apache::thrift::protocol::TProtocol* iprot) {
           xfer += iprot->skip(ftype);
         }
         break;
-      case 8:
+      case 7:
         if (ftype == ::apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->timestamp);
           this->__isset.timestamp = true;
@@ -1174,7 +1162,7 @@ uint32_t Post::read(::apache::thrift::protocol::TProtocol* iprot) {
           xfer += iprot->skip(ftype);
         }
         break;
-      case 9:
+      case 8:
         if (ftype == ::apache::thrift::protocol::T_I32) {
           int32_t ecast42;
           xfer += iprot->readI32(ecast42);
@@ -1209,15 +1197,11 @@ uint32_t Post::write(::apache::thrift::protocol::TProtocol* oprot) const {
   xfer += this->creator.write(oprot);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("req_id", ::apache::thrift::protocol::T_I64, 3);
-  xfer += oprot->writeI64(this->req_id);
-  xfer += oprot->writeFieldEnd();
-
-  xfer += oprot->writeFieldBegin("text", ::apache::thrift::protocol::T_STRING, 4);
+  xfer += oprot->writeFieldBegin("text", ::apache::thrift::protocol::T_STRING, 3);
   xfer += oprot->writeString(this->text);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("user_mentions", ::apache::thrift::protocol::T_LIST, 5);
+  xfer += oprot->writeFieldBegin("user_mentions", ::apache::thrift::protocol::T_LIST, 4);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(this->user_mentions.size()));
     std::vector<UserMention> ::const_iterator _iter43;
@@ -1229,7 +1213,7 @@ uint32_t Post::write(::apache::thrift::protocol::TProtocol* oprot) const {
   }
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("media", ::apache::thrift::protocol::T_LIST, 6);
+  xfer += oprot->writeFieldBegin("media", ::apache::thrift::protocol::T_LIST, 5);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(this->media.size()));
     std::vector<Media> ::const_iterator _iter44;
@@ -1241,7 +1225,7 @@ uint32_t Post::write(::apache::thrift::protocol::TProtocol* oprot) const {
   }
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("urls", ::apache::thrift::protocol::T_LIST, 7);
+  xfer += oprot->writeFieldBegin("urls", ::apache::thrift::protocol::T_LIST, 6);
   {
     xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(this->urls.size()));
     std::vector<Url> ::const_iterator _iter45;
@@ -1253,11 +1237,11 @@ uint32_t Post::write(::apache::thrift::protocol::TProtocol* oprot) const {
   }
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("timestamp", ::apache::thrift::protocol::T_I64, 8);
+  xfer += oprot->writeFieldBegin("timestamp", ::apache::thrift::protocol::T_I64, 7);
   xfer += oprot->writeI64(this->timestamp);
   xfer += oprot->writeFieldEnd();
 
-  xfer += oprot->writeFieldBegin("post_type", ::apache::thrift::protocol::T_I32, 9);
+  xfer += oprot->writeFieldBegin("post_type", ::apache::thrift::protocol::T_I32, 8);
   xfer += oprot->writeI32((int32_t)this->post_type);
   xfer += oprot->writeFieldEnd();
 
@@ -1270,7 +1254,6 @@ void swap(Post &a, Post &b) {
   using ::std::swap;
   swap(a.post_id, b.post_id);
   swap(a.creator, b.creator);
-  swap(a.req_id, b.req_id);
   swap(a.text, b.text);
   swap(a.user_mentions, b.user_mentions);
   swap(a.media, b.media);
@@ -1283,7 +1266,6 @@ void swap(Post &a, Post &b) {
 Post::Post(const Post& other46) {
   post_id = other46.post_id;
   creator = other46.creator;
-  req_id = other46.req_id;
   text = other46.text;
   user_mentions = other46.user_mentions;
   media = other46.media;
@@ -1295,7 +1277,6 @@ Post::Post(const Post& other46) {
 Post& Post::operator=(const Post& other47) {
   post_id = other47.post_id;
   creator = other47.creator;
-  req_id = other47.req_id;
   text = other47.text;
   user_mentions = other47.user_mentions;
   media = other47.media;
@@ -1310,7 +1291,6 @@ void Post::printTo(std::ostream& out) const {
   out << "Post(";
   out << "post_id=" << to_string(post_id);
   out << ", " << "creator=" << to_string(creator);
-  out << ", " << "req_id=" << to_string(req_id);
   out << ", " << "text=" << to_string(text);
   out << ", " << "user_mentions=" << to_string(user_mentions);
   out << ", " << "media=" << to_string(media);

@@ -44,45 +44,34 @@ class BackEndHandler : public BackEndServiceIf {
    BackEndHandler();
    ~BackEndHandler() override = default;
 
-   void ComposePost(int64_t req_id, const std::string &username,
-                    int64_t user_id, const std::string &text,
+   void ComposePost(const std::string &username, int64_t user_id,
+                    const std::string &text,
                     const std::vector<int64_t> &media_ids,
                     const std::vector<std::string> &media_types,
                     PostType::type post_type) override;
-   void StorePost(int64_t req_id, const Post &post) override;
-   void ReadPost(Post &_return, int64_t req_id, int64_t post_id) override;
-   void ReadPosts(std::vector<Post> &_return, int64_t req_id,
-                  const std::vector<int64_t> &post_ids) override;
-   void ReadUserTimeline(std::vector<Post> &, int64_t, int64_t, int,
-                         int) override;
-   void Login(std::string &_return, const int64_t req_id,
-              const std::string &username,
+   void ReadUserTimeline(std::vector<Post> &, int64_t, int, int) override;
+   void Login(std::string &_return, const std::string &username,
               const std::string &password) override;
-   void RegisterUser(const int64_t req_id, const std::string &first_name,
+   void RegisterUser(const std::string &first_name,
                      const std::string &last_name, const std::string &username,
                      const std::string &password) override;
-   void RegisterUserWithId(const int64_t req_id, const std::string &first_name,
+   void RegisterUserWithId(const std::string &first_name,
                            const std::string &last_name,
                            const std::string &username,
                            const std::string &password,
                            const int64_t user_id) override;
-   void GetFollowers(std::vector<int64_t> &_return, const int64_t req_id,
+   void GetFollowers(std::vector<int64_t> &_return,
                      const int64_t user_id) override;
-   void Unfollow(const int64_t req_id, const int64_t user_id,
-                 const int64_t followee_id) override;
-   void UnfollowWithUsername(const int64_t req_id,
-                             const std::string &user_usernmae,
+   void Unfollow(const int64_t user_id, const int64_t followee_id) override;
+   void UnfollowWithUsername(const std::string &user_usernmae,
                              const std::string &followee_username) override;
-   void Follow(const int64_t req_id, const int64_t user_id,
-               const int64_t followee_id) override;
-   void FollowWithUsername(const int64_t req_id,
-                           const std::string &user_usernmae,
+   void Follow(const int64_t user_id, const int64_t followee_id) override;
+   void FollowWithUsername(const std::string &user_usernmae,
                            const std::string &followee_username) override;
-   void GetFollowees(std::vector<int64_t> &_return, const int64_t req_id,
+   void GetFollowees(std::vector<int64_t> &_return,
                      const int64_t user_id) override;
-   void ReadHomeTimeline(std::vector<Post> &_return, const int64_t req_id,
-                         const int64_t user_id, const int32_t start,
-                         const int32_t stop) override;
+   void ReadHomeTimeline(std::vector<Post> &_return, const int64_t user_id,
+                         const int32_t start, const int32_t stop) override;
 
  private:
    nu::RemObj<TextService> _text_service_obj;
@@ -109,29 +98,27 @@ BackEndHandler::BackEndHandler() {
       _post_storage_service_obj.get_cap(), _social_graph_service_obj.get_cap());
 }
 
-void BackEndHandler::ComposePost(const int64_t req_id,
-                                 const std::string &_username, int64_t user_id,
+void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
                                  const std::string &_text,
                                  const std::vector<int64_t> &_media_ids,
                                  const std::vector<std::string> &_media_types,
                                  const PostType::type post_type) {
   auto username = _username;
-  auto creator_future =
-      _user_service_obj.run_async(&UserService::ComposeCreatorWithUserId,
-                                  req_id, user_id, std::move(username));
+  auto creator_future = _user_service_obj.run_async(
+      &UserService::ComposeCreatorWithUserId, user_id, std::move(username));
 
   auto text = _text;
-  auto text_service_return_future = _text_service_obj.run_async(
-      &TextService::ComposeText, req_id, std::move(text));
+  auto text_service_return_future =
+      _text_service_obj.run_async(&TextService::ComposeText, std::move(text));
 
   auto unique_id_future = _unique_id_service_obj.run_async(
-      &UniqueIdService::ComposeUniqueId, req_id, post_type);
+      &UniqueIdService::ComposeUniqueId, post_type);
 
   auto media_types = _media_types;
   auto media_ids = _media_ids;
-  auto medias_future = _media_service_obj.run_async(
-      &MediaService::ComposeMedia, req_id, std::move(media_types),
-      std::move(media_ids));
+  auto medias_future = _media_service_obj.run_async(&MediaService::ComposeMedia,
+                                                    std::move(media_types),
+                                                    std::move(media_ids));
 
   Post post;
   auto timestamp =
@@ -146,7 +133,6 @@ void BackEndHandler::ComposePost(const int64_t req_id,
   post.post_id = unique_id_future.get();
   post.media = medias_future.get();
   post.creator = creator_future.get();
-  post.req_id = req_id;
   post.post_type = post_type;
 
   std::vector<int64_t> user_mention_ids;
@@ -155,55 +141,34 @@ void BackEndHandler::ComposePost(const int64_t req_id,
   }
 
   auto write_user_timeline_future = _user_timeline_service_obj.run_async(
-      &UserTimelineService::WriteUserTimeline, req_id, post.post_id, user_id,
+      &UserTimelineService::WriteUserTimeline, post.post_id, user_id,
       timestamp);
 
   auto post_copy = post;
   auto post_future = _post_storage_service_obj.run_async(
-      &PostStorageService::StorePost, req_id, std::move(post_copy));
+      &PostStorageService::StorePost, std::move(post_copy));
 
   auto write_home_timeline_future = _home_timeline_service_obj.run_async(
-      &HomeTimelineService::WriteHomeTimeline, req_id, post.post_id, user_id,
-      timestamp, std::move(user_mention_ids));
+      &HomeTimelineService::WriteHomeTimeline, post.post_id, user_id, timestamp,
+      std::move(user_mention_ids));
 
   write_user_timeline_future.get();
   post_future.get();
   write_home_timeline_future.get();
 }
 
-void BackEndHandler::StorePost(int64_t req_id, const Post &_post) {
-  auto post = _post;
-  _post_storage_service_obj.run(&PostStorageService::StorePost, req_id,
-                                std::move(post));
-}
-
-void BackEndHandler::ReadPost(Post &_return, int64_t req_id,
-                                  int64_t post_id) {
-  _return = _post_storage_service_obj.run(&PostStorageService::ReadPost, req_id,
-                                          post_id);
-}
-
-void BackEndHandler::ReadPosts(std::vector<Post> &_return, int64_t req_id,
-                                   const std::vector<int64_t> &_post_ids) {
-  auto post_ids = _post_ids;
-  _return = _post_storage_service_obj.run(&PostStorageService::ReadPosts,
-                                          req_id, std::move(post_ids));
-}
-
 void BackEndHandler::ReadUserTimeline(std::vector<Post> &_return,
-                                          int64_t req_id, int64_t user_id,
-                                          int start, int stop) {
+                                      int64_t user_id, int start, int stop) {
   _return = _user_timeline_service_obj.run(
-      &UserTimelineService::ReadUserTimeline, req_id, user_id, start, stop);
+      &UserTimelineService::ReadUserTimeline, user_id, start, stop);
 }
 
-void BackEndHandler::Login(std::string &_return, const int64_t req_id,
-                               const std::string &_username,
-                               const std::string &_password) {
+void BackEndHandler::Login(std::string &_return, const std::string &_username,
+                           const std::string &_password) {
   auto username = _username;
   auto password = _password;
-  auto variant = _user_service_obj.run(&UserService::Login, req_id,
-                                  std::move(username), std::move(password));
+  auto variant = _user_service_obj.run(&UserService::Login, std::move(username),
+                                       std::move(password));
   if (std::holds_alternative<LoginErrorCode>(variant)) {
     ServiceException se;
     se.errorCode = ErrorCode::SE_UNAUTHORIZED;
@@ -223,88 +188,79 @@ void BackEndHandler::Login(std::string &_return, const int64_t req_id,
   _return = std::get<std::string>(variant);
 }
 
-void BackEndHandler::RegisterUser(const int64_t req_id,
-                                      const std::string &_first_name,
-                                      const std::string &_last_name,
-                                      const std::string &_username,
-                                      const std::string &_password) {
+void BackEndHandler::RegisterUser(const std::string &_first_name,
+                                  const std::string &_last_name,
+                                  const std::string &_username,
+                                  const std::string &_password) {
   auto first_name = _first_name;
   auto last_name = _last_name;
   auto username = _username;
   auto password = _password;
-  _user_service_obj.run(&UserService::RegisterUser, req_id,
-                        std::move(first_name), std::move(last_name),
-                        std::move(username), std::move(password));
+  _user_service_obj.run(&UserService::RegisterUser, std::move(first_name),
+                        std::move(last_name), std::move(username),
+                        std::move(password));
 }
 
-void BackEndHandler::RegisterUserWithId(const int64_t req_id,
-                                            const std::string &_first_name,
-                                            const std::string &_last_name,
-                                            const std::string &_username,
-                                            const std::string &_password,
-                                            const int64_t user_id) {
+void BackEndHandler::RegisterUserWithId(const std::string &_first_name,
+                                        const std::string &_last_name,
+                                        const std::string &_username,
+                                        const std::string &_password,
+                                        const int64_t user_id) {
   auto first_name = _first_name;
   auto last_name = _last_name;
   auto username = _username;
   auto password = _password;
-  _user_service_obj.run(&UserService::RegisterUserWithId, req_id,
-                        std::move(first_name), std::move(last_name),
-                        std::move(username), std::move(password), user_id);
+  _user_service_obj.run(&UserService::RegisterUserWithId, std::move(first_name),
+                        std::move(last_name), std::move(username),
+                        std::move(password), user_id);
 }
 
 void BackEndHandler::GetFollowers(std::vector<int64_t> &_return,
-                                      const int64_t req_id,
-                                      const int64_t user_id) {
-  _return = _social_graph_service_obj.run(&SocialGraphService::GetFollowers,
-                                          req_id, user_id);
+                                  const int64_t user_id) {
+  _return =
+      _social_graph_service_obj.run(&SocialGraphService::GetFollowers, user_id);
 }
 
-void BackEndHandler::Unfollow(const int64_t req_id, const int64_t user_id,
-                                  const int64_t followee_id) {
-  _social_graph_service_obj.run(&SocialGraphService::Unfollow, req_id, user_id,
+void BackEndHandler::Unfollow(const int64_t user_id,
+                              const int64_t followee_id) {
+  _social_graph_service_obj.run(&SocialGraphService::Unfollow, user_id,
                                 followee_id);
 }
 
-void BackEndHandler::UnfollowWithUsername(
-    const int64_t req_id, const std::string &_user_username,
+void BackEndHandler::UnfollowWithUsername(const std::string &_user_username,
     const std::string &_followee_username) {
   auto user_username = _user_username;
   auto followee_username = _followee_username;
   _social_graph_service_obj.run(&SocialGraphService::UnfollowWithUsername,
-                                req_id, std::move(user_username),
+                                std::move(user_username),
                                 std::move(followee_username));
 }
 
-void BackEndHandler::Follow(const int64_t req_id, const int64_t user_id,
-                                const int64_t followee_id) {
-  _social_graph_service_obj.run(&SocialGraphService::Follow, req_id, user_id,
+void BackEndHandler::Follow(const int64_t user_id, const int64_t followee_id) {
+  _social_graph_service_obj.run(&SocialGraphService::Follow, user_id,
                                 followee_id);
 }
 
-void BackEndHandler::FollowWithUsername(
-    const int64_t req_id, const std::string &_user_username,
-    const std::string &_followee_username) {
+void BackEndHandler::FollowWithUsername(const std::string &_user_username,
+                                        const std::string &_followee_username) {
   auto user_username = _user_username;
   auto followee_username = _followee_username;
-  _social_graph_service_obj.run(&SocialGraphService::FollowWithUsername, req_id,
+  _social_graph_service_obj.run(&SocialGraphService::FollowWithUsername,
                                 std::move(user_username),
                                 std::move(followee_username));
 }
 
 void BackEndHandler::GetFollowees(std::vector<int64_t> &_return,
-                                      const int64_t req_id,
-                                      const int64_t user_id) {
-  _return = _social_graph_service_obj.run(&SocialGraphService::GetFollowees,
-                                          req_id, user_id);
+                                  const int64_t user_id) {
+  _return =
+      _social_graph_service_obj.run(&SocialGraphService::GetFollowees, user_id);
 }
 
 void BackEndHandler::ReadHomeTimeline(std::vector<Post> &_return,
-                                          const int64_t req_id,
-                                          const int64_t user_id,
-                                          const int32_t start,
-                                          const int32_t stop) {
+                                      const int64_t user_id,
+                                      const int32_t start, const int32_t stop) {
   _return = _home_timeline_service_obj.run(
-      &HomeTimelineService::ReadHomeTimeline, req_id, user_id, start, stop);
+      &HomeTimelineService::ReadHomeTimeline, user_id, start, stop);
 }
 
 }  // namespace social_network

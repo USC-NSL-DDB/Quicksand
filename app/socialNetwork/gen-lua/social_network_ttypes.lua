@@ -444,7 +444,6 @@ end
 Post = __TObject:new{
   post_id,
   creator,
-  req_id,
   text,
   user_mentions,
   media,
@@ -473,18 +472,12 @@ function Post:read(iprot)
         iprot:skip(ftype)
       end
     elseif fid == 3 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 4 then
       if ftype == TType.STRING then
         self.text = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 5 then
+    elseif fid == 4 then
       if ftype == TType.LIST then
         self.user_mentions = {}
         local _etype15, _size12 = iprot:readListBegin()
@@ -497,7 +490,7 @@ function Post:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 6 then
+    elseif fid == 5 then
       if ftype == TType.LIST then
         self.media = {}
         local _etype20, _size17 = iprot:readListBegin()
@@ -510,7 +503,7 @@ function Post:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 7 then
+    elseif fid == 6 then
       if ftype == TType.LIST then
         self.urls = {}
         local _etype25, _size22 = iprot:readListBegin()
@@ -523,13 +516,13 @@ function Post:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 8 then
+    elseif fid == 7 then
       if ftype == TType.I64 then
         self.timestamp = iprot:readI64()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 9 then
+    elseif fid == 8 then
       if ftype == TType.I32 then
         self.post_type = iprot:readI32()
       else
@@ -555,18 +548,13 @@ function Post:write(oprot)
     self.creator:write(oprot)
     oprot:writeFieldEnd()
   end
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 3)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.text ~= nil then
-    oprot:writeFieldBegin('text', TType.STRING, 4)
+    oprot:writeFieldBegin('text', TType.STRING, 3)
     oprot:writeString(self.text)
     oprot:writeFieldEnd()
   end
   if self.user_mentions ~= nil then
-    oprot:writeFieldBegin('user_mentions', TType.LIST, 5)
+    oprot:writeFieldBegin('user_mentions', TType.LIST, 4)
     oprot:writeListBegin(TType.STRUCT, #self.user_mentions)
     for _,iter27 in ipairs(self.user_mentions) do
       iter27:write(oprot)
@@ -575,7 +563,7 @@ function Post:write(oprot)
     oprot:writeFieldEnd()
   end
   if self.media ~= nil then
-    oprot:writeFieldBegin('media', TType.LIST, 6)
+    oprot:writeFieldBegin('media', TType.LIST, 5)
     oprot:writeListBegin(TType.STRUCT, #self.media)
     for _,iter28 in ipairs(self.media) do
       iter28:write(oprot)
@@ -584,7 +572,7 @@ function Post:write(oprot)
     oprot:writeFieldEnd()
   end
   if self.urls ~= nil then
-    oprot:writeFieldBegin('urls', TType.LIST, 7)
+    oprot:writeFieldBegin('urls', TType.LIST, 6)
     oprot:writeListBegin(TType.STRUCT, #self.urls)
     for _,iter29 in ipairs(self.urls) do
       iter29:write(oprot)
@@ -593,12 +581,12 @@ function Post:write(oprot)
     oprot:writeFieldEnd()
   end
   if self.timestamp ~= nil then
-    oprot:writeFieldBegin('timestamp', TType.I64, 8)
+    oprot:writeFieldBegin('timestamp', TType.I64, 7)
     oprot:writeI64(self.timestamp)
     oprot:writeFieldEnd()
   end
   if self.post_type ~= nil then
-    oprot:writeFieldBegin('post_type', TType.I32, 9)
+    oprot:writeFieldBegin('post_type', TType.I32, 8)
     oprot:writeI32(self.post_type)
     oprot:writeFieldEnd()
   end

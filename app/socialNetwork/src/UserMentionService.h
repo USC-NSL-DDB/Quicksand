@@ -3,15 +3,14 @@
 #include <cstdint>
 #include <string>
 
-#include "../gen-cpp/UserMentionService.h"
 #include "../gen-cpp/social_network_types.h"
 
 namespace social_network {
 
 class UserMentionService {
 public:
-  std::vector<UserMention> ComposeUserMentions(int64_t,
-                                               std::vector<std::string> &&);
+  std::vector<UserMention> ComposeUserMentions(std::vector<std::string> &&);
+
 private:
   // TODO: use DistributedHashTable.
   // TODO: should connect with UserService's hashtable.
@@ -19,8 +18,7 @@ private:
 };
 
 std::vector<UserMention>
-UserMentionService::ComposeUserMentions(int64_t req_id,
-                                        std::vector<std::string> &&usernames) {
+UserMentionService::ComposeUserMentions(std::vector<std::string> &&usernames) {
   std::vector<UserMention> user_mentions;
 
   for (auto &username : usernames) {

@@ -26,8 +26,6 @@ function _M.GetFollower()
   local jwt = require "resty.jwt"
   local liblualongnumber = require "liblualongnumber"
 
-  local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-
   if (_StrIsEmpty(ngx.var.cookie_login_token)) then
     ngx.status = ngx.HTTP_UNAUTHORIZED
     ngx.exit(ngx.HTTP_OK)
@@ -52,7 +50,7 @@ function _M.GetFollower()
   else
     local client = GenericObjectPool:connection(
       BackEndServiceClient, "back-end-service", 9091)
-    local status, ret = pcall(client.GetFollowers, client, req_id,
+    local status, ret = pcall(client.GetFollowers, client,
         user_id, carrier)
     GenericObjectPool:returnConnection(client)
     if not status then

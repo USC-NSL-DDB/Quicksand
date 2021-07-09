@@ -2,11 +2,9 @@
 
 #include <chrono>
 #include <map>
+#include <nu/mutex.hpp>
 #include <random>
 
-#include <nu/mutex.hpp>
-
-#include "../gen-cpp/UrlShortenService.h"
 #include "../gen-cpp/social_network_types.h"
 
 #define HOSTNAME "http://short-url/"
@@ -16,9 +14,8 @@ namespace social_network {
 class UrlShortenService {
 public:
   UrlShortenService();
-  std::vector<Url> ComposeUrls(int64_t, std::vector<std::string>);
-  std::vector<std::string> GetExtendedUrls(int64_t,
-                                           std::vector<std::string> &&);
+  std::vector<Url> ComposeUrls(std::vector<std::string>);
+  std::vector<std::string> GetExtendedUrls(std::vector<std::string> &&);
 
 private:
   std::mt19937 _generator;
@@ -51,9 +48,7 @@ std::string UrlShortenService::GenRandomStr(int length) {
   return return_str;
 }
 
-std::vector<Url>
-UrlShortenService::ComposeUrls(int64_t req_id,
-                               std::vector<std::string> urls) {
+std::vector<Url> UrlShortenService::ComposeUrls(std::vector<std::string> urls) {
   std::vector<Url> target_urls;
 
   if (!urls.empty()) {
@@ -74,8 +69,7 @@ UrlShortenService::ComposeUrls(int64_t req_id,
 }
 
 std::vector<std::string>
-UrlShortenService::GetExtendedUrls(int64_t req_id,
-                                   std::vector<std::string> &&shortened_urls) {
+UrlShortenService::GetExtendedUrls(std::vector<std::string> &&shortened_urls) {
   std::vector<std::string> extended_urls;
   for (auto &shortened_url : shortened_urls) {
     extended_urls.push_back(_short_to_extended_map[shortened_url]);

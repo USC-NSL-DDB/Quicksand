@@ -2,14 +2,10 @@
 
 #include <future>
 #include <iostream>
+#include <nu/rem_obj.hpp>
 #include <regex>
 #include <string>
 
-#include <nu/rem_obj.hpp>
-
-#include "../gen-cpp/TextService.h"
-#include "../gen-cpp/UrlShortenService.h"
-#include "../gen-cpp/UserMentionService.h"
 #include "UrlShortenService.h"
 #include "UserMentionService.h"
 
@@ -18,7 +14,7 @@ namespace social_network {
 class TextService {
 public:
   TextService();
-  TextServiceReturn ComposeText(int64_t, std::string &&);
+  TextServiceReturn ComposeText(std::string &&);
 
 private:
   nu::RemObj<UrlShortenService> _url_shorten_service_obj;
@@ -30,7 +26,7 @@ TextService::TextService() {
   _user_mention_service_obj = nu::RemObj<UserMentionService>::create_pinned();
 }
 
-TextServiceReturn TextService::ComposeText(int64_t req_id, std::string &&text) {
+TextServiceReturn TextService::ComposeText(std::string &&text) {
   std::vector<std::string> mention_usernames;
   std::smatch m;
   std::regex e("@[a-zA-Z0-9-_]+");
@@ -51,11 +47,10 @@ TextServiceReturn TextService::ComposeText(int64_t req_id, std::string &&text) {
     s = m.suffix().str();
   }
 
-  auto target_urls_future = _url_shorten_service_obj.run_async(
-      &UrlShortenService::ComposeUrls, req_id, urls);
+  auto target_urls_future =
+      _url_shorten_service_obj.run_async(&UrlShortenService::ComposeUrls, urls);
   auto user_mentions_future = _user_mention_service_obj.run_async(
-      &UserMentionService::ComposeUserMentions, req_id,
-      std::move(mention_usernames));
+      &UserMentionService::ComposeUserMentions, std::move(mention_usernames));
 
   auto target_urls = target_urls_future.get();
   auto user_mentions = user_mentions_future.get();

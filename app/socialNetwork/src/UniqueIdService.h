@@ -35,7 +35,7 @@ using std::chrono::system_clock;
 class UniqueIdService {
 public:
   UniqueIdService();
-  int64_t ComposeUniqueId(int64_t req_id, const PostType::type post_type);
+  int64_t ComposeUniqueId(const PostType::type post_type);
 
 private:
   int64_t _current_timestamp = -1;
@@ -77,8 +77,7 @@ UniqueIdService::UniqueIdService() {
   std::cout << "machine_id = " << _machine_id << std::endl;
 }
 
-int64_t UniqueIdService::ComposeUniqueId(int64_t req_id,
-                                         PostType::type post_type) {
+int64_t UniqueIdService::ComposeUniqueId(PostType::type post_type) {
   _thread_lock.Lock();
   int64_t timestamp =
       duration_cast<milliseconds>(system_clock::now().time_since_epoch())

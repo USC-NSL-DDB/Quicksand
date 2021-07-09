@@ -20,77 +20,62 @@ class BackEndServiceHandler : virtual public BackEndServiceIf {
     // Your initialization goes here
   }
 
-  void ComposePost(const int64_t req_id, const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) {
+  void ComposePost(const std::string& username, const int64_t user_id, const std::string& text, const std::vector<int64_t> & media_ids, const std::vector<std::string> & media_types, const PostType::type post_type) {
     // Your implementation goes here
     printf("ComposePost\n");
   }
 
-  void StorePost(const int64_t req_id, const Post& post) {
-    // Your implementation goes here
-    printf("StorePost\n");
-  }
-
-  void ReadPost(Post& _return, const int64_t req_id, const int64_t post_id) {
-    // Your implementation goes here
-    printf("ReadPost\n");
-  }
-
-  void ReadPosts(std::vector<Post> & _return, const int64_t req_id, const std::vector<int64_t> & post_ids) {
-    // Your implementation goes here
-    printf("ReadPosts\n");
-  }
-
-  void ReadUserTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
+  void ReadUserTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop) {
     // Your implementation goes here
     printf("ReadUserTimeline\n");
   }
 
-  void Login(std::string& _return, const int64_t req_id, const std::string& username, const std::string& password) {
+  void Login(std::string& _return, const std::string& username, const std::string& password) {
     // Your implementation goes here
     printf("Login\n");
   }
 
-  void RegisterUser(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) {
+  void RegisterUser(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password) {
     // Your implementation goes here
     printf("RegisterUser\n");
   }
 
-  void RegisterUserWithId(const int64_t req_id, const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) {
+  void RegisterUserWithId(const std::string& first_name, const std::string& last_name, const std::string& username, const std::string& password, const int64_t user_id) {
     // Your implementation goes here
     printf("RegisterUserWithId\n");
   }
 
-  void GetFollowers(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
+  void GetFollowers(std::vector<int64_t> & _return, const int64_t user_id) {
     // Your implementation goes here
     printf("GetFollowers\n");
   }
 
-  void Unfollow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
+  void Unfollow(const int64_t user_id, const int64_t followee_id) {
     // Your implementation goes here
     printf("Unfollow\n");
   }
 
-  void UnfollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
+  void UnfollowWithUsername(const std::string& user_usernmae, const std::string& followee_username) {
     // Your implementation goes here
     printf("UnfollowWithUsername\n");
   }
 
-  void Follow(const int64_t req_id, const int64_t user_id, const int64_t followee_id) {
+  void Follow(const int64_t user_id, const int64_t followee_id) {
     // Your implementation goes here
     printf("Follow\n");
   }
 
-  void FollowWithUsername(const int64_t req_id, const std::string& user_usernmae, const std::string& followee_username) {
+  void FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username) {
     // Your implementation goes here
     printf("FollowWithUsername\n");
   }
 
-  void GetFollowees(std::vector<int64_t> & _return, const int64_t req_id, const int64_t user_id) {
+  void GetFollowees(std::vector<int64_t> & _return, const int64_t user_id) {
     // Your implementation goes here
     printf("GetFollowees\n");
   }
 
-  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t req_id, const int64_t user_id, const int32_t start, const int32_t stop) {
+  void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop) {
     // Your implementation goes here
     printf("ReadHomeTimeline\n");
   }

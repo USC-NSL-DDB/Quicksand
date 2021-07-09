@@ -10,8 +10,6 @@ function _M.Login()
   local BackEndServiceClient = require "social_network_BackEndService".BackEndServiceClient
   local cjson = require "cjson"
 
-  local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-
   ngx.req.read_body()
   local args = ngx.req.get_post_args()
 
@@ -27,7 +25,7 @@ function _M.Login()
 
   local client = GenericObjectPool:connection(BackEndServiceClient, "back-end-service", 9091)
 
-  local status, ret = pcall(client.Login, client, req_id,
+  local status, ret = pcall(client.Login, client,
       args.username, args.password, carrier)
   GenericObjectPool:returnConnection(client)
 

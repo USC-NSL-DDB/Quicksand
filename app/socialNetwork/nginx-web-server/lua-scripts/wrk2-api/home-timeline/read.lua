@@ -12,7 +12,6 @@ local function _LoadTimeline(data)
     new_post["creator"] = {}
     new_post["creator"]["user_id"] = tostring(timeline_post.creator.user_id)
     new_post["creator"]["username"] = timeline_post.creator.username
-    new_post["req_id"] = tostring(timeline_post.req_id)
     new_post["text"] = timeline_post.text
     new_post["user_mentions"] = {}
     for _, user_mention in ipairs(timeline_post.user_mentions) do
@@ -50,8 +49,6 @@ function _M.ReadHomeTimeline()
   local jwt = require "resty.jwt"
   local liblualongnumber = require "liblualongnumber"
 
-  local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-
   ngx.req.read_body()
   local args = ngx.req.get_uri_args()
 
@@ -65,7 +62,7 @@ function _M.ReadHomeTimeline()
 
   local client = GenericObjectPool:connection(
       BackEndServiceClient, "back-end-service", 9091)
-  local status, ret = pcall(client.ReadHomeTimeline, client, req_id,
+  local status, ret = pcall(client.ReadHomeTimeline, client,
       tonumber(args.user_id), tonumber(args.start), tonumber(args.stop), carrier)
   if not status then
     ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR

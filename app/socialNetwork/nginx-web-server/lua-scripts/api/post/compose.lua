@@ -15,8 +15,6 @@ function _M.ComposePost()
 
   GenericObjectPool:setMaxTotal(512)
 
-  local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-
   ngx.req.read_body()
   local post = ngx.req.get_post_args()
 
@@ -59,12 +57,12 @@ function _M.ComposePost()
 
     if (not _StrIsEmpty(post.media_ids) and not _StrIsEmpty(post.media_types)) then
       status, ret = pcall(client.ComposePost, client,
-          req_id, username, tonumber(user_id), post.text,
+          username, tonumber(user_id), post.text,
           cjson.decode(post.media_ids), cjson.decode(post.media_types),
           tonumber(post.post_type), carrier)
     else
       status, ret = pcall(client.ComposePost, client,
-          req_id, username, tonumber(user_id), post.text,
+          username, tonumber(user_id), post.text,
           {}, {}, tonumber(post.post_type), carrier)
     end
 

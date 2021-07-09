@@ -23,15 +23,14 @@ BackEndServiceClient = __TObject.new(__TClient, {
   __type = 'BackEndServiceClient'
 })
 
-function BackEndServiceClient:ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
-  self:send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
-  self:recv_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
+function BackEndServiceClient:ComposePost(username, user_id, text, media_ids, media_types, post_type)
+  self:send_ComposePost(username, user_id, text, media_ids, media_types, post_type)
+  self:recv_ComposePost(username, user_id, text, media_ids, media_types, post_type)
 end
 
-function BackEndServiceClient:send_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
+function BackEndServiceClient:send_ComposePost(username, user_id, text, media_ids, media_types, post_type)
   self.oprot:writeMessageBegin('ComposePost', TMessageType.CALL, self._seqid)
   local args = ComposePost_args:new{}
-  args.req_id = req_id
   args.username = username
   args.user_id = user_id
   args.text = text
@@ -43,7 +42,7 @@ function BackEndServiceClient:send_ComposePost(req_id, username, user_id, text, 
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_ComposePost(req_id, username, user_id, text, media_ids, media_types, post_type)
+function BackEndServiceClient:recv_ComposePost(username, user_id, text, media_ids, media_types, post_type)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -56,111 +55,14 @@ function BackEndServiceClient:recv_ComposePost(req_id, username, user_id, text, 
   self.iprot:readMessageEnd()
 end
 
-function BackEndServiceClient:StorePost(req_id, post)
-  self:send_StorePost(req_id, post)
-  self:recv_StorePost(req_id, post)
+function BackEndServiceClient:ReadUserTimeline(user_id, start, stop)
+  self:send_ReadUserTimeline(user_id, start, stop)
+  return self:recv_ReadUserTimeline(user_id, start, stop)
 end
 
-function BackEndServiceClient:send_StorePost(req_id, post)
-  self.oprot:writeMessageBegin('StorePost', TMessageType.CALL, self._seqid)
-  local args = StorePost_args:new{}
-  args.req_id = req_id
-  args.post = post
-  args:write(self.oprot)
-  self.oprot:writeMessageEnd()
-  self.oprot.trans:flush()
-end
-
-function BackEndServiceClient:recv_StorePost(req_id, post)
-  local fname, mtype, rseqid = self.iprot:readMessageBegin()
-  if mtype == TMessageType.EXCEPTION then
-    local x = TApplicationException:new{}
-    x:read(self.iprot)
-    self.iprot:readMessageEnd()
-    error(x)
-  end
-  local result = StorePost_result:new{}
-  result:read(self.iprot)
-  self.iprot:readMessageEnd()
-end
-
-function BackEndServiceClient:ReadPost(req_id, post_id)
-  self:send_ReadPost(req_id, post_id)
-  return self:recv_ReadPost(req_id, post_id)
-end
-
-function BackEndServiceClient:send_ReadPost(req_id, post_id)
-  self.oprot:writeMessageBegin('ReadPost', TMessageType.CALL, self._seqid)
-  local args = ReadPost_args:new{}
-  args.req_id = req_id
-  args.post_id = post_id
-  args:write(self.oprot)
-  self.oprot:writeMessageEnd()
-  self.oprot.trans:flush()
-end
-
-function BackEndServiceClient:recv_ReadPost(req_id, post_id)
-  local fname, mtype, rseqid = self.iprot:readMessageBegin()
-  if mtype == TMessageType.EXCEPTION then
-    local x = TApplicationException:new{}
-    x:read(self.iprot)
-    self.iprot:readMessageEnd()
-    error(x)
-  end
-  local result = ReadPost_result:new{}
-  result:read(self.iprot)
-  self.iprot:readMessageEnd()
-  if result.success ~= nil then
-    return result.success
-  elseif result.se then
-    error(result.se)
-  end
-  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
-end
-
-function BackEndServiceClient:ReadPosts(req_id, post_ids)
-  self:send_ReadPosts(req_id, post_ids)
-  return self:recv_ReadPosts(req_id, post_ids)
-end
-
-function BackEndServiceClient:send_ReadPosts(req_id, post_ids)
-  self.oprot:writeMessageBegin('ReadPosts', TMessageType.CALL, self._seqid)
-  local args = ReadPosts_args:new{}
-  args.req_id = req_id
-  args.post_ids = post_ids
-  args:write(self.oprot)
-  self.oprot:writeMessageEnd()
-  self.oprot.trans:flush()
-end
-
-function BackEndServiceClient:recv_ReadPosts(req_id, post_ids)
-  local fname, mtype, rseqid = self.iprot:readMessageBegin()
-  if mtype == TMessageType.EXCEPTION then
-    local x = TApplicationException:new{}
-    x:read(self.iprot)
-    self.iprot:readMessageEnd()
-    error(x)
-  end
-  local result = ReadPosts_result:new{}
-  result:read(self.iprot)
-  self.iprot:readMessageEnd()
-  if result.success ~= nil then
-    return result.success
-  elseif result.se then
-    error(result.se)
-  end
-  error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
-end
-
-function BackEndServiceClient:ReadUserTimeline(req_id, user_id, start, stop)
-  self:send_ReadUserTimeline(req_id, user_id, start, stop)
-  return self:recv_ReadUserTimeline(req_id, user_id, start, stop)
-end
-
-function BackEndServiceClient:send_ReadUserTimeline(req_id, user_id, start, stop)
+function BackEndServiceClient:send_ReadUserTimeline(user_id, start, stop)
   self.oprot:writeMessageBegin('ReadUserTimeline', TMessageType.CALL, self._seqid)
   local args = ReadUserTimeline_args:new{}
-  args.req_id = req_id
   args.user_id = user_id
   args.start = start
   args.stop = stop
@@ -169,7 +71,7 @@ function BackEndServiceClient:send_ReadUserTimeline(req_id, user_id, start, stop
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_ReadUserTimeline(req_id, user_id, start, stop)
+function BackEndServiceClient:recv_ReadUserTimeline(user_id, start, stop)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -188,15 +90,14 @@ function BackEndServiceClient:recv_ReadUserTimeline(req_id, user_id, start, stop
   error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
 end
 
-function BackEndServiceClient:Login(req_id, username, password)
-  self:send_Login(req_id, username, password)
-  return self:recv_Login(req_id, username, password)
+function BackEndServiceClient:Login(username, password)
+  self:send_Login(username, password)
+  return self:recv_Login(username, password)
 end
 
-function BackEndServiceClient:send_Login(req_id, username, password)
+function BackEndServiceClient:send_Login(username, password)
   self.oprot:writeMessageBegin('Login', TMessageType.CALL, self._seqid)
   local args = Login_args:new{}
-  args.req_id = req_id
   args.username = username
   args.password = password
   args:write(self.oprot)
@@ -204,7 +105,7 @@ function BackEndServiceClient:send_Login(req_id, username, password)
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_Login(req_id, username, password)
+function BackEndServiceClient:recv_Login(username, password)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -223,15 +124,14 @@ function BackEndServiceClient:recv_Login(req_id, username, password)
   error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
 end
 
-function BackEndServiceClient:RegisterUser(req_id, first_name, last_name, username, password)
-  self:send_RegisterUser(req_id, first_name, last_name, username, password)
-  self:recv_RegisterUser(req_id, first_name, last_name, username, password)
+function BackEndServiceClient:RegisterUser(first_name, last_name, username, password)
+  self:send_RegisterUser(first_name, last_name, username, password)
+  self:recv_RegisterUser(first_name, last_name, username, password)
 end
 
-function BackEndServiceClient:send_RegisterUser(req_id, first_name, last_name, username, password)
+function BackEndServiceClient:send_RegisterUser(first_name, last_name, username, password)
   self.oprot:writeMessageBegin('RegisterUser', TMessageType.CALL, self._seqid)
   local args = RegisterUser_args:new{}
-  args.req_id = req_id
   args.first_name = first_name
   args.last_name = last_name
   args.username = username
@@ -241,7 +141,7 @@ function BackEndServiceClient:send_RegisterUser(req_id, first_name, last_name, u
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_RegisterUser(req_id, first_name, last_name, username, password)
+function BackEndServiceClient:recv_RegisterUser(first_name, last_name, username, password)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -254,15 +154,14 @@ function BackEndServiceClient:recv_RegisterUser(req_id, first_name, last_name, u
   self.iprot:readMessageEnd()
 end
 
-function BackEndServiceClient:RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
-  self:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
-  self:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+function BackEndServiceClient:RegisterUserWithId(first_name, last_name, username, password, user_id)
+  self:send_RegisterUserWithId(first_name, last_name, username, password, user_id)
+  self:recv_RegisterUserWithId(first_name, last_name, username, password, user_id)
 end
 
-function BackEndServiceClient:send_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+function BackEndServiceClient:send_RegisterUserWithId(first_name, last_name, username, password, user_id)
   self.oprot:writeMessageBegin('RegisterUserWithId', TMessageType.CALL, self._seqid)
   local args = RegisterUserWithId_args:new{}
-  args.req_id = req_id
   args.first_name = first_name
   args.last_name = last_name
   args.username = username
@@ -273,7 +172,7 @@ function BackEndServiceClient:send_RegisterUserWithId(req_id, first_name, last_n
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_RegisterUserWithId(req_id, first_name, last_name, username, password, user_id)
+function BackEndServiceClient:recv_RegisterUserWithId(first_name, last_name, username, password, user_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -286,22 +185,21 @@ function BackEndServiceClient:recv_RegisterUserWithId(req_id, first_name, last_n
   self.iprot:readMessageEnd()
 end
 
-function BackEndServiceClient:GetFollowers(req_id, user_id)
-  self:send_GetFollowers(req_id, user_id)
-  return self:recv_GetFollowers(req_id, user_id)
+function BackEndServiceClient:GetFollowers(user_id)
+  self:send_GetFollowers(user_id)
+  return self:recv_GetFollowers(user_id)
 end
 
-function BackEndServiceClient:send_GetFollowers(req_id, user_id)
+function BackEndServiceClient:send_GetFollowers(user_id)
   self.oprot:writeMessageBegin('GetFollowers', TMessageType.CALL, self._seqid)
   local args = GetFollowers_args:new{}
-  args.req_id = req_id
   args.user_id = user_id
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_GetFollowers(req_id, user_id)
+function BackEndServiceClient:recv_GetFollowers(user_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -320,15 +218,14 @@ function BackEndServiceClient:recv_GetFollowers(req_id, user_id)
   error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
 end
 
-function BackEndServiceClient:Unfollow(req_id, user_id, followee_id)
-  self:send_Unfollow(req_id, user_id, followee_id)
-  self:recv_Unfollow(req_id, user_id, followee_id)
+function BackEndServiceClient:Unfollow(user_id, followee_id)
+  self:send_Unfollow(user_id, followee_id)
+  self:recv_Unfollow(user_id, followee_id)
 end
 
-function BackEndServiceClient:send_Unfollow(req_id, user_id, followee_id)
+function BackEndServiceClient:send_Unfollow(user_id, followee_id)
   self.oprot:writeMessageBegin('Unfollow', TMessageType.CALL, self._seqid)
   local args = Unfollow_args:new{}
-  args.req_id = req_id
   args.user_id = user_id
   args.followee_id = followee_id
   args:write(self.oprot)
@@ -336,7 +233,7 @@ function BackEndServiceClient:send_Unfollow(req_id, user_id, followee_id)
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_Unfollow(req_id, user_id, followee_id)
+function BackEndServiceClient:recv_Unfollow(user_id, followee_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -349,15 +246,14 @@ function BackEndServiceClient:recv_Unfollow(req_id, user_id, followee_id)
   self.iprot:readMessageEnd()
 end
 
-function BackEndServiceClient:UnfollowWithUsername(req_id, user_usernmae, followee_username)
-  self:send_UnfollowWithUsername(req_id, user_usernmae, followee_username)
-  self:recv_UnfollowWithUsername(req_id, user_usernmae, followee_username)
+function BackEndServiceClient:UnfollowWithUsername(user_usernmae, followee_username)
+  self:send_UnfollowWithUsername(user_usernmae, followee_username)
+  self:recv_UnfollowWithUsername(user_usernmae, followee_username)
 end
 
-function BackEndServiceClient:send_UnfollowWithUsername(req_id, user_usernmae, followee_username)
+function BackEndServiceClient:send_UnfollowWithUsername(user_usernmae, followee_username)
   self.oprot:writeMessageBegin('UnfollowWithUsername', TMessageType.CALL, self._seqid)
   local args = UnfollowWithUsername_args:new{}
-  args.req_id = req_id
   args.user_usernmae = user_usernmae
   args.followee_username = followee_username
   args:write(self.oprot)
@@ -365,7 +261,7 @@ function BackEndServiceClient:send_UnfollowWithUsername(req_id, user_usernmae, f
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_UnfollowWithUsername(req_id, user_usernmae, followee_username)
+function BackEndServiceClient:recv_UnfollowWithUsername(user_usernmae, followee_username)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -378,15 +274,14 @@ function BackEndServiceClient:recv_UnfollowWithUsername(req_id, user_usernmae, f
   self.iprot:readMessageEnd()
 end
 
-function BackEndServiceClient:Follow(req_id, user_id, followee_id)
-  self:send_Follow(req_id, user_id, followee_id)
-  self:recv_Follow(req_id, user_id, followee_id)
+function BackEndServiceClient:Follow(user_id, followee_id)
+  self:send_Follow(user_id, followee_id)
+  self:recv_Follow(user_id, followee_id)
 end
 
-function BackEndServiceClient:send_Follow(req_id, user_id, followee_id)
+function BackEndServiceClient:send_Follow(user_id, followee_id)
   self.oprot:writeMessageBegin('Follow', TMessageType.CALL, self._seqid)
   local args = Follow_args:new{}
-  args.req_id = req_id
   args.user_id = user_id
   args.followee_id = followee_id
   args:write(self.oprot)
@@ -394,7 +289,7 @@ function BackEndServiceClient:send_Follow(req_id, user_id, followee_id)
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_Follow(req_id, user_id, followee_id)
+function BackEndServiceClient:recv_Follow(user_id, followee_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -407,15 +302,14 @@ function BackEndServiceClient:recv_Follow(req_id, user_id, followee_id)
   self.iprot:readMessageEnd()
 end
 
-function BackEndServiceClient:FollowWithUsername(req_id, user_usernmae, followee_username)
-  self:send_FollowWithUsername(req_id, user_usernmae, followee_username)
-  self:recv_FollowWithUsername(req_id, user_usernmae, followee_username)
+function BackEndServiceClient:FollowWithUsername(user_usernmae, followee_username)
+  self:send_FollowWithUsername(user_usernmae, followee_username)
+  self:recv_FollowWithUsername(user_usernmae, followee_username)
 end
 
-function BackEndServiceClient:send_FollowWithUsername(req_id, user_usernmae, followee_username)
+function BackEndServiceClient:send_FollowWithUsername(user_usernmae, followee_username)
   self.oprot:writeMessageBegin('FollowWithUsername', TMessageType.CALL, self._seqid)
   local args = FollowWithUsername_args:new{}
-  args.req_id = req_id
   args.user_usernmae = user_usernmae
   args.followee_username = followee_username
   args:write(self.oprot)
@@ -423,7 +317,7 @@ function BackEndServiceClient:send_FollowWithUsername(req_id, user_usernmae, fol
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_FollowWithUsername(req_id, user_usernmae, followee_username)
+function BackEndServiceClient:recv_FollowWithUsername(user_usernmae, followee_username)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -436,22 +330,21 @@ function BackEndServiceClient:recv_FollowWithUsername(req_id, user_usernmae, fol
   self.iprot:readMessageEnd()
 end
 
-function BackEndServiceClient:GetFollowees(req_id, user_id)
-  self:send_GetFollowees(req_id, user_id)
-  return self:recv_GetFollowees(req_id, user_id)
+function BackEndServiceClient:GetFollowees(user_id)
+  self:send_GetFollowees(user_id)
+  return self:recv_GetFollowees(user_id)
 end
 
-function BackEndServiceClient:send_GetFollowees(req_id, user_id)
+function BackEndServiceClient:send_GetFollowees(user_id)
   self.oprot:writeMessageBegin('GetFollowees', TMessageType.CALL, self._seqid)
   local args = GetFollowees_args:new{}
-  args.req_id = req_id
   args.user_id = user_id
   args:write(self.oprot)
   self.oprot:writeMessageEnd()
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_GetFollowees(req_id, user_id)
+function BackEndServiceClient:recv_GetFollowees(user_id)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -470,15 +363,14 @@ function BackEndServiceClient:recv_GetFollowees(req_id, user_id)
   error(TApplicationException:new{errorCode = TApplicationException.MISSING_RESULT})
 end
 
-function BackEndServiceClient:ReadHomeTimeline(req_id, user_id, start, stop)
-  self:send_ReadHomeTimeline(req_id, user_id, start, stop)
-  return self:recv_ReadHomeTimeline(req_id, user_id, start, stop)
+function BackEndServiceClient:ReadHomeTimeline(user_id, start, stop)
+  self:send_ReadHomeTimeline(user_id, start, stop)
+  return self:recv_ReadHomeTimeline(user_id, start, stop)
 end
 
-function BackEndServiceClient:send_ReadHomeTimeline(req_id, user_id, start, stop)
+function BackEndServiceClient:send_ReadHomeTimeline(user_id, start, stop)
   self.oprot:writeMessageBegin('ReadHomeTimeline', TMessageType.CALL, self._seqid)
   local args = ReadHomeTimeline_args:new{}
-  args.req_id = req_id
   args.user_id = user_id
   args.start = start
   args.stop = stop
@@ -487,7 +379,7 @@ function BackEndServiceClient:send_ReadHomeTimeline(req_id, user_id, start, stop
   self.oprot.trans:flush()
 end
 
-function BackEndServiceClient:recv_ReadHomeTimeline(req_id, user_id, start, stop)
+function BackEndServiceClient:recv_ReadHomeTimeline(user_id, start, stop)
   local fname, mtype, rseqid = self.iprot:readMessageBegin()
   if mtype == TMessageType.EXCEPTION then
     local x = TApplicationException:new{}
@@ -539,7 +431,7 @@ function BackEndServiceProcessor:process_ComposePost(seqid, iprot, oprot, server
   args:read(iprot)
   iprot:readMessageEnd()
   local result = ComposePost_result:new{}
-  local status, res = pcall(self.handler.ComposePost, self.handler, args.req_id, args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type)
+  local status, res = pcall(self.handler.ComposePost, self.handler, args.username, args.user_id, args.text, args.media_ids, args.media_types, args.post_type)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -554,76 +446,13 @@ function BackEndServiceProcessor:process_ComposePost(seqid, iprot, oprot, server
   oprot.trans:flush()
 end
 
-function BackEndServiceProcessor:process_StorePost(seqid, iprot, oprot, server_ctx)
-  local args = StorePost_args:new{}
-  local reply_type = TMessageType.REPLY
-  args:read(iprot)
-  iprot:readMessageEnd()
-  local result = StorePost_result:new{}
-  local status, res = pcall(self.handler.StorePost, self.handler, args.req_id, args.post)
-  if not status then
-    reply_type = TMessageType.EXCEPTION
-    result = TApplicationException:new{message = res}
-  elseif ttype(res) == 'ServiceException' then
-    result.se = res
-  else
-    result.success = res
-  end
-  oprot:writeMessageBegin('StorePost', reply_type, seqid)
-  result:write(oprot)
-  oprot:writeMessageEnd()
-  oprot.trans:flush()
-end
-
-function BackEndServiceProcessor:process_ReadPost(seqid, iprot, oprot, server_ctx)
-  local args = ReadPost_args:new{}
-  local reply_type = TMessageType.REPLY
-  args:read(iprot)
-  iprot:readMessageEnd()
-  local result = ReadPost_result:new{}
-  local status, res = pcall(self.handler.ReadPost, self.handler, args.req_id, args.post_id)
-  if not status then
-    reply_type = TMessageType.EXCEPTION
-    result = TApplicationException:new{message = res}
-  elseif ttype(res) == 'ServiceException' then
-    result.se = res
-  else
-    result.success = res
-  end
-  oprot:writeMessageBegin('ReadPost', reply_type, seqid)
-  result:write(oprot)
-  oprot:writeMessageEnd()
-  oprot.trans:flush()
-end
-
-function BackEndServiceProcessor:process_ReadPosts(seqid, iprot, oprot, server_ctx)
-  local args = ReadPosts_args:new{}
-  local reply_type = TMessageType.REPLY
-  args:read(iprot)
-  iprot:readMessageEnd()
-  local result = ReadPosts_result:new{}
-  local status, res = pcall(self.handler.ReadPosts, self.handler, args.req_id, args.post_ids)
-  if not status then
-    reply_type = TMessageType.EXCEPTION
-    result = TApplicationException:new{message = res}
-  elseif ttype(res) == 'ServiceException' then
-    result.se = res
-  else
-    result.success = res
-  end
-  oprot:writeMessageBegin('ReadPosts', reply_type, seqid)
-  result:write(oprot)
-  oprot:writeMessageEnd()
-  oprot.trans:flush()
-end
-
 function BackEndServiceProcessor:process_ReadUserTimeline(seqid, iprot, oprot, server_ctx)
   local args = ReadUserTimeline_args:new{}
   local reply_type = TMessageType.REPLY
   args:read(iprot)
   iprot:readMessageEnd()
   local result = ReadUserTimeline_result:new{}
-  local status, res = pcall(self.handler.ReadUserTimeline, self.handler, args.req_id, args.user_id, args.start, args.stop)
+  local status, res = pcall(self.handler.ReadUserTimeline, self.handler, args.user_id, args.start, args.stop)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -644,7 +473,7 @@ function BackEndServiceProcessor:process_Login(seqid, iprot, oprot, server_ctx)
   args:read(iprot)
   iprot:readMessageEnd()
   local result = Login_result:new{}
-  local status, res = pcall(self.handler.Login, self.handler, args.req_id, args.username, args.password)
+  local status, res = pcall(self.handler.Login, self.handler, args.username, args.password)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -665,7 +494,7 @@ function BackEndServiceProcessor:process_RegisterUser(seqid, iprot, oprot, serve
   args:read(iprot)
   iprot:readMessageEnd()
   local result = RegisterUser_result:new{}
-  local status, res = pcall(self.handler.RegisterUser, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password)
+  local status, res = pcall(self.handler.RegisterUser, self.handler, args.first_name, args.last_name, args.username, args.password)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -686,7 +515,7 @@ function BackEndServiceProcessor:process_RegisterUserWithId(seqid, iprot, oprot,
   args:read(iprot)
   iprot:readMessageEnd()
   local result = RegisterUserWithId_result:new{}
-  local status, res = pcall(self.handler.RegisterUserWithId, self.handler, args.req_id, args.first_name, args.last_name, args.username, args.password, args.user_id)
+  local status, res = pcall(self.handler.RegisterUserWithId, self.handler, args.first_name, args.last_name, args.username, args.password, args.user_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -707,7 +536,7 @@ function BackEndServiceProcessor:process_GetFollowers(seqid, iprot, oprot, serve
   args:read(iprot)
   iprot:readMessageEnd()
   local result = GetFollowers_result:new{}
-  local status, res = pcall(self.handler.GetFollowers, self.handler, args.req_id, args.user_id)
+  local status, res = pcall(self.handler.GetFollowers, self.handler, args.user_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -728,7 +557,7 @@ function BackEndServiceProcessor:process_Unfollow(seqid, iprot, oprot, server_ct
   args:read(iprot)
   iprot:readMessageEnd()
   local result = Unfollow_result:new{}
-  local status, res = pcall(self.handler.Unfollow, self.handler, args.req_id, args.user_id, args.followee_id)
+  local status, res = pcall(self.handler.Unfollow, self.handler, args.user_id, args.followee_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -749,7 +578,7 @@ function BackEndServiceProcessor:process_UnfollowWithUsername(seqid, iprot, opro
   args:read(iprot)
   iprot:readMessageEnd()
   local result = UnfollowWithUsername_result:new{}
-  local status, res = pcall(self.handler.UnfollowWithUsername, self.handler, args.req_id, args.user_usernmae, args.followee_username)
+  local status, res = pcall(self.handler.UnfollowWithUsername, self.handler, args.user_usernmae, args.followee_username)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -770,7 +599,7 @@ function BackEndServiceProcessor:process_Follow(seqid, iprot, oprot, server_ctx)
   args:read(iprot)
   iprot:readMessageEnd()
   local result = Follow_result:new{}
-  local status, res = pcall(self.handler.Follow, self.handler, args.req_id, args.user_id, args.followee_id)
+  local status, res = pcall(self.handler.Follow, self.handler, args.user_id, args.followee_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -791,7 +620,7 @@ function BackEndServiceProcessor:process_FollowWithUsername(seqid, iprot, oprot,
   args:read(iprot)
   iprot:readMessageEnd()
   local result = FollowWithUsername_result:new{}
-  local status, res = pcall(self.handler.FollowWithUsername, self.handler, args.req_id, args.user_usernmae, args.followee_username)
+  local status, res = pcall(self.handler.FollowWithUsername, self.handler, args.user_usernmae, args.followee_username)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -812,7 +641,7 @@ function BackEndServiceProcessor:process_GetFollowees(seqid, iprot, oprot, serve
   args:read(iprot)
   iprot:readMessageEnd()
   local result = GetFollowees_result:new{}
-  local status, res = pcall(self.handler.GetFollowees, self.handler, args.req_id, args.user_id)
+  local status, res = pcall(self.handler.GetFollowees, self.handler, args.user_id)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -833,7 +662,7 @@ function BackEndServiceProcessor:process_ReadHomeTimeline(seqid, iprot, oprot, s
   args:read(iprot)
   iprot:readMessageEnd()
   local result = ReadHomeTimeline_result:new{}
-  local status, res = pcall(self.handler.ReadHomeTimeline, self.handler, args.req_id, args.user_id, args.start, args.stop)
+  local status, res = pcall(self.handler.ReadHomeTimeline, self.handler, args.user_id, args.start, args.stop)
   if not status then
     reply_type = TMessageType.EXCEPTION
     result = TApplicationException:new{message = res}
@@ -851,7 +680,6 @@ end
 -- HELPER FUNCTIONS AND STRUCTURES
 
 ComposePost_args = __TObject:new{
-  req_id,
   username,
   user_id,
   text,
@@ -867,30 +695,24 @@ function ComposePost_args:read(iprot)
     if ftype == TType.STOP then
       break
     elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
       if ftype == TType.STRING then
         self.username = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.I64 then
         self.user_id = iprot:readI64()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
+    elseif fid == 3 then
       if ftype == TType.STRING then
         self.text = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 5 then
+    elseif fid == 4 then
       if ftype == TType.LIST then
         self.media_ids = {}
         local _etype33, _size30 = iprot:readListBegin()
@@ -902,7 +724,7 @@ function ComposePost_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 6 then
+    elseif fid == 5 then
       if ftype == TType.LIST then
         self.media_types = {}
         local _etype38, _size35 = iprot:readListBegin()
@@ -914,7 +736,7 @@ function ComposePost_args:read(iprot)
       else
         iprot:skip(ftype)
       end
-    elseif fid == 7 then
+    elseif fid == 6 then
       if ftype == TType.I32 then
         self.post_type = iprot:readI32()
       else
@@ -930,28 +752,23 @@ end
 
 function ComposePost_args:write(oprot)
   oprot:writeStructBegin('ComposePost_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.username ~= nil then
-    oprot:writeFieldBegin('username', TType.STRING, 2)
+    oprot:writeFieldBegin('username', TType.STRING, 1)
     oprot:writeString(self.username)
     oprot:writeFieldEnd()
   end
   if self.user_id ~= nil then
-    oprot:writeFieldBegin('user_id', TType.I64, 3)
+    oprot:writeFieldBegin('user_id', TType.I64, 2)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
   if self.text ~= nil then
-    oprot:writeFieldBegin('text', TType.STRING, 4)
+    oprot:writeFieldBegin('text', TType.STRING, 3)
     oprot:writeString(self.text)
     oprot:writeFieldEnd()
   end
   if self.media_ids ~= nil then
-    oprot:writeFieldBegin('media_ids', TType.LIST, 5)
+    oprot:writeFieldBegin('media_ids', TType.LIST, 4)
     oprot:writeListBegin(TType.I64, #self.media_ids)
     for _,iter40 in ipairs(self.media_ids) do
       oprot:writeI64(iter40)
@@ -960,7 +777,7 @@ function ComposePost_args:write(oprot)
     oprot:writeFieldEnd()
   end
   if self.media_types ~= nil then
-    oprot:writeFieldBegin('media_types', TType.LIST, 6)
+    oprot:writeFieldBegin('media_types', TType.LIST, 5)
     oprot:writeListBegin(TType.STRING, #self.media_types)
     for _,iter41 in ipairs(self.media_types) do
       oprot:writeString(iter41)
@@ -969,7 +786,7 @@ function ComposePost_args:write(oprot)
     oprot:writeFieldEnd()
   end
   if self.post_type ~= nil then
-    oprot:writeFieldBegin('post_type', TType.I32, 7)
+    oprot:writeFieldBegin('post_type', TType.I32, 6)
     oprot:writeI32(self.post_type)
     oprot:writeFieldEnd()
   end
@@ -1013,304 +830,7 @@ function ComposePost_result:write(oprot)
   oprot:writeStructEnd()
 end
 
-StorePost_args = __TObject:new{
-  req_id,
-  post
-}
-
-function StorePost_args:read(iprot)
-  iprot:readStructBegin()
-  while true do
-    local fname, ftype, fid = iprot:readFieldBegin()
-    if ftype == TType.STOP then
-      break
-    elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
-      if ftype == TType.STRUCT then
-        self.post = Post:new{}
-        self.post:read(iprot)
-      else
-        iprot:skip(ftype)
-      end
-    else
-      iprot:skip(ftype)
-    end
-    iprot:readFieldEnd()
-  end
-  iprot:readStructEnd()
-end
-
-function StorePost_args:write(oprot)
-  oprot:writeStructBegin('StorePost_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
-  if self.post ~= nil then
-    oprot:writeFieldBegin('post', TType.STRUCT, 2)
-    self.post:write(oprot)
-    oprot:writeFieldEnd()
-  end
-  oprot:writeFieldStop()
-  oprot:writeStructEnd()
-end
-
-StorePost_result = __TObject:new{
-  se
-}
-
-function StorePost_result:read(iprot)
-  iprot:readStructBegin()
-  while true do
-    local fname, ftype, fid = iprot:readFieldBegin()
-    if ftype == TType.STOP then
-      break
-    elseif fid == 1 then
-      if ftype == TType.STRUCT then
-        self.se = ServiceException:new{}
-        self.se:read(iprot)
-      else
-        iprot:skip(ftype)
-      end
-    else
-      iprot:skip(ftype)
-    end
-    iprot:readFieldEnd()
-  end
-  iprot:readStructEnd()
-end
-
-function StorePost_result:write(oprot)
-  oprot:writeStructBegin('StorePost_result')
-  if self.se ~= nil then
-    oprot:writeFieldBegin('se', TType.STRUCT, 1)
-    self.se:write(oprot)
-    oprot:writeFieldEnd()
-  end
-  oprot:writeFieldStop()
-  oprot:writeStructEnd()
-end
-
-ReadPost_args = __TObject:new{
-  req_id,
-  post_id
-}
-
-function ReadPost_args:read(iprot)
-  iprot:readStructBegin()
-  while true do
-    local fname, ftype, fid = iprot:readFieldBegin()
-    if ftype == TType.STOP then
-      break
-    elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
-      if ftype == TType.I64 then
-        self.post_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    else
-      iprot:skip(ftype)
-    end
-    iprot:readFieldEnd()
-  end
-  iprot:readStructEnd()
-end
-
-function ReadPost_args:write(oprot)
-  oprot:writeStructBegin('ReadPost_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
-  if self.post_id ~= nil then
-    oprot:writeFieldBegin('post_id', TType.I64, 2)
-    oprot:writeI64(self.post_id)
-    oprot:writeFieldEnd()
-  end
-  oprot:writeFieldStop()
-  oprot:writeStructEnd()
-end
-
-ReadPost_result = __TObject:new{
-  success,
-  se
-}
-
-function ReadPost_result:read(iprot)
-  iprot:readStructBegin()
-  while true do
-    local fname, ftype, fid = iprot:readFieldBegin()
-    if ftype == TType.STOP then
-      break
-    elseif fid == 0 then
-      if ftype == TType.STRUCT then
-        self.success = Post:new{}
-        self.success:read(iprot)
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 1 then
-      if ftype == TType.STRUCT then
-        self.se = ServiceException:new{}
-        self.se:read(iprot)
-      else
-        iprot:skip(ftype)
-      end
-    else
-      iprot:skip(ftype)
-    end
-    iprot:readFieldEnd()
-  end
-  iprot:readStructEnd()
-end
-
-function ReadPost_result:write(oprot)
-  oprot:writeStructBegin('ReadPost_result')
-  if self.success ~= nil then
-    oprot:writeFieldBegin('success', TType.STRUCT, 0)
-    self.success:write(oprot)
-    oprot:writeFieldEnd()
-  end
-  if self.se ~= nil then
-    oprot:writeFieldBegin('se', TType.STRUCT, 1)
-    self.se:write(oprot)
-    oprot:writeFieldEnd()
-  end
-  oprot:writeFieldStop()
-  oprot:writeStructEnd()
-end
-
-ReadPosts_args = __TObject:new{
-  req_id,
-  post_ids
-}
-
-function ReadPosts_args:read(iprot)
-  iprot:readStructBegin()
-  while true do
-    local fname, ftype, fid = iprot:readFieldBegin()
-    if ftype == TType.STOP then
-      break
-    elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
-      if ftype == TType.LIST then
-        self.post_ids = {}
-        local _etype45, _size42 = iprot:readListBegin()
-        for _i=1,_size42 do
-          local _elem46 = iprot:readI64()
-          table.insert(self.post_ids, _elem46)
-        end
-        iprot:readListEnd()
-      else
-        iprot:skip(ftype)
-      end
-    else
-      iprot:skip(ftype)
-    end
-    iprot:readFieldEnd()
-  end
-  iprot:readStructEnd()
-end
-
-function ReadPosts_args:write(oprot)
-  oprot:writeStructBegin('ReadPosts_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
-  if self.post_ids ~= nil then
-    oprot:writeFieldBegin('post_ids', TType.LIST, 2)
-    oprot:writeListBegin(TType.I64, #self.post_ids)
-    for _,iter47 in ipairs(self.post_ids) do
-      oprot:writeI64(iter47)
-    end
-    oprot:writeListEnd()
-    oprot:writeFieldEnd()
-  end
-  oprot:writeFieldStop()
-  oprot:writeStructEnd()
-end
-
-ReadPosts_result = __TObject:new{
-  success,
-  se
-}
-
-function ReadPosts_result:read(iprot)
-  iprot:readStructBegin()
-  while true do
-    local fname, ftype, fid = iprot:readFieldBegin()
-    if ftype == TType.STOP then
-      break
-    elseif fid == 0 then
-      if ftype == TType.LIST then
-        self.success = {}
-        local _etype51, _size48 = iprot:readListBegin()
-        for _i=1,_size48 do
-          local _elem52 = Post:new{}
-          _elem52:read(iprot)
-          table.insert(self.success, _elem52)
-        end
-        iprot:readListEnd()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 1 then
-      if ftype == TType.STRUCT then
-        self.se = ServiceException:new{}
-        self.se:read(iprot)
-      else
-        iprot:skip(ftype)
-      end
-    else
-      iprot:skip(ftype)
-    end
-    iprot:readFieldEnd()
-  end
-  iprot:readStructEnd()
-end
-
-function ReadPosts_result:write(oprot)
-  oprot:writeStructBegin('ReadPosts_result')
-  if self.success ~= nil then
-    oprot:writeFieldBegin('success', TType.LIST, 0)
-    oprot:writeListBegin(TType.STRUCT, #self.success)
-    for _,iter53 in ipairs(self.success) do
-      iter53:write(oprot)
-    end
-    oprot:writeListEnd()
-    oprot:writeFieldEnd()
-  end
-  if self.se ~= nil then
-    oprot:writeFieldBegin('se', TType.STRUCT, 1)
-    self.se:write(oprot)
-    oprot:writeFieldEnd()
-  end
-  oprot:writeFieldStop()
-  oprot:writeStructEnd()
-end
-
 ReadUserTimeline_args = __TObject:new{
-  req_id,
   user_id,
   start,
   stop
@@ -1324,23 +844,17 @@ function ReadUserTimeline_args:read(iprot)
       break
     elseif fid == 1 then
       if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
-      if ftype == TType.I64 then
         self.user_id = iprot:readI64()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.I32 then
         self.start = iprot:readI32()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
+    elseif fid == 3 then
       if ftype == TType.I32 then
         self.stop = iprot:readI32()
       else
@@ -1356,23 +870,18 @@ end
 
 function ReadUserTimeline_args:write(oprot)
   oprot:writeStructBegin('ReadUserTimeline_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.user_id ~= nil then
-    oprot:writeFieldBegin('user_id', TType.I64, 2)
+    oprot:writeFieldBegin('user_id', TType.I64, 1)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
   if self.start ~= nil then
-    oprot:writeFieldBegin('start', TType.I32, 3)
+    oprot:writeFieldBegin('start', TType.I32, 2)
     oprot:writeI32(self.start)
     oprot:writeFieldEnd()
   end
   if self.stop ~= nil then
-    oprot:writeFieldBegin('stop', TType.I32, 4)
+    oprot:writeFieldBegin('stop', TType.I32, 3)
     oprot:writeI32(self.stop)
     oprot:writeFieldEnd()
   end
@@ -1394,11 +903,11 @@ function ReadUserTimeline_result:read(iprot)
     elseif fid == 0 then
       if ftype == TType.LIST then
         self.success = {}
-        local _etype57, _size54 = iprot:readListBegin()
-        for _i=1,_size54 do
-          local _elem58 = Post:new{}
-          _elem58:read(iprot)
-          table.insert(self.success, _elem58)
+        local _etype45, _size42 = iprot:readListBegin()
+        for _i=1,_size42 do
+          local _elem46 = Post:new{}
+          _elem46:read(iprot)
+          table.insert(self.success, _elem46)
         end
         iprot:readListEnd()
       else
@@ -1424,8 +933,8 @@ function ReadUserTimeline_result:write(oprot)
   if self.success ~= nil then
     oprot:writeFieldBegin('success', TType.LIST, 0)
     oprot:writeListBegin(TType.STRUCT, #self.success)
-    for _,iter59 in ipairs(self.success) do
-      iter59:write(oprot)
+    for _,iter47 in ipairs(self.success) do
+      iter47:write(oprot)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -1440,7 +949,6 @@ function ReadUserTimeline_result:write(oprot)
 end
 
 Login_args = __TObject:new{
-  req_id,
   username,
   password
 }
@@ -1452,18 +960,12 @@ function Login_args:read(iprot)
     if ftype == TType.STOP then
       break
     elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
       if ftype == TType.STRING then
         self.username = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.STRING then
         self.password = iprot:readString()
       else
@@ -1479,18 +981,13 @@ end
 
 function Login_args:write(oprot)
   oprot:writeStructBegin('Login_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.username ~= nil then
-    oprot:writeFieldBegin('username', TType.STRING, 2)
+    oprot:writeFieldBegin('username', TType.STRING, 1)
     oprot:writeString(self.username)
     oprot:writeFieldEnd()
   end
   if self.password ~= nil then
-    oprot:writeFieldBegin('password', TType.STRING, 3)
+    oprot:writeFieldBegin('password', TType.STRING, 2)
     oprot:writeString(self.password)
     oprot:writeFieldEnd()
   end
@@ -1547,7 +1044,6 @@ function Login_result:write(oprot)
 end
 
 RegisterUser_args = __TObject:new{
-  req_id,
   first_name,
   last_name,
   username,
@@ -1561,30 +1057,24 @@ function RegisterUser_args:read(iprot)
     if ftype == TType.STOP then
       break
     elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
       if ftype == TType.STRING then
         self.first_name = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.STRING then
         self.last_name = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
+    elseif fid == 3 then
       if ftype == TType.STRING then
         self.username = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 5 then
+    elseif fid == 4 then
       if ftype == TType.STRING then
         self.password = iprot:readString()
       else
@@ -1600,28 +1090,23 @@ end
 
 function RegisterUser_args:write(oprot)
   oprot:writeStructBegin('RegisterUser_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.first_name ~= nil then
-    oprot:writeFieldBegin('first_name', TType.STRING, 2)
+    oprot:writeFieldBegin('first_name', TType.STRING, 1)
     oprot:writeString(self.first_name)
     oprot:writeFieldEnd()
   end
   if self.last_name ~= nil then
-    oprot:writeFieldBegin('last_name', TType.STRING, 3)
+    oprot:writeFieldBegin('last_name', TType.STRING, 2)
     oprot:writeString(self.last_name)
     oprot:writeFieldEnd()
   end
   if self.username ~= nil then
-    oprot:writeFieldBegin('username', TType.STRING, 4)
+    oprot:writeFieldBegin('username', TType.STRING, 3)
     oprot:writeString(self.username)
     oprot:writeFieldEnd()
   end
   if self.password ~= nil then
-    oprot:writeFieldBegin('password', TType.STRING, 5)
+    oprot:writeFieldBegin('password', TType.STRING, 4)
     oprot:writeString(self.password)
     oprot:writeFieldEnd()
   end
@@ -1666,7 +1151,6 @@ function RegisterUser_result:write(oprot)
 end
 
 RegisterUserWithId_args = __TObject:new{
-  req_id,
   first_name,
   last_name,
   username,
@@ -1681,36 +1165,30 @@ function RegisterUserWithId_args:read(iprot)
     if ftype == TType.STOP then
       break
     elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
       if ftype == TType.STRING then
         self.first_name = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.STRING then
         self.last_name = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
+    elseif fid == 3 then
       if ftype == TType.STRING then
         self.username = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 5 then
+    elseif fid == 4 then
       if ftype == TType.STRING then
         self.password = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 6 then
+    elseif fid == 5 then
       if ftype == TType.I64 then
         self.user_id = iprot:readI64()
       else
@@ -1726,33 +1204,28 @@ end
 
 function RegisterUserWithId_args:write(oprot)
   oprot:writeStructBegin('RegisterUserWithId_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.first_name ~= nil then
-    oprot:writeFieldBegin('first_name', TType.STRING, 2)
+    oprot:writeFieldBegin('first_name', TType.STRING, 1)
     oprot:writeString(self.first_name)
     oprot:writeFieldEnd()
   end
   if self.last_name ~= nil then
-    oprot:writeFieldBegin('last_name', TType.STRING, 3)
+    oprot:writeFieldBegin('last_name', TType.STRING, 2)
     oprot:writeString(self.last_name)
     oprot:writeFieldEnd()
   end
   if self.username ~= nil then
-    oprot:writeFieldBegin('username', TType.STRING, 4)
+    oprot:writeFieldBegin('username', TType.STRING, 3)
     oprot:writeString(self.username)
     oprot:writeFieldEnd()
   end
   if self.password ~= nil then
-    oprot:writeFieldBegin('password', TType.STRING, 5)
+    oprot:writeFieldBegin('password', TType.STRING, 4)
     oprot:writeString(self.password)
     oprot:writeFieldEnd()
   end
   if self.user_id ~= nil then
-    oprot:writeFieldBegin('user_id', TType.I64, 6)
+    oprot:writeFieldBegin('user_id', TType.I64, 5)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
@@ -1797,7 +1270,6 @@ function RegisterUserWithId_result:write(oprot)
 end
 
 GetFollowers_args = __TObject:new{
-  req_id,
   user_id
 }
 
@@ -1808,12 +1280,6 @@ function GetFollowers_args:read(iprot)
     if ftype == TType.STOP then
       break
     elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
       if ftype == TType.I64 then
         self.user_id = iprot:readI64()
       else
@@ -1829,13 +1295,8 @@ end
 
 function GetFollowers_args:write(oprot)
   oprot:writeStructBegin('GetFollowers_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.user_id ~= nil then
-    oprot:writeFieldBegin('user_id', TType.I64, 2)
+    oprot:writeFieldBegin('user_id', TType.I64, 1)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
@@ -1857,10 +1318,10 @@ function GetFollowers_result:read(iprot)
     elseif fid == 0 then
       if ftype == TType.LIST then
         self.success = {}
-        local _etype63, _size60 = iprot:readListBegin()
-        for _i=1,_size60 do
-          local _elem64 = iprot:readI64()
-          table.insert(self.success, _elem64)
+        local _etype51, _size48 = iprot:readListBegin()
+        for _i=1,_size48 do
+          local _elem52 = iprot:readI64()
+          table.insert(self.success, _elem52)
         end
         iprot:readListEnd()
       else
@@ -1886,8 +1347,8 @@ function GetFollowers_result:write(oprot)
   if self.success ~= nil then
     oprot:writeFieldBegin('success', TType.LIST, 0)
     oprot:writeListBegin(TType.I64, #self.success)
-    for _,iter65 in ipairs(self.success) do
-      oprot:writeI64(iter65)
+    for _,iter53 in ipairs(self.success) do
+      oprot:writeI64(iter53)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -1902,7 +1363,6 @@ function GetFollowers_result:write(oprot)
 end
 
 Unfollow_args = __TObject:new{
-  req_id,
   user_id,
   followee_id
 }
@@ -1915,17 +1375,11 @@ function Unfollow_args:read(iprot)
       break
     elseif fid == 1 then
       if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
-      if ftype == TType.I64 then
         self.user_id = iprot:readI64()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.I64 then
         self.followee_id = iprot:readI64()
       else
@@ -1941,18 +1395,13 @@ end
 
 function Unfollow_args:write(oprot)
   oprot:writeStructBegin('Unfollow_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.user_id ~= nil then
-    oprot:writeFieldBegin('user_id', TType.I64, 2)
+    oprot:writeFieldBegin('user_id', TType.I64, 1)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
   if self.followee_id ~= nil then
-    oprot:writeFieldBegin('followee_id', TType.I64, 3)
+    oprot:writeFieldBegin('followee_id', TType.I64, 2)
     oprot:writeI64(self.followee_id)
     oprot:writeFieldEnd()
   end
@@ -1997,7 +1446,6 @@ function Unfollow_result:write(oprot)
 end
 
 UnfollowWithUsername_args = __TObject:new{
-  req_id,
   user_usernmae,
   followee_username
 }
@@ -2009,18 +1457,12 @@ function UnfollowWithUsername_args:read(iprot)
     if ftype == TType.STOP then
       break
     elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
       if ftype == TType.STRING then
         self.user_usernmae = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.STRING then
         self.followee_username = iprot:readString()
       else
@@ -2036,18 +1478,13 @@ end
 
 function UnfollowWithUsername_args:write(oprot)
   oprot:writeStructBegin('UnfollowWithUsername_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.user_usernmae ~= nil then
-    oprot:writeFieldBegin('user_usernmae', TType.STRING, 2)
+    oprot:writeFieldBegin('user_usernmae', TType.STRING, 1)
     oprot:writeString(self.user_usernmae)
     oprot:writeFieldEnd()
   end
   if self.followee_username ~= nil then
-    oprot:writeFieldBegin('followee_username', TType.STRING, 3)
+    oprot:writeFieldBegin('followee_username', TType.STRING, 2)
     oprot:writeString(self.followee_username)
     oprot:writeFieldEnd()
   end
@@ -2092,7 +1529,6 @@ function UnfollowWithUsername_result:write(oprot)
 end
 
 Follow_args = __TObject:new{
-  req_id,
   user_id,
   followee_id
 }
@@ -2105,17 +1541,11 @@ function Follow_args:read(iprot)
       break
     elseif fid == 1 then
       if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
-      if ftype == TType.I64 then
         self.user_id = iprot:readI64()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.I64 then
         self.followee_id = iprot:readI64()
       else
@@ -2131,18 +1561,13 @@ end
 
 function Follow_args:write(oprot)
   oprot:writeStructBegin('Follow_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.user_id ~= nil then
-    oprot:writeFieldBegin('user_id', TType.I64, 2)
+    oprot:writeFieldBegin('user_id', TType.I64, 1)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
   if self.followee_id ~= nil then
-    oprot:writeFieldBegin('followee_id', TType.I64, 3)
+    oprot:writeFieldBegin('followee_id', TType.I64, 2)
     oprot:writeI64(self.followee_id)
     oprot:writeFieldEnd()
   end
@@ -2187,7 +1612,6 @@ function Follow_result:write(oprot)
 end
 
 FollowWithUsername_args = __TObject:new{
-  req_id,
   user_usernmae,
   followee_username
 }
@@ -2199,18 +1623,12 @@ function FollowWithUsername_args:read(iprot)
     if ftype == TType.STOP then
       break
     elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
       if ftype == TType.STRING then
         self.user_usernmae = iprot:readString()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.STRING then
         self.followee_username = iprot:readString()
       else
@@ -2226,18 +1644,13 @@ end
 
 function FollowWithUsername_args:write(oprot)
   oprot:writeStructBegin('FollowWithUsername_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.user_usernmae ~= nil then
-    oprot:writeFieldBegin('user_usernmae', TType.STRING, 2)
+    oprot:writeFieldBegin('user_usernmae', TType.STRING, 1)
     oprot:writeString(self.user_usernmae)
     oprot:writeFieldEnd()
   end
   if self.followee_username ~= nil then
-    oprot:writeFieldBegin('followee_username', TType.STRING, 3)
+    oprot:writeFieldBegin('followee_username', TType.STRING, 2)
     oprot:writeString(self.followee_username)
     oprot:writeFieldEnd()
   end
@@ -2282,7 +1695,6 @@ function FollowWithUsername_result:write(oprot)
 end
 
 GetFollowees_args = __TObject:new{
-  req_id,
   user_id
 }
 
@@ -2293,12 +1705,6 @@ function GetFollowees_args:read(iprot)
     if ftype == TType.STOP then
       break
     elseif fid == 1 then
-      if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
       if ftype == TType.I64 then
         self.user_id = iprot:readI64()
       else
@@ -2314,13 +1720,8 @@ end
 
 function GetFollowees_args:write(oprot)
   oprot:writeStructBegin('GetFollowees_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.user_id ~= nil then
-    oprot:writeFieldBegin('user_id', TType.I64, 2)
+    oprot:writeFieldBegin('user_id', TType.I64, 1)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
@@ -2342,10 +1743,10 @@ function GetFollowees_result:read(iprot)
     elseif fid == 0 then
       if ftype == TType.LIST then
         self.success = {}
-        local _etype69, _size66 = iprot:readListBegin()
-        for _i=1,_size66 do
-          local _elem70 = iprot:readI64()
-          table.insert(self.success, _elem70)
+        local _etype57, _size54 = iprot:readListBegin()
+        for _i=1,_size54 do
+          local _elem58 = iprot:readI64()
+          table.insert(self.success, _elem58)
         end
         iprot:readListEnd()
       else
@@ -2371,8 +1772,8 @@ function GetFollowees_result:write(oprot)
   if self.success ~= nil then
     oprot:writeFieldBegin('success', TType.LIST, 0)
     oprot:writeListBegin(TType.I64, #self.success)
-    for _,iter71 in ipairs(self.success) do
-      oprot:writeI64(iter71)
+    for _,iter59 in ipairs(self.success) do
+      oprot:writeI64(iter59)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
@@ -2387,7 +1788,6 @@ function GetFollowees_result:write(oprot)
 end
 
 ReadHomeTimeline_args = __TObject:new{
-  req_id,
   user_id,
   start,
   stop
@@ -2401,23 +1801,17 @@ function ReadHomeTimeline_args:read(iprot)
       break
     elseif fid == 1 then
       if ftype == TType.I64 then
-        self.req_id = iprot:readI64()
-      else
-        iprot:skip(ftype)
-      end
-    elseif fid == 2 then
-      if ftype == TType.I64 then
         self.user_id = iprot:readI64()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 3 then
+    elseif fid == 2 then
       if ftype == TType.I32 then
         self.start = iprot:readI32()
       else
         iprot:skip(ftype)
       end
-    elseif fid == 4 then
+    elseif fid == 3 then
       if ftype == TType.I32 then
         self.stop = iprot:readI32()
       else
@@ -2433,23 +1827,18 @@ end
 
 function ReadHomeTimeline_args:write(oprot)
   oprot:writeStructBegin('ReadHomeTimeline_args')
-  if self.req_id ~= nil then
-    oprot:writeFieldBegin('req_id', TType.I64, 1)
-    oprot:writeI64(self.req_id)
-    oprot:writeFieldEnd()
-  end
   if self.user_id ~= nil then
-    oprot:writeFieldBegin('user_id', TType.I64, 2)
+    oprot:writeFieldBegin('user_id', TType.I64, 1)
     oprot:writeI64(self.user_id)
     oprot:writeFieldEnd()
   end
   if self.start ~= nil then
-    oprot:writeFieldBegin('start', TType.I32, 3)
+    oprot:writeFieldBegin('start', TType.I32, 2)
     oprot:writeI32(self.start)
     oprot:writeFieldEnd()
   end
   if self.stop ~= nil then
-    oprot:writeFieldBegin('stop', TType.I32, 4)
+    oprot:writeFieldBegin('stop', TType.I32, 3)
     oprot:writeI32(self.stop)
     oprot:writeFieldEnd()
   end
@@ -2471,11 +1860,11 @@ function ReadHomeTimeline_result:read(iprot)
     elseif fid == 0 then
       if ftype == TType.LIST then
         self.success = {}
-        local _etype75, _size72 = iprot:readListBegin()
-        for _i=1,_size72 do
-          local _elem76 = Post:new{}
-          _elem76:read(iprot)
-          table.insert(self.success, _elem76)
+        local _etype63, _size60 = iprot:readListBegin()
+        for _i=1,_size60 do
+          local _elem64 = Post:new{}
+          _elem64:read(iprot)
+          table.insert(self.success, _elem64)
         end
         iprot:readListEnd()
       else
@@ -2501,8 +1890,8 @@ function ReadHomeTimeline_result:write(oprot)
   if self.success ~= nil then
     oprot:writeFieldBegin('success', TType.LIST, 0)
     oprot:writeListBegin(TType.STRUCT, #self.success)
-    for _,iter77 in ipairs(self.success) do
-      iter77:write(oprot)
+    for _,iter65 in ipairs(self.success) do
+      iter65:write(oprot)
     end
     oprot:writeListEnd()
     oprot:writeFieldEnd()
