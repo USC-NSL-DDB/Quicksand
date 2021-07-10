@@ -37,13 +37,11 @@ UserTimelineService::UserTimelineService(
 
 void UserTimelineService::WriteUserTimeline(int64_t post_id, int64_t user_id,
                                             int64_t timestamp) {
-  // TODO: need synchronization.
-  // TODO: computation offloading.
-  auto timeline_tree_optional = _userid_to_timeline_map.get(user_id);
-  auto timeline_tree =
-      timeline_tree_optional ? std::move(*timeline_tree_optional) : Tree();
-  timeline_tree[timestamp] = post_id;
-  _userid_to_timeline_map.put(user_id, std::move(timeline_tree));
+  _userid_to_timeline_map.apply(
+      user_id,
+      +[](std::pair<const int64_t, Tree> &p, int64_t timestamp,
+          int64_t post_id) { (p.second)[timestamp] = post_id; },
+      timestamp, post_id);
 }
 
 std::vector<Post> UserTimelineService::ReadUserTimeline(int64_t user_id,
@@ -52,17 +50,18 @@ std::vector<Post> UserTimelineService::ReadUserTimeline(int64_t user_id,
     return std::vector<Post>();
   }
 
-  // TODO: need synchronization.
-  // TODO: computation offloading.
-  std::vector<int64_t> post_ids;
-  auto timeline_tree_optional = _userid_to_timeline_map.get(user_id);
-  auto timeline_tree =
-      timeline_tree_optional ? std::move(*timeline_tree_optional) : Tree();
-  auto start_iter = timeline_tree.find_by_order(start);
-  auto stop_iter = timeline_tree.find_by_order(stop);
-  for (auto iter = start_iter; iter != stop_iter; iter++) {
-    post_ids.push_back(iter->second);
-  }
+  auto post_ids = _userid_to_timeline_map.apply(
+      user_id,
+      +[](std::pair<const int64_t, Tree> &p, int start, int stop) {
+        auto start_iter = p.second.find_by_order(start);
+        auto stop_iter = p.second.find_by_order(stop);
+        std::vector<int64_t> post_ids;
+        for (auto iter = start_iter; iter != stop_iter; iter++) {
+          post_ids.push_back(iter->second);
+        }
+        return post_ids;
+      },
+      start, stop);
   return _post_storage_service_obj.run(&PostStorageService::ReadPosts,
                                        std::move(post_ids));
 }
