@@ -35,10 +35,15 @@ Post PostStorageService::ReadPost(int64_t post_id) {
 
 std::vector<Post>
 PostStorageService::ReadPosts(std::vector<int64_t> &&post_ids) {
-  std::vector<Post> posts;
+  std::vector<nu::Future<std::optional<Post>>> post_futures;
   for (auto post_id : post_ids) {
-    // TODO: parallelize it.
-    posts.push_back(ReadPost(post_id));
+    post_futures.emplace_back(_postid_to_post_map.get_async(post_id));
+  }
+  std::vector<Post> posts;
+  for (auto &post_future : post_futures) {
+    auto optional = post_future.get();
+    BUG_ON(!optional);
+    posts.emplace_back(*optional);
   }
   return posts;
 }

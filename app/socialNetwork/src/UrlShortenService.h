@@ -61,10 +61,13 @@ std::vector<Url> UrlShortenService::ComposeUrls(std::vector<std::string> urls) {
       target_urls.push_back(new_target_url);
     }
 
-    // TODO: parallelize it;
+    std::vector<nu::Future<void>> put_futures;
     for (auto &target_url : target_urls) {
-      _short_to_extended_map.put(target_url.shortened_url,
-                                 target_url.expanded_url);
+      put_futures.emplace_back(_short_to_extended_map.put_async(
+          target_url.shortened_url, target_url.expanded_url));
+    }
+    for (auto &put_future : put_futures) {
+      put_future.get();
     }
   }
   return target_urls;
