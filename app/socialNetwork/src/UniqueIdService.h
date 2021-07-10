@@ -44,14 +44,12 @@ private:
   std::string _machine_id;
 
   int GetCounter(int64_t timestamp);
-  std::string GetMachineId(std::string &netif);
-  u_int16_t HashMacAddressPid(const std::string &mac);
 };
 
 int UniqueIdService::GetCounter(int64_t timestamp) {
   if (_current_timestamp > timestamp) {
-    std::cerr << "Timestamps are not incremental.";
-    exit(EXIT_FAILURE);
+    std::cerr << "Timestamps are not incremental." << std::endl;
+    BUG();
   }
   if (_current_timestamp == timestamp) {
     return _counter++;
@@ -64,16 +62,11 @@ int UniqueIdService::GetCounter(int64_t timestamp) {
 
 UniqueIdService::UniqueIdService() {
   json config_json;
-  if (load_config_file("config/service-config.json", &config_json) != 0) {
-    exit(EXIT_FAILURE);
-  }
+  BUG_ON(load_config_file("config/service-config.json", &config_json) != 0);
 
-  int port = config_json["unique-id-service"]["port"];
   std::string netif = config_json["unique-id-service"]["netif"];
   _machine_id = GetMachineId(netif);
-  if (_machine_id == "") {
-    exit(EXIT_FAILURE);
-  }
+  BUG_ON(_machine_id == "");
   std::cout << "machine_id = " << _machine_id << std::endl;
 }
 
@@ -112,53 +105,6 @@ int64_t UniqueIdService::ComposeUniqueId(PostType::type post_type) {
   int64_t post_id = stoul(post_id_str, nullptr, 16) & 0x7FFFFFFFFFFFFFFF;
 
   return post_id;
-}
-
-/*
- * The following code which obtaines machine ID from machine's MAC address was
- * inspired from https://stackoverflow.com/a/16859693.
- *
- * MAC address is obtained from /sys/class/net/<netif>/address
- */
-u_int16_t UniqueIdService::HashMacAddressPid(const std::string &mac) {
-  u_int16_t hash = 0;
-  std::string mac_pid = mac + std::to_string(getpid());
-  for (unsigned int i = 0; i < mac_pid.size(); i++) {
-    hash += (mac[i] << ((i & 1) * 8));
-  }
-  return hash;
-}
-
-std::string UniqueIdService::GetMachineId(std::string &netif) {
-  std::string mac_hash;
-
-  std::string mac_addr_filename = "/sys/class/net/" + netif + "/address";
-  std::ifstream mac_addr_file;
-  mac_addr_file.open(mac_addr_filename);
-  if (!mac_addr_file) {
-    std::cerr << "Cannot read MAC address from net interface " << netif;
-    return "";
-  }
-  std::string mac;
-  mac_addr_file >> mac;
-  if (mac == "") {
-    std::cerr << "Cannot read MAC address from net interface " << netif;
-    return "";
-  }
-  mac_addr_file.close();
-
-  std::cout << "MAC address = " << mac << std::endl;
-
-  std::stringstream stream;
-  stream << std::hex << HashMacAddressPid(mac);
-  mac_hash = stream.str();
-
-  if (mac_hash.size() > 3) {
-    mac_hash.erase(0, mac_hash.size() - 3);
-  } else if (mac_hash.size() < 3) {
-    mac_hash = std::string(3 - mac_hash.size(), '0') + mac_hash;
-  }
-  return mac_hash;
 }
 
 } // namespace social_network

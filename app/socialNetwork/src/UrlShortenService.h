@@ -52,33 +52,36 @@ std::string UrlShortenService::GenRandomStr(int length) {
 std::vector<Url> UrlShortenService::ComposeUrls(std::vector<std::string> urls) {
   std::vector<Url> target_urls;
 
-  if (!urls.empty()) {
-    for (auto &url : urls) {
-      Url new_target_url;
-      new_target_url.expanded_url = url;
-      new_target_url.shortened_url = HOSTNAME +
-          GenRandomStr(10);
-      target_urls.push_back(new_target_url);
-    }
+  for (auto &url : urls) {
+    Url target_url;
+    target_url.expanded_url = url;
+    target_url.shortened_url = HOSTNAME + GenRandomStr(10);
+    target_urls.push_back(target_url);
+  }
 
-    std::vector<nu::Future<void>> put_futures;
-    for (auto &target_url : target_urls) {
-      put_futures.emplace_back(_short_to_extended_map.put_async(
-          target_url.shortened_url, target_url.expanded_url));
-    }
-    for (auto &put_future : put_futures) {
-      put_future.get();
-    }
+  std::vector<nu::Future<void>> put_futures;
+  for (auto &target_url : target_urls) {
+    put_futures.emplace_back(_short_to_extended_map.put_async(
+        target_url.shortened_url, target_url.expanded_url));
+  }
+  for (auto &put_future : put_futures) {
+    put_future.get();
   }
   return target_urls;
 }
 
 std::vector<std::string>
 UrlShortenService::GetExtendedUrls(std::vector<std::string> &&shortened_urls) {
-  std::vector<std::string> extended_urls;
+  std::vector<nu::Future<std::optional<std::string>>>
+      extended_url_optional_futures;
   for (auto &shortened_url : shortened_urls) {
-    auto extended_urls_optional =
-        _short_to_extended_map.get(std::move(shortened_url));
+    extended_url_optional_futures.emplace_back(
+        _short_to_extended_map.get_async(std::move(shortened_url)));
+  }
+
+  std::vector<std::string> extended_urls;
+  for (auto &extended_url_optional_future : extended_url_optional_futures) {
+    auto extended_urls_optional = extended_url_optional_future.get();
     BUG_ON(!extended_urls_optional);
     extended_urls.emplace_back(std::move(*extended_urls_optional));
   }

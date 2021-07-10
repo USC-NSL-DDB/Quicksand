@@ -120,10 +120,6 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
                                  const std::vector<int64_t> &_media_ids,
                                  const std::vector<std::string> &_media_types,
                                  const PostType::type post_type) {
-  auto username = _username;
-  auto creator_future = _user_service_obj.run_async(
-      &UserService::ComposeCreatorWithUserId, user_id, std::move(username));
-
   auto text = _text;
   auto text_service_return_future =
       _text_service_obj.run_async(&TextService::ComposeText, std::move(text));
@@ -137,37 +133,40 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
                                                     std::move(media_types),
                                                     std::move(media_ids));
 
+  auto username = _username;
+  auto creator_future = _user_service_obj.run_async(
+      &UserService::ComposeCreatorWithUserId, user_id, std::move(username));
+
   Post post;
   auto timestamp =
       duration_cast<milliseconds>(system_clock::now().time_since_epoch())
           .count();
   post.timestamp = timestamp;
 
-  auto text_service_return = std::move(text_service_return_future.get());
-  post.text = text_service_return.text;
-  post.urls = text_service_return.urls;
-  post.user_mentions = text_service_return.user_mentions;
-  post.post_id = unique_id_future.get();
+  auto unique_id = unique_id_future.get();
+  auto write_user_timeline_future = _user_timeline_service_obj.run_async(
+      &UserTimelineService::WriteUserTimeline, unique_id, user_id, timestamp);
+
+  auto text_service_return = text_service_return_future.get();
+  std::vector<int64_t> user_mention_ids;
+  for (auto &item : text_service_return.user_mentions) {
+    user_mention_ids.emplace_back(item.user_id);
+  }
+  auto write_home_timeline_future = _home_timeline_service_obj.run_async(
+      &HomeTimelineService::WriteHomeTimeline, unique_id, user_id, timestamp,
+      std::move(user_mention_ids));
+
+  post.text = std::move(text_service_return.text);
+  post.urls = std::move(text_service_return.urls);
+  post.user_mentions = std::move(text_service_return.user_mentions);
+  post.post_id = unique_id;
   post.media = medias_future.get();
   post.creator = creator_future.get();
   post.post_type = post_type;
 
-  std::vector<int64_t> user_mention_ids;
-  for (auto &item : post.user_mentions) {
-    user_mention_ids.emplace_back(item.user_id);
-  }
-
-  auto write_user_timeline_future = _user_timeline_service_obj.run_async(
-      &UserTimelineService::WriteUserTimeline, post.post_id, user_id,
-      timestamp);
-
   auto post_copy = post;
   auto post_future = _post_storage_service_obj.run_async(
       &PostStorageService::StorePost, std::move(post_copy));
-
-  auto write_home_timeline_future = _home_timeline_service_obj.run_async(
-      &HomeTimelineService::WriteHomeTimeline, post.post_id, user_id, timestamp,
-      std::move(user_mention_ids));
 
   write_user_timeline_future.get();
   post_future.get();
@@ -299,10 +298,7 @@ void BackEndHandler::GetMedia(std::string &_return,
 
 void do_work() {
   json config_json;
-  if (load_config_file("config/service-config.json", &config_json) != 0) {
-    exit(EXIT_FAILURE);
-  }
-
+  BUG_ON(load_config_file("config/service-config.json", &config_json) != 0);
   int port = config_json["back-end-service"]["port"];
 
   std::shared_ptr<TServerSocket> server_socket =

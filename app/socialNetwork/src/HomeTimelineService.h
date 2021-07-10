@@ -44,13 +44,18 @@ void HomeTimelineService::WriteHomeTimeline(
   auto ids =
       _social_graph_service_obj.run(&SocialGraphService::GetFollowers, user_id);
   ids.insert(ids.end(), user_mentions_id.begin(), user_mentions_id.end());
-  // TODO: parallelize it.
+
+  std::vector<nu::Future<void>> futures;
   for (auto id : ids) {
-    _userid_to_timeline_map.apply(
+    futures.emplace_back(_userid_to_timeline_map.apply_async(
         id,
         +[](std::pair<const int64_t, Tree> &p, int64_t timestamp,
             int64_t post_id) { (p.second)[timestamp] = post_id; },
-        timestamp, post_id);
+        timestamp, post_id));
+  }
+
+  for (auto &future : futures) {
+    future.get();
   }
 }
 

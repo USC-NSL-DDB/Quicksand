@@ -20,22 +20,16 @@ private:
 std::vector<Media>
 MediaService::ComposeMedia(std::vector<std::string> &&media_types,
                            std::vector<int64_t> &&media_ids) {
-  std::vector<Media> ret;
-  if (media_types.size() != media_ids.size()) {
-    ServiceException se;
-    se.errorCode = ErrorCode::SE_THRIFT_HANDLER_ERROR;
-    se.message =
-        "The lengths of media_id list and media_type list are not equal";
-    throw se;
-  }
+  BUG_ON(media_types.size() != media_ids.size());
 
+  std::vector<Media> medias;
   for (int i = 0; i < media_ids.size(); ++i) {
-    Media new_media;
-    new_media.media_id = media_ids[i];
-    new_media.media_type = media_types[i];
-    ret.emplace_back(new_media);
+    Media media;
+    media.media_id = media_ids[i];
+    media.media_type = media_types[i];
+    medias.emplace_back(media);
   }
-  return ret;
+  return medias;
 }
 
 } // namespace social_network

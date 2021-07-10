@@ -29,34 +29,31 @@ TextService::TextService(
       _user_mention_service_obj(user_mention_service_cap) {}
 
 TextServiceReturn TextService::ComposeText(std::string &&text) {
-  std::vector<std::string> mention_usernames;
+  std::vector<std::string> urls;
   std::smatch m;
-  std::regex e("@[a-zA-Z0-9-_]+");
+  std::regex e("(http://|https://)([a-zA-Z0-9_!~*'().&=+$%-]+)");
   auto s = text;
+  while (std::regex_search(s, m, e)) {
+    auto url = m.str();
+    urls.emplace_back(url);
+    s = m.suffix().str();
+  }
+  auto target_urls_future =
+      _url_shorten_service_obj.run_async(&UrlShortenService::ComposeUrls, urls);
+
+  std::vector<std::string> mention_usernames;
+  e = "@[a-zA-Z0-9-_]+";
+  s = text;
   while (std::regex_search(s, m, e)) {
     auto user_mention = m.str();
     user_mention = user_mention.substr(1, user_mention.length());
     mention_usernames.emplace_back(user_mention);
     s = m.suffix().str();
   }
-
-  std::vector<std::string> urls;
-  e = "(http://|https://)([a-zA-Z0-9_!~*'().&=+$%-]+)";
-  s = text;
-  while (std::regex_search(s, m, e)) {
-    auto url = m.str();
-    urls.emplace_back(url);
-    s = m.suffix().str();
-  }
-
-  auto target_urls_future =
-      _url_shorten_service_obj.run_async(&UrlShortenService::ComposeUrls, urls);
   auto user_mentions_future = _user_mention_service_obj.run_async(
       &UserMentionService::ComposeUserMentions, std::move(mention_usernames));
 
   auto target_urls = target_urls_future.get();
-  auto user_mentions = user_mentions_future.get();
-
   std::string updated_text;
   if (!urls.empty()) {
     s = text;
@@ -73,6 +70,7 @@ TextServiceReturn TextService::ComposeText(std::string &&text) {
     updated_text = text;
   }
 
+  auto user_mentions = user_mentions_future.get();
   TextServiceReturn text_service_return;
   text_service_return.user_mentions = user_mentions;
   text_service_return.text = updated_text;
