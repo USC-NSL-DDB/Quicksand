@@ -44,4 +44,3 @@ PostStorageService::ReadPosts(std::vector<int64_t> &&post_ids) {
 }
 
 }  // namespace social_network
-

@@ -23,4 +23,3 @@ int load_config_file(const std::string &file_name, json *config_json) {
 };
 
 } //namespace social_network
-

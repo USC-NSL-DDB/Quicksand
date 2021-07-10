@@ -140,4 +140,13 @@ service BackEndService {
     2: i32 start,
     3: i32 stop
   ) throws (1: ServiceException se)
+
+  void UploadMedia(
+    1: string filename,
+    2: string data
+  ) throws (1: ServiceException se)
+
+  string GetMedia(
+    1: string filename
+  ) throws (1: ServiceException se)
 }

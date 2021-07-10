@@ -51,7 +51,7 @@ function showTimeline(type) {
                     post_times[i].innerText = getTime(post_json["timestamp"]);
                     post_creators[i].innerText = post_json["creator"]["username"];
                     for (var j = 0; j < media_json.length; j++) {
-                        post_images[i].src = "http://" + window.location.hostname + ":8081/get-media/?filename=" +
+                        post_images[i].src = "http://" + window.location.hostname + ":8080/api/media/get_media/?filename=" +
                             media_json[j]["media_id"] + "." +
                             media_json[j]["media_type"];
                     }
@@ -120,7 +120,7 @@ function show_Mentioned_User_Timeline(mentioned_user) {
                     post_times[i].innerText = getTime(post_json["timestamp"]);
                     post_creators[i].innerText = post_json["creator"]["username"];
                     for (var j = 0; j < media_json.length; j++) {
-                        post_images[i].src = "http://" + window.location.hostname + ":8081/get-media/?filename=" +
+                        post_images[i].src = "http://" + window.location.hostname + ":8080/api/media/get_media/?filename=" +
                             media_json[j]["media_id"] + "." +
                             media_json[j]["media_type"];
                     }

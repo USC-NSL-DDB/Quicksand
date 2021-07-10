@@ -80,6 +80,16 @@ class BackEndServiceHandler : virtual public BackEndServiceIf {
     printf("ReadHomeTimeline\n");
   }
 
+  void UploadMedia(const std::string& filename, const std::string& data) {
+    // Your implementation goes here
+    printf("UploadMedia\n");
+  }
+
+  void GetMedia(std::string& _return, const std::string& filename) {
+    // Your implementation goes here
+    printf("GetMedia\n");
+  }
+
 };
 
 int main(int argc, char **argv) {

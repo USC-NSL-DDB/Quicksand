@@ -33,6 +33,8 @@ class BackEndServiceIf {
   virtual void FollowWithUsername(const std::string& user_usernmae, const std::string& followee_username) = 0;
   virtual void GetFollowees(std::vector<int64_t> & _return, const int64_t user_id) = 0;
   virtual void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
+  virtual void UploadMedia(const std::string& filename, const std::string& data) = 0;
+  virtual void GetMedia(std::string& _return, const std::string& filename) = 0;
 };
 
 class BackEndServiceIfFactory {
@@ -96,6 +98,12 @@ class BackEndServiceNull : virtual public BackEndServiceIf {
     return;
   }
   void ReadHomeTimeline(std::vector<Post> & /* _return */, const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
+    return;
+  }
+  void UploadMedia(const std::string& /* filename */, const std::string& /* data */) {
+    return;
+  }
+  void GetMedia(std::string& /* _return */, const std::string& /* filename */) {
     return;
   }
 };
@@ -1535,6 +1543,229 @@ class BackEndService_ReadHomeTimeline_presult {
 
 };
 
+typedef struct _BackEndService_UploadMedia_args__isset {
+  _BackEndService_UploadMedia_args__isset() : filename(false), data(false) {}
+  bool filename :1;
+  bool data :1;
+} _BackEndService_UploadMedia_args__isset;
+
+class BackEndService_UploadMedia_args {
+ public:
+
+  BackEndService_UploadMedia_args(const BackEndService_UploadMedia_args&);
+  BackEndService_UploadMedia_args& operator=(const BackEndService_UploadMedia_args&);
+  BackEndService_UploadMedia_args() : filename(), data() {
+  }
+
+  virtual ~BackEndService_UploadMedia_args() throw();
+  std::string filename;
+  std::string data;
+
+  _BackEndService_UploadMedia_args__isset __isset;
+
+  void __set_filename(const std::string& val);
+
+  void __set_data(const std::string& val);
+
+  bool operator == (const BackEndService_UploadMedia_args & rhs) const
+  {
+    if (!(filename == rhs.filename))
+      return false;
+    if (!(data == rhs.data))
+      return false;
+    return true;
+  }
+  bool operator != (const BackEndService_UploadMedia_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const BackEndService_UploadMedia_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class BackEndService_UploadMedia_pargs {
+ public:
+
+
+  virtual ~BackEndService_UploadMedia_pargs() throw();
+  const std::string* filename;
+  const std::string* data;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _BackEndService_UploadMedia_result__isset {
+  _BackEndService_UploadMedia_result__isset() : se(false) {}
+  bool se :1;
+} _BackEndService_UploadMedia_result__isset;
+
+class BackEndService_UploadMedia_result {
+ public:
+
+  BackEndService_UploadMedia_result(const BackEndService_UploadMedia_result&);
+  BackEndService_UploadMedia_result& operator=(const BackEndService_UploadMedia_result&);
+  BackEndService_UploadMedia_result() {
+  }
+
+  virtual ~BackEndService_UploadMedia_result() throw();
+  ServiceException se;
+
+  _BackEndService_UploadMedia_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const BackEndService_UploadMedia_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const BackEndService_UploadMedia_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const BackEndService_UploadMedia_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _BackEndService_UploadMedia_presult__isset {
+  _BackEndService_UploadMedia_presult__isset() : se(false) {}
+  bool se :1;
+} _BackEndService_UploadMedia_presult__isset;
+
+class BackEndService_UploadMedia_presult {
+ public:
+
+
+  virtual ~BackEndService_UploadMedia_presult() throw();
+  ServiceException se;
+
+  _BackEndService_UploadMedia_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _BackEndService_GetMedia_args__isset {
+  _BackEndService_GetMedia_args__isset() : filename(false) {}
+  bool filename :1;
+} _BackEndService_GetMedia_args__isset;
+
+class BackEndService_GetMedia_args {
+ public:
+
+  BackEndService_GetMedia_args(const BackEndService_GetMedia_args&);
+  BackEndService_GetMedia_args& operator=(const BackEndService_GetMedia_args&);
+  BackEndService_GetMedia_args() : filename() {
+  }
+
+  virtual ~BackEndService_GetMedia_args() throw();
+  std::string filename;
+
+  _BackEndService_GetMedia_args__isset __isset;
+
+  void __set_filename(const std::string& val);
+
+  bool operator == (const BackEndService_GetMedia_args & rhs) const
+  {
+    if (!(filename == rhs.filename))
+      return false;
+    return true;
+  }
+  bool operator != (const BackEndService_GetMedia_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const BackEndService_GetMedia_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class BackEndService_GetMedia_pargs {
+ public:
+
+
+  virtual ~BackEndService_GetMedia_pargs() throw();
+  const std::string* filename;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _BackEndService_GetMedia_result__isset {
+  _BackEndService_GetMedia_result__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _BackEndService_GetMedia_result__isset;
+
+class BackEndService_GetMedia_result {
+ public:
+
+  BackEndService_GetMedia_result(const BackEndService_GetMedia_result&);
+  BackEndService_GetMedia_result& operator=(const BackEndService_GetMedia_result&);
+  BackEndService_GetMedia_result() : success() {
+  }
+
+  virtual ~BackEndService_GetMedia_result() throw();
+  std::string success;
+  ServiceException se;
+
+  _BackEndService_GetMedia_result__isset __isset;
+
+  void __set_success(const std::string& val);
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const BackEndService_GetMedia_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const BackEndService_GetMedia_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const BackEndService_GetMedia_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _BackEndService_GetMedia_presult__isset {
+  _BackEndService_GetMedia_presult__isset() : success(false), se(false) {}
+  bool success :1;
+  bool se :1;
+} _BackEndService_GetMedia_presult__isset;
+
+class BackEndService_GetMedia_presult {
+ public:
+
+
+  virtual ~BackEndService_GetMedia_presult() throw();
+  std::string* success;
+  ServiceException se;
+
+  _BackEndService_GetMedia_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
 class BackEndServiceClient : virtual public BackEndServiceIf {
  public:
   BackEndServiceClient(apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> prot) {
@@ -1596,6 +1827,12 @@ class BackEndServiceClient : virtual public BackEndServiceIf {
   void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop);
   void send_ReadHomeTimeline(const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadHomeTimeline(std::vector<Post> & _return);
+  void UploadMedia(const std::string& filename, const std::string& data);
+  void send_UploadMedia(const std::string& filename, const std::string& data);
+  void recv_UploadMedia();
+  void GetMedia(std::string& _return, const std::string& filename);
+  void send_GetMedia(const std::string& filename);
+  void recv_GetMedia(std::string& _return);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;
@@ -1623,6 +1860,8 @@ class BackEndServiceProcessor : public ::apache::thrift::TDispatchProcessor {
   void process_FollowWithUsername(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_GetFollowees(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_ReadHomeTimeline(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_UploadMedia(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_GetMedia(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
  public:
   BackEndServiceProcessor(::apache::thrift::stdcxx::shared_ptr<BackEndServiceIf> iface) :
     iface_(iface) {
@@ -1638,6 +1877,8 @@ class BackEndServiceProcessor : public ::apache::thrift::TDispatchProcessor {
     processMap_["FollowWithUsername"] = &BackEndServiceProcessor::process_FollowWithUsername;
     processMap_["GetFollowees"] = &BackEndServiceProcessor::process_GetFollowees;
     processMap_["ReadHomeTimeline"] = &BackEndServiceProcessor::process_ReadHomeTimeline;
+    processMap_["UploadMedia"] = &BackEndServiceProcessor::process_UploadMedia;
+    processMap_["GetMedia"] = &BackEndServiceProcessor::process_GetMedia;
   }
 
   virtual ~BackEndServiceProcessor() {}
@@ -1779,6 +2020,25 @@ class BackEndServiceMultiface : virtual public BackEndServiceIf {
     return;
   }
 
+  void UploadMedia(const std::string& filename, const std::string& data) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->UploadMedia(filename, data);
+    }
+    ifaces_[i]->UploadMedia(filename, data);
+  }
+
+  void GetMedia(std::string& _return, const std::string& filename) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->GetMedia(_return, filename);
+    }
+    ifaces_[i]->GetMedia(_return, filename);
+    return;
+  }
+
 };
 
 // The 'concurrent' client is a thread safe client that correctly handles
@@ -1845,6 +2105,12 @@ class BackEndServiceConcurrentClient : virtual public BackEndServiceIf {
   void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop);
   int32_t send_ReadHomeTimeline(const int64_t user_id, const int32_t start, const int32_t stop);
   void recv_ReadHomeTimeline(std::vector<Post> & _return, const int32_t seqid);
+  void UploadMedia(const std::string& filename, const std::string& data);
+  int32_t send_UploadMedia(const std::string& filename, const std::string& data);
+  void recv_UploadMedia(const int32_t seqid);
+  void GetMedia(std::string& _return, const std::string& filename);
+  int32_t send_GetMedia(const std::string& filename);
+  void recv_GetMedia(std::string& _return, const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;

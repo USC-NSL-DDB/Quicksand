@@ -136,6 +136,23 @@ class Iface(object):
         """
         pass
 
+    def UploadMedia(self, filename, data):
+        """
+        Parameters:
+         - filename
+         - data
+
+        """
+        pass
+
+    def GetMedia(self, filename):
+        """
+        Parameters:
+         - filename
+
+        """
+        pass
+
 
 class Client(Iface):
     def __init__(self, iprot, oprot=None):
@@ -580,6 +597,74 @@ class Client(Iface):
             raise result.se
         raise TApplicationException(TApplicationException.MISSING_RESULT, "ReadHomeTimeline failed: unknown result")
 
+    def UploadMedia(self, filename, data):
+        """
+        Parameters:
+         - filename
+         - data
+
+        """
+        self.send_UploadMedia(filename, data)
+        self.recv_UploadMedia()
+
+    def send_UploadMedia(self, filename, data):
+        self._oprot.writeMessageBegin('UploadMedia', TMessageType.CALL, self._seqid)
+        args = UploadMedia_args()
+        args.filename = filename
+        args.data = data
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_UploadMedia(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = UploadMedia_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        if result.se is not None:
+            raise result.se
+        return
+
+    def GetMedia(self, filename):
+        """
+        Parameters:
+         - filename
+
+        """
+        self.send_GetMedia(filename)
+        return self.recv_GetMedia()
+
+    def send_GetMedia(self, filename):
+        self._oprot.writeMessageBegin('GetMedia', TMessageType.CALL, self._seqid)
+        args = GetMedia_args()
+        args.filename = filename
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_GetMedia(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = GetMedia_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        if result.success is not None:
+            return result.success
+        if result.se is not None:
+            raise result.se
+        raise TApplicationException(TApplicationException.MISSING_RESULT, "GetMedia failed: unknown result")
+
 
 class Processor(Iface, TProcessor):
     def __init__(self, handler):
@@ -597,6 +682,8 @@ class Processor(Iface, TProcessor):
         self._processMap["FollowWithUsername"] = Processor.process_FollowWithUsername
         self._processMap["GetFollowees"] = Processor.process_GetFollowees
         self._processMap["ReadHomeTimeline"] = Processor.process_ReadHomeTimeline
+        self._processMap["UploadMedia"] = Processor.process_UploadMedia
+        self._processMap["GetMedia"] = Processor.process_GetMedia
 
     def process(self, iprot, oprot):
         (name, type, seqid) = iprot.readMessageBegin()
@@ -921,6 +1008,58 @@ class Processor(Iface, TProcessor):
             msg_type = TMessageType.EXCEPTION
             result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
         oprot.writeMessageBegin("ReadHomeTimeline", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
+    def process_UploadMedia(self, seqid, iprot, oprot):
+        args = UploadMedia_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = UploadMedia_result()
+        try:
+            self._handler.UploadMedia(args.filename, args.data)
+            msg_type = TMessageType.REPLY
+        except TTransport.TTransportException:
+            raise
+        except ServiceException as se:
+            msg_type = TMessageType.REPLY
+            result.se = se
+        except TApplicationException as ex:
+            logging.exception('TApplication exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = ex
+        except Exception:
+            logging.exception('Unexpected exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("UploadMedia", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
+    def process_GetMedia(self, seqid, iprot, oprot):
+        args = GetMedia_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = GetMedia_result()
+        try:
+            result.success = self._handler.GetMedia(args.filename)
+            msg_type = TMessageType.REPLY
+        except TTransport.TTransportException:
+            raise
+        except ServiceException as se:
+            msg_type = TMessageType.REPLY
+            result.se = se
+        except TApplicationException as ex:
+            logging.exception('TApplication exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = ex
+        except Exception:
+            logging.exception('Unexpected exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("GetMedia", msg_type, seqid)
         result.write(oprot)
         oprot.writeMessageEnd()
         oprot.trans.flush()
@@ -2781,6 +2920,279 @@ class ReadHomeTimeline_result(object):
 all_structs.append(ReadHomeTimeline_result)
 ReadHomeTimeline_result.thrift_spec = (
     (0, TType.LIST, 'success', (TType.STRUCT, [Post, None], False), None, ),  # 0
+    (1, TType.STRUCT, 'se', [ServiceException, None], None, ),  # 1
+)
+
+
+class UploadMedia_args(object):
+    """
+    Attributes:
+     - filename
+     - data
+
+    """
+
+
+    def __init__(self, filename=None, data=None,):
+        self.filename = filename
+        self.data = data
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRING:
+                    self.filename = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 2:
+                if ftype == TType.STRING:
+                    self.data = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('UploadMedia_args')
+        if self.filename is not None:
+            oprot.writeFieldBegin('filename', TType.STRING, 1)
+            oprot.writeString(self.filename.encode('utf-8') if sys.version_info[0] == 2 else self.filename)
+            oprot.writeFieldEnd()
+        if self.data is not None:
+            oprot.writeFieldBegin('data', TType.STRING, 2)
+            oprot.writeString(self.data.encode('utf-8') if sys.version_info[0] == 2 else self.data)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(UploadMedia_args)
+UploadMedia_args.thrift_spec = (
+    None,  # 0
+    (1, TType.STRING, 'filename', 'UTF8', None, ),  # 1
+    (2, TType.STRING, 'data', 'UTF8', None, ),  # 2
+)
+
+
+class UploadMedia_result(object):
+    """
+    Attributes:
+     - se
+
+    """
+
+
+    def __init__(self, se=None,):
+        self.se = se
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRUCT:
+                    self.se = ServiceException()
+                    self.se.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('UploadMedia_result')
+        if self.se is not None:
+            oprot.writeFieldBegin('se', TType.STRUCT, 1)
+            self.se.write(oprot)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(UploadMedia_result)
+UploadMedia_result.thrift_spec = (
+    None,  # 0
+    (1, TType.STRUCT, 'se', [ServiceException, None], None, ),  # 1
+)
+
+
+class GetMedia_args(object):
+    """
+    Attributes:
+     - filename
+
+    """
+
+
+    def __init__(self, filename=None,):
+        self.filename = filename
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRING:
+                    self.filename = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('GetMedia_args')
+        if self.filename is not None:
+            oprot.writeFieldBegin('filename', TType.STRING, 1)
+            oprot.writeString(self.filename.encode('utf-8') if sys.version_info[0] == 2 else self.filename)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(GetMedia_args)
+GetMedia_args.thrift_spec = (
+    None,  # 0
+    (1, TType.STRING, 'filename', 'UTF8', None, ),  # 1
+)
+
+
+class GetMedia_result(object):
+    """
+    Attributes:
+     - success
+     - se
+
+    """
+
+
+    def __init__(self, success=None, se=None,):
+        self.success = success
+        self.se = se
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 0:
+                if ftype == TType.STRING:
+                    self.success = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 1:
+                if ftype == TType.STRUCT:
+                    self.se = ServiceException()
+                    self.se.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('GetMedia_result')
+        if self.success is not None:
+            oprot.writeFieldBegin('success', TType.STRING, 0)
+            oprot.writeString(self.success.encode('utf-8') if sys.version_info[0] == 2 else self.success)
+            oprot.writeFieldEnd()
+        if self.se is not None:
+            oprot.writeFieldBegin('se', TType.STRUCT, 1)
+            self.se.write(oprot)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(GetMedia_result)
+GetMedia_result.thrift_spec = (
+    (0, TType.STRING, 'success', 'UTF8', None, ),  # 0
     (1, TType.STRUCT, 'se', [ServiceException, None], None, ),  # 1
 )
 fix_spec(all_structs)

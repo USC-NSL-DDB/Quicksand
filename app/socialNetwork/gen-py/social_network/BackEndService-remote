@@ -36,6 +36,8 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('  void FollowWithUsername(string user_usernmae, string followee_username)')
     print('   GetFollowees(i64 user_id)')
     print('   ReadHomeTimeline(i64 user_id, i32 start, i32 stop)')
+    print('  void UploadMedia(string filename, string data)')
+    print('  string GetMedia(string filename)')
     print('')
     sys.exit(0)
 
@@ -186,6 +188,18 @@ elif cmd == 'ReadHomeTimeline':
         print('ReadHomeTimeline requires 3 args')
         sys.exit(1)
     pp.pprint(client.ReadHomeTimeline(eval(args[0]), eval(args[1]), eval(args[2]),))
+
+elif cmd == 'UploadMedia':
+    if len(args) != 2:
+        print('UploadMedia requires 2 args')
+        sys.exit(1)
+    pp.pprint(client.UploadMedia(args[0], args[1],))
+
+elif cmd == 'GetMedia':
+    if len(args) != 1:
+        print('GetMedia requires 1 args')
+        sys.exit(1)
+    pp.pprint(client.GetMedia(args[0],))
 
 else:
     print('Unrecognized method %s' % cmd)
