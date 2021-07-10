@@ -47,9 +47,15 @@ public:
   template <typename K1> std::optional<V> get(K1 &&k);
   template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
   template <typename K1> bool remove(K1 &&k);
+  template <typename K1, typename RetT, typename... A0s, typename... A1s>
+  RetT apply(K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...),
+             A1s &&... args);
   template <typename K1> Future<std::optional<V>> get_async(K1 &&k);
   template <typename K1, typename V1> Future<void> put_async(K1 &&k, V1 &&v);
   template <typename K1> Future<bool> remove_async(K1 &&k);
+  template <typename K1, typename RetT, typename... A0s, typename... A1s>
+  Future<RetT> apply_async(K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...),
+                           A1s &&... args);
   Cap get_cap() const;
 
   // For debugging and performance analysis.

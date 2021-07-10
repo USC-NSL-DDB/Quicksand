@@ -129,10 +129,28 @@ bool DistributedHashTable<K, V, Hash, KeyEqual>::remove(K1 &&k) {
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
+template <typename K1, typename RetT, typename... A0s, typename... A1s>
+RetT DistributedHashTable<K, V, Hash, KeyEqual>::apply(
+    K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
+  auto hash = Hash();
+  auto key_hash = hash(std::forward<K1>(k));
+  auto shard_idx = get_shard_idx(key_hash);
+  auto &shard = shards_[shard_idx];
+  return shard.__run(
+      +[](HashTableShard &shard, K1 &&k, uint64_t key_hash,
+          RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
+        return shard.apply_with_hash(std::forward<K1>(k), key_hash, fn,
+                                     std::forward<A1s>(args)...);
+      },
+      std::forward<K1>(k), key_hash, fn, std::forward<A1s>(args)...);
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
 template <typename K1>
 Future<std::optional<V>>
 DistributedHashTable<K, V, Hash, KeyEqual>::get_async(K1 &&k) {
-  auto *promise = Promise<bool>::create([&, k] { return get(std::move(k)); });
+  auto *promise =
+      Promise<std::optional<V>>::create([&, k] { return get(std::move(k)); });
   return promise->get_future();
 }
 
@@ -140,7 +158,7 @@ template <typename K, typename V, typename Hash, typename KeyEqual>
 template <typename K1, typename V1>
 Future<void> DistributedHashTable<K, V, Hash, KeyEqual>::put_async(K1 &&k,
                                                                    V1 &&v) {
-  auto *promise = Promise<bool>::create(
+  auto *promise = Promise<void>::create(
       [&, k, v] { return put(std::move(k), std::move(v)); });
   return promise->get_future();
 }
@@ -150,6 +168,16 @@ template <typename K1>
 Future<bool> DistributedHashTable<K, V, Hash, KeyEqual>::remove_async(K1 &&k) {
   auto *promise =
       Promise<bool>::create([&, k] { return remove(std::move(k)); });
+  return promise->get_future();
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
+template <typename K1, typename RetT, typename... A0s, typename... A1s>
+Future<RetT> DistributedHashTable<K, V, Hash, KeyEqual>::apply_async(
+    K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
+  auto *promise = Promise<RetT>::create([&, k, fn, args...] {
+    return apply(std::move(k), fn, std::move(args)...);
+  });
   return promise->get_future();
 }
 
