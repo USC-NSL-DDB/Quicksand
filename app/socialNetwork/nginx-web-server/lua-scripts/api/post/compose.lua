@@ -59,11 +59,11 @@ function _M.ComposePost()
       status, ret = pcall(client.ComposePost, client,
           username, tonumber(user_id), post.text,
           cjson.decode(post.media_ids), cjson.decode(post.media_types),
-          tonumber(post.post_type), carrier)
+          tonumber(post.post_type))
     else
       status, ret = pcall(client.ComposePost, client,
           username, tonumber(user_id), post.text,
-          {}, {}, tonumber(post.post_type), carrier)
+          {}, {}, tonumber(post.post_type))
     end
 
     if not status then

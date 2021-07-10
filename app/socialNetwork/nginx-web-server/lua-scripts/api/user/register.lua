@@ -23,7 +23,7 @@ function _M.RegisterUser()
   local client = GenericObjectPool:connection(BackEndServiceClient, "back-end-service", 9091)
 
   local status, err = pcall(client.RegisterUser, client, post.first_name,
-      post.last_name, post.username, post.password, carrier)
+      post.last_name, post.username, post.password)
   GenericObjectPool:returnConnection(client)
 
   if not status then

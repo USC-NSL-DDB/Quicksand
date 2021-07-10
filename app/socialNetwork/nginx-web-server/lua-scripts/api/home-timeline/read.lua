@@ -97,7 +97,7 @@ function _M.ReadHomeTimeline()
     local client = GenericObjectPool:connection(
         BackEndServiceClient, "back-end-service", 9091)
     local status, ret = pcall(client.ReadHomeTimeline, client,
-        user_id, tonumber(args.start), tonumber(args.stop), carrier)
+        user_id, tonumber(args.start), tonumber(args.stop))
     GenericObjectPool:returnConnection(client)
     if not status then
       ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR

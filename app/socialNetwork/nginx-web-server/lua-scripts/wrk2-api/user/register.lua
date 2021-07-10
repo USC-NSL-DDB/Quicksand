@@ -24,7 +24,7 @@ function _M.RegisterUser()
   local client = GenericObjectPool:connection(BackEndServiceClient, "back-end-service", 9091)
 
   local status, err = pcall(client.RegisterUserWithId, client, post.first_name,
-      post.last_name, post.username, post.password, tonumber(post.user_id), carrier)
+      post.last_name, post.username, post.password, tonumber(post.user_id))
 
   if not status then
     ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR

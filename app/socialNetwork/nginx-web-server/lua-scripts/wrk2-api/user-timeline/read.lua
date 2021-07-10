@@ -62,7 +62,7 @@ function _M.ReadUserTimeline()
   local client = GenericObjectPool:connection(
       BackEndServiceClient, "back-end-service", 9091)
   local status, ret = pcall(client.ReadUserTimeline, client,
-      tonumber(args.user_id), tonumber(args.start), tonumber(args.stop), carrier)
+      tonumber(args.user_id), tonumber(args.start), tonumber(args.stop))
   if not status then
     ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
     if (ret.message) then

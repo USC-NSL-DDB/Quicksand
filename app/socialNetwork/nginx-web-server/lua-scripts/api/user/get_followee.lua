@@ -51,7 +51,7 @@ function _M.GetFollowee()
     local client = GenericObjectPool:connection(
       BackEndServiceClient, "back-end-service", 9091)
     local status, ret = pcall(client.GetFollowees, client,
-        user_id, carrier)
+        user_id)
     GenericObjectPool:returnConnection(client)
     if not status then
       ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR

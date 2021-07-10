@@ -26,7 +26,7 @@ function _M.Login()
   local client = GenericObjectPool:connection(BackEndServiceClient, "back-end-service", 9091)
 
   local status, ret = pcall(client.Login, client,
-      args.username, args.password, carrier)
+      args.username, args.password)
   GenericObjectPool:returnConnection(client)
 
   if not status then

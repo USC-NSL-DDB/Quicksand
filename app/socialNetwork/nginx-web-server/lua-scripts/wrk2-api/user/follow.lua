@@ -19,10 +19,10 @@ function _M.Follow()
   local err
   if (not _StrIsEmpty(post.user_id) and not _StrIsEmpty(post.followee_id)) then
     status, err = pcall(client.Follow, client,
-        tonumber(post.user_id), tonumber(post.followee_id), carrier )
+        tonumber(post.user_id), tonumber(post.followee_id))
   elseif (not _StrIsEmpty(post.user_name) and not _StrIsEmpty(post.followee_name)) then
     status, err = pcall(client.FollowWithUsername, client,
-        post.user_name, post.followee_name, carrier )
+        post.user_name, post.followee_name)
   else
     ngx.status = ngx.HTTP_BAD_REQUEST
     ngx.say("Incomplete arguments")
