@@ -17,11 +17,12 @@
 #include <iomanip>
 #include <iostream>
 #include <mutex>
+#include <nu/mutex.hpp>
 #include <sstream>
 #include <string>
-#include <nu/mutex.hpp>
 
 #include "../gen-cpp/social_network_types.h"
+#include "utils.h"
 
 // Custom Epoch (January 1, 2018 Midnight GMT = 2018-01-01T00:00:00Z)
 #define CUSTOM_EPOCH 1514764800000
@@ -31,6 +32,7 @@ namespace social_network {
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::system_clock;
+using json = nlohmann::json;
 
 class UniqueIdService {
 public:

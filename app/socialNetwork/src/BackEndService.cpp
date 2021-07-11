@@ -1,3 +1,4 @@
+#include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 #include <chrono>
@@ -20,7 +21,6 @@
 
 #include "../gen-cpp/BackEndService.h"
 #include "../gen-cpp/social_network_types.h"
-#include "SocialGraphService.h"
 #include "UniqueIdService.h"
 #include "UserService.h"
 #include "utils.h"
@@ -89,6 +89,8 @@ private:
   nu::DistributedHashTable<std::string, std::string> _short_to_extended_map;
   nu::DistributedHashTable<int64_t, Timeline> _userid_to_timeline_map;
   nu::DistributedHashTable<int64_t, Post> _postid_to_post_map;
+  nu::DistributedHashTable<int64_t, std::set<int64_t>> _userid_to_followers_map;
+  nu::DistributedHashTable<int64_t, std::set<int64_t>> _userid_to_followees_map;
 
   std::mt19937 _generator;
   std::uniform_int_distribution<int> _distribution;
@@ -96,7 +98,6 @@ private:
 
   nu::RemObj<UniqueIdService> _unique_id_service_obj;
   nu::RemObj<UserService> _user_service_obj;
-  nu::RemObj<SocialGraphService> _social_graph_service_obj;
 
   TextServiceReturn _ComposeText(const std::string &text);
   std::vector<UserMention>
@@ -109,6 +110,14 @@ private:
                           const std::vector<int64_t> &user_mentions_id);
   std::vector<Post> _ReadHomeTimeline(int64_t user_id, int start, int stop);
   std::vector<Post> _ReadPosts(const std::vector<int64_t> &post_ids);
+  std::vector<int64_t> _GetFollowers(int64_t user_id);
+  std::vector<int64_t> _GetFollowees(int64_t user_id);
+  void _Follow(int64_t user_id, int64_t followee_id);
+  void _Unfollow(int64_t user_id, int64_t followee_id);
+  void _FollowWithUsername(const std::string &user_name,
+                           const std::string &followee_name);
+  void _UnfollowWithUsername(const std::string &user_name,
+                             const std::string &followee_name);
 };
 
 BackEndHandler::BackEndHandler()
@@ -123,8 +132,6 @@ BackEndHandler::BackEndHandler()
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create();
   _user_service_obj =
       nu::RemObj<UserService>::create(_username_to_userprofile_map.get_cap());
-  _social_graph_service_obj =
-      nu::RemObj<SocialGraphService>::create(_user_service_obj.get_cap());
 }
 
 void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
@@ -247,43 +254,31 @@ void BackEndHandler::RegisterUserWithId(const std::string &_first_name,
 
 void BackEndHandler::GetFollowers(std::vector<int64_t> &_return,
                                   const int64_t user_id) {
-  _return =
-      _social_graph_service_obj.run(&SocialGraphService::GetFollowers, user_id);
+  _return = _GetFollowers(user_id);
 }
 
 void BackEndHandler::Unfollow(const int64_t user_id,
                               const int64_t followee_id) {
-  _social_graph_service_obj.run(&SocialGraphService::Unfollow, user_id,
-                                followee_id);
+  _Unfollow(user_id, followee_id);
 }
 
-void BackEndHandler::UnfollowWithUsername(const std::string &_user_username,
-    const std::string &_followee_username) {
-  auto user_username = _user_username;
-  auto followee_username = _followee_username;
-  _social_graph_service_obj.run(&SocialGraphService::UnfollowWithUsername,
-                                std::move(user_username),
-                                std::move(followee_username));
+void BackEndHandler::UnfollowWithUsername(
+    const std::string &user_username, const std::string &followee_username) {
+  _UnfollowWithUsername(user_username, followee_username);
 }
 
 void BackEndHandler::Follow(const int64_t user_id, const int64_t followee_id) {
-  _social_graph_service_obj.run(&SocialGraphService::Follow, user_id,
-                                followee_id);
+  _Follow(user_id, followee_id);
 }
 
-void BackEndHandler::FollowWithUsername(const std::string &_user_username,
-                                        const std::string &_followee_username) {
-  auto user_username = _user_username;
-  auto followee_username = _followee_username;
-  _social_graph_service_obj.run(&SocialGraphService::FollowWithUsername,
-                                std::move(user_username),
-                                std::move(followee_username));
+void BackEndHandler::FollowWithUsername(const std::string &user_username,
+                                        const std::string &followee_username) {
+  _FollowWithUsername(user_username, followee_username);
 }
 
 void BackEndHandler::GetFollowees(std::vector<int64_t> &_return,
                                   const int64_t user_id) {
-  _return =
-      _social_graph_service_obj.run(&SocialGraphService::GetFollowees, user_id);
+  _return = _GetFollowees(user_id);
 }
 
 void BackEndHandler::ReadHomeTimeline(std::vector<Post> &_return,
@@ -444,17 +439,23 @@ std::vector<Post> BackEndHandler::_ReadUserTimeline(int64_t user_id, int start,
 void BackEndHandler::_WriteHomeTimeline(
     int64_t post_id, int64_t user_id, int64_t timestamp,
     const std::vector<int64_t> &user_mentions_id) {
-  auto ids =
-      _social_graph_service_obj.run(&SocialGraphService::GetFollowers, user_id);
-  ids.insert(ids.end(), user_mentions_id.begin(), user_mentions_id.end());
-
   std::vector<nu::Future<void>> futures;
-  for (auto id : ids) {
-    futures.emplace_back(_userid_to_timeline_map.apply_async(
+
+  auto future_constructor = [&](int64_t id) {
+    return _userid_to_timeline_map.apply_async(
         id,
         +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
             int64_t post_id) { (p.second)[timestamp] = post_id; },
-        timestamp, post_id));
+        timestamp, post_id);
+  };
+
+  for (auto id : user_mentions_id) {
+    futures.emplace_back(future_constructor(id));
+  }
+
+  auto follower_ids = _GetFollowers(user_id);
+  for (auto id : follower_ids) {
+    futures.emplace_back(future_constructor(id));
   }
 
   for (auto &future : futures) {
@@ -496,6 +497,86 @@ BackEndHandler::_ReadPosts(const std::vector<int64_t> &post_ids) {
     posts.emplace_back(*optional);
   }
   return posts;
+}
+
+void BackEndHandler::_Follow(int64_t user_id, int64_t followee_id) {
+  auto add_followee_future = _userid_to_followees_map.apply_async(
+      user_id,
+      +[](std::pair<const int64_t, std::set<int64_t>> &p, int64_t followee_id) {
+        p.second.emplace(followee_id);
+      },
+      followee_id);
+  auto add_follower_future = _userid_to_followers_map.apply_async(
+      followee_id,
+      +[](std::pair<const int64_t, std::set<int64_t>> &p, int64_t user_id) {
+        p.second.emplace(user_id);
+      },
+      user_id);
+  add_followee_future.get();
+  add_follower_future.get();
+}
+
+void BackEndHandler::_Unfollow(int64_t user_id, int64_t followee_id) {
+  auto add_followee_future = _userid_to_followees_map.apply_async(
+      user_id,
+      +[](std::pair<const int64_t, std::set<int64_t>> &p, int64_t followee_id) {
+        p.second.erase(followee_id);
+      },
+      followee_id);
+  auto add_follower_future = _userid_to_followers_map.apply_async(
+      followee_id,
+      +[](std::pair<const int64_t, std::set<int64_t>> &p, int64_t user_id) {
+        p.second.erase(user_id);
+      },
+      user_id);
+  add_followee_future.get();
+  add_follower_future.get();
+}
+
+std::vector<int64_t> BackEndHandler::_GetFollowers(int64_t user_id) {
+  auto followers_set_optional = _userid_to_followers_map.get(user_id);
+  auto followers_set = followers_set_optional
+                           ? std::move(*followers_set_optional)
+                           : std::set<int64_t>();
+  return std::vector<int64_t>(followers_set.begin(), followers_set.end());
+}
+
+std::vector<int64_t> BackEndHandler::_GetFollowees(int64_t user_id) {
+  auto followees_set_optional = _userid_to_followees_map.get(user_id);
+  auto followees_set = followees_set_optional
+                           ? std::move(*followees_set_optional)
+                           : std::set<int64_t>();
+  return std::vector<int64_t>(followees_set.begin(), followees_set.end());
+}
+
+void BackEndHandler::_FollowWithUsername(const std::string &_user_name,
+                                         const std::string &_followee_name) {
+  auto user_name = _user_name;
+  auto followee_name = _followee_name;
+  auto user_id_future = _user_service_obj.run_async(&UserService::GetUserId,
+                                                    std::move(user_name));
+  auto followee_id_future = _user_service_obj.run_async(
+      &UserService::GetUserId, std::move(followee_name));
+  auto user_id = user_id_future.get();
+  auto followee_id = followee_id_future.get();
+  if (user_id && followee_id) {
+    Follow(user_id, followee_id);
+  }
+}
+
+void BackEndHandler::_UnfollowWithUsername(const std::string &_user_name,
+                                           const std::string &_followee_name) {
+  auto user_name = _user_name;
+  auto followee_name = _followee_name;
+  auto user_id_future = _user_service_obj.run_async(&UserService::GetUserId,
+                                                    std::move(user_name));
+  auto followee_id_future = _user_service_obj.run_async(
+      &UserService::GetUserId, std::move(followee_name));
+  auto user_id = user_id_future.get();
+  auto followee_id = followee_id_future.get();
+  if (user_id && followee_id) {
+    Unfollow(user_id, followee_id);
+  }
 }
 
 }  // namespace social_network
