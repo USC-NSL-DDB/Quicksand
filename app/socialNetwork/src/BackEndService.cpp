@@ -20,7 +20,6 @@
 
 #include "../gen-cpp/BackEndService.h"
 #include "../gen-cpp/social_network_types.h"
-#include "PostStorageService.h"
 #include "SocialGraphService.h"
 #include "UniqueIdService.h"
 #include "UserService.h"
@@ -84,17 +83,18 @@ private:
                        __gnu_pbds::rb_tree_tag,
                        __gnu_pbds::tree_order_statistics_node_update>;
 
+  // TODO: initialized with the specified num of shards.
   UserService::UserProfileMap _username_to_userprofile_map;
   nu::DistributedHashTable<std::string, std::string> _filename_to_data_map;
   nu::DistributedHashTable<std::string, std::string> _short_to_extended_map;
   nu::DistributedHashTable<int64_t, Timeline> _userid_to_timeline_map;
+  nu::DistributedHashTable<int64_t, Post> _postid_to_post_map;
 
   std::mt19937 _generator;
   std::uniform_int_distribution<int> _distribution;
   nu::Mutex _mutex;
 
   nu::RemObj<UniqueIdService> _unique_id_service_obj;
-  nu::RemObj<PostStorageService> _post_storage_service_obj;
   nu::RemObj<UserService> _user_service_obj;
   nu::RemObj<SocialGraphService> _social_graph_service_obj;
 
@@ -108,6 +108,7 @@ private:
   void _WriteHomeTimeline(int64_t post_id, int64_t user_id, int64_t timestamp,
                           const std::vector<int64_t> &user_mentions_id);
   std::vector<Post> _ReadHomeTimeline(int64_t user_id, int start, int stop);
+  std::vector<Post> _ReadPosts(const std::vector<int64_t> &post_ids);
 };
 
 BackEndHandler::BackEndHandler()
@@ -120,7 +121,6 @@ BackEndHandler::BackEndHandler()
                        0xffffffff)),
       _distribution(std::uniform_int_distribution<int>(0, 61)) {
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create();
-  _post_storage_service_obj = nu::RemObj<PostStorageService>::create();
   _user_service_obj =
       nu::RemObj<UserService>::create(_username_to_userprofile_map.get_cap());
   _social_graph_service_obj =
@@ -180,9 +180,8 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
   post.creator = creator_future.get();
   post.post_type = post_type;
 
-  auto post_copy = post;
-  auto post_future = _post_storage_service_obj.run_async(
-      &PostStorageService::StorePost, std::move(post_copy));
+  auto post_future =
+      _postid_to_post_map.put_async(post.post_id, std::move(post));
 
   write_user_timeline_future.get();
   post_future.get();
@@ -439,8 +438,7 @@ std::vector<Post> BackEndHandler::_ReadUserTimeline(int64_t user_id, int start,
         return post_ids;
       },
       start, stop);
-  return _post_storage_service_obj.run(&PostStorageService::ReadPosts,
-                                       std::move(post_ids));
+  return _ReadPosts(post_ids);
 }
 
 void BackEndHandler::_WriteHomeTimeline(
@@ -482,8 +480,22 @@ std::vector<Post> BackEndHandler::_ReadHomeTimeline(int64_t user_id, int start,
         return post_ids;
       },
       start, stop);
-  return _post_storage_service_obj.run(&PostStorageService::ReadPosts,
-                                       std::move(post_ids));
+  return _ReadPosts(post_ids);
+}
+
+std::vector<Post>
+BackEndHandler::_ReadPosts(const std::vector<int64_t> &post_ids) {
+  std::vector<nu::Future<std::optional<Post>>> post_futures;
+  for (auto post_id : post_ids) {
+    post_futures.emplace_back(_postid_to_post_map.get_async(post_id));
+  }
+  std::vector<Post> posts;
+  for (auto &post_future : post_futures) {
+    auto optional = post_future.get();
+    BUG_ON(!optional);
+    posts.emplace_back(*optional);
+  }
+  return posts;
 }
 
 }  // namespace social_network
