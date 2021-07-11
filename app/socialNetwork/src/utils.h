@@ -37,6 +37,21 @@ u_int16_t HashMacAddressPid(const std::string &mac) {
   return hash;
 }
 
+std::string GenRandomString(const int len) {
+  static const std::string alphanum = "0123456789"
+                                      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                      "abcdefghijklmnopqrstuvwxyz";
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<int> dist(
+      0, static_cast<int>(alphanum.length() - 1));
+  std::string s;
+  for (int i = 0; i < len; ++i) {
+    s += alphanum[dist(gen)];
+  }
+  return s;
+}
+
 std::string GetMachineId(std::string &netif) {
   std::string mac_hash;
 

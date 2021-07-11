@@ -5,6 +5,7 @@
 #include <ext/pb_ds/assoc_container.hpp>
 #include <future>
 #include <iostream>
+#include <jwt/jwt.hpp>
 #include <nlohmann/json.hpp>
 #include <nu/dis_hash_table.hpp>
 #include <nu/mutex.hpp>
@@ -17,28 +18,43 @@
 #include <thrift/server/TThreadedServer.h>
 #include <thrift/transport/TBufferTransports.h>
 #include <thrift/transport/TServerSocket.h>
+#include <variant>
 #include <vector>
 
 #include "../gen-cpp/BackEndService.h"
 #include "../gen-cpp/social_network_types.h"
-#include "UniqueIdService.h"
-#include "UserService.h"
+#include "../third_party/PicoSHA2/picosha2.h"
 #include "utils.h"
 
 #define HOSTNAME "http://short-url/"
+// Custom Epoch (January 1, 2018 Midnight GMT = 2018-01-01T00:00:00Z)
+#define CUSTOM_EPOCH 1514764800000
 
 using apache::thrift::protocol::TBinaryProtocolFactory;
 using apache::thrift::server::TThreadedServer;
 using apache::thrift::transport::TFramedTransportFactory;
 using apache::thrift::transport::TServerSocket;
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::system_clock;
+using namespace jwt::params;
 using namespace social_network;
 
 namespace social_network {
 
-using json = nlohmann::json;
-using std::chrono::duration_cast;
-using std::chrono::milliseconds;
-using std::chrono::system_clock;
+struct UserProfile {
+  int64_t user_id;
+  std::string first_name;
+  std::string last_name;
+  std::string salt;
+  std::string password_hashed;
+
+  template <class Archive> void serialize(Archive &ar) {
+    ar(user_id, first_name, last_name, salt, password_hashed);
+  }
+};
+
+enum LoginErrorCode { OK, NOT_REGISTERED, WRONG_PASSWORD };
 
 class BackEndHandler : public BackEndServiceIf {
 public:
@@ -84,7 +100,8 @@ private:
                        __gnu_pbds::tree_order_statistics_node_update>;
 
   // TODO: initialized with the specified num of shards.
-  UserService::UserProfileMap _username_to_userprofile_map;
+  nu::DistributedHashTable<std::string, UserProfile>
+      _username_to_userprofile_map;
   nu::DistributedHashTable<std::string, std::string> _filename_to_data_map;
   nu::DistributedHashTable<std::string, std::string> _short_to_extended_map;
   nu::DistributedHashTable<int64_t, Timeline> _userid_to_timeline_map;
@@ -95,9 +112,10 @@ private:
   std::mt19937 _generator;
   std::uniform_int_distribution<int> _distribution;
   nu::Mutex _mutex;
-
-  nu::RemObj<UniqueIdService> _unique_id_service_obj;
-  nu::RemObj<UserService> _user_service_obj;
+  int64_t _current_timestamp = -1;
+  int _counter = 0;
+  std::string _machine_id;
+  std::string _secret;
 
   TextServiceReturn _ComposeText(const std::string &text);
   std::vector<UserMention>
@@ -105,7 +123,6 @@ private:
   std::vector<Url> _ComposeUrls(const std::vector<std::string> &urls);
   void _WriteUserTimeline(int64_t post_id, int64_t user_id, int64_t timestamp);
   std::vector<Post> _ReadUserTimeline(int64_t user_id, int start, int stop);
-  std::string _GenRandomStr(int length);
   void _WriteHomeTimeline(int64_t post_id, int64_t user_id, int64_t timestamp,
                           const std::vector<int64_t> &user_mentions_id);
   std::vector<Post> _ReadHomeTimeline(int64_t user_id, int start, int stop);
@@ -118,20 +135,38 @@ private:
                            const std::string &followee_name);
   void _UnfollowWithUsername(const std::string &user_name,
                              const std::string &followee_name);
+  int _GetCounter(int64_t timestamp);
+  int64_t _ComposeUniqueId(const PostType::type post_type);
+  void _RegisterUser(const std::string &_first_name,
+                     const std::string &_last_name,
+                     const std::string &_username,
+                     const std::string &_password);
+  void _RegisterUserWithId(const std::string &_first_name,
+                           const std::string &_last_name,
+                           const std::string &_username,
+                           const std::string &_password, const int64_t user_id);
+  Creator _ComposeCreatorWithUserId(int64_t user_id,
+                                    const std::string &username);
+  Creator _ComposeCreatorWithUsername(const std::string &username);
+  std::variant<LoginErrorCode, std::string> _Login(const std::string &username,
+                                                   const std::string &password);
+  int64_t _GetUserId(const std::string &username);
 };
 
 BackEndHandler::BackEndHandler()
-    : _username_to_userprofile_map(
-          UserService::kDefaultHashTablePowerNumShards),
-      _generator(
+    : _generator(
           std::mt19937(std::chrono::duration_cast<std::chrono::milliseconds>(
                            std::chrono::system_clock::now().time_since_epoch())
                            .count() %
                        0xffffffff)),
       _distribution(std::uniform_int_distribution<int>(0, 61)) {
-  _unique_id_service_obj = nu::RemObj<UniqueIdService>::create();
-  _user_service_obj =
-      nu::RemObj<UserService>::create(_username_to_userprofile_map.get_cap());
+  json config_json;
+  BUG_ON(load_config_file("config/service-config.json", &config_json) != 0);
+  _secret = config_json["secret"];
+  std::string netif = config_json["back-end-service"]["netif"];
+  _machine_id = GetMachineId(netif);
+  BUG_ON(_machine_id == "");
+  std::cout << "machine_id = " << _machine_id << std::endl;
 }
 
 void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
@@ -142,8 +177,8 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
   auto text_service_return_future =
       nu::async([&] { return _ComposeText(text); });
 
-  auto unique_id_future = _unique_id_service_obj.run_async(
-      &UniqueIdService::ComposeUniqueId, post_type);
+  auto unique_id_future =
+      nu::async([&] { return _ComposeUniqueId(post_type); });
 
   auto media_types = _media_types;
   auto media_ids = _media_ids;
@@ -157,8 +192,7 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
   }  
 
   auto username = _username;
-  auto creator_future = _user_service_obj.run_async(
-      &UserService::ComposeCreatorWithUserId, user_id, std::move(username));
+  auto creator = _ComposeCreatorWithUserId(user_id, username);
 
   Post post;
   auto timestamp =
@@ -184,7 +218,7 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
   post.user_mentions = std::move(text_service_return.user_mentions);
   post.post_id = unique_id;
   post.media = std::move(medias);
-  post.creator = creator_future.get();
+  post.creator = std::move(creator);
   post.post_type = post_type;
 
   auto post_future =
@@ -204,8 +238,7 @@ void BackEndHandler::Login(std::string &_return, const std::string &_username,
                            const std::string &_password) {
   auto username = _username;
   auto password = _password;
-  auto variant = _user_service_obj.run(&UserService::Login, std::move(username),
-                                       std::move(password));
+  auto variant = _Login(username, password);
   if (std::holds_alternative<LoginErrorCode>(variant)) {
     ServiceException se;
     se.errorCode = ErrorCode::SE_UNAUTHORIZED;
@@ -225,31 +258,20 @@ void BackEndHandler::Login(std::string &_return, const std::string &_username,
   _return = std::get<std::string>(variant);
 }
 
-void BackEndHandler::RegisterUser(const std::string &_first_name,
-                                  const std::string &_last_name,
-                                  const std::string &_username,
-                                  const std::string &_password) {
-  auto first_name = _first_name;
-  auto last_name = _last_name;
-  auto username = _username;
-  auto password = _password;
-  _user_service_obj.run(&UserService::RegisterUser, std::move(first_name),
-                        std::move(last_name), std::move(username),
-                        std::move(password));
+void BackEndHandler::RegisterUser(const std::string &first_name,
+                                  const std::string &last_name,
+                                  const std::string &username,
+                                  const std::string &password) {
+  return _RegisterUser(first_name, last_name, username, password);
 }
 
-void BackEndHandler::RegisterUserWithId(const std::string &_first_name,
-                                        const std::string &_last_name,
-                                        const std::string &_username,
-                                        const std::string &_password,
+void BackEndHandler::RegisterUserWithId(const std::string &first_name,
+                                        const std::string &last_name,
+                                        const std::string &username,
+                                        const std::string &password,
                                         const int64_t user_id) {
-  auto first_name = _first_name;
-  auto last_name = _last_name;
-  auto username = _username;
-  auto password = _password;
-  _user_service_obj.run(&UserService::RegisterUserWithId, std::move(first_name),
-                        std::move(last_name), std::move(username),
-                        std::move(password), user_id);
+  return _RegisterUserWithId(first_name, last_name, username, password,
+                             user_id);
 }
 
 void BackEndHandler::GetFollowers(std::vector<int64_t> &_return,
@@ -373,25 +395,13 @@ std::vector<UserMention> BackEndHandler::_ComposeUserMentions(
   return user_mentions;
 }
 
-std::string BackEndHandler::_GenRandomStr(int length) {
-  const char char_map[] = "abcdefghijklmnopqrstuvwxyzABCDEF"
-                          "GHIJKLMNOPQRSTUVWXYZ0123456789";
-  std::string return_str;
-  _mutex.Lock();
-  for (int i = 0; i < length; ++i) {
-    return_str.append(1, char_map[_distribution(_generator)]);
-  }
-  _mutex.Unlock();
-  return return_str;
-}
-
 std::vector<Url> BackEndHandler::_ComposeUrls(const std::vector<std::string> &urls) {
   std::vector<Url> target_urls;
 
   for (auto &url : urls) {
     Url target_url;
     target_url.expanded_url = url;
-    target_url.shortened_url = HOSTNAME + _GenRandomStr(10);
+    target_url.shortened_url = HOSTNAME + GenRandomString(10);
     target_urls.push_back(target_url);
   }
 
@@ -553,10 +563,9 @@ void BackEndHandler::_FollowWithUsername(const std::string &_user_name,
                                          const std::string &_followee_name) {
   auto user_name = _user_name;
   auto followee_name = _followee_name;
-  auto user_id_future = _user_service_obj.run_async(&UserService::GetUserId,
-                                                    std::move(user_name));
-  auto followee_id_future = _user_service_obj.run_async(
-      &UserService::GetUserId, std::move(followee_name));
+  auto user_id_future = nu::async([&] { return _GetUserId(user_name); });
+  auto followee_id_future =
+      nu::async([&] { return _GetUserId(followee_name); });
   auto user_id = user_id_future.get();
   auto followee_id = followee_id_future.get();
   if (user_id && followee_id) {
@@ -568,10 +577,9 @@ void BackEndHandler::_UnfollowWithUsername(const std::string &_user_name,
                                            const std::string &_followee_name) {
   auto user_name = _user_name;
   auto followee_name = _followee_name;
-  auto user_id_future = _user_service_obj.run_async(&UserService::GetUserId,
-                                                    std::move(user_name));
-  auto followee_id_future = _user_service_obj.run_async(
-      &UserService::GetUserId, std::move(followee_name));
+  auto user_id_future = nu::async([&] { return _GetUserId(user_name); });
+  auto followee_id_future =
+      nu::async([&] { return _GetUserId(followee_name); });
   auto user_id = user_id_future.get();
   auto followee_id = followee_id_future.get();
   if (user_id && followee_id) {
@@ -579,10 +587,163 @@ void BackEndHandler::_UnfollowWithUsername(const std::string &_user_name,
   }
 }
 
+int BackEndHandler::_GetCounter(int64_t timestamp) {
+  if (_current_timestamp > timestamp) {
+    std::cerr << "Timestamps are not incremental." << std::endl;
+    BUG();
+  }
+  if (_current_timestamp == timestamp) {
+    return _counter++;
+  } else {
+    _current_timestamp = timestamp;
+    _counter = 0;
+    return _counter++;
+  }
+}
+
+int64_t BackEndHandler::_ComposeUniqueId(PostType::type post_type) {
+  _mutex.Lock();
+  int64_t timestamp =
+      duration_cast<milliseconds>(system_clock::now().time_since_epoch())
+          .count() -
+      CUSTOM_EPOCH;
+  int idx = _GetCounter(timestamp);
+  _mutex.Unlock();
+
+  std::stringstream sstream;
+  sstream << std::hex << timestamp;
+  std::string timestamp_hex(sstream.str());
+
+  if (timestamp_hex.size() > 10) {
+    timestamp_hex.erase(0, timestamp_hex.size() - 10);
+  } else if (timestamp_hex.size() < 10) {
+    timestamp_hex = std::string(10 - timestamp_hex.size(), '0') + timestamp_hex;
+  }
+
+  // Empty the sstream buffer.
+  sstream.clear();
+  sstream.str(std::string());
+
+  sstream << std::hex << idx;
+  std::string counter_hex(sstream.str());
+
+  if (counter_hex.size() > 3) {
+    counter_hex.erase(0, counter_hex.size() - 3);
+  } else if (counter_hex.size() < 3) {
+    counter_hex = std::string(3 - counter_hex.size(), '0') + counter_hex;
+  }
+  std::string post_id_str = _machine_id + timestamp_hex + counter_hex;
+  int64_t post_id = stoul(post_id_str, nullptr, 16) & 0x7FFFFFFFFFFFFFFF;
+
+  return post_id;
+}
+
+void BackEndHandler::_RegisterUserWithId(const std::string &first_name,
+                                         const std::string &last_name,
+                                         const std::string &username,
+                                         const std::string &password,
+                                         int64_t user_id) {
+  UserProfile user_profile;
+  user_profile.first_name = first_name;
+  user_profile.last_name = last_name;
+  user_profile.user_id = user_id;
+  user_profile.salt = GenRandomString(32);
+  user_profile.password_hashed =
+      picosha2::hash256_hex_string(password + user_profile.salt);
+  _username_to_userprofile_map.put(username, user_profile);
+}
+
+void BackEndHandler::_RegisterUser(const std::string &first_name,
+                                   const std::string &last_name,
+                                   const std::string &username,
+                                   const std::string &password) {
+  // Compose user_id
+  _mutex.Lock();
+  int64_t timestamp =
+      duration_cast<milliseconds>(system_clock::now().time_since_epoch())
+          .count() -
+      CUSTOM_EPOCH;
+  int idx = _GetCounter(timestamp);
+  _mutex.Unlock();
+
+  std::stringstream sstream;
+  sstream << std::hex << timestamp;
+  std::string timestamp_hex(sstream.str());
+  if (timestamp_hex.size() > 10) {
+    timestamp_hex.erase(0, timestamp_hex.size() - 10);
+  } else if (timestamp_hex.size() < 10) {
+    timestamp_hex = std::string(10 - timestamp_hex.size(), '0') + timestamp_hex;
+  }
+  // Empty the sstream buffer.
+  sstream.clear();
+  sstream.str(std::string());
+
+  sstream << std::hex << idx;
+  std::string counter_hex(sstream.str());
+
+  if (counter_hex.size() > 3) {
+    counter_hex.erase(0, counter_hex.size() - 3);
+  } else if (counter_hex.size() < 3) {
+    counter_hex = std::string(3 - counter_hex.size(), '0') + counter_hex;
+  }
+  std::string user_id_str = _machine_id + timestamp_hex + counter_hex;
+  int64_t user_id = stoul(user_id_str, nullptr, 16) & 0x7FFFFFFFFFFFFFFF;
+
+  RegisterUserWithId(first_name, last_name, username, password, user_id);
+}
+
+Creator
+BackEndHandler::_ComposeCreatorWithUsername(const std::string &username) {
+  auto user_id_optional = _username_to_userprofile_map.get(username);
+  BUG_ON(!user_id_optional);
+  return _ComposeCreatorWithUserId(user_id_optional->user_id, username);
+}
+
+Creator BackEndHandler::_ComposeCreatorWithUserId(int64_t user_id,
+                                                  const std::string &username) {
+  Creator creator;
+  creator.username = username;
+  creator.user_id = user_id;
+  return creator;
+}
+
+std::variant<LoginErrorCode, std::string>
+BackEndHandler::_Login(const std::string &username,
+                       const std::string &password) {
+  auto user_profile_optional = _username_to_userprofile_map.get(username);
+  if (!user_profile_optional) {
+    return NOT_REGISTERED;
+  }
+  auto &user_profile = *user_profile_optional;
+  bool auth = (picosha2::hash256_hex_string(password + user_profile.salt) ==
+               user_profile.password_hashed);
+  if (!auth) {
+    return WRONG_PASSWORD;
+  }
+  auto user_id_str = std::to_string(user_profile.user_id);
+  auto timestamp_str =
+      std::to_string(duration_cast<std::chrono::seconds>(
+                         system_clock::now().time_since_epoch())
+                         .count());
+  jwt::jwt_object obj{algorithm("HS256"), secret(_secret),
+                      payload({{"user_id", user_id_str},
+                               {"username", username},
+                               {"timestamp", timestamp_str},
+                               {"ttl", "3600"}})};
+  return obj.signature();
+}
+
+int64_t BackEndHandler::_GetUserId(const std::string &username) {
+  auto user_id_optional = _username_to_userprofile_map.get(username);
+  BUG_ON(!user_id_optional);
+  return user_id_optional->user_id;
+}
+
 }  // namespace social_network
 
 void do_work() {
   json config_json;
+
   BUG_ON(load_config_file("config/service-config.json", &config_json) != 0);
   int port = config_json["back-end-service"]["port"];
 

@@ -55,7 +55,8 @@
     "port": 9091,
     "connections": 512,
     "timeout_ms": 10000,
-    "keepalive_ms": 10000
+    "keepalive_ms": 10000,
+    "netif": "docker0"
   },
   "compose-post-redis": {
     "addr": "compose-post-redis",
