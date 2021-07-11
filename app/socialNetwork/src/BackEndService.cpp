@@ -20,7 +20,6 @@
 
 #include "../gen-cpp/BackEndService.h"
 #include "../gen-cpp/social_network_types.h"
-#include "HomeTimelineService.h"
 #include "PostStorageService.h"
 #include "SocialGraphService.h"
 #include "UniqueIdService.h"
@@ -98,15 +97,17 @@ private:
   nu::RemObj<PostStorageService> _post_storage_service_obj;
   nu::RemObj<UserService> _user_service_obj;
   nu::RemObj<SocialGraphService> _social_graph_service_obj;
-  nu::RemObj<HomeTimelineService> _home_timeline_service_obj;
 
   TextServiceReturn _ComposeText(const std::string &text);
   std::vector<UserMention>
   _ComposeUserMentions(const std::vector<std::string> &usernames);
-  std::vector<Url> _ComposeUrls(std::vector<std::string> urls);
+  std::vector<Url> _ComposeUrls(const std::vector<std::string> &urls);
   void _WriteUserTimeline(int64_t post_id, int64_t user_id, int64_t timestamp);
   std::vector<Post> _ReadUserTimeline(int64_t user_id, int start, int stop);
   std::string _GenRandomStr(int length);
+  void _WriteHomeTimeline(int64_t post_id, int64_t user_id, int64_t timestamp,
+                          const std::vector<int64_t> &user_mentions_id);
+  std::vector<Post> _ReadHomeTimeline(int64_t user_id, int start, int stop);
 };
 
 BackEndHandler::BackEndHandler()
@@ -124,8 +125,6 @@ BackEndHandler::BackEndHandler()
       nu::RemObj<UserService>::create(_username_to_userprofile_map.get_cap());
   _social_graph_service_obj =
       nu::RemObj<SocialGraphService>::create(_user_service_obj.get_cap());
-  _home_timeline_service_obj = nu::RemObj<HomeTimelineService>::create(
-      _post_storage_service_obj.get_cap(), _social_graph_service_obj.get_cap());
 }
 
 void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
@@ -169,9 +168,9 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
   for (auto &item : text_service_return.user_mentions) {
     user_mention_ids.emplace_back(item.user_id);
   }
-  auto write_home_timeline_future = _home_timeline_service_obj.run_async(
-      &HomeTimelineService::WriteHomeTimeline, unique_id, user_id, timestamp,
-      std::move(user_mention_ids));
+  auto write_home_timeline_future = nu::async([&] {
+    return _WriteHomeTimeline(unique_id, user_id, timestamp, user_mention_ids);
+  });
 
   post.text = std::move(text_service_return.text);
   post.urls = std::move(text_service_return.urls);
@@ -291,8 +290,7 @@ void BackEndHandler::GetFollowees(std::vector<int64_t> &_return,
 void BackEndHandler::ReadHomeTimeline(std::vector<Post> &_return,
                                       const int64_t user_id,
                                       const int32_t start, const int32_t stop) {
-  _return = _home_timeline_service_obj.run(
-      &HomeTimelineService::ReadHomeTimeline, user_id, start, stop);
+  _return = _ReadHomeTimeline(user_id, start, stop);
 }
 
 void BackEndHandler::UploadMedia(const std::string &filename,
@@ -393,7 +391,7 @@ std::string BackEndHandler::_GenRandomStr(int length) {
   return return_str;
 }
 
-std::vector<Url> BackEndHandler::_ComposeUrls(std::vector<std::string> urls) {
+std::vector<Url> BackEndHandler::_ComposeUrls(const std::vector<std::string> &urls) {
   std::vector<Url> target_urls;
 
   for (auto &url : urls) {
@@ -424,6 +422,49 @@ void BackEndHandler::_WriteUserTimeline(int64_t post_id, int64_t user_id,
 }
 
 std::vector<Post> BackEndHandler::_ReadUserTimeline(int64_t user_id, int start,
+                                                    int stop) {
+  if (stop <= start || start < 0) {
+    return std::vector<Post>();
+  }
+
+  auto post_ids = _userid_to_timeline_map.apply(
+      user_id,
+      +[](std::pair<const int64_t, Timeline> &p, int start, int stop) {
+        auto start_iter = p.second.find_by_order(start);
+        auto stop_iter = p.second.find_by_order(stop);
+        std::vector<int64_t> post_ids;
+        for (auto iter = start_iter; iter != stop_iter; iter++) {
+          post_ids.push_back(iter->second);
+        }
+        return post_ids;
+      },
+      start, stop);
+  return _post_storage_service_obj.run(&PostStorageService::ReadPosts,
+                                       std::move(post_ids));
+}
+
+void BackEndHandler::_WriteHomeTimeline(
+    int64_t post_id, int64_t user_id, int64_t timestamp,
+    const std::vector<int64_t> &user_mentions_id) {
+  auto ids =
+      _social_graph_service_obj.run(&SocialGraphService::GetFollowers, user_id);
+  ids.insert(ids.end(), user_mentions_id.begin(), user_mentions_id.end());
+
+  std::vector<nu::Future<void>> futures;
+  for (auto id : ids) {
+    futures.emplace_back(_userid_to_timeline_map.apply_async(
+        id,
+        +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
+            int64_t post_id) { (p.second)[timestamp] = post_id; },
+        timestamp, post_id));
+  }
+
+  for (auto &future : futures) {
+    future.get();
+  }
+}
+
+std::vector<Post> BackEndHandler::_ReadHomeTimeline(int64_t user_id, int start,
                                                     int stop) {
   if (stop <= start || start < 0) {
     return std::vector<Post>();
