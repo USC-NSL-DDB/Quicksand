@@ -93,4 +93,12 @@ template <typename Deleter> void Future<void, Deleter>::get() {
     promise_->cv_.Wait(&promise_->mutex_);
   }
 }
+
+template <typename F, typename Allocator>
+Future<std::invoke_result_t<std::decay_t<F>>> async(F &&f) {
+  return Promise<std::invoke_result_t<std::decay_t<F>>>::create(
+             std::forward<F>(f))
+      ->get_future();
+}
+
 } // namespace nu

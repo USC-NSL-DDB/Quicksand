@@ -45,6 +45,11 @@ private:
 
   Future(Promise<void> *promise);
 };
+
+template <typename F, typename Allocator = std::allocator<
+                          Promise<std::invoke_result_t<std::decay_t<F>>>>>
+Future<std::invoke_result_t<std::decay_t<F>>> async(F &&f);
+
 } // namespace nu
 
 #include "nu/impl/future.ipp"

@@ -99,10 +99,9 @@ RemRawPtr<T> DistributedMemPool::allocate_raw(As &&... args) {
 
 template <typename T, typename... As>
 Future<RemRawPtr<T>> DistributedMemPool::allocate_raw_async(As &&... args) {
-  auto *promise = Promise<T>::create([&, ... args = std::forward<As>(args)] {
+  return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_raw(std::forward<As>(args)...);
   });
-  return promise->get_future();
 }
 
 template <typename T>
@@ -114,8 +113,7 @@ void DistributedMemPool::free_raw(const RemRawPtr<T> &ptr) {
 
 template <typename T>
 Future<void> DistributedMemPool::free_raw_async(const RemRawPtr<T> &ptr) {
-  auto *promise = Promise<T>::create([&] { free_raw(ptr); });
-  return promise->get_future();
+  return nu::async([&] { free_raw(ptr); });
 }
 
 inline void DistributedMemPool::check_probing() {
@@ -152,10 +150,9 @@ RemUniquePtr<T> DistributedMemPool::allocate_unique(As &&... args) {
 template <typename T, typename... As>
 Future<RemUniquePtr<T>>
 DistributedMemPool::allocate_unique_async(As &&... args) {
-  auto *promise = Promise<T>::create([&, ... args = std::forward<As>(args)] {
+  return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_unique(std::forward<As>(args)...);
   });
-  return promise->get_future();
 }
 
 template <typename T, typename... As>
@@ -167,10 +164,9 @@ RemSharedPtr<T> DistributedMemPool::allocate_shared(As &&... args) {
 template <typename T, typename... As>
 Future<RemSharedPtr<T>>
 DistributedMemPool::allocate_shared_async(As &&... args) {
-  auto *promise = Promise<T>::create([&, ... args = std::forward<As>(args)] {
+  return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_shared(std::forward<As>(args)...);
   });
-  return promise->get_future();
 }
 
 template <typename T, typename AllocFn, typename... As>

@@ -118,9 +118,7 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
                                  const std::vector<std::string> &_media_types,
                                  const PostType::type post_type) {
   auto text_service_return_future =
-      nu::Promise<TextServiceReturn>::create([&]() {
-        return ComposeText(text);
-      })->get_future();
+      nu::async([&]() { return ComposeText(text); });
 
   auto unique_id_future = _unique_id_service_obj.run_async(
       &UniqueIdService::ComposeUniqueId, post_type);
