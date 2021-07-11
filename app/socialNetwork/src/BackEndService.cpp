@@ -17,7 +17,6 @@
 #include "../gen-cpp/BackEndService.h"
 #include "../gen-cpp/social_network_types.h"
 #include "HomeTimelineService.h"
-#include "MediaService.h"
 #include "MediaStorageService.h"
 #include "PostStorageService.h"
 #include "SocialGraphService.h"
@@ -81,7 +80,6 @@ private:
   UserService::UserProfileMap _username_to_userprofile_map;
 
   nu::RemObj<UniqueIdService> _unique_id_service_obj;
-  nu::RemObj<MediaService> _media_service_obj;
   nu::RemObj<PostStorageService> _post_storage_service_obj;
   nu::RemObj<UserTimelineService> _user_timeline_service_obj;
   nu::RemObj<UserService> _user_service_obj;
@@ -97,7 +95,6 @@ BackEndHandler::BackEndHandler()
     : _username_to_userprofile_map(
           UserService::kDefaultHashTablePowerNumShards) {
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create();
-  _media_service_obj = nu::RemObj<MediaService>::create();
   _post_storage_service_obj = nu::RemObj<PostStorageService>::create();
   _user_timeline_service_obj = nu::RemObj<UserTimelineService>::create(
       _post_storage_service_obj.get_cap());
@@ -129,9 +126,14 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
 
   auto media_types = _media_types;
   auto media_ids = _media_ids;
-  auto medias_future = _media_service_obj.run_async(&MediaService::ComposeMedia,
-                                                    std::move(media_types),
-                                                    std::move(media_ids));
+  std::vector<Media> medias;
+  BUG_ON(media_types.size() != media_ids.size());
+  for (int i = 0; i < media_ids.size(); ++i) {
+    Media media;
+    media.media_id = media_ids[i];
+    media.media_type = media_types[i];
+    medias.emplace_back(media);
+  }  
 
   auto username = _username;
   auto creator_future = _user_service_obj.run_async(
@@ -160,7 +162,7 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
   post.urls = std::move(text_service_return.urls);
   post.user_mentions = std::move(text_service_return.user_mentions);
   post.post_id = unique_id;
-  post.media = medias_future.get();
+  post.media = std::move(medias);
   post.creator = creator_future.get();
   post.post_type = post_type;
 
