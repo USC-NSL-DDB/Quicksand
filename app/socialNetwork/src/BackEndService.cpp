@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <nu/rem_obj.hpp>
 #include <nu/runtime.hpp>
+#include <nu/dis_hash_table.hpp>
 #include <string>
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/server/TThreadedServer.h>
@@ -17,7 +18,6 @@
 #include "../gen-cpp/BackEndService.h"
 #include "../gen-cpp/social_network_types.h"
 #include "HomeTimelineService.h"
-#include "MediaStorageService.h"
 #include "PostStorageService.h"
 #include "SocialGraphService.h"
 #include "TextService.h"
@@ -78,6 +78,7 @@ public:
 
 private:
   UserService::UserProfileMap _username_to_userprofile_map;
+  nu::DistributedHashTable<std::string, std::string> _filename_to_data_map;
 
   nu::RemObj<UniqueIdService> _unique_id_service_obj;
   nu::RemObj<PostStorageService> _post_storage_service_obj;
@@ -88,7 +89,6 @@ private:
   nu::RemObj<UrlShortenService> _url_shorten_service_obj;
   nu::RemObj<UserMentionService> _user_mention_service_obj;
   nu::RemObj<TextService> _text_service_obj;
-  nu::RemObj<MediaStorageService> _media_storage_service_obj;
 };
 
 BackEndHandler::BackEndHandler()
@@ -109,7 +109,6 @@ BackEndHandler::BackEndHandler()
       _username_to_userprofile_map.get_cap());
   _text_service_obj = nu::RemObj<TextService>::create(
       _url_shorten_service_obj.get_cap(), _user_mention_service_obj.get_cap());
-  _media_storage_service_obj = nu::RemObj<MediaStorageService>::create();
 }
 
 void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
@@ -281,19 +280,16 @@ void BackEndHandler::ReadHomeTimeline(std::vector<Post> &_return,
       &HomeTimelineService::ReadHomeTimeline, user_id, start, stop);
 }
 
-void BackEndHandler::UploadMedia(const std::string &_filename,
-                                 const std::string &_data) {
-  auto filename = _filename;
-  auto data = _data;
-  _media_storage_service_obj.run(&MediaStorageService::UploadMedia,
-                                 std::move(filename), std::move(data));
+void BackEndHandler::UploadMedia(const std::string &filename,
+                                 const std::string &data) {
+  _filename_to_data_map.put(filename, data);
 }
 
 void BackEndHandler::GetMedia(std::string &_return,
-                              const std::string &_filename) {
-  auto filename = _filename;
-  _return = _media_storage_service_obj.run(&MediaStorageService::GetMedia,
-                                           std::move(filename));
+                              const std::string &filename) {
+  auto optional = _filename_to_data_map.get(filename);
+  BUG_ON(!optional);
+  _return = std::move(*optional);
 }
 
 }  // namespace social_network
