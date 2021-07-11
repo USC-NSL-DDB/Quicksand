@@ -1,6 +1,7 @@
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 #include <chrono>
+#include <ext/pb_ds/assoc_container.hpp>
 #include <future>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -24,7 +25,6 @@
 #include "SocialGraphService.h"
 #include "UniqueIdService.h"
 #include "UserService.h"
-#include "UserTimelineService.h"
 #include "utils.h"
 
 #define HOSTNAME "http://short-url/"
@@ -80,9 +80,15 @@ public:
   void GetMedia(std::string &_return, const std::string &filename) override;
 
 private:
+  using Timeline =
+      __gnu_pbds::tree<int64_t, int64_t, std::greater<int64_t>,
+                       __gnu_pbds::rb_tree_tag,
+                       __gnu_pbds::tree_order_statistics_node_update>;
+
   UserService::UserProfileMap _username_to_userprofile_map;
   nu::DistributedHashTable<std::string, std::string> _filename_to_data_map;
-  nu::DistributedHashTable<std::string, std::string> _short_to_extended_map;  
+  nu::DistributedHashTable<std::string, std::string> _short_to_extended_map;
+  nu::DistributedHashTable<int64_t, Timeline> _userid_to_timeline_map;
 
   std::mt19937 _generator;
   std::uniform_int_distribution<int> _distribution;
@@ -90,16 +96,17 @@ private:
 
   nu::RemObj<UniqueIdService> _unique_id_service_obj;
   nu::RemObj<PostStorageService> _post_storage_service_obj;
-  nu::RemObj<UserTimelineService> _user_timeline_service_obj;
   nu::RemObj<UserService> _user_service_obj;
   nu::RemObj<SocialGraphService> _social_graph_service_obj;
   nu::RemObj<HomeTimelineService> _home_timeline_service_obj;
 
-  TextServiceReturn ComposeText(const std::string &text);
+  TextServiceReturn _ComposeText(const std::string &text);
   std::vector<UserMention>
-  ComposeUserMentions(const std::vector<std::string> &usernames);
-  std::vector<Url> ComposeUrls(std::vector<std::string> urls);
-  std::string GenRandomStr(int length);
+  _ComposeUserMentions(const std::vector<std::string> &usernames);
+  std::vector<Url> _ComposeUrls(std::vector<std::string> urls);
+  void _WriteUserTimeline(int64_t post_id, int64_t user_id, int64_t timestamp);
+  std::vector<Post> _ReadUserTimeline(int64_t user_id, int start, int stop);
+  std::string _GenRandomStr(int length);
 };
 
 BackEndHandler::BackEndHandler()
@@ -113,8 +120,6 @@ BackEndHandler::BackEndHandler()
       _distribution(std::uniform_int_distribution<int>(0, 61)) {
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create();
   _post_storage_service_obj = nu::RemObj<PostStorageService>::create();
-  _user_timeline_service_obj = nu::RemObj<UserTimelineService>::create(
-      _post_storage_service_obj.get_cap());
   _user_service_obj =
       nu::RemObj<UserService>::create(_username_to_userprofile_map.get_cap());
   _social_graph_service_obj =
@@ -129,7 +134,7 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
                                  const std::vector<std::string> &_media_types,
                                  const PostType::type post_type) {
   auto text_service_return_future =
-      nu::async([&]() { return ComposeText(text); });
+      nu::async([&] { return _ComposeText(text); });
 
   auto unique_id_future = _unique_id_service_obj.run_async(
       &UniqueIdService::ComposeUniqueId, post_type);
@@ -156,8 +161,8 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
   post.timestamp = timestamp;
 
   auto unique_id = unique_id_future.get();
-  auto write_user_timeline_future = _user_timeline_service_obj.run_async(
-      &UserTimelineService::WriteUserTimeline, unique_id, user_id, timestamp);
+  auto write_user_timeline_future = nu::async(
+      [&] { return _WriteUserTimeline(unique_id, user_id, timestamp); });
 
   auto text_service_return = text_service_return_future.get();
   std::vector<int64_t> user_mention_ids;
@@ -187,8 +192,7 @@ void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
 
 void BackEndHandler::ReadUserTimeline(std::vector<Post> &_return,
                                       int64_t user_id, int start, int stop) {
-  _return = _user_timeline_service_obj.run(
-      &UserTimelineService::ReadUserTimeline, user_id, start, stop);
+  _return = _ReadUserTimeline(user_id, start, stop);
 }
 
 void BackEndHandler::Login(std::string &_return, const std::string &_username,
@@ -303,7 +307,7 @@ void BackEndHandler::GetMedia(std::string &_return,
   _return = std::move(*optional);
 }
 
-TextServiceReturn BackEndHandler::ComposeText(const std::string &text) {
+TextServiceReturn BackEndHandler::_ComposeText(const std::string &text) {
   std::vector<std::string> urls;
   std::smatch m;
   std::regex e("(http://|https://)([a-zA-Z0-9_!~*'().&=+$%-]+)");
@@ -313,7 +317,7 @@ TextServiceReturn BackEndHandler::ComposeText(const std::string &text) {
     urls.emplace_back(url);
     s = m.suffix().str();
   }
-  auto target_urls_future = nu::async([&]() { return ComposeUrls(urls); });
+  auto target_urls_future = nu::async([&] { return _ComposeUrls(urls); });
 
   std::vector<std::string> mention_usernames;
   e = "@[a-zA-Z0-9-_]+";
@@ -326,7 +330,7 @@ TextServiceReturn BackEndHandler::ComposeText(const std::string &text) {
   }
 
   auto user_mentions_future =
-      nu::async([&]() { return ComposeUserMentions(mention_usernames); });
+      nu::async([&] { return _ComposeUserMentions(mention_usernames); });
 
   auto target_urls = target_urls_future.get();
   std::string updated_text;
@@ -354,8 +358,8 @@ TextServiceReturn BackEndHandler::ComposeText(const std::string &text) {
   return text_service_return;
 }
 
-std::vector<UserMention>
-BackEndHandler::ComposeUserMentions(const std::vector<std::string> &usernames) {
+std::vector<UserMention> BackEndHandler::_ComposeUserMentions(
+    const std::vector<std::string> &usernames) {
   std::vector<nu::Future<std::optional<UserProfile>>>
       user_profile_optional_futures;
   for (auto &username : usernames) {
@@ -377,7 +381,7 @@ BackEndHandler::ComposeUserMentions(const std::vector<std::string> &usernames) {
   return user_mentions;
 }
 
-std::string BackEndHandler::GenRandomStr(int length) {
+std::string BackEndHandler::_GenRandomStr(int length) {
   const char char_map[] = "abcdefghijklmnopqrstuvwxyzABCDEF"
                           "GHIJKLMNOPQRSTUVWXYZ0123456789";
   std::string return_str;
@@ -389,13 +393,13 @@ std::string BackEndHandler::GenRandomStr(int length) {
   return return_str;
 }
 
-std::vector<Url> BackEndHandler::ComposeUrls(std::vector<std::string> urls) {
+std::vector<Url> BackEndHandler::_ComposeUrls(std::vector<std::string> urls) {
   std::vector<Url> target_urls;
 
   for (auto &url : urls) {
     Url target_url;
     target_url.expanded_url = url;
-    target_url.shortened_url = HOSTNAME + GenRandomStr(10);
+    target_url.shortened_url = HOSTNAME + _GenRandomStr(10);
     target_urls.push_back(target_url);
   }
 
@@ -408,6 +412,37 @@ std::vector<Url> BackEndHandler::ComposeUrls(std::vector<std::string> urls) {
     put_future.get();
   }
   return target_urls;
+}
+
+void BackEndHandler::_WriteUserTimeline(int64_t post_id, int64_t user_id,
+                                       int64_t timestamp) {
+  _userid_to_timeline_map.apply(
+      user_id,
+      +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
+          int64_t post_id) { (p.second)[timestamp] = post_id; },
+      timestamp, post_id);
+}
+
+std::vector<Post> BackEndHandler::_ReadUserTimeline(int64_t user_id, int start,
+                                                    int stop) {
+  if (stop <= start || start < 0) {
+    return std::vector<Post>();
+  }
+
+  auto post_ids = _userid_to_timeline_map.apply(
+      user_id,
+      +[](std::pair<const int64_t, Timeline> &p, int start, int stop) {
+        auto start_iter = p.second.find_by_order(start);
+        auto stop_iter = p.second.find_by_order(stop);
+        std::vector<int64_t> post_ids;
+        for (auto iter = start_iter; iter != stop_iter; iter++) {
+          post_ids.push_back(iter->second);
+        }
+        return post_ids;
+      },
+      start, stop);
+  return _post_storage_service_obj.run(&PostStorageService::ReadPosts,
+                                       std::move(post_ids));
 }
 
 }  // namespace social_network
