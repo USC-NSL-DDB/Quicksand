@@ -3,11 +3,12 @@
 #include <chrono>
 #include <future>
 #include <iostream>
-#include <mutex>
 #include <nlohmann/json.hpp>
 #include <nu/dis_hash_table.hpp>
+#include <nu/mutex.hpp>
 #include <nu/rem_obj.hpp>
 #include <nu/runtime.hpp>
+#include <random>
 #include <regex>
 #include <string>
 #include <thrift/protocol/TBinaryProtocol.h>
@@ -22,10 +23,11 @@
 #include "PostStorageService.h"
 #include "SocialGraphService.h"
 #include "UniqueIdService.h"
-#include "UrlShortenService.h"
 #include "UserService.h"
 #include "UserTimelineService.h"
 #include "utils.h"
+
+#define HOSTNAME "http://short-url/"
 
 using apache::thrift::protocol::TBinaryProtocolFactory;
 using apache::thrift::server::TThreadedServer;
@@ -80,6 +82,11 @@ public:
 private:
   UserService::UserProfileMap _username_to_userprofile_map;
   nu::DistributedHashTable<std::string, std::string> _filename_to_data_map;
+  nu::DistributedHashTable<std::string, std::string> _short_to_extended_map;  
+
+  std::mt19937 _generator;
+  std::uniform_int_distribution<int> _distribution;
+  nu::Mutex _mutex;
 
   nu::RemObj<UniqueIdService> _unique_id_service_obj;
   nu::RemObj<PostStorageService> _post_storage_service_obj;
@@ -87,16 +94,23 @@ private:
   nu::RemObj<UserService> _user_service_obj;
   nu::RemObj<SocialGraphService> _social_graph_service_obj;
   nu::RemObj<HomeTimelineService> _home_timeline_service_obj;
-  nu::RemObj<UrlShortenService> _url_shorten_service_obj;
 
   TextServiceReturn ComposeText(const std::string &text);
   std::vector<UserMention>
   ComposeUserMentions(const std::vector<std::string> &usernames);
+  std::vector<Url> ComposeUrls(std::vector<std::string> urls);
+  std::string GenRandomStr(int length);
 };
 
 BackEndHandler::BackEndHandler()
     : _username_to_userprofile_map(
-          UserService::kDefaultHashTablePowerNumShards) {
+          UserService::kDefaultHashTablePowerNumShards),
+      _generator(
+          std::mt19937(std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::system_clock::now().time_since_epoch())
+                           .count() %
+                       0xffffffff)),
+      _distribution(std::uniform_int_distribution<int>(0, 61)) {
   _unique_id_service_obj = nu::RemObj<UniqueIdService>::create();
   _post_storage_service_obj = nu::RemObj<PostStorageService>::create();
   _user_timeline_service_obj = nu::RemObj<UserTimelineService>::create(
@@ -107,7 +121,6 @@ BackEndHandler::BackEndHandler()
       nu::RemObj<SocialGraphService>::create(_user_service_obj.get_cap());
   _home_timeline_service_obj = nu::RemObj<HomeTimelineService>::create(
       _post_storage_service_obj.get_cap(), _social_graph_service_obj.get_cap());
-  _url_shorten_service_obj = nu::RemObj<UrlShortenService>::create();
 }
 
 void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
@@ -300,8 +313,7 @@ TextServiceReturn BackEndHandler::ComposeText(const std::string &text) {
     urls.emplace_back(url);
     s = m.suffix().str();
   }
-  auto target_urls_future =
-      _url_shorten_service_obj.run_async(&UrlShortenService::ComposeUrls, urls);
+  auto target_urls_future = nu::async([&]() { return ComposeUrls(urls); });
 
   std::vector<std::string> mention_usernames;
   e = "@[a-zA-Z0-9-_]+";
@@ -363,6 +375,39 @@ BackEndHandler::ComposeUserMentions(const std::vector<std::string> &usernames) {
   }
 
   return user_mentions;
+}
+
+std::string BackEndHandler::GenRandomStr(int length) {
+  const char char_map[] = "abcdefghijklmnopqrstuvwxyzABCDEF"
+                          "GHIJKLMNOPQRSTUVWXYZ0123456789";
+  std::string return_str;
+  _mutex.Lock();
+  for (int i = 0; i < length; ++i) {
+    return_str.append(1, char_map[_distribution(_generator)]);
+  }
+  _mutex.Unlock();
+  return return_str;
+}
+
+std::vector<Url> BackEndHandler::ComposeUrls(std::vector<std::string> urls) {
+  std::vector<Url> target_urls;
+
+  for (auto &url : urls) {
+    Url target_url;
+    target_url.expanded_url = url;
+    target_url.shortened_url = HOSTNAME + GenRandomStr(10);
+    target_urls.push_back(target_url);
+  }
+
+  std::vector<nu::Future<void>> put_futures;
+  for (auto &target_url : target_urls) {
+    put_futures.emplace_back(_short_to_extended_map.put_async(
+        target_url.shortened_url, target_url.expanded_url));
+  }
+  for (auto &put_future : put_futures) {
+    put_future.get();
+  }
+  return target_urls;
 }
 
 }  // namespace social_network
