@@ -25,7 +25,6 @@
 #include "UrlShortenService.h"
 #include "UserService.h"
 #include "UserTimelineService.h"
-#include "UserMentionService.h"
 #include "utils.h"
 
 using apache::thrift::protocol::TBinaryProtocolFactory;
@@ -89,9 +88,10 @@ private:
   nu::RemObj<SocialGraphService> _social_graph_service_obj;
   nu::RemObj<HomeTimelineService> _home_timeline_service_obj;
   nu::RemObj<UrlShortenService> _url_shorten_service_obj;
-  nu::RemObj<UserMentionService> _user_mention_service_obj;
 
   TextServiceReturn ComposeText(const std::string &text);
+  std::vector<UserMention>
+  ComposeUserMentions(const std::vector<std::string> &usernames);
 };
 
 BackEndHandler::BackEndHandler()
@@ -108,8 +108,6 @@ BackEndHandler::BackEndHandler()
   _home_timeline_service_obj = nu::RemObj<HomeTimelineService>::create(
       _post_storage_service_obj.get_cap(), _social_graph_service_obj.get_cap());
   _url_shorten_service_obj = nu::RemObj<UrlShortenService>::create();
-  _user_mention_service_obj = nu::RemObj<UserMentionService>::create(
-      _username_to_userprofile_map.get_cap());
 }
 
 void BackEndHandler::ComposePost(const std::string &_username, int64_t user_id,
@@ -314,8 +312,9 @@ TextServiceReturn BackEndHandler::ComposeText(const std::string &text) {
     mention_usernames.emplace_back(user_mention);
     s = m.suffix().str();
   }
-  auto user_mentions_future = _user_mention_service_obj.run_async(
-      &UserMentionService::ComposeUserMentions, std::move(mention_usernames));
+
+  auto user_mentions_future =
+      nu::async([&]() { return ComposeUserMentions(mention_usernames); });
 
   auto target_urls = target_urls_future.get();
   std::string updated_text;
@@ -341,6 +340,29 @@ TextServiceReturn BackEndHandler::ComposeText(const std::string &text) {
   text_service_return.urls = target_urls;
 
   return text_service_return;
+}
+
+std::vector<UserMention>
+BackEndHandler::ComposeUserMentions(const std::vector<std::string> &usernames) {
+  std::vector<nu::Future<std::optional<UserProfile>>>
+      user_profile_optional_futures;
+  for (auto &username : usernames) {
+    user_profile_optional_futures.emplace_back(
+        _username_to_userprofile_map.get_async(username));
+  }
+
+  std::vector<UserMention> user_mentions;
+  for (size_t i = 0; i < user_profile_optional_futures.size(); i++) {
+    auto user_profile_optional = user_profile_optional_futures[i].get();
+    BUG_ON(!user_profile_optional);
+    auto &user_profile = *user_profile_optional;
+    user_mentions.emplace_back();
+    auto &user_mention = user_mentions.back();
+    user_mention.username = std::move(usernames[i]);
+    user_mention.user_id = user_profile.user_id;
+  }
+
+  return user_mentions;
 }
 
 }  // namespace social_network
