@@ -17,14 +17,18 @@ execute_process(COMMAND nproc OUTPUT_VARIABLE NCORES)
 add_compile_definitions(NCORES=${NCORES})
 
 add_executable(
-    BackEndService
+    main
+    main.cpp
+    utils.cpp
+    ThriftBackEndServer.cpp
     BackEndService.cpp
     ${THRIFT_GEN_CPP_DIR}/BackEndService.cpp
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
 )
 
 target_include_directories(
-    BackEndService PRIVATE
+    main PRIVATE
+    ../third_party
     ../thrift/lib/cpp/src
     ${NU_DIR}/inc
     ${CALADAN_DIR}/inc
@@ -33,7 +37,7 @@ target_include_directories(
 )
 
 target_link_directories(
-    BackEndService PRIVATE
+    main PRIVATE
     ${CALADAN_DIR}
     ${CALADAN_DIR}/bindings/cc
     ${CALADAN_DIR}/rdma-core/build/lib/statics/
@@ -41,7 +45,7 @@ target_link_directories(
 )
 
 target_link_libraries(
-    BackEndService
+    main
     ${THRIFT_STATIC_LIB}
     ${CMAKE_THREAD_LIBS_INIT}
     nlohmann_json::nlohmann_json

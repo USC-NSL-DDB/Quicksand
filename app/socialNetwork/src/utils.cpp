@@ -1,16 +1,12 @@
-#pragma once
-
 #include <fstream>
 #include <iostream>
-#include <nlohmann/json.hpp>
+#include <random>
+#include <sstream>
 #include <string>
 
-#define HOSTNAME "http://short-url/"
-// Custom Epoch (January 1, 2018 Midnight GMT = 2018-01-01T00:00:00Z)
-#define CUSTOM_EPOCH 1514764800000
+#include "utils.hpp"
 
 namespace social_network {
-using json = nlohmann::json;
 
 int load_config_file(const std::string &file_name, json *config_json) {
   std::ifstream json_file;
@@ -88,5 +84,4 @@ std::string GetMachineId(std::string &netif) {
   }
   return mac_hash;
 }
-
 } // namespace social_network
