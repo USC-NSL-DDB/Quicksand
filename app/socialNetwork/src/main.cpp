@@ -6,10 +6,10 @@
 
 using namespace social_network;
 
-void do_work() {
+void DoWork() {
   json config_json;
 
-  BUG_ON(load_config_file("config/service-config.json", &config_json) != 0);
+  BUG_ON(LoadConfigFile("config/service-config.json", &config_json) != 0);
 
   auto port = config_json["back-end-service"]["port"];
   std::cout << "port = " << port << std::endl;
@@ -33,5 +33,5 @@ void do_work() {
 }
 
 int main(int argc, char **argv) {
-  return nu::runtime_main_init(argc, argv, [](int, char **) { do_work(); });
+  return nu::runtime_main_init(argc, argv, [](int, char **) { DoWork(); });
 }

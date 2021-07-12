@@ -1,14 +1,47 @@
 #pragma once
 
+#include <chrono>
+#include <cstdint>
 #include <nlohmann/json.hpp>
+#include <nu/mutex.hpp>
+#include <string>
+#include <vector>
 
+#include "../gen-cpp/social_network_types.h"
+
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::system_clock;
 using json = nlohmann::json;
 
 namespace social_network {
 
-int load_config_file(const std::string &file_name, json *config_json);
+int LoadConfigFile(const std::string &file_name, json *config_json);
 u_int16_t HashMacAddressPid(const std::string &mac);
 std::string GenRandomString(const int len);
 std::string GetMachineId(std::string &netif);
+int64_t GenUserId(const std::string &machine_id, int64_t timestamp,
+                  int64_t counter);
+bool VerifyLogin(std::string &signature, const UserProfile &user_profile,
+                 const std::string &username, const std::string &password,
+                 const std::string &secret);
+std::vector<std::string> MatchUrls(const std::string &text);
+std::vector<std::string> MatchMentions(const std::string &text);
+std::string ShortenUrlInText(const std::string &text,
+                             std::vector<Url> target_urls);
+
+class UniqueIdGenerator {
+public:
+  UniqueIdGenerator(const std::string &machine_id);
+  int64_t Gen();
+
+private:
+  int GetCounter(int64_t timestamp);
+
+  std::string machine_id_;
+  int64_t current_timestamp_ = -1;
+  int counter_ = 0;
+  nu::Mutex mutex_;
+};
 
 } // namespace social_network

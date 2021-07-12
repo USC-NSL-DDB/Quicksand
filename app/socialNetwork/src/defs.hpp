@@ -1,10 +1,17 @@
 #pragma once
 
+#include <ext/pb_ds/assoc_container.hpp>
+
 #define HOSTNAME "http://short-url/"
 // Custom Epoch (January 1, 2018 Midnight GMT = 2018-01-01T00:00:00Z)
 #define CUSTOM_EPOCH 1514764800000
 
 namespace social_network {
+
+using Timeline =
+    __gnu_pbds::tree<int64_t, int64_t, std::greater<int64_t>,
+                     __gnu_pbds::rb_tree_tag,
+                     __gnu_pbds::tree_order_statistics_node_update>;
 
 struct UserProfile {
   int64_t user_id;
