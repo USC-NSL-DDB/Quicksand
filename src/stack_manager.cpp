@@ -12,8 +12,9 @@ namespace nu {
 
 StackManager::StackManager(VAddrRange stack_cluster) : range_(stack_cluster) {
   mmap(stack_cluster);
-  auto num_stacks = (stack_cluster.end - stack_cluster.start) / kStackSize;
-  auto *ptr = reinterpret_cast<uint8_t *>(stack_cluster.start);
+  auto num_stacks = (stack_cluster.end - stack_cluster.start) / kStackSize -
+                    1; // The first kStackSize bytes are reserved for metadata.
+  auto *ptr = reinterpret_cast<uint8_t *>(stack_cluster.start + kStackSize);
   global_pool_size_ = num_stacks;
   for (uint64_t i = 0; i < num_stacks; i++) {
     global_pool_[i] = ptr;
@@ -38,6 +39,18 @@ void StackManager::munmap(VAddrRange stack_cluster) {
       reinterpret_cast<uint8_t *>(stack_cluster.start);
   BUG_ON(::munmap(stack_cluster_start_ptr,
                   stack_cluster.end - stack_cluster.start) != 0);
+}
+
+bool StackManager::get_waitgroup(rt::WaitGroup **wg, VAddrRange stack_cluster) {
+  auto *constructed = reinterpret_cast<bool *>(stack_cluster.start);
+  *wg = reinterpret_cast<rt::WaitGroup *>(stack_cluster.start);
+  if (!*constructed) {
+    *constructed = true;
+    std::construct_at(*wg);
+    return false;
+  } else {
+    return true;
+  }
 }
 
 uint8_t *StackManager::get() {

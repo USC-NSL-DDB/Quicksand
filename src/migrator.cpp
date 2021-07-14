@@ -624,6 +624,10 @@ void Migrator::load(rt::TcpConn *c) {
   std::vector<HeapMmapPopulateTask> heap_mmap_populate_tasks;
   auto mmap_thread = do_heap_mmap_populate(c->RemoteAddr().ip, populate_ranges,
                                            &heap_mmap_populate_tasks);
+  rt::WaitGroup *stack_wg;
+  bool just_constructed =
+      !StackManager::get_waitgroup(&stack_wg, stack_cluster);
+  stack_wg->Add(heap_mmap_populate_tasks.size());
 
   for (auto &task : heap_mmap_populate_tasks) {
     auto *heap_header = task.range.heap_header;
@@ -639,18 +643,24 @@ void Migrator::load(rt::TcpConn *c) {
     rt::Thread([heap_header] {
       Runtime::controller_client->update_location(
           to_obj_id(heap_header), Runtime::obj_server->get_addr());
-    })
-        .Detach();
+    }).Detach();
 
     load_threads(c, heap_header);
 
-    rt::Thread([heap_header, stack_cluster] {
+    rt::Thread([heap_header, stack_cluster, stack_wg] {
       heap_header->forward_wg.Wait();
       ACCESS_ONCE(heap_header->migratable) = true;
-      StackManager::munmap(stack_cluster);
-    })
-        .Detach();
+      stack_wg->Done();
+    }).Detach();
   }
+
+  if (just_constructed) {
+    rt::Thread([stack_wg, stack_cluster] {
+      stack_wg->Wait();
+      StackManager::munmap(stack_cluster);
+    }).Detach();
+  }
+
   mmap_thread.Join();
 }
 

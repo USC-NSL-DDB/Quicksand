@@ -18,6 +18,7 @@ public:
 
   static void mmap(VAddrRange stack_cluster);
   static void munmap(VAddrRange stack_cluster);
+  static bool get_waitgroup(rt::WaitGroup **wg, VAddrRange stack_cluster);
 
 private:
   struct alignas(kCacheLineBytes) CoreCache {
