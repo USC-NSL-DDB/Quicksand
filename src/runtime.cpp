@@ -138,11 +138,14 @@ void Runtime::migration_disable() {
 
 retry:
   preempt_disable();
-  if (unlikely(!heap_manager->rcu_try_reader_lock())) {
-    preempt_enable();
-    while (unlikely(!thread_is_migrated())) {
-      rt::Yield();
+  bool lock_acquired = heap_manager->rcu_try_reader_lock();
+  bool migrating = heap_header->migrating;
+  if (unlikely(!lock_acquired || migrating)) {
+    if (lock_acquired) {
+      heap_manager->rcu_reader_unlock();
     }
+    preempt_enable();
+    rt::Yield();
     goto retry;
   }
   preempt_enable();
