@@ -446,7 +446,7 @@ void Migrator::load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task) {
     t2 = rdtsc();
     preempt_disable();
     std::cout << "Load heap: mmap cycles = " << t1 - t0
-              << ", tcp cycles = " << t2 - t2 << std::endl;
+              << ", tcp cycles = " << t2 - t1 << std::endl;
     preempt_enable();
   }
 }

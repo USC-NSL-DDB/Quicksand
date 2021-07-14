@@ -72,7 +72,6 @@ extern void thread_exit(void) __noreturn;
 extern void thread_mark_migrating(thread_t *thread);
 extern void thread_mark_migrated(thread_t *thread);
 extern bool thread_is_migrated(void);
-extern bool thread_is_migrating(void);
 extern uint64_t thread_get_rsp(thread_t *th);
 extern void *thread_get_trap_frame(thread_t *th, size_t *size);
 extern void pause_migrating_threads(void);

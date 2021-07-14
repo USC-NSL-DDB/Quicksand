@@ -79,7 +79,7 @@ void ObjServer::__update_ref_cnt(Cls &obj, rt::TcpConn *rpc_conn,
     *deallocate = true;
     obj.~Cls();
     if (unlikely(!Runtime::heap_manager->remove(heap_header))) {
-      while (unlikely(thread_is_migrating())) {
+      while (unlikely(!thread_is_migrated())) {
         rt::Yield();
       }
     }
