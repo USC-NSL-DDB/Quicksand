@@ -20,7 +20,7 @@ async def upload_compose(session, addr, user_id, num_users):
   text = ''.join(random.choices(string.ascii_letters + string.digits, k=256))
   # user mentions
   for _ in range(random.randint(0, 5)):
-    text += " @username_" + str(random.randint(0, num_users))
+    text += " @username_" + str(random.randint(1, num_users))
   # urls
   for _ in range(random.randint(0, 5)):
     text += " http://" + ''.join(random.choices(string.ascii_lowercase + string.digits, k=64))
