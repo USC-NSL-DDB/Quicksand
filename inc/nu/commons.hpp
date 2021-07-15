@@ -45,6 +45,8 @@ constexpr static uint64_t kMinRuntimeHeapVaddr = kMaxStackClusterVAddr;
 constexpr static uint64_t kRuntimeHeapSize = 48ULL << 30;
 
 constexpr static uint64_t kOneMB = 1ULL << 20;
+constexpr static uint64_t kOneSecond = 1000 * 1000;
+constexpr static uint64_t kOneMilliSecond = 1000;
 
 uint64_t bsr_64(uint64_t a);
 void *to_heap_base(RemObjID id);

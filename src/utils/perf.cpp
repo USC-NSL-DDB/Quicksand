@@ -1,0 +1,148 @@
+#include <algorithm>
+#include <cmath>
+#include <random>
+extern "C" {
+#include <runtime/timer.h>
+}
+
+#include "nu/utils/perf.hpp"
+
+namespace nu {
+
+Perf::Perf(PerfAdapter &adapter)
+    : adapter_(adapter), trace_format_(UNSORTED), real_mops_(0) {}
+
+void Perf::reset() {
+  traces_.clear();
+  trace_format_ = UNSORTED;
+  real_mops_ = 0;
+}
+
+void Perf::gen_reqs(std::vector<PerfRequestWithTime> *all_reqs,
+                    uint32_t num_threads, double target_mops,
+                    uint64_t duration_us) {
+  std::vector<rt::Thread> threads;
+
+  for (uint32_t i = 0; i < num_threads; i++) {
+    threads.emplace_back([&, &reqs = all_reqs[i]] {
+      auto adapter_state = adapter_.create_thread_state();
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::exponential_distribution<double> d(target_mops / num_threads);
+      uint64_t cur_us = 0;
+
+      while (cur_us < duration_us) {
+        auto interval = std::max(1l, std::lround(d(gen)));
+        PerfRequestWithTime req_with_time;
+        req_with_time.start_us = cur_us;
+        req_with_time.req = adapter_.gen_req(adapter_state.get());
+        reqs.emplace_back(std::move(req_with_time));
+        cur_us += interval;
+      }
+    });
+  }
+
+  for (auto &thread : threads) {
+    thread.Join();
+  }
+}
+
+std::vector<Trace> Perf::benchmark(std::vector<PerfRequestWithTime> *all_reqs,
+                                   uint32_t num_threads, uint64_t max_req_us) {
+  std::vector<rt::Thread> threads;
+  std::vector<Trace> all_traces[num_threads];
+
+  for (uint32_t i = 0; i < num_threads; i++) {
+    all_traces[i].reserve(all_reqs[i].size());
+  }
+
+  for (uint32_t i = 0; i < num_threads; i++) {
+    threads.emplace_back([&, &reqs = all_reqs[i], &traces = all_traces[i]] {
+      auto adapter_state = adapter_.create_thread_state();
+      auto start_us = microtime();
+      bool skipping = false;
+
+      for (const auto &req : reqs) {
+        auto relative_us = microtime() - start_us;
+        if (req.start_us > relative_us) {
+          timer_sleep(req.start_us - relative_us);
+        } else if (skipping) {
+          continue;
+        }
+        skipping = false;
+        adapter_.serve_req(adapter_state.get(), req.req.get());
+        Trace trace;
+        trace.start_us = req.start_us;
+        trace.duration_us = microtime() - start_us - trace.start_us;
+        if (trace.duration_us > max_req_us) {
+          // It's impossible to be any req handling time. Must be caused by
+          // interruptions like OS context switch. So we skip all missed reqs.
+          skipping = true;
+        }
+        traces.push_back(trace);
+      }
+    });
+  }
+
+  for (auto &thread : threads) {
+    thread.Join();
+  }
+
+  std::vector<Trace> gathered_traces;
+  for (uint32_t i = 0; i < num_threads; i++) {
+    gathered_traces.insert(gathered_traces.end(), all_traces[i].begin(),
+                           all_traces[i].end());
+  }
+  return gathered_traces;
+}
+
+void Perf::run(uint32_t num_threads, double target_mops, uint64_t duration_us,
+               uint64_t max_req_us) {
+  std::vector<PerfRequestWithTime> all_reqs[num_threads];
+  gen_reqs(all_reqs, num_threads, target_mops, duration_us);
+  traces_ = move(benchmark(all_reqs, num_threads, max_req_us));
+  real_mops_ = static_cast<double>(traces_.size()) / duration_us;
+}
+
+uint64_t Perf::get_overall_lat(double nth) {
+  if (trace_format_ != SORTED_BY_DURATION) {
+    std::sort(traces_.begin(), traces_.end(),
+              [](const Trace &x, const Trace &y) {
+                return x.duration_us < y.duration_us;
+              });
+    trace_format_ = SORTED_BY_DURATION;
+  }
+
+  size_t idx = nth / 100.0 * traces_.size();
+  return traces_[idx].duration_us;
+}
+
+std::vector<std::pair<uint64_t, uint64_t>>
+Perf::get_timeseries_lats(uint64_t interval_us, double nth) {
+  std::vector<std::pair<uint64_t, uint64_t>> timeseries;
+  if (trace_format_ != SORTED_BY_START) {
+    std::sort(
+        traces_.begin(), traces_.end(),
+        [](const Trace &x, const Trace &y) { return x.start_us < y.start_us; });
+    trace_format_ = SORTED_BY_START;
+  }
+
+  auto cur_win_us = traces_.front().start_us;
+  std::vector<uint64_t> win_durations;
+  for (auto &trace : traces_) {
+    if (cur_win_us + interval_us < trace.start_us) {
+      std::sort(win_durations.begin(), win_durations.end());
+      size_t idx = nth / 100.0 * win_durations.size();
+      timeseries.emplace_back(cur_win_us, win_durations[idx]);
+      cur_win_us += interval_us;
+      win_durations.clear();
+    }
+    win_durations.push_back(trace.duration_us);
+  }
+
+  return timeseries;
+}
+
+double Perf::get_real_mops() const { return real_mops_; }
+
+} // namespace nu
