@@ -356,8 +356,7 @@ void BackEndService::UploadMedia(const std::string &filename,
 
 std::string BackEndService::GetMedia(const std::string &filename) {
   auto optional = filename_to_data_map_.get(filename);
-  BUG_ON(!optional);
-  return *optional;
+  return optional.value_or("");
 }
 
 } // namespace social_network
