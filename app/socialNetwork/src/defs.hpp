@@ -9,7 +9,8 @@
 namespace social_network {
 
 using Timeline =
-    __gnu_pbds::tree<int64_t, int64_t, std::greater<int64_t>,
+    __gnu_pbds::tree<std::pair<int64_t, int64_t>, __gnu_pbds::null_type,
+                     std::greater<std::pair<int64_t, int64_t>>,
                      __gnu_pbds::rb_tree_tag,
                      __gnu_pbds::tree_order_statistics_node_update>;
 

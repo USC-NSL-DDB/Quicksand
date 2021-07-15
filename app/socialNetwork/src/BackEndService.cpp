@@ -144,7 +144,9 @@ void BackEndService::WriteUserTimeline(int64_t post_id, int64_t user_id,
   userid_to_usertimeline_map_.apply(
       user_id,
       +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
-          int64_t post_id) { (p.second)[timestamp] = post_id; },
+          int64_t post_id) {
+        (p.second).insert(std::make_pair(timestamp, post_id));
+      },
       timestamp, post_id);
 }
 
@@ -180,7 +182,9 @@ void BackEndService::WriteHomeTimeline(
     return userid_to_hometimeline_map_.apply_async(
         id,
         +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
-            int64_t post_id) { (p.second)[timestamp] = post_id; },
+            int64_t post_id) {
+          (p.second).insert(std::make_pair(timestamp, post_id));
+        },
         timestamp, post_id);
   };
 
