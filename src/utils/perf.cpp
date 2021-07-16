@@ -18,28 +18,29 @@ void Perf::reset() {
   real_mops_ = 0;
 }
 
-void Perf::gen_reqs(std::vector<PerfRequestWithTime> *all_reqs,
-                    uint32_t num_threads, double target_mops,
-                    uint64_t duration_us) {
+void Perf::gen_reqs(
+    std::vector<PerfRequestWithTime> *all_reqs,
+    const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
+    uint32_t num_threads, double target_mops, uint64_t duration_us) {
   std::vector<rt::Thread> threads;
 
   for (uint32_t i = 0; i < num_threads; i++) {
-    threads.emplace_back([&, &reqs = all_reqs[i]] {
-      auto adapter_state = adapter_.create_thread_state();
-      std::random_device rd;
-      std::mt19937 gen(rd());
-      std::exponential_distribution<double> d(target_mops / num_threads);
-      uint64_t cur_us = 0;
+    threads.emplace_back(
+        [&, &reqs = all_reqs[i], thread_state = thread_states[i].get()] {
+          std::random_device rd;
+          std::mt19937 gen(rd());
+          std::exponential_distribution<double> d(target_mops / num_threads);
+          uint64_t cur_us = 0;
 
-      while (cur_us < duration_us) {
-        auto interval = std::max(1l, std::lround(d(gen)));
-        PerfRequestWithTime req_with_time;
-        req_with_time.start_us = cur_us;
-        req_with_time.req = adapter_.gen_req(adapter_state.get());
-        reqs.emplace_back(std::move(req_with_time));
-        cur_us += interval;
-      }
-    });
+          while (cur_us < duration_us) {
+            auto interval = std::max(1l, std::lround(d(gen)));
+            PerfRequestWithTime req_with_time;
+            req_with_time.start_us = cur_us;
+            req_with_time.req = adapter_.gen_req(thread_state);
+            reqs.emplace_back(std::move(req_with_time));
+            cur_us += interval;
+          }
+        });
   }
 
   for (auto &thread : threads) {
@@ -47,8 +48,10 @@ void Perf::gen_reqs(std::vector<PerfRequestWithTime> *all_reqs,
   }
 }
 
-std::vector<Trace> Perf::benchmark(std::vector<PerfRequestWithTime> *all_reqs,
-                                   uint32_t num_threads, uint64_t max_req_us) {
+std::vector<Trace> Perf::benchmark(
+    std::vector<PerfRequestWithTime> *all_reqs,
+    const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
+    uint32_t num_threads, uint64_t max_req_us) {
   std::vector<rt::Thread> threads;
   std::vector<Trace> all_traces[num_threads];
 
@@ -57,8 +60,8 @@ std::vector<Trace> Perf::benchmark(std::vector<PerfRequestWithTime> *all_reqs,
   }
 
   for (uint32_t i = 0; i < num_threads; i++) {
-    threads.emplace_back([&, &reqs = all_reqs[i], &traces = all_traces[i]] {
-      auto adapter_state = adapter_.create_thread_state();
+    threads.emplace_back([&, &reqs = all_reqs[i], &traces = all_traces[i],
+                          thread_state = thread_states[i].get()] {
       auto start_us = microtime();
       bool skipping = false;
 
@@ -70,7 +73,7 @@ std::vector<Trace> Perf::benchmark(std::vector<PerfRequestWithTime> *all_reqs,
           continue;
         }
         skipping = false;
-        adapter_.serve_req(adapter_state.get(), req.req.get());
+        adapter_.serve_req(thread_state, req.req.get());
         Trace trace;
         trace.start_us = req.start_us;
         trace.duration_us = microtime() - start_us - trace.start_us;
@@ -96,11 +99,21 @@ std::vector<Trace> Perf::benchmark(std::vector<PerfRequestWithTime> *all_reqs,
   return gathered_traces;
 }
 
+void Perf::create_thread_states(
+    std::vector<std::unique_ptr<PerfThreadState>> *thread_states,
+    uint32_t num_threads) {
+  for (uint32_t i = 0; i < num_threads; i++) {
+    thread_states->emplace_back(adapter_.create_thread_state());
+  }
+}
+
 void Perf::run(uint32_t num_threads, double target_mops, uint64_t duration_us,
                uint64_t max_req_us) {
+  std::vector<std::unique_ptr<PerfThreadState>> thread_states;
+  create_thread_states(&thread_states, num_threads);
   std::vector<PerfRequestWithTime> all_reqs[num_threads];
-  gen_reqs(all_reqs, num_threads, target_mops, duration_us);
-  traces_ = move(benchmark(all_reqs, num_threads, max_req_us));
+  gen_reqs(all_reqs, thread_states, num_threads, target_mops, duration_us);
+  traces_ = move(benchmark(all_reqs, thread_states, num_threads, max_req_us));
   real_mops_ = static_cast<double>(traces_.size()) / duration_us;
 }
 

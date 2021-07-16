@@ -3,9 +3,6 @@
 #include <iostream>
 #include <memory>
 
-extern "C" {
-#include <runtime/runtime.h>
-}
 #include <runtime.h>
 
 #include "nu/utils/slab.hpp"
@@ -98,3 +95,4 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+

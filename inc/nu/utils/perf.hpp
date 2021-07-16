@@ -10,7 +10,9 @@
 
 namespace nu {
 
-class PerfRequest {};
+struct PerfRequest {
+  virtual ~PerfRequest() = default;
+};
 
 struct PerfRequestWithTime {
   uint64_t start_us;
@@ -56,10 +58,17 @@ private:
   double real_mops_;
   friend class Test;
 
-  void gen_reqs(std::vector<PerfRequestWithTime> *all_reqs,
-                uint32_t num_threads, double target_mops, uint64_t duration_us);
-  std::vector<Trace> benchmark(std::vector<PerfRequestWithTime> *all_reqs,
-                               uint32_t num_threads, uint64_t max_req_us);
+  void create_thread_states(
+      std::vector<std::unique_ptr<PerfThreadState>> *thread_states,
+      uint32_t num_threads);
+  void
+  gen_reqs(std::vector<PerfRequestWithTime> *all_reqs,
+           const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
+           uint32_t num_threads, double target_mops, uint64_t duration_us);
+  std::vector<Trace>
+  benchmark(std::vector<PerfRequestWithTime> *all_reqs,
+            const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
+            uint32_t num_threads, uint64_t max_req_us);
 };
 
 } // namespace nu
