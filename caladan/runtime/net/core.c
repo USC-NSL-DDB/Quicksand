@@ -2,7 +2,9 @@
  * core.c - core networking infrastructure
  */
 
+#include <arpa/inet.h>
 #include <stdio.h>
+#include <sys/socket.h>
 
 #include <base/log.h>
 #include <base/mempool.h>
@@ -653,4 +655,17 @@ int net_init(void)
 #endif
 
 	return 0;
+}
+
+uint32_t addrinfo_to_ip(const struct addrinfo *res)
+{
+        struct sockaddr_in *sa;
+        char str[INET_ADDRSTRLEN];
+        struct netaddr addr;
+
+        sa = (struct sockaddr_in*)(res->ai_addr);
+        inet_ntop(AF_INET, &sa->sin_addr, str, INET_ADDRSTRLEN);
+        BUG_ON(str_to_netaddr(str, &addr) != 0);
+
+        return addr.ip;
 }
