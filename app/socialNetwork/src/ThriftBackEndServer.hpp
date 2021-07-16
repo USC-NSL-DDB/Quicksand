@@ -16,7 +16,7 @@ namespace social_network {
 
 class ThriftBackEndServer : public BackEndServiceIf {
 public:
-  ThriftBackEndServer(const std::string &machine_id, const std::string &secret);
+  ThriftBackEndServer(const std::string &secret);
   void ComposePost(const std::string &username, int64_t user_id,
                    const std::string &text,
                    const std::vector<int64_t> &media_ids,

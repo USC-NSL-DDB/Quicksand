@@ -5,7 +5,6 @@
 #include <cereal/types/string.hpp>
 #include <ext/pb_ds/assoc_container.hpp>
 #include <nu/dis_hash_table.hpp>
-#include <random>
 #include <string>
 #include <variant>
 #include <vector>
@@ -19,7 +18,7 @@ namespace social_network {
 
 class BackEndService {
 public:
-  BackEndService(const std::string &machine_id, const std::string &secret);
+  BackEndService(const std::string &secret);
   void ComposePost(const std::string &username, int64_t user_id,
                    const std::string &text,
                    const std::vector<int64_t> &media_ids,
@@ -68,10 +67,6 @@ private:
   nu::DistributedHashTable<int64_t, Post> postid_to_post_map_;
   nu::DistributedHashTable<int64_t, std::set<int64_t>> userid_to_followers_map_;
   nu::DistributedHashTable<int64_t, std::set<int64_t>> userid_to_followees_map_;
-
-  UniqueIdGenerator unique_id_generator_;
-  std::mt19937 generator_;
-  std::uniform_int_distribution<int> distribution_;
   std::string secret_;
 };
 } // namespace social_network

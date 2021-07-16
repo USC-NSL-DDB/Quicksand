@@ -29,19 +29,6 @@ std::vector<std::string> MatchUrls(const std::string &text);
 std::vector<std::string> MatchMentions(const std::string &text);
 std::string ShortenUrlInText(const std::string &text,
                              std::vector<Url> target_urls);
-
-class UniqueIdGenerator {
-public:
-  UniqueIdGenerator(const std::string &machine_id);
-  int64_t Gen();
-
-private:
-  int GetCounter(int64_t timestamp);
-
-  std::string machine_id_;
-  int64_t current_timestamp_ = -1;
-  int counter_ = 0;
-  nu::Mutex mutex_;
-};
+int64_t GenUniqueId();
 
 } // namespace social_network

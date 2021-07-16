@@ -2,9 +2,8 @@
 
 namespace social_network {
 
-ThriftBackEndServer::ThriftBackEndServer(const std::string &machine_id,
-                                         const std::string &secret)
-    : back_end_service_(machine_id, secret) {}
+ThriftBackEndServer::ThriftBackEndServer(const std::string &secret)
+    : back_end_service_(secret) {}
 
 void ThriftBackEndServer::ComposePost(
     const std::string &username, int64_t user_id, const std::string &text,
@@ -105,5 +104,5 @@ void ThriftBackEndServer::GetMedia(std::string &ret,
                                    const std::string &filename) {
   ret = back_end_service_.GetMedia(filename);
 }
-} // namespace social_network
 
+} // namespace social_network

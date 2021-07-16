@@ -6,8 +6,7 @@
 
 namespace social_network {
 
-BackEndService::BackEndService(const std::string &machine_id,
-                               const std::string &secret)
+BackEndService::BackEndService(const std::string &secret)
     : username_to_userprofile_map_(kHashTablePowerNumShards),
       filename_to_data_map_(kHashTablePowerNumShards),
       short_to_extended_map_(kHashTablePowerNumShards),
@@ -16,13 +15,6 @@ BackEndService::BackEndService(const std::string &machine_id,
       postid_to_post_map_(kHashTablePowerNumShards),
       userid_to_followers_map_(kHashTablePowerNumShards),
       userid_to_followees_map_(kHashTablePowerNumShards),
-      unique_id_generator_(machine_id),
-      generator_(
-          std::mt19937(std::chrono::duration_cast<std::chrono::milliseconds>(
-                           std::chrono::system_clock::now().time_since_epoch())
-                           .count() %
-                       0xffffffff)),
-      distribution_(std::uniform_int_distribution<int>(0, 61)),
       secret_(secret) {}
 
 void BackEndService::ComposePost(const std::string &username, int64_t user_id,
@@ -33,11 +25,9 @@ void BackEndService::ComposePost(const std::string &username, int64_t user_id,
   auto text_service_return_future =
       nu::async([&] { return ComposeText(text); });
 
-  auto timestamp =
-      duration_cast<milliseconds>(system_clock::now().time_since_epoch())
-          .count();
+  auto timestamp = rdtsc();
+  auto unique_id = GenUniqueId();
 
-  auto unique_id = unique_id_generator_.Gen();
   auto write_user_timeline_future = nu::async(
       [&] { return WriteUserTimeline(unique_id, user_id, timestamp); });
 
@@ -325,8 +315,7 @@ void BackEndService::RegisterUser(const std::string &first_name,
                                   const std::string &last_name,
                                   const std::string &username,
                                   const std::string &password) {
-  RegisterUserWithId(first_name, last_name, username, password,
-                     unique_id_generator_.Gen());
+  RegisterUserWithId(first_name, last_name, username, password, GenUniqueId());
 }
 
 std::variant<LoginErrorCode, std::string>

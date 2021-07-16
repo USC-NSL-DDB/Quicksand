@@ -17,12 +17,8 @@ void DoWork() {
       std::make_shared<TServerSocket>("0.0.0.0", port);
 
   auto secret = config_json["secret"];
-  std::string netif = config_json["back-end-service"]["netif"];
-  auto machine_id = GetMachineId(netif);
-  BUG_ON(machine_id == "");
-  std::cout << "machine_id = " << machine_id << std::endl;
   auto back_end_handler =
-      std::make_shared<ThriftBackEndServer>(machine_id, secret);
+      std::make_shared<ThriftBackEndServer>(secret);
 
   TThreadedServer server(
       std::make_shared<BackEndServiceProcessor>(std::move(back_end_handler)),

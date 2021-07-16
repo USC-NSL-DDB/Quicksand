@@ -6,6 +6,7 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <nu/runtime.hpp>
 
 #include "defs.hpp"
 #include "utils.hpp"
@@ -27,21 +28,6 @@ int LoadConfigFile(const std::string &file_name, json *config_json) {
   }
 }
 
-/*
- * The following code which obtaines machine ID from machine's MAC address was
- * inspired from https://stackoverflow.com/a/16859693.
- *
- * MAC address is obtained from /sys/class/net/<netif>/address
- */
-u_int16_t HashMacAddressPid(const std::string &mac) {
-  u_int16_t hash = 0;
-  std::string mac_pid = mac + std::to_string(getpid());
-  for (unsigned int i = 0; i < mac_pid.size(); i++) {
-    hash += (mac[i] << ((i & 1) * 8));
-  }
-  return hash;
-}
-
 std::string GenRandomString(const int len) {
   static const std::string alphanum = "0123456789"
                                       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -55,40 +41,6 @@ std::string GenRandomString(const int len) {
     s += alphanum[dist(gen)];
   }
   return s;
-}
-
-std::string GetMachineId(std::string &netif) {
-  std::string mac_hash;
-
-  std::string mac_addr_filename = "/sys/class/net/" + netif + "/address";
-  std::ifstream mac_addr_file;
-  mac_addr_file.open(mac_addr_filename);
-  if (!mac_addr_file) {
-    std::cerr << "Cannot read MAC address from net interface " << netif
-              << std::endl;
-    return "";
-  }
-  std::string mac;
-  mac_addr_file >> mac;
-  if (mac == "") {
-    std::cerr << "Cannot read MAC address from net interface " << netif
-              << std::endl;
-    return "";
-  }
-  mac_addr_file.close();
-
-  std::cerr << "MAC address = " << mac << std::endl;
-
-  std::stringstream stream;
-  stream << std::hex << HashMacAddressPid(mac);
-  mac_hash = stream.str();
-
-  if (mac_hash.size() > 3) {
-    mac_hash.erase(0, mac_hash.size() - 3);
-  } else if (mac_hash.size() < 3) {
-    mac_hash = std::string(3 - mac_hash.size(), '0') + mac_hash;
-  }
-  return mac_hash;
 }
 
 bool VerifyLogin(std::string &signature, const UserProfile &user_profile,
@@ -159,55 +111,10 @@ std::string ShortenUrlInText(const std::string &text,
   return updated_text;
 }
 
-UniqueIdGenerator::UniqueIdGenerator(const std::string &machine_id)
-    : machine_id_(machine_id) {}
-
-int64_t UniqueIdGenerator::Gen() {
-  mutex_.Lock();
-  int64_t timestamp =
-      duration_cast<milliseconds>(system_clock::now().time_since_epoch())
-          .count() -
-      CUSTOM_EPOCH;
-  int idx = GetCounter(timestamp);
-  mutex_.Unlock();
-
-  std::stringstream sstream;
-  sstream << std::hex << timestamp;
-  std::string timestamp_hex(sstream.str());
-  if (timestamp_hex.size() > 10) {
-    timestamp_hex.erase(0, timestamp_hex.size() - 10);
-  } else if (timestamp_hex.size() < 10) {
-    timestamp_hex = std::string(10 - timestamp_hex.size(), '0') + timestamp_hex;
-  }
-  // Empty the sstream buffer.
-  sstream.clear();
-  sstream.str(std::string());
-
-  sstream << std::hex << idx;
-  std::string counter_hex(sstream.str());
-
-  if (counter_hex.size() > 3) {
-    counter_hex.erase(0, counter_hex.size() - 3);
-  } else if (counter_hex.size() < 3) {
-    counter_hex = std::string(3 - counter_hex.size(), '0') + counter_hex;
-  }
-  std::string user_id_str = machine_id_ + timestamp_hex + counter_hex;
-  int64_t user_id = stoul(user_id_str, nullptr, 16) & 0x7FFFFFFFFFFFFFFF;
-  return user_id;
-}
-
-int UniqueIdGenerator::GetCounter(int64_t timestamp) {
-  if (current_timestamp_ > timestamp) {
-    std::cerr << "Timestamps are not incremental." << std::endl;
-    BUG();
-  }
-  if (current_timestamp_ == timestamp) {
-    return counter_++;
-  } else {
-    current_timestamp_ = timestamp;
-    counter_ = 0;
-    return counter_++;
-  }
+int64_t GenUniqueId() {
+  auto core_id = read_cpu();
+  auto tsc = rdtsc();
+  return (tsc << 8) | core_id;
 }
 
 } // namespace social_network
