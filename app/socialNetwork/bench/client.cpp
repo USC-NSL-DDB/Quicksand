@@ -17,7 +17,7 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 1;
-constexpr static uint32_t kTargetMops = 0.01;
+constexpr static double kTargetMops = 0.01;
 constexpr static uint32_t kNumSeconds = 10;
 constexpr static char kBackEndServiceIp[] = "18.18.1.2";
 constexpr static uint32_t kBackEndServicePort = 9091;
