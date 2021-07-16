@@ -279,8 +279,7 @@ void TServerSocket::listen() {
   }
 
   BUG_ON(!res);
-  struct netaddr laddr = { .ip = *(uint32_t *)(&((sockaddr_in *)(res->ai_addr))->sin_addr),
-			   .port = port_ };
+  struct netaddr laddr = {.ip = addrinfo_to_ip(res), .port = port_};
   serverSocket_ = rt::TcpQueue::Listen(laddr, acceptBacklog_);
 #else
 #ifdef _WIN32

@@ -269,9 +269,7 @@ bool TSocket::peek() {
 void TSocket::openConnection(struct addrinfo* res) {
 #ifdef USE_CALADAN_TCP
   struct netaddr laddr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
-  struct netaddr raddr =
-    { .ip = *(uint32_t *)(&((sockaddr_in *)(res->ai_addr))->sin_addr),
-      .port = port_ };
+  struct netaddr raddr = {.ip = addrinfo_to_ip(res), .port = port_};
   socket_ = rt::TcpConn::Dial(laddr, raddr);
   BUG_ON(!socket_);
 #else
