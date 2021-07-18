@@ -28,9 +28,6 @@ std::random_device rd;
 std::mt19937 mt(rd());
 std::uniform_int_distribution<int> dist('A', 'z');
 
-SyncHashMap<NBuckets, K, V, decltype(kFarmHashStrtoU64)> map;
-std::unordered_map<std::string, std::string> std_map;
-
 std::string random_str(uint32_t len) {
   std::string str = "";
   for (uint32_t i = 0; i < len; i++) {
@@ -40,6 +37,10 @@ std::string random_str(uint32_t len) {
 }
 
 void do_work() {
+  auto map_ptr = std::make_unique<
+      SyncHashMap<NBuckets, K, V, decltype(kFarmHashStrtoU64)>>();
+  std::unordered_map<std::string, std::string> std_map;
+
   std::cout << "Running " << __FILE__ "..." << std::endl;
   bool passed = true;
 
@@ -47,11 +48,11 @@ void do_work() {
     std::string k = random_str(kKeyLen);
     std::string v = random_str(kValLen);
     std_map[k] = v;
-    map.put(k, v);
+    map_ptr->put(k, v);
   }
 
   for (auto &[k, v] : std_map) {
-    auto optional = map.get(k);
+    auto optional = map_ptr->get(k);
     if (!optional || v != *optional) {
       passed = false;
       goto done;
@@ -59,7 +60,7 @@ void do_work() {
   }
 
   for (auto &[k, _] : std_map) {
-    if (!map.remove(k)) {
+    if (!map_ptr->remove(k)) {
       passed = false;
       goto done;
     }
