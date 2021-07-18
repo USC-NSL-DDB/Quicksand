@@ -29,8 +29,6 @@ MLX5_INC = -I$(ROOT_PATH)/rdma-core/build/include
 MLX5_LIBS = -L$(ROOT_PATH)/rdma-core/build/lib/statics/
 MLX5_LIBS += -lmlx5 -libverbs -lnl-3 -lnl-route-3
 
-FLAGS += -DNCPU=$(shell nproc)
-
 # parse configuration options
 ifeq ($(CONFIG_DEBUG),y)
 FLAGS += -DDEBUG -DCCAN_LIST_DEBUG -rdynamic -O0 -ggdb -mssse3
