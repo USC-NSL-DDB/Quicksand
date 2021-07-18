@@ -1,6 +1,5 @@
 #include <cereal/types/optional.hpp>
 #include <cereal/types/utility.hpp>
-#include <limits>
 
 #include "nu/commons.hpp"
 
@@ -76,7 +75,7 @@ DistributedHashTable<K, V, Hash, KeyEqual>::DistributedHashTable(
 template <typename K, typename V, typename Hash, typename KeyEqual>
 uint32_t
 DistributedHashTable<K, V, Hash, KeyEqual>::get_shard_idx(uint64_t key_hash) {
-  return key_hash / (std::numeric_limits<uint64_t>::max() >> power_num_shards_);
+  return key_hash & (num_shards_ - 1);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
