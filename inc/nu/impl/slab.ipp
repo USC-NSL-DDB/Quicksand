@@ -1,3 +1,6 @@
+#include <cstring>
+#include <iostream>
+
 namespace nu {
 
 inline SlabAllocator::SlabAllocator() noexcept {}
@@ -62,5 +65,7 @@ inline void SlabAllocator::register_slab_by_id(SlabAllocator *slab,
                                                SlabId_t slab_id) noexcept {
   slabs_[slab_id] = slab;
 }
+
+inline uint64_t SlabAllocator::FreePtrsLinkedList::size() { return size_; }
 
 } // namespace nu

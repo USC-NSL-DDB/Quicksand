@@ -34,9 +34,9 @@ public:
   constexpr static uint64_t kCacheSizeCutoff = 1024;
 
   SlabAllocator() noexcept;
-  SlabAllocator(uint16_t sentinel, void *buf, size_t len) noexcept;
+  SlabAllocator(SlabId_t slab_id, void *buf, size_t len) noexcept;
   ~SlabAllocator() noexcept;
-  void init(uint16_t sentinel, void *buf, size_t len) noexcept;
+  void init(SlabId_t slab_id, void *buf, size_t len) noexcept;
   void *allocate(size_t size) noexcept;
   void *yield(size_t size) noexcept;
   void *get_base() const noexcept;
@@ -50,21 +50,34 @@ public:
                                   SlabId_t slab_id) noexcept;
 
 private:
-  struct alignas(kCacheLineBytes) CoreCache {
-    using CntType = uint8_t;
-    CntType cnts[kMaxSlabClassShift];
-    void *heads[kMaxSlabClassShift];
+  class FreePtrsLinkedList {
+  public:
+    void push(void *ptr);
+    void *pop();
+    uint64_t size();
+
+  private:
+    constexpr static uint32_t kBatchSize =
+        (1 << kMinSlabClassShift) / sizeof(void *);
+    struct Batch {
+      void *p[kBatchSize];
+    };
+
+    Batch *head_ = nullptr;
+    uint64_t size_ = 0;
   };
-  static_assert(std::numeric_limits<CoreCache::CntType>::max() >=
-                kMaxNumCacheEntries);
+
+  struct alignas(kCacheLineBytes) CoreCache {
+    FreePtrsLinkedList lists[kMaxSlabClassShift];
+  };
 
   static SlabAllocator *slabs_[std::numeric_limits<SlabId_t>::max()];
-  uint16_t slab_id_;
+  SlabId_t slab_id_;
   const uint8_t *start_;
   uint8_t *end_;
   uint8_t *cur_;
-  void *slab_heads_[kMaxSlabClassShift];
-  CoreCache core_caches_[kNumCores];
+  FreePtrsLinkedList slab_lists_[kMaxSlabClassShift];
+  CoreCache cache_lists_[kNumCores];
   rt::Spin spin_;
 
   void *_allocate(size_t size) noexcept;
