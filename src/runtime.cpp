@@ -258,12 +258,8 @@ void *operator new(size_t size, const std::nothrow_t &nothrow_value) noexcept {
 }
 
 void operator delete(void *ptr) noexcept {
-  auto *slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
-
-  if (slab) {
-    slab->free(ptr);
-  } else if (nu::active_runtime) {
-    nu::Runtime::runtime_slab.free(ptr);
+  if (nu::active_runtime) {
+    nu::SlabAllocator::free(ptr);
   } else {
     preempt_disable();
     free(ptr);

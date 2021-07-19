@@ -442,6 +442,9 @@ void Migrator::load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task) {
 
   wg.Wait();
 
+  auto *slab = &heap_header->slab;
+  nu::SlabAllocator::register_slab_by_id(slab, slab->get_id());
+
   if constexpr (kEnableLogging) {
     t2 = rdtsc();
     preempt_disable();

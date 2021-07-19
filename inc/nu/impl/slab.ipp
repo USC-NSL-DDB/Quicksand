@@ -2,21 +2,20 @@ namespace nu {
 
 inline SlabAllocator::SlabAllocator() noexcept {}
 
-inline SlabAllocator::SlabAllocator(uint16_t sentinel, void *buf,
+inline SlabAllocator::SlabAllocator(SlabId_t slab_id, void *buf,
                                     uint64_t len) noexcept {
-  init(sentinel, buf, len);
+  init(slab_id, buf, len);
 }
 
 inline SlabAllocator::~SlabAllocator() noexcept {}
 
-inline void SlabAllocator::init(uint16_t sentinel, void *buf,
+inline void SlabAllocator::init(SlabId_t slab_id, void *buf,
                                 uint64_t len) noexcept {
-  sentinel_ = sentinel;
+  register_slab_by_id(this, slab_id);
+  slab_id_ = slab_id;
   start_ = reinterpret_cast<const uint8_t *>(buf);
   end_ = const_cast<uint8_t *>(start_) + len;
   cur_ = const_cast<uint8_t *>(start_);
-  memset(slab_heads_, 0, sizeof(slab_heads_));
-  memset(core_caches_, 0, sizeof(core_caches_));
 }
 
 inline void *SlabAllocator::allocate(size_t size) noexcept {
@@ -55,6 +54,13 @@ inline bool SlabAllocator::try_shrink(size_t new_len) noexcept {
   }
   end_ = const_cast<uint8_t *>(start_) + new_len;
   return true;
+}
+
+inline SlabId_t SlabAllocator::get_id() noexcept { return slab_id_; }
+
+inline void SlabAllocator::register_slab_by_id(SlabAllocator *slab,
+                                               SlabId_t slab_id) noexcept {
+  slabs_[slab_id] = slab;
 }
 
 } // namespace nu

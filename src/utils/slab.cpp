@@ -4,6 +4,8 @@
 
 namespace nu {
 
+SlabAllocator *SlabAllocator::slabs_[std::numeric_limits<SlabId_t>::max()];
+
 inline void *pop(void **head_p) {
   auto old_head = *head_p;
   *head_p = *reinterpret_cast<void **>(old_head);
@@ -71,7 +73,7 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
   if (ret) {
     auto *hdr = reinterpret_cast<PtrHeader *>(ret);
     hdr->size = size;
-    hdr->sentinel = sentinel_;
+    hdr->slab_id = slab_id_;
     ret = reinterpret_cast<uint8_t *>(ret) + sizeof(PtrHeader);
   }
 
@@ -82,13 +84,14 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
   auto ptr = const_cast<void *>(_ptr);
   auto *hdr = reinterpret_cast<PtrHeader *>(reinterpret_cast<uintptr_t>(ptr) -
                                             sizeof(PtrHeader));
+  auto *slab = slabs_[hdr->slab_id];
   auto size = hdr->size;
-  BUG_ON(hdr->sentinel != sentinel_);
+
   ptr = hdr;
-  auto slab_shift = get_slab_shift(size);
-  if (likely(slab_shift < kMaxSlabClassShift)) {
+  auto slab_shift = slab->get_slab_shift(size);
+  if (likely(slab_shift < slab->kMaxSlabClassShift)) {
     int cpu = get_cpu();
-    auto &cache = core_caches_[cpu];
+    auto &cache = slab->core_caches_[cpu];
     auto &cnt = cache.cnts[slab_shift];
     auto **cached_head = &cache.heads[slab_shift];
     push(cached_head, ptr);
@@ -96,8 +99,8 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
 
     auto num_cache_entries = get_num_cache_entries(size);
     if (unlikely(cnt > num_cache_entries)) {
-      rt::ScopedLock<rt::Spin> lock(&spin_);
-      auto **slab_head = &slab_heads_[slab_shift];
+      rt::ScopedLock<rt::Spin> lock(&slab->spin_);
+      auto **slab_head = &slab->slab_heads_[slab_shift];
       while (cnt > num_cache_entries / 2 && cnt > 1) {
         push(slab_head, pop(cached_head));
         --cnt;

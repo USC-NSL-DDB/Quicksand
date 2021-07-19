@@ -187,10 +187,23 @@ template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
                                     S1s &&... states) {
   auto &obj = *Runtime::get_obj<Cls>(id);
+  auto *heap = Runtime::get_heap();
+  Runtime::switch_to_obj_heap(&obj);
   if constexpr (!std::is_same<RetT, void>::value) {
-    return fn_ptr(obj, std::forward<S1s>(states)...);
+    auto ret = fn_ptr(obj, std::forward<S1s>(states)...);
+    Runtime::set_heap(heap);
+    // Perform a copy to ensure that the return value is allocated from
+    // the caller heap. It must be a "deep copy"; for now we just assume
+    // it is.
+    if constexpr (std::is_copy_constructible<RetT>::value) {
+      auto ret_copy = ret;
+      return ret_copy;
+    } else {
+      return ret;
+    }
   } else {
     fn_ptr(obj, std::forward<S1s>(states)...);
+    Runtime::set_heap(heap);
   }
 }
 

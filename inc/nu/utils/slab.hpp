@@ -18,9 +18,12 @@ extern "C" {
 
 namespace nu {
 
+using SlabId_t = uint16_t;
+
 struct PtrHeader {
-  uint64_t size : 48;
-  uint64_t sentinel : 16;
+  static_assert(sizeof(SlabId_t) < sizeof(uint64_t));
+  uint64_t size : 8 * (sizeof(uint64_t) - sizeof(SlabId_t));
+  uint64_t slab_id : 8 * sizeof(SlabId_t);
 };
 
 class SlabAllocator {
@@ -35,12 +38,16 @@ public:
   ~SlabAllocator() noexcept;
   void init(uint16_t sentinel, void *buf, size_t len) noexcept;
   void *allocate(size_t size) noexcept;
-  void free(const void *ptr) noexcept;
   void *yield(size_t size) noexcept;
   void *get_base() const noexcept;
   size_t get_usage() const noexcept;
   size_t get_remaining() const noexcept;
   bool try_shrink(size_t new_len) noexcept;
+  SlabId_t get_id() noexcept;
+  static SlabAllocator *get_slab_by_id() noexcept;
+  static void free(const void *ptr) noexcept;
+  static void register_slab_by_id(SlabAllocator *slab,
+                                  SlabId_t slab_id) noexcept;
 
 private:
   struct alignas(kCacheLineBytes) CoreCache {
@@ -51,7 +58,8 @@ private:
   static_assert(std::numeric_limits<CoreCache::CntType>::max() >=
                 kMaxNumCacheEntries);
 
-  uint16_t sentinel_;
+  static SlabAllocator *slabs_[std::numeric_limits<SlabId_t>::max()];
+  uint16_t slab_id_;
   const uint8_t *start_;
   uint8_t *end_;
   uint8_t *cur_;
@@ -60,7 +68,7 @@ private:
   rt::Spin spin_;
 
   void *_allocate(size_t size) noexcept;
-  void _free(const void *ptr) noexcept;
+  static void _free(const void *ptr) noexcept;
   uint32_t get_slab_shift(uint64_t size) noexcept;
 };
 } // namespace nu
