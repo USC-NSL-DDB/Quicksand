@@ -4,6 +4,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <thread.h>
 
 extern "C" {
 #include <runtime/net.h>
@@ -24,9 +25,15 @@ public:
   constexpr static uint32_t kDefaultPowerNumShards = 13;
   constexpr static uint32_t kNumBucketsPerShard = 65536;
 
+  struct MigratableYieldLock {
+    SpinLock lock;
+    void Lock() { while (!lock.TryLock()) rt::Yield(); }
+    void Unlock() { lock.Unlock(); }
+  };
+
   using HashTableShard =
       SyncHashMap<kNumBucketsPerShard, K, V, Hash, std::equal_to<K>,
-                  std::allocator<std::pair<const K, V>>, SpinLock>;
+                  std::allocator<std::pair<const K, V>>, MigratableYieldLock>;
   struct Cap {
     std::vector<typename RemObj<HashTableShard>::Cap> shard_caps;
 
