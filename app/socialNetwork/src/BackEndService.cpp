@@ -14,8 +14,7 @@ BackEndService::BackEndService(const std::string &secret)
       userid_to_usertimeline_map_(kHashTablePowerNumShards),
       postid_to_post_map_(kHashTablePowerNumShards),
       userid_to_followers_map_(kHashTablePowerNumShards),
-      userid_to_followees_map_(kHashTablePowerNumShards),
-      secret_(secret) {}
+      userid_to_followees_map_(kHashTablePowerNumShards), secret_(secret) {}
 
 void BackEndService::ComposePost(const std::string &username, int64_t user_id,
                                  const std::string &text,
@@ -222,8 +221,9 @@ BackEndService::ReadPosts(const std::vector<int64_t> &post_ids) {
   std::vector<Post> posts;
   for (auto &post_future : post_futures) {
     auto optional = post_future.get();
-    BUG_ON(!optional);
-    posts.emplace_back(*optional);
+    if (optional) {
+      posts.emplace_back(*optional);
+    }
   }
   return posts;
 }

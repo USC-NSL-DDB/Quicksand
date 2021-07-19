@@ -1,5 +1,6 @@
 #pragma once
 
+#include <nu/utils/farmhash.hpp>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
@@ -57,11 +58,16 @@ private:
   nu::Future<int64_t> GetUserId(const std::string &username);
 
   constexpr static uint32_t kHashTablePowerNumShards = 9;
+  constexpr static auto kHashStrtoU64 = [](const std::string &str) {
+    return util::Hash64(str);
+  };
 
-  nu::DistributedHashTable<std::string, UserProfile>
+  nu::DistributedHashTable<std::string, UserProfile, decltype(kHashStrtoU64)>
       username_to_userprofile_map_;
-  nu::DistributedHashTable<std::string, std::string> filename_to_data_map_;
-  nu::DistributedHashTable<std::string, std::string> short_to_extended_map_;
+  nu::DistributedHashTable<std::string, std::string, decltype(kHashStrtoU64)>
+      filename_to_data_map_;
+  nu::DistributedHashTable<std::string, std::string, decltype(kHashStrtoU64)>
+      short_to_extended_map_;
   nu::DistributedHashTable<int64_t, Timeline> userid_to_hometimeline_map_;
   nu::DistributedHashTable<int64_t, Timeline> userid_to_usertimeline_map_;
   nu::DistributedHashTable<int64_t, Post> postid_to_post_map_;
