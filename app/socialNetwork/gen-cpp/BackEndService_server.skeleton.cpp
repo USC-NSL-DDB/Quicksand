@@ -90,6 +90,11 @@ class BackEndServiceHandler : virtual public BackEndServiceIf {
     printf("GetMedia\n");
   }
 
+  void NoOp() {
+    // Your implementation goes here
+    printf("NoOp\n");
+  }
+
 };
 
 int main(int argc, char **argv) {

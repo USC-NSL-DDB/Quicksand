@@ -105,4 +105,6 @@ void ThriftBackEndServer::GetMedia(std::string &ret,
   ret = back_end_service_.GetMedia(filename);
 }
 
+void ThriftBackEndServer::NoOp() {}
+
 } // namespace social_network

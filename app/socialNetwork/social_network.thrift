@@ -149,4 +149,6 @@ service BackEndService {
   string GetMedia(
     1: string filename
   ) throws (1: ServiceException se)
+
+  void NoOp() throws (1: ServiceException se)
 }

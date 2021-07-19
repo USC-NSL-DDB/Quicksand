@@ -35,6 +35,7 @@ class BackEndServiceIf {
   virtual void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
   virtual void UploadMedia(const std::string& filename, const std::string& data) = 0;
   virtual void GetMedia(std::string& _return, const std::string& filename) = 0;
+  virtual void NoOp() = 0;
 };
 
 class BackEndServiceIfFactory {
@@ -104,6 +105,9 @@ class BackEndServiceNull : virtual public BackEndServiceIf {
     return;
   }
   void GetMedia(std::string& /* _return */, const std::string& /* filename */) {
+    return;
+  }
+  void NoOp() {
     return;
   }
 };
@@ -1766,6 +1770,98 @@ class BackEndService_GetMedia_presult {
 
 };
 
+
+class BackEndService_NoOp_args {
+ public:
+
+  BackEndService_NoOp_args(const BackEndService_NoOp_args&);
+  BackEndService_NoOp_args& operator=(const BackEndService_NoOp_args&);
+  BackEndService_NoOp_args() {
+  }
+
+  virtual ~BackEndService_NoOp_args() throw();
+
+  bool operator == (const BackEndService_NoOp_args & /* rhs */) const
+  {
+    return true;
+  }
+  bool operator != (const BackEndService_NoOp_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const BackEndService_NoOp_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class BackEndService_NoOp_pargs {
+ public:
+
+
+  virtual ~BackEndService_NoOp_pargs() throw();
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _BackEndService_NoOp_result__isset {
+  _BackEndService_NoOp_result__isset() : se(false) {}
+  bool se :1;
+} _BackEndService_NoOp_result__isset;
+
+class BackEndService_NoOp_result {
+ public:
+
+  BackEndService_NoOp_result(const BackEndService_NoOp_result&);
+  BackEndService_NoOp_result& operator=(const BackEndService_NoOp_result&);
+  BackEndService_NoOp_result() {
+  }
+
+  virtual ~BackEndService_NoOp_result() throw();
+  ServiceException se;
+
+  _BackEndService_NoOp_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const BackEndService_NoOp_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const BackEndService_NoOp_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const BackEndService_NoOp_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _BackEndService_NoOp_presult__isset {
+  _BackEndService_NoOp_presult__isset() : se(false) {}
+  bool se :1;
+} _BackEndService_NoOp_presult__isset;
+
+class BackEndService_NoOp_presult {
+ public:
+
+
+  virtual ~BackEndService_NoOp_presult() throw();
+  ServiceException se;
+
+  _BackEndService_NoOp_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
 class BackEndServiceClient : virtual public BackEndServiceIf {
  public:
   BackEndServiceClient(apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> prot) {
@@ -1833,6 +1929,9 @@ class BackEndServiceClient : virtual public BackEndServiceIf {
   void GetMedia(std::string& _return, const std::string& filename);
   void send_GetMedia(const std::string& filename);
   void recv_GetMedia(std::string& _return);
+  void NoOp();
+  void send_NoOp();
+  void recv_NoOp();
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;
@@ -1862,6 +1961,7 @@ class BackEndServiceProcessor : public ::apache::thrift::TDispatchProcessor {
   void process_ReadHomeTimeline(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_UploadMedia(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_GetMedia(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_NoOp(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
  public:
   BackEndServiceProcessor(::apache::thrift::stdcxx::shared_ptr<BackEndServiceIf> iface) :
     iface_(iface) {
@@ -1879,6 +1979,7 @@ class BackEndServiceProcessor : public ::apache::thrift::TDispatchProcessor {
     processMap_["ReadHomeTimeline"] = &BackEndServiceProcessor::process_ReadHomeTimeline;
     processMap_["UploadMedia"] = &BackEndServiceProcessor::process_UploadMedia;
     processMap_["GetMedia"] = &BackEndServiceProcessor::process_GetMedia;
+    processMap_["NoOp"] = &BackEndServiceProcessor::process_NoOp;
   }
 
   virtual ~BackEndServiceProcessor() {}
@@ -2039,6 +2140,15 @@ class BackEndServiceMultiface : virtual public BackEndServiceIf {
     return;
   }
 
+  void NoOp() {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->NoOp();
+    }
+    ifaces_[i]->NoOp();
+  }
+
 };
 
 // The 'concurrent' client is a thread safe client that correctly handles
@@ -2111,6 +2221,9 @@ class BackEndServiceConcurrentClient : virtual public BackEndServiceIf {
   void GetMedia(std::string& _return, const std::string& filename);
   int32_t send_GetMedia(const std::string& filename);
   void recv_GetMedia(std::string& _return, const int32_t seqid);
+  void NoOp();
+  int32_t send_NoOp();
+  void recv_NoOp(const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;

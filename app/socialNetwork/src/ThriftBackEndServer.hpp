@@ -46,6 +46,7 @@ public:
   void UploadMedia(const std::string &filename,
                    const std::string &data) override;
   void GetMedia(std::string &ret, const std::string &filename) override;
+  void NoOp() override;
 
 private:
   BackEndService back_end_service_;
