@@ -27,7 +27,9 @@ public:
     return std::make_unique<PerfRequest>();
   }
 
-  void serve_req(PerfThreadState *state, const PerfRequest *perf) override {}
+  bool serve_req(PerfThreadState *state, const PerfRequest *perf) override {
+    return true;
+  }
 };
 
 namespace nu {
@@ -37,7 +39,9 @@ public:
   bool run() {
     FakeWorkAdapter fake_work_adapter;
     Perf perf(fake_work_adapter);
-    perf.run(kNumThreads, kTargetMops, kNumSeconds * kOneSecond);
+    perf.run(kNumThreads, kTargetMops,
+             /* duration_us = */ kNumSeconds * kOneSecond,
+             /* warmup_us */ kOneSecond);
     auto real_mops = perf.get_real_mops();
     if (std::abs(real_mops / kTargetMops - 1) > 0.05) {
       return false;

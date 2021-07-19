@@ -73,16 +73,17 @@ std::vector<Trace> Perf::benchmark(
           continue;
         }
         skipping = false;
-        adapter_.serve_req(thread_state, req.req.get());
+        bool ok = adapter_.serve_req(thread_state, req.req.get());
         Trace trace;
         trace.start_us = req.start_us;
         trace.duration_us = microtime() - start_us - trace.start_us;
-        if (trace.duration_us > max_req_us) {
-          // It's impossible to be any req handling time. Must be caused by
-          // interruptions like OS context switch. So we skip all missed reqs.
+        if (!ok || trace.duration_us > max_req_us) {
+          // Timeouted or an OS-level interruption occured. In this case, we
+          // skip all missed reqs.
           skipping = true;
+        } else {
+          traces.push_back(trace);
         }
-        traces.push_back(trace);
       }
     });
   }
@@ -108,12 +109,16 @@ void Perf::create_thread_states(
 }
 
 void Perf::run(uint32_t num_threads, double target_mops, uint64_t duration_us,
-               uint64_t max_req_us) {
+               uint64_t warmup_us, uint64_t max_req_us) {
   std::vector<std::unique_ptr<PerfThreadState>> thread_states;
   create_thread_states(&thread_states, num_threads);
-  std::vector<PerfRequestWithTime> all_reqs[num_threads];
-  gen_reqs(all_reqs, thread_states, num_threads, target_mops, duration_us);
-  traces_ = move(benchmark(all_reqs, thread_states, num_threads, max_req_us));
+  std::vector<PerfRequestWithTime> all_warmup_reqs[num_threads];
+  std::vector<PerfRequestWithTime> all_perf_reqs[num_threads];
+  gen_reqs(all_warmup_reqs, thread_states, num_threads, target_mops, warmup_us);
+  gen_reqs(all_perf_reqs, thread_states, num_threads, target_mops, duration_us);
+  benchmark(all_warmup_reqs, thread_states, num_threads, max_req_us);
+  traces_ =
+      move(benchmark(all_perf_reqs, thread_states, num_threads, max_req_us));
   real_mops_ = static_cast<double>(traces_.size()) / duration_us;
 }
 

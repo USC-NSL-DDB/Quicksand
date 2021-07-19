@@ -32,7 +32,7 @@ class PerfAdapter {
 public:
   virtual std::unique_ptr<PerfThreadState> create_thread_state() = 0;
   virtual std::unique_ptr<PerfRequest> gen_req(PerfThreadState *state) = 0;
-  virtual void serve_req(PerfThreadState *state, const PerfRequest *perf) = 0;
+  virtual bool serve_req(PerfThreadState *state, const PerfRequest *perf) = 0;
 };
 
 // Open-loop, possion arrival.
@@ -41,6 +41,7 @@ public:
   Perf(PerfAdapter &adapter);
   void reset();
   void run(uint32_t num_threads, double target_mops, uint64_t duration_us,
+           uint64_t warmup_us = 0,
            // To filter out abnormally long durations caused by OS-level
            // interruptions.
            uint64_t max_req_us = 5 * kOneMilliSecond);
