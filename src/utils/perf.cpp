@@ -117,7 +117,22 @@ void Perf::run(uint32_t num_threads, double target_mops, uint64_t duration_us,
   real_mops_ = static_cast<double>(traces_.size()) / duration_us;
 }
 
-uint64_t Perf::get_overall_lat(double nth) {
+uint64_t Perf::get_average_lat() {
+  if (trace_format_ != SORTED_BY_DURATION) {
+    std::sort(traces_.begin(), traces_.end(),
+              [](const Trace &x, const Trace &y) {
+                return x.duration_us < y.duration_us;
+              });
+    trace_format_ = SORTED_BY_DURATION;
+  }
+
+  auto sum = std::accumulate(
+      std::next(traces_.begin()), traces_.end(), 0ULL,
+      [](uint64_t sum, const Trace &t) { return sum + t.duration_us; });
+  return sum / traces_.size();
+}
+
+uint64_t Perf::get_nth_lat(double nth) {
   if (trace_format_ != SORTED_BY_DURATION) {
     std::sort(traces_.begin(), traces_.end(),
               [](const Trace &x, const Trace &y) {
@@ -131,7 +146,7 @@ uint64_t Perf::get_overall_lat(double nth) {
 }
 
 std::vector<std::pair<uint64_t, uint64_t>>
-Perf::get_timeseries_lats(uint64_t interval_us, double nth) {
+Perf::get_timeseries_nth_lats(uint64_t interval_us, double nth) {
   std::vector<std::pair<uint64_t, uint64_t>> timeseries;
   if (trace_format_ != SORTED_BY_START) {
     std::sort(

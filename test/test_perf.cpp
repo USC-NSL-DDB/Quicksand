@@ -42,7 +42,7 @@ public:
     if (std::abs(real_mops / kTargetMops - 1) > 0.05) {
       return false;
     }
-    if (perf.get_overall_lat(99.9) > 20) {
+    if (perf.get_nth_lat(99.9) > 20) {
       return false;
     }
 

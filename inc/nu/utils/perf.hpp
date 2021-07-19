@@ -44,9 +44,10 @@ public:
            // To filter out abnormally long durations caused by OS-level
            // interruptions.
            uint64_t max_req_us = 5 * kOneMilliSecond);
-  uint64_t get_overall_lat(double nth);
+  uint64_t get_average_lat();
+  uint64_t get_nth_lat(double nth);
   std::vector<std::pair<uint64_t, uint64_t>>
-  get_timeseries_lats(uint64_t interval_us, double nth);
+  get_timeseries_nth_lats(uint64_t interval_us, double nth);
   double get_real_mops() const;
 
 private:
