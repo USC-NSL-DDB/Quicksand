@@ -42,26 +42,11 @@ void SlabAllocator::FreePtrsLinkedList::push(void *ptr) {
   std::fill(std::begin(head_->p) + 1, std::end(head_->p), nullptr);
 }
 
-// TODO: should be dynamic.
-inline uint32_t get_num_cache_entries(uint32_t slab_shift) {
-  switch (slab_shift) {
-  case 4: // 32 B
-    return 64;
-  case 5: // 64 B
-    return 512;
-  case 6: // 128 B
-    return 64;
-  case 7: // 256 B
-    return 32;
-  case 8: // 512 B
-    return 8;
-  case 9: // 1024 B
-    return 8;
-  case 10: // 2048 B
-    return 4;
-  default:
-    return 1;
-  }
+inline uint32_t get_min_num_cache_entries(uint32_t size_shift) {
+  constexpr uint32_t num_bound = 64;
+  constexpr uint32_t size_bound = 8192;
+  return std::max(static_cast<uint32_t>(1),
+                  std::min(num_bound, size_bound >> size_shift));
 }
 
 void *SlabAllocator::_allocate(size_t size) noexcept {
@@ -77,12 +62,12 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
     if (unlikely(!ret)) {
       rt::ScopedLock<rt::Spin> lock(&spin_);
       auto &slab_list = slab_lists_[slab_shift];
-      auto num_cache_entries = get_num_cache_entries(slab_shift);
-      while (slab_list.size() && cache_list.size() < num_cache_entries) {
+      auto min_num_cache_entries = get_min_num_cache_entries(slab_shift);
+      while (slab_list.size() && cache_list.size() < min_num_cache_entries) {
         cache_list.push(slab_list.pop());
       }
 
-      auto remaining = num_cache_entries - cache_list.size();
+      auto remaining = min_num_cache_entries - cache_list.size();
       if (remaining) {
         auto slab_size = (1ULL << (slab_shift + 1)) + sizeof(PtrHeader);
         cur_ += slab_size * remaining;
@@ -126,16 +111,6 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
     int cpu = get_cpu();
     auto &cache_list = slab->cache_lists_[cpu].lists[slab_shift];
     cache_list.push(ptr);
-
-    auto num_cache_entries = get_num_cache_entries(slab_shift);
-    if (unlikely(cache_list.size() > num_cache_entries)) {
-      rt::ScopedLock<rt::Spin> lock(&slab->spin_);
-      auto &slab_list = slab->slab_lists_[slab_shift];
-      while (cache_list.size() > num_cache_entries / 2 &&
-             cache_list.size() > 1) {
-	slab_list.push(cache_list.pop());
-      }
-    }
     put_cpu();
   }
 }
