@@ -36,14 +36,14 @@ find_path(THRIFT_INCLUDE_DIR thrift/Thrift.h HINTS
     $ENV{THRIFT_HOME}/include/
     /usr/local/include/
     /opt/local/include/
-    ../thrift/lib/cpp/src
+    ../../thrift/lib/cpp/src
     )
 
 find_path(THRIFT_CONTRIB_DIR fb303/if/fb303.thrift HINTS
     ${THRIFT_ROOT}/include
     $ENV{THRIFT_HOME}
     /usr/local/
-    ../thrift/contrib
+    ../../thrift/contrib
     )
 
 set(THRIFT_LIB_PATHS
@@ -51,7 +51,7 @@ set(THRIFT_LIB_PATHS
     $ENV{THRIFT_HOME}/lib
     /usr/local/lib
     /opt/local/lib
-    ../thrift/lib/cpp/.libs/
+    ../../thrift/lib/cpp/.libs/
     )
 
 find_path(THRIFT_STATIC_LIB_PATH libthrift.a PATHS ${THRIFT_LIB_PATHS})

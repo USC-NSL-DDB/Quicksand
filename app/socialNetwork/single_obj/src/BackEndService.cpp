@@ -315,7 +315,8 @@ void BackEndService::RegisterUser(const std::string &first_name,
                                   const std::string &last_name,
                                   const std::string &username,
                                   const std::string &password) {
-  RegisterUserWithId(first_name, last_name, username, password, GenUniqueId());
+  auto user_id = (GenUniqueId() << 16);
+  RegisterUserWithId(first_name, last_name, username, password, user_id);
 }
 
 std::variant<LoginErrorCode, std::string>

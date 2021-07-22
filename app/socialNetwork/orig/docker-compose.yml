@@ -13,8 +13,8 @@ services:
   social-graph-service:
     image: yg397/social-network-microservices:latest
     hostname: social-graph-service
-    #    ports:
-    #      - 10000:9090
+    ports:
+      - 10000:9090
     depends_on:
       config:
         condition: service_completed_successfully
@@ -73,8 +73,8 @@ services:
   compose-post-service:
     image: yg397/social-network-microservices:latest
     hostname: compose-post-service
-    #    ports:
-    #      - 10001:9090
+    ports:
+      - 10001:9090
     restart: always
     depends_on:
       config:
@@ -131,8 +131,8 @@ services:
   user-timeline-service:
     image: yg397/social-network-microservices:latest
     hostname: user-timeline-service
-    #    ports:
-    #      - 10003:9090
+    ports:
+      - 10003:9090
     restart: always
     depends_on:
       config:
@@ -351,8 +351,8 @@ services:
   home-timeline-service:
     image: yg397/social-network-microservices:latest
     hostname: home-timeline-service
-    #    ports:
-    #      - 10010:9090
+    ports:
+      - 10010:9090
     depends_on:
       config:
         condition: service_completed_successfully

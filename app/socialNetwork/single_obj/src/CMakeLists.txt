@@ -29,7 +29,7 @@ add_executable(
 target_include_directories(
     main PRIVATE
     ../third_party
-    ../thrift/lib/cpp/src
+    ${THRIFT_INCLUDE_DIR}
     ${NU_DIR}/inc
     ${CALADAN_DIR}/inc
     ${CALADAN_DIR}/bindings/cc

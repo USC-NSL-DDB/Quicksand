@@ -19,7 +19,7 @@ add_executable(
 target_include_directories(
     client PRIVATE
     ../third_party
-    ../../thrift/lib/cpp/src
+    ${THRIFT_INCLUDE_DIR}
     ${NU_DIR}/inc
     ${CALADAN_DIR}/inc
     ${CALADAN_DIR}/bindings/cc
@@ -36,7 +36,7 @@ target_link_directories(
 
 target_link_libraries(
     client
-    ${THRIFT_LIB}
+    ${THRIFT_STATIC_LIB}
     ${CMAKE_THREAD_LIBS_INIT}
     # Nu
     nu

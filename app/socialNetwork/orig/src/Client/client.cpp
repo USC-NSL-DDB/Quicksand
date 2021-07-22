@@ -22,9 +22,9 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 200;
-constexpr static double kTargetMops = 0.002;
+constexpr static double kTargetMops = 0.012;
 constexpr static double kTotalMops = 1.0;
-constexpr static char kLocalHost[] = "127.0.0.1";
+constexpr static char kLocalHost[] = "10.10.2.2";
 constexpr static uint32_t kUserTimeLinePort = 10003;
 constexpr static uint32_t kHomeTimeLinePort = 10010;
 constexpr static uint32_t kComposePostPort = 10001;
@@ -260,15 +260,14 @@ void do_work() {
   nu::Perf perf(social_network_adapter);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
   auto warmup_us = duration_us;
-  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us,
-           1000 * nu::kOneMilliSecond);
-  std::cout << "real mops = " << perf.get_real_mops() << std::endl;
-  std::cout << "avg lat = " << perf.get_average_lat() << std::endl;
-  std::cout << "50th lat = " << perf.get_nth_lat(50) << std::endl;
-  std::cout << "90th lat = " << perf.get_nth_lat(90) << std::endl;
-  std::cout << "95th lat = " << perf.get_nth_lat(95) << std::endl;
-  std::cout << "99th lat = " << perf.get_nth_lat(99) << std::endl;
-  std::cout << "99.9th lat = " << perf.get_nth_lat(99.9) << std::endl;
+  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us, nu::kOneSecond);
+  std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
+               "99.9th_lat"
+            << std::endl;
+  std::cout << perf.get_real_mops() << " " << perf.get_average_lat() << " "
+            << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
+            << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
+            << perf.get_nth_lat(99.9) << std::endl;
 }
 
 int main(int argc, char **argv) {
@@ -288,4 +287,3 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-

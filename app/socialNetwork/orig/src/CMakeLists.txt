@@ -1,5 +1,8 @@
 set(THRIFT_ROOT "thrift")
 
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+set(BUILD_SHARED_LIBS OFF)
+
 #include("../cmake/Findlibmemcached.cmake")
 include("../cmake/Findthrift.cmake")
 include("../cmake/FindLibevent.cmake")
