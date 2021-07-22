@@ -17,14 +17,13 @@ make -j
 sudo make install
 cd ../..
 
-cd ..
-cd thrift
+pushd ../../thrift
 ./bootstrap.sh
 ./configure --enable-caladanthreads=yes --enable-caladantcp=yes \
             --with-caladan=`pwd`/../../../caladan/  \
             --enable-shared=no --enable-tests=no --enable-tutorial=no
 make -j
-cd ../build
+popd
 
 git clone https://github.com/arun11299/cpp-jwt
 cd cpp-jwt
