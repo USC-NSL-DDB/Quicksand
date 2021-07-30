@@ -78,8 +78,9 @@ struct Test {
   Test() {}
   uint64_t get_mem_usage() {
     uint64_t total_mem_usage = 0;
-    std::function<bool(HeapHeader *const &)> fn =
-        [&total_mem_usage](HeapHeader *const &heap_header) {
+    std::function fn =
+        [&total_mem_usage](const std::pair<HeapHeader *const, HeapStatus> &p) {
+          auto *heap_header = p.first;
           auto &heap_slab = heap_header->slab;
           total_mem_usage += reinterpret_cast<uint8_t *>(heap_slab.get_base()) -
                              reinterpret_cast<uint8_t *>(heap_header) +

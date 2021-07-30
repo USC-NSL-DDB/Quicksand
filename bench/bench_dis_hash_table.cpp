@@ -37,7 +37,7 @@ constexpr bool kEnablePrinting = true;
 constexpr uint32_t kPrintIntervalUS = 200 * 1000;
 constexpr uint32_t kMigrationTriggeredUs = 10 * kPrintIntervalUS;
 
-constexpr auto kIPServer0 = MAKE_IP_ADDR(18, 18, 1, 4); // The migration source.
+constexpr auto kIPServer0 = MAKE_IP_ADDR(18, 18, 1, 2); // The migration source.
 constexpr auto kIPServer1 = MAKE_IP_ADDR(18, 18, 1, 5); // The migration dest.
 
 Runtime::Mode mode;
