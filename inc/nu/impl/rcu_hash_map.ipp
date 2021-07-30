@@ -52,6 +52,23 @@ void RCUHashMap<K, V, Allocator>::put_if_not_exists(K1 &&k, V1 &&v) {
 }
 
 template <typename K, typename V, typename Allocator>
+template <typename K1, typename V1, typename V2>
+bool RCUHashMap<K, V, Allocator>::update_if_equals(K1 &&k, V1 &&old_v,
+                                                   V2 &&new_v) {
+  bool updated = false;
+  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ACCESS_ONCE(writer_barrier_) = true;
+  rcu_.writer_sync();
+  auto iter = map_.find(std::forward<K1>(k));
+  if (iter != map_.end() && iter->second == std::forward<V1>(old_v)) {
+    iter->second = std::forward<V2>(new_v);
+    updated = true;
+  }
+  ACCESS_ONCE(writer_barrier_) = false;
+  return updated;
+}
+
+template <typename K, typename V, typename Allocator>
 template <typename K1>
 bool RCUHashMap<K, V, Allocator>::remove(K1 &&k) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
@@ -60,6 +77,43 @@ bool RCUHashMap<K, V, Allocator>::remove(K1 &&k) {
   auto ret = map_.erase(std::forward<K1>(k));
   ACCESS_ONCE(writer_barrier_) = false;
   return ret;
+}
+
+template <typename K, typename V, typename Allocator>
+template <typename K1, typename V1>
+bool RCUHashMap<K, V, Allocator>::remove_if_equals(K1 &&k, V1 &&v) {
+  bool removed = false;
+  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ACCESS_ONCE(writer_barrier_) = true;
+  rcu_.writer_sync();
+  auto iter = map_.find(std::forward<K1>(k));
+  if (iter != map_.end() && iter->second == std::forward<V1>(v)) {
+    map_.erase(iter);
+    removed = true;
+  }
+  ACCESS_ONCE(writer_barrier_) = false;
+  return removed;
+}
+
+template <typename K, typename V, typename Allocator>
+void RCUHashMap<K, V, Allocator>::for_each(
+    const std::function<bool(const std::pair<const K, V> &)> &fn) {
+retry:
+  rcu_.reader_lock();
+  if (unlikely(ACCESS_ONCE(writer_barrier_))) {
+    rcu_.reader_unlock();
+    while (unlikely(ACCESS_ONCE(writer_barrier_))) {
+      rt::Yield();
+    }
+    goto retry;
+  }
+  for (const auto &p : map_) {
+    if (!fn(p)) {
+      rcu_.reader_unlock();
+      return;
+    }
+  }
+  rcu_.reader_unlock();
 }
 
 } // namespace nu

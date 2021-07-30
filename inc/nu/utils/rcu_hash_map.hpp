@@ -17,7 +17,11 @@ public:
   template <typename K1> V *get(K1 &&k);
   template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
   template <typename K1, typename V1> void put_if_not_exists(K1 &&k, V1 &&v);
+  template <typename K1, typename V1, typename V2>
+  bool update_if_equals(K1 &&k, V1 &&old_v, V2 &&new_v);
   template <typename K1> bool remove(K1 &&k);
+  template <typename K1, typename V1> bool remove_if_equals(K1 &&k, V1 &&v);
+  void for_each(const std::function<bool(const std::pair<const K, V> &)> &fn);
 
 private:
   using Hash = std::hash<K>;
