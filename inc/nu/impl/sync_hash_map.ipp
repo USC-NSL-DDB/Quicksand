@@ -135,6 +135,13 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
           *prev_next = bucket_node->next;
         }
         lock.Unlock();
+        auto allocator = Allocator();
+        std::destroy_at(pair);
+        allocator.deallocate(pair, 1);
+        if (prev_next) {
+          BucketNodeAllocator bucket_node_allocator;
+          bucket_node_allocator.deallocate(bucket_node, 1);
+        }
         return true;
       }
     }
@@ -161,9 +168,9 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
 template <typename K1, typename RetT, typename... A0s, typename... A1s>
 RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                  Lock>::apply_with_hash(K1 &&k, uint64_t key_hash,
-                                       RetT (*fn)(std::pair<const K, V> &,
-                                                  A0s...),
-                                       A1s &&... args) {
+                                        RetT (*fn)(std::pair<const K, V> &,
+                                                   A0s...),
+                                        A1s &&... args) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
   auto *bucket_node = &buckets_[bucket_idx];
