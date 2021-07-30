@@ -243,20 +243,31 @@ RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
+retry:
   Runtime::migration_disable();
 
-  if (__is_local()) {
-    // Fast path: the heap is actually local, use function call.
-    auto *local_fn =
-        ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>;
-    if constexpr (!std::is_same<RetT, void>::value) {
-      auto ret = local_fn(id_, fn, std::forward<S1s>(states)...);
-      Runtime::migration_enable();
-      return ret;
-    } else {
-      local_fn(id_, fn, std::forward<S1s>(states)...);
-      Runtime::migration_enable();
-      return;
+  if (Runtime::heap_manager) {
+    auto *heap_status = Runtime::heap_manager->get_status(to_heap_base(id_));
+    if (heap_status) {
+      if (likely(*heap_status == PRESENT)) {
+        // Fast path: the heap is actually local, use function call.
+        auto *local_fn =
+            ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>;
+        if constexpr (!std::is_same<RetT, void>::value) {
+          auto ret = local_fn(id_, fn, std::forward<S1s>(states)...);
+          Runtime::migration_enable();
+          return ret;
+        } else {
+          local_fn(id_, fn, std::forward<S1s>(states)...);
+          Runtime::migration_enable();
+          return;
+        }
+      } else {
+        assert(*heap_status == MIGRATING);
+        Runtime::migration_enable();
+        rt::Yield();
+        goto retry;
+      }
     }
   }
 
@@ -318,13 +329,24 @@ RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
 }
 
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
+retry:
   Runtime::migration_disable();
 
-  if (__is_local()) {
-    // Fast path: the heap is actually local, use function call.
-    ObjServer::update_ref_cnt_locally<T>(id_, delta);
-    Runtime::migration_enable();
-    return nullptr;
+  if (Runtime::heap_manager) {
+    auto *heap_status = Runtime::heap_manager->get_status(to_heap_base(id_));
+    if (heap_status) {
+      if (likely(*heap_status == PRESENT)) {
+        // Fast path: the heap is actually local, use function call.
+        ObjServer::update_ref_cnt_locally<T>(id_, delta);
+        Runtime::migration_enable();
+        return nullptr;
+      } else {
+        assert(*heap_status == MIGRATING);
+        Runtime::migration_enable();
+        rt::Yield();
+        goto retry;
+      }
+    }
   }
 
   // Slow path: the heap is actually remote, use RPC.
@@ -337,18 +359,6 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
     Runtime::migration_enable();
   });
-}
-
-template <typename T> bool RemObj<T>::is_local() const {
-  Runtime::migration_disable();
-  bool ret = __is_local();
-  Runtime::migration_enable();
-  return ret;
-}
-
-template <typename T> bool RemObj<T>::__is_local() const {
-  return Runtime::heap_manager &&
-         Runtime::heap_manager->contains(to_heap_base(id_));
 }
 
 template <typename T> void RemObj<T>::reset() {

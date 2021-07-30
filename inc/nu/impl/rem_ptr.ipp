@@ -46,17 +46,7 @@ RemPtr<T>::RemPtr(RemObjID id, T *raw_ptr)
 
 template <typename T> RemPtr<T>::operator bool() const { return raw_ptr_; }
 
-template <typename T> bool RemPtr<T>::is_local() const {
-  RemObj<ErasedType> rem_obj(rem_obj_id_, false);
-  return rem_obj.is_local();
-}
-
 template <typename T> T *RemPtr<T>::get() { return raw_ptr_; }
-
-template <typename T> T *RemPtr<T>::get_checked() {
-  BUG_ON(!is_local());
-  return raw_ptr_;
-}
 
 template <typename T> T RemPtr<T>::operator*() {
   RemObj<ErasedType> rem_obj(rem_obj_id_, false);

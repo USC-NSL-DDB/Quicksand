@@ -76,12 +76,17 @@ void ObjServer::__update_ref_cnt(Cls &obj, rt::TcpConn *rpc_conn,
   heap_header->spin.Unlock();
 
   if (latest_cnt == 0) {
-    *deallocate = true;
-    obj.~Cls();
-    if (unlikely(!Runtime::heap_manager->remove(heap_header))) {
-      while (unlikely(!thread_is_migrated())) {
+  retry:
+    if (likely(Runtime::heap_manager->remove_if_not_migrating(heap_header))) {
+      *deallocate = true;
+      obj.~Cls();
+    } else {
+      Runtime::migration_enable();
+      while (ACCESS_ONCE(heap_header->migrating)) {
         rt::Yield();
       }
+      Runtime::migration_disable();
+      goto retry;
     }
   }
 

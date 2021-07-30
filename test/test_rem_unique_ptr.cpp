@@ -48,8 +48,8 @@ void do_work() {
   auto c = rem_obj.run(
       +[](Obj &_, RemUniquePtr<std::vector<int>> &&rem_unique_ptr_a,
           RemUniquePtr<std::vector<int>> &&rem_unique_ptr_b) {
-        auto *raw_ptr_a = rem_unique_ptr_a.get_checked();
-        auto *raw_ptr_b = rem_unique_ptr_b.get_checked();
+        auto *raw_ptr_a = rem_unique_ptr_a.get();
+        auto *raw_ptr_b = rem_unique_ptr_b.get();
         std::vector<int> rem_c;
         for (size_t i = 0; i < raw_ptr_a->size(); i++) {
           rem_c.push_back(raw_ptr_a->at(i) + raw_ptr_b->at(i));

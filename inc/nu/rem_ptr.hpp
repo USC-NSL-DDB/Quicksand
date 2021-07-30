@@ -16,9 +16,7 @@ public:
   RemPtr &operator=(RemPtr &&) noexcept;
   operator bool() const;
   T operator*();
-  bool is_local() const;
   T *get();
-  T *get_checked();
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>

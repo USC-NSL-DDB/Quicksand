@@ -80,13 +80,14 @@ Runtime::__run_within_obj_env(uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
 template <typename Cls, typename Fn, typename... As>
 bool __attribute__((optimize("no-omit-frame-pointer")))
 Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
+  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+
   heap_manager->rcu_reader_lock();
-  if (unlikely(!heap_manager->contains(heap_base))) {
+  if (unlikely(!heap_manager->is_present(heap_base))) {
     heap_manager->rcu_reader_unlock();
     return false;
   }
 
-  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
   auto &slab = heap_header->slab;
   auto *obj_ptr =
       reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab.get_base()));

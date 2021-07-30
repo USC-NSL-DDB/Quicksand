@@ -120,6 +120,7 @@ Runtime::~Runtime() {
 }
 
 // TODO: make the rcu lock to be per-heap instead of being global.
+// FIXME: cannot be nested.
 void Runtime::migration_enable() {
   auto *heap_header = get_current_obj_heap_header();
   if (!heap_header) {
@@ -129,6 +130,7 @@ void Runtime::migration_enable() {
   heap_manager->rcu_reader_unlock();
 }
 
+// FIXME: cannot be nested.
 void Runtime::migration_disable() {
   auto *heap_header = get_current_obj_heap_header();
   if (!heap_header) {
@@ -138,7 +140,7 @@ void Runtime::migration_disable() {
 retry:
   preempt_disable();
   bool lock_acquired = heap_manager->rcu_try_reader_lock();
-  bool migrating = heap_header->migrating;
+  bool migrating = ACCESS_ONCE(heap_header->migrating);
   if (unlikely(!lock_acquired || migrating)) {
     if (lock_acquired) {
       heap_manager->rcu_reader_unlock();

@@ -13,7 +13,6 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/commons.hpp"
-#include "nu/utils/rcu_hash_set.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/refcount_hash_set.hpp"
 #include "nu/utils/slab.hpp"
@@ -26,6 +25,9 @@ class Mutex;
 class CondVar;
 class Time;
 template <typename T> class RuntimeAllocator;
+template <typename K, typename V, typename Allocator> class RCUHashMap;
+
+enum HeapStatus { PRESENT, MIGRATING };
 
 struct HeapHeader {
   ~HeapHeader();
@@ -60,9 +62,13 @@ public:
   static void mmap_populate(void *heap_base, uint64_t populate_len);
   static void setup(void *heap_base, bool migratable, bool from_migration);
   static void deallocate(void *heap_base);
+  HeapStatus *get_status(void *heap_base);
   void insert(void *heap_base);
   bool contains(void *heap_base);
+  bool is_present(void *heap_base);
   bool remove(void *heap_base);
+  bool remove_if_not_migrating(void *heap_base);
+  bool mark_migrating(void *heap_base);
   void rcu_reader_lock();
   bool rcu_try_reader_lock();
   void rcu_reader_unlock();
@@ -70,7 +76,9 @@ public:
   std::list<void *> pick_heaps(const Resource &pressure);
 
 private:
-  std::unique_ptr<RCUHashSet<HeapHeader *, RuntimeAllocator<HeapHeader *>>>
+  std::unique_ptr<
+      RCUHashMap<HeapHeader *, HeapStatus,
+                 RuntimeAllocator<std::pair<HeapHeader *const, HeapStatus>>>>
       heap_statuses_;
   RCULock rcu_lock_;
   friend class Test;

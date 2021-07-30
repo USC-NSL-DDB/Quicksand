@@ -317,7 +317,7 @@ Migrator::transmit_heap_mmap_populate_ranges(rt::TcpConn *c,
   populate_ranges.reserve(heaps.size());
 
   for (auto heap : heaps) {
-    if (unlikely(!Runtime::heap_manager->contains(heap))) {
+    if (unlikely(!Runtime::heap_manager->mark_migrating(heap))) {
       continue;
     }
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap);
@@ -359,10 +359,6 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header) {
 }
 
 bool Migrator::mark_migrating_threads(HeapHeader *heap_header) {
-  if (!Runtime::heap_manager->remove(heap_header)) {
-    return false;
-  }
-  ACCESS_ONCE(heap_header->migrating) = true;
   Runtime::heap_manager->rcu_writer_sync();
   auto all_threads = heap_header->threads->all_keys();
   for (auto thread : all_threads) {
@@ -410,6 +406,7 @@ void Migrator::migrate(Resource pressure, std::list<void *> heaps) {
   }
 
   for (auto *heap_header : migrated_heaps) {
+    BUG_ON(!Runtime::heap_manager->remove(heap_header));
     Runtime::heap_manager->deallocate(heap_header);
   }
 

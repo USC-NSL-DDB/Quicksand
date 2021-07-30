@@ -76,8 +76,10 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
 
 std::list<void *> HeapManager::pick_heaps(const Resource &pressure) {
   std::list<void *> heaps;
-  std::function<bool(HeapHeader *const &)> fn =
-      [&, pressure = pressure](HeapHeader *const &heap_header) mutable {
+  std::function fn =
+      [&, pressure = pressure](
+          const std::pair<HeapHeader *const, HeapStatus> &p) mutable {
+        auto *heap_header = p.first;
         if (heap_header->migratable) {
           heaps.push_back(heap_header);
           auto &slab = heap_header->slab;

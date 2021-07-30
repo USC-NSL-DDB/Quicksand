@@ -14,11 +14,12 @@ void Time::timer_callback(unsigned long arg_addr) {
   auto *arg = reinterpret_cast<TimerCallbackArg *>(arg_addr);
   Time *time;
 
-  if (unlikely(!Runtime::heap_manager->contains(arg->heap_header))) {
+  auto *heap_header = arg->heap_header;
+  if (unlikely(!Runtime::heap_manager->is_present(heap_header))) {
     return;
   }
 
-  time = arg->heap_header->time.get();
+  time = heap_header->time.get();
   time->spin_.Lock();
   time->entries_.erase(arg->iter);
   time->spin_.Unlock();

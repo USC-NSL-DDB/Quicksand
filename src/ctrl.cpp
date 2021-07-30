@@ -133,7 +133,7 @@ Controller::select_node_for_obj(std::optional<netaddr> hint) {
     return *iter;
   }
 
-  // TODO: adopt a more sophisticated mechanism once we've added more fields to
+  // TODO: adopt a more sophisticated mechanism once we've added more fields.
   if (unlikely(nodes_iter_ == nodes_.end())) {
     nodes_iter_ = nodes_.begin();
   }
