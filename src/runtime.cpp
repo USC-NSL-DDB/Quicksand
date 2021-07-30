@@ -44,8 +44,7 @@ void Runtime::init_runtime_heap() {
   preempt_enable();
   BUG_ON(mmap_addr != addr);
   BUG_ON(madvise(mmap_addr, kRuntimeHeapSize, MADV_HUGEPAGE) != 0);
-  uint16_t sentinel = 0x1;
-  runtime_slab.init(sentinel, mmap_addr, kRuntimeHeapSize);
+  runtime_slab.init(kRuntimeSlabId, mmap_addr, kRuntimeHeapSize);
 }
 
 void Runtime::init_as_controller() {

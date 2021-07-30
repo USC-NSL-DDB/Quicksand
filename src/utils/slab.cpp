@@ -4,7 +4,7 @@
 
 namespace nu {
 
-SlabAllocator *SlabAllocator::slabs_[std::numeric_limits<SlabId_t>::max()];
+SlabAllocator *SlabAllocator::slabs_[std::numeric_limits<SlabId_t>::max() + 1];
 
 void *SlabAllocator::FreePtrsLinkedList::pop() {
   size_--;
@@ -26,7 +26,6 @@ void SlabAllocator::FreePtrsLinkedList::push(void *ptr) {
   if (unlikely(!head_)) {
     head_ = reinterpret_cast<Batch *>(ptr);
     std::fill(std::begin(head_->p), std::end(head_->p), nullptr);
-    memset(head_->p, 0, sizeof(Batch));
     return;
   }
 
@@ -48,13 +47,13 @@ inline uint32_t get_num_cache_entries(uint32_t slab_shift) {
   case 4: // 32 B
     return 64;
   case 5: // 64 B
-    return 512;
-  case 6: // 128 B
     return 64;
+  case 6: // 128 B
+    return 32;
   case 7: // 256 B
     return 32;
   case 8: // 512 B
-    return 8;
+    return 16;
   case 9: // 1024 B
     return 8;
   case 10: // 2048 B
@@ -118,8 +117,10 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
   auto *hdr = reinterpret_cast<PtrHeader *>(reinterpret_cast<uintptr_t>(ptr) -
                                             sizeof(PtrHeader));
   auto *slab = slabs_[hdr->slab_id];
-  auto size = hdr->size;
+  assert(reinterpret_cast<const uint8_t *>(_ptr) < slab->start_);
+  assert(reinterpret_cast<const uint8_t *>(_ptr) >= slab->cur_);
 
+  auto size = hdr->size;
   ptr = hdr;
   auto slab_shift = slab->get_slab_shift(size);
   if (likely(slab_shift < slab->kMaxSlabClassShift)) {

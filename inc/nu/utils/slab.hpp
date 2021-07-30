@@ -18,8 +18,6 @@ extern "C" {
 
 namespace nu {
 
-using SlabId_t = uint16_t;
-
 struct PtrHeader {
   static_assert(sizeof(SlabId_t) < sizeof(uint64_t));
   uint64_t size : 8 * (sizeof(uint64_t) - sizeof(SlabId_t));
@@ -71,7 +69,7 @@ private:
     FreePtrsLinkedList lists[kMaxSlabClassShift];
   };
 
-  static SlabAllocator *slabs_[std::numeric_limits<SlabId_t>::max()];
+  static SlabAllocator *slabs_[std::numeric_limits<SlabId_t>::max() + 1];
   SlabId_t slab_id_;
   const uint8_t *start_;
   uint8_t *end_;

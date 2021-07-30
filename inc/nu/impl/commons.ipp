@@ -1,6 +1,4 @@
-extern "C" {
-#include <runtime/thread.h>
-}
+#include <limits>
 
 namespace nu {
 
@@ -37,6 +35,19 @@ inline VAddrRange get_obj_stack_range(thread_t *thread) {
   range.start = rsp - kStackRedZoneSize;
   range.end = ((rsp + kStackSize) & (~(kStackSize - 1)));
   return range;  
+}
+
+inline constexpr uint64_t __to_slab_id(uint64_t heap_base_addr) {
+  return heap_base_addr / kHeapSize;
+}
+
+inline SlabId_t to_slab_id(void *heap_base) {
+  constexpr auto kMaxHeapBaseAddr = kMaxHeapVAddr - kHeapSize;
+  constexpr auto kMinHeapBaseAddr = kMinHeapVAddr;
+  static_assert(__to_slab_id(kMaxHeapBaseAddr) <=
+                std::numeric_limits<SlabId_t>::max());
+  static_assert(__to_slab_id(kMinHeapBaseAddr) > kRuntimeSlabId);
+  return __to_slab_id(reinterpret_cast<uint64_t>(heap_base));
 }
 
 } // namespace nu

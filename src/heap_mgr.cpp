@@ -69,8 +69,8 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
 
   if (!from_migration) {
     auto heap_region_size = kHeapSize - sizeof(HeapHeader);
-    uint16_t sentinel = reinterpret_cast<uint64_t>(heap_header) / kHeapSize;
-    heap_header->slab.init(sentinel, heap_header + 1, heap_region_size);
+    heap_header->slab.init(to_slab_id(heap_header), heap_header + 1,
+                           heap_region_size);
   }
 }
 

@@ -13,6 +13,7 @@ constexpr static uint64_t kBufSize = (4ULL << 30);
 constexpr static uint64_t kMinSlabClassSize =
     (1ULL << SlabAllocator::kMinSlabClassShift);
 constexpr static uint64_t kMaxSlabClassSize = (1ULL << 27);
+uint16_t slab_id = 0;
 
 static_assert(kBufSize >= kMaxSlabClassSize);
 
@@ -21,7 +22,7 @@ bool run_with_size(uint64_t obj_size, uint64_t class_size) {
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 
-  auto slab = std::make_unique<SlabAllocator>(0, buf, kBufSize);
+  auto slab = std::make_unique<SlabAllocator>(slab_id++, buf, kBufSize);
   uint64_t count = kBufSize / class_size;
   if (slab->get_base() != buf) {
     return false;
@@ -59,7 +60,7 @@ bool run_more_than_buf_size() {
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 
-  auto slab = std::make_unique<SlabAllocator>(0, buf, kBufSize);
+  auto slab = std::make_unique<SlabAllocator>(slab_id++, buf, kBufSize);
   if (slab->allocate(kBufSize - sizeof(PtrHeader) + 1) != nullptr) {
     return false;
   }
