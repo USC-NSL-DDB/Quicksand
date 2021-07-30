@@ -29,8 +29,10 @@ public:
 
 private:
   nu::RemObj<UserService> _user_service_obj;
-  nu::DistributedHashTable<int64_t, std::set<int64_t>> _userid_to_followers_map;
-  nu::DistributedHashTable<int64_t, std::set<int64_t>> _userid_to_followees_map;
+  nu::DistributedHashTable<int64_t, std::set<int64_t>, decltype(kHashI64toU64)>
+      _userid_to_followers_map;
+  nu::DistributedHashTable<int64_t, std::set<int64_t>, decltype(kHashI64toU64)>
+      _userid_to_followees_map;
 };
 
 SocialGraphService::SocialGraphService(nu::RemObj<UserService>::Cap cap)
@@ -73,25 +75,25 @@ void SocialGraphService::Unfollow(int64_t user_id, int64_t followee_id) {
 }
 
 std::vector<int64_t> SocialGraphService::GetFollowers(int64_t user_id) {
-  auto followers_set_optional = _userid_to_followers_map.get(user_id);
-  auto followers_set = followers_set_optional
-                           ? std::move(*followers_set_optional)
-                           : std::set<int64_t>();
-  return std::vector<int64_t>(followers_set.begin(), followers_set.end());
+  return _userid_to_followers_map.apply(
+      user_id, +[](std::pair<const int64_t, std::set<int64_t>> &p) {
+        auto &set = p.second;
+        return std::vector<int64_t>(set.begin(), set.end());
+      });
 }
 
 std::vector<int64_t> SocialGraphService::GetFollowees(int64_t user_id) {
-  auto followees_set_optional = _userid_to_followees_map.get(user_id);
-  auto followees_set = followees_set_optional
-                           ? std::move(*followees_set_optional)
-                           : std::set<int64_t>();
-  return std::vector<int64_t>(followees_set.begin(), followees_set.end());
+  return _userid_to_followees_map.apply(
+      user_id, +[](std::pair<const int64_t, std::set<int64_t>> &p) {
+        auto &set = p.second;
+        return std::vector<int64_t>(set.begin(), set.end());
+      });
 }
 
 void SocialGraphService::FollowWithUsername(std::string user_name,
                                             std::string followee_name) {
-  auto user_id_future = _user_service_obj.run_async(
-      &UserService::GetUserId, std::move(user_name));
+  auto user_id_future = _user_service_obj.run_async(&UserService::GetUserId,
+                                                    std::move(user_name));
   auto followee_id_future = _user_service_obj.run_async(
       &UserService::GetUserId, std::move(followee_name));
   auto user_id = user_id_future.get();

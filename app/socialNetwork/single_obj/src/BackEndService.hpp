@@ -61,6 +61,9 @@ private:
   constexpr static auto kHashStrtoU64 = [](const std::string &str) {
     return util::Hash64(str);
   };
+  constexpr static auto kHashI64toU64 = [](int64_t id) {
+    return util::Hash64(reinterpret_cast<const char *>(&id), sizeof(int64_t));
+  };
 
   nu::DistributedHashTable<std::string, UserProfile, decltype(kHashStrtoU64)>
       username_to_userprofile_map_;
@@ -68,11 +71,16 @@ private:
       filename_to_data_map_;
   nu::DistributedHashTable<std::string, std::string, decltype(kHashStrtoU64)>
       short_to_extended_map_;
-  nu::DistributedHashTable<int64_t, Timeline> userid_to_hometimeline_map_;
-  nu::DistributedHashTable<int64_t, Timeline> userid_to_usertimeline_map_;
-  nu::DistributedHashTable<int64_t, Post> postid_to_post_map_;
-  nu::DistributedHashTable<int64_t, std::set<int64_t>> userid_to_followers_map_;
-  nu::DistributedHashTable<int64_t, std::set<int64_t>> userid_to_followees_map_;
+  nu::DistributedHashTable<int64_t, Timeline, decltype(kHashI64toU64)>
+      userid_to_hometimeline_map_;
+  nu::DistributedHashTable<int64_t, Timeline, decltype(kHashI64toU64)>
+      userid_to_usertimeline_map_;
+  nu::DistributedHashTable<int64_t, Post, decltype(kHashI64toU64)>
+      postid_to_post_map_;
+  nu::DistributedHashTable<int64_t, std::set<int64_t>, decltype(kHashI64toU64)>
+      userid_to_followers_map_;
+  nu::DistributedHashTable<int64_t, std::set<int64_t>, decltype(kHashI64toU64)>
+      userid_to_followees_map_;
   std::string secret_;
 };
 } // namespace social_network

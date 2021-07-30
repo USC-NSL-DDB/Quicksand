@@ -4,6 +4,7 @@
 #include <nu/dis_hash_table.hpp>
 
 #include "../gen-cpp/social_network_types.h"
+#include "utils.h"
 
 namespace social_network {
 
@@ -17,7 +18,8 @@ public:
   std::vector<Post> ReadPosts(std::vector<int64_t> post_ids);
 
 private:
-  nu::DistributedHashTable<int64_t, Post> _postid_to_post_map;
+  nu::DistributedHashTable<int64_t, Post, decltype(kHashI64toU64)>
+      _postid_to_post_map;
 };
 
 PostStorageService::PostStorageService()

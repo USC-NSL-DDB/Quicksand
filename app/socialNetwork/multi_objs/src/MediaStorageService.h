@@ -14,7 +14,8 @@ public:
   std::string GetMedia(std::string filename);
 
 private:
-  nu::DistributedHashTable<std::string, std::string> _filename_to_data_map;
+  nu::DistributedHashTable<std::string, std::string, decltype(kHashStrtoU64)>
+      _filename_to_data_map;
 };
 
 MediaStorageService::MediaStorageService()

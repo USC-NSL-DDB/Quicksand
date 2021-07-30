@@ -61,7 +61,8 @@ enum LoginErrorCode { OK, NOT_REGISTERED, WRONG_PASSWORD };
 class UserService {
 public:
   constexpr static uint32_t kDefaultHashTablePowerNumShards = 9;
-  using UserProfileMap = nu::DistributedHashTable<std::string, UserProfile>;
+  using UserProfileMap = nu::DistributedHashTable<std::string, UserProfile,
+                                                  decltype(kHashStrtoU64)>;
 
   UserService(UserProfileMap::Cap &&cap);
   void RegisterUser(std::string, std::string, std::string, std::string);

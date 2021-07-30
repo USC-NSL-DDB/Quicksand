@@ -29,7 +29,8 @@ private:
                        __gnu_pbds::rb_tree_tag,
                        __gnu_pbds::tree_order_statistics_node_update>;
   nu::RemObj<PostStorageService> _post_storage_service_obj;
-  nu::DistributedHashTable<int64_t, Tree> _userid_to_timeline_map;
+  nu::DistributedHashTable<int64_t, Tree, decltype(kHashI64toU64)>
+      _userid_to_timeline_map;
 };
 
 UserTimelineService::UserTimelineService(

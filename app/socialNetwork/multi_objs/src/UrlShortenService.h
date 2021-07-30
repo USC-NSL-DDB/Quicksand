@@ -20,7 +20,8 @@ public:
   std::vector<std::string> GetExtendedUrls(std::vector<std::string>);
 
 private:
-  nu::DistributedHashTable<std::string, std::string> _short_to_extended_map;
+  nu::DistributedHashTable<std::string, std::string, decltype(kHashStrtoU64)>
+      _short_to_extended_map;
 
   std::string GenRandomStr(int length);
 };
