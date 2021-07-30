@@ -17,7 +17,7 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 200;
-constexpr static double kTargetMops = 1.0;
+constexpr static double kTargetMops = 1.1;
 constexpr static double kTotalMops = 1.0;
 constexpr static char kBackEndServiceIp[] = "18.18.1.2";
 constexpr static uint32_t kBackEndServicePort = 9091;
@@ -121,10 +121,12 @@ public:
     return gen_follow_req(state);
   }
 
-  bool serve_req(nu::PerfThreadState *perf_state, const nu::PerfRequest *perf) {
+  bool serve_req(nu::PerfThreadState *perf_state,
+                 const nu::PerfRequest *perf_req) {
     try {
       auto *state = reinterpret_cast<socialNetworkThreadState *>(perf_state);
-      auto *user_timeline_req = dynamic_cast<const UserTimelineRequest *>(perf);
+      auto *user_timeline_req =
+          dynamic_cast<const UserTimelineRequest *>(perf_req);
       if (user_timeline_req) {
         std::vector<social_network::Post> unused;
         state->client->ReadUserTimeline(unused, user_timeline_req->user_id,
@@ -132,7 +134,8 @@ public:
                                         user_timeline_req->stop);
         return true;
       }
-      auto *home_timeline_req = dynamic_cast<const HomeTimelineRequest *>(perf);
+      auto *home_timeline_req =
+          dynamic_cast<const HomeTimelineRequest *>(perf_req);
       if (home_timeline_req) {
         std::vector<social_network::Post> unused;
         state->client->ReadHomeTimeline(unused, home_timeline_req->user_id,
@@ -140,7 +143,8 @@ public:
                                         home_timeline_req->stop);
         return true;
       }
-      auto *compose_post_req = dynamic_cast<const ComposePostRequest *>(perf);
+      auto *compose_post_req =
+          dynamic_cast<const ComposePostRequest *>(perf_req);
       if (compose_post_req) {
         state->client->ComposePost(
             compose_post_req->username, compose_post_req->user_id,
@@ -148,7 +152,7 @@ public:
             compose_post_req->media_types, compose_post_req->post_type);
         return true;
       }
-      auto *follow_req = dynamic_cast<const FollowReq *>(perf);
+      auto *follow_req = dynamic_cast<const FollowReq *>(perf_req);
       if (follow_req) {
         state->client->Follow(follow_req->user_id, follow_req->followee_id);
         return true;
@@ -225,7 +229,7 @@ void do_work() {
   nu::Perf perf(social_network_adapter);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
   auto warmup_us = duration_us;
-  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us, nu::kOneSecond);
+  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us, 50 * nu::kOneMilliSecond);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
                "99.9th_lat"
             << std::endl;

@@ -160,6 +160,60 @@ std::vector<Post> BackEndService::ReadUserTimeline(int64_t user_id, int start,
   return ReadPosts(post_ids);
 }
 
+void BackEndService::RemovePosts(int64_t user_id, int start, int stop) {
+  auto posts_future =
+      nu::async([&]() { return ReadUserTimeline(user_id, start, stop); });
+  auto followers_future = nu::async([&]() { return GetFollowers(user_id); });
+  auto posts = std::move(posts_future.get());
+  auto followers = std::move(followers_future.get());
+
+  std::vector<nu::Future<bool>> remove_post_futures;
+  std::vector<nu::Future<void>> remove_from_timeline_futures;
+  std::vector<nu::Future<bool>> remove_short_url_futures;
+
+  for (auto post : posts) {
+    remove_post_futures.emplace_back(
+        postid_to_post_map_.remove_async(post.post_id));
+
+    auto remove_from_timeline_fn =
+        [&remove_from_timeline_futures](
+            nu::DistributedHashTable<int64_t, Timeline, decltype(kHashI64toU64)>
+                &timeline_map,
+            int64_t user_id, Post &post) {
+          remove_from_timeline_futures.emplace_back(timeline_map.apply_async(
+              user_id,
+              +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
+                  int64_t post_id) {
+                (p.second).erase(std::make_pair(timestamp, post_id));
+              },
+              post.timestamp, post.post_id));
+        };
+    remove_from_timeline_fn(userid_to_usertimeline_map_, user_id, post);
+    for (auto mention : post.user_mentions) {
+      remove_from_timeline_fn(userid_to_hometimeline_map_, mention.user_id,
+                              post);
+    }
+    for (auto user_id : followers) {
+      remove_from_timeline_fn(userid_to_hometimeline_map_, user_id, post);
+    }
+
+    for (auto &url : post.urls) {
+      remove_short_url_futures.emplace_back(
+          short_to_extended_map_.remove_async(url.shortened_url));
+    }
+  }
+
+  for (auto &future : remove_post_futures) {
+    future.get();
+  }
+  for (auto &future : remove_from_timeline_futures) {
+    future.get();
+  }
+  for (auto &future : remove_short_url_futures) {
+    future.get();
+  }
+}
+
 void BackEndService::WriteHomeTimeline(
     int64_t post_id, int64_t user_id, int64_t timestamp,
     const std::vector<int64_t> &user_mentions_id) {
@@ -263,15 +317,19 @@ void BackEndService::Unfollow(int64_t user_id, int64_t followee_id) {
 }
 
 std::vector<int64_t> BackEndService::GetFollowers(int64_t user_id) {
-  auto followers_set_optional = userid_to_followers_map_.get(user_id);
-  auto followers_set = followers_set_optional.value_or(std::set<int64_t>());
-  return std::vector<int64_t>(followers_set.begin(), followers_set.end());
+  return userid_to_followers_map_.apply(
+      user_id, +[](std::pair<const int64_t, std::set<int64_t>> &p) {
+        auto &set = p.second;
+        return std::vector<int64_t>(set.begin(), set.end());
+      });
 }
 
 std::vector<int64_t> BackEndService::GetFollowees(int64_t user_id) {
-  auto followees_set_optional = userid_to_followees_map_.get(user_id);
-  auto followees_set = followees_set_optional.value_or(std::set<int64_t>());
-  return std::vector<int64_t>(followees_set.begin(), followees_set.end());
+  return userid_to_followees_map_.apply(
+      user_id, +[](std::pair<const int64_t, std::set<int64_t>> &p) {
+        auto &set = p.second;
+        return std::vector<int64_t>(set.begin(), set.end());
+      });
 }
 
 void BackEndService::FollowWithUsername(const std::string &user_name,

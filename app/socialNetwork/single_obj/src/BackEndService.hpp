@@ -45,6 +45,7 @@ public:
   std::vector<Post> ReadHomeTimeline(int64_t user_id, int start, int stop);
   void UploadMedia(const std::string &filename, const std::string &data);
   std::string GetMedia(const std::string &filename);
+  void RemovePosts(int64_t user_id, int start, int stop);
 
 private:
   TextServiceReturn ComposeText(const std::string &text);

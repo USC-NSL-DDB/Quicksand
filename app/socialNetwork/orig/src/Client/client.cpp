@@ -148,10 +148,12 @@ public:
     return gen_follow_req(state);
   }
 
-  bool serve_req(nu::PerfThreadState *perf_state, const nu::PerfRequest *perf) {
+  bool serve_req(nu::PerfThreadState *perf_state,
+                 const nu::PerfRequest *perf_req) {
     try {
       auto *state = reinterpret_cast<socialNetworkThreadState *>(perf_state);
-      auto *user_timeline_req = dynamic_cast<const UserTimelineRequest *>(perf);
+      auto *user_timeline_req =
+          dynamic_cast<const UserTimelineRequest *>(perf_req);
       int64_t req_id = microtime();
       if (user_timeline_req) {
         std::vector<social_network::Post> ret;
@@ -161,7 +163,8 @@ public:
             user_timeline_req->stop, carrier);
         return true;
       }
-      auto *home_timeline_req = dynamic_cast<const HomeTimelineRequest *>(perf);
+      auto *home_timeline_req =
+          dynamic_cast<const HomeTimelineRequest *>(perf_req);
       if (home_timeline_req) {
         std::vector<social_network::Post> ret;
         std::map<std::string, std::string> carrier;
@@ -170,7 +173,8 @@ public:
             home_timeline_req->stop, carrier);
         return true;
       }
-      auto *compose_post_req = dynamic_cast<const ComposePostRequest *>(perf);
+      auto *compose_post_req =
+          dynamic_cast<const ComposePostRequest *>(perf_req);
       if (compose_post_req) {
         std::map<std::string, std::string> carrier;
         state->compose_post_client.get()->ComposePost(
@@ -180,7 +184,7 @@ public:
             carrier);
         return true;
       }
-      auto *follow_req = dynamic_cast<const FollowReq *>(perf);
+      auto *follow_req = dynamic_cast<const FollowReq *>(perf_req);
       if (follow_req) {
         std::map<std::string, std::string> carrier;
         state->social_graph_client.get()->Follow(

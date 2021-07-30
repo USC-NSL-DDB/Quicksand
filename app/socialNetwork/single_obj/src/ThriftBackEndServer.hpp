@@ -46,6 +46,7 @@ public:
   void UploadMedia(const std::string &filename,
                    const std::string &data) override;
   void GetMedia(std::string &ret, const std::string &filename) override;
+  void RemovePosts(int64_t user_id, int32_t start, int32_t stop) override;
   void NoOp() override;
 
 private:

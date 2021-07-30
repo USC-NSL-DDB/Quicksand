@@ -23,9 +23,11 @@ constexpr static char kBackEndServiceIp[] = "18.18.1.2";
 constexpr static uint32_t kBackEndServicePort = 9091;
 constexpr static uint32_t kUserTimelinePercent = 60;
 constexpr static uint32_t kHomeTimelinePercent = 30;
-constexpr static uint32_t kComposePostPercent = 10;
+constexpr static uint32_t kComposePostPercent = 5;
+constexpr static uint32_t kRemovePostsPercent = kComposePostPercent;
 constexpr static uint32_t kFollowPercent =
-    100 - kUserTimelinePercent - kHomeTimelinePercent - kComposePostPercent;
+    100 - kUserTimelinePercent - kHomeTimelinePercent - kComposePostPercent -
+    kRemovePostsPercent;
 constexpr static uint32_t kNumUsers = 962;
 constexpr static char kCharSet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "abcdefghijklmnopqrstuvwxyz";
@@ -72,6 +74,12 @@ struct ComposePostRequest : nu::PerfRequest {
   social_network::PostType::type post_type;
 };
 
+struct RemovePostsRequest : nu::PerfRequest {
+  int64_t user_id;
+  int32_t start;
+  int32_t stop;
+};
+
 struct FollowReq : nu::PerfRequest {
   int64_t user_id;
   int64_t followee_id;
@@ -106,6 +114,7 @@ public:
 
   std::unique_ptr<nu::PerfRequest> gen_req(nu::PerfThreadState *perf_state) {
     auto *state = reinterpret_cast<socialNetworkThreadState *>(perf_state);
+
     auto rand_int = (*state->dist_1_100)(*state->gen);
     if (rand_int <= kUserTimelinePercent) {
       return gen_user_timeline_req(state);
@@ -118,13 +127,18 @@ public:
     if (rand_int <= kComposePostPercent) {
       return gen_compose_post_req(state);
     }
+    rand_int -= kComposePostPercent;
+    if (rand_int <= kRemovePostsPercent) {
+      return gen_remove_posts_req(state);
+    }
     return gen_follow_req(state);
   }
 
-  bool serve_req(nu::PerfThreadState *perf_state, const nu::PerfRequest *perf) {
+  bool serve_req(nu::PerfThreadState *perf_state, const nu::PerfRequest *perf_req) {
     try {
       auto *state = reinterpret_cast<socialNetworkThreadState *>(perf_state);
-      auto *user_timeline_req = dynamic_cast<const UserTimelineRequest *>(perf);
+      auto *user_timeline_req =
+          dynamic_cast<const UserTimelineRequest *>(perf_req);
       if (user_timeline_req) {
         std::vector<social_network::Post> unused;
         state->client->ReadUserTimeline(unused, user_timeline_req->user_id,
@@ -132,7 +146,8 @@ public:
                                         user_timeline_req->stop);
         return true;
       }
-      auto *home_timeline_req = dynamic_cast<const HomeTimelineRequest *>(perf);
+      auto *home_timeline_req =
+          dynamic_cast<const HomeTimelineRequest *>(perf_req);
       if (home_timeline_req) {
         std::vector<social_network::Post> unused;
         state->client->ReadHomeTimeline(unused, home_timeline_req->user_id,
@@ -140,7 +155,8 @@ public:
                                         home_timeline_req->stop);
         return true;
       }
-      auto *compose_post_req = dynamic_cast<const ComposePostRequest *>(perf);
+      auto *compose_post_req =
+          dynamic_cast<const ComposePostRequest *>(perf_req);
       if (compose_post_req) {
         state->client->ComposePost(
             compose_post_req->username, compose_post_req->user_id,
@@ -148,7 +164,15 @@ public:
             compose_post_req->media_types, compose_post_req->post_type);
         return true;
       }
-      auto *follow_req = dynamic_cast<const FollowReq *>(perf);
+      auto *remove_posts_req =
+          dynamic_cast<const RemovePostsRequest *>(perf_req);
+      if (remove_posts_req) {
+        state->client->RemovePosts(remove_posts_req->user_id,
+                                   remove_posts_req->start,
+                                   remove_posts_req->stop);
+        return true;
+      }
+      auto *follow_req = dynamic_cast<const FollowReq *>(perf_req);
       if (follow_req) {
         state->client->Follow(follow_req->user_id, follow_req->followee_id);
         return true;
@@ -204,6 +228,15 @@ private:
     return std::unique_ptr<ComposePostRequest>(compose_post_req);
   }
 
+  std::unique_ptr<RemovePostsRequest>
+  gen_remove_posts_req(socialNetworkThreadState *state) {
+    auto *remove_posts_req = new RemovePostsRequest();
+    remove_posts_req->user_id = (*state->dist_1_numusers)(*state->gen);
+    remove_posts_req->start = 0;
+    remove_posts_req->stop = remove_posts_req->start + 1;
+    return std::unique_ptr<RemovePostsRequest>(remove_posts_req);
+  }
+
   std::unique_ptr<FollowReq> gen_follow_req(socialNetworkThreadState *state) {
     auto *follow_req = new FollowReq();
     follow_req->user_id = (*state->dist_1_numusers)(*state->gen);
@@ -225,7 +258,8 @@ void do_work() {
   nu::Perf perf(social_network_adapter);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
   auto warmup_us = duration_us;
-  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us, nu::kOneSecond);
+  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us,
+           50 * nu::kOneMilliSecond);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
                "99.9th_lat"
             << std::endl;

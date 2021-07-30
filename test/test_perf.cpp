@@ -27,7 +27,7 @@ public:
     return std::make_unique<PerfRequest>();
   }
 
-  bool serve_req(PerfThreadState *state, const PerfRequest *perf) override {
+  bool serve_req(PerfThreadState *state, const PerfRequest *req) override {
     return true;
   }
 };

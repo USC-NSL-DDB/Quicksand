@@ -105,6 +105,11 @@ void ThriftBackEndServer::GetMedia(std::string &ret,
   ret = back_end_service_.GetMedia(filename);
 }
 
+void ThriftBackEndServer::RemovePosts(int64_t user_id, int32_t start,
+                                      int32_t stop) {
+  back_end_service_.RemovePosts(user_id, start, stop);
+}
+
 void ThriftBackEndServer::NoOp() {}
 
 } // namespace social_network

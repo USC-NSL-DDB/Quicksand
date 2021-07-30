@@ -90,6 +90,11 @@ class BackEndServiceHandler : virtual public BackEndServiceIf {
     printf("GetMedia\n");
   }
 
+  void RemovePosts(const int64_t user_id, const int32_t start, const int32_t stop) {
+    // Your implementation goes here
+    printf("RemovePosts\n");
+  }
+
   void NoOp() {
     // Your implementation goes here
     printf("NoOp\n");

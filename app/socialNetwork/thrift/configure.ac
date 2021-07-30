@@ -104,7 +104,7 @@ AC_PROG_RANLIB
 AC_LANG([C++])
 CXX="g++-11"
 CPP="g++-11"
-CXXFLAGS="-std=c++2a -g -O3 $CXXFLAGS"
+CXXFLAGS="$CXXFLAGS -std=c++2a -O3 -g"
 #if test "$ac_success" = "no"; then
 #  CXXFLAGS="$CXXFLAGS -Wno-variadic-macros -Wno-long-long -Wno-c++11-long-long"
 #fi

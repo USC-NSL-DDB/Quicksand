@@ -32,7 +32,7 @@ class PerfAdapter {
 public:
   virtual std::unique_ptr<PerfThreadState> create_thread_state() = 0;
   virtual std::unique_ptr<PerfRequest> gen_req(PerfThreadState *state) = 0;
-  virtual bool serve_req(PerfThreadState *state, const PerfRequest *perf) = 0;
+  virtual bool serve_req(PerfThreadState *state, const PerfRequest *req) = 0;
 };
 
 // Open-loop, possion arrival.
