@@ -1,4 +1,5 @@
 #include <iostream>
+#include <nu/monitor.hpp>
 #include <nu/rem_obj.hpp>
 #include <nu/runtime.hpp>
 
@@ -6,6 +7,8 @@
 #include "utils.hpp"
 
 using namespace social_network;
+
+constexpr bool kEnableMigration = false;
 
 class ServiceEntry {
 public:
@@ -31,8 +34,37 @@ public:
   }
 };
 
+namespace nu {
+class Test {
+public:
+  Test(uint32_t pressure_mem_mbs) : pressure_mem_mbs_(pressure_mem_mbs) {}
+
+  int migrate() {
+    Resource resource = {.cores = 0, .mem_mbs = pressure_mem_mbs_};
+    Runtime::monitor->mock_set_pressure(resource);
+    return 0;
+  }
+
+private:
+  uint32_t pressure_mem_mbs_;
+};
+} // namespace nu
+
 void DoWork() {
-  auto thrift_back_end_server = nu::RemObj<ServiceEntry>::create_pinned();
+  netaddr addr;
+  addr.ip = MAKE_IP_ADDR(18, 18, 1, 2);
+  addr.port = nu::ObjServer::kObjServerPort;
+  auto thrift_future = nu::async([&] {
+    auto thrift_back_end_server =
+        nu::RemObj<ServiceEntry>::create_pinned_at(addr);
+  });
+  if constexpr (kEnableMigration) {
+    auto test = nu::RemObj<nu::Test>::create_pinned(32 * 1024);
+    std::cout << "Press enter to start migration..." << std::endl;
+    std::cin.ignore();
+    std::cout << "Start migrating..." << std::endl;
+    test.run(&nu::Test::migrate);
+  }
   rt::Yield();
 }
 
