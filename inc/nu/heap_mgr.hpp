@@ -41,6 +41,7 @@ struct HeapHeader {
   std::unique_ptr<Time> time;
   bool migratable;
   bool migrating;
+  RCULock rcu_lock;
 
   // Forwarding related.
   uint32_t old_server_ip;
@@ -69,11 +70,11 @@ public:
   bool remove(void *heap_base);
   bool remove_if_not_migrating(void *heap_base);
   bool mark_migrating(void *heap_base);
-  void rcu_reader_lock();
-  bool rcu_try_reader_lock();
-  void rcu_reader_unlock();
-  void rcu_writer_sync();
-  std::list<void *> pick_heaps(const Resource &pressure);
+  bool migration_disable_initial(HeapHeader *heap_header);
+  void migration_enable_final(HeapHeader *heap_header);
+  static void migration_disable();
+  static void migration_enable();
+  std::vector<HeapRange> pick_heaps(const Resource &pressure);
 
 private:
   std::unique_ptr<

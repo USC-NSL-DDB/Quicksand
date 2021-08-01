@@ -10,6 +10,8 @@ namespace nu {
 #error Must indicate number of CPU cores
 #endif
 
+struct HeapHeader;
+
 struct Resource {
   uint32_t cores;
   uint32_t mem_mbs;
@@ -18,6 +20,11 @@ struct Resource {
 struct VAddrRange {
   uint64_t start;
   uint64_t end;
+};
+
+struct HeapRange {
+  HeapHeader *heap_header;
+  uint64_t len;
 };
 
 struct ErasedType {};

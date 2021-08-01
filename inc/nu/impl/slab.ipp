@@ -63,8 +63,6 @@ inline SlabId_t SlabAllocator::get_id() noexcept { return slab_id_; }
 
 inline void SlabAllocator::register_slab_by_id(SlabAllocator *slab,
                                                SlabId_t slab_id) noexcept {
-  // FIXME: this should hold, but may not hold in the current implementation if
-  // migration happens.
   BUG_ON(slabs_[slab_id]);
   slabs_[slab_id] = slab;
 }

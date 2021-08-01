@@ -11,9 +11,9 @@ extern "C" {
 }
 #include <thread.h>
 
+#include "nu/commons.hpp"
 #include "nu/cond_var.hpp"
 #include "nu/ctrl_client.hpp"
-#include "nu/commons.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/migrator.hpp"
 #include "nu/mutex.hpp"
@@ -78,9 +78,9 @@ void Migrator::handle_forward(rt::TcpConn *c) {
 
   Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(stack_top));
 
-  rt::Thread(
-      [&, conn_to_client] { Runtime::obj_server->handle_reqs(conn_to_client); })
-      .Detach();
+  rt::Thread([&, conn_to_client] {
+    Runtime::obj_server->handle_reqs(conn_to_client);
+  }).Detach();
 }
 
 void Migrator::handle_unmap(rt::TcpConn *c) {
@@ -133,8 +133,7 @@ void Migrator::run_loop() {
         }
       }
       BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
-    })
-        .Detach();
+    }).Detach();
   }
 }
 
@@ -310,34 +309,16 @@ void Migrator::transmit_stack_cluster_mmap_task(rt::TcpConn *c) {
   BUG_ON(c->WriteFull(&stack_cluster, sizeof(stack_cluster)) < 0);
 }
 
-std::vector<HeapMmapPopulateRange>
-Migrator::transmit_heap_mmap_populate_ranges(rt::TcpConn *c,
-                                             const std::list<void *> &heaps) {
-  std::vector<HeapMmapPopulateRange> populate_ranges;
-  populate_ranges.reserve(heaps.size());
-
-  for (auto heap : heaps) {
-    if (unlikely(!Runtime::heap_manager->mark_migrating(heap))) {
-      continue;
-    }
-    auto *heap_header = reinterpret_cast<HeapHeader *>(heap);
-    auto &slab = heap_header->slab;
-    uint64_t len = reinterpret_cast<uint64_t>(slab.get_base()) +
-                   slab.get_usage() - reinterpret_cast<uint64_t>(heap_header);
-    HeapMmapPopulateRange range{heap_header, len};
-    populate_ranges.push_back(range);
-  }
-
-  uint64_t size = populate_ranges.size() * sizeof(HeapMmapPopulateRange);
+void Migrator::transmit_heap_mmap_populate_ranges(
+    rt::TcpConn *c, const std::vector<HeapRange> &heaps) {
+  uint64_t size = heaps.size() * sizeof(HeapRange);
   if (size) {
     const iovec iovecs[] = {{&size, sizeof(size)},
-                            {populate_ranges.data(), size}};
+                            {const_cast<HeapRange *>(heaps.data()), size}};
     BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ true) < 0);
   } else {
     BUG_ON(c->WriteFull(&size, sizeof(size)) < 0);
   }
-
-  return populate_ranges;
 }
 
 void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header) {
@@ -359,7 +340,10 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header) {
 }
 
 bool Migrator::mark_migrating_threads(HeapHeader *heap_header) {
-  Runtime::heap_manager->rcu_writer_sync();
+  if (unlikely(!Runtime::heap_manager->mark_migrating(heap_header))) {
+    return false;
+  }
+  heap_header->rcu_lock.writer_sync();
   auto all_threads = heap_header->threads->all_keys();
   for (auto thread : all_threads) {
     thread_mark_migrating(thread);
@@ -379,7 +363,7 @@ void Migrator::unmap_destructed_heaps(
   }
 }
 
-void Migrator::migrate(Resource pressure, std::list<void *> heaps) {
+void Migrator::migrate(Resource pressure, std::vector<HeapRange> heaps) {
   auto optional_dest_addr =
       Runtime::controller_client->get_migration_dest(pressure);
   BUG_ON(!optional_dest_addr);
@@ -389,12 +373,12 @@ void Migrator::migrate(Resource pressure, std::list<void *> heaps) {
   uint8_t type = MIGRATE;
   BUG_ON(conn->WriteFull(&type, sizeof(type)) < 0);
   transmit_stack_cluster_mmap_task(conn);
-  auto heap_populate_ranges = transmit_heap_mmap_populate_ranges(conn, heaps);
+  transmit_heap_mmap_populate_ranges(conn, heaps);
 
   std::vector<HeapHeader *> migrated_heaps;
   std::vector<HeapHeader *> destructed_heaps;
-  migrated_heaps.reserve(heap_populate_ranges.size());
-  for (auto [heap_header, _] : heap_populate_ranges) {
+  migrated_heaps.reserve(heaps.size());
+  for (auto [heap_header, _] : heaps) {
     if (unlikely(!mark_migrating_threads(heap_header))) {
       destructed_heaps.push_back(heap_header);
       continue;
@@ -402,11 +386,11 @@ void Migrator::migrate(Resource pressure, std::list<void *> heaps) {
     migrated_heaps.push_back(heap_header);
     pause_migrating_threads();
     transmit(conn, heap_header);
+    BUG_ON(!Runtime::heap_manager->remove(heap_header));
     gc_migrated_threads();
   }
 
   for (auto *heap_header : migrated_heaps) {
-    BUG_ON(!Runtime::heap_manager->remove(heap_header));
     Runtime::heap_manager->deallocate(heap_header);
   }
 
@@ -578,15 +562,15 @@ VAddrRange Migrator::load_stack_cluster_mmap_task(rt::TcpConn *c) {
   return stack_cluster;
 }
 
-std::vector<HeapMmapPopulateRange>
+std::vector<HeapRange>
 Migrator::load_heap_mmap_populate_ranges(rt::TcpConn *c) {
-  std::vector<HeapMmapPopulateRange> populate_ranges;
+  std::vector<HeapRange> populate_ranges;
   uint64_t size;
 
   BUG_ON(c->ReadFull(&size, sizeof(size)) <= 0);
 
   if (size) {
-    populate_ranges.resize(size / sizeof(HeapMmapPopulateRange));
+    populate_ranges.resize(size / sizeof(HeapRange));
     BUG_ON(c->ReadFull(&populate_ranges[0], size, /* nt = */ true) <= 0);
   }
 
@@ -594,8 +578,7 @@ Migrator::load_heap_mmap_populate_ranges(rt::TcpConn *c) {
 }
 
 rt::Thread Migrator::do_heap_mmap_populate(
-    uint32_t old_server_ip,
-    const std::vector<HeapMmapPopulateRange> &populate_ranges,
+    uint32_t old_server_ip, const std::vector<HeapRange> &populate_ranges,
     std::vector<HeapMmapPopulateTask> *populate_tasks) {
   populate_tasks->reserve(populate_ranges.size());
   for (size_t i = 0; i < populate_ranges.size(); i++) {

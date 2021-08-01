@@ -1,5 +1,6 @@
 #include <sys/mman.h>
 
+#include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"
 #include "nu/time.hpp"
 #include "nu/utils/rcu_hash_map.hpp"
@@ -36,16 +37,6 @@ inline bool HeapManager::remove_if_not_migrating(void *heap_base) {
   return heap_statuses_->remove_if_equals(heap_header, PRESENT);
 }
 
-inline void HeapManager::rcu_reader_lock() { rcu_lock_.reader_lock(); }
-
-inline bool HeapManager::rcu_try_reader_lock() {
-  return rcu_lock_.try_reader_lock();
-}
-
-inline void HeapManager::rcu_reader_unlock() { rcu_lock_.reader_unlock(); }
-
-inline void HeapManager::rcu_writer_sync() { rcu_lock_.writer_sync(); }
-
 inline bool HeapManager::mark_migrating(void *heap_base) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
   if (!heap_statuses_->update_if_equals(heap_header, PRESENT, MIGRATING)) {
@@ -57,6 +48,27 @@ inline bool HeapManager::mark_migrating(void *heap_base) {
 
 inline HeapStatus *HeapManager::get_status(void *heap_base) {
   return heap_statuses_->get(reinterpret_cast<HeapHeader *>(heap_base));
+}
+
+inline void HeapManager::migration_enable_final(HeapHeader *heap_header) {
+  heap_header->threads->remove(thread_self());
+  heap_header->rcu_lock.reader_unlock();
+}
+
+inline void HeapManager::migration_disable() {
+  auto *heap_header = Runtime::get_current_obj_heap_header();
+  if (!heap_header) {
+    return;
+  }
+  heap_header->rcu_lock.reader_lock();
+}
+
+inline void HeapManager::migration_enable() {
+  auto *heap_header = Runtime::get_current_obj_heap_header();
+  if (!heap_header) {
+    return;
+  }
+  heap_header->rcu_lock.reader_unlock();
 }
 
 } // namespace nu

@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <functional>
-#include <list>
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -44,18 +43,13 @@ struct RPCReqCopy {
   rt::WaitGroup *wg;
 } __attribute__((packed));
 
-struct HeapMmapPopulateRange {
-  HeapHeader *heap_header;
-  uint64_t len;
-};
-
 struct HeapMmapPopulateTask {
-  HeapMmapPopulateRange range;
+  HeapRange range;
   bool mmapped;
   std::unique_ptr<rt::Mutex> mu;
   std::unique_ptr<rt::CondVar> cv;
 
-  HeapMmapPopulateTask(HeapMmapPopulateRange _range)
+  HeapMmapPopulateTask(HeapRange _range)
       : range(_range), mmapped(false), mu(new rt::Mutex()),
         cv(new rt::CondVar()) {}
 };
@@ -68,7 +62,7 @@ public:
 
   ~Migrator();
   void run_loop();
-  void migrate(Resource pressure, std::list<void *> heaps);
+  void migrate(Resource pressure, std::vector<HeapRange> heaps);
   void forward_to_original_server(rt::TcpConn *conn_to_client,
                                   uint64_t stack_top, const ObjRPCRespHdr &hdr,
                                   const void *payload);
@@ -88,9 +82,8 @@ private:
   void transmit(rt::TcpConn *c, HeapHeader *heap_header);
   void transmit_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit_heap(rt::TcpConn *c, HeapHeader *heap_header);
-  std::vector<HeapMmapPopulateRange>
-  transmit_heap_mmap_populate_ranges(rt::TcpConn *c,
-                                     const std::list<void *> &heaps);
+  void transmit_heap_mmap_populate_ranges(rt::TcpConn *c,
+                                          const std::vector<HeapRange> &heaps);
   void transmit_mutexes(rt::TcpConn *c, HeapHeader *heap_header,
                         std::unordered_set<thread_t *> *mutex_threads);
   void transmit_condvars(rt::TcpConn *c, HeapHeader *heap_header,
@@ -104,16 +97,15 @@ private:
                               std::vector<HeapHeader *> *destructed_heaps);
   void load(rt::TcpConn *c);
   void load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task);
-  std::vector<HeapMmapPopulateRange>
-  load_heap_mmap_populate_ranges(rt::TcpConn *c);
+  std::vector<HeapRange> load_heap_mmap_populate_ranges(rt::TcpConn *c);
   void load_mutexes(rt::TcpConn *c, HeapHeader *heap_header);
   void load_condvars(rt::TcpConn *c, HeapHeader *heap_header);
   void load_time(rt::TcpConn *c, HeapHeader *heap_header);
   void load_threads(rt::TcpConn *c, HeapHeader *heap_header);
   thread_t *load_one_thread(rt::TcpConn *c, HeapHeader *heap_header);
-  rt::Thread do_heap_mmap_populate(
-      uint32_t old_server_ip,
-      const std::vector<HeapMmapPopulateRange> &populate_ranges,
-      std::vector<HeapMmapPopulateTask> *populate_tasks);
+  rt::Thread
+  do_heap_mmap_populate(uint32_t old_server_ip,
+                        const std::vector<HeapRange> &populate_ranges,
+                        std::vector<HeapMmapPopulateTask> *populate_tasks);
 };
 } // namespace nu

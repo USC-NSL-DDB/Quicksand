@@ -119,40 +119,6 @@ Runtime::~Runtime() {
   preempt_enable();
 }
 
-// TODO: make the rcu lock to be per-heap instead of being global.
-// FIXME: cannot be nested.
-void Runtime::migration_enable() {
-  auto *heap_header = get_current_obj_heap_header();
-  if (!heap_header) {
-    return;
-  }
-  heap_header->threads->put(thread_self());
-  heap_manager->rcu_reader_unlock();
-}
-
-// FIXME: cannot be nested.
-void Runtime::migration_disable() {
-  auto *heap_header = get_current_obj_heap_header();
-  if (!heap_header) {
-    return;
-  }
-
-retry:
-  preempt_disable();
-  bool lock_acquired = heap_manager->rcu_try_reader_lock();
-  bool migrating = ACCESS_ONCE(heap_header->migrating);
-  if (unlikely(!lock_acquired || migrating)) {
-    if (lock_acquired) {
-      heap_manager->rcu_reader_unlock();
-    }
-    preempt_enable();
-    rt::Yield();
-    goto retry;
-  }
-  preempt_enable();
-  heap_header->threads->remove(thread_self());
-}
-
 void Runtime::reserve_ctrl_server_conns(uint32_t num) {
   if (controller_client) {
     controller_client->reserve_conns(num);

@@ -81,11 +81,11 @@ void ObjServer::__update_ref_cnt(Cls &obj, rt::TcpConn *rpc_conn,
       *deallocate = true;
       obj.~Cls();
     } else {
-      Runtime::migration_enable();
+      HeapManager::migration_enable();
       while (ACCESS_ONCE(heap_header->migrating)) {
         rt::Yield();
       }
-      Runtime::migration_disable();
+      HeapManager::migration_disable();
       goto retry;
     }
   }
@@ -151,12 +151,12 @@ void ObjServer::__run_closure(Cls &obj, cereal::BinaryInputArchive &ia,
   std::tuple<std::decay_t<S1s>...> states;
   std::apply([&](auto &&... states) { ((ia >> states), ...); }, states);
 
-  Runtime::migration_enable();
+  HeapManager::migration_enable();
   if constexpr (std::is_same<RetT, void>::value) {
     std::apply(
         [&](auto &&... states) { fn(obj, std::forward<S1s>(states)...); },
         states);
-    Runtime::migration_disable();
+    HeapManager::migration_disable();
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
   } else {
     auto ret = std::apply(
@@ -164,7 +164,7 @@ void ObjServer::__run_closure(Cls &obj, cereal::BinaryInputArchive &ia,
           return fn(obj, std::forward<S1s>(states)...);
         },
         states);
-    Runtime::migration_disable();
+    HeapManager::migration_disable();
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
     oa_sstream->oa << ret;
   }

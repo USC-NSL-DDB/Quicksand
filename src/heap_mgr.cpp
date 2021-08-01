@@ -74,27 +74,44 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
   }
 }
 
-std::list<void *> HeapManager::pick_heaps(const Resource &pressure) {
-  std::list<void *> heaps;
+std::vector<HeapRange> HeapManager::pick_heaps(const Resource &pressure) {
+  std::vector<HeapRange> heaps;
   std::function fn =
       [&, pressure = pressure](
           const std::pair<HeapHeader *const, HeapStatus> &p) mutable {
         auto *heap_header = p.first;
         if (heap_header->migratable) {
-          heaps.push_back(heap_header);
           auto &slab = heap_header->slab;
-          auto heap_usage = slab.get_usage() >> 20;
+          uint64_t len = reinterpret_cast<uint64_t>(slab.get_base()) +
+                         slab.get_usage() -
+                         reinterpret_cast<uint64_t>(heap_header);
+          HeapRange range{heap_header, len};
+          heaps.push_back(range);
+          auto len_in_mbs = len >> 20;
           // TODO: also consider CPU pressure.
-          if (pressure.mem_mbs <= heap_usage) {
+          if (pressure.mem_mbs <= len_in_mbs) {
             return false;
           }
-          pressure.mem_mbs -= heap_usage;
+          pressure.mem_mbs -= len_in_mbs;
         }
         return true;
       };
 
   heap_statuses_->for_each(fn);
   return heaps;
+}
+
+bool HeapManager::migration_disable_initial(HeapHeader *heap_header) {
+  std::function fn = [](std::pair<HeapHeader *const, HeapStatus> *p) {
+    if (!p || p->second == MIGRATING) {
+      return false;
+    }
+    auto *heap_header = p->first;
+    heap_header->rcu_lock.reader_lock();
+    heap_header->threads->put(thread_self());
+    return true;
+  };
+  return heap_statuses_->apply(heap_header, fn);
 }
 
 } // namespace nu

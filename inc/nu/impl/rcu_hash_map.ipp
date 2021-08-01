@@ -1,4 +1,5 @@
 #include <functional>
+#include <type_traits>
 #include <utility>
 
 extern "C" {
@@ -116,4 +117,30 @@ retry:
   rcu_.reader_unlock();
 }
 
+template <typename K, typename V, typename Allocator>
+template <typename K1, typename RetT>
+RetT RCUHashMap<K, V, Allocator>::apply(
+    K1 &&k, const std::function<RetT(std::pair<const K, V> *)> &f) {
+retry:
+  rcu_.reader_lock();
+  if (unlikely(ACCESS_ONCE(writer_barrier_))) {
+    rcu_.reader_unlock();
+    while (unlikely(ACCESS_ONCE(writer_barrier_))) {
+      rt::Yield();
+    }
+    goto retry;
+  }
+  auto iter = map_.find(std::forward<K1>(k));
+  std::pair<const K, V> *pair_ptr = (iter == map_.end()) ? nullptr : &(*iter);
+  if constexpr (std::is_same<RetT, void>::value) {
+    f(pair_ptr);
+    rcu_.reader_unlock();
+  } else {
+    auto ret = f(pair_ptr);
+    rcu_.reader_unlock();
+    return ret;
+  }
+}
+
 } // namespace nu
+

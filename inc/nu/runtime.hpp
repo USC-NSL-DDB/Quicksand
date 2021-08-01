@@ -63,6 +63,7 @@ private:
   friend class CondVar;
   friend class Time;
   friend class DistributedMemPool;
+  friend class HeapManager;
   template <typename T> friend class RemObj;
   template <typename T> friend class RemRawPtr;
   template <typename T> friend class RemUniquePtr;
@@ -77,14 +78,12 @@ private:
   template <typename Cls, typename Fn, typename... As>
   static bool run_within_obj_env(void *heap_base, Fn fn, As &&... args);
   template <typename Cls, typename Fn, typename... As>
-  static void __run_within_obj_env(uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
-                                   As &&... args);
+  static void __run_within_obj_env(HeapHeader *heap_header, uint8_t *obj_stack,
+                                   Cls *obj_ptr, Fn fn, As &&... args);
   static void *get_heap();
   static void set_heap(void *heap);
   static void switch_to_obj_heap(void *obj_ptr);
   static void switch_to_runtime_heap();
-  static void migration_enable();
-  static void migration_disable();
   template <typename T, typename... Args>
   static T *new_on_runtime_heap(Args &&... args);
   template <typename T> static void delete_on_runtime_heap(T *ptr);

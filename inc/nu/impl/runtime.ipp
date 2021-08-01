@@ -64,14 +64,14 @@ template <typename T> T *Runtime::get_obj(RemObjID id) {
 template <typename Cls, typename Fn, typename... As>
 void __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer")))
-Runtime::__run_within_obj_env(uint8_t *obj_stack, Cls *obj_ptr, Fn fn,
-                              As &&... args) {
+Runtime::__run_within_obj_env(HeapHeader *heap_header, uint8_t *obj_stack,
+                              Cls *obj_ptr, Fn fn, As &&... args) {
   fn(*obj_ptr, std::forward<As>(args)...);
 
   if (unlikely(thread_is_migrated())) {
     auto runtime_stack_base = thread_get_runtime_stack_base();
     switch_to_runtime_stack(runtime_stack_base);
-    heap_manager->rcu_reader_unlock();
+    heap_manager->migration_enable_final(heap_header);
     rt::Exit();
   }
 }
@@ -82,12 +82,9 @@ bool __attribute__((optimize("no-omit-frame-pointer")))
 Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
 
-  heap_manager->rcu_reader_lock();
-  if (unlikely(!heap_manager->is_present(heap_base))) {
-    heap_manager->rcu_reader_unlock();
+  if (unlikely(!heap_manager->migration_disable_initial(heap_header))) {
     return false;
   }
-
   auto &slab = heap_header->slab;
   auto *obj_ptr =
       reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab.get_base()));
@@ -97,12 +94,13 @@ Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
   BUG_ON(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment);
   auto *old_rsp = switch_to_obj_stack(obj_stack);
 
-  __run_within_obj_env<Cls>(obj_stack, obj_ptr, fn, std::forward<As>(args)...);
+  __run_within_obj_env<Cls>(heap_header, obj_stack, obj_ptr, fn,
+                            std::forward<As>(args)...);
 
   switch_to_runtime_stack(old_rsp);
   Runtime::stack_manager->put(obj_stack);
   switch_to_runtime_heap();
-  heap_manager->rcu_reader_unlock();
+  heap_manager->migration_enable_final(heap_header);
 
   return true;
 }
