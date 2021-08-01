@@ -1116,8 +1116,7 @@ void gc_migrated_threads(void)
 			if (th->migration_state == MIGRATED) {
 				stack_free(th->stack);
 				tcache_free(&perthread_get(thread_pt), th);
-			} else
-				BUG();
+			}
 		}
 	}
 }
