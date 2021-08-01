@@ -17,8 +17,8 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 200;
-constexpr static double kTargetMops = 0.4;
-constexpr static double kTotalMops = 1.0;
+constexpr static double kTargetMops = 0.5;
+constexpr static double kTotalMops = 5;
 constexpr static char kBackEndServiceIp[] = "18.18.1.2";
 constexpr static uint32_t kBackEndServicePort = 9091;
 constexpr static uint32_t kUserTimelinePercent = 60;
@@ -36,6 +36,7 @@ constexpr static uint32_t kUrlLen = 64;
 constexpr static uint32_t kMaxNumMentionsPerText = 2;
 constexpr static uint32_t kMaxNumUrlsPerText = 2;
 constexpr static uint32_t kMaxNumMediasPerText = 2;
+constexpr static uint64_t kTimeSeriesIntervalUs = 10 * 1000;
 
 struct socialNetworkThreadState : nu::PerfThreadState {
   std::shared_ptr<TTransport> socket;
@@ -257,7 +258,7 @@ void do_work() {
   SocialNetworkAdapter social_network_adapter;
   nu::Perf perf(social_network_adapter);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
-  auto warmup_us = duration_us;
+  auto warmup_us = 5 * nu::kOneSecond;
   perf.run(kNumThreads, kTargetMops, duration_us, warmup_us,
            50 * nu::kOneMilliSecond);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
@@ -267,6 +268,11 @@ void do_work() {
             << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
             << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
             << perf.get_nth_lat(99.9) << std::endl;
+  auto timeseries_vec = perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99);
+  std::ofstream ofs("timeseries");
+  for (auto [us, lat] : timeseries_vec) {
+    ofs << us << " " << lat << std::endl;
+  }
 }
 
 int main(int argc, char **argv) {
