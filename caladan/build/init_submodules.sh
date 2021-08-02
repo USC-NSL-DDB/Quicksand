@@ -61,7 +61,7 @@ if test -z "$folly_path"
 then
       echo "Error: Failed to find folly's installed folder!"
 else
-      sudo mv /tmp/$folly_path/* .
+      sudo cp -r /tmp/$folly_path/* .
 fi
 sudo rm -rf /tmp/fbcode*
 cd ../../
