@@ -46,6 +46,7 @@ public:
   static void free(const void *ptr) noexcept;
   static void register_slab_by_id(SlabAllocator *slab,
                                   SlabId_t slab_id) noexcept;
+  static void deregister_slab_by_id(SlabId_t slab_id) noexcept;
 
 private:
   class FreePtrsLinkedList {

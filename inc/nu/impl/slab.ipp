@@ -67,6 +67,11 @@ inline void SlabAllocator::register_slab_by_id(SlabAllocator *slab,
   slabs_[slab_id] = slab;
 }
 
+inline void SlabAllocator::deregister_slab_by_id(SlabId_t slab_id) noexcept {
+  BUG_ON(!slabs_[slab_id]);
+  slabs_[slab_id] = nullptr;
+}
+
 inline uint64_t SlabAllocator::FreePtrsLinkedList::size() { return size_; }
 
 } // namespace nu

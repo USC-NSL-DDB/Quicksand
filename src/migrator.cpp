@@ -386,6 +386,7 @@ void Migrator::migrate(Resource pressure, std::vector<HeapRange> heaps) {
     migrated_heaps.push_back(heap_header);
     pause_migrating_threads();
     transmit(conn, heap_header);
+    SlabAllocator::deregister_slab_by_id(to_slab_id(heap_header));
     BUG_ON(!Runtime::heap_manager->remove(heap_header));
     gc_migrated_threads();
   }
