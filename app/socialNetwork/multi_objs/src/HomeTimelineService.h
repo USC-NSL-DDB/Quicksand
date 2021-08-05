@@ -50,13 +50,13 @@ void HomeTimelineService::WriteHomeTimeline(
 
   std::vector<nu::Future<void>> futures;
   for (auto id : ids) {
-    _userid_to_timeline_map.apply(
+    futures.emplace_back(_userid_to_timeline_map.apply_async(
         id,
         +[](std::pair<const int64_t, Tree> &p, int64_t timestamp,
             int64_t post_id) {
           (p.second).insert(std::make_pair(timestamp, post_id));
         },
-        timestamp, post_id);
+        timestamp, post_id));
   }
 
   for (auto &future : futures) {
