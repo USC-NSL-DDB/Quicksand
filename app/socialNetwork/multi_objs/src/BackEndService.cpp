@@ -285,7 +285,10 @@ public:
 };
 
 void do_work() {
-  auto thrift_back_end_server = nu::RemObj<ServiceEntry>::create_pinned();
+  netaddr addr;
+  addr.ip = MAKE_IP_ADDR(18, 18, 1, 2);
+  addr.port = nu::ObjServer::kObjServerPort;
+  auto thrift_back_end_server = nu::RemObj<ServiceEntry>::create_pinned_at(addr);
   rt::Yield();
 }
 

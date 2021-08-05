@@ -112,7 +112,7 @@
     "connections": 512,
     "timeout_ms": 10000,
     "keepalive_ms": 10000,
-    "netif": "docker0"
+    "netif": "ens1f0"
   },
   "media-service": {
     "addr": "media-service",
@@ -162,7 +162,7 @@
     "connections": 512,
     "timeout_ms": 10000,
     "keepalive_ms": 10000,
-    "netif": "docker0"
+    "netif": "ens1f0"
   },
   "user-memcached": {
     "addr": "user-memcached",

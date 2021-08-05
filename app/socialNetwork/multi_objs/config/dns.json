@@ -16,7 +16,7 @@
 				{
 					"id": 1624675071246558012,
 					"hostname": "back-end-service",
-					"ip": "18.18.1.1",
+					"ip": "18.18.1.2",
 					"target": "acme.com",
 					"ttl": 255,
 					"type": "A"
