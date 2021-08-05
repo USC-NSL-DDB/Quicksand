@@ -20,34 +20,38 @@ extern "C" {
 using namespace nu;
 using namespace std;
 
-constexpr uint32_t kNumThreads = 300;
-constexpr netaddr server_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 4),
+constexpr uint32_t kNumThreads = 600;
+constexpr netaddr server_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 2),
                                  .port = 8080};
 
 bool server_mode;
 
-uint8_t server_buf0[8];
-uint8_t server_buf1[32];
-uint8_t server_buf2[16];
-uint8_t server_buf3[4];
-uint8_t client_buf0[8];
-uint8_t client_buf1[32];
-uint8_t client_buf2[16];
-uint8_t client_buf3[4];
+struct alignas(64) Buffers {
+  uint8_t server_buf0[8];
+  uint8_t server_buf1[32];
+  uint8_t server_buf2[16];
+  uint8_t server_buf3[4];
+  uint8_t client_buf0[8];
+  uint8_t client_buf1[32];
+  uint8_t client_buf2[16];
+  uint8_t client_buf3[4];
+} buffers[kNumThreads];
 
-struct AlignedCnt {
+struct alignas(64) AlignedCnt {
   uint32_t cnt;
-  uint8_t pads[kCacheLineBytes - sizeof(cnt)];
 };
 
 AlignedCnt cnts[kNumThreads];
 
-void server_fn(rt::TcpConn *c) {
+void server_fn(rt::TcpConn *c, uint32_t tid) {
   while (true) {
-    BUG_ON(c->ReadFull(server_buf0, sizeof(server_buf0)) <= 0);
-    BUG_ON(c->ReadFull(server_buf1, sizeof(server_buf1)) <= 0);
-    constexpr static iovec iovecs[] = {{server_buf2, sizeof(server_buf2)},
-                                       {server_buf3, sizeof(server_buf3)}};
+    BUG_ON(c->ReadFull(buffers[tid].server_buf0,
+                       sizeof(buffers[tid].server_buf0)) <= 0);
+    BUG_ON(c->ReadFull(buffers[tid].server_buf1,
+                       sizeof(buffers[tid].server_buf1)) <= 0);
+    const iovec iovecs[] = {
+        {buffers[tid].server_buf2, sizeof(buffers[tid].server_buf2)},
+        {buffers[tid].server_buf3, sizeof(buffers[tid].server_buf3)}};
     BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
   }
 }
@@ -57,8 +61,9 @@ void do_server() {
   BUG_ON(!q);
 
   rt::TcpConn *c;
+  uint32_t tid = 0;
   while ((c = q->Accept())) {
-    rt::Thread([&, c] { server_fn(c); }).Detach();
+    rt::Thread([&, c] { server_fn(c, tid++); }).Detach();
   }
 }
 
@@ -71,11 +76,14 @@ void do_client() {
       BUG_ON(!c);
 
       while (true) {
-        constexpr static iovec iovecs[] = {{client_buf0, sizeof(client_buf0)},
-                                           {client_buf1, sizeof(client_buf1)}};
+        const iovec iovecs[] = {
+            {buffers[tid].client_buf0, sizeof(buffers[tid].client_buf0)},
+            {buffers[tid].client_buf1, sizeof(buffers[tid].client_buf1)}};
         BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
-        BUG_ON(c->ReadFull(client_buf2, sizeof(client_buf2)) <= 0);
-        BUG_ON(c->ReadFull(client_buf3, sizeof(client_buf3)) <= 0);
+        BUG_ON(c->ReadFull(buffers[tid].client_buf2,
+                           sizeof(buffers[tid].client_buf2)) <= 0);
+        BUG_ON(c->ReadFull(buffers[tid].client_buf3,
+                           sizeof(buffers[tid].client_buf3)) <= 0);
         cnts[tid].cnt++;
       }
     }).Detach();
