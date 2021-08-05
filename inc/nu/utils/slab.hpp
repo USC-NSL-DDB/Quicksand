@@ -57,7 +57,7 @@ private:
 
   private:
     constexpr static uint32_t kBatchSize =
-        (1 << kMinSlabClassShift) / sizeof(void *);
+        ((1 << kMinSlabClassShift) + sizeof(PtrHeader)) / sizeof(void *);
     struct Batch {
       void *p[kBatchSize];
     };
