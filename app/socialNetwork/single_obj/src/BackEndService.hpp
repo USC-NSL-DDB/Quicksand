@@ -1,11 +1,7 @@
 #pragma once
 
-#include <nu/utils/farmhash.hpp>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/set.hpp>
-#include <cereal/types/string.hpp>
-#include <ext/pb_ds/assoc_container.hpp>
-#include <nu/dis_hash_table.hpp>
 #include <string>
 #include <variant>
 #include <vector>
@@ -13,13 +9,14 @@
 #include "../gen-cpp/BackEndService.h"
 #include "../gen-cpp/social_network_types.h"
 #include "defs.hpp"
+#include "states.hpp"
 #include "utils.hpp"
 
 namespace social_network {
 
 class BackEndService {
 public:
-  BackEndService(const std::string &secret);
+  BackEndService(const StateCaps &caps);
   void ComposePost(const std::string &username, int64_t user_id,
                    const std::string &text,
                    const std::vector<int64_t> &media_ids,
@@ -58,30 +55,7 @@ private:
   std::vector<Post> ReadPosts(const std::vector<int64_t> &post_ids);
   nu::Future<int64_t> GetUserId(const std::string &username);
 
-  constexpr static uint32_t kHashTablePowerNumShards = 9;
-  constexpr static auto kHashStrtoU64 = [](const std::string &str) {
-    return util::Hash64(str);
-  };
-  constexpr static auto kHashI64toU64 = [](int64_t id) {
-    return util::Hash64(reinterpret_cast<const char *>(&id), sizeof(int64_t));
-  };
-
-  nu::DistributedHashTable<std::string, UserProfile, decltype(kHashStrtoU64)>
-      username_to_userprofile_map_;
-  nu::DistributedHashTable<std::string, std::string, decltype(kHashStrtoU64)>
-      filename_to_data_map_;
-  nu::DistributedHashTable<std::string, std::string, decltype(kHashStrtoU64)>
-      short_to_extended_map_;
-  nu::DistributedHashTable<int64_t, Timeline, decltype(kHashI64toU64)>
-      userid_to_hometimeline_map_;
-  nu::DistributedHashTable<int64_t, Timeline, decltype(kHashI64toU64)>
-      userid_to_usertimeline_map_;
-  nu::DistributedHashTable<int64_t, Post, decltype(kHashI64toU64)>
-      postid_to_post_map_;
-  nu::DistributedHashTable<int64_t, std::set<int64_t>, decltype(kHashI64toU64)>
-      userid_to_followers_map_;
-  nu::DistributedHashTable<int64_t, std::set<int64_t>, decltype(kHashI64toU64)>
-      userid_to_followees_map_;
-  std::string secret_;
+  RandomStringGenerator random_string_generator_;
+  States states_;
 };
 } // namespace social_network

@@ -4,7 +4,7 @@ SERVER1_NODE=amd276.utah.cloudlab.us
 SERVER2_NODE=amd248.utah.cloudlab.us
 WORKPLACE=`pwd`
 MIN_MOPS=0.1
-MAX_MOPS=1.0
+MAX_MOPS=1.5
 STEP_MOPS=0.1
 
 ssh $CLIENT_NODE "sudo pkill -9 -x iokerneld"
@@ -27,7 +27,7 @@ do
     ssh $SERVER1_NODE "sudo pkill -9 iokerneld" &
     ssh $SERVER2_NODE "sudo pkill -9 iokerneld" &
     ssh $SERVER1_NODE "sudo pkill -9 Back" &
-    ssh $SERVER2_NODE "sudo pkill -9 back" &
+    ssh $SERVER2_NODE "sudo pkill -9 Back" &
     sleep 5
     sudo ../../../caladan/iokerneld &
     ssh $SERVER1_NODE "cd $WORKPLACE; sudo ../../../caladan/iokerneld" &

@@ -2,8 +2,8 @@
 
 namespace social_network {
 
-ThriftBackEndServer::ThriftBackEndServer(const std::string &secret)
-    : back_end_service_(secret) {}
+ThriftBackEndServer::ThriftBackEndServer(const StateCaps &caps)
+    : back_end_service_(caps) {}
 
 void ThriftBackEndServer::ComposePost(
     const std::string &username, int64_t user_id, const std::string &text,

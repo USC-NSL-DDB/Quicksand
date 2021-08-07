@@ -1,18 +1,19 @@
 #include <iostream>
+#include <memory>
 #include <nu/monitor.hpp>
 #include <nu/rem_obj.hpp>
 #include <nu/runtime.hpp>
 
 #include "ThriftBackEndServer.hpp"
-#include "utils.hpp"
+
+constexpr uint32_t kNumEntryObjs = 2;
+constexpr bool kEnableMigration = false;
 
 using namespace social_network;
 
-constexpr bool kEnableMigration = false;
-
 class ServiceEntry {
 public:
-  ServiceEntry() {
+  ServiceEntry(StateCaps caps) {
     json config_json;
 
     BUG_ON(LoadConfigFile("config/service-config.json", &config_json) != 0);
@@ -23,7 +24,7 @@ public:
         std::make_shared<TServerSocket>("0.0.0.0", port);
 
     auto secret = config_json["secret"];
-    auto back_end_handler = std::make_shared<ThriftBackEndServer>(secret);
+    auto back_end_handler = std::make_shared<ThriftBackEndServer>(caps);
 
     TThreadedServer server(
         std::make_shared<BackEndServiceProcessor>(std::move(back_end_handler)),
@@ -51,13 +52,14 @@ private:
 } // namespace nu
 
 void DoWork() {
-  netaddr addr;
-  addr.ip = MAKE_IP_ADDR(18, 18, 1, 2);
-  addr.port = nu::ObjServer::kObjServerPort;
-  auto thrift_future = nu::async([&] {
-    auto thrift_back_end_server =
-        nu::RemObj<ServiceEntry>::create_pinned_at(addr);
-  });
+  auto states = std::make_unique<States>();
+
+  std::vector<nu::Future<void>> thrift_futures;
+  for (uint32_t i = 0; i < kNumEntryObjs; i++) {
+    thrift_futures.emplace_back(nu::async(
+        [&] { nu::RemObj<ServiceEntry>::create_pinned(states->get_caps()); }));
+  }
+
   if constexpr (kEnableMigration) {
     auto test = nu::RemObj<nu::Test>::create_pinned(32 * 1024);
     std::cout << "Press enter to start migration..." << std::endl;
@@ -65,7 +67,6 @@ void DoWork() {
     std::cout << "Start migrating..." << std::endl;
     test.run(&nu::Test::migrate);
   }
-  rt::Yield();
 }
 
 int main(int argc, char **argv) {

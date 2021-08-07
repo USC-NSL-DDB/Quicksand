@@ -2,11 +2,13 @@
 #include <fstream>
 #include <iostream>
 #include <jwt/jwt.hpp>
-#include <random>
+#include <nu/runtime.hpp>
 #include <regex>
 #include <sstream>
 #include <string>
-#include <nu/runtime.hpp>
+extern "C" {
+#include <runtime/preempt.h>
+}
 
 #include "defs.hpp"
 #include "utils.hpp"
@@ -28,18 +30,20 @@ int LoadConfigFile(const std::string &file_name, json *config_json) {
   }
 }
 
-std::string GenRandomString(const int len) {
-  static const std::string alphanum = "0123456789"
-                                      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                      "abcdefghijklmnopqrstuvwxyz";
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<int> dist(
-      0, static_cast<int>(alphanum.length() - 1));
-  std::string s;
-  for (int i = 0; i < len; ++i) {
-    s += alphanum[dist(gen)];
+RandomStringGenerator::RandomStringGenerator() {
+  for (uint32_t i = 0; i < nu::kNumCores; i++) {
+    gens_.emplace_back(rds_[i]());
+    dists_.emplace_back(0, sizeof(kAlphaNum) - 2);
   }
+}
+
+std::string RandomStringGenerator::Gen(uint32_t len) {
+  std::string s;
+  auto core_num = get_cpu();
+  for (int i = 0; i < len; ++i) {
+    s += kAlphaNum[dists_[core_num](gens_[core_num])];
+  }
+  put_cpu();
   return s;
 }
 

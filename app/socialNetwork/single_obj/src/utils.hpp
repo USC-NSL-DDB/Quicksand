@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <nlohmann/json.hpp>
 #include <nu/mutex.hpp>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -16,19 +17,28 @@ using json = nlohmann::json;
 
 namespace social_network {
 
-int LoadConfigFile(const std::string &file_name, json *config_json);
-u_int16_t HashMacAddressPid(const std::string &mac);
-std::string GenRandomString(const int len);
-std::string GetMachineId(std::string &netif);
-int64_t GenUserId(const std::string &machine_id, int64_t timestamp,
-                  int64_t counter);
-bool VerifyLogin(std::string &signature, const UserProfile &user_profile,
-                 const std::string &username, const std::string &password,
-                 const std::string &secret);
+class RandomStringGenerator {
+public:
+  RandomStringGenerator();
+  std::string Gen(uint32_t len);
+
+private:
+  constexpr static char kAlphaNum[] = "0123456789"
+                                      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                      "abcdefghijklmnopqrstuvwxyz";
+  std::random_device rds_[nu::kNumCores];
+  std::vector<std::mt19937> gens_;
+  std::vector<std::uniform_int_distribution<int>> dists_;
+};
+
 std::vector<std::string> MatchUrls(const std::string &text);
 std::vector<std::string> MatchMentions(const std::string &text);
 std::string ShortenUrlInText(const std::string &text,
                              std::vector<Url> target_urls);
+int LoadConfigFile(const std::string &file_name, json *config_json);
+bool VerifyLogin(std::string &signature, const UserProfile &user_profile,
+                 const std::string &username, const std::string &password,
+                 const std::string &secret);
 int64_t GenUniqueId();
 
 } // namespace social_network

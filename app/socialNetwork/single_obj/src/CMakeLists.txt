@@ -20,6 +20,7 @@ add_executable(
     main
     main.cpp
     utils.cpp
+    states.cpp
     ThriftBackEndServer.cpp
     BackEndService.cpp
     ${THRIFT_GEN_CPP_DIR}/BackEndService.cpp

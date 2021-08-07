@@ -18,6 +18,18 @@ add_compile_definitions(NCORES=${NCORES})
 
 add_executable(
     BackEndService
+    utils.cpp
+    UserTimelineService.cpp
+    HomeTimelineService.cpp
+    MediaService.cpp
+    MediaStorageService.cpp
+    PostStorageService.cpp
+    TextService.cpp
+    UrlShortenService.cpp
+    SocialGraphService.cpp
+    UserMentionService.cpp
+    UserService.cpp
+    States.cpp
     BackEndService.cpp
     ${THRIFT_GEN_CPP_DIR}/BackEndService.cpp
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp

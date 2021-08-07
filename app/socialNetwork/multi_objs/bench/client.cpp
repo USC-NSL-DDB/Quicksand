@@ -1,3 +1,4 @@
+#include <atomic>
 #include <limits>
 #include <memory>
 #include <nu/commons.hpp>
@@ -17,10 +18,15 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 200;
-constexpr static double kTargetMops = 1.1;
-constexpr static double kTotalMops = 1.0;
-constexpr static char kBackEndServiceIp[] = "18.18.1.2";
-constexpr static uint32_t kBackEndServicePort = 9091;
+constexpr static double kTargetMops = 0.9;
+constexpr static double kTotalMops = 1;
+constexpr static uint32_t kNumEntryObjs = 1;
+const static std::string kEntryObjIps[kNumEntryObjs] = {
+    "18.18.1.2",
+    // "18.18.1.5",
+    // "18.18.1.25",
+};
+constexpr static uint32_t kEntryObjPort = 9091;
 constexpr static uint32_t kUserTimelinePercent = 60;
 constexpr static uint32_t kHomeTimelinePercent = 30;
 constexpr static uint32_t kComposePostPercent = 10;
@@ -35,20 +41,45 @@ constexpr static uint32_t kMaxNumMentionsPerText = 2;
 constexpr static uint32_t kMaxNumUrlsPerText = 2;
 constexpr static uint32_t kMaxNumMediasPerText = 2;
 
-struct socialNetworkThreadState : nu::PerfThreadState {
+class ClientPtr {
+public:
+  ClientPtr(const std::string &ip) {
+    socket.reset(new TSocket(ip, kEntryObjPort));
+    transport.reset(new TFramedTransport(socket));
+    protocol.reset(new TBinaryProtocol(transport));
+    client.reset(new social_network::BackEndServiceClient(protocol));
+    transport->open();
+  }
+
+  social_network::BackEndServiceClient *operator->() { return client.get(); }
+
+private:
   std::shared_ptr<TTransport> socket;
   std::shared_ptr<TTransport> transport;
   std::shared_ptr<TProtocol> protocol;
   std::unique_ptr<social_network::BackEndServiceClient> client;
+};
+
+struct socialNetworkThreadState : nu::PerfThreadState {
+  socialNetworkThreadState(const std::string &ip)
+      : client(ip), rd(), gen(rd()), dist_1_100(1, 100),
+        dist_1_numusers(1, kNumUsers),
+        dist_0_charsetsize(0, std::size(kCharSet) - 2),
+        dist_0_maxnummentions(0, kMaxNumMentionsPerText),
+        dist_0_maxnumurls(0, kMaxNumUrlsPerText),
+        dist_0_maxnummedias(0, kMaxNumMediasPerText),
+        dist_0_maxint64(0, std::numeric_limits<int64_t>::max()) {}
+
+  ClientPtr client;
   std::random_device rd;
-  std::unique_ptr<std::mt19937> gen;
-  std::unique_ptr<std::uniform_int_distribution<>> dist_1_100;
-  std::unique_ptr<std::uniform_int_distribution<>> dist_1_numusers;
-  std::unique_ptr<std::uniform_int_distribution<>> dist_0_charsetsize;
-  std::unique_ptr<std::uniform_int_distribution<>> dist_0_maxnummentions;
-  std::unique_ptr<std::uniform_int_distribution<>> dist_0_maxnumurls;
-  std::unique_ptr<std::uniform_int_distribution<>> dist_0_maxnummedias;
-  std::unique_ptr<std::uniform_int_distribution<int64_t>> dist_0_maxint64;
+  std::mt19937 gen;
+  std::uniform_int_distribution<> dist_1_100;
+  std::uniform_int_distribution<> dist_1_numusers;
+  std::uniform_int_distribution<> dist_0_charsetsize;
+  std::uniform_int_distribution<> dist_0_maxnummentions;
+  std::uniform_int_distribution<> dist_0_maxnumurls;
+  std::uniform_int_distribution<> dist_0_maxnummedias;
+  std::uniform_int_distribution<int64_t> dist_0_maxint64;
 };
 
 struct UserTimelineRequest : nu::PerfRequest {
@@ -80,33 +111,15 @@ struct FollowReq : nu::PerfRequest {
 class SocialNetworkAdapter : public nu::PerfAdapter {
 public:
   std::unique_ptr<nu::PerfThreadState> create_thread_state() {
-    auto state = new socialNetworkThreadState();
-    state->socket.reset(new TSocket(kBackEndServiceIp, kBackEndServicePort));
-    state->transport.reset(new TFramedTransport(state->socket));
-    state->protocol.reset(new TBinaryProtocol(state->transport));
-    state->client.reset(
-        new social_network::BackEndServiceClient(state->protocol));
-    state->transport->open();
-    state->gen.reset(new std::mt19937((state->rd)()));
-    state->dist_1_100.reset(new std::uniform_int_distribution<>(1, 100));
-    state->dist_1_numusers.reset(
-        new std::uniform_int_distribution<>(1, kNumUsers));
-    state->dist_0_charsetsize.reset(
-        new std::uniform_int_distribution<>(0, std::size(kCharSet) - 2));
-    state->dist_0_maxnummentions.reset(
-        new std::uniform_int_distribution<>(0, kMaxNumMentionsPerText));
-    state->dist_0_maxnumurls.reset(
-        new std::uniform_int_distribution<>(0, kMaxNumUrlsPerText));
-    state->dist_0_maxnummedias.reset(
-        new std::uniform_int_distribution<>(0, kMaxNumMediasPerText));
-    state->dist_0_maxint64.reset(new std::uniform_int_distribution<int64_t>(
-        0, std::numeric_limits<int64_t>::max()));
-    return std::unique_ptr<nu::PerfThreadState>(state);
+    static std::atomic<uint32_t> num_threads = 0;
+    uint32_t tid = num_threads++;
+    return std::make_unique<socialNetworkThreadState>(
+        kEntryObjIps[tid % kNumEntryObjs]);
   }
 
   std::unique_ptr<nu::PerfRequest> gen_req(nu::PerfThreadState *perf_state) {
     auto *state = reinterpret_cast<socialNetworkThreadState *>(perf_state);
-    auto rand_int = (*state->dist_1_100)(*state->gen);
+    auto rand_int = (state->dist_1_100)(state->gen);
     if (rand_int <= kUserTimelinePercent) {
       return gen_user_timeline_req(state);
     }
@@ -167,8 +180,8 @@ private:
   std::unique_ptr<UserTimelineRequest>
   gen_user_timeline_req(socialNetworkThreadState *state) {
     auto *user_timeline_req = new UserTimelineRequest();
-    user_timeline_req->user_id = (*state->dist_1_numusers)(*state->gen);
-    user_timeline_req->start = (*state->dist_1_100)(*state->gen);
+    user_timeline_req->user_id = (state->dist_1_numusers)(state->gen);
+    user_timeline_req->start = (state->dist_1_100)(state->gen);
     user_timeline_req->stop = user_timeline_req->start + 1;
     return std::unique_ptr<UserTimelineRequest>(user_timeline_req);
   }
@@ -176,8 +189,8 @@ private:
   std::unique_ptr<HomeTimelineRequest>
   gen_home_timeline_req(socialNetworkThreadState *state) {
     auto *home_timeline_req = new HomeTimelineRequest();
-    home_timeline_req->user_id = (*state->dist_1_numusers)(*state->gen);
-    home_timeline_req->start = (*state->dist_1_100)(*state->gen);
+    home_timeline_req->user_id = (state->dist_1_numusers)(state->gen);
+    home_timeline_req->start = (state->dist_1_100)(state->gen);
     home_timeline_req->stop = home_timeline_req->start + 1;
     return std::unique_ptr<HomeTimelineRequest>(home_timeline_req);
   }
@@ -185,23 +198,23 @@ private:
   std::unique_ptr<ComposePostRequest>
   gen_compose_post_req(socialNetworkThreadState *state) {
     auto *compose_post_req = new ComposePostRequest();
-    compose_post_req->user_id = (*state->dist_1_numusers)(*state->gen);
+    compose_post_req->user_id = (state->dist_1_numusers)(state->gen);
     compose_post_req->username =
         std::string("username_") + std::to_string(compose_post_req->user_id);
     compose_post_req->text = random_string(kTextLen, state);
-    auto num_user_mentions = (*state->dist_0_maxnummentions)(*state->gen);
+    auto num_user_mentions = (state->dist_0_maxnummentions)(state->gen);
     for (uint32_t i = 0; i < num_user_mentions; i++) {
-      auto mentioned_id = (*state->dist_1_numusers)(*state->gen);
+      auto mentioned_id = (state->dist_1_numusers)(state->gen);
       compose_post_req->text += " @username_" + std::to_string(mentioned_id);
     }
-    auto num_urls = (*state->dist_0_maxnumurls)(*state->gen);
+    auto num_urls = (state->dist_0_maxnumurls)(state->gen);
     for (uint32_t i = 0; i < num_urls; i++) {
       compose_post_req->text += " http://" + random_string(kUrlLen, state);
     }
-    auto num_medias = (*state->dist_0_maxnummedias)(*state->gen);
+    auto num_medias = (state->dist_0_maxnummedias)(state->gen);
     for (uint32_t i = 0; i < num_medias; i++) {
       compose_post_req->media_ids.emplace_back(
-          (*state->dist_0_maxint64)(*state->gen));
+          (state->dist_0_maxint64)(state->gen));
       compose_post_req->media_types.push_back("png");
     }
     compose_post_req->post_type = social_network::PostType::POST;
@@ -210,15 +223,15 @@ private:
 
   std::unique_ptr<FollowReq> gen_follow_req(socialNetworkThreadState *state) {
     auto *follow_req = new FollowReq();
-    follow_req->user_id = (*state->dist_1_numusers)(*state->gen);
-    follow_req->followee_id = (*state->dist_1_numusers)(*state->gen);
+    follow_req->user_id = (state->dist_1_numusers)(state->gen);
+    follow_req->followee_id = (state->dist_1_numusers)(state->gen);
     return std::unique_ptr<FollowReq>(follow_req);
   }
 
   std::string random_string(uint32_t len, socialNetworkThreadState *state) {
     std::string str = "";
     for (uint32_t i = 0; i < kTextLen; i++) {
-      str += kCharSet[(*state->dist_0_charsetsize)(*state->gen)];
+      str += kCharSet[(state->dist_0_charsetsize)(state->gen)];
     }
     return str;
   }
@@ -229,7 +242,8 @@ void do_work() {
   nu::Perf perf(social_network_adapter);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
   auto warmup_us = duration_us;
-  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us, 50 * nu::kOneMilliSecond);
+  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us,
+           50 * nu::kOneMilliSecond);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
                "99.9th_lat"
             << std::endl;

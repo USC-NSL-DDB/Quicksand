@@ -33,14 +33,11 @@ class UniqueIdService {
 public:
   UniqueIdService();
   int64_t ComposeUniqueId(const PostType::type post_type);
-
-private:
-
 };
 
-UniqueIdService::UniqueIdService() {}
+inline UniqueIdService::UniqueIdService() {}
 
-int64_t UniqueIdService::ComposeUniqueId(PostType::type post_type) {
+inline int64_t UniqueIdService::ComposeUniqueId(PostType::type post_type) {
   return (rdtsc() << 8) | read_cpu();
 }
 
