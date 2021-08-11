@@ -128,7 +128,7 @@ void RPCServer::SendWorker() {
       while (completions_.empty()) guard.Park(&wake_sender_);
 
       // gather all queued completions.
-      std::move(completions.begin(), completions_.begin(),
+      std::move(completions_.begin(), completions_.end(),
                 std::back_inserter(completions));
       completions_.clear();
     }
