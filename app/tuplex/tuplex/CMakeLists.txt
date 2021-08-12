@@ -427,7 +427,7 @@ if(Python3_FOUND)
         message(FATAL_ERROR "Tuplex requires python3.5 at least, found incompatible python ${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
     endif()
     if(UNIX AND NOT APPLE)
-        set(Boost_USE_STATIC_LIBS ON)
+        set(Boost_USE_STATIC_LIBS OFF)
     endif()
     message(STATUS "Found python${Python3_VERSION} - if you'd like to change a to different python version, use -DPython3_ROOT_DIR=<prefix> or -DPYTHON3_VERSION=<major.minor.micro> or set an environment variable PYTHON3_VERSION")
     set(Boost_NO_BOOST_CMAKE ON) # findboost from cmake is buggy and does not work, explicitly disable here
