@@ -78,6 +78,9 @@ target_include_directories(${MODULE_NAME} PUBLIC
 SET(PYMODULE "BOOST_PYTHON_MODULE(${MODULE_NAME})")
 target_compile_definitions(${MODULE_NAME} PRIVATE PYMODULE=${PYMODULE})
 
+find_package(OpenSSL REQUIRED)
+find_package(BZip2 REQUIRED)
+
 # Declare the library
 target_link_libraries(${MODULE_NAME}
         ${Boost_LIBRARIES}
@@ -85,7 +88,10 @@ target_link_libraries(${MODULE_NAME}
         ${Python3_LIBRARIES}
         libcodegen
         libcore
-        libcpythonadapter)
+        libcpythonadapter
+        OpenSSL::SSL
+        BZip2::BZip2
+	)
 
 #check if single generator or multiple
 
