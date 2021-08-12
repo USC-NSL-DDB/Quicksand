@@ -422,6 +422,9 @@ again:
 		if (ks[idx] != l && steal_work(l, ks[idx])) {
 			goto done;
 		}
+		if (r && r != l && steal_work(l, r)) {
+			goto done;
+		}
 	}
 
 	/* recheck for local softirqs one last time */
