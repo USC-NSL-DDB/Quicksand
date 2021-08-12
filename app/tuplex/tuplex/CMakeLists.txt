@@ -108,7 +108,7 @@ if(BUILD_FOR_CI)
 endif()
 
 # build with AWS support
-option(BUILD_WITH_AWS "Build Tuplex with AWS support. This will include access to S3 and the AWS Lambda execution engine backend. Requires AWS C++ SDK" ON)
+option(BUILD_WITH_AWS "Build Tuplex with AWS support. This will include access to S3 and the AWS Lambda execution engine backend. Requires AWS C++ SDK" OFF)
 if(BUILD_WITH_AWS)
     # special case: if using mac os and a brew installed aws-sdk-cpp, can't use static libs => need to force to shared_libs
     if(APPLE AND BREW_FOUND)
