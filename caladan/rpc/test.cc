@@ -8,8 +8,8 @@ extern "C" {
 #include <iostream>
 #include <memory>
 
-#include "runtime.h"
 #include "rpc.h"
+#include "runtime.h"
 
 namespace {
 
@@ -19,12 +19,11 @@ using sec = duration<double>;
 nu::RPCReturnBuffer ServerHandler(std::span<const std::byte> args) {
   auto buf = std::make_unique<std::byte[]>(args.size());
   std::copy(args.begin(), args.end(), buf.get());
-  return nu::RPCReturnBuffer({buf.get(), args.size()}, [b = std::move(buf)] {});
+  return nu::RPCReturnBuffer({buf.get(), args.size()},
+                             [b = std::move(buf)]() mutable {});
 }
 
-void RunServer() {
-  nu::RPCServerInit(&ServerHandler);
-}
+void RunServer() { nu::RPCServerInit(&ServerHandler); }
 
 void RunClient(netaddr raddr, int threads, int samples, size_t buflen) {
   std::unique_ptr<nu::RPCClient> c = nu::RPCClient::Dial(raddr);
@@ -33,7 +32,7 @@ void RunClient(netaddr raddr, int threads, int samples, size_t buflen) {
   // |--- start experiment duration timing ---|
   barrier();
   auto start = steady_clock::now();
-  barrier();    
+  barrier();
 
   for (int i = 0; i < threads; ++i) {
     workers.emplace_back([c = c.get(), samples, buflen] {
@@ -65,7 +64,7 @@ int StringToAddr(const char *str, uint32_t *addr) {
   return 0;
 }
 
-}  // anonymous
+}  // namespace
 
 int main(int argc, char *argv[]) {
   if (argc < 3) {

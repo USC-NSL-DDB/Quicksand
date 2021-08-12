@@ -4,8 +4,8 @@ extern "C" {
 
 #include <type_traits>
 
-#include "runtime.h"
 #include "rpc.h"
+#include "runtime.h"
 
 namespace nu {
 
@@ -136,6 +136,7 @@ void RPCServer::SendWorker() {
     // process each of the requests.
     iovecs.clear();
     hdrs.clear();
+    hdrs.reserve(completions.size());
     for (const auto &c : completions) {
       auto span = c.buf.get_buf();
       hdrs.emplace_back(
@@ -189,7 +190,8 @@ void RPCServer::ReceiveWorker() {
     }
 
     // Spawn a handler with argument data provided.
-    rt::Spawn([this, completion_data, b = std::move(buf), len = hdr.len]() {
+    rt::Spawn([this, completion_data, b = std::move(buf),
+               len = hdr.len]() mutable {
       Return(fnptr_(std::span<const std::byte>{b.get(), len}), completion_data);
     });
   }
@@ -206,7 +208,9 @@ void RPCServerListener(nu::RPCFuncPtr fnptr) {
 
   while (true) {
     std::unique_ptr<rt::TcpConn> c(q->Accept());
-    rt::Thread([&c, fnptr] { RPCServerWorker(std::move(c), fnptr); }).Detach();
+    rt::Thread([c = std::move(c), fnptr]() mutable {
+      RPCServerWorker(std::move(c), fnptr);
+    }).Detach();
   }
 }
 
@@ -248,6 +252,7 @@ void RPCFlow::SendWorker() {
       while ((reqs_.empty() || inflight >= credits_) &&
              !(close_ && reqs_.empty())) {
         guard.Park(&wake_sender_);
+        inflight = sent_count_ - recv_count_;
       }
 
       // gather queued requests up to the credit limit.
@@ -261,9 +266,12 @@ void RPCFlow::SendWorker() {
       demand = inflight;
     }
 
+    if (unlikely(close)) break;
+
     // construct a scatter-gather list for all the pending requests.
     iovecs.clear();
     hdrs.clear();
+    hdrs.reserve(reqs.size());
     for (const auto &r : reqs) {
       auto &span = r.payload;
       hdrs.emplace_back(
@@ -280,8 +288,7 @@ void RPCFlow::SendWorker() {
       log_err("rpc: WritevFull failed, err = %ld", ret);
       return;
     }
-
-    if (unlikely(close)) break;
+    reqs.clear();
   }
 
   // send close on the wire.
@@ -307,7 +314,7 @@ void RPCFlow::ReceiveWorker() {
     {
       rt::SpinGuard guard(&lock_);
       unsigned int inflight = sent_count_ - ++recv_count_;
-      //credits_ = hdr.credits;
+      // credits_ = hdr.credits;
       if (credits_ > inflight && !reqs_.empty()) wake_sender_.Wake();
     }
 
@@ -329,7 +336,8 @@ void RPCFlow::ReceiveWorker() {
     }
 
     // Issue a completion, waking the blocked thread.
-    completion->Done({buf.get(), hdr.len}, [b = std::move(buf)] {});
+    std::span<const std::byte> s(buf.get(), hdr.len);
+    completion->Done(s, [b = std::move(buf)]() mutable {});
   }
 }
 
@@ -340,8 +348,8 @@ std::unique_ptr<RPCFlow> RPCFlow::New(unsigned int cpu_affinity,
       rt::TcpConn::DialAffinity(cpu_affinity, raddr));
   BUG_ON(!c);
   std::unique_ptr<RPCFlow> f = std::make_unique<RPCFlow>(std::move(c));
-  f->sender_ = rt::Thread([&f] { f->SendWorker(); });
-  f->receiver_ = rt::Thread([&f] { f->ReceiveWorker(); });
+  f->sender_ = rt::Thread([f = f.get()] { f->SendWorker(); });
+  f->receiver_ = rt::Thread([f = f.get()] { f->ReceiveWorker(); });
   return f;
 }
 
