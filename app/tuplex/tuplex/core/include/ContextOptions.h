@@ -21,7 +21,8 @@ namespace tuplex {
 
     enum class Backend {
         LOCAL,
-        LAMBDA
+        LAMBDA,
+        NU
     };
 
     /*!

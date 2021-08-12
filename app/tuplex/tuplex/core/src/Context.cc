@@ -8,16 +8,17 @@
 //  License: Apache 2.0                                                                                               //
 //--------------------------------------------------------------------------------------------------------------------//
 
-#include <logical/LogicalOperator.h>
-#include <logical/ParallelizeOperator.h>
-#include <logical/FileInputOperator.h>
-#include "ErrorDataSet.h"
 #include "EmptyDataset.h"
+#include "ErrorDataSet.h"
 #include <JITCompiler.h>
 #include <RuntimeInterface.h>
+#include <Signals.h>
 #include <VirtualFileSystem.h>
 #include <ee/local/LocalBackend.h>
-#include <Signals.h>
+#include <ee/nu/NuBackend.h>
+#include <logical/FileInputOperator.h>
+#include <logical/LogicalOperator.h>
+#include <logical/ParallelizeOperator.h>
 #ifdef BUILD_WITH_AWS
 #include <ee/aws/AWSLambdaBackend.h>
 #endif
@@ -71,6 +72,10 @@ namespace tuplex {
 
                 _ee = std::make_unique<AwsLambdaBackend>(AWSCredentials::get(), "tplxlam", options);
 #endif
+                break;
+            }
+            case Backend::NU: {
+                _ee = std::make_unique<NuBackend>(options);
                 break;
             }
             default: {

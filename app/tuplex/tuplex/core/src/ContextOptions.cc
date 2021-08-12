@@ -702,7 +702,9 @@ namespace tuplex {
             return Backend::LOCAL;
         } else if(b == "lambda") {
             return Backend::LAMBDA;
-        } else {
+        } else if(b == "nu") {
+            return Backend::NU;
+        }  else {
             Logger::instance().defaultLogger().error("found unknown backend '" + b + "', defaulting to local execution.");
             return Backend::LOCAL;
         }
