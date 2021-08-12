@@ -10,7 +10,7 @@ INC += -I$(ROOT_PATH)/bindings/cc
 INC += -I$(ROOT_PATH)/deps/folly/include
 INC += -I$(ROOT_PATH)/deps/boost/include
 
-RUNTIME_LIBS := $(RUNTIME_LIBS) -lnuma
+RUNTIME_LIBS := $(RUNTIME_LIBS) -lnuma -Wl,--rpath=/usr/local/gcc-11.0/lib64
 
 # must be first
 all: rpc
