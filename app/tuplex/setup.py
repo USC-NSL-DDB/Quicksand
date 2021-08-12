@@ -203,7 +203,7 @@ class CMakeBuild(build_ext):
 
         print('configuring cmake with: {}'.format(' '.join(["cmake", ext.sourcedir] + cmake_args)))
         subprocess.check_call(
-            ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
+            ["cmake", "-DBOOST_ROOT=/opt", ext.sourcedir] + cmake_args, cwd=self.build_temp
         )
         print('compiling with: {}'.format(' '.join(["cmake", "--build", "."] + build_args)))
         subprocess.check_call(
