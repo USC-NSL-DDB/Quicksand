@@ -202,7 +202,7 @@ else()
     set(TARGET_BUILD_ARCH "native")
 endif()
 message("TARGET_BUILD_ARCH=${TARGET_BUILD_ARCH}")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -m64 -O3 -flto -march=${TARGET_BUILD_ARCH} -funroll-loops")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -m64 -O3 -march=${TARGET_BUILD_ARCH} -funroll-loops")
 
 # for GCC add stack protector
 # -fstack-protector-strong
