@@ -101,7 +101,7 @@ cd /tmp &&
   unzip antlr4-cpp-runtime-4.8-source.zip -d antlr4-cpp-runtime &&
   rm antlr4-cpp-runtime-4.8-source.zip &&
   pushd antlr4-cpp-runtime &&
-  mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt .. && make -j 32 && make install
+  mkdir build && cd build && cmake -DCMAKE_CXX_FLAGS='-fPIC' -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt .. && make -j 32 && make install
 popd &&
   rm -rf antlr4-cpp-runtime &&
   cd -
