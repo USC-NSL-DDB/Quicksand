@@ -79,7 +79,7 @@ target_link_libraries(libcore
         libio
         libcpythonadapter
         ${YAMLCPP_LIBRARY}
-        ${CURL_LIBRARIES}
+#        ${CURL_LIBRARIES}
         ${AWSSDK_LINK_LIBRARIES}
         ${Boost_LIBRARIES}
         ${Protobuf_LIBRARIES}
