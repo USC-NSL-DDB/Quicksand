@@ -23,7 +23,7 @@ apt-get install -y build-essential software-properties-common wget libedit-dev l
   uuid-dev git libffi-dev libmagic-dev \
   doxygen doxygen-doc doxygen-latex doxygen-gui graphviz \
   libgflags-dev libncurses-dev \
-  awscli openjdk-8-jdk libyaml-dev
+  awscli openjdk-8-jdk libyaml-dev libbz2-dev
 
 # LLVM 9 packages (prob not all of them needed, but here for complete install)
 wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh &&
