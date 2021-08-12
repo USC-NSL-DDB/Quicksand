@@ -254,13 +254,13 @@ class CMakeBuild(build_ext):
 
         # run clean, to reclaim space
         # also remove third_party folder, because it is big!
-        print('running cmake clean target to reclaim space')
-        subprocess.check_call(
-            ['cmake', '--build', '.', '--target', 'clean'], cwd=self.build_temp
-        )
-        subprocess.check_call(
-            ['rm', '-rf', 'third_party'], cwd=self.build_temp
-        )
+#        print('running cmake clean target to reclaim space')
+#        subprocess.check_call(
+#            ['cmake', '--build', '.', '--target', 'clean'], cwd=self.build_temp
+#        )
+#        subprocess.check_call(
+#            ['rm', '-rf', 'third_party'], cwd=self.build_temp
+#        )
 
 
 def get_subfolders(rootdir='.'):
