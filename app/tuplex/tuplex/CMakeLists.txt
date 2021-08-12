@@ -1,5 +1,8 @@
 # (c) 2017 Leonhard Spiegelberg
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
+
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+
 # via -DVERSION_INFO a string may be passed down. --> include it somehow
 if(VERSION_INFO)
     message(STATUS "Version info supplied to cmake: ${VERSION_INFO}")
@@ -13,7 +16,7 @@ endif()
 # available here: https://cmake.org/cmake/help/latest/manual/cmake-modules.7.html#find-modules
 
 # for debug mode export all symbols
-set(CMAKE_ENABLE_EXPORTS true)
+#set(CMAKE_ENABLE_EXPORTS true)
 
 # Check if ccache exists to speed up compilation when switching branches
 # taken from https://invent.kde.org/utilities/konsole/-/merge_requests/26?tab=diffs
@@ -426,20 +429,16 @@ if(Python3_FOUND)
     if(Python3_VERSION_MAJOR LESS 3 OR Python3_VERSION_MINOR LESS 5)
         message(FATAL_ERROR "Tuplex requires python3.5 at least, found incompatible python ${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
     endif()
-    if(UNIX AND NOT APPLE)
-        set(Boost_USE_STATIC_LIBS OFF)
-    endif()
     message(STATUS "Found python${Python3_VERSION} - if you'd like to change a to different python version, use -DPython3_ROOT_DIR=<prefix> or -DPYTHON3_VERSION=<major.minor.micro> or set an environment variable PYTHON3_VERSION")
     set(Boost_NO_BOOST_CMAKE ON) # findboost from cmake is buggy and does not work, explicitly disable here
     if(APPLE AND BREW_FOUND) # i.e. boost-python via brew? --> check maybe better in the future...
         set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE) # gets rid off annoying boost warning.
     endif()
-    find_package(Boost 1.70 COMPONENTS python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} ${BOOST_COMPONENTS} REQUIRED)
-
     # use these switches here to specialize Boost behavior
-    SET(Boost_USE_STATIC_LIBS OFF)
+    SET(Boost_USE_STATIC_LIBS ON)
     SET(Boost_USE_MULTITHREADED ON)
-    SET(Boost_USE_STATIC_RUNTIME OFF)
+    SET(Boost_USE_STATIC_RUNTIME ON)
+    find_package(Boost 1.70 COMPONENTS python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} ${BOOST_COMPONENTS} REQUIRED)
 else()
     message(FATAL_ERROR "Python not found, required to compile Tuplex.")
 endif()
@@ -455,7 +454,7 @@ if(pcre2_FOUND)
 endif()
 
 add_subdirectory(utils)
-add_subdirectory(test)
+#add_subdirectory(test)
 add_subdirectory(codegen)
 add_subdirectory(core)
 add_subdirectory(io)

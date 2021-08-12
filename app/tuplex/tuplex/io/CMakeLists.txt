@@ -10,7 +10,9 @@ endif ()
 
 
 # find libmagic (brew install libmagic on MacOS)
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 find_package(LibMagic REQUIRED)
+find_package(LibLZMA REQUIRED)
 message(STATUS "Found LibMagic ${LibMagic_INCLUDE_DIR}, ${LibMagic_LIBRARIES}")
 
 
@@ -28,6 +30,6 @@ target_include_directories(libio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 #Note: If awssdk not found, then awssdk_link_librarires is empty...
 # Specify here the libraries this program depends on
 target_link_libraries(libio libutils
-        ${AWSSDK_LINK_LIBRARIES} ${LibMagic_LIBRARIES})
+        ${AWSSDK_LINK_LIBRARIES} ${LibMagic_LIBRARIES} ${LIBLZMA_LIBRARIES})
 
 install(TARGETS libio DESTINATION bin)

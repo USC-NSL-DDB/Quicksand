@@ -6,6 +6,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.12 FATAL_ERROR)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+
 find_package(YAMLCPP REQUIRED)
 
 # fix for Mac OS X/ brew, find openSSL
@@ -26,9 +28,7 @@ IF(BREW_FOUND)
     ENDIF()
 ENDIF()
 
-set(CURL_LIBRARY "-lcurl")
 find_package(CURL REQUIRED)
-
 
 # building with AWS backend support?
 if(BUILD_WITH_AWS)

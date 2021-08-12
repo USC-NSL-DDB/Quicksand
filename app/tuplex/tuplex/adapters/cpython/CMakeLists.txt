@@ -2,6 +2,9 @@
 # this build file builds the adapters of the Tuplex project
 CMAKE_MINIMUM_REQUIRED(VERSION 3.12 FATAL_ERROR)
 
+set(Python3_USE_STATIC_LIBS ON)
+find_package(Python3 COMPONENTS Interpreter Development QUIET)
+
 INCLUDE_DIRECTORIES("include")
 
 INCLUDE_DIRECTORIES("${Python3_INCLUDE_DIRS}")

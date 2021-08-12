@@ -5,6 +5,8 @@ file(GLOB_RECURSE INCLUDES include/*.h)
 
 include_directories("include")
 
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+
 ### include fmtlib/fmt
 include(ExternalProject)
 set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/third_party)

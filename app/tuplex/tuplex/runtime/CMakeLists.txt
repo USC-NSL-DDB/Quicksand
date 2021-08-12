@@ -6,7 +6,7 @@ file(GLOB_RECURSE INCLUDES include/*.h)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_library(runtime SHARED
+add_library(runtime STATIC
         ${CMAKE_CURRENT_BINARY_DIR} ${SOURCES} ${INCLUDES})
 
 # change from cmake default libruntime to tuplex_runtime
