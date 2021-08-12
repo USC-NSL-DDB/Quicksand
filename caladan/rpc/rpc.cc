@@ -233,7 +233,7 @@ void RPCFlow::Call(std::span<const std::byte> src, RPCCompletion *c) {
   assert_preempt_disabled();
   rt::SpinGuard guard(&lock_);
   reqs_.emplace(req_ctx{src, c});
-  wake_sender_.Wake();
+  if (sent_count_ - recv_count_ < credits_) wake_sender_.Wake();
 }
 
 void RPCFlow::SendWorker() {
@@ -356,7 +356,7 @@ std::unique_ptr<RPCFlow> RPCFlow::New(unsigned int cpu_affinity,
 }  // namespace rpc_internal
 
 void RPCServerInit(RPCFuncPtr fnptr) {
-  rt::Thread([fnptr] { RPCServerListener(fnptr); }).Detach();
+  RPCServerListener(fnptr);
 }
 
 std::unique_ptr<RPCClient> RPCClient::Dial(netaddr raddr) {

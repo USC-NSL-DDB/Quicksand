@@ -19,8 +19,8 @@ using sec = duration<double>;
 nu::RPCReturnBuffer ServerHandler(std::span<const std::byte> args) {
   auto buf = std::make_unique<std::byte[]>(args.size());
   std::copy(args.begin(), args.end(), buf.get());
-  return nu::RPCReturnBuffer({buf.get(), args.size()},
-                             [b = std::move(buf)]() mutable {});
+  std::span<const std::byte> s(buf.get(), args.size());
+  return nu::RPCReturnBuffer(s, [b = std::move(buf)]() mutable {});
 }
 
 void RunServer() { nu::RPCServerInit(&ServerHandler); }

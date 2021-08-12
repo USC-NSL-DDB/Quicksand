@@ -87,7 +87,7 @@ class RPCFlow {
         c_(std::move(c)),
         sent_count_(0),
         recv_count_(0),
-        credits_(16) {}
+        credits_(128) {}
   ~RPCFlow();
 
   // A factory to create new flows with CPU affinity.
