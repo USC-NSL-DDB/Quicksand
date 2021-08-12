@@ -21,7 +21,7 @@ set(CMAKE_EXE_LINKER_FLAGS "-T ${CALADAN_DIR}/base/base.ld \
 execute_process(COMMAND nproc OUTPUT_VARIABLE NCORES)
 add_compile_definitions(NCORES=${NCORES})
 
-add_executable(${BIN_NAME} "src/main.cpp")
+add_executable(${BIN_NAME} "src/main.cc")
 
 #set_target_properties(${BIN_NAME} PROPERTIES ENABLE_EXPORTS 1)
 
