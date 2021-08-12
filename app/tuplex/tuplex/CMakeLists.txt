@@ -499,6 +499,8 @@ if(LINUX AND BUILD_WITH_AWS)
      add_subdirectory(awslambda)
 endif()
 
+add_subdirectory(nu)
+
 ###########################################################################
 # (7) Additional flags
 ###########################################################################
