@@ -1041,7 +1041,7 @@ int sched_init(void)
 		return ret;
 
 	thread_tcache = slab_create_tcache(&thread_slab,
-					   TCACHE_DEFAULT_MAG_SIZE);
+					   TCACHE_MAX_MAG_SIZE);
 	if (!thread_tcache) {
 		slab_destroy(&thread_slab);
 		return -ENOMEM;

@@ -117,7 +117,7 @@ int stack_init_thread(void)
 int stack_init(void)
 {
 	stack_tcache = tcache_create("runtime_stacks", &stack_tcache_ops,
-				     TCACHE_DEFAULT_MAG_SIZE,
+				     TCACHE_MAX_MAG_SIZE,
 				     RUNTIME_STACK_SIZE);
 	if (!stack_tcache)
 		return -ENOMEM;
