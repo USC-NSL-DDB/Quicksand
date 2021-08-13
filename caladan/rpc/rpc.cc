@@ -142,6 +142,7 @@ void RPCServer::SendWorker() {
       hdrs.emplace_back(
           MakeCallResponse(credits_, span.size_bytes(), c.completion_data));
       iovecs.emplace_back(&hdrs.back(), sizeof(decltype(hdrs)::value_type));
+      if (span.size_bytes() == 0) continue;
       iovecs.emplace_back(const_cast<std::byte *>(span.data()),
                           span.size_bytes());
     }
@@ -278,6 +279,7 @@ void RPCFlow::SendWorker() {
           MakeCallRequest(demand, span.size_bytes(),
                           reinterpret_cast<std::size_t>(r.completion)));
       iovecs.emplace_back(&hdrs.back(), sizeof(decltype(hdrs)::value_type));
+      if (span.size_bytes() == 0) continue;
       iovecs.emplace_back(const_cast<std::byte *>(span.data()),
                           span.size_bytes());
     }
