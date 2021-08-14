@@ -33,15 +33,14 @@ std::enable_if_t<std::is_bounded_array_v<T>> make_unique_for_overwrite(
 enum rpc_cmd : unsigned int {
   call = 0,
   update,
-  close,
 };
 
 // Binary header format for requests sent by client.
 struct rpc_req_hdr {
-  rpc_cmd cmd;          // the command type
-  unsigned int demand;  // number of RPCs waiting to be sent and inflight
-  std::size_t len;      // the length of this RPC request
-  std::size_t completion_data;  // an opaque token to complete the RPC
+  rpc_cmd cmd;                 // the command type
+  unsigned int demand;         // number of RPCs waiting to be sent and inflight
+  std::size_t len;             // the length of this RPC request
+  std::size_t completion_data; // an opaque token to complete the RPC
 };
 
 constexpr rpc_req_hdr MakeCallRequest(unsigned int demand, std::size_t len,
@@ -53,16 +52,12 @@ constexpr rpc_req_hdr MakeUpdateRequest(unsigned int demand) {
   return rpc_req_hdr{rpc_cmd::update, demand, 0, 0};
 }
 
-constexpr rpc_req_hdr MakeCloseRequest() {
-  return rpc_req_hdr{rpc_cmd::close, 0, 0, 0};
-}
-
 // Binary header format for responses sent by server.
 struct rpc_resp_hdr {
-  rpc_cmd cmd;                  // the command type
-  unsigned int credits;         // the number of credits available
-  std::size_t len;              // the length of this RPC response
-  std::size_t completion_data;  // an opaque token to complete the RPC
+  rpc_cmd cmd;                 // the command type
+  unsigned int credits;        // the number of credits available
+  std::size_t len;             // the length of this RPC response
+  std::size_t completion_data; // an opaque token to complete the RPC
 };
 
 constexpr rpc_resp_hdr MakeCallResponse(unsigned int credits, std::size_t len,
@@ -77,7 +72,7 @@ constexpr rpc_resp_hdr MakeUpdateResponse(unsigned int credits) {
 class RPCServer {
  public:
   RPCServer(std::unique_ptr<rt::TcpConn> c, nu::RPCFuncPtr fnptr)
-      : c_(std::move(c)), fnptr_(fnptr) {}
+      : c_(std::move(c)), fnptr_(fnptr), close_(false) {}
   ~RPCServer() {}
 
   // Runs the RPCServer, returning when the connection is closed.
@@ -102,6 +97,7 @@ class RPCServer {
   float credits_;
   unsigned int demand_;
   nu::RPCFuncPtr fnptr_;
+  bool close_;
 };
 
 void RPCServer::Run() {
@@ -125,13 +121,16 @@ void RPCServer::SendWorker() {
     {
       // wait for an actionable state.
       rt::SpinGuard guard(&lock_);
-      while (completions_.empty()) guard.Park(&wake_sender_);
+      while (completions_.empty() && !close_) guard.Park(&wake_sender_);
 
       // gather all queued completions.
       std::move(completions_.begin(), completions_.end(),
                 std::back_inserter(completions));
       completions_.clear();
     }
+
+    // Check if the connection is closed.
+    if (unlikely(close_ && completions.empty())) break;
 
     // process each of the requests.
     iovecs.clear();
@@ -155,6 +154,7 @@ void RPCServer::SendWorker() {
     }
     completions.clear();
   }
+  if (WARN_ON(c_->Shutdown(SHUT_WR))) c_->Abort();
 }
 
 void RPCServer::ReceiveWorker() {
@@ -196,6 +196,13 @@ void RPCServer::ReceiveWorker() {
       Return(fnptr_(std::span<const std::byte>{b.get(), len}), completion_data);
     });
   }
+
+  // Wake the sender to close the connection.
+  {
+    rt::SpinGuard guard(&lock_);
+    close_ = true;
+    wake_sender_.Wake();
+  }
 }
 
 void RPCServerWorker(std::unique_ptr<rt::TcpConn> c, nu::RPCFuncPtr fnptr) {
@@ -226,7 +233,6 @@ RPCFlow::~RPCFlow() {
     wake_sender_.Wake();
   }
   sender_.Join();
-  if (WARN_ON(c_->Shutdown(SHUT_WR))) c_->Abort();
   receiver_.Join();
 }
 
@@ -267,6 +273,7 @@ void RPCFlow::SendWorker() {
       demand = inflight;
     }
 
+    // Check if it is time to close the connection.
     if (unlikely(close)) break;
 
     // construct a scatter-gather list for all the pending requests.
@@ -293,13 +300,8 @@ void RPCFlow::SendWorker() {
     reqs.clear();
   }
 
-  // send close on the wire.
-  const rpc_req_hdr hdr = MakeCloseRequest();
-  ssize_t ret = c_->WriteFull(&hdr, sizeof(hdr));
-  if (ret <= 0) {
-    log_err("rpc: WritevFull failed, err = %ld", ret);
-    return;
-  }
+  // send FIN on the wire.
+  if (WARN_ON(c_->Shutdown(SHUT_WR))) c_->Abort();
 }
 
 void RPCFlow::ReceiveWorker() {
