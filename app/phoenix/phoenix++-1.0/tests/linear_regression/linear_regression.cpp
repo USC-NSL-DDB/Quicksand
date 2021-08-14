@@ -22,11 +22,12 @@
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/ 
+*/
 
+#include <fcntl.h>
+#include <nu/runtime.hpp>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 
 #include "map_reduce.h"
 
@@ -72,7 +73,7 @@ public:
     }
 };
 
-int main(int argc, char *argv[]) {
+void real_main(int argc, char *argv[]) {
 
     int fd;
     char * fdata;
@@ -199,8 +200,12 @@ int main(int argc, char *argv[]) {
 
     get_time (end);
     print_time("finalize", begin, end);
+}
 
-    return 0;
+int main(int argc, char **argv) {
+  nu::runtime_main_init(argc, argv,
+                        [](int argc, char **argv) { real_main(argc, argv); });
 }
 
 // vim: ts=8 sw=4 sts=4 smarttab smartindent
+

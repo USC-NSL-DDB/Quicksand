@@ -47,7 +47,7 @@ kmeans: $(KMEANS_OBJS) $(LIB_DEP)
 	$(CXX) $(CFLAGS) -o $@ $(KMEANS_OBJS) $(LIBS)
 
 %.o: %.cpp
-	$(CXX) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR)
+	$(CXX) $(CFLAGS) -c $< -o $@ $(INC)
 
 clean:
 	rm -f $(PROGS) $(KMEANS_OBJS)

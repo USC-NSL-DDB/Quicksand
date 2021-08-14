@@ -35,11 +35,19 @@ OS = -D_CYGWIN_
 endif
 
 ifeq ($(OSTYPE),Linux)
+CXX = g++-11
 OS = -D_LINUX_
 DEBUG = -g
 #NUMA = -DNUMA_SUPPORT
-CFLAGS = $(DEBUG) -Wall -O3 $(OS) $(NUMA) -DMMAP_POPULATE -fstrict-aliasing -Wstrict-aliasing 
-LIBS = -lpthread -lrt
+NCORES = $(shell nproc)
+NU = ../../../../../
+CALADAN = $(NU)/caladan
+CFLAGS = $(DEBUG) -Wall -O3 $(OS) $(NUMA) -DMMAP_POPULATE -fstrict-aliasing -Wstrict-aliasing -std=c++20 \
+         -DNCORES=$(NCORES) -T ${CALADAN}/base/base.ld -static -static-libstdc++ -static-libgcc
+LIBS = -L${NU}/glibc/build/install/lib -L${CALADAN} -L${CALADAN}/bindings/cc -L${CALADAN}/rdma-core/build/lib/statics/ \
+       -L${NU} -lnu -lrt++ -lruntime -lnet -lbase -lmlx5 -libverbs -lnl-3 -lnl-route-3 -lpthread -ldl -lpthread -lrt
+INC =  -I../../include -I$(NU)/inc -I$(CALADAN)/inc -I$(CALADAN)/bindings/cc \
+       -I$(CALADAN)/deps/folly/include/
 endif
 
 ifeq ($(OSTYPE),SunOS)

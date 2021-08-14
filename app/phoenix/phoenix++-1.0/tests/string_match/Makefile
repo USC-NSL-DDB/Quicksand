@@ -47,7 +47,7 @@ string_match: $(STR_MATCH_OBJS) $(LIB_DEP)
 	$(CXX) $(CFLAGS) -o $@ $(STR_MATCH_OBJS) $(LIBS)
 
 %.o: %.cpp
-	$(CXX) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR)
+	$(CXX) $(CFLAGS) -c $< -o $@ $(INC)
 
 clean:
 	rm -f $(PROGS) $(STR_MATCH_OBJS)

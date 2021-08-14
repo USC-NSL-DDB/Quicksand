@@ -47,7 +47,7 @@ linear_regression: $(L_REG_OBJS) $(LIB_DEP)
 	$(CXX) $(CFLAGS) -o $@ $(L_REG_OBJS) $(LIBS)
 
 %.o: %.cpp
-	$(CXX) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR)
+	$(CXX) $(CFLAGS) -c $< -o $@ $(INC)
 
 clean:
 	rm -f $(PROGS) $(L_REG_OBJS)

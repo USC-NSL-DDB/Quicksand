@@ -47,7 +47,7 @@ word_count: $(WC_OBJS) $(LIB_DEP)
 	$(CXX) $(CFLAGS) -o $@ $(WC_OBJS) $(LIBS)
 
 %.o: %.cpp
-	$(CXX) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR)
+	$(CXX) $(CFLAGS) -c $< -o $@ $(INC)
 
 clean:
 	rm -f $(PROGS) $(WC_OBJS)
