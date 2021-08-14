@@ -31,10 +31,10 @@ ENDIF()
 find_package(CURL REQUIRED)
 
 # building with AWS backend support?
-if(BUILD_WITH_AWS)
+#if(BUILD_WITH_AWS)
     # locate aws sdk & include lambda component
-    find_package(AWSSDK REQUIRED COMPONENTS core s3 lambda)
-    MESSAGE(STATUS "building with AWS Lambda backend")
+#    find_package(AWSSDK REQUIRED COMPONENTS core s3 lambda)
+#    MESSAGE(STATUS "building with AWS Lambda backend")
 
     # communication with AWS Lambda happens via protobuf, i.e. make sure protobuf compiler
     # is installed
@@ -44,7 +44,7 @@ if(BUILD_WITH_AWS)
     protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS proto/Lambda.proto)
     message(STATUS "protobuf sources: ${PROTO_SRCS}")
     message(STATUS "protobuf headers: ${PROTO_HDRS}")
-endif()
+#endif()
 
 include_directories("include")
 include_directories(${Boost_INCLUDE_DIR})
@@ -52,10 +52,10 @@ include_directories(${Boost_INCLUDE_DIR})
 # Source code & linking
 file(GLOB_RECURSE SOURCES src/*.cc)
 
-if(BUILD_WITH_AWS)
+#if(BUILD_WITH_AWS)
     # add protobuf srcs
     list(APPEND SOURCES ${PROTO_SRCS} ${PROTO_HDRS})
-endif()
+#endif()
 
 add_library(libcore STATIC
         ${CMAKE_CURRENT_BINARY_DIR} ${SOURCES})

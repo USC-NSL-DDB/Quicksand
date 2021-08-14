@@ -1,13 +1,13 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "../IBackend.h"
-#include <physical/TransformStage.h>
+#include "ShmLayer.h"
+#include "physical/TransformStage.h"
 
 namespace tuplex {
-
-struct ExecutionBuffer;
 
 class NuBackend : public IBackend {
 public:
@@ -20,21 +20,14 @@ public:
 public:
   ContextOptions options_;
   std::unique_ptr<Executor> driver_;
+  ShmLayer shm_layer_;
 
   inline MessageHandler &logger() const {
     return Logger::instance().logger("nu");
   }
   TransformStage *parse_and_check_stage(PhysicalStage *stage);
-  void register_callbacks(TransformStage *tstage,
-                          tuplex::JITCompiler *jit_compiler);
-  std::shared_ptr<TransformStage::JITSymbols>
-  compile_bitcode(TransformStage *tstage, tuplex::JITCompiler *jit_compiler);
-  void init_stage(TransformStage *tstage, TransformStage::JITSymbols *syms);
-  Partition *execute_code(TransformStage *tstage, const uint8_t *input_buf,
-                          uint64_t input_buf_size,
-                          ExecutionBuffer *execution_buf,
-                          TransformStage::JITSymbols *syms);
   Partition *do_transform(TransformStage *tstage, const uint8_t *input_buf,
-                          uint64_t input_buf_size);
+                          uint64_t input_buf_len);
+  std::string gen_optimized_code(const std::string &bitcode);
 };
 } // namespace tuplex

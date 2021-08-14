@@ -32,10 +32,10 @@
 #include <logical/FileOutputOperator.h>
 #include <logical/AggregateOperator.h>
 
-#ifdef BUILD_WITH_AWS
+//#ifdef BUILD_WITH_AWS
 // include protobuf serialization of TrafoStage for Lambda executor
 #include <Lambda.pb.h>
-#endif
+//#endif
 
 namespace tuplex {
 
@@ -71,10 +71,10 @@ namespace tuplex {
 
         std::vector<Partition*> inputPartitions() const { return _inputPartitions; }
 
-#ifdef BUILD_WITH_AWS
+      //#ifdef BUILD_WITH_AWS
         std::unique_ptr<messages::TransformStage> to_protobuf() const;
         static TransformStage* from_protobuf(const messages::TransformStage& msg);
-#endif
+      //#endif
 
         /*!
          * set input files to stage (will be serialized to partitions on driver)
@@ -173,6 +173,14 @@ namespace tuplex {
 
         std::string bitCode() const {
             return _irBitCode;
+        }
+
+        void setBitCode(const std::string &str) {
+            _irBitCode = str;
+        }
+
+        void setBitCode(std::string &&str) {
+            _irBitCode = std::move(str);
         }
 
         // to retrieve actual IR, use code

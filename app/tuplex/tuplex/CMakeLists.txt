@@ -461,6 +461,7 @@ add_subdirectory(io)
 add_subdirectory(python)
 add_subdirectory(runtime)
 add_subdirectory(adapters)
+add_subdirectory(nu)
 
 # following code is from https://github.com/OPM/opm-common/blob/master/cmake/Modules/UseSystemInfo.cmake
 # read property from the newer /etc/os-release
@@ -497,8 +498,6 @@ if(LINUX AND BUILD_WITH_AWS)
     # removed AWS lambda implementation, can be found on separate branch
      add_subdirectory(awslambda)
 endif()
-
-add_subdirectory(nu)
 
 ###########################################################################
 # (7) Additional flags

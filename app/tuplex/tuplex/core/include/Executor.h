@@ -298,7 +298,11 @@ namespace tuplex {
 
         // don't inline this because of memory constraints
         HistoryServerConnector* historyServer() const {
+#if __cplusplus >= 202002L
+            HistoryServerConnector* hs = _historyServer.load(std::memory_order::acquire);
+#else
             HistoryServerConnector* hs = _historyServer.load(std::memory_order::memory_order_acquire);
+#endif
             return hs;
         }
 

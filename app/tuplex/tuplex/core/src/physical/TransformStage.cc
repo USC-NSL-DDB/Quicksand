@@ -863,7 +863,7 @@ namespace tuplex {
         return _syms;
     }
 
-#ifdef BUILD_WITH_AWS
+  //#ifdef BUILD_WITH_AWS
 
     static messages::FileFormat fileFormat_toproto(FileFormat fmt) {
         switch(fmt) {
@@ -1006,6 +1006,6 @@ namespace tuplex {
 
         return msg;
     }
-#endif
+  //#endif
 
 }

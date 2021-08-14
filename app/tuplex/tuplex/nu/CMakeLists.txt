@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.9 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.12 FATAL_ERROR)
 
 set(BIN_NAME nu_executor)
 
@@ -20,6 +20,7 @@ set(CMAKE_EXE_LINKER_FLAGS "-T ${CALADAN_DIR}/base/base.ld \
 
 execute_process(COMMAND nproc OUTPUT_VARIABLE NCORES)
 add_compile_definitions(NCORES=${NCORES})
+add_compile_options(-DSPDLOG_FMT_EXTERNAL -DPCRE2_CODE_UNIT_WIDTH=8)
 
 add_executable(${BIN_NAME} "src/main.cc")
 
@@ -64,6 +65,9 @@ target_link_libraries(
     nl-route-3
     pthread
     dl
+    /usr/lib/x86_64-linux-gnu/libbz2.a
+    /usr/lib/x86_64-linux-gnu/libutil.a
+    /usr/lib/x86_64-linux-gnu/libexpat.a
 )
 
-add_dependencies(${BIN_NAME} json libio libutils libcore)
+add_dependencies(${BIN_NAME} json libio libutils libcore runtime)
