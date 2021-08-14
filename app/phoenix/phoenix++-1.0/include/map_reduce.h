@@ -31,16 +31,15 @@
 #include <cmath>
 #include <limits>
 #include <queue>
+#include <thread.h>
 #include <vector>
+extern "C" {
+#include <runtime/runtime.h>
+}
 
 #include "combiner.h"
 #include "container.h"
-#include "locality.h"
-#include "processor.h"
-#include "scheduler.h"
 #include "stddefines.h"
-#include "task_queue.h"
-#include "thread_pool.h"
 
 template <typename Impl, typename D, typename K, typename V,
           class Container = hash_container<K, V, buffer_combiner>>
@@ -62,11 +61,7 @@ public:
 
 protected:
   // Parameters.
-  uint64_t num_threads;   // # of threads to run.
-  uint64_t thread_offset; // cores to skip when assigning threads.
-
-  thread_pool *threadPool; // Thread pool.
-  task_queue *taskQueue;   // Queues of tasks.
+  uint64_t num_threads; // # of threads to run.
 
   container_type container;
   std::vector<keyval> *final_vals; // Array to send to merge task.
@@ -74,42 +69,11 @@ protected:
   uint64_t num_map_tasks;
   uint64_t num_reduce_tasks;
 
-  void start_workers(void (*callback)(void *, thread_loc const &),
-                     int num_threads, char const *stage);
+  std::vector<rt::Thread> tasks;
 
   virtual void run_map(data_type *data, uint64_t len);
   virtual void run_reduce();
   virtual void run_merge();
-
-  virtual void map_worker(thread_loc const &loc, double &time,
-                          double &user_time, int &tasks);
-  virtual void reduce_worker(thread_loc const &loc, double &time,
-                             double &user_time, int &tasks);
-  virtual void merge_worker(thread_loc const &loc, double &time,
-                            double &user_time, int &tasks);
-
-  // Data passed to the callback functions.
-  struct thread_arg_t {
-    // in
-    MapReduce *mr;
-    // out
-    double user_time;
-    double time;
-    int tasks;
-  };
-
-  static void map_callback(void *arg, thread_loc const &loc) {
-    thread_arg_t *t = (thread_arg_t *)arg;
-    t->mr->map_worker(loc, t->time, t->user_time, t->tasks);
-  }
-  static void reduce_callback(void *arg, thread_loc const &loc) {
-    thread_arg_t *t = (thread_arg_t *)arg;
-    t->mr->reduce_worker(loc, t->time, t->user_time, t->tasks);
-  }
-  static void merge_callback(void *arg, thread_loc const &loc) {
-    thread_arg_t *t = (thread_arg_t *)arg;
-    t->mr->merge_worker(loc, t->time, t->user_time, t->tasks);
-  }
 
   // the default split function...
   int split(data_type &a) { return 0; }
@@ -131,38 +95,9 @@ protected:
   void *locate(data_type *data, uint64_t) const { return (void *)data; }
 
 public:
-  MapReduce() : threadPool(NULL), taskQueue(NULL) {
-    // Determine the number of threads to use.
-    // First check for an environment variable, then use the
-    // number of processors
-    int threads = atoi(GETENV("MR_NUMTHREADS"));
-    setThreads(threads > 0 ? threads : proc_get_num_cpus(), 0);
-  }
+  MapReduce() { num_threads = maxks; }
 
-  virtual ~MapReduce() {
-    if (this->threadPool != NULL)
-      delete this->threadPool;
-    if (this->taskQueue != NULL)
-      delete this->taskQueue;
-  }
-
-  // override the default thread offset and thread count.
-  MapReduce &setThreads(int num_threads, sched_policy const *policy = NULL) {
-    this->num_threads = (num_threads > 0) ? num_threads : this->num_threads;
-
-    if (this->threadPool != NULL)
-      delete this->threadPool;
-    if (this->taskQueue != NULL)
-      delete this->taskQueue;
-
-    // Create thread pool and task queue
-    sched_policy_strand_fill default_policy(0);
-    this->threadPool =
-        new thread_pool(num_threads, policy == NULL ? &default_policy : policy);
-    this->taskQueue = new task_queue(num_threads, num_threads);
-
-    return *this;
-  }
+  virtual ~MapReduce() {}
 
   /* The main MapReduce engine. This is the function called by the
    * application. It is responsible for creating and scheduling all map
@@ -260,6 +195,8 @@ int MapReduce<Impl, D, K, V, Container>::run(D *data, uint64_t count,
 template <typename Impl, typename D, typename K, typename V, class Container>
 void MapReduce<Impl, D, K, V, Container>::run_map(data_type *data,
                                                   uint64_t count) {
+  std::vector<rt::Thread> threads;
+
   // Compute map task chunk size
   uint64_t chunk_size =
       std::max(1, (int)ceil((double)count / this->num_map_tasks));
@@ -269,42 +206,23 @@ void MapReduce<Impl, D, K, V, Container>::run_map(data_type *data,
     uint64_t start = chunk_size * i;
 
     if (start < count) {
+      data_type *data_start = data + start;
       uint64_t len = std::min(chunk_size, count - start);
-      int lgrp = loc_mem_to_lgrp(
-          static_cast<Impl const *>(this)->locate(data + start, len));
-      task_queue::task_t task =
-          // For debugging, last element is normally padding
-          {i, len, (uint64_t)(data + start), static_cast<uint64_t>(lgrp)};
-      this->taskQueue->enqueue_seq(task, this->num_map_tasks, lgrp);
+      threads.emplace_back([&, data_start, len] {
+        auto core_id = get_cpu();
+        typename container_type::input_type t = container.get(core_id);
+        for (data_type *data = data_start; data < data_start + len; ++data) {
+          static_cast<Impl const *>(this)->map(*data, t);
+        }
+        container.add(core_id, t);
+        put_cpu();
+      });
     }
   }
 
-  start_workers(&map_callback, std::min(num_map_tasks, num_threads), "map");
-}
-
-/**
- * Dequeue the latest task and run it
- */
-template <typename Impl, typename D, typename K, typename V, class Container>
-void MapReduce<Impl, D, K, V, Container>::map_worker(thread_loc const &loc,
-                                                     double &time,
-                                                     double &user_time,
-                                                     int &tasks) {
-  timespec begin = get_time();
-  typename container_type::input_type t = container.get(loc.thread);
-  task_queue::task_t task;
-  while (taskQueue->dequeue(task, loc)) {
-    tasks++;
-    timespec user_begin = get_time();
-    for (data_type *data = (data_type *)task.data;
-         data < (data_type *)task.data + task.len; ++data) {
-      static_cast<Impl const *>(this)->map(*data, t);
-    }
-    user_time += time_elapsed(user_begin);
+  for (auto &thread : threads) {
+    thread.Join();
   }
-
-  container.add(loc.thread, t);
-  time += time_elapsed(begin);
 }
 
 /**
@@ -312,45 +230,25 @@ void MapReduce<Impl, D, K, V, Container>::map_worker(thread_loc const &loc,
  */
 template <typename Impl, typename D, typename K, typename V, class Container>
 void MapReduce<Impl, D, K, V, Container>::run_reduce() {
+  std::vector<rt::Thread> threads;
+
   // Create tasks and enqueue...
   for (uint64_t i = 0; i < this->num_reduce_tasks; ++i) {
-    task_queue::task_t task = {i, 0, i, 0};
-    this->taskQueue->enqueue_seq(task, this->num_reduce_tasks);
+    threads.emplace_back([&, reduce_id = i] {
+      typename container_type::iterator iter = container.begin(reduce_id);
+      K key;
+      reduce_iterator values;
+      while (iter.next(key, values)) {
+        if (values.size() > 0)
+          static_cast<Impl const *>(this)->reduce(key, values,
+                                                  this->final_vals[reduce_id]);
+      }
+    });
   }
 
-  start_workers(&reduce_callback, std::min(this->num_reduce_tasks, num_threads),
-                "reduce");
-}
-
-/**
- * Dequeue next reduce task and do it
- */
-template <typename Impl, typename D, typename K, typename V, class Container>
-void MapReduce<Impl, D, K, V, Container>::reduce_worker(thread_loc const &loc,
-                                                        double &time,
-                                                        double &user_time,
-                                                        int &tasks) {
-  timespec begin = get_time();
-
-  task_queue::task_t task;
-  while (taskQueue->dequeue(task, loc)) {
-    tasks++;
-
-    typename container_type::iterator i = container.begin(task.data);
-
-    timespec user_begin = get_time();
-    K key;
-    reduce_iterator values;
-
-    while (i.next(key, values)) {
-      if (values.size() > 0)
-        static_cast<Impl const *>(this)->reduce(key, values,
-                                                this->final_vals[loc.thread]);
-    }
-    user_time += time_elapsed(user_begin);
+  for (auto &thread : threads) {
+    thread.Join();
   }
-
-  time += time_elapsed(begin);
 }
 
 /**
@@ -373,63 +271,6 @@ void MapReduce<Impl, D, K, V, Container>::run_merge() {
 
   delete[] this->final_vals;
   this->final_vals = final;
-}
-
-template <typename Impl, typename D, typename K, typename V, class Container>
-void MapReduce<Impl, D, K, V, Container>::merge_worker(thread_loc const &loc,
-                                                       double &time,
-                                                       double &user_time,
-                                                       int &tasks) {
-  // do nothing at all unless it turns out to be a bottleneck to merge in
-  // serial.
-}
-
-template <typename Impl, typename D, typename K, typename V, class Container>
-void MapReduce<Impl, D, K, V, Container>::start_workers(
-    void (*func)(void *, thread_loc const &), int num_threads,
-    char const *stage) {
-  thread_arg_t *th_arg_array = new thread_arg_t[num_threads];
-  thread_arg_t **th_arg_ptrarray = new thread_arg_t *[num_threads];
-
-  thread_arg_t args = {this, 0, 0, 0};
-  for (int thread = 0; thread < num_threads; ++thread) {
-    th_arg_array[thread] = args;
-    th_arg_ptrarray[thread] = &(th_arg_array[thread]);
-  }
-
-  CHECK_ERROR(threadPool->set(func, (void **)th_arg_ptrarray, num_threads));
-  // Start worker threads
-  CHECK_ERROR(threadPool->begin());
-  dprintf("Status: All %d threads have been created\n", num_threads);
-  // Barrier, wait for all threads to finish.
-  CHECK_ERROR(threadPool->wait());
-
-#ifdef TIMING
-  double user_time = 0, work_time = 0, max_user_time = 0,
-         min_user_time = std::numeric_limits<double>::max(), max_work_time = 0,
-         min_work_time = std::numeric_limits<double>::max();
-  for (int thread = 0; thread < num_threads; ++thread) {
-    dprintf("Thread %d: ran %d in %.3f\n", thread, th_arg_array[thread].tasks,
-            th_arg_array[thread].time);
-    user_time += th_arg_array[thread].user_time;
-    min_user_time = std::min(min_user_time, th_arg_array[thread].user_time);
-    max_user_time = std::max(max_user_time, th_arg_array[thread].user_time);
-    work_time += th_arg_array[thread].time;
-    min_work_time = std::min(min_work_time, th_arg_array[thread].time);
-    max_work_time = std::max(max_work_time, th_arg_array[thread].time);
-  }
-  if (max_user_time > 0)
-    fprintf(stderr, "%s avg user time: %.3f    (%.3f, %.3f)\n", stage,
-            user_time / num_threads, min_user_time, max_user_time);
-  if (max_work_time > 0)
-    fprintf(stderr, "%s avg thread time: %.3f    (%.3f, %.3f)\n", stage,
-            work_time / num_threads, min_work_time, max_work_time);
-#endif
-
-  delete[] th_arg_ptrarray;
-  delete[] th_arg_array;
-
-  dprintf("Status: All tasks have completed\n");
 }
 
 template <typename Impl, typename D, typename K, typename V,
@@ -455,14 +296,17 @@ protected:
     static const int merge_factor = 2;
     int merge_queues = this->num_threads;
 
+    std::vector<rt::Thread> threads;
     // First sort each queue in place
     for (int i = 0; i < merge_queues; i++) {
-      task_queue::task_t task = {static_cast<uint64_t>(i), 0,
-                                 (uint64_t) & this->final_vals[i], 0};
-      this->taskQueue->enqueue_seq(task, merge_queues);
+      threads.emplace_back(
+          [&, i, val = &this->final_vals[i]] { merge_fn(val, 0, i); });
     }
-    MapReduce<Impl, D, K, V, Container>::start_workers(
-        &this->merge_callback, this->num_threads, "merge");
+
+    for (auto &thread : threads) {
+      thread.Join();
+    }
+    threads.clear();
 
     // Then merge
     std::vector<keyval> *merge_vals;
@@ -479,19 +323,16 @@ protected:
       int queue_index = 0;
       for (uint64_t i = 0; i < resulting_queues; i++) {
         int actual = std::min(merge_factor, merge_queues - queue_index);
-        task_queue::task_t task = {i, (uint64_t)actual,
-                                   (uint64_t)&merge_vals[queue_index], 0};
-        int lgrp = loc_mem_to_lgrp(&merge_vals[queue_index][0]);
-        // For debugging, normally this is padding.
-        task.pad = lgrp;
-        this->taskQueue->enqueue_seq(task, resulting_queues, lgrp);
+        threads.emplace_back([&, val = &merge_vals[queue_index], actual, i] {
+          merge_fn(val, actual, i);
+        });
         queue_index += actual;
       }
 
-      // Run merge tasks and get merge values.
-      MapReduce<Impl, D, K, V, Container>::start_workers(
-          &this->merge_callback, std::min(resulting_queues, this->num_threads),
-          "merge");
+      for (auto &thread : threads) {
+        thread.Join();
+      }
+      threads.clear();
 
       delete[] merge_vals;
       merge_queues = resulting_queues;
@@ -500,36 +341,25 @@ protected:
     assert(merge_queues == 1);
   }
 
-  virtual void merge_worker(thread_loc const &loc, double &time,
-                            double &user_time, int &tasks) {
-    timespec begin = get_time();
-    task_queue::task_t task;
-    while (this->taskQueue->dequeue(task, loc)) {
-      tasks++;
-      std::vector<keyval> *vals = (std::vector<keyval> *)task.data;
-      uint64_t length = task.len;
-      uint64_t out_index = task.id;
-
-      if (length == 0) {
-        // this case really just means sort my list in place.
-        // stable_sort ensures that the order of same keyvals with
-        // the same key emitted in reduce remains the same in sort
-        std::stable_sort(vals->begin(), vals->end(), sort_functor(this));
-      } else if (length == 1) {
-        // if only one list, don't merge, just move over.
-        (*vals).swap(this->final_vals[out_index]);
-      } else if (length == 2) {
-        // stl merge is nice and fast for 2.
-        this->final_vals[out_index].resize(vals[0].size() + vals[1].size());
-        std::merge(vals[0].begin(), vals[0].end(), vals[1].begin(),
-                   vals[1].end(), this->final_vals[out_index].begin(),
-                   sort_functor(this));
-      } else {
-        // for more, do a multiway merge.
-        assert(0);
-      }
+  void merge_fn(std::vector<keyval> *vals, uint64_t length,
+                uint64_t out_index) {
+    if (length == 0) {
+      // this case really just means sort my list in place.
+      // stable_sort ensures that the order of same keyvals with
+      // the same key emitted in reduce remains the same in sort
+      std::stable_sort(vals->begin(), vals->end(), sort_functor(this));
+    } else if (length == 1) {
+      // if only one list, don't merge, just move over.
+      (*vals).swap(this->final_vals[out_index]);
+    } else if (length == 2) {
+      // stl merge is nice and fast for 2.
+      this->final_vals[out_index].resize(vals[0].size() + vals[1].size());
+      std::merge(vals[0].begin(), vals[0].end(), vals[1].begin(), vals[1].end(),
+                 this->final_vals[out_index].begin(), sort_functor(this));
+    } else {
+      // for more, do a multiway merge.
+      assert(0);
     }
-    time += time_elapsed(begin);
   }
 };
 
