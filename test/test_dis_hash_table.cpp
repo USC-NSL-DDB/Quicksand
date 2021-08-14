@@ -7,6 +7,7 @@
 #include <memory>
 #include <numeric>
 #include <random>
+#include <utility>
 #include <vector>
 
 extern "C" {
@@ -49,7 +50,7 @@ std::string random_str(uint32_t len) {
 bool run_test() {
   std::unordered_map<std::string, std::string> std_map;
   auto hash_table =
-      std::make_unique<DistributedHashTable<std::string, std::string>>();
+      std::make_unique<DistributedHashTable<std::string, std::string>>(5);
   for (uint32_t i = 0; i < kNumPairs; i++) {
     std::string k = random_str(kKeyLen);
     std::string v = random_str(kValLen);
@@ -95,6 +96,17 @@ bool run_test() {
     if (!optional || v != *optional) {
       return false;
     }
+  }
+
+  std::set<std::pair<std::string, std::string>> std_set;
+  for (auto &[k, v] : std_map) {
+    std_set.emplace(k, v);
+  }
+  auto all_pairs = hash_table->get_all_pairs();
+  std::set<std::pair<std::string, std::string>> our_set(all_pairs.begin(),
+                                                        all_pairs.end());
+  if (std_set != our_set) {
+    return false;
   }
 
   for (auto &[k, _] : std_map) {

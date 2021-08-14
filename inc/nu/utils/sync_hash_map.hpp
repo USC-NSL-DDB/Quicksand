@@ -5,6 +5,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include <sync.h>
 
@@ -32,6 +33,7 @@ public:
   RetT apply_with_hash(K1 &&k, uint64_t key_hash,
                        RetT (*fn)(std::pair<const K, V> &, A0s...),
                        A1s &&... args);
+  std::vector<std::pair<K, V>> get_all_pairs();
 
 private:
   struct BucketNode {

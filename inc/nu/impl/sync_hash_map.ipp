@@ -220,4 +220,24 @@ apply_fn:
   }
 }
 
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+std::vector<std::pair<K, V>>
+SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
+  std::vector<std::pair<K, V>> vec;
+  for (size_t i = 0; i < NBuckets; i++) {
+    if (buckets_[i].pair) {
+      locks_[i].Lock();
+      auto *bucket_node = &buckets_[i];
+      while (bucket_node && bucket_node->pair) {
+        auto pair = reinterpret_cast<Pair *>(bucket_node->pair);
+        vec.emplace_back(pair->first, pair->second);
+        bucket_node = bucket_node->next;
+      }
+      locks_[i].Unlock();
+    }
+  }
+  return vec;
+}
+
 } // namespace nu

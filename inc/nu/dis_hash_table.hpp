@@ -63,6 +63,7 @@ public:
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
   Future<RetT> apply_async(K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...),
                            A1s &&... args);
+  std::vector<std::pair<K, V>> get_all_pairs();
   Cap get_cap() const;
 
   // For debugging and performance analysis.

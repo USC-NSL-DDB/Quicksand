@@ -174,6 +174,22 @@ Future<RetT> DistributedHashTable<K, V, Hash, KeyEqual>::apply_async(
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual>
+std::vector<std::pair<K, V>>
+DistributedHashTable<K, V, Hash, KeyEqual>::get_all_pairs() {
+  std::vector<std::pair<K, V>> vec;
+  std::vector<Future<std::vector<std::pair<K, V>>>> futures;
+  for (uint32_t i = 0; i < num_shards_; i++) {
+    futures.emplace_back(shards_[i].__run_async(
+        +[](HashTableShard &shard) { return shard.get_all_pairs(); }));
+  }
+  for (auto &future : futures) {
+    auto &vec_shard = future.get();
+    vec.insert(vec.end(), vec_shard.begin(), vec_shard.end());
+  }
+  return vec;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual>
 DistributedHashTable<K, V, Hash, KeyEqual>::Cap
 DistributedHashTable<K, V, Hash, KeyEqual>::get_cap() const {
   Cap cap;
