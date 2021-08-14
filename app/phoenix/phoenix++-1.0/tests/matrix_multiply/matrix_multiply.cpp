@@ -24,7 +24,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <assert.h>
 #include <fcntl.h>
 #include <nu/runtime.hpp>
 #include <sys/mman.h>

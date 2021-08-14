@@ -28,7 +28,6 @@
 #define MAP_REDUCE_H_
 
 #include <algorithm>
-#include <assert.h>
 #include <cmath>
 #include <limits>
 #include <queue>
@@ -275,7 +274,7 @@ void MapReduce<Impl, D, K, V, Container>::run_map(data_type *data,
           static_cast<Impl const *>(this)->locate(data + start, len));
       task_queue::task_t task =
           // For debugging, last element is normally padding
-          {i, len, (uint64_t)(data + start), lgrp};
+          {i, len, (uint64_t)(data + start), static_cast<uint64_t>(lgrp)};
       this->taskQueue->enqueue_seq(task, this->num_map_tasks, lgrp);
     }
   }
@@ -458,7 +457,8 @@ protected:
 
     // First sort each queue in place
     for (int i = 0; i < merge_queues; i++) {
-      task_queue::task_t task = {i, 0, (uint64_t) & this->final_vals[i], 0};
+      task_queue::task_t task = {static_cast<uint64_t>(i), 0,
+                                 (uint64_t) & this->final_vals[i], 0};
       this->taskQueue->enqueue_seq(task, merge_queues);
     }
     MapReduce<Impl, D, K, V, Container>::start_workers(

@@ -190,7 +190,6 @@ void real_main(int argc, char *argv[]) {
 
   short pix_val;
   intptr_t freq;
-  short prev = 0;
 
   printf("\n\nBlue\n");
   printf("----------\n\n");
@@ -212,8 +211,6 @@ void real_main(int argc, char *argv[]) {
     }
 
     printf("%hd - %ld\n", pix_val % 256, freq);
-
-    prev = pix_val;
   }
 
 #ifndef NO_MMAP

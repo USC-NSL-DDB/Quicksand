@@ -27,7 +27,6 @@
 #ifndef LOCALITY_H_
 #define LOCALITY_H_
 
-#include <assert.h>
 #include <unistd.h>
 
 #if defined(_LINUX_) && defined(NUMA_SUPPORT)

@@ -93,7 +93,7 @@ static inline void get_time(timespec &ts) {
 }
 
 static inline timespec get_time() {
-  timespec t;
+  timespec t{};
 #ifdef TIMING
   get_time(t);
 #endif

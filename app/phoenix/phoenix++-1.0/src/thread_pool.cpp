@@ -24,7 +24,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <assert.h>
 #include <pthread.h>
 
 #include "../include/atomic.h"
@@ -32,7 +31,6 @@
 #include "../include/thread_pool.h"
 
 thread_pool::thread_pool(int num_threads, sched_policy const *policy) {
-  int ret;
   pthread_attr_t attr;
 
   this->num_threads = num_threads;
@@ -55,8 +53,6 @@ thread_pool::thread_pool(int num_threads, sched_policy const *policy) {
     // we'll get this when the thread runs...
     this->thread_args[i].loc.lgrp = -1;
     this->thread_args[i].loc.seed = i;
-
-    ret = pthread_create(&this->threads[i], &attr, loop, &this->thread_args[i]);
   }
 }
 
