@@ -31,7 +31,7 @@ HOME = ../..
 
 include $(HOME)/Defines.mk
 
-LIBS += -L$(HOME)/$(LIB_DIR) -l$(PHOENIX)
+LIBS := -L$(HOME)/$(LIB_DIR) -l$(PHOENIX) $(LIBS)
 
 WC_OBJS := word_count.o
 

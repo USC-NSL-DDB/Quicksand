@@ -79,6 +79,9 @@ protected:
     uint64_t num_map_tasks;
     uint64_t num_reduce_tasks;
 
+    void start_workers (void (*callback)(void*, thread_loc const&),
+        int num_threads, char const* stage);
+
     virtual void run_map(data_type* data, uint64_t len);
     virtual void run_reduce();
     virtual void run_merge();
@@ -113,8 +116,6 @@ protected:
         thread_arg_t* t = (thread_arg_t*)arg; 
         t->mr->merge_worker(loc, t->time, t->user_time, t->tasks); 
     }
-    void start_workers (void (*callback)(void*, thread_loc const&), 
-        int num_threads, char const* stage);    
     
     // the default split function...
     int split(data_type &a) { return 0; }
@@ -199,9 +200,8 @@ run (std::vector<keyval>& result)
 
     // Run splitter to generate chunks
     get_time (begin);
-    while (static_cast<Impl const*>(this)->split(chunk))
-    {
-        data.push_back(chunk);
+    while (static_cast<Impl *>(this)->split(chunk)) {
+      data.push_back(chunk);
     }
     count = data.size();
     print_time_elapsed("split phase", begin);
@@ -475,7 +475,8 @@ protected:
                 { i, 0, (uint64_t)&this->final_vals[i], 0 };
             this->taskQueue->enqueue_seq(task, merge_queues);
         }
-        start_workers(&this->merge_callback, this->num_threads, "merge");
+        MapReduce<Impl, D, K, V, Container>::start_workers(
+            &this->merge_callback, this->num_threads, "merge");
 
         // Then merge
         std::vector<keyval>* merge_vals;
@@ -506,7 +507,8 @@ protected:
             }
 
             // Run merge tasks and get merge values.
-            start_workers (&this->merge_callback, 
+            MapReduce<Impl, D, K, V, Container>::start_workers(
+                &this->merge_callback,
                 std::min(resulting_queues, this->num_threads), "merge");
 
             delete [] merge_vals;

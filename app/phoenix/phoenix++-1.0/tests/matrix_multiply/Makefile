@@ -31,7 +31,7 @@ HOME = ../..
 
 include $(HOME)/Defines.mk
 
-LIBS += -L$(HOME)/$(LIB_DIR) -l$(PHOENIX)
+LIBS := -L$(HOME)/$(LIB_DIR) -l$(PHOENIX) $(LIBS)
 
 MM_OBJS = matrix_multiply.o
 
@@ -45,7 +45,7 @@ all: $(PROGS)
 
 matrix_multiply: $(MM_OBJS) $(LIB_DEP)
 	$(CXX) $(CFLAGS) -o $@ $(MM_OBJS) $(LIBS)
-	
+
 %.o: %.cpp
 	$(CXX) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR)
 

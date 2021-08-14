@@ -31,7 +31,7 @@ HOME = ../..
 
 include $(HOME)/Defines.mk
 
-LIBS += -L$(HOME)/$(LIB_DIR) -l$(PHOENIX)
+LIBS := -L$(HOME)/$(LIB_DIR) -l$(PHOENIX) $(LIBS)
 
 L_REG_OBJS = linear_regression.o
 
