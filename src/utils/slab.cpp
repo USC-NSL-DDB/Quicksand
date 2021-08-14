@@ -117,8 +117,8 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
   auto *hdr = reinterpret_cast<PtrHeader *>(reinterpret_cast<uintptr_t>(ptr) -
                                             sizeof(PtrHeader));
   auto *slab = slabs_[hdr->slab_id];
-  assert(reinterpret_cast<const uint8_t *>(_ptr) < slab->start_);
-  assert(reinterpret_cast<const uint8_t *>(_ptr) >= slab->cur_);
+  assert(reinterpret_cast<const uint8_t *>(_ptr) >= slab->start_);
+  assert(reinterpret_cast<const uint8_t *>(_ptr) < slab->cur_);
 
   auto size = hdr->size;
   ptr = hdr;
