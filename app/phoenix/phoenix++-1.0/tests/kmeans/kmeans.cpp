@@ -151,27 +151,8 @@ public:
   static bool Empty(point const &a) { return a.cluster == 0; }
 };
 
-#ifdef MUST_USE_HASH
-class KmeansMR
-    : public MapReduce<KmeansMR, point, intptr_t, point,
-                       hash_container<intptr_t, point, point_combiner,
-                                      std::tr1::hash<intptr_t>
-#elif defined(MUST_USE_FIXED_HASH)
-class KmeansMR
-    : public MapReduce<KmeansMR, point, intptr_t, point,
-                       fixed_hash_container<intptr_t, point, point_combiner,
-                                            256, std::tr1::hash<intptr_t>
-#else
-class KmeansMR
-    : public MapReduce<
-          KmeansMR, point, intptr_t, point,
-          array_container<intptr_t, point, point_combiner, DEF_NUM_MEANS
-#endif
-#ifdef TBB
-                                      ,
-                                      tbb::scalable_allocator
-#endif
-                                      >> {
+class KmeansMR : public MapReduce<KmeansMR, point, intptr_t, point,
+                                  point_combiner, std::hash<intptr_t>> {
   std::vector<point> const &means;
 
 public:
@@ -198,25 +179,9 @@ public:
   }
 
   KmeansMR(std::vector<point> const &means)
-#ifdef MUST_USE_HASH
-      : MapReduce<KmeansMR, point, intptr_t, point,
-                  hash_container<intptr_t, point, point_combiner,
-                                 std::tr1::hash<intptr_t>
-#elif defined(MUST_USE_FIXED_HASH)
-      : MapReduce<KmeansMR, point, intptr_t, point,
-                  fixed_hash_container<intptr_t, point, point_combiner, 256,
-                                       std::tr1::hash<intptr_t>
-#else
-      : MapReduce<KmeansMR, point, intptr_t, point,
-                  array_container<intptr_t, point, point_combiner, DEF_NUM_MEANS
-#endif
-#ifdef TBB
-                                 ,
-                                 tbb::scalable_allocator
-#endif
-                                 >>(),
-        means(means) {
-  }
+      : MapReduce<KmeansMR, point, intptr_t, point, point_combiner,
+                  std::hash<intptr_t>>(),
+        means(means) {}
 };
 
 void real_main(int argc, char **argv) {

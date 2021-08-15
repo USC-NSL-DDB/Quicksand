@@ -27,29 +27,32 @@
 #ifndef MAP_REDUCE_H_
 #define MAP_REDUCE_H_
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <queue>
-#include <thread.h>
-#include <vector>
 extern "C" {
 #include <runtime/runtime.h>
 }
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <nu/dis_hash_table.hpp>
+#include <queue>
+#include <thread.h>
+#include <vector>
 
 #include "combiner.h"
 #include "container.h"
 #include "stddefines.h"
 
 template <typename Impl, typename D, typename K, typename V,
-          class Container = hash_container<K, V, buffer_combiner>>
+          template <typename, template <class> class> class Combiner =
+              buffer_combiner,
+          class Hash = std::hash<K>>
 class MapReduce {
 public:
   /* Standard data types for the function arguments and results */
   typedef D data_type;
   typedef V value_type;
   typedef K key_type;
-  typedef Container container_type;
+  typedef hash_container<K, V, Combiner, Hash> container_type;
 
   typedef typename container_type::input_type map_container;
   typedef typename container_type::output_type reduce_iterator;
@@ -118,8 +121,10 @@ public:
   }
 };
 
-template <typename Impl, typename D, typename K, typename V, class Container>
-int MapReduce<Impl, D, K, V, Container>::run(std::vector<keyval> &result) {
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+int MapReduce<Impl, D, K, V, Combiner, Hash>::run(std::vector<keyval> &result) {
   timespec begin;
   std::vector<D> data;
   uint64_t count;
@@ -136,9 +141,11 @@ int MapReduce<Impl, D, K, V, Container>::run(std::vector<keyval> &result) {
   return run(&data[0], count, result);
 }
 
-template <typename Impl, typename D, typename K, typename V, class Container>
-int MapReduce<Impl, D, K, V, Container>::run(D *data, uint64_t count,
-                                             std::vector<keyval> &result) {
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+int MapReduce<Impl, D, K, V, Combiner, Hash>::run(D *data, uint64_t count,
+                                                  std::vector<keyval> &result) {
   timespec begin;
   timespec run_begin = get_time();
   // Initialize library
@@ -192,9 +199,11 @@ int MapReduce<Impl, D, K, V, Container>::run(D *data, uint64_t count,
 /**
  * Run map tasks and get intermediate values
  */
-template <typename Impl, typename D, typename K, typename V, class Container>
-void MapReduce<Impl, D, K, V, Container>::run_map(data_type *data,
-                                                  uint64_t count) {
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::run_map(data_type *data,
+                                                       uint64_t count) {
   std::vector<rt::Thread> threads;
 
   // Compute map task chunk size
@@ -228,8 +237,10 @@ void MapReduce<Impl, D, K, V, Container>::run_map(data_type *data,
 /**
  * Run reduce tasks and get final values.
  */
-template <typename Impl, typename D, typename K, typename V, class Container>
-void MapReduce<Impl, D, K, V, Container>::run_reduce() {
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::run_reduce() {
   std::vector<rt::Thread> threads;
 
   // Create tasks and enqueue...
@@ -254,8 +265,10 @@ void MapReduce<Impl, D, K, V, Container>::run_reduce() {
 /**
  * Merge all reduced data
  */
-template <typename Impl, typename D, typename K, typename V, class Container>
-void MapReduce<Impl, D, K, V, Container>::run_merge() {
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::run_merge() {
   size_t total = 0;
   for (size_t i = 0; i < num_threads; i++) {
     total += this->final_vals[i].size();
@@ -274,10 +287,12 @@ void MapReduce<Impl, D, K, V, Container>::run_merge() {
 }
 
 template <typename Impl, typename D, typename K, typename V,
-          class Container = hash_container<K, V, buffer_combiner>>
-class MapReduceSort : public MapReduce<Impl, D, K, V, Container> {
+          template <typename, template <class> class> class Combiner =
+              buffer_combiner,
+          class Hash = std::hash<K>>
+class MapReduceSort : public MapReduce<Impl, D, K, V, Combiner, Hash> {
 public:
-  typedef typename MapReduce<Impl, D, K, V, Container>::keyval keyval;
+  typedef typename MapReduce<Impl, D, K, V, Combiner, Hash>::keyval keyval;
 
 protected:
   // default sorting order is by key. User can override.

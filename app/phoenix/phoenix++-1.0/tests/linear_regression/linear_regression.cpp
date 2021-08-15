@@ -42,27 +42,8 @@ struct POINT_T {
 
 enum { KEY_SX = 0, KEY_SY, KEY_SXX, KEY_SYY, KEY_SXY, KEY_COUNT };
 
-#ifdef MUST_USE_HASH
-class lrMR
-    : public MapReduce<lrMR, POINT_T, unsigned char, uint64_t,
-                       hash_container<unsigned char, uint64_t, sum_combiner,
-                                      std::tr1::hash<unsigned char>
-#elif defined(MUST_USE_FIXED_HASH)
-class lrMR : public MapReduce<
-                 lrMR, POINT_T, unsigned char, uint64_t,
-                 fixed_hash_container<unsigned char, uint64_t, sum_combiner,
-                                      32768, std::tr1::hash<unsigned char>
-#else
-class lrMR
-    : public MapReduce<
-          lrMR, POINT_T, unsigned char, uint64_t,
-          array_container<unsigned char, uint64_t, sum_combiner, KEY_COUNT
-#endif
-#ifdef TBB
-                                      ,
-                                      tbb::scalable_allocator
-#endif
-                                      >> {
+class lrMR : public MapReduce<lrMR, POINT_T, unsigned char, uint64_t,
+                              sum_combiner, std::tr1::hash<unsigned char>> {
 public:
   void map(data_type const &p, map_container &out) const {
     uint64_t px = p.x, py = p.y; // cast first so multiply happens in 64-bits

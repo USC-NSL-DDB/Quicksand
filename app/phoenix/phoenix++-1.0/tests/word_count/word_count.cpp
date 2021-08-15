@@ -69,21 +69,8 @@ struct wc_word_hash {
   }
 };
 
-#ifdef MUST_USE_FIXED_HASH
-class WordsMR
-    : public MapReduceSort<WordsMR, wc_string, wc_word, uint64_t,
-                           fixed_hash_container<wc_word, uint64_t, sum_combiner,
-                                                32768, wc_word_hash
-#else
-class WordsMR : public MapReduceSort<
-                    WordsMR, wc_string, wc_word, uint64_t,
-                    hash_container<wc_word, uint64_t, sum_combiner, wc_word_hash
-#endif
-#ifdef TBB
-                                                ,
-                                                tbb::scalable_allocator
-#endif
-                                                >> {
+class WordsMR : public MapReduceSort<WordsMR, wc_string, wc_word, uint64_t,
+                                     sum_combiner, wc_word_hash> {
   char *data;
   uint64_t data_size;
   uint64_t chunk_size;

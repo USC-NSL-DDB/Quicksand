@@ -44,26 +44,8 @@ struct pixel {
   unsigned char r;
 };
 
-#ifdef MUST_USE_HASH
-class HistogramMR
-    : public MapReduceSort<HistogramMR, pixel, intptr_t, uint64_t,
-                           hash_container<intptr_t, uint64_t, sum_combiner,
-                                          std::tr1::hash<intptr_t>
-#elif defined(MUST_USE_FIXED_HASH)
-class HistogramMR : public MapReduceSort<
-                        HistogramMR, pixel, intptr_t, uint64_t,
-                        fixed_hash_container<intptr_t, uint64_t, sum_combiner,
-                                             32768, std::tr1::hash<intptr_t>
-#else
-class HistogramMR
-    : public MapReduceSort<HistogramMR, pixel, intptr_t, uint64_t,
-                           array_container<intptr_t, uint64_t, sum_combiner, 768
-#endif
-#ifdef TBB
-                                          ,
-                                          tbb::scalable_allocator
-#endif
-                                          >> {
+class HistogramMR : public MapReduceSort<HistogramMR, pixel, intptr_t, uint64_t,
+                                         sum_combiner, std::hash<intptr_t>> {
 public:
   void map(data_type const &p, map_container &out) const {
     emit_intermediate(out, p.b, 1);
