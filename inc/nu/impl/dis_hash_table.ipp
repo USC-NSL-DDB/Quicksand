@@ -224,4 +224,27 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_cap() const {
   return cap;
 }
 
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
+template <typename RetT, typename... A0s, typename... A1s>
+RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::associative_reduce(
+    RetT init_val,
+    void (*reduce_fn)(RetT &, const std::pair<const K, V> &, A0s...),
+    void (*merge_fn)(RetT &, const RetT &, A0s...), A1s &&... args) {
+  RetT reduced_val(std::move(init_val));
+  std::vector<Future<RetT>> futures;
+
+  for (uint32_t i = 0; i < num_shards_; i++) {
+    futures.emplace_back(shards_[i].__run_async(
+        &HashTableShard::template associative_reduce<RetT>, init_val, reduce_fn,
+        std::forward<A1s>(args)...));
+  }
+
+  for (auto &future : futures) {
+    merge_fn(reduced_val, future.get(), std::forward<A1s>(args)...);
+  }
+
+  return reduced_val;
+}
+
 } // namespace nu

@@ -33,6 +33,12 @@ public:
   RetT apply_with_hash(K1 &&k, uint64_t key_hash,
                        RetT (*fn)(std::pair<const K, V> &, A0s...),
                        A1s &&... args);
+  template <typename RetT, typename... A0s, typename... A1s>
+  RetT associative_reduce(RetT init_val,
+                          void (*reduce_fn)(RetT &,
+                                            const std::pair<const K, V> &,
+                                            A0s...),
+                          A1s &&... args);
   std::vector<std::pair<K, V>> get_all_pairs();
 
 private:

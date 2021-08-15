@@ -32,7 +32,7 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_with_hash(
 
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
-      auto pair = reinterpret_cast<Pair *>(bucket_node->pair);
+      auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
       if (equaler(k, pair->first)) {
         auto ret = std::make_optional(pair->second);
         lock.Unlock();
@@ -69,7 +69,7 @@ void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
-      auto pair = reinterpret_cast<Pair *>(bucket_node->pair);
+      auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
       if (equaler(k, pair->first)) {
         pair->second = std::forward<V1>(v);
         lock.Unlock();
@@ -123,7 +123,7 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
-      auto pair = reinterpret_cast<Pair *>(bucket_node->pair);
+      auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
       if (equaler(k, pair->first)) {
         if (!prev_next) {
           if (!bucket_node->next) {
@@ -222,22 +222,38 @@ apply_fn:
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
-std::vector<std::pair<K, V>>
-SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
-  std::vector<std::pair<K, V>> vec;
+template <typename RetT, typename... A0s, typename... A1s>
+RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+                 Lock>::associative_reduce(RetT init_val,
+                                           void (*reduce_fn)(
+                                               RetT &,
+                                               const std::pair<const K, V> &,
+                                               A0s...),
+                                           A1s &&... args) {
+  RetT reduced_val(std::move(init_val));
   for (size_t i = 0; i < NBuckets; i++) {
     if (buckets_[i].pair) {
       locks_[i].Lock();
       auto *bucket_node = &buckets_[i];
       while (bucket_node && bucket_node->pair) {
-        auto pair = reinterpret_cast<Pair *>(bucket_node->pair);
-        vec.emplace_back(pair->first, pair->second);
+        auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
+        reduce_fn(reduced_val, *pair, std::forward<A1s>(args)...);
         bucket_node = bucket_node->next;
       }
       locks_[i].Unlock();
     }
   }
-  return vec;
+  return reduced_val;
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+std::vector<std::pair<K, V>>
+SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
+  return associative_reduce(
+      std::vector<std::pair<K, V>>(),
+      +[](std::vector<std::pair<K, V>> &reduced_val,
+          const std::pair<const K, V> &pair) { reduced_val.push_back(pair); });
 }
 
 } // namespace nu

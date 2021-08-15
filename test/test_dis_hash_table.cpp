@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <cereal/types/optional.hpp>
+#include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/types/unordered_map.hpp>
+#include <cereal/types/utility.hpp>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -105,6 +107,21 @@ bool run_test() {
   auto all_pairs = hash_table->get_all_pairs();
   std::set<std::pair<std::string, std::string>> our_set(all_pairs.begin(),
                                                         all_pairs.end());
+  if (std_set != our_set) {
+    return false;
+  }
+
+  our_set.clear();
+  our_set = hash_table->associative_reduce(
+      our_set,
+      +[](std::set<std::pair<std::string, std::string>> &set,
+          const std::pair<const K, V> &pair) {
+        set.emplace(pair.first, pair.second);
+      },
+      +[](std::set<std::pair<std::string, std::string>> &set,
+          const std::set<std::pair<std::string, std::string>> &pairs) {
+        set.insert(pairs.begin(), pairs.end());
+      });
   if (std_set != our_set) {
     return false;
   }
