@@ -19,11 +19,11 @@ namespace nu {
 // TODO: support batch interface.
 // TODO: support dynamic upsharding/downsharding.
 template <typename K, typename V, typename Hash = std::hash<K>,
-          typename KeyEqual = std::equal_to<K>>
+          typename KeyEqual = std::equal_to<K>, uint64_t NumBuckets = 65536>
 class DistributedHashTable {
 public:
   constexpr static uint32_t kDefaultPowerNumShards = 13;
-  constexpr static uint32_t kNumBucketsPerShard = 65536;
+  constexpr static uint64_t kNumBucketsPerShard = NumBuckets;
 
   struct MigratableYieldLock {
     SpinLock lock;
@@ -32,7 +32,7 @@ public:
   };
 
   using HashTableShard =
-      SyncHashMap<kNumBucketsPerShard, K, V, Hash, std::equal_to<K>,
+      SyncHashMap<NumBuckets, K, V, Hash, std::equal_to<K>,
                   std::allocator<std::pair<const K, V>>, MigratableYieldLock>;
   struct Cap {
     std::vector<typename RemObj<HashTableShard>::Cap> shard_caps;

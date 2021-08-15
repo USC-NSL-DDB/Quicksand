@@ -66,7 +66,8 @@ private:
   bool ref_cnted_;
 
   template <typename U> friend class RemPtr;
-  template <typename K, typename V, typename Hash, typename KeyEqual>
+  template <typename K, typename V, typename Hash, typename KeyEqual,
+            uint64_t NumBuckets>
   friend class DistributedHashTable;
   friend class DistributedMemPool;
 
