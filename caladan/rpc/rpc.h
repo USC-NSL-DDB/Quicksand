@@ -126,9 +126,11 @@ class RPCFlow {
 }  // namespace rpc_internal
 
 // A function handler for each RPC request, invoked concurrently.
-using RPCFuncPtr = RPCReturnBuffer (*)(std::span<const std::byte> args);
+using RPCHandler =
+    folly::Function<RPCReturnBuffer(std::span<const std::byte> args)>;
 // Initializes and runs the RPC server.
-void RPCServerInit(RPCFuncPtr fnptr);
+void RPCServerInit(RPCHandler &handler);
+void RPCServerInit(RPCHandler &&handler);
 
 class RPCClient {
  public:

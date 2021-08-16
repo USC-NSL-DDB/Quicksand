@@ -64,7 +64,7 @@ int StringToAddr(const char *str, uint32_t *addr) {
   return 0;
 }
 
-}  // namespace
+} // namespace
 
 int main(int argc, char *argv[]) {
   if (argc < 3) {

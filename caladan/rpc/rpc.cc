@@ -55,8 +55,8 @@ constexpr rpc_resp_hdr MakeUpdateResponse(unsigned int credits) {
 
 class RPCServer {
  public:
-  RPCServer(std::unique_ptr<rt::TcpConn> c, nu::RPCFuncPtr fnptr)
-      : c_(std::move(c)), fnptr_(fnptr), close_(false) {}
+  RPCServer(std::unique_ptr<rt::TcpConn> c, nu::RPCHandler &handler)
+      : c_(std::move(c)), handler_(handler), close_(false) {}
   ~RPCServer() {}
 
   // Runs the RPCServer, returning when the connection is closed.
@@ -80,7 +80,7 @@ class RPCServer {
   std::vector<completion> completions_;
   float credits_;
   unsigned int demand_;
-  nu::RPCFuncPtr fnptr_;
+  nu::RPCHandler &handler_;
   bool close_;
 };
 
@@ -160,7 +160,7 @@ void RPCServer::ReceiveWorker() {
     // Spawn a handler with no argument data provided.
     if (hdr.len == 0) {
       rt::Spawn([this, completion_data]() {
-        Return(fnptr_(std::span<const std::byte>{}), completion_data);
+        Return(handler_(std::span<const std::byte>{}), completion_data);
       });
       continue;
     }
@@ -177,7 +177,7 @@ void RPCServer::ReceiveWorker() {
     // Spawn a handler with argument data provided.
     rt::Spawn([this, completion_data, b = std::move(buf),
                len = hdr.len]() mutable {
-      Return(fnptr_(std::span<const std::byte>{b.get(), len}), completion_data);
+      Return(handler_(std::span<const std::byte>{b.get(), len}), completion_data);
     });
   }
 
@@ -189,19 +189,19 @@ void RPCServer::ReceiveWorker() {
   }
 }
 
-void RPCServerWorker(std::unique_ptr<rt::TcpConn> c, nu::RPCFuncPtr fnptr) {
-  RPCServer s(std::move(c), fnptr);
+void RPCServerWorker(std::unique_ptr<rt::TcpConn> c, RPCHandler &handler) {
+  RPCServer s(std::move(c), handler);
   s.Run();
 }
 
-void RPCServerListener(nu::RPCFuncPtr fnptr) {
+void RPCServerListener(RPCHandler &handler) {
   std::unique_ptr<rt::TcpQueue> q(rt::TcpQueue::Listen({0, kRPCPort}, 4096));
   BUG_ON(!q);
 
   while (true) {
     std::unique_ptr<rt::TcpConn> c(q->Accept());
-    rt::Thread([c = std::move(c), fnptr]() mutable {
-      RPCServerWorker(std::move(c), fnptr);
+    rt::Thread([c = std::move(c), &handler]() mutable {
+      RPCServerWorker(std::move(c), handler);
     }).Detach();
   }
 }
@@ -343,9 +343,9 @@ std::unique_ptr<RPCFlow> RPCFlow::New(unsigned int cpu_affinity,
 
 }  // namespace rpc_internal
 
-void RPCServerInit(RPCFuncPtr fnptr) {
-  RPCServerListener(fnptr);
-}
+void RPCServerInit(RPCHandler &handler) { RPCServerListener(handler); }
+
+void RPCServerInit(RPCHandler &&handler) { RPCServerListener(handler); }
 
 std::unique_ptr<RPCClient> RPCClient::Dial(netaddr raddr) {
   std::vector<std::unique_ptr<RPCFlow>> v;
