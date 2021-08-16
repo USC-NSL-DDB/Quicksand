@@ -11,23 +11,7 @@ namespace nu {
 
 namespace {
 
-constexpr uint16_t kRPCPort = 8080;
-
-template <class T>
-std::enable_if_t<!std::is_array<T>::value, std::unique_ptr<T>>
-make_unique_for_overwrite() {
-  return std::unique_ptr<T>(new T);
-}
-
-template <class T>
-std::enable_if_t<std::is_unbounded_array_v<T>, std::unique_ptr<T>>
-make_unique_for_overwrite(std::size_t n) {
-  return std::unique_ptr<T>(new std::remove_extent_t<T>[n]);
-}
-
-template <class T, class... Args>
-std::enable_if_t<std::is_bounded_array_v<T>> make_unique_for_overwrite(
-    Args &&...) = delete;
+constexpr uint16_t kRPCPort = 9090;
 
 // Command types for the RPC protocol.
 enum rpc_cmd : unsigned int {
@@ -182,7 +166,7 @@ void RPCServer::ReceiveWorker() {
     }
 
     // Allocate and fill a buffer with the argument data.
-    auto buf = make_unique_for_overwrite<std::byte[]>(hdr.len);
+    auto buf = std::make_unique_for_overwrite<std::byte[]>(hdr.len);
     ret = c_->ReadFull(buf.get(), hdr.len);
     if (unlikely(ret == 0)) break;
     if (unlikely(ret < 0)) {
@@ -332,7 +316,7 @@ void RPCFlow::ReceiveWorker() {
     }
 
     // Allocate and fill a buffer for the return data.
-    auto buf = make_unique_for_overwrite<std::byte[]>(hdr.len);
+    auto buf = std::make_unique_for_overwrite<std::byte[]>(hdr.len);
     ret = c_->ReadFull(buf.get(), hdr.len);
     if (unlikely(ret <= 0)) {
       log_err("rpc: ReadFull failed, err = %ld", ret);
