@@ -32,9 +32,10 @@ class RPCReturnBuffer {
     rbuf.buf_ = std::span<const std::byte>();
   }
   RPCReturnBuffer &operator=(RPCReturnBuffer &&rbuf) {
+    if (deleter_fn_) deleter_fn_();
     buf_ = rbuf.buf_;
     deleter_fn_ = std::move(rbuf.deleter_fn_);
-    buf_ = std::span<const std::byte>();
+    rbuf.buf_ = std::span<const std::byte>();
     return *this;
   }
 
