@@ -67,8 +67,8 @@ public:
   template <typename RetT, typename... A0s, typename... A1s>
   RetT associative_reduce(
       RetT init_val,
-      void (*reduced_fn)(RetT &, const std::pair<const K, V> &, A0s...),
-      void (*merge_fn)(RetT &, const RetT &, A0s...), A1s &&... args);
+      void (*reduced_fn)(RetT &, std::pair<const K, V> &, A0s...),
+      void (*merge_fn)(RetT &result, RetT &partition, A0s...), A1s &&... args);
   std::vector<std::pair<K, V>> get_all_pairs();
 
   // For debugging and performance analysis.

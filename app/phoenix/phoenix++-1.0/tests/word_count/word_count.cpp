@@ -24,6 +24,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cereal/archives/binary.hpp>
 #include <ctype.h>
 #include <fcntl.h>
 #include <nu/runtime.hpp>
@@ -38,39 +39,10 @@
 #include "map_reduce.h"
 #define DEFAULT_DISP_NUM 10
 
-// a passage from the text. The input data to the Map-Reduce
-struct wc_string {
-  char *data;
-  uint64_t len;
-};
+#include <string>
 
-// a single null-terminated word
-struct wc_word {
-  char *data;
-
-  // necessary functions to use this as a key
-  bool operator<(wc_word const &other) const {
-    return strcmp(data, other.data) < 0;
-  }
-  bool operator==(wc_word const &other) const {
-    return strcmp(data, other.data) == 0;
-  }
-};
-
-// a hash for the word
-struct wc_word_hash {
-  // FNV-1a hash for 64 bits
-  size_t operator()(wc_word const &key) const {
-    char *h = key.data;
-    uint64_t v = 14695981039346656037ULL;
-    while (*h != 0)
-      v = (v ^ (size_t)(*(h++))) * 1099511628211ULL;
-    return v;
-  }
-};
-
-class WordsMR : public MapReduceSort<WordsMR, wc_string, wc_word, uint64_t,
-                                     sum_combiner, wc_word_hash> {
+class WordsMR : public MapReduceSort<WordsMR, std::string, std::string,
+                                     uint64_t, sum_combiner> {
   char *data;
   uint64_t data_size;
   uint64_t chunk_size;
@@ -81,25 +53,20 @@ public:
       : data(_data), data_size(length), chunk_size(_chunk_size),
         splitter_pos(0) {}
 
-  void *locate(data_type *str, uint64_t len) const { return str->data; }
-
-  void map(data_type const &s, map_container &out) const {
-    for (uint64_t i = 0; i < s.len; i++) {
-      s.data[i] = toupper(s.data[i]);
+  void map(data_type &s, map_container &out) const {
+    for (uint64_t i = 0; i < s.size(); i++) {
+      s[i] = toupper(s[i]);
     }
 
     uint64_t i = 0;
-    while (i < s.len) {
-      while (i < s.len && (s.data[i] < 'A' || s.data[i] > 'Z'))
+    while (i < s.size()) {
+      while (i < s.size() && (s[i] < 'A' || s[i] > 'Z'))
         i++;
       uint64_t start = i;
-      while (i < s.len &&
-             ((s.data[i] >= 'A' && s.data[i] <= 'Z') || s.data[i] == '\''))
+      while (i < s.size() && ((s[i] >= 'A' && s[i] <= 'Z') || s[i] == '\''))
         i++;
       if (i > start) {
-        s.data[i] = 0;
-        wc_word word = {s.data + start};
-        emit_intermediate(out, word, 1);
+        emit_intermediate(out, s.substr(start, i - start), 1);
       }
     }
   }
@@ -107,7 +74,7 @@ public:
   /** wordcount split()
    *  Memory map the file and divide file on a word border i.e. a space.
    */
-  int split(wc_string &out) {
+  int split(std::string &out) {
     /* End of data reached, return FALSE. */
     if ((uint64_t)splitter_pos >= data_size) {
       return 0;
@@ -122,8 +89,7 @@ public:
       end++;
 
     /* Set the start of the next data. */
-    out.data = data + splitter_pos;
-    out.len = end - splitter_pos;
+    out = std::string(data + splitter_pos, end - splitter_pos);
 
     splitter_pos = end;
 
@@ -132,8 +98,7 @@ public:
   }
 
   bool sort(keyval const &a, keyval const &b) const {
-    return a.val < b.val ||
-           (a.val == b.val && strcmp(a.key.data, b.key.data) > 0);
+    return a.val < b.val || (a.val == b.val && a.key >= b.key);
   }
 };
 
@@ -213,8 +178,8 @@ void real_main(int argc, char *argv[]) {
   printf("\nWordcount: Results (TOP %d of %lu):\n", dn, result.size());
   uint64_t total = 0;
   for (size_t i = 0; i < dn; i++) {
-    printf("%15s - %lu\n", result[result.size() - 1 - i].key.data,
-           result[result.size() - 1 - i].val);
+    std::cout << result[result.size() - 1 - i].key << " - "
+              << result[result.size() - 1 - i].val << std::endl;
   }
 
   for (size_t i = 0; i < result.size(); i++) {

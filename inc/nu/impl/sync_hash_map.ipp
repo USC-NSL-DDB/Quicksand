@@ -226,8 +226,7 @@ template <typename RetT, typename... A0s, typename... A1s>
 RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                  Lock>::associative_reduce(RetT init_val,
                                            void (*reduce_fn)(
-                                               RetT &,
-                                               const std::pair<const K, V> &,
+                                               RetT &, std::pair<const K, V> &,
                                                A0s...),
                                            A1s &&... args) {
   RetT reduced_val(std::move(init_val));
@@ -253,7 +252,7 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
   return associative_reduce(
       std::vector<std::pair<K, V>>(),
       +[](std::vector<std::pair<K, V>> &reduced_val,
-          const std::pair<const K, V> &pair) { reduced_val.push_back(pair); });
+          std::pair<const K, V> &pair) { reduced_val.push_back(pair); });
 }
 
 } // namespace nu

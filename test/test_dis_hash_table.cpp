@@ -115,11 +115,11 @@ bool run_test() {
   our_set = hash_table->associative_reduce(
       our_set,
       +[](std::set<std::pair<std::string, std::string>> &set,
-          const std::pair<const K, V> &pair) {
+          std::pair<const K, V> &pair) {
         set.emplace(pair.first, pair.second);
       },
       +[](std::set<std::pair<std::string, std::string>> &set,
-          const std::set<std::pair<std::string, std::string>> &pairs) {
+          std::set<std::pair<std::string, std::string>> &pairs) {
         set.insert(pairs.begin(), pairs.end());
       });
   if (std_set != our_set) {

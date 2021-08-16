@@ -27,6 +27,10 @@
 #ifndef COMBINER_H_
 #define COMBINER_H_
 
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/memory.hpp>
+#include <memory>
 #include <vector>
 
 // The assumption with a combiner is that it will be very cheap to copy
@@ -36,10 +40,12 @@
 // for the reducer.
 template <typename V, template <class> class Allocator = std::allocator>
 class buffer_combiner {
-  std::vector<V, Allocator<V>> *data;
+  std::unique_ptr<std::vector<V, Allocator<V>>> data;
 
 public:
   buffer_combiner() : data(new std::vector<V, Allocator<V>>) {}
+  template <class Archive> void serialize(Archive &ar) { ar(data); }
+
   void add(V const &v) { data->push_back(v); }
 
   bool empty() const { return data->size() == 0; }
@@ -104,6 +110,7 @@ public:
   bool _empty;
 
 public:
+  template <class Archive> void serialize(Archive &ar) { ar(data, _empty); }
   associative_combiner() : _empty(true) { Impl::Init(data); }
 
   void add(V const &v) {
@@ -151,10 +158,11 @@ public:
 template <class Impl, typename V,
           template <class> class Allocator = std::allocator>
 class associative_combiner {
-  std::vector<V, Allocator<V>> *data;
+  std::unique_ptr<std::vector<V, Allocator<V>>> data;
 
 public:
   associative_combiner() : data(new std::vector<V, Allocator<V>>) {}
+  template <class Archive> void serialize(Archive &ar) { ar(data); }
   void add(V const &v) { data->push_back(v); }
 
   bool empty() const { return data->size() == 0; }
@@ -207,6 +215,10 @@ template <class V, template <class> class Allocator = std::allocator>
 class sum_combiner
     : public associative_combiner<sum_combiner<V, Allocator>, V, Allocator> {
 public:
+  template <class Archive> void serialize(Archive &ar) {
+    associative_combiner<sum_combiner<V, Allocator>, V, Allocator>::serialize(
+        ar);
+  }
   static void F(V &a, V const &b) { a += b; }
   static void Init(V &a) { a = 0; }
 };
@@ -215,6 +227,10 @@ template <class V, template <class> class Allocator = std::allocator>
 class one_combiner
     : public associative_combiner<one_combiner<V, Allocator>, V, Allocator> {
 public:
+  template <class Archive> void serialize(Archive &ar) {
+    associative_combiner<one_combiner<V, Allocator>, V, Allocator>::serialize(
+        ar);
+  }
   static void F(V &a, V const &b) { a = b; }
   static void Init(V &a) {}
 };

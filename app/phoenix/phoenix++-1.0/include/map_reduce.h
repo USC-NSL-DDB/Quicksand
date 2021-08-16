@@ -29,17 +29,21 @@
 
 extern "C" {
 #include <runtime/runtime.h>
+#include <runtime/timer.h>
 }
 #include <algorithm>
+#include <cereal/types/vector.hpp>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <nu/dis_hash_table.hpp>
 #include <queue>
+#include <sync.h>
 #include <thread.h>
+#include <unordered_map>
 #include <vector>
 
 #include "combiner.h"
-#include "container.h"
 #include "stddefines.h"
 
 template <typename Impl, typename D, typename K, typename V,
@@ -52,37 +56,33 @@ public:
   typedef D data_type;
   typedef V value_type;
   typedef K key_type;
-  typedef hash_container<K, V, Combiner, Hash> container_type;
-
-  typedef typename container_type::input_type map_container;
-  typedef typename container_type::output_type reduce_iterator;
+  typedef std::unordered_map<K, Combiner<V, std::allocator>, Hash>
+      map_container;
+  typedef Combiner<V, std::allocator>::combined reduce_iterator;
 
   struct keyval {
     key_type key;
     value_type val;
+
+    template <class Archive> void serialize(Archive &ar) { ar(key, val); }
   };
 
+  constexpr static uint32_t kDefaultNumWorkersShift = 7;
+  constexpr static uint32_t kDefaultChunkSize = 64;
+  constexpr static uint32_t kDefaultNumBucketsPerHashTableShard = 64;
+
+  using HashTable = nu::DistributedHashTable<
+      K, typename Combiner<V, std::allocator>::combined, Hash, std::equal_to<K>,
+      kDefaultNumBucketsPerHashTableShard>;
+
 protected:
-  // Parameters.
-  uint64_t num_threads; // # of threads to run.
-
-  container_type container;
-  std::vector<keyval> *final_vals; // Array to send to merge task.
-
-  uint64_t num_map_tasks;
-  uint64_t num_reduce_tasks;
-
-  std::vector<rt::Thread> tasks;
-
-  virtual void run_map(data_type *data, uint64_t len);
-  virtual void run_reduce();
-  virtual void run_merge();
+  std::vector<std::vector<keyval>> final_vals; // Array to send to merge task.
 
   // the default split function...
   int split(data_type &a) { return 0; }
 
   // the default map function...
-  void map(data_type const &a, map_container &m) const {}
+  void map(data_type &a, map_container &m) const {}
 
   // the default reduce function...
   void reduce(key_type const &key, reduce_iterator const &values,
@@ -94,11 +94,19 @@ protected:
     }
   }
 
-  // the default locator function...
-  void *locate(data_type *data, uint64_t) const { return (void *)data; }
-
 public:
-  MapReduce() { num_threads = maxks; }
+  MapReduce(uint64_t num_workers_shift = kDefaultNumWorkersShift)
+      : hash_table(new HashTable(num_workers_shift)) {
+    auto num_workers = 1ULL << num_workers_shift;
+    for (uint64_t i = 0; i < num_workers; i++) {
+      workers.emplace_back(
+          nu::RemObj<MapReduce>::create(hash_table->get_cap()));
+    }
+  }
+
+  MapReduce(HashTable::Cap cap)
+      : hash_table(new HashTable(cap)), map_container_ptr(new map_container()) {
+  }
 
   virtual ~MapReduce() {}
 
@@ -110,21 +118,37 @@ public:
    * A return value less than zero represents an error. This function is
    * not thread safe.
    */
-  int run(data_type *data, uint64_t count, std::vector<keyval> &result);
+  int run(data_type *data, uint64_t count, std::vector<keyval> &result,
+          uint64_t chunk_size = kDefaultChunkSize);
 
   // This version assumes that the split function is provided.
-  int run(std::vector<keyval> &result);
+  int run(std::vector<keyval> &result, uint64_t chunk_size = kDefaultChunkSize);
 
-  void emit_intermediate(typename container_type::input_type &i,
-                         key_type const &k, value_type const &v) const {
+  virtual void run_map(data_type *data, uint64_t len, uint64_t chunk_size);
+
+  virtual void run_reduce();
+
+  virtual void run_merge();
+
+  void emit_intermediate(map_container &i, key_type const &k,
+                         value_type const &v) const {
     i[k].add(v);
   }
+
+private:
+  std::unique_ptr<HashTable> hash_table;
+  std::vector<nu::RemObj<MapReduce>> workers;
+  std::unique_ptr<map_container> map_container_ptr;
+
+  void map_chunk(std::vector<data_type> chunk);
+  void shuffle();
 };
 
 template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
           class Hash>
-int MapReduce<Impl, D, K, V, Combiner, Hash>::run(std::vector<keyval> &result) {
+int MapReduce<Impl, D, K, V, Combiner, Hash>::run(std::vector<keyval> &result,
+                                                  uint64_t chunk_size) {
   timespec begin;
   std::vector<D> data;
   uint64_t count;
@@ -138,61 +162,19 @@ int MapReduce<Impl, D, K, V, Combiner, Hash>::run(std::vector<keyval> &result) {
   count = data.size();
   print_time_elapsed("split phase", begin);
 
-  return run(&data[0], count, result);
+  return run(&data[0], count, result, chunk_size);
 }
 
 template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
           class Hash>
 int MapReduce<Impl, D, K, V, Combiner, Hash>::run(D *data, uint64_t count,
-                                                  std::vector<keyval> &result) {
-  timespec begin;
-  timespec run_begin = get_time();
-  // Initialize library
-  get_time(begin);
-
-  // Compute task counts (should make this more adjustable) and then
-  // allocate storage
-  this->num_map_tasks = std::min(count, this->num_threads) * 16;
-  this->num_reduce_tasks = this->num_threads;
-  dprintf("num_map_tasks = %d\n", num_map_tasks);
-  dprintf("num_reduce_tasks = %d\n", num_reduce_tasks);
-
-  container.init(this->num_threads, this->num_reduce_tasks);
-  this->final_vals = new std::vector<keyval>[this->num_threads];
-  for (uint64_t i = 0; i < this->num_threads; i++) {
-    // Try to avoid a reallocation. Very costly on Solaris.
-    this->final_vals[i].reserve(100);
-  }
-  print_time_elapsed("library init", begin);
-
-  // Run map tasks and get intermediate values
-  get_time(begin);
-  run_map(&data[0], count);
-  print_time_elapsed("map phase", begin);
-
-  dprintf(
-      "In scheduler, all map tasks are done, now scheduling reduce tasks\n");
-
-  // Run reduce tasks and get final values
-  get_time(begin);
+                                                  std::vector<keyval> &result,
+                                                  uint64_t chunk_size) {
+  run_map(data, count, chunk_size);
   run_reduce();
-  print_time_elapsed("reduce phase", begin);
-
-  dprintf(
-      "In scheduler, all reduce tasks are done, now scheduling merge tasks\n");
-
-  get_time(begin);
   run_merge();
-  print_time_elapsed("merge phase", begin);
-
-  result.swap(*this->final_vals);
-
-  // Delete structures
-  delete[] this->final_vals;
-
-  print_time_elapsed("run time", run_begin);
-
+  result.swap(this->final_vals[0]);
   return 0;
 }
 
@@ -203,34 +185,54 @@ template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
           class Hash>
 void MapReduce<Impl, D, K, V, Combiner, Hash>::run_map(data_type *data,
-                                                       uint64_t count) {
-  std::vector<rt::Thread> threads;
+                                                       uint64_t count,
+                                                       uint64_t chunk_size) {
+  std::vector<nu::Future<void>> futures;
+  futures.resize(workers.size());
 
-  // Compute map task chunk size
-  uint64_t chunk_size =
-      std::max(1, (int)ceil((double)count / this->num_map_tasks));
-
-  // Generate tasks by splitting input data and add to queue.
-  for (uint64_t i = 0; i < this->num_map_tasks; i++) {
-    uint64_t start = chunk_size * i;
-
-    if (start < count) {
-      data_type *data_start = data + start;
-      uint64_t len = std::min(chunk_size, count - start);
-      threads.emplace_back([&, data_start, len] {
-        auto core_id = get_cpu();
-        typename container_type::input_type t = container.get(core_id);
-        for (data_type *data = data_start; data < data_start + len; ++data) {
-          static_cast<Impl const *>(this)->map(*data, t);
-        }
-        container.add(core_id, t);
-        put_cpu();
-      });
+  std::vector<data_type> chunk;
+  uint32_t dispatch_id = 0;
+  for (uint64_t start_id = 0; start_id < count; start_id += chunk_size) {
+    auto real_size = std::min(chunk_size, count - start_id);
+    for (uint64_t id = start_id; id < start_id + real_size; id++) {
+      chunk.push_back(*(data + id));
     }
+    while (futures[dispatch_id] && !futures[dispatch_id].is_ready()) {
+      dispatch_id++;
+      if (unlikely(dispatch_id == workers.size())) {
+        dispatch_id = 0;
+      }
+    }
+    futures[dispatch_id] =
+        workers[dispatch_id].run_async(&MapReduce::map_chunk, chunk);
+    chunk.clear();
   }
+}
 
-  for (auto &thread : threads) {
-    thread.Join();
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::shuffle() {
+  std::vector<nu::Future<void>> futures;
+  for (auto &[k, combiner] : *map_container_ptr) {
+    futures.emplace_back(hash_table->apply_async(
+        k,
+        +[](std::pair<const K, typename Combiner<V, std::allocator>::combined>
+                &p,
+            const Combiner<V, std::allocator> &&combiner) {
+          combiner.combineinto(p.second);
+        },
+        std::move(combiner)));
+  }
+}
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::map_chunk(
+    std::vector<data_type> chunk) {
+  for (auto &data : chunk) {
+    static_cast<Impl const *>(this)->map(data, *map_container_ptr);
   }
 }
 
@@ -241,25 +243,27 @@ template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
           class Hash>
 void MapReduce<Impl, D, K, V, Combiner, Hash>::run_reduce() {
-  std::vector<rt::Thread> threads;
-
-  // Create tasks and enqueue...
-  for (uint64_t i = 0; i < this->num_reduce_tasks; ++i) {
-    threads.emplace_back([&, reduce_id = i] {
-      typename container_type::iterator iter = container.begin(reduce_id);
-      K key;
-      reduce_iterator values;
-      while (iter.next(key, values)) {
-        if (values.size() > 0)
-          static_cast<Impl const *>(this)->reduce(key, values,
-                                                  this->final_vals[reduce_id]);
-      }
-    });
+  std::vector<nu::Future<void>> futures;
+  futures.reserve(workers.size());
+  for (auto &worker : workers) {
+    futures.emplace_back(worker.run_async(&MapReduce::shuffle));
+  }
+  for (auto &future : futures) {
+    future.get();
   }
 
-  for (auto &thread : threads) {
-    thread.Join();
-  }
+  final_vals = hash_table->associative_reduce(
+      std::vector<std::vector<keyval>>(1),
+      +[](std::vector<std::vector<keyval>> &pairs,
+          std::pair<const K, typename Combiner<V, std::allocator>::combined>
+              &p) {
+        Impl *stateless = nullptr;
+        stateless->reduce(p.first, p.second, pairs.back());
+      },
+      +[](std::vector<std::vector<keyval>> &all_pairs,
+          std::vector<std::vector<keyval>> &pairs) {
+        all_pairs.emplace_back(std::move(pairs.front()));
+      });
 }
 
 /**
@@ -270,19 +274,14 @@ template <typename Impl, typename D, typename K, typename V,
           class Hash>
 void MapReduce<Impl, D, K, V, Combiner, Hash>::run_merge() {
   size_t total = 0;
-  for (size_t i = 0; i < num_threads; i++) {
-    total += this->final_vals[i].size();
+  for (auto &partition : final_vals) {
+    total += partition.size();
   }
-
-  std::vector<keyval> *final = new std::vector<keyval>[1];
+  std::vector<std::vector<keyval>> final(1);
   final[0].reserve(total);
-
-  for (size_t i = 0; i < num_threads; i++) {
-    final[0].insert(final[0].end(), this->final_vals[i].begin(),
-                    this->final_vals[i].end());
+  for (auto &partition : final_vals) {
+    final[0].insert(final[0].end(), partition.begin(), partition.end());
   }
-
-  delete[] this->final_vals;
   this->final_vals = final;
 }
 
@@ -309,7 +308,7 @@ protected:
   virtual void run_merge() {
     // how many lists to merge in a single task.
     static const int merge_factor = 2;
-    int merge_queues = this->num_threads;
+    int merge_queues = this->final_vals.size();
 
     std::vector<rt::Thread> threads;
     // First sort each queue in place
@@ -324,14 +323,15 @@ protected:
     threads.clear();
 
     // Then merge
-    std::vector<keyval> *merge_vals;
+    std::vector<std::vector<keyval>> merge_vals;
     while (merge_queues > 1) {
       uint64_t resulting_queues =
           (uint64_t)std::ceil(merge_queues / (double)merge_factor);
 
       // swap queues
-      merge_vals = this->final_vals;
-      this->final_vals = new std::vector<keyval>[resulting_queues];
+      merge_vals = std::move(this->final_vals);
+      this->final_vals.clear();
+      this->final_vals.resize(resulting_queues);
 
       // distribute tasks into task queues using locality information
       // if provided.
@@ -349,7 +349,7 @@ protected:
       }
       threads.clear();
 
-      delete[] merge_vals;
+      merge_vals.clear();
       merge_queues = resulting_queues;
     }
 
