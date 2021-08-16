@@ -1,67 +1,108 @@
-#include <algorithm>
-#include <cstdint>
-#include <iostream>
-#include <numeric>
-#include <vector>
-
 extern "C" {
+#include <base/log.h>
 #include <net/ip.h>
-#include <runtime/runtime.h>
+#include <unistd.h>
 }
+
+#include <chrono>
+#include <iostream>
+#include <memory>
 #include <runtime.h>
 
-#include "nu/rem_obj.hpp"
-#include "nu/runtime.hpp"
-#include "nu/utils/bench.hpp"
+#include "nu/utils/rpc.hpp"
 
-using namespace nu;
-using namespace std;
+namespace {
 
-constexpr static uint32_t kNumThreads = 300;
-Runtime::Mode mode;
+using namespace std::chrono;
+using sec = duration<double>;
 
-struct AlignedCnt {
-  uint32_t cnt;
-  uint8_t pads[kCacheLineBytes - sizeof(cnt)];
-};
-
-AlignedCnt cnts[kNumThreads];
-
-class Obj {
-public:
-  int foo() { return 0x88; }
-
-private:
-};
-
-void do_work() {
-  auto rem_obj = RemObj<Obj>::create();
-
-  for (uint32_t i = 0; i < kNumThreads; i++) {
-    rt::Thread([&, tid = i] {
-      while (true) {
-        auto ret = rem_obj.run(&Obj::foo);
-        ACCESS_ONCE(ret);
-        cnts[tid].cnt++;
-      }
-    }).Detach();
-  }
-
-  uint64_t old_sum = 0;
-  uint64_t old_us = microtime();
-  while (true) {
-    timer_sleep(1000 * 1000);
-    auto us = microtime();
-    uint64_t sum = 0;
-    for (uint32_t i = 0; i < kNumThreads; i++) {
-      sum += ACCESS_ONCE(cnts[i].cnt);
-    }
-    std::cout << us - old_us << " " << sum - old_sum << std::endl;
-    old_sum = sum;
-    old_us = us;
-  }
+nu::RPCReturnBuffer ServerHandler(std::span<const std::byte> args) {
+  auto buf = std::make_unique<std::byte[]>(args.size());
+  std::copy(args.begin(), args.end(), buf.get());
+  std::span<const std::byte> s(buf.get(), args.size());
+  return nu::RPCReturnBuffer(s, [b = std::move(buf)]() mutable {});
 }
 
-int main(int argc, char **argv) {
-  return runtime_main_init(argc, argv, [](int, char **) { do_work(); });
+void RunServer() { nu::RPCServerInit(&ServerHandler); }
+
+void RunClient(netaddr raddr, int threads, int samples, size_t buflen) {
+  std::unique_ptr<nu::RPCClient> c = nu::RPCClient::Dial(raddr);
+  std::vector<rt::Thread> workers;
+
+  // |--- start experiment duration timing ---|
+  barrier();
+  auto start = steady_clock::now();
+  barrier();
+
+  for (int i = 0; i < threads; ++i) {
+    workers.emplace_back([c = c.get(), samples, buflen] {
+      auto buf = std::make_unique<std::byte[]>(buflen);
+      for (int i = 0; i < samples; ++i) c->Call({buf.get(), buflen});
+    });
+  }
+  for (auto &t : workers) t.Join();
+
+  // |--- end experiment duration timing ---|
+  barrier();
+  auto finish = steady_clock::now();
+  barrier();
+
+  // report results
+  double seconds = duration_cast<sec>(finish - start).count();
+  size_t reqs = samples * threads;
+  size_t mbytes = buflen * reqs / 1000 / 1000;
+  double mbytes_per_second = static_cast<double>(mbytes) / seconds;
+  double reqs_per_second = static_cast<double>(reqs) / seconds;
+  std::cout << "transferred " << mbytes_per_second << " MB/s" << std::endl;
+  std::cout << "transferred " << reqs_per_second << " reqs/s" << std::endl;
+}
+
+int StringToAddr(const char *str, uint32_t *addr) {
+  uint8_t a, b, c, d;
+  if (sscanf(str, "%hhu.%hhu.%hhu.%hhu", &a, &b, &c, &d) != 4) return -EINVAL;
+  *addr = MAKE_IP_ADDR(a, b, c, d);
+  return 0;
+}
+
+} // namespace
+
+int main(int argc, char *argv[]) {
+  if (argc < 3) {
+    std::cerr << "usage: [cfg_file] [command] ..." << std::endl;
+    std::cerr << "commands>" << std::endl;
+    std::cerr << "\tserver - runs an RPC server" << std::endl;
+    std::cerr << "\tclinet - runs an RPC client" << std::endl;
+    return -EINVAL;
+  }
+
+  std::string cmd = argv[2];
+  netaddr raddr = {};
+  int threads = 0, samples = 0;
+  size_t buflen = 0;
+
+  if (cmd.compare("client") == 0) {
+    if (argc != 7) {
+      std::cerr << "usage: [cfg_file] " << cmd << " [ip_addr] [threads] "
+                << "[samples] [buflen]" << std::endl;
+      return -EINVAL;
+    }
+
+    int ret = StringToAddr(argv[3], &raddr.ip);
+    if (ret) return -EINVAL;
+    threads = std::stoi(argv[4], nullptr, 0);
+    samples = std::stoi(argv[5], nullptr, 0);
+    buflen = std::stoul(argv[6], nullptr, 0);
+  } else if (cmd.compare("server") != 0) {
+    std::cerr << "invalid command: " << cmd << std::endl;
+    return -EINVAL;
+  }
+
+  return rt::RuntimeInit(argv[1], [=] {
+    std::string cmd = argv[2];
+    if (cmd.compare("server") == 0) {
+      RunServer();
+    } else if (cmd.compare("client") == 0) {
+      RunClient(raddr, threads, samples, buflen);
+    }
+  });
 }

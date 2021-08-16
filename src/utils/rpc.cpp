@@ -3,9 +3,9 @@ extern "C" {
 }
 
 #include <type_traits>
+#include <runtime.h>
 
-#include "rpc.h"
-#include "runtime.h"
+#include "nu/utils/rpc.hpp"
 
 namespace nu {
 
