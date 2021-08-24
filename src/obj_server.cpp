@@ -44,10 +44,7 @@ void ObjServer::handle_req(std::span<std::byte> args, RPCReturner *returner) {
   // TODO: gc them when the thread gets migrated.
   auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
   auto &[args_ss, ia] = *ia_sstream;
-
-  // TODO: avoid copy.
-  std::string str(reinterpret_cast<char *>(args.data()), args.size());
-  args_ss.str(std::move(str));
+  args_ss.span({reinterpret_cast<char *>(args.data()), args.size()});
 
   GenericHandler handler;
   ia >> handler;

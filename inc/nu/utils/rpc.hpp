@@ -58,7 +58,7 @@ public:
   std::span<const std::byte> get_buf() const { return buf_; }
 
   // Gets the return the mutable data buffer.
-  std::span<const std::byte> get_mut_buf() const {
+  std::span<std::byte> get_mut_buf() const {
     return std::span(const_cast<std::byte *>(buf_.data()), buf_.size());
   }
 

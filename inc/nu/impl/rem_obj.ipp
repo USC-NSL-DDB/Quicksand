@@ -52,13 +52,11 @@ retry:
     goto retry;
   }
 
-  auto return_span = return_buf.get_buf();
+  auto return_span = return_buf.get_mut_buf();
   auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
   auto &[ret_ss, ia] = *ia_sstream;
-  // TODO: avoid copy. and optimize when return len = 0.
-  std::string str(reinterpret_cast<const char *>(return_span.data()),
-                  return_span.size());
-  ret_ss.str(std::move(str));
+  ret_ss.span(
+      {reinterpret_cast<char *>(return_span.data()), return_span.size()});
 
   if constexpr (!std::is_same<RetT, void>::value) {
     RetT ret;

@@ -6,12 +6,13 @@
 #include <utility>
 
 #include "nu/utils/cached_pool.hpp"
+#include "nu/utils/spanstream.h"
 
 namespace nu {
 
 template <typename Allocator> class ArchivePool {
 public:
-  constexpr static uint32_t kSStreamBufSize = 256 - 1;
+  constexpr static uint32_t kOAStreamBufSize = 256 - 1;
 
   using CharAllocator =
       std::allocator_traits<Allocator>::template rebind_alloc<char>;
@@ -20,15 +21,15 @@ public:
   using String = std::basic_string<char, std::char_traits<char>, CharAllocator>;
 
   struct IASStream {
-    StringStream ss;
+    std::experimental::spanstream ss;
     cereal::BinaryInputArchive ia;
-    IASStream() : ss(String(kSStreamBufSize, '\0')), ia(ss) {}
+    IASStream() : ss{std::span<char>()}, ia(ss) {}
   };
 
   struct OASStream {
     StringStream ss;
     cereal::BinaryOutputArchive oa;
-    OASStream() : ss(String(kSStreamBufSize, '\0')), oa(ss) {}
+    OASStream() : ss(String(kOAStreamBufSize, '\0')), oa(ss) {}
   };
 
   ArchivePool(uint32_t per_core_cache_size = 32);
