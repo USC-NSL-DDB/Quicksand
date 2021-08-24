@@ -18,11 +18,15 @@ extern "C" {
 
 namespace nu {
 
+constexpr static uint32_t kAlignment = 16;
+
 struct PtrHeader {
-  static_assert(sizeof(SlabId_t) < sizeof(uint64_t));
-  uint64_t size : 8 * (sizeof(uint64_t) - sizeof(SlabId_t));
-  uint64_t slab_id : 8 * sizeof(SlabId_t);
+  uint64_t size;
+  uint64_t slab_id;
 };
+static_assert(sizeof(PtrHeader) % kAlignment == 0);
+
+using SlabId_t = uint16_t;
 
 class SlabAllocator {
 public:
@@ -30,6 +34,7 @@ public:
   constexpr static uint64_t kMinSlabClassShift = 5;  // 32 B.
   constexpr static uint64_t kMaxNumCacheEntries = 32;
   constexpr static uint64_t kCacheSizeCutoff = 1024;
+  static_assert((1 << kMinSlabClassShift) % kAlignment == 0);
 
   SlabAllocator() noexcept;
   SlabAllocator(SlabId_t slab_id, void *buf, size_t len) noexcept;

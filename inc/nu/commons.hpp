@@ -4,6 +4,9 @@ extern "C" {
 #include <runtime/thread.h>
 }
 
+#include <cstddef>
+#include <span>
+
 namespace nu {
 
 #ifndef NCORES
@@ -20,6 +23,10 @@ struct Resource {
 struct VAddrRange {
   uint64_t start;
   uint64_t end;
+
+  bool operator<(const VAddrRange &o) const {
+    return std::make_pair(start, end) < std::make_pair(o.start, o.end);
+  }
 };
 
 struct HeapRange {
@@ -30,7 +37,6 @@ struct HeapRange {
 struct ErasedType {};
 
 using RemObjID = uint64_t;
-using SlabId_t = uint16_t;
 
 constexpr static uint64_t kNumCores = NCORES;
 constexpr static uint64_t kCacheLineBytes = 64;
@@ -51,19 +57,23 @@ constexpr static uint64_t kMaxNumStacksPerCluster =
     kStackClusterSize / kStackSize;
 constexpr static uint64_t kMinRuntimeHeapVaddr = kMaxStackClusterVAddr;
 constexpr static uint64_t kRuntimeHeapSize = 48ULL << 30;
-constexpr static SlabId_t kRuntimeSlabId = 1;
+constexpr static uint16_t kRuntimeSlabId = 1;
 
 constexpr static uint64_t kOneMB = 1ULL << 20;
 constexpr static uint64_t kOneSecond = 1000 * 1000;
 constexpr static uint64_t kOneMilliSecond = 1000;
 
 uint64_t bsr_64(uint64_t a);
+HeapHeader *to_heap_header(RemObjID id);
 void *to_heap_base(RemObjID id);
 RemObjID to_obj_id(void *heap_base);
 void *switch_to_obj_stack(void *stack);
 void switch_to_runtime_stack(void *old_rsp);
 VAddrRange get_obj_stack_range(thread_t *thread);
-SlabId_t to_slab_id(void *heap_base);
+uint16_t to_u16(void *heap_base);
+template <typename T> std::span<std::byte> to_span(T &t);
+template <typename T> T &from_span(std::span<std::byte> span);
+template <typename T> const T &from_span(std::span<const std::byte> span);
 
 } // namespace nu
 

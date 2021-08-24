@@ -23,11 +23,11 @@ namespace nu {
 class Test {
 public:
   uint64_t microtime() { return Time::microtime(); }
-  void delay(uint64_t us) { return Time::delay(us); }
+  void delay(uint64_t us) { Time::delay(us); }
   void sleep_until(uint64_t deadline_us) {
     return Time::sleep_until(deadline_us);
   }
-  void sleep(uint64_t duration_us) { return Time::sleep(duration_us); }
+  void sleep(uint64_t duration_us) { Time::sleep(duration_us); }
   void migrate() {
     Resource resource = {.cores = 0, .mem_mbs = 1000};
     Runtime::monitor->mock_set_pressure(resource);

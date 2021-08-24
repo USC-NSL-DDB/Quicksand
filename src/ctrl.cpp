@@ -8,12 +8,14 @@ extern "C" {
 }
 #include <thread.h>
 
+#include "nu/commons.hpp"
 #include "nu/ctrl.hpp"
+#include "nu/migrator.hpp"
 #include "nu/obj_server.hpp"
 
 namespace nu {
 
-Controller::Controller() {
+Controller::Controller() : rpc_client_mgr_(Migrator::kMigratorServerPort) {
   for (uint64_t vaddr = kMinHeapVAddr; vaddr + kHeapSize <= kMaxHeapVAddr;
        vaddr += kHeapSize) {
     VAddrRange range = {.start = vaddr, .end = vaddr + kHeapSize};
@@ -30,13 +32,7 @@ Controller::Controller() {
   nodes_iter_ = nodes_.end();
 }
 
-Controller::~Controller() {
-  for (auto &node : nodes_) {
-    auto *c = node.migrator_conn;
-    BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
-    delete c;
-  }
-}
+Controller::~Controller() {}
 
 VAddrRange Controller::register_node(Node &node) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
@@ -48,26 +44,19 @@ VAddrRange Controller::register_node(Node &node) {
   free_stack_cluster_ranges_.pop();
 
   for (auto old_node : nodes_) {
-    auto migrator_conn = old_node.migrator_conn;
-    uint8_t type = RESERVE_CONNS;
-    RPCReqReserveConns req;
-    req.num = Migrator::kDefaultNumReservedConns;
+    auto *client = rpc_client_mgr_.get(old_node.migrator_addr.ip);
+    RPCReqReserveConn req;
+    RPCReturnBuffer return_buf;
     req.dest_server_addr = node.migrator_addr;
-    const iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
-    BUG_ON(migrator_conn->WritevFull(std::span(iovecs)) < 0);
+    BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  netaddr local_addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
-  node.migrator_conn = rt::TcpConn::Dial(local_addr, node.migrator_addr);
-  BUG_ON(!node.migrator_conn);
-
+  auto *client = rpc_client_mgr_.get(node.migrator_addr.ip);
   for (auto old_node : nodes_) {
-    uint8_t type = RESERVE_CONNS;
-    RPCReqReserveConns req;
-    req.num = Migrator::kDefaultNumReservedConns;
+    RPCReqReserveConn req;
+    RPCReturnBuffer return_buf;
     req.dest_server_addr = old_node.migrator_addr;
-    const iovec iovecs[] = {{&type, sizeof(type)}, {&req, sizeof(req)}};
-    BUG_ON(node.migrator_conn->WritevFull(std::span(iovecs)) < 0);
+    BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
   nodes_.insert(node);
@@ -75,7 +64,7 @@ VAddrRange Controller::register_node(Node &node) {
 }
 
 std::optional<std::pair<RemObjID, netaddr>>
-Controller::allocate_obj(std::optional<netaddr> hint) {
+Controller::allocate_obj(netaddr hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   if (unlikely(free_heap_ranges_.empty())) {
@@ -119,13 +108,12 @@ std::optional<netaddr> Controller::resolve_obj(RemObjID id) {
   }
 }
 
-std::optional<Node>
-Controller::select_node_for_obj(std::optional<netaddr> hint) {
+std::optional<Node> Controller::select_node_for_obj(netaddr hint) {
   BUG_ON(nodes_.empty());
 
-  if (hint) {
+  if (hint.ip) {
     Node n;
-    n.obj_srv_addr = *hint;
+    n.obj_srv_addr = hint;
     auto iter = nodes_.find(n);
     if (unlikely(iter == nodes_.end())) {
       return std::nullopt;

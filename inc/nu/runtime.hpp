@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
 #include <functional>
+#include <memory>
+#include <optional>
+#include <utility>
 
 extern "C" {
 #include <runtime/net.h>
@@ -12,6 +14,7 @@ extern "C" {
 #include "nu/utils/archive_pool.hpp"
 #include "nu/utils/future.hpp"
 #include "nu/utils/rcu_lock.hpp"
+#include "nu/utils/rpc.hpp"
 #include "nu/utils/slab.hpp"
 
 namespace nu {
@@ -21,7 +24,7 @@ class ObjServer;
 class HeapManager;
 class StackManager;
 class ControllerClient;
-class RemObjConnManager;
+class RemObjRPCClientMgr;
 class Migrator;
 class Monitor;
 template <typename T> class RuntimeAllocator;
@@ -38,9 +41,6 @@ public:
 
   ~Runtime();
   static std::unique_ptr<Runtime> init(uint32_t remote_ctrl_ip, Mode mode);
-  static void reserve_ctrl_server_conns(uint32_t num);
-  static void reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr);
-  static void reserve_migration_conns(uint32_t num, netaddr dest_server_addr);
 
 private:
   static RCULock rcu_lock;
@@ -48,15 +48,14 @@ private:
   static std::unique_ptr<ControllerClient> controller_client;
   static std::unique_ptr<HeapManager> heap_manager;
   static std::unique_ptr<StackManager> stack_manager;
-  static std::unique_ptr<RemObjConnManager> rem_obj_conn_mgr;
+  static std::unique_ptr<RemObjRPCClientMgr> rem_obj_rpc_client_mgr;
   static std::unique_ptr<Migrator> migrator;
   static std::unique_ptr<Monitor> monitor;
   static std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> archive_pool;
 
   friend class Test;
   friend class ObjServer;
-  friend class ControllerClient;
-  friend class RemObjConnManager;
+  friend class RemObjRPCClientMgr;
   friend class Monitor;
   friend class Migrator;
   friend class Mutex;
@@ -64,22 +63,24 @@ private:
   friend class Time;
   friend class DistributedMemPool;
   friend class HeapManager;
+  friend class RuntimeHeapGuard;
+  friend class ObjHeapGuard;
+  friend class MigrationEnabledGuard;
+  friend class MigrationDisabledGuard;
+  friend class OutermostMigrationDisabledGuard;
   template <typename T> friend class RemObj;
   template <typename T> friend class RemRawPtr;
   template <typename T> friend class RemUniquePtr;
   template <typename T> friend class RemSharedPtr;
-  template <typename T> friend class RuntimeDeleter;
 
   Runtime(uint32_t remote_ctrl_ip, Mode mode);
   static void init_runtime_heap();
   static void init_as_controller();
   static void init_as_server(uint32_t remote_ctrl_ip);
   static void init_as_client(uint32_t remote_ctrl_ip);
-  template <typename Cls, typename Fn, typename... As>
-  static bool run_within_obj_env(void *heap_base, Fn fn, As &&... args);
-  template <typename Cls, typename Fn, typename... As>
-  static void __run_within_obj_env(HeapHeader *heap_header, uint8_t *obj_stack,
-                                   Cls *obj_ptr, Fn fn, As &&... args);
+  template <typename Cls, typename... A0s, typename... A1s>
+  static bool run_within_obj_env(void *heap_base, void (*fn)(A0s...),
+                                 A1s &&... args);
   static void *get_heap();
   static void set_heap(void *heap);
   static void switch_to_obj_heap(void *obj_ptr);
@@ -91,6 +92,24 @@ private:
   static RemObjID get_current_obj_id();
   template <typename T> static T *get_current_obj();
   template <typename T> static T *get_obj(RemObjID id);
+};
+
+class RuntimeHeapGuard {
+public:
+  RuntimeHeapGuard();
+  ~RuntimeHeapGuard();
+
+private:
+  void *original_heap_;
+};
+
+class ObjHeapGuard {
+public:
+  ObjHeapGuard(void *obj_ptr);
+  ~ObjHeapGuard();
+
+private:
+  void *original_heap_;
 };
 
 int runtime_main_init(int argc, char **argv,

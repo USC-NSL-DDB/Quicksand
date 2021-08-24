@@ -4,10 +4,6 @@
 #include <cstdint>
 #include <optional>
 
-extern "C" {
-#include <runtime/tcp.h>
-}
-
 #include "nu/commons.hpp"
 #include "nu/runtime_deleter.hpp"
 #include "nu/utils/future.hpp"

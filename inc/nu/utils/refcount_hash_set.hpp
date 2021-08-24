@@ -17,7 +17,7 @@ class RefcountHashSet {
 public:
   template <typename K1> void put(K1 &&k);
   template <typename K1> void remove(K1 &&k);
-  // Not thread-safe.
+  // Can be only invoked once at a time.
   std::vector<K, Allocator> all_keys();
 
 private:

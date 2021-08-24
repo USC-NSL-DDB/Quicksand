@@ -11,8 +11,7 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::SyncHashMap() {
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1>
-std::optional<V>
-SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get(K1 &&k) {
+V *SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get(K1 &&k) {
   auto hasher = Hash();
   auto key_hash = hasher(k);
   return get_with_hash(std::forward<K1>(k), key_hash);
@@ -22,7 +21,15 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1>
 std::optional<V>
-SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_with_hash(
+SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_copy(K1 &&k) {
+  auto ptr = get(std::forward<K1>(k));
+  return ptr ? std::make_optional(*ptr) : std::nullopt;
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+template <typename K1>
+V *SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_with_hash(
     K1 &&k, uint64_t key_hash) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
@@ -34,7 +41,7 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_with_hash(
     if (key_hash == bucket_node->key_hash) {
       auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
       if (equaler(k, pair->first)) {
-        auto ret = std::make_optional(pair->second);
+        auto ret = &pair->second;
         lock.Unlock();
         return ret;
       }
@@ -42,7 +49,17 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_with_hash(
     bucket_node = bucket_node->next;
   }
   lock.Unlock();
-  return std::nullopt;
+  return nullptr;
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+template <typename K1>
+std::optional<V> SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+                             Lock>::get_copy_with_hash(K1 &&k,
+                                                       uint64_t key_hash) {
+  auto ptr = get_with_hash(std::forward<K1>(k), key_hash);
+  return ptr ? std::make_optional(*ptr) : std::nullopt;
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
@@ -97,6 +114,62 @@ void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
     *prev_next = new_bucket_node;
   }
   lock.Unlock();
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+template <typename K1, typename... Args>
+bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::try_emplace(
+    K1 &&k, Args &&... args) {
+  auto hasher = Hash();
+  auto key_hash = hasher(k);
+  return try_emplace_with_hash(std::forward<K1>(k), key_hash,
+                               std::forward<Args>(args)...);
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+template <typename K1, typename... Args>
+bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+                 Lock>::try_emplace_with_hash(K1 &&k, uint64_t key_hash,
+                                              Args &&... args) {
+  auto equaler = KeyEqual();
+  auto bucket_idx = key_hash % NBuckets;
+  auto *bucket_node = &buckets_[bucket_idx];
+  BucketNode **prev_next = nullptr;
+  auto &lock = locks_[bucket_idx];
+  lock.Lock();
+
+  while (bucket_node && bucket_node->pair) {
+    if (key_hash == bucket_node->key_hash) {
+      auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
+      if (equaler(k, pair->first)) {
+        lock.Unlock();
+        return false;
+      }
+    }
+    prev_next = &bucket_node->next;
+    bucket_node = bucket_node->next;
+  }
+
+  auto allocator = Allocator();
+  auto *pair = allocator.allocate(1);
+  new (pair) Pair(std::forward<K1>(k), V1(std::forward<Args>(args)...));
+
+  if (!prev_next) {
+    bucket_node->key_hash = key_hash;
+    bucket_node->pair = pair;
+  } else {
+    BucketNodeAllocator bucket_node_allocator;
+    auto *new_bucket_node = bucket_node_allocator.allocate(1);
+    new (new_bucket_node) BucketNode();
+    new_bucket_node->key_hash = key_hash;
+    new_bucket_node->pair = pair;
+    new_bucket_node->next = nullptr;
+    *prev_next = new_bucket_node;
+  }
+  lock.Unlock();
+  return true;
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,

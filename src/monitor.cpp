@@ -37,7 +37,7 @@ void Monitor::run_loop() {
 
       auto heaps = Runtime::heap_manager->pick_heaps(pressure);
       if (!heaps.empty()) {
-        Runtime::migrator->migrate(pressure, heaps);
+        Runtime::migrator->migrate_heaps(pressure, heaps);
       }
     }
   }

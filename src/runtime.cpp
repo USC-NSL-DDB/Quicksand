@@ -15,8 +15,8 @@ extern "C" {
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
 #include "nu/monitor.hpp"
-#include "nu/obj_conn_mgr.hpp"
 #include "nu/obj_server.hpp"
+#include "nu/rpc_client_mgr.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_deleter.hpp"
 
@@ -31,7 +31,7 @@ std::unique_ptr<ObjServer> Runtime::obj_server;
 std::unique_ptr<HeapManager> Runtime::heap_manager;
 std::unique_ptr<StackManager> Runtime::stack_manager;
 std::unique_ptr<ControllerClient> Runtime::controller_client;
-std::unique_ptr<RemObjConnManager> Runtime::rem_obj_conn_mgr;
+std::unique_ptr<RemObjRPCClientMgr> Runtime::rem_obj_rpc_client_mgr;
 std::unique_ptr<Migrator> Runtime::migrator;
 std::unique_ptr<Monitor> Runtime::monitor;
 std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
@@ -62,7 +62,8 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
   heap_manager.reset(new decltype(heap_manager)::element_type());
   stack_manager.reset(new decltype(stack_manager)::element_type(
       controller_client->get_stack_cluster()));
-  rem_obj_conn_mgr.reset(new decltype(rem_obj_conn_mgr)::element_type());
+  rem_obj_rpc_client_mgr.reset(new decltype(
+      rem_obj_rpc_client_mgr)::element_type(ObjServer::kObjServerPort));
   monitor.reset(new decltype(monitor)::element_type());
   rt::Thread monitor_thread([&] { monitor->run_loop(); });
   archive_pool.reset(new decltype(archive_pool)::element_type());
@@ -73,7 +74,8 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
 void Runtime::init_as_client(uint32_t remote_ctrl_ip) {
   controller_client.reset(
       new decltype(controller_client)::element_type(remote_ctrl_ip, CLIENT));
-  rem_obj_conn_mgr.reset(new decltype(rem_obj_conn_mgr)::element_type());
+  rem_obj_rpc_client_mgr.reset(new decltype(
+      rem_obj_rpc_client_mgr)::element_type(ObjServer::kObjServerPort));
   archive_pool.reset(new decltype(archive_pool)::element_type());
 }
 
@@ -108,7 +110,7 @@ Runtime::~Runtime() {
   controller_client.reset();
   heap_manager.reset();
   stack_manager.reset();
-  rem_obj_conn_mgr.reset();
+  rem_obj_rpc_client_mgr.reset();
   monitor.reset();
   migrator.reset();
   archive_pool.reset();
@@ -117,24 +119,6 @@ Runtime::~Runtime() {
   preempt_disable();
   munmap(runtime_slab.get_base(), kRuntimeHeapSize);
   preempt_enable();
-}
-
-void Runtime::reserve_ctrl_server_conns(uint32_t num) {
-  if (controller_client) {
-    controller_client->reserve_conns(num);
-  }
-}
-
-void Runtime::reserve_obj_server_conns(uint32_t num, netaddr obj_server_addr) {
-  if (rem_obj_conn_mgr) {
-    rem_obj_conn_mgr->reserve_conns(num, obj_server_addr);
-  }
-}
-
-void Runtime::reserve_migration_conns(uint32_t num, netaddr dest_server_addr) {
-  if (migrator) {
-    migrator->reserve_conns(num, dest_server_addr);
-  }
 }
 
 uint32_t str_to_ip(std::string ip_str) {
@@ -211,7 +195,7 @@ inline void *__new(size_t size) {
   return ptr;
 }
 
-void *operator new(size_t size) {
+void *operator new(size_t size) throw() {
   auto *ptr = __new(size);
   if (ptr) {
     return ptr;

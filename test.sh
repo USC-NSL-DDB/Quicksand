@@ -4,7 +4,7 @@ source shared.sh
 
 all_passed=1
 
-local_unit_tests=("test_slab test_perf")
+local_unit_tests=("test_slab" "test_perf")
 
 function prepare {
     if [[ ! -v DPDK_NIC ]]; then

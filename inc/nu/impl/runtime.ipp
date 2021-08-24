@@ -61,28 +61,31 @@ template <typename T> T *Runtime::get_obj(RemObjID id) {
       reinterpret_cast<uintptr_t>(heap_header->slab.get_base()));
 }
 
-template <typename Cls, typename Fn, typename... As>
-void __attribute__((noinline))
-__attribute__((optimize("no-omit-frame-pointer")))
-Runtime::__run_within_obj_env(HeapHeader *heap_header, uint8_t *obj_stack,
-                              Cls *obj_ptr, Fn fn, As &&... args) {
-  fn(*obj_ptr, std::forward<As>(args)...);
+template <typename Cls, typename... A0s, typename... A1s>
+__attribute__((noinline))
+__attribute__((optimize("no-omit-frame-pointer"))) void
+__run_within_obj_env(OutermostMigrationDisabledGuard *guard, uint8_t *obj_stack,
+                     Cls *obj_ptr, void (*fn)(A0s...), A1s &&... args) {
+  OutermostMigrationDisabledGuard guard_on_obj_stack(std::move(*guard));
+
+  fn(*obj_ptr, std::forward<A1s>(args)...);
 
   if (unlikely(thread_is_migrated())) {
     auto runtime_stack_base = thread_get_runtime_stack_base();
     switch_to_runtime_stack(runtime_stack_base);
-    heap_manager->migration_enable_final(heap_header);
+    guard_on_obj_stack.reset();
     rt::Exit();
   }
 }
 
 // By default, fn will be invoked with migration disabled.
-template <typename Cls, typename Fn, typename... As>
+template <typename Cls, typename... A0s, typename... A1s>
 bool __attribute__((optimize("no-omit-frame-pointer")))
-Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
+Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
+                            A1s &&... args) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-
-  if (unlikely(!heap_manager->migration_disable_initial(heap_header))) {
+  OutermostMigrationDisabledGuard guard(heap_header);
+  if (unlikely(!guard)) {
     return false;
   }
   auto &slab = heap_header->slab;
@@ -94,14 +97,12 @@ Runtime::run_within_obj_env(void *heap_base, Fn fn, As &&... args) {
   BUG_ON(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment);
   auto *old_rsp = switch_to_obj_stack(obj_stack);
 
-  __run_within_obj_env<Cls>(heap_header, obj_stack, obj_ptr, fn,
-                            std::forward<As>(args)...);
+  __run_within_obj_env<Cls>(&guard, obj_stack, obj_ptr, fn,
+                            std::forward<A1s>(args)...);
 
   switch_to_runtime_stack(old_rsp);
   Runtime::stack_manager->put(obj_stack);
   switch_to_runtime_heap();
-  heap_manager->migration_enable_final(heap_header);
-
   return true;
 }
 
@@ -116,5 +117,21 @@ template <typename T> void Runtime::delete_on_runtime_heap(T *ptr) {
   ptr->~T();
   Runtime::runtime_slab.free(ptr);
 }
+
+inline RuntimeHeapGuard::RuntimeHeapGuard()
+    : original_heap_(Runtime::get_heap()) {
+  Runtime::switch_to_runtime_heap();
+}
+
+inline RuntimeHeapGuard::~RuntimeHeapGuard() {
+  Runtime::set_heap(original_heap_);
+}
+
+inline ObjHeapGuard::ObjHeapGuard(void *obj_ptr)
+    : original_heap_(Runtime::get_heap()) {
+  Runtime::switch_to_obj_heap(obj_ptr);
+}
+
+inline ObjHeapGuard::~ObjHeapGuard() { Runtime::set_heap(original_heap_); }
 
 } // namespace nu

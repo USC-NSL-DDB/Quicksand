@@ -99,15 +99,13 @@ template <typename T> void RemSharedPtr<T>::reset_bg() {
   if (RemPtr<T>::get()) {
     // Should allocate from the runtime slab, since the root object might be
     // destructed earlier than this background thread.
-    auto *old_heap = Runtime::get_heap();
-    Runtime::switch_to_runtime_heap();
+    RuntimeHeapGuard guard;
     Runtime::rcu_lock.reader_lock();
     rt::Thread([shared_ptr = shared_ptr_,
                 rem_ptr = *static_cast<RemPtr<T> *>(this)]() {
       rem_ptr.__run(get_reset_fn<T>(), shared_ptr);
       Runtime::rcu_lock.reader_unlock();
     }).Detach();
-    Runtime::set_heap(old_heap);
     RemPtr<T>::raw_ptr_ = nullptr;
   }
 }

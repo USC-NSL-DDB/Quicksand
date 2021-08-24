@@ -7,14 +7,12 @@
 
 extern "C" {
 #include <base/assert.h>
-#include <net/ip.h>
-#include <runtime/net.h>
-#include <runtime/tcp.h>
 }
 #include <thread.h>
 
 #include "nu/commons.hpp"
 #include "nu/heap_mgr.hpp"
+#include "nu/migrator.hpp"
 #include "nu/obj_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"
@@ -24,64 +22,93 @@ constexpr static uint32_t kPrintLoggingIntervalUs = 200 * 1000;
 
 namespace nu {
 
+std::unique_ptr<RPCClientMgr> ObjServer::rpc_client_mgr_; // TODO: merge
+
 ObjServer::ObjServer() {
   if constexpr (kEnableLogging) {
     trace_logger_.enable_print(kPrintLoggingIntervalUs);
   }
-
-  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = kObjServerPort};
-
-  auto *tcp_queue = rt::TcpQueue::Listen(addr, kTCPListenBackLog);
-  BUG_ON(!tcp_queue);
-  tcp_queue_.reset(tcp_queue);
+  rpc_client_mgr_.reset(new RPCClientMgr(Migrator::kMigratorServerPort));
 }
 
-ObjServer::~ObjServer() {
-  if (tcp_queue_) {
-    tcp_queue_->Shutdown();
-  }
-}
+ObjServer::~ObjServer() {}
 
 void ObjServer::run_loop() {
-  rt::TcpConn *c;
-  while ((c = tcp_queue_->Accept())) {
-    rt::Thread([&, c]() { handle_reqs(c); }).Detach();
+  RPCServerInit(kObjServerPort,
+                [&](std::span<std::byte> args, RPCReturner returner) {
+                  return handle_req(args, &returner);
+                });
+}
+
+void ObjServer::handle_req(std::span<std::byte> args, RPCReturner *returner) {
+  // TODO: gc them when the thread gets migrated.
+  auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
+  auto &[args_ss, ia] = *ia_sstream;
+
+  // TODO: avoid copy.
+  std::string str(reinterpret_cast<char *>(args.data()), args.size());
+  args_ss.str(std::move(str));
+
+  GenericHandler handler;
+  ia >> handler;
+
+  if constexpr (kEnableLogging) {
+    trace_logger_.add_trace([&] { handler(ia, returner); });
+  } else {
+    handler(ia, returner);
+  }
+
+  Runtime::archive_pool->put_ia_sstream(ia_sstream);
+}
+
+void ObjServer::forward(RPCReturnCode rc, RPCReturner *returner,
+                        const void *payload, uint64_t payload_len) {
+  auto *heap_header = Runtime::get_current_obj_heap_header();
+  auto req_buf_len = sizeof(RPCReqForward) + payload_len;
+  auto req_buf = std::make_unique_for_overwrite<std::byte[]>(req_buf_len);
+  auto *req = reinterpret_cast<RPCReqForward *>(req_buf.get());
+  std::construct_at(req);
+  req->rc = rc;
+  req->returner = *returner;
+  req->stack_top = get_obj_stack_range(thread_self()).end;
+  req->payload_len = payload_len;
+  memcpy(req->payload, payload, payload_len);
+  RPCReturnBuffer return_buf;
+  auto req_span = std::span(req_buf.get(), req_buf_len);
+  {
+    RuntimeHeapGuard guard;
+    auto *client = rpc_client_mgr_->get(heap_header->old_server_ip);
+    BUG_ON(client->Call(req_span, &return_buf) != kOk);
+  }
+  heap_header->forward_wg.Done();
+}
+
+void ObjServer::send_rpc_resp_ok(
+    ArchivePool<RuntimeAllocator<uint8_t>>::OASStream *oa_sstream,
+    RPCReturner *returner) {
+  auto view = oa_sstream->ss.view();
+  auto data = reinterpret_cast<const std::byte *>(view.data());
+  auto len = oa_sstream->ss.tellp();
+
+  if (unlikely(thread_is_migrated())) {
+    forward(kOk, returner, data, len);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+  } else {
+    auto span = std::span(data, len);
+
+    RuntimeHeapGuard guard;
+    returner->Return(kOk, span, [oa_sstream]() {
+      Runtime::archive_pool->put_oa_sstream(oa_sstream);
+    });
   }
 }
 
-void ObjServer::handle_reqs(rt::TcpConn *c) {
-  std::unique_ptr<rt::TcpConn> gc(c);
-
-  while (true) {
-    uint64_t len;
-    if (c->ReadFull(&len, sizeof(len)) <= 0) {
-      break;
-    }
-
-    // TODO: gc them when the thread gets migrated.
-    auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
-    auto &[args_ss, ia] = *ia_sstream;
-
-    if (unlikely(args_ss.view().size() < len)) {
-      args_ss.str(std::string(len, '\0'));
-    }
-    if (c->ReadFull(const_cast<char *>(args_ss.view().data()), len) <= 0) {
-      break;
-    }
-
-    GenericHandler handler;
-    ia >> handler;
-
-    if constexpr (kEnableLogging) {
-      trace_logger_.add_trace([&] { handler(ia, c); });
-    } else {
-      handler(ia, c);
-    }
-
-    Runtime::archive_pool->put_ia_sstream(ia_sstream);
+void ObjServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
+  if (unlikely(thread_is_migrated())) {
+    forward(kErrWrongClient, returner, nullptr, 0);
+  } else {
+    returner->Return(kErrWrongClient);
   }
-
-  BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
 }
 
 } // namespace nu

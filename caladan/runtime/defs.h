@@ -422,7 +422,7 @@ struct kthread {
 
 	/* 11th cache-line, direct path RX queues and migration states */
 	struct hardware_q	*directpath_rxq;
-	bool                    pausing_migrating_ths;
+	bool                    pause_req;
 	struct list_head        migrating_ths;
 	unsigned long		pad4[4];
 

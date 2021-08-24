@@ -11,8 +11,6 @@ namespace nu {
 
 namespace {
 
-constexpr uint16_t kRPCPort = 9090;
-
 // Command types for the RPC protocol.
 enum rpc_cmd : unsigned int {
   call = 0,
@@ -40,11 +38,12 @@ constexpr rpc_req_hdr MakeUpdateRequest(unsigned int demand) {
 struct rpc_resp_hdr {
   rpc_cmd cmd;                 // the command type
   unsigned int credits;        // the number of credits available
-  std::size_t len;             // the length of this RPC response
+  ssize_t len;                 // the length of this RPC response,
+                               // < 0 indicates an error
   std::size_t completion_data; // an opaque token to complete the RPC
 };
 
-constexpr rpc_resp_hdr MakeCallResponse(unsigned int credits, std::size_t len,
+constexpr rpc_resp_hdr MakeCallResponse(unsigned int credits, ssize_t len,
                                         std::size_t completion_data) {
   return rpc_resp_hdr{rpc_cmd::call, credits, len, completion_data};
 }
@@ -53,47 +52,31 @@ constexpr rpc_resp_hdr MakeUpdateResponse(unsigned int credits) {
   return rpc_resp_hdr{rpc_cmd::update, credits, 0, 0};
 }
 
-class RPCServer {
- public:
-  RPCServer(std::unique_ptr<rt::TcpConn> c, nu::RPCHandler &handler)
-      : c_(std::move(c)), handler_(handler), close_(false) {}
-  ~RPCServer() {}
+void RPCServerWorker(std::unique_ptr<rt::TcpConn> c, RPCHandler &handler) {
+  nu::rpc_internal::RPCServer s(std::move(c), handler);
+  s.Run();
+}
 
-  // Runs the RPCServer, returning when the connection is closed.
-  void Run();
-  // Sends the return results of an RPC.
-  void Return(RPCReturnBuffer &&buf, std::size_t completion_data);
+void RPCServerListener(uint16_t port, RPCHandler &handler) {
+  std::unique_ptr<rt::TcpQueue> q(rt::TcpQueue::Listen({0, port}, 4096));
+  BUG_ON(!q);
 
- private:
-  // Internal worker threads for sending and receiving.
-  void SendWorker();
-  void ReceiveWorker();
+  while (true) {
+    std::unique_ptr<rt::TcpConn> c(q->Accept());
+    rt::Thread([c = std::move(c), &handler]() mutable {
+      RPCServerWorker(std::move(c), handler);
+    }).Detach();
+  }
+}
 
-  struct completion {
-    RPCReturnBuffer buf;
-    std::size_t completion_data;
-  };
+} // namespace
 
-  rt::Spin lock_;
-  std::unique_ptr<rt::TcpConn> c_;
-  rt::ThreadWaker wake_sender_;
-  std::vector<completion> completions_;
-  float credits_;
-  unsigned int demand_;
-  nu::RPCHandler &handler_;
-  bool close_;
-};
+namespace rpc_internal {
 
 void RPCServer::Run() {
   rt::Thread th([this] { SendWorker(); });
   ReceiveWorker();
   th.Join();
-}
-
-void RPCServer::Return(RPCReturnBuffer &&buf, std::size_t completion_data) {
-  rt::SpinGuard guard(&lock_);
-  completions_.emplace_back(std::move(buf), completion_data);
-  wake_sender_.Wake();
 }
 
 void RPCServer::SendWorker() {
@@ -105,7 +88,8 @@ void RPCServer::SendWorker() {
     {
       // wait for an actionable state.
       rt::SpinGuard guard(&lock_);
-      while (completions_.empty() && !close_) guard.Park(&wake_sender_);
+      while (completions_.empty() && !close_)
+        guard.Park(&wake_sender_);
 
       // gather all queued completions.
       std::move(completions_.begin(), completions_.end(),
@@ -114,7 +98,8 @@ void RPCServer::SendWorker() {
     }
 
     // Check if the connection is closed.
-    if (unlikely(close_ && completions.empty())) break;
+    if (unlikely(close_ && completions.empty()))
+      break;
 
     // process each of the requests.
     iovecs.clear();
@@ -122,10 +107,11 @@ void RPCServer::SendWorker() {
     hdrs.reserve(completions.size());
     for (const auto &c : completions) {
       auto span = c.buf.get_buf();
-      hdrs.emplace_back(
-          MakeCallResponse(credits_, span.size_bytes(), c.completion_data));
+      hdrs.emplace_back(MakeCallResponse(
+          credits_, c.rc == kOk ? span.size_bytes() : c.rc, c.completion_data));
       iovecs.emplace_back(&hdrs.back(), sizeof(decltype(hdrs)::value_type));
-      if (span.size_bytes() == 0) continue;
+      if (span.size_bytes() == 0)
+        continue;
       iovecs.emplace_back(const_cast<std::byte *>(span.data()),
                           span.size_bytes());
     }
@@ -138,7 +124,8 @@ void RPCServer::SendWorker() {
     }
     completions.clear();
   }
-  if (WARN_ON(c_->Shutdown(SHUT_WR))) c_->Abort();
+  if (WARN_ON(c_->Shutdown(SHUT_WR)))
+    c_->Abort();
 }
 
 void RPCServer::ReceiveWorker() {
@@ -146,7 +133,8 @@ void RPCServer::ReceiveWorker() {
     // Read the request header.
     rpc_req_hdr hdr;
     ssize_t ret = c_->ReadFull(&hdr, sizeof(hdr));
-    if (unlikely(ret == 0)) break;
+    if (unlikely(ret == 0))
+      break;
     if (unlikely(ret < 0)) {
       log_err("rpc: ReadFull failed, err = %ld", ret);
       break;
@@ -155,12 +143,13 @@ void RPCServer::ReceiveWorker() {
     // Parse the request header.
     std::size_t completion_data = hdr.completion_data;
     demand_ = hdr.demand;
-    if (hdr.cmd != rpc_cmd::call) continue;
+    if (hdr.cmd != rpc_cmd::call)
+      continue;
 
     // Spawn a handler with no argument data provided.
     if (hdr.len == 0) {
       rt::Spawn([this, completion_data]() {
-        Return(handler_(std::span<const std::byte>{}), completion_data);
+        handler_(std::span<std::byte>{}, RPCReturner(this, completion_data));
       });
       continue;
     }
@@ -168,17 +157,19 @@ void RPCServer::ReceiveWorker() {
     // Allocate and fill a buffer with the argument data.
     auto buf = std::make_unique_for_overwrite<std::byte[]>(hdr.len);
     ret = c_->ReadFull(buf.get(), hdr.len);
-    if (unlikely(ret == 0)) break;
+    if (unlikely(ret == 0))
+      break;
     if (unlikely(ret < 0)) {
       log_err("rpc: ReadFull failed, err = %ld", ret);
       return;
     }
 
     // Spawn a handler with argument data provided.
-    rt::Spawn([this, completion_data, b = std::move(buf),
-               len = hdr.len]() mutable {
-      Return(handler_(std::span<const std::byte>{b.get(), len}), completion_data);
-    });
+    rt::Spawn(
+        [this, completion_data, b = std::move(buf), len = hdr.len]() mutable {
+          handler_(std::span<std::byte>{b.get(), len},
+                   RPCReturner(this, completion_data));
+        });
   }
 
   // Wake the sender to close the connection.
@@ -189,27 +180,6 @@ void RPCServer::ReceiveWorker() {
   }
 }
 
-void RPCServerWorker(std::unique_ptr<rt::TcpConn> c, RPCHandler &handler) {
-  RPCServer s(std::move(c), handler);
-  s.Run();
-}
-
-void RPCServerListener(RPCHandler &handler) {
-  std::unique_ptr<rt::TcpQueue> q(rt::TcpQueue::Listen({0, kRPCPort}, 4096));
-  BUG_ON(!q);
-
-  while (true) {
-    std::unique_ptr<rt::TcpConn> c(q->Accept());
-    rt::Thread([c = std::move(c), &handler]() mutable {
-      RPCServerWorker(std::move(c), handler);
-    }).Detach();
-  }
-}
-
-}  // namespace
-
-namespace rpc_internal {
-
 RPCFlow::~RPCFlow() {
   {
     rt::SpinGuard guard(&lock_);
@@ -218,13 +188,6 @@ RPCFlow::~RPCFlow() {
   }
   sender_.Join();
   receiver_.Join();
-}
-
-void RPCFlow::Call(std::span<const std::byte> src, RPCCompletion *c) {
-  assert_preempt_disabled();
-  rt::SpinGuard guard(&lock_);
-  reqs_.emplace(req_ctx{src, c});
-  if (sent_count_ - recv_count_ < credits_) wake_sender_.Wake();
 }
 
 void RPCFlow::SendWorker() {
@@ -310,28 +273,12 @@ void RPCFlow::ReceiveWorker() {
 
     // Check if there is no return data.
     auto *completion = reinterpret_cast<RPCCompletion *>(hdr.completion_data);
-    if (hdr.len == 0) {
-      completion->Done();
-      continue;
-    }
-
-    // Allocate and fill a buffer for the return data.
-    auto buf = std::make_unique_for_overwrite<std::byte[]>(hdr.len);
-    ret = c_->ReadFull(buf.get(), hdr.len);
-    if (unlikely(ret <= 0)) {
-      log_err("rpc: ReadFull failed, err = %ld", ret);
-      return;
-    }
-
-    // Issue a completion, waking the blocked thread.
-    std::span<const std::byte> s(buf.get(), hdr.len);
-    completion->Done(s, [b = std::move(buf)]() mutable {});
+    completion->Done(hdr.len, c_.get());
   }
 }
 
 std::unique_ptr<RPCFlow> RPCFlow::New(unsigned int cpu_affinity,
                                       netaddr raddr) {
-  raddr.port = kRPCPort;
   std::unique_ptr<rt::TcpConn> c(
       rt::TcpConn::DialAffinity(cpu_affinity, raddr));
   BUG_ON(!c);
@@ -343,9 +290,13 @@ std::unique_ptr<RPCFlow> RPCFlow::New(unsigned int cpu_affinity,
 
 }  // namespace rpc_internal
 
-void RPCServerInit(RPCHandler &handler) { RPCServerListener(handler); }
+void RPCServerInit(uint16_t port, RPCHandler &handler) {
+  RPCServerListener(port, handler);
+}
 
-void RPCServerInit(RPCHandler &&handler) { RPCServerListener(handler); }
+void RPCServerInit(uint16_t port, RPCHandler &&handler) {
+  RPCServerListener(port, handler);
+}
 
 std::unique_ptr<RPCClient> RPCClient::Dial(netaddr raddr) {
   std::vector<std::unique_ptr<RPCFlow>> v;
@@ -355,15 +306,20 @@ std::unique_ptr<RPCClient> RPCClient::Dial(netaddr raddr) {
   return std::unique_ptr<RPCClient>(new RPCClient(std::move(v)));
 }
 
-RPCReturnBuffer RPCClient::Call(std::span<const std::byte> src) {
-  RPCReturnBuffer buf;
-  RPCCompletion completion(&buf);
-  {
-    rt::Preempt p;
-    rt::PreemptGuardAndPark guard(&p);
-    flows_[p.get_cpu()]->Call(src, &completion);
-  }
-  return buf;
+RPCReturnCode RPCClient::Call(std::span<const std::byte> args,
+                              RPCReturnBuffer *return_buf) {
+  return Call(args, [return_buf](ssize_t len, rt::TcpConn *c) {
+    if (len) {
+      auto buf = std::make_unique_for_overwrite<std::byte[]>(len);
+      auto ret = c->ReadFull(buf.get(), len);
+      if (unlikely(ret <= 0)) {
+        log_err("rpc: ReadFull failed, err = %ld", ret);
+      }
+      auto span = std::span<const std::byte>(buf.get(), len);
+      return_buf->Reset(span, [buf = std::move(buf)] {});
+    }
+  });
 }
 
 }  // namespace nu
+

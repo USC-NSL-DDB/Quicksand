@@ -96,7 +96,7 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
-  return shard.__run(&HashTableShard::template get_with_hash<K1>,
+  return shard.__run(&HashTableShard::template get_copy_with_hash<K1>,
                      std::forward<K1>(k), key_hash);
 }
 
@@ -112,7 +112,8 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_with_ip(K1 &&k) {
   return shard.__run(
       +[](HashTableShard &shard, K1 &&k, uint64_t key_hash) {
         return std::make_pair(
-            shard.get_with_hash(std::forward<K1>(k), key_hash), get_cfg_ip());
+            shard.get_copy_with_hash(std::forward<K1>(k), key_hash),
+            get_cfg_ip());
       },
       std::forward<K1>(k), key_hash);
 }

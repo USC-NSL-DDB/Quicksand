@@ -16,7 +16,6 @@ extern "C" {
 #include "nu/ctrl_client.hpp"
 #include "nu/exception.hpp"
 #include "nu/heap_mgr.hpp"
-#include "nu/obj_conn_mgr.hpp"
 #include "nu/obj_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/future.hpp"
@@ -35,35 +34,31 @@ template <typename T>
 template <typename RetT>
 RetT RemObj<T>::invoke_remote(RemObjID id, auto *states_ss) {
 retry:
-  auto conn = Runtime::rem_obj_conn_mgr->get_conn(id);
   auto states_view = states_ss->view();
-  uint64_t states_size = states_ss->tellp();
+  auto states_data = reinterpret_cast<const std::byte *>(states_view.data());
+  auto states_size = states_ss->tellp();
 
-  const iovec iovecs[] = {
-      {&states_size, sizeof(states_size)},
-      {const_cast<char *>(states_view.data()), states_size}};
-  BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
-
-  ObjRPCRespHdr hdr;
-  BUG_ON(conn->ReadFull(&hdr, sizeof(hdr)) <= 0);
-
-  if (unlikely(hdr.rc == CLIENT_RETRY)) {
-    Runtime::rem_obj_conn_mgr->update_addr(id);
-    Runtime::rem_obj_conn_mgr->put_conn(conn);
-    goto retry;
-  } else if (unlikely(hdr.rc == FORWARDED)) {
-    Runtime::rem_obj_conn_mgr->update_addr(id);
+  RPCReturnBuffer return_buf;
+  RPCReturnCode rc;
+  auto args_span = std::span(states_data, states_size);
+  {
+    RuntimeHeapGuard guard;
+    auto client = Runtime::rem_obj_rpc_client_mgr->get(id);
+    rc = client->Call(args_span, &return_buf);
   }
 
+  if (unlikely(rc == kErrWrongClient)) {
+    Runtime::rem_obj_rpc_client_mgr->invalidate_cache(id);
+    goto retry;
+  }
+
+  auto return_span = return_buf.get_buf();
   auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
   auto &[ret_ss, ia] = *ia_sstream;
-  if (unlikely(ret_ss.view().size() < hdr.payload_size)) {
-    ret_ss.str(std::string(hdr.payload_size, '\0'));
-  }
-  BUG_ON(conn->ReadFull(const_cast<char *>(ret_ss.view().data()),
-                        hdr.payload_size) < 0);
-
-  Runtime::rem_obj_conn_mgr->put_conn(conn);
+  // TODO: avoid copy. and optimize when return len = 0.
+  std::string str(reinterpret_cast<const char *>(return_span.data()),
+                  return_span.size());
+  ret_ss.str(std::move(str));
 
   if constexpr (!std::is_same<RetT, void>::value) {
     RetT ret;
@@ -101,7 +96,7 @@ RemObj<T>::RemObj(RemObj<T> &&o)
 }
 
 template <typename T> RemObj<T> &RemObj<T>::operator=(RemObj<T> &&o) {
-  this->~RemObj();
+  reset();
   id_ = o.id_;
   inc_ref_ = std::move(o.inc_ref_);
   ref_cnted_ = o.ref_cnted_;
@@ -192,17 +187,18 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
     return rem_obj;
   }
 
-  HeapManager::migration_disable();
+  {
+    MigrationDisabledGuard guard;
 
-  // Slow path: the heap is actually remote, use RPC.
-  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
-  auto *handler = ObjServer::construct_obj<T, As...>;
-  serialize(&oa_sstream->oa, handler, to_heap_base(id), pinned,
-            std::forward<As>(args)...);
+    // Slow path: the heap is actually remote, use RPC.
+    auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+    auto *handler = ObjServer::construct_obj<T, As...>;
+    serialize(&oa_sstream->oa, handler, to_heap_base(id), pinned,
+              std::forward<As>(args)...);
 
-  invoke_remote<void>(id, &oa_sstream->ss);
-  Runtime::archive_pool->put_oa_sstream(oa_sstream);
-  HeapManager::migration_enable();
+    invoke_remote<void>(id, &oa_sstream->ss);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+  }
 
   return rem_obj;
 }
@@ -244,30 +240,20 @@ RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-retry:
-  HeapManager::migration_disable();
+  MigrationDisabledGuard caller_disabled_guard;
 
-  if (Runtime::heap_manager) {
-    auto *heap_status = Runtime::heap_manager->get_status(to_heap_base(id_));
-    if (heap_status) {
-      if (likely(*heap_status == PRESENT)) {
-        // Fast path: the heap is actually local, use function call.
-        auto *local_fn =
-            ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>;
-        if constexpr (!std::is_same<RetT, void>::value) {
-          auto ret = local_fn(id_, fn, std::forward<S1s>(states)...);
-          HeapManager::migration_enable();
-          return ret;
-        } else {
-          local_fn(id_, fn, std::forward<S1s>(states)...);
-          HeapManager::migration_enable();
-          return;
-        }
+  if (caller_disabled_guard) {
+    auto callee_heap_header = to_heap_header(id_);
+    OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
+    if (callee_disabled_guard) {
+      // Fast path: the heap is actually local, use function call.
+      auto *local_fn =
+          ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>;
+      if constexpr (!std::is_same<RetT, void>::value) {
+        return local_fn(id_, fn, std::forward<S1s>(states)...);
       } else {
-        assert(*heap_status == MIGRATING);
-        HeapManager::migration_enable();
-        rt::Yield();
-        goto retry;
+        local_fn(id_, fn, std::forward<S1s>(states)...);
+        return;
       }
     }
   }
@@ -280,12 +266,10 @@ retry:
   if constexpr (!std::is_same<RetT, void>::value) {
     auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
-    HeapManager::migration_enable();
     return ret;
   } else {
     invoke_remote<void>(id_, &oa_sstream->ss);
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
-    HeapManager::migration_enable();
   }
 }
 
@@ -330,23 +314,15 @@ RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
 }
 
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
-retry:
-  HeapManager::migration_disable();
+  MigrationDisabledGuard caller_disabled_guard;
 
-  if (Runtime::heap_manager) {
-    auto *heap_status = Runtime::heap_manager->get_status(to_heap_base(id_));
-    if (heap_status) {
-      if (likely(*heap_status == PRESENT)) {
-        // Fast path: the heap is actually local, use function call.
-        ObjServer::update_ref_cnt_locally<T>(id_, delta);
-        HeapManager::migration_enable();
-        return nullptr;
-      } else {
-        assert(*heap_status == MIGRATING);
-        HeapManager::migration_enable();
-        rt::Yield();
-        goto retry;
-      }
+  if (caller_disabled_guard) {
+    auto callee_heap_header = to_heap_header(id_);
+    OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
+    if (callee_disabled_guard) {
+      // Fast path: the heap is actually local, use function call.
+      ObjServer::update_ref_cnt_locally<T>(id_, delta);
+      return nullptr;
     }
   }
 
@@ -355,11 +331,12 @@ retry:
   auto *handler = ObjServer::update_ref_cnt<T>;
   serialize(&oa_sstream->oa, handler, id_, delta);
 
-  return Promise<void>::create([&, id = id_, oa_sstream] {
-    invoke_remote<void>(id, &oa_sstream->ss);
-    Runtime::archive_pool->put_oa_sstream(oa_sstream);
-    HeapManager::migration_enable();
-  });
+  return Promise<void>::create(
+      [&, caller_disabled_guard = std::move(caller_disabled_guard), id = id_,
+       oa_sstream] {
+        invoke_remote<void>(id, &oa_sstream->ss);
+        Runtime::archive_pool->put_oa_sstream(oa_sstream);
+      });
 }
 
 template <typename T> void RemObj<T>::reset() {
@@ -401,8 +378,7 @@ template <typename T> void RemObj<T>::reset_bg() {
 
     // Should allocate from the runtime slab, since the root object might be
     // destructed earlier than this background thread.
-    auto *old_heap = Runtime::get_heap();
-    Runtime::switch_to_runtime_heap();
+    RuntimeHeapGuard guard;
     auto *dec_promise = update_ref_cnt(-1);
     if (dec_promise) {
       Runtime::rcu_lock.reader_lock();
@@ -411,7 +387,6 @@ template <typename T> void RemObj<T>::reset_bg() {
         Runtime::rcu_lock.reader_unlock();
       }).Detach();
     }
-    Runtime::set_heap(old_heap);
   }
 }
 

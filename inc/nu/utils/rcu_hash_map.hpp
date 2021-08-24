@@ -8,6 +8,8 @@
 
 #include <sync.h>
 
+#include "nu/utils/rcu_lock.hpp"
+
 namespace nu {
 
 template <typename K, typename V,
@@ -17,6 +19,8 @@ public:
   template <typename K1> V *get(K1 &&k);
   template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
   template <typename K1, typename V1> void put_if_not_exists(K1 &&k, V1 &&v);
+  template <typename K1, typename... Args>
+  void emplace_if_not_exists(K1 &&k, Args &&... args);
   template <typename K1, typename V1, typename V2>
   bool update_if_equals(K1 &&k, V1 &&old_v, V2 &&new_v);
   template <typename K1> bool remove(K1 &&k);

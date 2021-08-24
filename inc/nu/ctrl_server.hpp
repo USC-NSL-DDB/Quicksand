@@ -5,72 +5,78 @@
 extern "C" {
 #include <runtime/tcp.h>
 }
+#include <memory>
 #include <net.h>
 
 #include "nu/ctrl.hpp"
+#include "nu/utils/rpc.hpp"
 
 namespace nu {
 
 enum ControllerRPC_t {
-  REGISTER_NODE,
-  ALLOCATE_OBJ,
-  DESTROY_OBJ,
-  RESOLVE_OBJ,
-  GET_MIGRATION_DEST,
-  UPDATE_LOCATION,
+  kRegisterNode,
+  kAllocateObj,
+  kDestroyObj,
+  kResolveObj,
+  kGetMigrationDest,
+  kUpdateLocation,
 };
 
 struct RPCReqRegisterNode {
+  ControllerRPC_t rpc_type = kRegisterNode;
   Node node;
 } __attribute__((packed));
 
 struct RPCRespRegisterNode {
   VAddrRange stack_cluster;
-} __attribute__((packed));
+};
 
 struct RPCReqAllocateObj {
-  std::optional<netaddr> hint;
-};
+  ControllerRPC_t rpc_type = kAllocateObj;
+  netaddr hint;
+} __attribute__((packed));
 
 struct RPCRespAllocateObj {
   bool empty;
   RemObjID id;
   netaddr server_addr;
-} __attribute__((packed));
+};
 
 struct RPCReqDestroyObj {
+  ControllerRPC_t rpc_type = kDestroyObj;
   RemObjID id;
 } __attribute__((packed));
 
 struct RPCRespDestroyObj {
   bool ok;
-} __attribute__((packed));
+};
 
 struct RPCReqResolveObj {
+  ControllerRPC_t rpc_type = kResolveObj;
   RemObjID id;
 } __attribute__((packed));
 
 struct RPCRespResolveObj {
   bool empty;
   netaddr addr;
-} __attribute__((packed));
+};
 
 struct RPCReqUpdateLocation {
+  ControllerRPC_t rpc_type = kUpdateLocation;
   RemObjID id;
   netaddr obj_srv_addr;
 } __attribute__((packed));
 
-struct RPCRespUpdateLocation {
-} __attribute__((packed));
-
 struct RPCReqGetMigrationDest {
+  ControllerRPC_t rpc_type = kGetMigrationDest;
+  uint32_t src_ip;
   Resource resource;
 } __attribute__((packed));
 
 struct RPCRespGetMigrationDest {
   bool empty;
   netaddr addr;
-} __attribute__((packed));
+};
 
 class ControllerServer {
 public:
@@ -83,14 +89,17 @@ public:
 private:
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   Controller ctrl_;
-
-  void handle_reqs(rt::TcpConn *c);
-  bool handle_one_req(ControllerRPC_t rpc_type, rt::TcpConn *c);
-  bool handle_register_node(rt::TcpConn *c);
-  bool handle_allocate_obj(rt::TcpConn *c);
-  bool handle_destroy_obj(rt::TcpConn *c);
-  bool handle_resolve_obj(rt::TcpConn *c);
-  bool handle_get_migration_dest(rt::TcpConn *c);
-  bool handle_update_location(rt::TcpConn *c);
+  void handle_req(std::span<std::byte> args, RPCReturner *return_buf);
+  std::unique_ptr<RPCRespRegisterNode>
+  handle_register_node(const RPCReqRegisterNode &req);
+  std::unique_ptr<RPCRespAllocateObj>
+  handle_allocate_obj(const RPCReqAllocateObj &req);
+  std::unique_ptr<RPCRespDestroyObj>
+  handle_destroy_obj(const RPCReqDestroyObj &req);
+  std::unique_ptr<RPCRespResolveObj>
+  handle_resolve_obj(const RPCReqResolveObj &req);
+  std::unique_ptr<RPCRespGetMigrationDest>
+  handle_get_migration_dest(const RPCReqGetMigrationDest &req);
+  void handle_update_location(const RPCReqUpdateLocation &req);
 };
 } // namespace nu

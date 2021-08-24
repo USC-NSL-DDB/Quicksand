@@ -53,6 +53,17 @@ void RCUHashMap<K, V, Allocator>::put_if_not_exists(K1 &&k, V1 &&v) {
 }
 
 template <typename K, typename V, typename Allocator>
+template <typename K1, typename... Args>
+void RCUHashMap<K, V, Allocator>::emplace_if_not_exists(K1 &&k,
+                                                        Args &&... args) {
+  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ACCESS_ONCE(writer_barrier_) = true;
+  rcu_.writer_sync();
+  map_.try_emplace(std::forward<K1>(k), std::forward<Args>(args)...);
+  ACCESS_ONCE(writer_barrier_) = false;
+}
+
+template <typename K, typename V, typename Allocator>
 template <typename K1, typename V1, typename V2>
 bool RCUHashMap<K, V, Allocator>::update_if_equals(K1 &&k, V1 &&old_v,
                                                    V2 &&new_v) {

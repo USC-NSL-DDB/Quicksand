@@ -3,8 +3,6 @@
 #include <cstdint>
 #include <functional>
 
-#include <sync.h>
-
 #include "nu/commons.hpp"
 
 namespace nu {

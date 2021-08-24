@@ -15,7 +15,7 @@ void Time::timer_callback(unsigned long arg_addr) {
   Time *time;
 
   auto *heap_header = arg->heap_header;
-  if (unlikely(!Runtime::heap_manager->is_present(heap_header))) {
+  if (unlikely(!Runtime::heap_manager->contains(heap_header))) {
     return;
   }
 

@@ -18,12 +18,18 @@ template <size_t NBuckets, typename K, typename V, typename Hash = std::hash<K>,
 class SyncHashMap {
 public:
   SyncHashMap();
-  template <typename K1> std::optional<V> get(K1 &&k);
+  template <typename K1> V *get(K1 &&k);
+  template <typename K1> V *get_with_hash(K1 &&k, uint64_t key_hash);
+  template <typename K1> std::optional<V> get_copy(K1 &&k);
   template <typename K1>
-  std::optional<V> get_with_hash(K1 &&k, uint64_t key_hash);
+  std::optional<V> get_copy_with_hash(K1 &&k, uint64_t key_hash);
   template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
   template <typename K1, typename V1>
   void put_with_hash(K1 &&k, V1 &&v, uint64_t key_hash);
+  template <typename K1, typename... Args>
+  bool try_emplace(K1 &&k, Args &&... args);
+  template <typename K1, typename... Args>
+  bool try_emplace_with_hash(K1 &&k, uint64_t key_hash, Args &&... args);
   template <typename K1> bool remove(K1 &&k);
   template <typename K1> bool remove_with_hash(K1 &&k, uint64_t key_hash);
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
@@ -53,6 +59,8 @@ private:
 
   BucketNode buckets_[NBuckets];
   Lock locks_[NBuckets];
+
+  template <typename K1> V *__get_with_hash(K1 &&k, uint64_t key_hash);
 };
 } // namespace nu
 

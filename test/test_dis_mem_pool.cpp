@@ -19,7 +19,7 @@ using namespace nu;
 Runtime::Mode mode;
 
 constexpr static uint32_t kNumThreads = 100;
-constexpr static uint32_t kNumAllocationsPerThread = 1000000;
+constexpr static uint32_t kNumAllocationsPerThread = 100000;
 
 bool run_single_thread() {
   std::vector<int> a{1, 2, 3, 4, 5, 6};

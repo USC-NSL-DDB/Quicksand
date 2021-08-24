@@ -17,6 +17,7 @@ extern "C" {
 
 #include "nu/commons.hpp"
 #include "nu/heap_mgr.hpp"
+#include "nu/rpc_client_mgr.hpp"
 #include "nu/utils/netaddr.hpp"
 
 namespace nu {
@@ -25,7 +26,6 @@ struct Node {
   // TODO: add other informations, e.g., free mem size.
   netaddr obj_srv_addr;
   netaddr migrator_addr;
-  rt::TcpConn *migrator_conn;
 
   bool operator<(const Node &o) const { return obj_srv_addr < o.obj_srv_addr; }
 };
@@ -35,8 +35,7 @@ public:
   Controller();
   ~Controller();
   VAddrRange register_node(Node &node);
-  std::optional<std::pair<RemObjID, netaddr>>
-  allocate_obj(std::optional<netaddr> hint);
+  std::optional<std::pair<RemObjID, netaddr>> allocate_obj(netaddr hint);
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);
   std::optional<netaddr> get_migration_dest(uint32_t requestor_ip,
@@ -49,8 +48,9 @@ private:
   std::unordered_map<RemObjID, std::pair<VAddrRange, netaddr>> objs_map_;
   std::set<Node> nodes_;
   std::set<Node>::iterator nodes_iter_;
+  RPCClientMgr rpc_client_mgr_;
   rt::Mutex mutex_;
 
-  std::optional<Node> select_node_for_obj(std::optional<netaddr> hint);
+  std::optional<Node> select_node_for_obj(netaddr hint);
 };
 } // namespace nu

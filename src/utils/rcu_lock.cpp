@@ -43,6 +43,7 @@ bool RCULock::try_reader_lock() {
   cnt.data.ver++;
   aligned_cnts_[core].cnt.data = cnt.data;
   put_cpu();
+
   return true;
 }
 

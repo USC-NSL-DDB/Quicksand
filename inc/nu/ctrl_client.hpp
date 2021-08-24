@@ -10,25 +10,13 @@ extern "C" {
 #include <net.h>
 #include <sync.h>
 
-#include "nu/conn_mgr.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/runtime.hpp"
+#include "nu/runtime_alloc.hpp"
 
 namespace nu {
 
-class ControllerConnManager {
-public:
-  constexpr static uint32_t kNumPerCoreCachedConns = 1;
-
-  ControllerConnManager(uint32_t ctrl_server_ip);
-  rt::TcpConn *get_conn();
-  void put_conn(rt::TcpConn *conn);
-  void reserve_conns(uint32_t num);
-
-private:
-  std::function<rt::TcpConn *(bool unused)> creator_;
-  ConnectionManager<bool> mgr_;
-};
+// TODO: return heap back.
 
 class ControllerClient {
 public:
@@ -40,11 +28,10 @@ public:
   std::optional<netaddr> resolve_obj(RemObjID id);
   std::optional<netaddr> get_migration_dest(Resource resource);
   void update_location(RemObjID id, netaddr obj_srv_addr);
-  void reserve_conns(uint32_t num);
   VAddrRange get_stack_cluster() const;
 
 private:
-  ControllerConnManager conn_mgr_;
+  std::unique_ptr<RPCClient> rpc_client_;
   VAddrRange stack_cluster_;
 };
 } // namespace nu

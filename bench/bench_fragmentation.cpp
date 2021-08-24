@@ -79,7 +79,7 @@ struct Test {
   uint64_t get_mem_usage() {
     uint64_t total_mem_usage = 0;
     std::function fn =
-        [&total_mem_usage](const std::pair<HeapHeader *const, HeapStatus> &p) {
+        [&total_mem_usage](const std::pair<HeapHeader *const, bool> &p) {
           auto *heap_header = p.first;
           auto &heap_slab = heap_header->slab;
           total_mem_usage += reinterpret_cast<uint8_t *>(heap_slab.get_base()) -
@@ -87,7 +87,7 @@ struct Test {
                              heap_slab.get_usage();
           return true;
         };
-    Runtime::heap_manager->heap_statuses_->for_each(fn);
+    Runtime::heap_manager->active_heaps_->for_each(fn);
     return total_mem_usage;
   }
 };

@@ -16,14 +16,16 @@ namespace {
 using namespace std::chrono;
 using sec = duration<double>;
 
-nu::RPCReturnBuffer ServerHandler(std::span<const std::byte> args) {
+constexpr uint32_t kPort = 8080;
+
+void ServerHandler(std::span<std::byte> args, nu::RPCReturner returner) {
   auto buf = std::make_unique<std::byte[]>(args.size());
   std::copy(args.begin(), args.end(), buf.get());
   std::span<const std::byte> s(buf.get(), args.size());
-  return nu::RPCReturnBuffer(s, [b = std::move(buf)]() mutable {});
+  returner.Return(nu::RPCReturnCode::kOk, s, [b = std::move(buf)]() mutable {});
 }
 
-void RunServer() { nu::RPCServerInit(&ServerHandler); }
+void RunServer() { nu::RPCServerInit(kPort, &ServerHandler); }
 
 void RunClient(netaddr raddr, int threads, int samples, size_t buflen) {
   std::unique_ptr<nu::RPCClient> c = nu::RPCClient::Dial(raddr);
@@ -37,7 +39,11 @@ void RunClient(netaddr raddr, int threads, int samples, size_t buflen) {
   for (int i = 0; i < threads; ++i) {
     workers.emplace_back([c = c.get(), samples, buflen] {
       auto buf = std::make_unique<std::byte[]>(buflen);
-      for (int i = 0; i < samples; ++i) c->Call({buf.get(), buflen});
+      nu::RPCReturnBuffer return_buf;
+      for (int i = 0; i < samples; ++i) {
+        BUG_ON(c->Call({buf.get(), buflen}, &return_buf) !=
+               nu::RPCReturnCode::kOk);
+      }
     });
   }
   for (auto &t : workers) t.Join();
@@ -88,6 +94,7 @@ int main(int argc, char *argv[]) {
     }
 
     int ret = StringToAddr(argv[3], &raddr.ip);
+    raddr.port = kPort;
     if (ret) return -EINVAL;
     threads = std::stoi(argv[4], nullptr, 0);
     samples = std::stoi(argv[5], nullptr, 0);

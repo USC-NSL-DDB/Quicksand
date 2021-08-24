@@ -13,6 +13,7 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/commons.hpp"
+#include "nu/utils/rcu_hash_map.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/refcount_hash_set.hpp"
 #include "nu/utils/slab.hpp"
@@ -27,8 +28,6 @@ class Time;
 template <typename T> class RuntimeAllocator;
 template <typename K, typename V, typename Allocator> class RCUHashMap;
 
-enum HeapStatus { PRESENT, MIGRATING };
-
 struct HeapHeader {
   ~HeapHeader();
 
@@ -40,12 +39,16 @@ struct HeapHeader {
       condvars;
   std::unique_ptr<Time> time;
   bool migratable;
-  bool migrating;
-  RCULock rcu_lock;
 
   // Forwarding related.
   uint32_t old_server_ip;
   rt::WaitGroup forward_wg;
+
+  //--- Fields below will be automatically copied during migration. ---/
+  uint8_t copy_start[0];
+
+  // For synchronization on migration.
+  RCULock rcu_lock;
 
   // Ref cnt related.
   rt::Spin spin;
@@ -58,32 +61,76 @@ struct HeapHeader {
 class HeapManager {
 public:
   HeapManager();
+
   static void allocate(void *heap_base, bool migratable);
   static void mmap(void *heap_base);
   static void mmap_populate(void *heap_base, uint64_t populate_len);
   static void setup(void *heap_base, bool migratable, bool from_migration);
   static void deallocate(void *heap_base);
-  HeapStatus *get_status(void *heap_base);
   void insert(void *heap_base);
   bool contains(void *heap_base);
-  bool is_present(void *heap_base);
   bool remove(void *heap_base);
-  bool remove_if_not_migrating(void *heap_base);
-  bool mark_migrating(void *heap_base);
-  bool migration_disable_initial(HeapHeader *heap_header);
-  void migration_enable_final(HeapHeader *heap_header);
-  static void migration_disable();
-  static void migration_enable();
   std::vector<HeapRange> pick_heaps(const Resource &pressure);
 
 private:
-  std::unique_ptr<
-      RCUHashMap<HeapHeader *, HeapStatus,
-                 RuntimeAllocator<std::pair<HeapHeader *const, HeapStatus>>>>
-      heap_statuses_;
+  std::unique_ptr<RCUHashMap<
+      HeapHeader *, bool, RuntimeAllocator<std::pair<HeapHeader *const, bool>>>>
+      active_heaps_;
   RCULock rcu_lock_;
+  friend class MigrationEnabledGuard;
+  friend class MigrationDisabledGuard;
+  friend class OutermostMigrationDisabledGuard;
   friend class Test;
+
+  bool migration_disable_initial(HeapHeader *heap_header);
+  void migration_disable(HeapHeader *heap_header);
+  static void migration_enable_final(HeapHeader *heap_header);
+  static void migration_enable(HeapHeader *heap_header);
 };
+
+class MigrationEnabledGuard {
+public:
+  // By default guards the current object header.
+  MigrationEnabledGuard();
+  MigrationEnabledGuard(HeapHeader *heap_header);
+  MigrationEnabledGuard(MigrationEnabledGuard &&o);
+  MigrationEnabledGuard &operator=(MigrationEnabledGuard &&o);
+  void reset();
+  ~MigrationEnabledGuard();
+
+private:
+  HeapHeader *heap_header_;
+};
+
+class MigrationDisabledGuard {
+public:
+  // By default guards the current object header.
+  MigrationDisabledGuard();
+  MigrationDisabledGuard(HeapHeader *heap_header);
+  MigrationDisabledGuard(MigrationDisabledGuard &&o);
+  MigrationDisabledGuard &operator=(MigrationDisabledGuard &&o);
+  void reset();
+  ~MigrationDisabledGuard();
+  operator bool() const;
+
+private:
+  HeapHeader *heap_header_;
+};
+
+class OutermostMigrationDisabledGuard {
+public:
+  // By default guards the current object header.
+  OutermostMigrationDisabledGuard(HeapHeader *heap_header);
+  OutermostMigrationDisabledGuard(OutermostMigrationDisabledGuard &&o);
+  OutermostMigrationDisabledGuard &operator=(OutermostMigrationDisabledGuard &&o);
+  ~OutermostMigrationDisabledGuard();
+  void reset();
+  operator bool() const;
+
+private:
+  HeapHeader *heap_header_;
+};
+
 } // namespace nu
 
 #include "nu/impl/heap_mgr.ipp"

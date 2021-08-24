@@ -41,15 +41,16 @@ void StackManager::munmap(VAddrRange stack_cluster) {
                   stack_cluster.end - stack_cluster.start) != 0);
 }
 
-bool StackManager::get_waitgroup(rt::WaitGroup **wg, VAddrRange stack_cluster) {
-  auto *constructed = reinterpret_cast<bool *>(stack_cluster.start);
-  *wg = reinterpret_cast<rt::WaitGroup *>(stack_cluster.start);
-  if (!*constructed) {
-    *constructed = true;
-    std::construct_at(*wg);
-    return false;
-  } else {
-    return true;
+void StackManager::add_ref_cnt(VAddrRange borrowed_stack_cluster,
+                               uint32_t cnt) {
+  rt::ScopedLock<rt::Mutex> guard(&mutex_);
+  auto &ref_cnt = borrowed_stack_ref_cnt_map_[borrowed_stack_cluster];
+  if (!ref_cnt && cnt > 0) {
+    mmap(borrowed_stack_cluster);
+  }
+  ref_cnt += cnt;
+  if (!ref_cnt && cnt < 0) {
+    munmap(borrowed_stack_cluster);
   }
 }
 
@@ -63,7 +64,7 @@ uint8_t *StackManager::get() {
     return ret;
   }
   put_cpu();
-  rt::ScopedLock<rt::Spin> lock(&spin_);
+  rt::ScopedLock<rt::Mutex> guard(&mutex_);
   BUG_ON(!global_pool_size_); // Run out of stack.
   auto ret = global_pool_[--global_pool_size_];
   return ret;
@@ -78,7 +79,7 @@ void StackManager::put(uint8_t *stack) {
     return;
   }
   put_cpu();
-  rt::ScopedLock<rt::Spin> lock(&spin_);
+  rt::ScopedLock<rt::Mutex> guard(&mutex_);
   global_pool_[global_pool_size_++] = stack;
 }
 

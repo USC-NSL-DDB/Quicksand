@@ -15,17 +15,6 @@ extern "C" {
 
 namespace nu {
 
-void HeapManager::allocate(void *heap_base, bool migratable) {
-  mmap(heap_base);
-  setup(heap_base, migratable, /* from_migration = */ false);
-}
-
-void HeapManager::mmap(void *heap_base) {
-  auto mmap_addr = ::mmap(heap_base, kHeapSize, PROT_READ | PROT_WRITE,
-                          MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
-  BUG_ON(mmap_addr != heap_base);
-}
-
 void HeapManager::mmap_populate(void *heap_base, uint64_t populate_len) {
   populate_len = ((populate_len - 1) / kPageSize + 1) * kPageSize;
   BUG_ON(populate_len > kHeapSize);
@@ -60,58 +49,62 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
   heap_header->time.reset(new decltype(heap_header->time)::element_type());
 
   heap_header->migratable = migratable;
-  heap_header->migrating = false;
 
   new (&heap_header->forward_wg) rt::WaitGroup();
 
-  new (&heap_header->spin) rt::Spin();
-  heap_header->ref_cnt = 1;
-
   if (!from_migration) {
+    new (&heap_header->spin) rt::Spin();
+    heap_header->ref_cnt = 1;
     auto heap_region_size = kHeapSize - sizeof(HeapHeader);
-    heap_header->slab.init(to_slab_id(heap_header), heap_header + 1,
+    heap_header->slab.init(to_u16(heap_header), heap_header + 1,
                            heap_region_size);
   }
 }
 
 std::vector<HeapRange> HeapManager::pick_heaps(const Resource &pressure) {
   std::vector<HeapRange> heaps;
-  std::function fn =
-      [&, pressure = pressure](
-          const std::pair<HeapHeader *const, HeapStatus> &p) mutable {
-        auto *heap_header = p.first;
-        if (heap_header->migratable) {
-          auto &slab = heap_header->slab;
-          uint64_t len = reinterpret_cast<uint64_t>(slab.get_base()) +
-                         slab.get_usage() -
-                         reinterpret_cast<uint64_t>(heap_header);
-          HeapRange range{heap_header, len};
-          heaps.push_back(range);
-          auto len_in_mbs = len >> 20;
-          // TODO: also consider CPU pressure.
-          if (pressure.mem_mbs <= len_in_mbs) {
-            return false;
-          }
-          pressure.mem_mbs -= len_in_mbs;
-        }
-        return true;
-      };
+  std::function fn = [&, pressure = pressure](
+                         const std::pair<HeapHeader *const, bool> &p) mutable {
+    auto *heap_header = p.first;
+    if (heap_header->migratable) {
+      auto &slab = heap_header->slab;
+      uint64_t len = reinterpret_cast<uint64_t>(slab.get_base()) +
+                     slab.get_usage() - reinterpret_cast<uint64_t>(heap_header);
+      HeapRange range{heap_header, len};
+      heaps.push_back(range);
+      auto len_in_mbs = len >> 20;
+      // TODO: also consider CPU pressure.
+      if (pressure.mem_mbs <= len_in_mbs) {
+        return false;
+      }
+      pressure.mem_mbs -= len_in_mbs;
+    }
+    return true;
+  };
 
-  heap_statuses_->for_each(fn);
+  active_heaps_->for_each(fn);
   return heaps;
 }
 
 bool HeapManager::migration_disable_initial(HeapHeader *heap_header) {
-  std::function fn = [](std::pair<HeapHeader *const, HeapStatus> *p) {
-    if (!p || p->second == MIGRATING) {
+  std::function fn = [](std::pair<HeapHeader *const, bool> *p) {
+    if (!p) {
       return false;
     }
-    auto *heap_header = p->first;
-    heap_header->rcu_lock.reader_lock();
-    heap_header->threads->put(thread_self());
+    p->first->rcu_lock.reader_lock();
     return true;
   };
-  return heap_statuses_->apply(heap_header, fn);
+  return active_heaps_->apply(heap_header, fn);
+}
+
+void HeapManager::migration_disable(HeapHeader *heap_header) {
+  auto migrating = !migration_disable_initial(heap_header);
+  if (unlikely(migrating)) {
+    while (!thread_is_migrated()) {
+      rt::Yield();
+    }
+  }
+  heap_header->threads->remove(thread_self());
 }
 
 } // namespace nu
