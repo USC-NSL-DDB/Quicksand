@@ -17,13 +17,13 @@ extern "C" {
 #include "nu/monitor.hpp"
 #include "nu/obj_server.hpp"
 #include "nu/rpc_client_mgr.hpp"
+#include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_deleter.hpp"
 
 namespace nu {
 
 bool active_runtime = false;
-std::unique_ptr<ControllerServer> controller_server;
 
 SlabAllocator Runtime::runtime_slab;
 RCULock Runtime::rcu_lock;
@@ -31,10 +31,12 @@ std::unique_ptr<ObjServer> Runtime::obj_server;
 std::unique_ptr<HeapManager> Runtime::heap_manager;
 std::unique_ptr<StackManager> Runtime::stack_manager;
 std::unique_ptr<ControllerClient> Runtime::controller_client;
-std::unique_ptr<RemObjRPCClientMgr> Runtime::rem_obj_rpc_client_mgr;
+std::unique_ptr<ControllerServer> Runtime::controller_server;
+std::unique_ptr<RPCClientMgr> Runtime::rpc_client_mgr;
 std::unique_ptr<Migrator> Runtime::migrator;
 std::unique_ptr<Monitor> Runtime::monitor;
 std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
+std::unique_ptr<RPCServer> Runtime::rpc_server;
 
 void Runtime::init_runtime_heap() {
   auto addr = reinterpret_cast<void *>(kMinRuntimeHeapVaddr);
@@ -48,40 +50,39 @@ void Runtime::init_runtime_heap() {
 }
 
 void Runtime::init_as_controller() {
-  controller_server.reset(new ControllerServer());
-  controller_server->run_loop();
+  controller_server.reset(new decltype(controller_server)::element_type());
+  rt::Thread([&] { rpc_server->run_loop(); }).Join();
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
   obj_server.reset(new decltype(obj_server)::element_type());
-  rt::Thread obj_srv_thread([&] { obj_server->run_loop(); });
   migrator.reset(new decltype(migrator)::element_type());
-  rt::Thread migrator_thread([&] { migrator->run_loop(); });
+  rt::Thread([&] { rpc_server->run_loop(); }).Detach();
   controller_client.reset(
       new decltype(controller_client)::element_type(remote_ctrl_ip, SERVER));
   heap_manager.reset(new decltype(heap_manager)::element_type());
   stack_manager.reset(new decltype(stack_manager)::element_type(
       controller_client->get_stack_cluster()));
-  rem_obj_rpc_client_mgr.reset(new decltype(
-      rem_obj_rpc_client_mgr)::element_type(ObjServer::kObjServerPort));
-  monitor.reset(new decltype(monitor)::element_type());
-  rt::Thread monitor_thread([&] { monitor->run_loop(); });
   archive_pool.reset(new decltype(archive_pool)::element_type());
-
-  obj_srv_thread.Join();
+  monitor.reset(new decltype(monitor)::element_type());
+  rt::Thread([&] { monitor->run_loop(); }).Join();
 }
 
 void Runtime::init_as_client(uint32_t remote_ctrl_ip) {
   controller_client.reset(
       new decltype(controller_client)::element_type(remote_ctrl_ip, CLIENT));
-  rem_obj_rpc_client_mgr.reset(new decltype(
-      rem_obj_rpc_client_mgr)::element_type(ObjServer::kObjServerPort));
   archive_pool.reset(new decltype(archive_pool)::element_type());
 }
 
-Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode) {
+void Runtime::common_init() {
   init_runtime_heap();
   active_runtime = true;
+  rpc_client_mgr.reset(
+      new decltype(rpc_client_mgr)::element_type(RPCServer::kPort));
+}
+
+Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode) {
+  common_init();
 
   switch (mode) {
   case CONTROLLER:
@@ -110,7 +111,7 @@ Runtime::~Runtime() {
   controller_client.reset();
   heap_manager.reset();
   stack_manager.reset();
-  rem_obj_rpc_client_mgr.reset();
+  rpc_client_mgr.reset();
   monitor.reset();
   migrator.reset();
   archive_pool.reset();

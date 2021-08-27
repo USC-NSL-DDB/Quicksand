@@ -22,8 +22,9 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
 template <typename K1>
 std::optional<V>
 SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_copy(K1 &&k) {
-  auto ptr = get(std::forward<K1>(k));
-  return ptr ? std::make_optional(*ptr) : std::nullopt;
+  auto hasher = Hash();
+  auto key_hash = hasher(k);
+  return get_copy_with_hash(std::forward<K1>(k), key_hash);
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
@@ -58,8 +59,25 @@ template <typename K1>
 std::optional<V> SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                              Lock>::get_copy_with_hash(K1 &&k,
                                                        uint64_t key_hash) {
-  auto ptr = get_with_hash(std::forward<K1>(k), key_hash);
-  return ptr ? std::make_optional(*ptr) : std::nullopt;
+  auto equaler = KeyEqual();
+  auto bucket_idx = key_hash % NBuckets;
+  auto *bucket_node = &buckets_[bucket_idx];
+  auto &lock = locks_[bucket_idx];
+  lock.Lock();
+
+  while (bucket_node && bucket_node->pair) {
+    if (key_hash == bucket_node->key_hash) {
+      auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
+      if (equaler(k, pair->first)) {
+        auto ret = std::make_optional(pair->second);
+        lock.Unlock();
+        return ret;
+      }
+    }
+    bucket_node = bucket_node->next;
+  }
+  lock.Unlock();
+  return std::nullopt;
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,

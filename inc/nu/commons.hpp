@@ -47,7 +47,8 @@ constexpr static uint64_t kPageSize = 4096;
 
 constexpr static RemObjID kNullRemObjID = 0;
 
-constexpr static uint64_t kMinHeapVAddr = 0x80000000ULL;
+// TODO: double check.
+constexpr static uint64_t kMinHeapVAddr = 0x300000000000ULL;
 constexpr static uint64_t kMaxHeapVAddr = 0x400000000000ULL;
 constexpr static uint64_t kHeapSize = 0x40000000ULL;
 constexpr static uint64_t kMinStackClusterVAddr = kMaxHeapVAddr;

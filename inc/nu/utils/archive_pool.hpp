@@ -12,7 +12,7 @@ namespace nu {
 
 template <typename Allocator> class ArchivePool {
 public:
-  constexpr static uint32_t kOAStreamBufSize = 256 - 1;
+  constexpr static uint32_t kOAStreamBufSize = 128 - 1;
 
   using CharAllocator =
       std::allocator_traits<Allocator>::template rebind_alloc<char>;
@@ -32,7 +32,7 @@ public:
     OASStream() : ss(String(kOAStreamBufSize, '\0')), oa(ss) {}
   };
 
-  ArchivePool(uint32_t per_core_cache_size = 32);
+  ArchivePool(uint32_t per_core_cache_size = 64);
   IASStream *get_ia_sstream();
   void put_ia_sstream(IASStream *ia_sstream);
   OASStream *get_oa_sstream();

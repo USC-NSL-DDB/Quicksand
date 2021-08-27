@@ -10,20 +10,12 @@ extern "C" {
 
 #include "nu/ctrl.hpp"
 #include "nu/utils/rpc.hpp"
+#include "nu/rpc_server.hpp"
 
 namespace nu {
 
-enum ControllerRPC_t {
-  kRegisterNode,
-  kAllocateObj,
-  kDestroyObj,
-  kResolveObj,
-  kGetMigrationDest,
-  kUpdateLocation,
-};
-
 struct RPCReqRegisterNode {
-  ControllerRPC_t rpc_type = kRegisterNode;
+  RPCReqType rpc_type = kRegisterNode;
   Node node;
 } __attribute__((packed));
 
@@ -32,7 +24,7 @@ struct RPCRespRegisterNode {
 };
 
 struct RPCReqAllocateObj {
-  ControllerRPC_t rpc_type = kAllocateObj;
+  RPCReqType rpc_type = kAllocateObj;
   netaddr hint;
 } __attribute__((packed));
 
@@ -43,7 +35,7 @@ struct RPCRespAllocateObj {
 };
 
 struct RPCReqDestroyObj {
-  ControllerRPC_t rpc_type = kDestroyObj;
+  RPCReqType rpc_type = kDestroyObj;
   RemObjID id;
 } __attribute__((packed));
 
@@ -52,7 +44,7 @@ struct RPCRespDestroyObj {
 };
 
 struct RPCReqResolveObj {
-  ControllerRPC_t rpc_type = kResolveObj;
+  RPCReqType rpc_type = kResolveObj;
   RemObjID id;
 } __attribute__((packed));
 
@@ -62,16 +54,17 @@ struct RPCRespResolveObj {
 };
 
 struct RPCReqUpdateLocation {
-  ControllerRPC_t rpc_type = kUpdateLocation;
+  RPCReqType rpc_type = kUpdateLocation;
   RemObjID id;
   netaddr obj_srv_addr;
 } __attribute__((packed));
 
 struct RPCReqGetMigrationDest {
-  ControllerRPC_t rpc_type = kGetMigrationDest;
+  RPCReqType rpc_type = kGetMigrationDest;
   uint32_t src_ip;
   Resource resource;
 } __attribute__((packed));
+
 
 struct RPCRespGetMigrationDest {
   bool empty;
@@ -84,12 +77,12 @@ public:
   constexpr static uint32_t kControllerServerPort = 8000;
 
   ControllerServer();
-  void run_loop();
 
 private:
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   Controller ctrl_;
-  void handle_req(std::span<std::byte> args, RPCReturner *return_buf);
+  friend class RPCServer;
+
   std::unique_ptr<RPCRespRegisterNode>
   handle_register_node(const RPCReqRegisterNode &req);
   std::unique_ptr<RPCRespAllocateObj>

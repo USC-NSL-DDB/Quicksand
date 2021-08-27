@@ -11,64 +11,6 @@ namespace nu {
 
 ControllerServer::ControllerServer() {}
 
-void ControllerServer::run_loop() {
-  RPCServerInit(kControllerServerPort,
-                [&](std::span<std::byte> args, RPCReturner returner) {
-                  return handle_req(args, &returner);
-                });
-}
-
-void ControllerServer::handle_req(std::span<std::byte> args,
-                                  RPCReturner *returner) {
-  auto &rpc_type = from_span<ControllerRPC_t>(args);
-
-  switch (rpc_type) {
-  case kRegisterNode: {
-    auto &req = from_span<RPCReqRegisterNode>(args);
-    auto resp = handle_register_node(req);
-    auto span = to_span(*resp);
-    returner->Return(kOk, span, [resp = std::move(resp)] {});
-    break;
-  }
-  case kAllocateObj: {
-    auto &req = from_span<RPCReqAllocateObj>(args);
-    auto resp = handle_allocate_obj(req);
-    auto span = to_span(*resp);
-    returner->Return(kOk, span, [resp = std::move(resp)] {});
-    break;
-  }
-  case kDestroyObj: {
-    auto &req = from_span<RPCReqDestroyObj>(args);
-    auto resp = handle_destroy_obj(req);
-    auto span = to_span(*resp);
-    returner->Return(kOk, span, [resp = std::move(resp)] {});
-    break;
-  }
-  case kResolveObj: {
-    auto &req = from_span<RPCReqResolveObj>(args);
-    auto resp = handle_resolve_obj(req);
-    auto span = to_span(*resp);
-    returner->Return(kOk, span, [resp = std::move(resp)] {});
-    break;
-  }
-  case kGetMigrationDest: {
-    auto &req = from_span<RPCReqGetMigrationDest>(args);
-    auto resp = handle_get_migration_dest(req);
-    auto span = to_span(*resp);
-    returner->Return(kOk, span, [resp = std::move(resp)] {});
-    break;
-  }
-  case kUpdateLocation: {
-    auto &req = from_span<RPCReqUpdateLocation>(args);
-    handle_update_location(req);
-    returner->Return(kOk);
-    break;
-  }
-  default:
-    BUG();
-  }
-}
-
 std::unique_ptr<RPCRespRegisterNode>
 ControllerServer::handle_register_node(const RPCReqRegisterNode &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespRegisterNode>();

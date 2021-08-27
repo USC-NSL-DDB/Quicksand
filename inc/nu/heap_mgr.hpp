@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <list>
@@ -13,7 +14,6 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/commons.hpp"
-#include "nu/utils/rcu_hash_map.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/refcount_hash_set.hpp"
 #include "nu/utils/slab.hpp"
@@ -31,6 +31,14 @@ template <typename K, typename V, typename Allocator> class RCUHashMap;
 struct HeapHeader {
   ~HeapHeader();
 
+  bool present;
+
+  // For synchronization on migration.
+  RCULock rcu_lock;
+
+  //--- Fields above are always mmaped in all object servers. ---/
+  uint8_t always_mmaped_end[0];
+
   // Migration related.
   std::unique_ptr<RefcountHashSet<thread_t *, RuntimeAllocator<thread_t *>>>
       threads;
@@ -47,9 +55,6 @@ struct HeapHeader {
   //--- Fields below will be automatically copied during migration. ---/
   uint8_t copy_start[0];
 
-  // For synchronization on migration.
-  RCULock rcu_lock;
-
   // Ref cnt related.
   rt::Spin spin;
   int ref_cnt;
@@ -57,6 +62,8 @@ struct HeapHeader {
   // Heap Mem allocator. Must be the last field.
   SlabAllocator slab;
 };
+
+static_assert(offsetof(HeapHeader, always_mmaped_end) <= kPageSize);
 
 class HeapManager {
 public:
@@ -68,15 +75,13 @@ public:
   static void setup(void *heap_base, bool migratable, bool from_migration);
   static void deallocate(void *heap_base);
   void insert(void *heap_base);
-  bool contains(void *heap_base);
   bool remove(void *heap_base);
   std::vector<HeapRange> pick_heaps(const Resource &pressure);
+  uint64_t get_mem_usage();
 
 private:
-  std::unique_ptr<RCUHashMap<
-      HeapHeader *, bool, RuntimeAllocator<std::pair<HeapHeader *const, bool>>>>
-      active_heaps_;
-  RCULock rcu_lock_;
+  std::unordered_set<void *> present_heaps_;
+  rt::Mutex mutex_;
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
   friend class OutermostMigrationDisabledGuard;
@@ -134,3 +139,4 @@ private:
 } // namespace nu
 
 #include "nu/impl/heap_mgr.ipp"
+

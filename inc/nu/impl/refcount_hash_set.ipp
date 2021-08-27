@@ -14,9 +14,7 @@ void RefcountHashSet<K, Allocator>::put(K1 &&k) {
   int cpu = get_cpu();
   auto &map = ref_counts_[cpu];
   auto iter = map.try_emplace(k, 0).first;
-  if (++iter->second == 0) {
-    map.erase(iter);
-  }
+  ++iter->second;
   put_cpu();
 }
 
@@ -26,9 +24,7 @@ void RefcountHashSet<K, Allocator>::remove(K1 &&k) {
   int cpu = get_cpu();
   auto &map = ref_counts_[cpu];
   auto iter = map.try_emplace(k, 0).first;
-  if (--iter->second == 0) {
-    map.erase(iter);
-  }
+  --iter->second;
   put_cpu();
 }
 
@@ -36,8 +32,15 @@ template <typename K, typename Allocator>
 std::vector<K, Allocator> RefcountHashSet<K, Allocator>::all_keys() {
   std::unordered_map<K, V> sum_map;
   for (size_t i = 0; i < kNumCores; i++) {
-    for (const auto &[k, cnt] : ref_counts_[i]) {
-      sum_map[k] += cnt;
+    auto iter = ref_counts_[i].begin();
+    while (iter != ref_counts_[i].end()) {
+      const auto &[k, cnt] = *iter;
+      if (cnt) {
+        sum_map[k] += cnt;
+        iter++;
+      } else {
+        iter = ref_counts_[i].erase(iter);
+      }
     }
   }
 

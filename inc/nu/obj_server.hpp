@@ -5,7 +5,6 @@
 #include <memory>
 #include <sstream>
 
-#include "nu/rpc_client_mgr.hpp"
 #include "nu/utils/archive_pool.hpp"
 #include "nu/utils/trace_logger.hpp"
 
@@ -18,7 +17,6 @@ public:
   ObjServer();
   ~ObjServer();
   netaddr get_addr() const;
-  void run_loop();
   template <typename Cls>
   static void update_ref_cnt(cereal::BinaryInputArchive &ia,
                              RPCReturner *returner);
@@ -40,9 +38,7 @@ private:
                                   RPCReturner *returner);
 
   TraceLogger trace_logger_;
-  // TODO: merge.
-  static std::unique_ptr<RPCClientMgr> rpc_client_mgr_;
-  friend class Migrator;
+  friend class RPCServer;
 
   static void forward(RPCReturnCode rc, RPCReturner *returner,
                       const void *payload, uint64_t payload_len);
@@ -50,7 +46,7 @@ private:
       ArchivePool<RuntimeAllocator<uint8_t>>::OASStream *oa_sstream,
       RPCReturner *returner);
   static void send_rpc_resp_wrong_client(RPCReturner *returner);
-  void handle_req(std::span<std::byte> args, RPCReturner *returner);
+  void parse_and_run_handler(std::span<std::byte> args, RPCReturner *returner);
   template <typename Cls>
   static void __update_ref_cnt(Cls &obj, RPCReturner returner,
                                HeapHeader *heap_header, int delta,

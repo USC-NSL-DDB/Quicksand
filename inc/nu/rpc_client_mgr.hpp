@@ -6,9 +6,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "nu/utils/rpc.hpp"
 #include "nu/runtime_alloc.hpp"
 #include "nu/utils/rcu_hash_map.hpp"
+#include "nu/utils/rpc.hpp"
 
 namespace nu {
 
@@ -18,27 +18,14 @@ using NodeID = uint16_t;
 class RPCClientMgr {
 public:
   RPCClientMgr(uint16_t port);
-  RPCClient *get(NodeIP ip);
-
-private:
-  uint16_t port_;
-  RCUHashMap<NodeIP, NodeID, RuntimeAllocator<std::pair<const NodeIP, NodeID>>>
-      node_ip_to_node_id_map_;
-  NodeID next_node_id_;
-  std::unique_ptr<RPCClient>
-      rpc_clients_[std::numeric_limits<NodeID>::max() + 1];
-  rt::Mutex mutex_;
-};
-
-class RemObjRPCClientMgr {
-public:
-  RemObjRPCClientMgr(uint16_t port);
-  RPCClient *get(RemObjID rem_obj_id);
+  RPCClient *get_by_rem_obj_id(RemObjID rem_obj_id);
+  RPCClient *get_by_ip(NodeIP ip);
   void invalidate_cache(RemObjID rem_obj_id);
 
 private:
   struct NodeInfo {
-    NodeInfo(RemObjID rem_obj_id, RemObjRPCClientMgr *mgr);
+    NodeInfo() {}
+    NodeInfo(RemObjID rem_obj_id, RPCClientMgr *mgr);
     NodeIP ip;
     NodeID id;
   };
@@ -52,5 +39,9 @@ private:
   std::unique_ptr<RPCClient>
       rpc_clients_[std::numeric_limits<NodeID>::max() + 1];
   rt::Mutex mutex_;
+  friend class NodeInfo;
+
+  NodeID get_node_id_by_node_ip(NodeIP ip);
+  RPCClient *get(const NodeInfo &info);
 };
 } // namespace nu

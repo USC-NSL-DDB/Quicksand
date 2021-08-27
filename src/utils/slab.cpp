@@ -108,7 +108,7 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
     hdr->slab_id = slab_id_;
     ret = reinterpret_cast<uint8_t *>(ret) + sizeof(PtrHeader);
   }
-
+  
   return ret;
 }
 
@@ -123,6 +123,7 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
   auto size = hdr->size;
   ptr = hdr;
   auto slab_shift = slab->get_slab_shift(size);
+  
   if (likely(slab_shift < slab->kMaxSlabClassShift)) {
     int cpu = get_cpu();
     auto &cache_list = slab->cache_lists_[cpu].lists[slab_shift];

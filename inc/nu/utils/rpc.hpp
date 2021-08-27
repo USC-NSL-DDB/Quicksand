@@ -93,6 +93,9 @@ namespace rpc_internal {
 // RPCCompletion manages the completion of an inflight request.
 class RPCCompletion {
 public:
+  RPCCompletion(RPCReturnBuffer *return_buf) : return_buf_(return_buf) {
+    w_.Arm();
+  }
   RPCCompletion(RPCCallback &&callback) : callback_(std::move(callback)) {
     w_.Arm();
   }
@@ -100,20 +103,13 @@ public:
 
   // Complete the request by invoking the callback and waking up the blocking
   // thread.
-  void Done(ssize_t len, rt::TcpConn *c) {
-    if (len >= 0) {
-      rc_ = kOk;
-      callback_(len, c);
-    } else {
-      rc_ = static_cast<RPCReturnCode>(len);
-    }
-    w_.Wake();
-  }
+  void Done(ssize_t len, rt::TcpConn *c);
 
   RPCReturnCode get_return_code() const { return rc_; }
 
 private:
   RPCReturnCode rc_;
+  RPCReturnBuffer *return_buf_;
   RPCCallback callback_;
   rt::ThreadWaker w_;
 };

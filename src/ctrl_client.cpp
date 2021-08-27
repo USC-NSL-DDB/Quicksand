@@ -12,8 +12,7 @@ extern "C" {
 namespace nu {
 
 ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode)
-    : rpc_client_(RPCClient::Dial(
-          netaddr(ctrl_server_ip, ControllerServer::kControllerServerPort))) {
+    : rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
   switch (mode) {
   case Runtime::SERVER:
     Node node;

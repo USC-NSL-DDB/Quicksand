@@ -27,7 +27,7 @@ constexpr static bool kEnableLogging = false;
 
 namespace nu {
 
-Migrator::Migrator() : rpc_client_mgr_(kMigratorServerPort) {}
+Migrator::Migrator() {}
 
 Migrator::~Migrator() {}
 
@@ -46,7 +46,7 @@ void Migrator::handle_forward(RPCReqForward &req) {
 }
 
 void Migrator::handle_migrate(const RPCReqMigrate &req) {
-  auto *client = rpc_client_mgr_.get(req.src_ip);
+  auto *client = Runtime::rpc_client_mgr->get_by_ip(req.src_ip);
 
   std::vector<thread_t *> blocked_threads;
   auto *heap = req.heap;
@@ -214,92 +214,10 @@ void Migrator::handle_unmap(const RPCReqUnmap &req) {
   }
 }
 
-void Migrator::run_loop() {
-  RPCServerInit(kMigratorServerPort,
-                [&](std::span<std::byte> args, RPCReturner returner) {
-                  return handle_req(args, &returner);
-                });
-}
-
 void Migrator::handle_fetch(const RPCReqFetch &req, RPCReturner *returner) {
   auto span =
       std::span(reinterpret_cast<const std::byte *>(req.start_addr), req.len);
   returner->Return(kOk, span, nullptr);
-}
-
-void Migrator::handle_req(std::span<std::byte> args, RPCReturner *returner) {
-  auto &rpc_type = from_span<MigratorRPC_t>(args);
-
-  switch (rpc_type) {
-  case kFetch: {
-    auto &req = from_span<RPCReqFetch>(args);
-    handle_fetch(req, returner);
-    break;
-  }
-  case kMigrate: {
-    auto &req = from_span<RPCReqMigrate>(args);
-    handle_migrate(req);
-    returner->Return(kOk);
-    break;
-  }
-  case kLoadMutexesInfo: {
-    auto &req = from_span<RPCReqLoadMutexesInfo>(args);
-    handle_load_mutexes_info(req, returner);
-    break;
-  }
-  case kLoadMutexThreadInfo: {
-    auto &req = from_span<RPCReqLoadMutexThreadInfo>(args);
-    handle_load_mutex_thread_info(req, returner);
-    break;
-  }
-  case kLoadCondvarsInfo: {
-    auto &req = from_span<RPCReqLoadCondvarsInfo>(args);
-    handle_load_condvars_info(req, returner);
-    break;
-  }
-  case kLoadCondvarThreadInfo: {
-    auto &req = from_span<RPCReqLoadCondvarThreadInfo>(args);
-    handle_load_condvar_thread_info(req, returner);
-    break;
-  }
-  case kLoadTimeInfo: {
-    auto &req = from_span<RPCReqLoadTimeInfo>(args);
-    handle_load_time_info(req, returner);
-    break;
-  }
-  case kLoadUnblockedThreads: {
-    auto &req = from_span<RPCReqLoadUnblockedThreads>(args);
-    handle_load_unblocked_threads(req, returner);
-    break;
-  }
-  case kForward: {
-    auto &req = from_span<RPCReqForward>(args);
-    handle_forward(req);
-    returner->Return(kOk);
-    break;
-  }
-  case kReserveConn: {
-    auto &req = from_span<RPCReqReserveConn>(args);
-    handle_reserve_conn(req);
-    returner->Return(kOk);
-    break;
-  }
-  case kMap: {
-    auto &req = from_span<RPCReqMap>(args);
-    auto resp = handle_map(req);
-    auto span = to_span(*resp);
-    returner->Return(kOk, span, [resp = std::move(resp)] {});
-    break;
-  }
-  case kUnmap: {
-    auto &req = from_span<RPCReqUnmap>(args);
-    handle_unmap(req);
-    returner->Return(kOk);
-    break;
-  }
-  default:
-    BUG();
-  }
 }
 
 bool Migrator::mark_migrating_threads(HeapHeader *heap_header) {
@@ -365,7 +283,7 @@ void Migrator::migrate_heaps(Resource pressure, std::vector<HeapRange> heaps) {
   auto optional_dest_addr =
       Runtime::controller_client->get_migration_dest(pressure);
   BUG_ON(!optional_dest_addr);
-  auto client = rpc_client_mgr_.get(optional_dest_addr->ip);
+  auto *client = Runtime::rpc_client_mgr->get_by_ip(optional_dest_addr->ip);
   auto *map_task_descs = pre_mmap(client, heaps);
 
   std::vector<HeapHeader *> migrated_heaps;
@@ -627,7 +545,7 @@ void Migrator::mmap_populate_heaps(HeapMmapPopulateTask *map_task_descs,
 }
 
 void Migrator::handle_reserve_conn(const RPCReqReserveConn &req) {
-  rpc_client_mgr_.get(req.dest_server_addr.ip);
+  Runtime::rpc_client_mgr->get_by_ip(req.dest_server_addr.ip);
 }
 
 ThreadInfo Migrator::acquire_thread_info(thread_t *th) {

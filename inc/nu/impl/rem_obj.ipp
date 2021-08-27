@@ -17,6 +17,7 @@ extern "C" {
 #include "nu/exception.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/obj_server.hpp"
+#include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/future.hpp"
 #include "nu/utils/netaddr.hpp"
@@ -25,9 +26,15 @@ extern "C" {
 
 namespace nu {
 
-template <typename... S1s>
-void serialize(cereal::BinaryOutputArchive *oa, S1s &&... states) {
-  ((*oa << std::forward<S1s>(states)), ...);
+template <typename... S1s> void serialize(auto *oa_sstream, S1s &&... states) {
+  auto &ss = oa_sstream->ss;
+  auto *rpc_type = const_cast<RPCReqType *>(
+      reinterpret_cast<const RPCReqType *>(ss.view().data()));
+  *rpc_type = kRemObjCall;
+  ss.seekp(sizeof(RPCReqType));
+
+  auto &oa = oa_sstream->oa;
+  ((oa << std::forward<S1s>(states)), ...);
 }
 
 template <typename T>
@@ -43,12 +50,13 @@ retry:
   auto args_span = std::span(states_data, states_size);
   {
     RuntimeHeapGuard guard;
-    auto client = Runtime::rem_obj_rpc_client_mgr->get(id);
+    auto client = Runtime::rpc_client_mgr->get_by_rem_obj_id(id);
     rc = client->Call(args_span, &return_buf);
   }
 
   if (unlikely(rc == kErrWrongClient)) {
-    Runtime::rem_obj_rpc_client_mgr->invalidate_cache(id);
+    RuntimeHeapGuard guard;
+    Runtime::rpc_client_mgr->invalidate_cache(id);
     goto retry;
   }
 
@@ -191,7 +199,7 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
     // Slow path: the heap is actually remote, use RPC.
     auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
     auto *handler = ObjServer::construct_obj<T, As...>;
-    serialize(&oa_sstream->oa, handler, to_heap_base(id), pinned,
+    serialize(oa_sstream, handler, to_heap_base(id), pinned,
               std::forward<As>(args)...);
 
     invoke_remote<void>(id, &oa_sstream->ss);
@@ -259,7 +267,7 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   // Slow path: the heap is actually remote, use RPC.
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler = ObjServer::run_closure<T, RetT, decltype(fn), S1s...>;
-  serialize(&oa_sstream->oa, handler, id_, fn, std::forward<S1s>(states)...);
+  serialize(oa_sstream, handler, id_, fn, std::forward<S1s>(states)...);
 
   if constexpr (!std::is_same<RetT, void>::value) {
     auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
@@ -327,7 +335,7 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
   // Slow path: the heap is actually remote, use RPC.
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler = ObjServer::update_ref_cnt<T>;
-  serialize(&oa_sstream->oa, handler, id_, delta);
+  serialize(oa_sstream, handler, id_, delta);
 
   return Promise<void>::create(
       [&, caller_disabled_guard = std::move(caller_disabled_guard), id = id_,

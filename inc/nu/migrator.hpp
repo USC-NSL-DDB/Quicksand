@@ -14,34 +14,21 @@ extern "C" {
 #include <net.h>
 #include <sync.h>
 
-#include "nu/rpc_client_mgr.hpp"
+#include "nu/cond_var.hpp"
+#include "nu/mutex.hpp"
+#include "nu/rpc_server.hpp"
 #include "nu/utils/netaddr.hpp"
 #include "nu/utils/slab.hpp"
 
 namespace nu {
 
-enum MigratorRPC_t {
-  kFetch,
-  kForward,
-  kReserveConn,
-  kLoadMutexesInfo,
-  kLoadMutexThreadInfo,
-  kLoadCondvarsInfo,
-  kLoadCondvarThreadInfo,
-  kLoadTimeInfo,
-  kLoadUnblockedThreads,
-  kMigrate,
-  kMap,
-  kUnmap,
-};
-
 struct RPCReqReserveConn {
-  MigratorRPC_t rpc_type = kReserveConn;
+  RPCReqType rpc_type = kReserveConn;
   netaddr dest_server_addr;
 } __attribute__((packed));
 
 struct RPCReqFetch {
-  MigratorRPC_t rpc_type = kFetch;
+  RPCReqType rpc_type = kFetch;
   uint64_t start_addr;
   uint64_t len;
 } __attribute__((packed));
@@ -58,7 +45,7 @@ struct HeapMmapPopulateTask {
 };
 
 struct RPCReqUnmap {
-  MigratorRPC_t rpc_type = kUnmap;
+  RPCReqType rpc_type = kUnmap;
   VAddrRange stack_cluster;
   uint64_t num_heaps;
   HeapMmapPopulateTask *map_task_descs;
@@ -66,7 +53,7 @@ struct RPCReqUnmap {
 } __attribute__((packed));
 
 struct RPCReqMigrate {
-  MigratorRPC_t rpc_type = kMigrate;
+  RPCReqType rpc_type = kMigrate;
   uint32_t src_ip;
   VAddrRange stack_cluster;
   HeapHeader *heap;
@@ -74,7 +61,7 @@ struct RPCReqMigrate {
 } __attribute__((packed));
 
 struct RPCReqMap {
-  MigratorRPC_t rpc_type = kMap;
+  RPCReqType rpc_type = kMap;
   uint32_t src_ip;
   VAddrRange stack_cluster;
   uint32_t num_heaps;
@@ -109,7 +96,7 @@ struct TimerEntryInfo {
 };
 
 struct RPCReqLoadMutexesInfo {
-  MigratorRPC_t rpc_type = kLoadMutexesInfo;
+  RPCReqType rpc_type = kLoadMutexesInfo;
   HeapHeader *heap_header;
 } __attribute__((packed));
 
@@ -118,7 +105,7 @@ struct RPCRespLoadMutexesInfo {
 };
 
 struct RPCReqLoadCondvarsInfo {
-  MigratorRPC_t rpc_type = kLoadCondvarsInfo;
+  RPCReqType rpc_type = kLoadCondvarsInfo;
   HeapHeader *heap_header;
 } __attribute__((packed));
 
@@ -127,7 +114,7 @@ struct RPCRespLoadCondvarsInfo {
 };
 
 struct RPCReqLoadTimeInfo {
-  MigratorRPC_t rpc_type = kLoadTimeInfo;
+  RPCReqType rpc_type = kLoadTimeInfo;
   HeapHeader *heap_header;
 } __attribute__((packed));
 
@@ -138,7 +125,7 @@ struct RPCRespLoadTimeInfo {
 };
 
 struct RPCReqLoadMutexThreadInfo {
-  MigratorRPC_t rpc_type = kLoadMutexThreadInfo;
+  RPCReqType rpc_type = kLoadMutexThreadInfo;
   Mutex *mutex;
 } __attribute__((packed));
 
@@ -147,7 +134,7 @@ struct RPCRespLoadMutexThreadInfo {
 };
 
 struct RPCReqLoadCondvarThreadInfo {
-  MigratorRPC_t rpc_type = kLoadCondvarThreadInfo;
+  RPCReqType rpc_type = kLoadCondvarThreadInfo;
   CondVar *condvar;
 } __attribute__((packed));
 
@@ -156,7 +143,7 @@ struct RPCRespLoadCondvarThreadInfo {
 };
 
 struct RPCReqLoadUnblockedThreads {
-  MigratorRPC_t rpc_type = kLoadUnblockedThreads;
+  RPCReqType rpc_type = kLoadUnblockedThreads;
   HeapHeader *heap_header;
   uint32_t num_blocked_threads;
   thread_t *threads[0];
@@ -167,7 +154,7 @@ struct RPCRespLoadUnblockedThreads {
 };
 
 struct RPCReqForward {
-  MigratorRPC_t rpc_type = kForward;
+  RPCReqType rpc_type = kForward;
   RPCReturnCode rc;
   RPCReturner returner;
   uint64_t stack_top;
@@ -182,13 +169,11 @@ public:
 
   Migrator();
   ~Migrator();
-  void run_loop();
   void migrate_heaps(Resource pressure, std::vector<HeapRange> heaps);
 
 private:
-  RPCClientMgr rpc_client_mgr_;
+  friend class RPCServer;
 
-  void handle_req(std::span<std::byte> args, RPCReturner *returner);
   void handle_fetch(const RPCReqFetch &req, RPCReturner *returner);
   void handle_reserve_conn(const RPCReqReserveConn &req);
   void handle_forward(RPCReqForward &req);

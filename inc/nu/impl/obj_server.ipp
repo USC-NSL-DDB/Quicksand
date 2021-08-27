@@ -27,6 +27,7 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   ia >> base >> pinned;
 
   Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
+  Runtime::heap_manager->insert(base);
 
   auto &slab = reinterpret_cast<HeapHeader *>(base)->slab;
   auto obj_space = slab.yield(sizeof(Cls));
@@ -42,7 +43,6 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
       args);
 
   barrier();
-  Runtime::heap_manager->insert(base);
 
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   send_rpc_resp_ok(oa_sstream, returner);
@@ -53,6 +53,7 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
   {
     RuntimeHeapGuard runtime_heap_guard;
     Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
+    Runtime::heap_manager->insert(base);
 
     auto &slab = reinterpret_cast<HeapHeader *>(base)->slab;
     auto obj_space = slab.yield(sizeof(Cls));
@@ -62,9 +63,6 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
       new (obj_space) Cls(std::forward<As>(args)...);
     }
   }
-
-  barrier();
-  Runtime::heap_manager->insert(base);
 }
 
 template <typename Cls>

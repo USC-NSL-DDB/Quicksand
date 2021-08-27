@@ -24,9 +24,11 @@ class ObjServer;
 class HeapManager;
 class StackManager;
 class ControllerClient;
-class RemObjRPCClientMgr;
+class ControllerServer;
+class RPCClientMgr;
 class Migrator;
 class Monitor;
+class RPCServer;
 template <typename T> class RuntimeAllocator;
 template <typename T> class RuntimeDeleter;
 
@@ -46,23 +48,28 @@ private:
   static RCULock rcu_lock;
   static std::unique_ptr<ObjServer> obj_server;
   static std::unique_ptr<ControllerClient> controller_client;
+  static std::unique_ptr<ControllerServer> controller_server;
   static std::unique_ptr<HeapManager> heap_manager;
   static std::unique_ptr<StackManager> stack_manager;
-  static std::unique_ptr<RemObjRPCClientMgr> rem_obj_rpc_client_mgr;
+  static std::unique_ptr<RPCClientMgr> rpc_client_mgr;
   static std::unique_ptr<Migrator> migrator;
   static std::unique_ptr<Monitor> monitor;
   static std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> archive_pool;
+  static std::unique_ptr<RPCServer> rpc_server;
 
   friend class Test;
   friend class ObjServer;
-  friend class RemObjRPCClientMgr;
+  friend class RPCClientMgr;
   friend class Monitor;
   friend class Migrator;
   friend class Mutex;
   friend class CondVar;
   friend class Time;
-  friend class DistributedMemPool;
   friend class HeapManager;
+  friend class RPCServer;
+  friend class Controller;
+  friend class ControllerClient;
+  friend class DistributedMemPool;
   friend class RuntimeHeapGuard;
   friend class ObjHeapGuard;
   friend class MigrationEnabledGuard;
@@ -74,6 +81,7 @@ private:
   template <typename T> friend class RemSharedPtr;
 
   Runtime(uint32_t remote_ctrl_ip, Mode mode);
+  static void common_init();
   static void init_runtime_heap();
   static void init_as_controller();
   static void init_as_server(uint32_t remote_ctrl_ip);

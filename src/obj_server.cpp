@@ -22,25 +22,16 @@ constexpr static uint32_t kPrintLoggingIntervalUs = 200 * 1000;
 
 namespace nu {
 
-std::unique_ptr<RPCClientMgr> ObjServer::rpc_client_mgr_; // TODO: merge
-
 ObjServer::ObjServer() {
   if constexpr (kEnableLogging) {
     trace_logger_.enable_print(kPrintLoggingIntervalUs);
   }
-  rpc_client_mgr_.reset(new RPCClientMgr(Migrator::kMigratorServerPort));
 }
 
 ObjServer::~ObjServer() {}
 
-void ObjServer::run_loop() {
-  RPCServerInit(kObjServerPort,
-                [&](std::span<std::byte> args, RPCReturner returner) {
-                  return handle_req(args, &returner);
-                });
-}
-
-void ObjServer::handle_req(std::span<std::byte> args, RPCReturner *returner) {
+void ObjServer::parse_and_run_handler(std::span<std::byte> args,
+                                      RPCReturner *returner) {
   // TODO: gc them when the thread gets migrated.
   auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
   auto &[args_ss, ia] = *ia_sstream;
@@ -74,7 +65,8 @@ void ObjServer::forward(RPCReturnCode rc, RPCReturner *returner,
   auto req_span = std::span(req_buf.get(), req_buf_len);
   {
     RuntimeHeapGuard guard;
-    auto *client = rpc_client_mgr_->get(heap_header->old_server_ip);
+    auto *client =
+        Runtime::rpc_client_mgr->get_by_ip(heap_header->old_server_ip);
     BUG_ON(client->Call(req_span, &return_buf) != kOk);
   }
   heap_header->forward_wg.Done();

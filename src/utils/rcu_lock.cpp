@@ -15,6 +15,7 @@ RCULock::RCULock() : sync_barrier_(false) {
   memset(aligned_cnts_, 0, sizeof(aligned_cnts_));
 }
 
+// TODO: fix the potential live lock in which the writer core was ceded.
 inline void RCULock::detect_sync_barrier() {
   while (unlikely(ACCESS_ONCE(sync_barrier_))) {
     rt::Yield();

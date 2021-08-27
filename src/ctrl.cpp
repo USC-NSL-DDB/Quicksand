@@ -15,7 +15,7 @@ extern "C" {
 
 namespace nu {
 
-Controller::Controller() : rpc_client_mgr_(Migrator::kMigratorServerPort) {
+Controller::Controller() {
   for (uint64_t vaddr = kMinHeapVAddr; vaddr + kHeapSize <= kMaxHeapVAddr;
        vaddr += kHeapSize) {
     VAddrRange range = {.start = vaddr, .end = vaddr + kHeapSize};
@@ -44,14 +44,14 @@ VAddrRange Controller::register_node(Node &node) {
   free_stack_cluster_ranges_.pop();
 
   for (auto old_node : nodes_) {
-    auto *client = rpc_client_mgr_.get(old_node.migrator_addr.ip);
+    auto *client = Runtime::rpc_client_mgr->get_by_ip(old_node.migrator_addr.ip);
     RPCReqReserveConn req;
     RPCReturnBuffer return_buf;
     req.dest_server_addr = node.migrator_addr;
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  auto *client = rpc_client_mgr_.get(node.migrator_addr.ip);
+  auto *client = Runtime::rpc_client_mgr->get_by_ip(node.migrator_addr.ip);
   for (auto old_node : nodes_) {
     RPCReqReserveConn req;
     RPCReturnBuffer return_buf;

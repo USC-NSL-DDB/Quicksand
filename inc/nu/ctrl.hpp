@@ -22,6 +22,7 @@ extern "C" {
 
 namespace nu {
 
+// TODO: cleanup.
 struct Node {
   // TODO: add other informations, e.g., free mem size.
   netaddr obj_srv_addr;
@@ -48,7 +49,6 @@ private:
   std::unordered_map<RemObjID, std::pair<VAddrRange, netaddr>> objs_map_;
   std::set<Node> nodes_;
   std::set<Node>::iterator nodes_iter_;
-  RPCClientMgr rpc_client_mgr_;
   rt::Mutex mutex_;
 
   std::optional<Node> select_node_for_obj(netaddr hint);

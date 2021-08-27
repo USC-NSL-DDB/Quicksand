@@ -9,9 +9,6 @@ namespace nu {
 
 inline HeapHeader::~HeapHeader() {}
 
-inline HeapManager::HeapManager()
-    : active_heaps_(new decltype(active_heaps_)::element_type()) {}
-
 inline void HeapManager::allocate(void *heap_base, bool migratable) {
   mmap(heap_base);
   setup(heap_base, migratable, /* from_migration = */ false);
@@ -23,22 +20,16 @@ inline void HeapManager::mmap(void *heap_base) {
   BUG_ON(mmap_addr != heap_base);
 }
 
-inline void HeapManager::deallocate(void *heap_base) {
-  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-  heap_header->~HeapHeader();
-  BUG_ON(munmap(heap_base, kHeapSize) == -1);
-}
-
 inline void HeapManager::insert(void *heap_base) {
-  active_heaps_->put(reinterpret_cast<HeapHeader *>(heap_base), false);
-}
-
-inline bool HeapManager::contains(void *heap_base) {
-  return active_heaps_->get(reinterpret_cast<HeapHeader *>(heap_base));
+  rt::MutexGuard guard(&mutex_);
+  reinterpret_cast<HeapHeader *>(heap_base)->present = true;
+  BUG_ON(!present_heaps_.emplace(heap_base).second);
 }
 
 inline bool HeapManager::remove(void *heap_base) {
-  return active_heaps_->remove(reinterpret_cast<HeapHeader *>(heap_base));
+  rt::MutexGuard guard(&mutex_);
+  reinterpret_cast<HeapHeader *>(heap_base)->present = false;
+  return present_heaps_.erase(heap_base);
 }
 
 inline void HeapManager::migration_enable_final(HeapHeader *heap_header) {
@@ -47,7 +38,27 @@ inline void HeapManager::migration_enable_final(HeapHeader *heap_header) {
 
 inline void HeapManager::migration_enable(HeapHeader *heap_header) {
   heap_header->threads->put(thread_self());
-  heap_header->rcu_lock.reader_unlock();
+  if (heap_header->migratable) {
+    heap_header->rcu_lock.reader_unlock();
+  }
+}
+
+inline bool HeapManager::migration_disable_initial(HeapHeader *heap_header) {
+  heap_header->rcu_lock.reader_lock();
+  if (unlikely(!rt::access_once(heap_header->present))) {
+    heap_header->rcu_lock.reader_unlock();
+    return false;
+  }
+  return true;
+}
+
+inline void HeapManager::migration_disable(HeapHeader *heap_header) {
+  if (unlikely(!migration_disable_initial(heap_header))) {
+    while (!thread_is_migrated()) {
+      rt::Yield();
+    }
+  }
+  heap_header->threads->remove(thread_self());
 }
 
 inline MigrationEnabledGuard::MigrationEnabledGuard()

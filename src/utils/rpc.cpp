@@ -73,6 +73,28 @@ void RPCServerListener(uint16_t port, RPCHandler &handler) {
 
 namespace rpc_internal {
 
+void RPCCompletion::Done(ssize_t len, rt::TcpConn *c) {
+  if (unlikely(len < 0)) {
+    rc_ = static_cast<RPCReturnCode>(len);
+  } else {
+    rc_ = kOk;
+
+    if (callback_) {
+      callback_(len, c);
+    } else if (len) {
+      auto buf = std::make_unique_for_overwrite<std::byte[]>(len);
+      auto ret = c->ReadFull(buf.get(), len);
+      if (unlikely(ret <= 0)) {
+        log_err("rpc: ReadFull failed, err = %ld", ret);
+      }
+      auto span = std::span<const std::byte>(buf.get(), len);
+      return_buf_->Reset(span, [buf = std::move(buf)] {});
+    }
+  }
+
+  w_.Wake();
+}
+
 void RPCServer::Run() {
   rt::Thread th([this] { SendWorker(); });
   ReceiveWorker();
@@ -221,7 +243,8 @@ void RPCFlow::SendWorker() {
     }
 
     // Check if it is time to close the connection.
-    if (unlikely(close)) break;
+    if (unlikely(close))
+      break;
 
     // construct a scatter-gather list for all the pending requests.
     iovecs.clear();
@@ -233,7 +256,8 @@ void RPCFlow::SendWorker() {
           MakeCallRequest(demand, span.size_bytes(),
                           reinterpret_cast<std::size_t>(r.completion)));
       iovecs.emplace_back(&hdrs.back(), sizeof(decltype(hdrs)::value_type));
-      if (span.size_bytes() == 0) continue;
+      if (span.size_bytes() == 0)
+        continue;
       iovecs.emplace_back(const_cast<std::byte *>(span.data()),
                           span.size_bytes());
     }
@@ -248,7 +272,8 @@ void RPCFlow::SendWorker() {
   }
 
   // send FIN on the wire.
-  if (WARN_ON(c_->Shutdown(SHUT_WR))) c_->Abort();
+  if (WARN_ON(c_->Shutdown(SHUT_WR)))
+    c_->Abort();
 }
 
 void RPCFlow::ReceiveWorker() {
@@ -266,10 +291,12 @@ void RPCFlow::ReceiveWorker() {
       rt::SpinGuard guard(&lock_);
       unsigned int inflight = sent_count_ - ++recv_count_;
       // credits_ = hdr.credits;
-      if (credits_ > inflight && !reqs_.empty()) wake_sender_.Wake();
+      if (credits_ > inflight && !reqs_.empty())
+        wake_sender_.Wake();
     }
 
-    if (hdr.cmd != rpc_cmd::call) continue;
+    if (hdr.cmd != rpc_cmd::call)
+      continue;
 
     // Check if there is no return data.
     auto *completion = reinterpret_cast<RPCCompletion *>(hdr.completion_data);
@@ -288,7 +315,7 @@ std::unique_ptr<RPCFlow> RPCFlow::New(unsigned int cpu_affinity,
   return f;
 }
 
-}  // namespace rpc_internal
+} // namespace rpc_internal
 
 void RPCServerInit(uint16_t port, RPCHandler &handler) {
   RPCServerListener(port, handler);
@@ -306,20 +333,4 @@ std::unique_ptr<RPCClient> RPCClient::Dial(netaddr raddr) {
   return std::unique_ptr<RPCClient>(new RPCClient(std::move(v)));
 }
 
-RPCReturnCode RPCClient::Call(std::span<const std::byte> args,
-                              RPCReturnBuffer *return_buf) {
-  return Call(args, [return_buf](ssize_t len, rt::TcpConn *c) {
-    if (len) {
-      auto buf = std::make_unique_for_overwrite<std::byte[]>(len);
-      auto ret = c->ReadFull(buf.get(), len);
-      if (unlikely(ret <= 0)) {
-        log_err("rpc: ReadFull failed, err = %ld", ret);
-      }
-      auto span = std::span<const std::byte>(buf.get(), len);
-      return_buf->Reset(span, [buf = std::move(buf)] {});
-    }
-  });
-}
-
 }  // namespace nu
-

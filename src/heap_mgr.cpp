@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <functional>
+#include <memory>
 
 extern "C" {
 #include <base/assert.h>
@@ -15,23 +16,51 @@ extern "C" {
 
 namespace nu {
 
+HeapManager::HeapManager() {
+  for (uint64_t vaddr = kMinHeapVAddr; vaddr + kHeapSize <= kMaxHeapVAddr;
+       vaddr += kHeapSize) {
+    auto *heap_base = reinterpret_cast<HeapHeader *>(vaddr);
+    auto mmap_addr =
+        ::mmap(heap_base, kPageSize, PROT_READ | PROT_WRITE,
+               MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_POPULATE, -1, 0);
+    auto *heap_header = reinterpret_cast<HeapHeader *>(mmap_addr);
+    heap_header->present = false;
+    std::construct_at(&heap_header->rcu_lock);
+  }
+}
+
 void HeapManager::mmap_populate(void *heap_base, uint64_t populate_len) {
+  auto *mmap_base = reinterpret_cast<uint8_t *>(heap_base) + kPageSize;
+  auto total_mmap_size = kHeapSize - kPageSize;
+  populate_len -= kPageSize;
   populate_len = ((populate_len - 1) / kPageSize + 1) * kPageSize;
-  BUG_ON(populate_len > kHeapSize);
   auto mmap_addr =
-      ::mmap(heap_base, populate_len, PROT_READ | PROT_WRITE,
+      ::mmap(mmap_base, populate_len, PROT_READ | PROT_WRITE,
              MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_POPULATE, -1, 0);
-  BUG_ON(mmap_addr != heap_base);
-  auto *unpopulated_base =
-      reinterpret_cast<uint8_t *>(heap_base) + populate_len;
-  mmap_addr =
-      ::mmap(unpopulated_base, kHeapSize - populate_len, PROT_READ | PROT_WRITE,
-             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+  BUG_ON(mmap_addr != mmap_base);
+  auto *unpopulated_base = mmap_base + populate_len;
+  mmap_addr = ::mmap(unpopulated_base, total_mmap_size - populate_len,
+                     PROT_READ | PROT_WRITE,
+                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
   BUG_ON(mmap_addr != unpopulated_base);
 }
 
+void HeapManager::deallocate(void *heap_base) {
+  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  auto *munmap_base = reinterpret_cast<uint8_t *>(heap_base) + kPageSize;
+  auto total_munmap_size = kHeapSize - kPageSize;
+  heap_header->threads.reset();
+  heap_header->mutexes.reset();
+  heap_header->condvars.reset();
+  heap_header->time.reset();
+  std::destroy_at(&heap_header->forward_wg);
+  std::destroy_at(&heap_header->spin);
+  std::destroy_at(&heap_header->slab);
+  BUG_ON(munmap(munmap_base, total_munmap_size) == -1);
+}
+
 void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
-  auto heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
 
   heap_header->threads.release();
   heap_header->threads.reset(
@@ -50,10 +79,10 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
 
   heap_header->migratable = migratable;
 
-  new (&heap_header->forward_wg) rt::WaitGroup();
+  std::construct_at(&heap_header->forward_wg);
 
   if (!from_migration) {
-    new (&heap_header->spin) rt::Spin();
+    std::construct_at(&heap_header->spin);
     heap_header->ref_cnt = 1;
     auto heap_region_size = kHeapSize - sizeof(HeapHeader);
     heap_header->slab.init(to_u16(heap_header), heap_header + 1,
@@ -63,48 +92,43 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
 
 std::vector<HeapRange> HeapManager::pick_heaps(const Resource &pressure) {
   std::vector<HeapRange> heaps;
-  std::function fn = [&, pressure = pressure](
-                         const std::pair<HeapHeader *const, bool> &p) mutable {
-    auto *heap_header = p.first;
+  uint32_t picked_heaps_mem_mbs = 0;
+  rt::MutexGuard guard(&mutex_);
+
+  for (auto *heap_base : present_heaps_) {
+    auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
     if (heap_header->migratable) {
       auto &slab = heap_header->slab;
       uint64_t len = reinterpret_cast<uint64_t>(slab.get_base()) +
                      slab.get_usage() - reinterpret_cast<uint64_t>(heap_header);
+
       HeapRange range{heap_header, len};
       heaps.push_back(range);
-      auto len_in_mbs = len >> 20;
-      // TODO: also consider CPU pressure.
-      if (pressure.mem_mbs <= len_in_mbs) {
-        return false;
-      }
-      pressure.mem_mbs -= len_in_mbs;
-    }
-    return true;
-  };
 
-  active_heaps_->for_each(fn);
+      picked_heaps_mem_mbs += len / kOneMB;
+      // TODO: also consider CPU pressure.
+      if (picked_heaps_mem_mbs >= pressure.mem_mbs) {
+        break;
+      }
+    }
+  }
+
   return heaps;
 }
 
-bool HeapManager::migration_disable_initial(HeapHeader *heap_header) {
-  std::function fn = [](std::pair<HeapHeader *const, bool> *p) {
-    if (!p) {
-      return false;
-    }
-    p->first->rcu_lock.reader_lock();
-    return true;
-  };
-  return active_heaps_->apply(heap_header, fn);
-}
+uint64_t HeapManager::get_mem_usage() {
+  uint64_t total_mem_usage = 0;
+  rt::MutexGuard guard(&mutex_);
 
-void HeapManager::migration_disable(HeapHeader *heap_header) {
-  auto migrating = !migration_disable_initial(heap_header);
-  if (unlikely(migrating)) {
-    while (!thread_is_migrated()) {
-      rt::Yield();
-    }
+  for (auto *heap_base : present_heaps_) {
+    auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+    auto &heap_slab = heap_header->slab;
+    total_mem_usage += reinterpret_cast<uint8_t *>(heap_slab.get_base()) -
+                       reinterpret_cast<uint8_t *>(heap_header) +
+                       heap_slab.get_usage();
   }
-  heap_header->threads->remove(thread_self());
+
+  return total_mem_usage;
 }
 
 } // namespace nu

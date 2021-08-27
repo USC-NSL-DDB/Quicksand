@@ -11,8 +11,10 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/ctrl_server.hpp"
+#include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"
+#include "nu/utils/rpc.hpp"
 
 namespace nu {
 
@@ -31,7 +33,7 @@ public:
   VAddrRange get_stack_cluster() const;
 
 private:
-  std::unique_ptr<RPCClient> rpc_client_;
   VAddrRange stack_cluster_;
+  RPCClient *rpc_client_;
 };
 } // namespace nu
