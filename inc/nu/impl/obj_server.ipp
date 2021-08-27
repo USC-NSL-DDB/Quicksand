@@ -75,9 +75,10 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
   heap_header->spin.Unlock();
 
   if (latest_cnt == 0) {
-    if (likely(Runtime::heap_manager->remove(heap_header))) {
+    if (likely(Runtime::heap_manager->remove_with_present(heap_header))) {
       *deallocate = true;
       obj.~Cls();
+      Runtime::heap_manager->mark_absent(heap_header);
     } else {
       {
         MigrationEnabledGuard guard;

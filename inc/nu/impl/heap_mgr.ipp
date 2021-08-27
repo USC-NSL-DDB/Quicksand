@@ -26,10 +26,19 @@ inline void HeapManager::insert(void *heap_base) {
   BUG_ON(!present_heaps_.emplace(heap_base).second);
 }
 
+inline bool HeapManager::remove_with_present(void *heap_base) {
+  rt::MutexGuard guard(&mutex_);
+  return present_heaps_.erase(heap_base);
+}
+
 inline bool HeapManager::remove(void *heap_base) {
   rt::MutexGuard guard(&mutex_);
   reinterpret_cast<HeapHeader *>(heap_base)->present = false;
   return present_heaps_.erase(heap_base);
+}
+
+inline void HeapManager::mark_absent(void *heap_base) {
+  reinterpret_cast<HeapHeader *>(heap_base)->present = false;
 }
 
 inline void HeapManager::migration_enable_final(HeapHeader *heap_header) {

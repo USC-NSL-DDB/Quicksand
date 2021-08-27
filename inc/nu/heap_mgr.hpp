@@ -76,6 +76,8 @@ public:
   static void deallocate(void *heap_base);
   void insert(void *heap_base);
   bool remove(void *heap_base);
+  bool remove_with_present(void *heap_base);
+  void mark_absent(void *heap_base);
   std::vector<HeapRange> pick_heaps(const Resource &pressure);
   uint64_t get_mem_usage();
 
