@@ -124,6 +124,8 @@ public:
   // This version assumes that the split function is provided.
   int run(std::vector<keyval> &result, uint64_t chunk_size = kDefaultChunkSize);
 
+  void send_data(data_type *data, uint64_t len);
+
   virtual void run_map(data_type *data, uint64_t len, uint64_t chunk_size);
 
   virtual void run_reduce();
@@ -139,8 +141,10 @@ private:
   std::unique_ptr<HashTable> hash_table;
   std::vector<nu::RemObj<MapReduce>> workers;
   std::unique_ptr<map_container> map_container_ptr;
+  std::vector<data_type> all_data;
 
-  void map_chunk(std::vector<data_type> chunk);
+  void pass_data(std::vector<data_type> all_data);
+  void map_chunk(uint64_t chunk_idx_begin, uint64_t chunk_idx_end);
   void shuffle();
 };
 
@@ -168,9 +172,35 @@ int MapReduce<Impl, D, K, V, Combiner, Hash>::run(std::vector<keyval> &result,
 template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
           class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::pass_data(
+    std::vector<data_type> all_data) {
+  this->all_data = std::move(all_data);
+}
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::send_data(data_type *data,
+                                                         uint64_t len) {
+  std::vector<data_type> all_data;
+  all_data.reserve(len);
+
+  for (uint64_t i = 0; i < len; i++) {
+    all_data.push_back(data[i]);
+  }
+
+  for (auto &worker : workers) {
+    worker.run(&MapReduce::pass_data, all_data);
+  }
+}
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
 int MapReduce<Impl, D, K, V, Combiner, Hash>::run(D *data, uint64_t count,
                                                   std::vector<keyval> &result,
                                                   uint64_t chunk_size) {
+  send_data(data, count);
   run_map(data, count, chunk_size);
   run_reduce();
   run_merge();
@@ -190,22 +220,20 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::run_map(data_type *data,
   std::vector<nu::Future<void>> futures;
   futures.resize(workers.size());
 
-  std::vector<data_type> chunk;
   uint32_t dispatch_id = 0;
   for (uint64_t start_id = 0; start_id < count; start_id += chunk_size) {
-    auto real_size = std::min(chunk_size, count - start_id);
-    for (uint64_t id = start_id; id < start_id + real_size; id++) {
-      chunk.push_back(*(data + id));
-    }
+    auto chunk_idx_begin = start_id;
+    auto chunk_idx_end = std::min(chunk_size + start_id, count);
+
     while (futures[dispatch_id] && !futures[dispatch_id].is_ready()) {
       dispatch_id++;
       if (unlikely(dispatch_id == workers.size())) {
         dispatch_id = 0;
       }
     }
-    futures[dispatch_id] =
-        workers[dispatch_id].run_async(&MapReduce::map_chunk, chunk);
-    chunk.clear();
+
+    futures[dispatch_id] = workers[dispatch_id].run_async(
+        &MapReduce::map_chunk, chunk_idx_begin, chunk_idx_end);
   }
 }
 
@@ -230,9 +258,9 @@ template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
           class Hash>
 void MapReduce<Impl, D, K, V, Combiner, Hash>::map_chunk(
-    std::vector<data_type> chunk) {
-  for (auto &data : chunk) {
-    static_cast<Impl const *>(this)->map(data, *map_container_ptr);
+    uint64_t chunk_idx_begin, uint64_t chunk_idx_end) {
+  for (uint64_t i = chunk_idx_begin; i < chunk_idx_end; i++) {
+    static_cast<Impl const *>(this)->map(all_data[i], *map_container_ptr);
   }
 }
 
