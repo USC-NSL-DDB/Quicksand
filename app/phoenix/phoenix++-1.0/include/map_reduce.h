@@ -34,10 +34,12 @@ extern "C" {
 #include <algorithm>
 #include <cereal/types/vector.hpp>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <memory>
 #include <nu/dis_hash_table.hpp>
 #include <queue>
+#include <span>
 #include <sync.h>
 #include <thread.h>
 #include <unordered_map>
@@ -124,8 +126,6 @@ public:
   // This version assumes that the split function is provided.
   int run(std::vector<keyval> &result, uint64_t chunk_size = kDefaultChunkSize);
 
-  void send_data(data_type *data, uint64_t len);
-
   virtual void run_map(data_type *data, uint64_t len, uint64_t chunk_size);
 
   virtual void run_reduce();
@@ -137,16 +137,44 @@ public:
     i[k].add(v);
   }
 
+  void set_read_only_shared_states(std::span<const std::byte> states);
+  std::span<const std::byte> get_read_only_shared_states() const;
+
 private:
   std::unique_ptr<HashTable> hash_table;
   std::vector<nu::RemObj<MapReduce>> workers;
   std::unique_ptr<map_container> map_container_ptr;
   std::vector<data_type> all_data;
+  std::vector<std::byte> read_only_shared_states_data;
+  std::span<const std::byte> read_only_shared_states_span;
 
-  void pass_data(std::vector<data_type> all_data);
+  void send_data(data_type *data, uint64_t len);
+  void receive_data(std::vector<data_type> all_data);
+  void receive_read_only_shared_states(std::vector<std::byte> states);
   void map_chunk(uint64_t chunk_idx_begin, uint64_t chunk_idx_end);
   void shuffle();
 };
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::set_read_only_shared_states(
+    std::span<const std::byte> states) {
+  std::vector<std::byte> vec(states.data(), states.data() + states.size());
+  std::vector<nu::Future<void>> futures;
+  for (auto &worker : workers) {
+    futures.emplace_back(
+        worker.run_async(&MapReduce::receive_read_only_shared_states, vec));
+  }
+}
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+std::span<const std::byte>
+MapReduce<Impl, D, K, V, Combiner, Hash>::get_read_only_shared_states() const {
+  return read_only_shared_states_span;
+}
 
 template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
@@ -172,9 +200,19 @@ int MapReduce<Impl, D, K, V, Combiner, Hash>::run(std::vector<keyval> &result,
 template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
           class Hash>
-void MapReduce<Impl, D, K, V, Combiner, Hash>::pass_data(
+void MapReduce<Impl, D, K, V, Combiner, Hash>::receive_data(
     std::vector<data_type> all_data) {
   this->all_data = std::move(all_data);
+}
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::receive_read_only_shared_states(
+    std::vector<std::byte> states) {
+  read_only_shared_states_data = states;
+  read_only_shared_states_span = {read_only_shared_states_data.data(),
+                                  read_only_shared_states_data.size()};
 }
 
 template <typename Impl, typename D, typename K, typename V,
@@ -189,8 +227,9 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::send_data(data_type *data,
     all_data.push_back(data[i]);
   }
 
+  std::vector<nu::Future<void>> futures;
   for (auto &worker : workers) {
-    worker.run(&MapReduce::pass_data, all_data);
+    futures.emplace_back(worker.run_async(&MapReduce::receive_data, all_data));
   }
 }
 
@@ -247,7 +286,7 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::shuffle() {
         k,
         +[](std::pair<const K, typename Combiner<V, std::allocator>::combined>
                 &p,
-            const Combiner<V, std::allocator> &&combiner) {
+            Combiner<V, std::allocator> &&combiner) {
           combiner.combineinto(p.second);
         },
         std::move(combiner)));

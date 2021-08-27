@@ -43,6 +43,12 @@ class buffer_combiner {
   std::unique_ptr<std::vector<V, Allocator<V>>> data;
 
 public:
+  buffer_combiner(buffer_combiner &&o) : data(std::move(o.data)) {}
+  buffer_combiner &operator=(buffer_combiner &&o) {
+    data = std::move(o.data);
+    return *this;
+  }
+
   buffer_combiner() : data(new std::vector<V, Allocator<V>>) {}
   template <class Archive> void serialize(Archive &ar) { ar(data); }
 
@@ -51,32 +57,33 @@ public:
   bool empty() const { return data->size() == 0; }
 
   class combined {
-    std::vector<std::vector<V, Allocator<V>> *,
-                Allocator<std::vector<V, Allocator<V>> *>>
+    std::vector<std::vector<V, Allocator<V>>,
+                Allocator<std::vector<V, Allocator<V>>>>
         items;
     mutable unsigned int current_list, current_index;
 
   public:
     combined() : current_list(0), current_index(0) {}
 
-    void add(buffer_combiner<V, Allocator> const *c) {
-      items.push_back(c->data);
+    void add(std::unique_ptr<std::vector<V, Allocator<V>>> &data) {
+      items.emplace_back(std::move(*data));
+      data.release();
     }
 
     bool next(V &v) const {
       if (current_list < items.size() &&
-          current_index >= items[current_list]->size()) {
+          current_index >= items[current_list].size()) {
         current_index = 0;
         current_list++;
 
         if ((current_list + 1) < items.size() &&
-            items[current_list + 1]->size() > 0)
+            items[current_list + 1].size() > 0)
           __builtin_prefetch(&items[current_list + 1][0], 0, 1);
       }
 
       if (current_list < items.size() &&
-          current_index < items[current_list]->size()) {
-        v = (*items[current_list])[current_index++];
+          current_index < items[current_list].size()) {
+        v = items[current_list][current_index++];
         return true;
       }
 
@@ -97,7 +104,7 @@ public:
     }
   };
 
-  void combineinto(combined &m) const { m.add(*this); }
+  void combineinto(combined &m) { m.add(data); }
 };
 
 #ifndef MUST_REDUCE

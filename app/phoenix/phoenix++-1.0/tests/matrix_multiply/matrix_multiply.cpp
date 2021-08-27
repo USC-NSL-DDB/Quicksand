@@ -24,6 +24,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cereal/archives/binary.hpp>
 #include <fcntl.h>
 #include <nu/runtime.hpp>
 #include <sys/mman.h>
@@ -31,43 +32,48 @@
 
 #include "map_reduce.h"
 
+using Row = std::vector<int>;
+
 struct mm_data_t {
-  int row_num;
-  int rows;
-  int *matrix_A;
-  int *matrix_B;
-  int matrix_len;
-  int *output;
+  uint64_t row_id;
+  Row matrix_A_row;
+
+  template <class Archive> void serialize(Archive &ar) {
+    ar(row_id, matrix_A_row);
+  }
 };
 
-class MatrixMulMR : public MapReduce<MatrixMulMR, mm_data_t, int, int> {
+class MatrixMulMR : public MapReduce<MatrixMulMR, mm_data_t, uint64_t, Row> {
   int *matrix_A, *matrix_B;
   int matrix_size;
   int row;
-  int *output;
 
 public:
-  explicit MatrixMulMR(int *_mA, int *_mB, int size, int *out)
-      : matrix_A(_mA), matrix_B(_mB), matrix_size(size), row(0), output(out) {}
-
-  void *locate(mm_data_t *d, uint64_t len) const {
-    return d->matrix_A + d->row_num * d->matrix_len;
+  explicit MatrixMulMR(int *_mA, int *_mB, int size)
+      : matrix_A(_mA), matrix_B(_mB), matrix_size(size), row(0) {
+    set_read_only_shared_states({reinterpret_cast<const std::byte *>(matrix_B),
+                                 sizeof(int) * matrix_size * matrix_size});
   }
 
   /** matrixmul_map()
    * Multiplies the allocated regions of matrix to compute partial sums
    */
   void map(mm_data_t const &data, map_container &out) const {
-    int *a_ptr = data.matrix_A + data.row_num * data.matrix_len + 0;
-    int *b_ptr = data.matrix_B + 0;
+    const int *a_ptr = data.matrix_A_row.data();
+    auto matrix_len = data.matrix_A_row.size();
 
-    int *output = data.output + data.row_num * data.matrix_len;
-    for (int i = 0; i < data.matrix_len; i++) {
-      for (int j = 0; j < data.matrix_len; j++) {
+    auto read_only_shared_states = get_read_only_shared_states();
+    const int *b_ptr =
+        reinterpret_cast<const int *>(read_only_shared_states.data());
+
+    std::vector<int> output(matrix_len);
+    for (size_t i = 0; i < matrix_len; i++) {
+      for (size_t j = 0; j < matrix_len; j++) {
         output[j] += a_ptr[i] * b_ptr[j];
       }
-      b_ptr += data.matrix_len;
+      b_ptr += matrix_len;
     }
+    emit_intermediate(out, data.row_id, output);
   }
 
   /** matrixmul_split()
@@ -80,12 +86,13 @@ public:
       return 0;
     }
 
-    out.matrix_A = matrix_A;
-    out.matrix_B = matrix_B;
-    out.matrix_len = matrix_size;
-    out.output = output;
-    out.rows = 1;
-    out.row_num = row++;
+    out.row_id = row;
+    out.matrix_A_row.clear();
+    out.matrix_A_row.reserve(matrix_size);
+    out.matrix_A_row.insert(out.matrix_A_row.end(),
+                            matrix_A + row * matrix_size,
+                            matrix_A + (row + 1) * matrix_size);
+    row++;
 
     /* Return true since the out data is valid. */
     return 1;
@@ -109,7 +116,7 @@ void real_main(int argc, char *argv[]) {
   srand((unsigned)time(NULL));
 
   // Make sure a filename is specified
-  if (argv[1] == NULL) {
+  if (argc < 2) {
     dprintf("USAGE: %s [side of matrix] [size of Row block]\n", argv[0]);
     exit(1);
   }
@@ -121,12 +128,12 @@ void real_main(int argc, char *argv[]) {
 
   fprintf(stderr, "***** file size is %d\n", file_size);
 
-  if (argv[2] == NULL)
+  if (argc < 3)
     row_block_len = 1;
   else
     CHECK_ERROR((row_block_len = atoi(argv[2])) < 0);
 
-  if (argv[3] != NULL)
+  if (argc >= 4)
     create_files = 1;
   else
     create_files = 0;
@@ -216,8 +223,6 @@ void real_main(int argc, char *argv[]) {
   CHECK_ERROR(ret != file_size);
 #endif
 
-  int *output = (int *)calloc(matrix_len * matrix_len, sizeof(int));
-
   fprintf(stderr, "***** data size is %ld\n", (intptr_t)file_size);
   printf("MatrixMult: Calling MapReduce Scheduler Matrix Multiplication\n");
 
@@ -226,21 +231,21 @@ void real_main(int argc, char *argv[]) {
 
   get_time(begin);
   std::vector<MatrixMulMR::keyval> result;
-  MatrixMulMR mapReduce(fdata_A, fdata_B, matrix_len, output);
+  MatrixMulMR mapReduce(fdata_A, fdata_B, matrix_len);
   mapReduce.run(result);
   get_time(end);
   print_time("library", begin, end);
 
   get_time(begin);
   int sum = 0;
-  for (i = 0; i < matrix_len * matrix_len; i++) {
-    sum += output[i];
+  for (auto [_, row] : result) {
+    for (auto num : row) {
+      sum += num;
+    }
   }
   printf("MatrixMult: total sum is %d\n", sum);
 
   printf("MatrixMult: MapReduce Completed\n");
-
-  free(output);
 
 #ifndef NO_MMAP
   CHECK_ERROR(munmap(fdata_A, file_size + 1) < 0);
