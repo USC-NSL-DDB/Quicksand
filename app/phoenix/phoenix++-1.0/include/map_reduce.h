@@ -69,8 +69,8 @@ public:
     template <class Archive> void serialize(Archive &ar) { ar(key, val); }
   };
 
-  constexpr static uint32_t kDefaultNumWorkersShift = 7;
-  constexpr static uint32_t kDefaultChunkSize = 64;
+  constexpr static uint32_t kDefaultNumWorkers = 46;
+  constexpr static uint32_t kDefaultChunkSize = 1;
   constexpr static uint32_t kDefaultNumBucketsPerHashTableShard = 64;
 
   using HashTable = nu::DistributedHashTable<
@@ -97,9 +97,8 @@ protected:
   }
 
 public:
-  MapReduce(uint64_t num_workers_shift = kDefaultNumWorkersShift)
-      : hash_table(new HashTable(num_workers_shift)) {
-    auto num_workers = 1ULL << num_workers_shift;
+  MapReduce(uint64_t num_workers = kDefaultNumWorkers)
+    : hash_table(new HashTable(nu::bsr_64(num_workers - 1) + 1)) {
     for (uint64_t i = 0; i < num_workers; i++) {
       workers.emplace_back(
           nu::RemObj<MapReduce>::create(hash_table->get_cap()));
@@ -244,6 +243,7 @@ int MapReduce<Impl, D, K, V, Combiner, Hash>::run(D *data, uint64_t count,
   run_reduce();
   run_merge();
   result.swap(this->final_vals[0]);
+
   return 0;
 }
 

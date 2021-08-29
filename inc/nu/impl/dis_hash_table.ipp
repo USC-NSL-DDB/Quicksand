@@ -192,7 +192,7 @@ template <typename K1, typename RetT, typename... A0s, typename... A1s>
 Future<RetT>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::apply_async(
     K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
-  return nu::async([&, k, fn, args...] {
+  return nu::async([&, k, fn, ... args = std::forward<A1s>(args)]() mutable {
     return apply(std::move(k), fn, std::move(args)...);
   });
 }
