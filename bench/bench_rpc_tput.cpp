@@ -18,11 +18,11 @@ using sec = duration<double>;
 
 constexpr uint32_t kPort = 8080;
 
-void ServerHandler(std::span<std::byte> args, nu::RPCReturner returner) {
+void ServerHandler(std::span<std::byte> args, nu::RPCReturner *returner) {
   auto buf = std::make_unique<std::byte[]>(args.size());
   std::copy(args.begin(), args.end(), buf.get());
   std::span<const std::byte> s(buf.get(), args.size());
-  returner.Return(nu::RPCReturnCode::kOk, s, [b = std::move(buf)]() mutable {});
+  returner->Return(nu::RPCReturnCode::kOk, s, [b = std::move(buf)]() mutable {});
 }
 
 void RunServer() { nu::RPCServerInit(kPort, &ServerHandler); }

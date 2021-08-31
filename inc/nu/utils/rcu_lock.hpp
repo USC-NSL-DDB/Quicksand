@@ -37,3 +37,5 @@ private:
 };
 } // namespace nu
 
+#include "nu/impl/rcu_lock.ipp"
+

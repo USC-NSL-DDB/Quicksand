@@ -90,6 +90,16 @@ uint32_t DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
+uint32_t DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
+    K1 &&k, uint32_t power_num_shards) {
+  auto hash = Hash();
+  auto key_hash = hash(std::forward<K1>(k));
+  return key_hash / (std::numeric_limits<uint64_t>::max() >> power_num_shards);
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
+template <typename K1>
 std::optional<V>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
   auto hash = Hash();

@@ -84,7 +84,7 @@ private:
 
 // A function handler for each RPC request, invoked concurrently.
 using RPCHandler =
-    folly::Function<void(std::span<std::byte> args, RPCReturner rpc_returner)>;
+    folly::Function<void(std::span<std::byte> args, RPCReturner *rpc_returner)>;
 // A callback for each RPC request, invoked when the response data is ready.
 using RPCCallback = folly::Function<void(ssize_t len, rt::TcpConn *c)>;
 

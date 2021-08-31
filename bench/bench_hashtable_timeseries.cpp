@@ -51,13 +51,17 @@ struct Key {
     return __builtin_memcmp(data, o.data, kKeyLen) == 0;
   }
 
-  template <class Archive> void serialize(Archive &ar) { ar(data); }
+  template <class Archive> void serialize(Archive &ar) {
+    ar(cereal::binary_data(data, sizeof(data)));
+  }
 };
 
 struct Val {
   char data[kValLen];
 
-  template <class Archive> void serialize(Archive &ar) { ar(data); }
+  template <class Archive> void serialize(Archive &ar) {
+    ar(cereal::binary_data(data, sizeof(data)));
+  }
 };
 
 namespace nu {

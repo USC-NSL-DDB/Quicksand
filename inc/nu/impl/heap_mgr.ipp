@@ -46,7 +46,10 @@ inline void HeapManager::migration_enable_final(HeapHeader *heap_header) {
 }
 
 inline void HeapManager::migration_enable(HeapHeader *heap_header) {
-  heap_header->threads->put(thread_self());
+  {
+    RuntimeHeapGuard guard;
+    heap_header->threads->put(thread_self());
+  }
   if (heap_header->migratable) {
     heap_header->rcu_lock.reader_unlock();
   }
@@ -67,7 +70,10 @@ inline void HeapManager::migration_disable(HeapHeader *heap_header) {
       rt::Yield();
     }
   }
-  heap_header->threads->remove(thread_self());
+  {
+    RuntimeHeapGuard guard;
+    heap_header->threads->remove(thread_self());
+  }
 }
 
 inline MigrationEnabledGuard::MigrationEnabledGuard()

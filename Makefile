@@ -66,22 +66,27 @@ bench_thread_src = bench/bench_thread.cpp
 bench_thread_obj = $(bench_thread_src:.cpp=.o)
 bench_migrate_src = bench/bench_migrate.cpp
 bench_migrate_obj = $(bench_migrate_src:.cpp=.o)
-bench_dis_hash_table_src = bench/bench_dis_hash_table.cpp
-bench_dis_hash_table_obj = $(bench_dis_hash_table_src:.cpp=.o)
+bench_hashtable_timeseries_src = bench/bench_hashtable_timeseries.cpp
+bench_hashtable_timeseries_obj = $(bench_hashtable_timeseries_src:.cpp=.o)
 bench_dis_mem_pool_src = bench/bench_dis_mem_pool.cpp
 bench_dis_mem_pool_obj = $(bench_dis_mem_pool_src:.cpp=.o)
 bench_fake_migration_src = bench/bench_fake_migration.cpp
 bench_fake_migration_obj = $(bench_fake_migration_src:.cpp=.o)
 bench_fragmentation_src = bench/bench_fragmentation.cpp
 bench_fragmentation_obj = $(bench_fragmentation_src:.cpp=.o)
+bench_memcached_server_src = bench/bench_memcached_server.cpp
+bench_memcached_server_obj = $(bench_memcached_server_src:.cpp=.o)
+bench_memcached_client_src = bench/bench_memcached_client.cpp
+bench_memcached_client_obj = $(bench_memcached_client_src:.cpp=.o)
 
 all: libnu.a bin/test_slab bin/test_rem_obj bin/test_multi_objs \
 bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
 bin/bench_rpc_tput bin/bench_rem_obj_call_tput bin/bench_rem_obj_call_lat bin/bench_thread \
 bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
-bin/bench_dis_hash_table bin/bench_fake_migration bin/test_nested_rem_obj \
+bin/bench_hashtable_timeseries bin/bench_fake_migration bin/test_nested_rem_obj \
 bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
-bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf
+bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_memcached_server \
+bin/bench_memcached_client
 
 libnu.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -134,12 +139,16 @@ bin/bench_thread: $(bench_thread_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_thread_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_migrate: $(bench_migrate_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_migrate_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/bench_dis_hash_table: $(bench_dis_hash_table_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(bench_dis_hash_table_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_hashtable_timeseries: $(bench_hashtable_timeseries_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_hashtable_timeseries_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_fake_migration: $(bench_fake_migration_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_fake_migration_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_fragmentation: $(bench_fragmentation_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_fragmentation_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_memcached_server: $(bench_memcached_server_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_memcached_server_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_memcached_client: $(bench_memcached_client_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_memcached_client_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)

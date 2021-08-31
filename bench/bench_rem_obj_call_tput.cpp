@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <iostream>
 #include <numeric>
+#include <random>
 #include <vector>
 
 extern "C" {
@@ -17,7 +18,7 @@ extern "C" {
 using namespace nu;
 using namespace std;
 
-constexpr static uint32_t kNumThreads = 300;
+constexpr static uint32_t kNumThreads = 2000;
 Runtime::Mode mode;
 
 struct AlignedCnt {
@@ -35,12 +36,31 @@ private:
 };
 
 void do_work() {
-  auto rem_obj = RemObj<Obj>::create();
+  std::vector<int> ids[kNumThreads];
+  RemObj<Obj> rem_objs[8192];
+  for (uint32_t i = 0; i < 8192; i++) {
+    rem_objs[i] = RemObj<Obj>::create();
+  }
+
+  std::vector<rt::Thread> threads;
+  for (uint32_t i = 0; i < kNumThreads; i++) {
+    threads.emplace_back([&, tid = i] {
+      std::random_device rd;
+      std::mt19937 mt(rd());
+      std::uniform_int_distribution<int> dist(0, 8191);
+      for (uint32_t j = 0; j < 8192 * 16; j++) {
+        ids[tid].push_back(dist(mt));
+      }
+    });
+  }
+  for (auto &thread : threads) {
+    thread.Join();
+  }
 
   for (uint32_t i = 0; i < kNumThreads; i++) {
     rt::Thread([&, tid = i] {
-      while (true) {
-        auto ret = rem_obj.run(&Obj::foo);
+      for (auto id : ids[tid]) {
+        auto ret = rem_objs[id].run(&Obj::foo);
         ACCESS_ONCE(ret);
         cnts[tid].cnt++;
       }

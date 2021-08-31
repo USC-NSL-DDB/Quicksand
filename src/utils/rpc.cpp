@@ -171,7 +171,8 @@ void RPCServer::ReceiveWorker() {
     // Spawn a handler with no argument data provided.
     if (hdr.len == 0) {
       rt::Spawn([this, completion_data]() {
-        handler_(std::span<std::byte>{}, RPCReturner(this, completion_data));
+        auto returner = RPCReturner(this, completion_data);
+        handler_(std::span<std::byte>{}, &returner);
       });
       continue;
     }
@@ -189,8 +190,8 @@ void RPCServer::ReceiveWorker() {
     // Spawn a handler with argument data provided.
     rt::Spawn(
         [this, completion_data, b = std::move(buf), len = hdr.len]() mutable {
-          handler_(std::span<std::byte>{b.get(), len},
-                   RPCReturner(this, completion_data));
+          auto returner = RPCReturner(this, completion_data);
+          handler_(std::span<std::byte>{b.get(), len}, &returner);
         });
   }
 

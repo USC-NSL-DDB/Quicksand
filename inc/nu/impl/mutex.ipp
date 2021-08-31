@@ -6,6 +6,7 @@ namespace nu {
 inline Mutex::Mutex() {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
+    RuntimeHeapGuard guard;
     heap_header->mutexes->put(this);
   }
   mutex_init(&mutex_);
@@ -14,6 +15,7 @@ inline Mutex::Mutex() {
 inline Mutex::~Mutex() {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
+    RuntimeHeapGuard guard;
     heap_header->mutexes->remove(this);
   }
   assert(!mutex_held(&mutex_));

@@ -9,25 +9,22 @@
 #include <sync.h>
 
 #include "nu/commons.hpp"
+#include "nu/utils/robin_hood.h"
 
 namespace nu {
 
-template <typename K, typename Allocator = std::allocator<K>>
+template <typename K>
 class RefcountHashSet {
 public:
   template <typename K1> void put(K1 &&k);
   template <typename K1> void remove(K1 &&k);
   // Can be only invoked once at a time.
-  std::vector<K, Allocator> all_keys();
+  std::vector<K> all_keys();
 
 private:
-  using Hash = std::hash<K>;
-  using KeyEqual = std::equal_to<K>;
   using V = int;
-  using RebindAlloc = std::allocator_traits<Allocator>::template rebind_alloc<
-      std::pair<const K, V>>;
 
-  std::unordered_map<K, V, Hash, KeyEqual, RebindAlloc> ref_counts_[kNumCores];
+  robin_hood::unordered_map<K, V> ref_counts_[kNumCores];
 };
 } // namespace nu
 

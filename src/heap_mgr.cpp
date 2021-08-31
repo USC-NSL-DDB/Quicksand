@@ -49,6 +49,7 @@ void HeapManager::deallocate(void *heap_base) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
   auto *munmap_base = reinterpret_cast<uint8_t *>(heap_base) + kPageSize;
   auto total_munmap_size = kHeapSize - kPageSize;
+  RuntimeHeapGuard guard;
   heap_header->threads.reset();
   heap_header->mutexes.reset();
   heap_header->condvars.reset();
@@ -60,6 +61,7 @@ void HeapManager::deallocate(void *heap_base) {
 }
 
 void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
+  RuntimeHeapGuard guard;
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
 
   heap_header->threads.release();

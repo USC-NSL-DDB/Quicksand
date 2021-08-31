@@ -74,6 +74,8 @@ public:
   // For debugging and performance analysis.
   template <typename K1>
   std::pair<std::optional<V>, uint32_t> get_with_ip(K1 &&k);
+  template <typename K1>
+  static uint32_t get_shard_idx(K1 &&k, uint32_t power_num_shards);
 
 private:
   friend class Test;

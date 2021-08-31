@@ -7,6 +7,7 @@ namespace nu {
 inline CondVar::CondVar() {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
+    RuntimeHeapGuard guard;
     heap_header->condvars->put(this);
   }
   condvar_init(&condvar_);
@@ -15,6 +16,7 @@ inline CondVar::CondVar() {
 inline CondVar::~CondVar() {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
+    RuntimeHeapGuard guard;
     heap_header->condvars->remove(this);
   }
 }

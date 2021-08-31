@@ -40,11 +40,9 @@ struct HeapHeader {
   uint8_t always_mmaped_end[0];
 
   // Migration related.
-  std::unique_ptr<RefcountHashSet<thread_t *, RuntimeAllocator<thread_t *>>>
-      threads;
-  std::unique_ptr<RefcountHashSet<Mutex *, RuntimeAllocator<Mutex *>>> mutexes;
-  std::unique_ptr<RefcountHashSet<CondVar *, RuntimeAllocator<CondVar *>>>
-      condvars;
+  std::unique_ptr<RefcountHashSet<thread_t *>> threads;
+  std::unique_ptr<RefcountHashSet<Mutex *>> mutexes;
+  std::unique_ptr<RefcountHashSet<CondVar *>> condvars;
   std::unique_ptr<Time> time;
   bool migratable;
 
@@ -141,4 +139,3 @@ private:
 } // namespace nu
 
 #include "nu/impl/heap_mgr.ipp"
-
