@@ -19,7 +19,7 @@ using namespace nu;
 
 Runtime::Mode mode;
 
-constexpr uint32_t kHeapSize = 128 << 10;
+constexpr uint32_t kObjSize = 128 << 10;
 constexpr uint32_t kNumRuns = 5;
 
 namespace nu {
@@ -32,7 +32,7 @@ public:
   }
 
 private:
-  uint8_t heap[kHeapSize];
+  uint8_t heap[kObjSize];
 };
 } // namespace nu
 
