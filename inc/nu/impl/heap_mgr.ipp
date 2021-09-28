@@ -46,10 +46,6 @@ inline void HeapManager::migration_enable_final(HeapHeader *heap_header) {
 }
 
 inline void HeapManager::migration_enable(HeapHeader *heap_header) {
-  {
-    RuntimeHeapGuard guard;
-    heap_header->threads->put(thread_self());
-  }
   if (heap_header->migratable) {
     heap_header->rcu_lock.reader_unlock();
   }
@@ -65,14 +61,12 @@ inline bool HeapManager::migration_disable_initial(HeapHeader *heap_header) {
 }
 
 inline void HeapManager::migration_disable(HeapHeader *heap_header) {
-  if (unlikely(!migration_disable_initial(heap_header))) {
+  heap_header->rcu_lock.reader_lock();
+  if (unlikely(!rt::access_once(heap_header->present))) {
+    heap_header->rcu_lock.reader_unlock();
     while (!thread_is_migrated()) {
       rt::Yield();
     }
-  }
-  {
-    RuntimeHeapGuard guard;
-    heap_header->threads->remove(thread_self());
   }
 }
 
@@ -181,6 +175,10 @@ inline OutermostMigrationDisabledGuard::operator bool() const {
 inline void OutermostMigrationDisabledGuard::reset() {
   this->~OutermostMigrationDisabledGuard();
   heap_header_ = nullptr;
+}
+
+inline HeapHeader *OutermostMigrationDisabledGuard::get_heap_header() {
+  return heap_header_;
 }
 
 } // namespace nu

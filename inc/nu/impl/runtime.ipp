@@ -70,6 +70,11 @@ __run_within_obj_env(OutermostMigrationDisabledGuard *guard, uint8_t *obj_stack,
 
   fn(*obj_ptr, std::forward<A1s>(args)...);
 
+  {
+    RuntimeHeapGuard g;
+    guard_on_obj_stack.get_heap_header()->threads->remove(thread_self());
+  }
+
   if (unlikely(thread_is_migrated())) {
     auto runtime_stack_base = thread_get_runtime_stack_base();
     switch_to_runtime_stack(runtime_stack_base);
@@ -88,6 +93,8 @@ Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
   if (unlikely(!guard)) {
     return false;
   }
+  heap_header->threads->put(thread_self());
+
   auto &slab = heap_header->slab;
   auto *obj_ptr =
       reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab.get_base()));

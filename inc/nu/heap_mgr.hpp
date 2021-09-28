@@ -131,6 +131,7 @@ public:
   ~OutermostMigrationDisabledGuard();
   void reset();
   operator bool() const;
+  HeapHeader *get_heap_header();
 
 private:
   HeapHeader *heap_header_;
