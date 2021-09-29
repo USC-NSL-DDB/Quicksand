@@ -8,18 +8,7 @@ namespace nu {
 
 enum RPCReqEnum {
   // Migrator
-  kFetch = 0,
-  kForward,
-  kReserveConn,
-  kLoadMutexesInfo,
-  kLoadMutexThreadInfo,
-  kLoadCondvarsInfo,
-  kLoadCondvarThreadInfo,
-  kLoadTimeInfo,
-  kLoadUnblockedThreads,
-  kMigrate,
-  kMap,
-  kUnmap,
+  kReserveConns,
   // Controller
   kRegisterNode,
   kAllocateObj,

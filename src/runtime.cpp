@@ -56,8 +56,9 @@ void Runtime::init_as_controller() {
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
   obj_server.reset(new decltype(obj_server)::element_type());
-  migrator.reset(new decltype(migrator)::element_type());
   rt::Thread([&] { rpc_server->run_loop(); }).Detach();
+  migrator.reset(new decltype(migrator)::element_type());
+  rt::Thread([&] { migrator->run_loop(); }).Detach();
   controller_client.reset(
       new decltype(controller_client)::element_type(remote_ctrl_ip, SERVER));
   heap_manager.reset(new decltype(heap_manager)::element_type());

@@ -49,29 +49,6 @@ void ObjServer::parse_and_run_handler(std::span<std::byte> args,
   Runtime::archive_pool->put_ia_sstream(ia_sstream);
 }
 
-void ObjServer::forward(RPCReturnCode rc, RPCReturner *returner,
-                        const void *payload, uint64_t payload_len) {
-  auto *heap_header = Runtime::get_current_obj_heap_header();
-  auto req_buf_len = sizeof(RPCReqForward) + payload_len;
-  auto req_buf = std::make_unique_for_overwrite<std::byte[]>(req_buf_len);
-  auto *req = reinterpret_cast<RPCReqForward *>(req_buf.get());
-  std::construct_at(req);
-  req->rc = rc;
-  req->returner = *returner;
-  req->stack_top = get_obj_stack_range(thread_self()).end;
-  req->payload_len = payload_len;
-  memcpy(req->payload, payload, payload_len);
-  RPCReturnBuffer return_buf;
-  auto req_span = std::span(req_buf.get(), req_buf_len);
-  {
-    RuntimeHeapGuard guard;
-    auto *client =
-        Runtime::rpc_client_mgr->get_by_ip(heap_header->old_server_ip);
-    BUG_ON(client->Call(req_span, &return_buf) != kOk);
-  }
-  heap_header->forward_wg.Done();
-}
-
 void ObjServer::send_rpc_resp_ok(
     ArchivePool<RuntimeAllocator<uint8_t>>::OASStream *oa_sstream,
     RPCReturner *returner) {
@@ -80,7 +57,7 @@ void ObjServer::send_rpc_resp_ok(
   auto len = oa_sstream->ss.tellp();
 
   if (unlikely(thread_is_migrated())) {
-    forward(kOk, returner, data, len);
+    Runtime::migrator->forward_to_original_server(kOk, returner, len, data);
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
   } else {
     auto span = std::span(data, len);
@@ -94,7 +71,8 @@ void ObjServer::send_rpc_resp_ok(
 
 void ObjServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
   if (unlikely(thread_is_migrated())) {
-    forward(kErrWrongClient, returner, nullptr, 0);
+    Runtime::migrator->forward_to_original_server(kErrWrongClient, returner, 0,
+                                                  nullptr);
   } else {
     returner->Return(kErrWrongClient);
   }

@@ -45,7 +45,7 @@ VAddrRange Controller::register_node(Node &node) {
 
   for (auto old_node : nodes_) {
     auto *client = Runtime::rpc_client_mgr->get_by_ip(old_node.migrator_addr.ip);
-    RPCReqReserveConn req;
+    RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
     req.dest_server_addr = node.migrator_addr;
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
@@ -53,7 +53,7 @@ VAddrRange Controller::register_node(Node &node) {
 
   auto *client = Runtime::rpc_client_mgr->get_by_ip(node.migrator_addr.ip);
   for (auto old_node : nodes_) {
-    RPCReqReserveConn req;
+    RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
     req.dest_server_addr = old_node.migrator_addr;
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
