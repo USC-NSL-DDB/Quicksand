@@ -1,6 +1,8 @@
+NU_PATH=../../../
+
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Ithrift/lib/cpp/src/ -I.
 override LDFLAGS += -static -static-libstdc++ -static-libgcc 
-override LDFLAGS += -L../../../glibc/build/install/lib -Lthrift/lib/cpp/.libs -lthrift -lpthread
+override LDFLAGS += -L$(NU_PATH)/glibc/build/install/lib -Lthrift/lib/cpp/.libs -lthrift -lpthread
 CXX=g++-11
 LDXX=g++-11
 

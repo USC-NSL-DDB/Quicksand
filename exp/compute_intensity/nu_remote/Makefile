@@ -1,19 +1,20 @@
-CALADAN_PATH=../../../caladan
+NU_PATH=../../../
+CALADAN_PATH=$(NU_PATH)/caladan
 
 ROOT_PATH=$(CALADAN_PATH)
 include $(CALADAN_PATH)/build/shared.mk
 
 NCORES = $(shell nproc)
 
-INC += -I../../../inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/ \
+INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/ \
 -I$(CALADAN_PATH)/deps/folly/include/
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -DNCORES=$(NCORES)
-override LDFLAGS += -L../../../glibc/build/install/lib
+override LDFLAGS += -L$(NU_PATH)/glibc/build/install/lib
 override LDFLAGS += -static -static-libstdc++ -static-libgcc -lpthread
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
-lib_nu = ../../../libnu.a
+lib_nu = $(NU_PATH)/libnu.a
 
 src = $(lib_src)
 obj = $(src:.cpp=.o)
