@@ -10,6 +10,14 @@ rm -rf logs/*
 set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 set_bridge $SERVER1_ETHER
+pushd $NU_DIR
+sed "s/constexpr static bool kEnableLogging = .*/constexpr static bool kEnableLogging = true;/g" \
+    -i src/migrator.cpp
+make clean
+make -j
+popd
+
+make clean
 
 for heap_size in ${heap_sizes[@]}
 do
@@ -36,3 +44,9 @@ done
 unset_bridge $CONTROLLER_ETHER
 unset_bridge $CLIENT1_ETHER
 unset_bridge $SERVER1_ETHER
+pushd $NU_DIR
+sed "s/constexpr static bool kEnableLogging = .*/constexpr static bool kEnableLogging = false;/g" \
+    -i src/migrator.cpp
+make clean
+make -j
+popd
