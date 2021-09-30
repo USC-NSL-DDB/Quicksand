@@ -36,9 +36,10 @@ endif
 
 ifeq ($(OSTYPE),Linux)
 OS = -D_LINUX_
+CXX=g++-11
 DEBUG = -g
 #NUMA = -DNUMA_SUPPORT
-CFLAGS = $(DEBUG) -Wall -O3 $(OS) $(NUMA) -DMMAP_POPULATE -fstrict-aliasing -Wstrict-aliasing 
+CFLAGS = $(DEBUG) -Wall -O3 $(OS) $(NUMA) -DMMAP_POPULATE -fstrict-aliasing -Wstrict-aliasing -march=native
 LIBS = -lpthread -lrt
 endif
 

@@ -63,13 +63,14 @@ public:
     {
         int* a_ptr = data.matrix_A + data.row_num*data.matrix_len + 0;
         int* b_ptr = data.matrix_B + 0;
-            
-        int* output = data.output + data.row_num*data.matrix_len;
-        for(int i = 0; i < data.matrix_len ; i++) {
-            for(int j=0;j<data.matrix_len ; j++) {
+
+	auto len = data.matrix_len;
+        int* output = data.output + data.row_num * len;
+        for(int i = 0; i < len ; i++) {
+            for(int j=0; j < len ; j++) {
                 output[j] += a_ptr[i] * b_ptr[j];
             }
-            b_ptr += data.matrix_len;
+            b_ptr += len;
         }
     }
 
