@@ -2,9 +2,9 @@
 
 #include <cereal/types/vector.hpp>
 #include <memory>
+#include <thread.h>
 #include <utility>
 #include <vector>
-#include <thread.h>
 
 extern "C" {
 #include <runtime/net.h>
@@ -69,6 +69,11 @@ public:
       RetT init_val,
       void (*reduced_fn)(RetT &, std::pair<const K, V> &, A0s...),
       void (*merge_fn)(RetT &result, RetT &partition, A0s...), A1s &&... args);
+  template <typename RetT, typename... A0s, typename... A1s>
+  std::vector<RetT> associative_reduce(
+      RetT init_val,
+      void (*reduced_fn)(RetT &, std::pair<const K, V> &, A0s...),
+      A1s &&... args);
   std::vector<std::pair<K, V>> get_all_pairs();
 
   // For debugging and performance analysis.

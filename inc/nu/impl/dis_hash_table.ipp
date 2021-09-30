@@ -239,8 +239,7 @@ template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::associative_reduce(
-    RetT init_val,
-    void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
+    RetT init_val, void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
     void (*merge_fn)(RetT &, RetT &, A0s...), A1s &&... args) {
   RetT reduced_val(std::move(init_val));
   std::vector<Future<RetT>> futures;
@@ -256,6 +255,31 @@ RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::associative_reduce(
   }
 
   return reduced_val;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
+template <typename RetT, typename... A0s, typename... A1s>
+std::vector<RetT>
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::associative_reduce(
+    RetT init_val, void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
+    A1s &&... args) {
+  RetT reduced_val(std::move(init_val));
+  std::vector<Future<RetT>> futures;
+
+  for (uint32_t i = 0; i < num_shards_; i++) {
+    futures.emplace_back(shards_[i].__run_async(
+        &HashTableShard::template associative_reduce<RetT>, reduced_val,
+        reduce_fn, std::forward<A1s>(args)...));
+  }
+
+  std::vector<RetT> all_reduced_vals;
+  all_reduced_vals.reserve(futures.size());
+  for (auto &future : futures) {
+    all_reduced_vals.emplace_back(std::move(future.get()));
+  }
+
+  return all_reduced_vals;
 }
 
 } // namespace nu
