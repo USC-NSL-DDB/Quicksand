@@ -38,7 +38,7 @@ do
     sudo pkill -9 iokerneld
     sudo pkill -9 main
     ssh $SERVER2_IP "sudo pkill -9 iokerneld"
-    ssh $SERVER2_IP "sudo pkill -9 main"    
+    ssh $SERVER2_IP "sudo pkill -9 main"
 done
 
 unset_bridge $CONTROLLER_ETHER
