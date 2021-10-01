@@ -295,16 +295,30 @@ template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
           class Hash>
 void MapReduce<Impl, D, K, V, Combiner, Hash>::run_merge() {
-  size_t total = 0;
-  for (auto &partition : final_vals) {
-    total += partition.size();
+  uint32_t indices[final_vals.size() + 1];
+  indices[0] = 0;
+
+  for (uint32_t i = 0; i < final_vals.size(); i++) {
+    auto &partition = final_vals[i];
+    indices[i + 1] = indices[i] + partition.size();
   }
   std::vector<std::vector<keyval>> final(1);
-  final[0].reserve(total);
-  for (auto &partition : final_vals) {
-    final[0].insert(final[0].end(), partition.begin(), partition.end());
+  final[0].resize(indices[final_vals.size()]);
+
+  std::vector<rt::Thread> threads;
+  for (uint32_t i = 0; i < final_vals.size(); i++) {
+    threads.emplace_back([&, tid = i] {
+      auto &partition = final_vals[tid];
+      for (uint32_t j = indices[tid]; j < indices[tid + 1]; j++) {
+        final[0][j] = partition[j - indices[tid]];
+      }
+    });
   }
-  this->final_vals = final;
+  for (auto &thread : threads) {
+    thread.Join();
+  }
+
+  this->final_vals = std::move(final);
 }
 
 template <typename Impl, typename D, typename K, typename V,
