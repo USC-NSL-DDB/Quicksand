@@ -30,7 +30,7 @@ do
     scp main $ip:`pwd`
 done
 
-for num_worker_servers in `seq 4 4`
+for num_worker_servers in `seq 1 4`
 do
     sleep 5
     sudo $NU_DIR/caladan/iokerneld &
