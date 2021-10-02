@@ -48,4 +48,3 @@ done
 
 unset_bridge $CONTROLLER_ETHER
 unset_bridge $CLIENT1_ETHER
-

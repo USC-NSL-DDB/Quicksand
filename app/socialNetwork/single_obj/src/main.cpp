@@ -6,7 +6,7 @@
 
 #include "ThriftBackEndServer.hpp"
 
-constexpr uint32_t kNumEntryObjs = 2;
+constexpr uint32_t kNumEntryObjs = 1;
 constexpr bool kEnableMigration = false;
 
 using namespace social_network;

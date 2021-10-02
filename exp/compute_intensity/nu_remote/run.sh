@@ -17,7 +17,7 @@ for delay in ${delays[@]}
 do
     sleep 5
     sudo $NU_DIR/caladan/iokerneld &
-    ssh $SERVER2_IP "sudo $NU_DIR/caladan/iokerneld" &    
+    ssh $SERVER2_IP "sudo $NU_DIR/caladan/iokerneld" &
     sleep 5
     sed "s/constexpr uint32_t kDelayNs = .*/constexpr uint32_t kDelayNs = $delay;/g" -i main.cpp
     make
