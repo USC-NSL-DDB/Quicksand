@@ -23,7 +23,7 @@ public:
     std::shared_ptr<TServerSocket> server_socket =
         std::make_shared<TServerSocket>("0.0.0.0", port);
 
-    auto secret = config_json["secret"];
+    caps.secret = config_json["secret"];
     auto back_end_handler = std::make_shared<ThriftBackEndServer>(caps);
 
     TThreadedServer server(
