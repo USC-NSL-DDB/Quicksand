@@ -22,3 +22,7 @@ function set_bridge {
 function unset_bridge {
     sudo bridge fdb delete $1 self dev $DPDK_NIC 2>/dev/null
 }
+
+function to_sib_addr {
+    echo `echo $1 | sed "s/10\.10\.2\(.*\)/10\.10\.1\1/g"`
+}

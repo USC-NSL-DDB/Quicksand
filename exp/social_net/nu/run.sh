@@ -60,4 +60,7 @@ unset_bridge $CONTROLLER_ETHER
 unset_bridge $CLIENT1_ETHER
 
 ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./down_nginx.sh;"
-
+ssh $NGINX_SERVER_IP "sudo ip addr delete $NGINX_SERVER_CALADAN_IP_AND_MASK dev $NGINX_SERVER_NIC"
+ssh $NGINX_SERVER_IP "docker rm -vf $(docker ps -aq)"
+ssh $NGINX_SERVER_IP "docker rmi -f $(docker images -aq)"
+ssh $NGINX_SERVER_IP "docker volume prune -f"
