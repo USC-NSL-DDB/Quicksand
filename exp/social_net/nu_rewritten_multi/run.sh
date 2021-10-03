@@ -17,7 +17,7 @@ SOCIAL_NET_DIR=`pwd`/../../../app/socialNetwork/single_obj/
 cd $SOCIAL_NET_DIR
 ./build.sh
 
-ssh $NGINX_SERVER_IP "sudo apt-get install -y python3-pip; pip3 install aiohttp"
+ssh $NGINX_SERVER_IP "sudo apt-get update; sudo apt-get install -y python3-pip; pip3 install aiohttp"
 
 ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./install_docker.sh"
 ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./down_nginx.sh; ./up_nginx.sh"
