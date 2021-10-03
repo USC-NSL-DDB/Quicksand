@@ -31,8 +31,8 @@ constexpr uint32_t kProxyIp = MAKE_IP_ADDR(18, 18, 1, 2);
 constexpr uint32_t kProxyPort = 10086;
 constexpr uint32_t kNumThreads = 1000;
 constexpr double kTargetMops = 12.8;
-constexpr uint32_t kWarmupUs = 5 * kOneSecond;
-constexpr uint32_t kDurationUs = 5 * kOneSecond;
+constexpr uint32_t kWarmupUs = 1 * kOneSecond;
+constexpr uint32_t kDurationUs = 15 * kOneSecond;
 
 struct MemcachedPerfThreadState : nu::PerfThreadState {
   MemcachedPerfThreadState(uint32_t _tid)

@@ -7,6 +7,9 @@ mops=( 1 2 3 4 5 6 7 8 9 10 11 12 12.2 12.4 12.6 12.8 )
 mkdir logs
 rm -rf logs/*
 
+make -j
+scp server $SERVER2_IP:`pwd`/
+
 for mop in ${mops[@]}
 do
     sleep 5

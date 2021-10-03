@@ -20,8 +20,7 @@ sed "s/constexpr static char kLocalHost.*/constexpr static char kLocalHost[] = \
 
 ssh $NGINX_SERVER_IP "sudo apt-get install -y python3-pip; pip3 install aiohttp"
 
-#mops=( 0.002 0.003 0.005 0.007 0.009 )
-mops=( 0.007 0.009 )
+mops=( 0.002 0.003 0.005 0.007 0.009 )
 
 for mop in ${mops[@]}
 do

@@ -44,4 +44,4 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) main main.o
+	rm -f $(dep) server client *.o
