@@ -21,10 +21,8 @@ constexpr static uint32_t kNumThreads = 200;
 constexpr static double kTargetMops = 0.9;
 constexpr static double kTotalMops = 1;
 constexpr static uint32_t kNumEntryObjs = 1;
-const static std::string kEntryObjIps[kNumEntryObjs] = {
-    "18.18.1.2",
-    // "18.18.1.5",
-    // "18.18.1.25",
+const static std::string kEntryObjIps[] = {
+    "18.18.1.2", "18.18.1.5", "18.18.1.7", "18.18.1.8", "18.18.1.9",
 };
 constexpr static uint32_t kEntryObjPort = 9091;
 constexpr static uint32_t kUserTimelinePercent = 60;
