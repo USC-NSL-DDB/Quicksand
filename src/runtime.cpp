@@ -123,6 +123,10 @@ Runtime::~Runtime() {
   preempt_enable();
 }
 
+uint32_t Runtime::get_ip_by_rem_obj_id(RemObjID id) {
+  return rpc_client_mgr->get_ip_by_rem_obj_id(id);
+}
+
 uint32_t str_to_ip(std::string ip_str) {
   auto pos0 = ip_str.find('.');
   BUG_ON(pos0 == std::string::npos);

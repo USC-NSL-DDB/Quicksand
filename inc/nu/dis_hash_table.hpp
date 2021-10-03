@@ -52,6 +52,7 @@ public:
                        uint32_t power_num_shards = kDefaultPowerNumShards,
                        bool pinned = false);
   template <typename K1> std::optional<V> get(K1 &&k);
+  template <typename K1> std::optional<V> get(K1 &&k, bool *is_local);
   template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
   template <typename K1> bool remove(K1 &&k);
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
@@ -75,12 +76,13 @@ public:
       void (*reduced_fn)(RetT &, std::pair<const K, V> &, A0s...),
       A1s &&... args);
   std::vector<std::pair<K, V>> get_all_pairs();
+  template <typename K1>
+  static uint32_t get_shard_idx(K1 &&k, uint32_t power_num_shards);
+  RemObjID get_shard_obj_id(uint32_t shard_id);
 
   // For debugging and performance analysis.
   template <typename K1>
   std::pair<std::optional<V>, uint32_t> get_with_ip(K1 &&k);
-  template <typename K1>
-  static uint32_t get_shard_idx(K1 &&k, uint32_t power_num_shards);
 
 private:
   friend class Test;

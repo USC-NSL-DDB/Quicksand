@@ -280,6 +280,45 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 }
 
 template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+RetT RemObj<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
+                                  S1s &&... states) {
+  MigrationDisabledGuard caller_disabled_guard;
+
+  if (caller_disabled_guard) {
+    auto callee_heap_header = to_heap_header(id_);
+    OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
+    if (callee_disabled_guard) {
+      *is_local = true;
+      // Fast path: the heap is actually local, use function call.
+      auto *local_fn =
+          ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>;
+      if constexpr (!std::is_same<RetT, void>::value) {
+        return local_fn(id_, fn, std::forward<S1s>(states)...);
+      } else {
+        local_fn(id_, fn, std::forward<S1s>(states)...);
+        return;
+      }
+    }
+  }
+
+  *is_local = false;
+  // Slow path: the heap is actually remote, use RPC.
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  auto *handler = ObjServer::run_closure<T, RetT, decltype(fn), S1s...>;
+  serialize(oa_sstream, handler, id_, fn, std::forward<S1s>(states)...);
+
+  if constexpr (!std::is_same<RetT, void>::value) {
+    auto ret = invoke_remote<RetT>(id_, &oa_sstream->ss);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+    return ret;
+  } else {
+    invoke_remote<void>(id_, &oa_sstream->ss);
+    Runtime::archive_pool->put_oa_sstream(oa_sstream);
+  }
+}
+
+template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_no_pointer_or_lval_ref<RetT, A0s...>();
@@ -295,6 +334,20 @@ Future<RetT> RemObj<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   return nu::async([&, md, ... args = std::forward<A1s>(args)]() mutable {
     return __run(md, std::forward<A1s>(args)...);
   });
+}
+
+template <typename T>
+template <typename RetT, typename... A0s, typename... A1s>
+RetT RemObj<T>::__run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...),
+                                  A1s &&... args) {
+  MethodPtr<decltype(md)> method_ptr;
+  method_ptr.ptr = md;
+  return __run_and_get_loc(
+      is_local,
+      +[](T &t, decltype(method_ptr) method_ptr, A1s &&... args) {
+        return (t.*(method_ptr.ptr))(std::forward<A1s>(args)...);
+      },
+      method_ptr, std::forward<A1s>(args)...);
 }
 
 template <typename T>

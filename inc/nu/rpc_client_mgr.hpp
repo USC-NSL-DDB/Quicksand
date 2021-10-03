@@ -20,6 +20,7 @@ public:
   RPCClientMgr(uint16_t port);
   RPCClient *get_by_rem_obj_id(RemObjID rem_obj_id);
   RPCClient *get_by_ip(NodeIP ip);
+  uint32_t get_ip_by_rem_obj_id(RemObjID rem_obj_id);
   void invalidate_cache(RemObjID rem_obj_id);
 
 private:

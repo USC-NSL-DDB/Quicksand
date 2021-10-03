@@ -99,6 +99,14 @@ uint32_t DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
+RemObjID
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_obj_id(
+    uint32_t shard_id) {
+  return shards_[shard_id].id_;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
 template <typename K1>
 std::optional<V>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
@@ -108,6 +116,21 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
   auto &shard = shards_[shard_idx];
   return shard.__run(&HashTableShard::template get_copy_with_hash<K1>,
                      std::forward<K1>(k), key_hash);
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
+template <typename K1>
+std::optional<V>
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k,
+                                                            bool *is_local) {
+  auto hash = Hash();
+  auto key_hash = hash(std::forward<K1>(k));
+  auto shard_idx = get_shard_idx(key_hash);
+  auto &shard = shards_[shard_idx];
+  return shard.__run_and_get_loc(
+      is_local, &HashTableShard::template get_copy_with_hash<K1>,
+      std::forward<K1>(k), key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual,

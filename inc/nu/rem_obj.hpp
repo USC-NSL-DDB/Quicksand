@@ -78,10 +78,15 @@ private:
   Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>
   RetT __run(RetT (*fn)(T &, S0s...), S1s &&... states);
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT __run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
+                         S1s &&... states);
   template <typename RetT, typename... A0s, typename... A1s>
   Future<RetT> __run_async(RetT (T::*md)(A0s...), A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
   RetT __run(RetT (T::*md)(A0s...), A1s &&... args);
+  template <typename RetT, typename... A0s, typename... A1s>
+  RetT __run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...), A1s &&... args);
 };
 
 template <typename T> union MethodPtr {

@@ -56,6 +56,19 @@ retry:
   return get(*info);
 }
 
+uint32_t RPCClientMgr::get_ip_by_rem_obj_id(RemObjID rem_obj_id) {
+retry:
+  auto *info = rem_id_to_node_info_map_.get(rem_obj_id);
+
+  if (unlikely(!info)) {
+    rem_id_to_node_info_map_.emplace_if_not_exists(rem_obj_id, rem_obj_id,
+                                                   this);
+    goto retry;
+  }
+
+  return info->ip;
+}
+
 void RPCClientMgr::invalidate_cache(RemObjID rem_obj_id) {
   rem_id_to_node_info_map_.remove(rem_obj_id);
 }
