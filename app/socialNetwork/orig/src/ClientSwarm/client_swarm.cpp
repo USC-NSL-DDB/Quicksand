@@ -22,12 +22,15 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 200;
-constexpr static double kTargetMops = 0.009;
+constexpr static double kTargetMops = 0.04;
 constexpr static double kTotalMops = 1.0;
-constexpr static char kHostIP[] = "10.10.1.7";
+constexpr static char kUserTimeLineIP[] = "10.10.1.6";
 constexpr static uint32_t kUserTimeLinePort = 10003;
+constexpr static char kHomeTimeLineIP[] = "10.10.1.6";
 constexpr static uint32_t kHomeTimeLinePort = 10010;
+constexpr static char kComposePostIP[] = "10.10.1.4";
 constexpr static uint32_t kComposePostPort = 10001;
+constexpr static char kSocialGraphIP[] = "10.10.1.2";
 constexpr static uint32_t kSocialGraphPort = 10000;
 constexpr static uint32_t kUserTimelinePercent = 60;
 constexpr static uint32_t kHomeTimelinePercent = 30;
@@ -108,12 +111,14 @@ class SocialNetworkAdapter : public nu::PerfAdapter {
 public:
   std::unique_ptr<nu::PerfThreadState> create_thread_state() {
     auto state = new socialNetworkThreadState();
-    state->user_timeline_client.init(std::string(kHostIP),
+    state->user_timeline_client.init(std::string(kUserTimeLineIP),
                                      kUserTimeLinePort);
-    state->home_timeline_client.init(std::string(kHostIP),
+    state->home_timeline_client.init(std::string(kHomeTimeLineIP),
                                      kHomeTimeLinePort);
-    state->compose_post_client.init(std::string(kHostIP), kComposePostPort);
-    state->social_graph_client.init(std::string(kHostIP), kSocialGraphPort);
+    state->compose_post_client.init(std::string(kComposePostIP),
+                                    kComposePostPort);
+    state->social_graph_client.init(std::string(kSocialGraphIP),
+                                    kSocialGraphPort);
     state->gen.reset(new std::mt19937((state->rd)()));
     state->dist_1_100.reset(new std::uniform_int_distribution<>(1, 100));
     state->dist_1_numusers.reset(

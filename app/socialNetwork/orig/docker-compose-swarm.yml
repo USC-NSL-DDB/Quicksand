@@ -29,15 +29,12 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["ComposePostService"]
     hostname: compose-post-service
+    ports:
+      - 10001:9090
     image: yg397/social-network-microservices:latest
     volumes:
       - ./config:/social-network-microservices/config
@@ -59,15 +56,12 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["HomeTimelineService"]
     hostname: home-timeline-service
+    ports:
+      - 10010:9090
     image: yg397/social-network-microservices:latest
     volumes:
       - ./config:/social-network-microservices/config
@@ -78,13 +72,8 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     hostname: media-frontend
     image: yg397/media-frontend:xenial
     ports:
@@ -123,13 +112,8 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["MediaService"]
     hostname: media-service
     image: yg397/social-network-microservices:latest
@@ -142,13 +126,8 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "4"
-          memory: 4G
     hostname: nginx-web-server
     image: yg397/openresty-thrift:xenial
     ports:
@@ -192,13 +171,8 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["PostStorageService"]
     hostname: post-storage-service
     image: yg397/social-network-microservices:latest
@@ -235,15 +209,12 @@ services:
       - jaeger-query
       - social-graph-mongodb
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["SocialGraphService"]
     hostname: social-graph-service
+    ports:
+      - 10000:9090
     image: yg397/social-network-microservices:latest
     volumes:
       - ./config:/social-network-microservices/config
@@ -254,13 +225,8 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["TextService"]
     hostname: text-service
     image: yg397/social-network-microservices:latest
@@ -273,13 +239,8 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["UniqueIdService"]
     hostname: unique-id-service
     image: yg397/social-network-microservices:latest
@@ -317,13 +278,8 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["UrlShortenService"]
     hostname: url-shorten-service
     image: yg397/social-network-microservices:latest
@@ -348,13 +304,8 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["UserMentionService"]
     hostname: user-mention-service
     image: yg397/social-network-microservices:latest
@@ -380,13 +331,8 @@ services:
       - jaeger-agent
       - jaeger-query
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["UserService"]
     hostname: user-service
     image: yg397/social-network-microservices:latest
@@ -422,15 +368,12 @@ services:
       - user-timeline-mongodb
       - jaeger-agent
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
     command: ["UserTimelineService"]
     hostname: user-timeline-service
+    ports:
+      - 10003:9090
     image: yg397/social-network-microservices:latest
     volumes:
       - ./config:/social-network-microservices/config

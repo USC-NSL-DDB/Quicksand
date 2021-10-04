@@ -55,4 +55,5 @@ set(THRIFT_GEN_CPP_DIR ../../gen-cpp)
 #add_subdirectory(MediaService)
 #add_subdirectory(HomeTimelineService)
 add_subdirectory(Client)
+add_subdirectory(ClientSwarm)
 
