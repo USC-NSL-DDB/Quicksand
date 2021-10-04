@@ -34,6 +34,7 @@ fn main() {
     // to bindgen, and lets you build up options for
     // the resulting bindings.
     let bindings = bindgen::Builder::default()
+        .blacklist_type("IPPORT_.*")
         .clang_arg("-I../../inc/")
         // The input header we would like to generate
         // bindings for.
