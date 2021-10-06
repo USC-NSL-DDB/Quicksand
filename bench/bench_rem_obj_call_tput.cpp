@@ -59,10 +59,12 @@ void do_work() {
 
   for (uint32_t i = 0; i < kNumThreads; i++) {
     rt::Thread([&, tid = i] {
-      for (auto id : ids[tid]) {
-        auto ret = rem_objs[id].run(&Obj::foo);
-        ACCESS_ONCE(ret);
-        cnts[tid].cnt++;
+      while (true) {
+        for (auto id : ids[tid]) {
+          auto ret = rem_objs[id].run(&Obj::foo);
+          ACCESS_ONCE(ret);
+          cnts[tid].cnt++;
+        }
       }
     }).Detach();
   }
