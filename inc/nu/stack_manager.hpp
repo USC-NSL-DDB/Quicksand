@@ -6,11 +6,14 @@
 
 #include "nu/commons.hpp"
 #include "nu/utils/rcu_lock.hpp"
+#include "nu/utils/cached_pool.hpp"
 
 namespace nu {
 
 class StackManager {
 public:
+  constexpr static uint32_t kPerCoreCacheSize = 8;
+
   StackManager(VAddrRange stack_cluster);
   uint8_t *get();
   void put(uint8_t *stack);
@@ -23,9 +26,7 @@ private:
   };
 
   VAddrRange range_;
-  uint64_t global_pool_size_;
-  uint8_t *global_pool_[kMaxNumStacksPerCluster];
-  CoreCache core_caches_[kNumCores];
+  CachedPool<uint8_t> cached_pool_;
   std::map<VAddrRange, uint32_t> borrowed_stack_ref_cnt_map_;
   rt::Mutex mutex_;
 

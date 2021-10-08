@@ -10,18 +10,16 @@ extern "C" {
 
 namespace nu {
 
-StackManager::StackManager(VAddrRange stack_cluster) : range_(stack_cluster) {
+StackManager::StackManager(VAddrRange stack_cluster)
+    : range_(stack_cluster), cached_pool_([]() -> uint8_t * { BUG(); },
+                                          [](uint8_t *) {}, kPerCoreCacheSize) {
   mmap(stack_cluster);
   auto num_stacks = (stack_cluster.end - stack_cluster.start) / kStackSize -
                     1; // The first kStackSize bytes are reserved for metadata.
   auto *ptr = reinterpret_cast<uint8_t *>(stack_cluster.start + kStackSize);
-  global_pool_size_ = num_stacks;
   for (uint64_t i = 0; i < num_stacks; i++) {
-    global_pool_[i] = ptr;
+    cached_pool_.put(ptr);
     ptr += kStackSize;
-  }
-  for (uint64_t i = 0; i < kNumCores; i++) {
-    core_caches_[i].stack = nullptr;
   }
 }
 
@@ -54,33 +52,8 @@ void StackManager::add_ref_cnt(VAddrRange borrowed_stack_cluster,
   }
 }
 
-uint8_t *StackManager::get() {
-  int core = get_cpu();
-  auto &core_cache = core_caches_[core];
-  if (likely(core_cache.stack)) {
-    auto ret = core_cache.stack;
-    core_cache.stack = nullptr;
-    put_cpu();
-    return ret;
-  }
-  put_cpu();
-  rt::ScopedLock<rt::Mutex> guard(&mutex_);
-  BUG_ON(!global_pool_size_); // Run out of stack.
-  auto ret = global_pool_[--global_pool_size_];
-  return ret;
-}
+uint8_t *StackManager::get() { return cached_pool_.get(); }
 
-void StackManager::put(uint8_t *stack) {
-  int core = get_cpu();
-  auto &core_cache = core_caches_[core];
-  if (likely(!core_cache.stack)) {
-    core_cache.stack = stack;
-    put_cpu();
-    return;
-  }
-  put_cpu();
-  rt::ScopedLock<rt::Mutex> guard(&mutex_);
-  global_pool_[global_pool_size_++] = stack;
-}
+void StackManager::put(uint8_t *stack) { cached_pool_.put(stack); }
 
 } // namespace nu
