@@ -7,6 +7,10 @@ extern "C" {
 
 #include "nu/utils/rpc.hpp"
 
+extern "C" {
+#include <runtime/timer.h>
+}
+
 namespace nu {
 
 namespace {
@@ -213,6 +217,11 @@ RPCFlow::~RPCFlow() {
   receiver_.Join();
 }
 
+inline bool RPCFlow::EnoughBatching() {
+  return reqs_.size() >= kReqBatchSize ||
+         microtime() - last_sent_us_ >= kBatchTimeoutUs;
+}
+
 void RPCFlow::SendWorker() {
   std::vector<req_ctx> reqs;
   std::vector<iovec> iovecs;
@@ -221,6 +230,11 @@ void RPCFlow::SendWorker() {
   while (true) {
     unsigned int demand, inflight;
     bool close;
+
+    // adapative batching.
+    while (kEnableAdaptiveBatching && !EnoughBatching()) {
+      rt::Yield();
+    }
 
     {
       // wait for an actionable state.
@@ -233,6 +247,7 @@ void RPCFlow::SendWorker() {
       }
 
       // gather queued requests up to the credit limit.
+      last_sent_us_ = microtime();
       while (!reqs_.empty() && inflight < credits_) {
         reqs.emplace_back(reqs_.front());
         reqs_.pop();

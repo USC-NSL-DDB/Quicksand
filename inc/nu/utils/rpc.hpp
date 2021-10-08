@@ -117,6 +117,10 @@ private:
 // RPCFlow encapsulates one of the TCP connections used by an RPCClient.
 class RPCFlow {
 public:
+  constexpr static bool kEnableAdaptiveBatching = true;
+  constexpr static uint64_t kReqBatchSize = 4;
+  constexpr static uint64_t kBatchTimeoutUs = 5;
+
   RPCFlow(std::unique_ptr<rt::TcpConn> c)
       : close_(false), c_(std::move(c)), sent_count_(0), recv_count_(0),
         credits_(128) {}
@@ -142,6 +146,7 @@ private:
   // Internal worker threads for sending and receiving.
   void SendWorker();
   void ReceiveWorker();
+  bool EnoughBatching();
 
   rt::Thread sender_, receiver_;
   rt::Spin lock_;
@@ -152,6 +157,7 @@ private:
   unsigned int recv_count_;
   unsigned int credits_;
   std::queue<req_ctx> reqs_;
+  uint64_t last_sent_us_;
 };
 
 } // namespace rpc_internal
