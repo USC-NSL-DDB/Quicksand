@@ -1,3 +1,2 @@
 1. fix the timeout issue in tcp stack which affects the phoenix/nu-multi result when num_nodes=4.
-2. fix the rpc performance which affects the socialnet/nu-*-multi results.
-3. fix the livelock bug which can be triggered when running test_multi_objs with runtime_kthreads=46 for all confs.
+2. fix the livelock bug which can be triggered when running test_multi_objs with runtime_kthreads=46 for all confs.
