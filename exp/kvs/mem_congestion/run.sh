@@ -22,12 +22,14 @@ scp client $CLIENT_IP:`pwd`
 sudo $NU_DIR/caladan/iokerneld &
 sleep 5
 sudo ./server conf/controller CTL 18.18.1.3 &
+ssh $SRC_SERVER_IP "cd `pwd`; source ../../shared.sh; set_bridge $SERVER1_ETHER"
 ssh $SRC_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
 ssh $SRC_SERVER_IP "cd `pwd`; sudo ./server conf/server1 SRV 18.18.1.3" &
 sleep 5
 sudo ./server conf/client1 CLT 18.18.1.3 >logs/.server &
 ( tail -f -n0 logs/.server & ) | grep -q "finish initing"
+ssh $DEST_SERVER_IP "cd `pwd`; source ../../shared.sh; set_bridge $SERVER2_ETHER"
 ssh $DEST_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
 ssh $DEST_SERVER_IP "cd `pwd`; sudo ./server conf/server2 SRV 18.18.1.3" &
@@ -58,3 +60,5 @@ ssh $CLIENT_IP "sudo pkill -9 iokerneld"
 
 unset_bridge $CONTROLLER_ETHER
 unset_bridge $CLIENT1_ETHER
+ssh $SRC_SERVER_IP "cd `pwd`; source ../../shared.sh; unset_bridge $SERVER1_ETHER"
+ssh $DEST_SERVER_IP "cd `pwd`; source ../../shared.sh; unset_bridge $SERVER2_ETHER"

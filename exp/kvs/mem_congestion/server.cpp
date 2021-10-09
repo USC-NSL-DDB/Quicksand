@@ -173,6 +173,7 @@ void do_work() {
 
   proxies[0].run(&Proxy::reserve_conn, kProxyIps[0]);
   proxies[0].run(&Proxy::reserve_conn, kProxyIps[1]);
+  proxies[1].run(&Proxy::reserve_conn, kProxyIps[1]);
 
   futures.front().get();
 }
