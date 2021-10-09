@@ -10,7 +10,7 @@ namespace nu {
 class Monitor {
 public:
   constexpr static uint32_t kPollIntervalUs = 1000;
-  constexpr static double kMemLowWaterMark = 0.05;
+  constexpr static double kMemLowWaterMarkMB = 1024; // 1 GB.
 
   Monitor();
   void run_loop();

@@ -60,9 +60,9 @@ bool Monitor::detect_pressure(Resource *pressure) {
     // Detect the real pressure through Linux interface.
     struct sysinfo info;
     BUG_ON(sysinfo(&info) != 0);
-    auto expected_freeram = info.totalram * kMemLowWaterMark;
-    if (info.freeram < expected_freeram) {
-      pressure->mem_mbs = (expected_freeram - info.freeram) / kOneMB + 1;
+    auto free_ram_mbs = info.freeram / kOneMB;
+    if (free_ram_mbs < kMemLowWaterMarkMB) {
+      pressure->mem_mbs = kMemLowWaterMarkMB - free_ram_mbs;
       has_pressure = true;
     }
   }
