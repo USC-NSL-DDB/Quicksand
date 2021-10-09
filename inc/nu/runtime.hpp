@@ -44,6 +44,7 @@ public:
   ~Runtime();
   static std::unique_ptr<Runtime> init(uint32_t remote_ctrl_ip, Mode mode);
   static uint32_t get_ip_by_rem_obj_id(RemObjID id);
+  static void reserve_conn(uint32_t ip);
 
 private:
   static RCULock rcu_lock;
