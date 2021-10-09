@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <csignal>
 #include <cstdlib>
+#include <vector>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -9,64 +11,131 @@
 #include <thread>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
-#define ACCESS_ONCE(x)                                                         \
-  (*static_cast<std::remove_reference<decltype(x)>::type volatile *>(&(x)))
+extern "C" {
+#include <base/time.h>
+#include <runtime/timer.h>
+}
+#include <runtime.h>
+#include <sync.h>
+#include <thread.h>
 
-constexpr uint64_t kAllocateGranularity = 1ULL << 26;
-constexpr uint32_t kAllocateIters = 150;
+#include "nu/commons.hpp"
+
+constexpr uint64_t kAllocateGranularity = 1ULL << 23;
 constexpr uint32_t kLoggingIntervalUs = 1000;
+constexpr uint32_t kFreeMemMBTarget0 = 10000;
+constexpr uint32_t kFreeMemMBTarget1 = 900;
+
+bool signalled = false;
 
 struct Trace {
   uint64_t time_us;
-  uint64_t free_ram;
+  uint64_t ram;
 };
 
-uint64_t Microtime() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return tv.tv_sec * (uint64_t)1000000 + tv.tv_usec;
+void clear_linux_cache() {
+  BUG_ON(system("sync; echo 3 > /proc/sys/vm/drop_caches") != 0);
 }
 
-void logging(const bool &done, std::vector<Trace> *traces) {
-  auto last_poll_us = Microtime();
-  while (!ACCESS_ONCE(done)) {
-    auto next_poll_us = last_poll_us + kLoggingIntervalUs;
-    while (Microtime() < next_poll_us)
-      ;
-    last_poll_us = Microtime();
+void logging(const bool &done, std::vector<Trace> *avail_mem_traces) {
+  auto last_poll_us = microtime();
+  while (!rt::access_once(done)) {
+    int32_t next_poll_us = last_poll_us + kLoggingIntervalUs;
+    auto headroom = next_poll_us - microtime();
+    if (headroom > 0) {
+      timer_sleep(headroom);
+    }
+    last_poll_us = microtime();
 
     struct sysinfo info;
     sysinfo(&info);
-    traces->emplace_back(Microtime(), info.freeram);
+    avail_mem_traces->emplace_back(last_poll_us, info.freeram);
+  }
+}
+
+void do_mmap_until(uint32_t free_mem_mbytes_target,
+                   std::vector<Trace> *alloc_mem_traces) {
+  auto mmap_times = 0;
+  while (true) {
+    mmap(nullptr, kAllocateGranularity, PROT_READ | PROT_WRITE,
+         MAP_ANONYMOUS | MAP_SHARED | MAP_POPULATE, -1, 0);
+    mmap_times++;
+    if (alloc_mem_traces) {
+      alloc_mem_traces->emplace_back(microtime(),
+                                     mmap_times * kAllocateGranularity);
+    }
+    struct sysinfo info;
+    sysinfo(&info);
+    if (info.freeram < free_mem_mbytes_target * nu::kOneMB) {
+      break;
+    }
+  }
+}
+
+void wait_for_signal() {
+  rt::access_once(signalled) = false;
+  while (!rt::access_once(signalled)) {
+    timer_sleep(100);
   }
 }
 
 void do_work() {
-  std::cout << "Now let's start the second server. Press enter to continue."
-            << std::endl;
-  std::cin.ignore();
+  std::cout << "clearing linux cache..." << std::endl;
+  clear_linux_cache();
+  std::cout << "working towards target 0..." << std::endl;
+  do_mmap_until(kFreeMemMBTarget0, nullptr);
+  std::cout << "waiting for signal..." << std::endl;
 
+  wait_for_signal();
+
+  std::cout << "working towards target 1..." << std::endl;
   bool done = false;
-  std::vector<Trace> traces;
-  auto logging_thread =
-      std::thread([&traces, &done] { logging(done, &traces); });
+  std::vector<Trace> avail_mem_traces;
+  std::vector<Trace> alloc_mem_traces;
+  auto logging_thread = rt::Thread(
+      [&avail_mem_traces, &done] { logging(done, &avail_mem_traces); });
 
-  for (uint32_t i = 0; i < kAllocateIters; i++) {
-    std::cout << Microtime() << " " << i << std::endl;
-    mmap(nullptr, kAllocateGranularity, PROT_READ | PROT_WRITE,
-         MAP_ANONYMOUS | MAP_SHARED | MAP_POPULATE, -1, 0);
+  do_mmap_until(kFreeMemMBTarget1, &alloc_mem_traces);
+
+  rt::access_once(done) = true;
+  logging_thread.Join();
+
+  std::cout << "waiting for signal..." << std::endl;
+  wait_for_signal();
+
+  std::cout << "writing traces..." << std::endl;
+  {
+    std::ofstream avail_ofs("avail_mem_traces", std::ofstream::trunc);
+    for (auto [time_us, ram] : avail_mem_traces) {
+      avail_ofs << time_us << " " << ram << std::endl;
+    }
+    std::ofstream alloc_ofs("alloc_mem_traces", std::ofstream::trunc);
+    for (auto [time_us, ram] : alloc_mem_traces) {
+      alloc_ofs << time_us << " " << ram << std::endl;
+    }
   }
-
-  ACCESS_ONCE(done) = true;
-  logging_thread.join();
-
-  std::ofstream ofs("log", std::ofstream::trunc);
-  for (auto [time_us, free_mem] : traces) {
-    ofs << time_us << " " << free_mem << std::endl;
-  }
-  while (1) {}
+  std::cout << "done..." << std::endl;
 }
 
-int main(int argc, char **argv) { do_work(); }
+void signal_handler(int signum) { rt::access_once(signalled) = true; }
+
+int main(int argc, char **argv) {
+  signal(SIGHUP, signal_handler);
+
+  int ret;
+
+  if (argc < 2) {
+    std::cerr << "usage: [cfg_file]" << std::endl;
+    return -EINVAL;
+  }
+
+  ret = rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
+
+  if (ret) {
+    std::cerr << "failed to start runtime" << std::endl;
+    return ret;
+  }
+
+  return 0;
+}
