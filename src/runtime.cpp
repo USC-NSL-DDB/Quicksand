@@ -127,7 +127,10 @@ uint32_t Runtime::get_ip_by_rem_obj_id(RemObjID id) {
   return rpc_client_mgr->get_ip_by_rem_obj_id(id);
 }
 
-void Runtime::reserve_conn(uint32_t ip) { rpc_client_mgr->get_by_ip(ip); }
+void Runtime::reserve_conn(uint32_t ip) {
+  RuntimeHeapGuard guard;
+  rpc_client_mgr->get_by_ip(ip);
+}
 
 uint32_t str_to_ip(std::string ip_str) {
   auto pos0 = ip_str.find('.');
