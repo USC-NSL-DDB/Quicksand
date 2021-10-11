@@ -9,6 +9,14 @@ SRC_SERVER_IP=$SERVER3_IP
 DEST_SERVER_IP=$SERVER4_IP
 
 DIR=`pwd`
+cd ../../../
+cp inc/nu/monitor.hpp inc/nu/monitor.hpp.bak
+sed "s/constexpr static bool kMonitorCPUCongestion.*/constexpr static bool kMonitorCPUCongestion = true;/g" \
+    -i inc/nu/monitor.hpp
+make clean
+make -j
+
+cd $DIR
 cd ../../../app/phoenix++-1.0/
 cp Defines.mk Defines.mk.bak
 sed "s/CFLAGS = \(.*\)/CFLAGS = -DBSP -DBSP_PRINT_STAT \1/g" -i Defines.mk
@@ -27,6 +35,11 @@ make clean
 cd ../../
 mv Defines.mk.bak Defines.mk
 make clean
+
+cd $NU_DIR
+mv inc/nu/monitor.hpp.bak inc/nu/monitor.hpp
+make clean
+make -j
 
 cd $DIR
 sudo $NU_DIR/caladan/iokerneld &
