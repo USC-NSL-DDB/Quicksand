@@ -35,6 +35,7 @@ extern "C" {
 #include <cereal/types/vector.hpp>
 #include <cmath>
 #include <cstddef>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <nu/dis_hash_table.hpp>
@@ -80,8 +81,6 @@ public:
 
 protected:
   std::vector<std::vector<keyval>> final_vals; // Array to send to merge task.
-  bool is_worker;
-  void *worker_state;
 
   // the default split function...
   int split(data_type &a) { return 0; }
@@ -99,13 +98,9 @@ protected:
     }
   }
 
-  void worker_init() {}
-  void worker_cleanup() {}
-
 public:
   MapReduce(uint64_t num_workers = kDefaultNumWorkers)
-      : is_worker(false),
-        hash_table(new HashTable(nu::bsr_64(num_workers - 1) + 1)) {
+      : hash_table(new HashTable(nu::bsr_64(num_workers - 1) + 1)) {
     for (uint64_t i = 0; i < num_workers; i++) {
       workers.emplace_back(
           nu::RemObj<MapReduce>::create(hash_table->get_cap()));
@@ -113,15 +108,7 @@ public:
   }
 
   MapReduce(HashTable::Cap cap)
-      : is_worker(true), hash_table(new HashTable(cap)),
-        map_container_ptr(new map_container()) {
-    reinterpret_cast<Impl *>(this)->worker_init();
-  }
-
-  virtual ~MapReduce() {
-    if (is_worker) {
-      reinterpret_cast<Impl *>(this)->worker_cleanup();
-    }
+      : hash_table(new HashTable(cap)), map_container_ptr(new map_container()) {
   }
 
   /* The main MapReduce engine. This is the function called by the
@@ -156,6 +143,8 @@ private:
 
   void map_chunk(std::vector<data_type> data_chunk);
   void shuffle();
+  void __run_map(data_type *data, uint64_t len, uint64_t chunk_size);
+  void __run_map_bsp(data_type *data, uint64_t len, uint64_t chunk_size);
 };
 
 template <typename Impl, typename D, typename K, typename V,
@@ -208,6 +197,19 @@ template <typename Impl, typename D, typename K, typename V,
 void MapReduce<Impl, D, K, V, Combiner, Hash>::run_map(data_type *data,
                                                        uint64_t count,
                                                        uint64_t chunk_size) {
+#ifndef BSP
+  __run_map(data, count, chunk_size);
+#else
+  __run_map_bsp(data, count, chunk_size);
+#endif
+}
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::__run_map(data_type *data,
+                                                         uint64_t count,
+                                                         uint64_t chunk_size) {
   std::vector<nu::Future<void>> futures;
   futures.resize(workers.size());
 
@@ -234,6 +236,42 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::run_map(data_type *data,
         &MapReduce::map_chunk, data_chunk);
   }
 }
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::__run_map_bsp(
+    data_type *data, uint64_t count, uint64_t chunk_size) {
+  std::vector<nu::Future<void>> futures;
+  futures.resize(workers.size());
+
+#ifdef BSP_PRINT_STAT
+  std::ofstream bsp_stat_ofs("bsp_stat");
+  std::vector<uint64_t> timestamps;
+  timestamps.reserve((count - 1) / workers.size() + 1);
+#endif
+
+  for (uint64_t start_id = 0; start_id < count; start_id += workers.size()) {
+#ifdef BSP_PRINT_STAT
+    timestamps.push_back(microtime());
+#endif
+    auto batch_size = std::min(workers.size(), count - start_id);
+    for (uint32_t i = 0; i < batch_size; i++) {
+      std::vector<data_type> data_chunk(1, data[start_id + i]);
+      futures[i] = workers[i].run_async(&MapReduce::map_chunk, data_chunk);
+    }
+
+    for (auto &future : futures) {
+      future.get();
+    }
+  }
+
+#ifdef BSP_PRINT_STAT
+  for (auto timestamp : timestamps) {
+    bsp_stat_ofs << timestamp << std::endl;
+  }
+#endif
+  }
 
 template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
