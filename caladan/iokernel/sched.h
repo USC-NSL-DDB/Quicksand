@@ -98,6 +98,13 @@ static inline int sched_threads_avail(struct proc *p)
 	return p->thread_count - p->active_thread_count;
 }
 
+static inline void sched_report_congestion(struct proc *p, bool congested)
+{
+	struct congestion_info *info = p->congestion_info;
+
+	info->congested = congested;
+	store_release(&info->granted_cores, p->active_thread_count);
+}
 
 /*
  * Core iterators

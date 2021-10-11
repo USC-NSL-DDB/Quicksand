@@ -379,16 +379,21 @@ static void ias_notify_congested(struct proc *p, bool busy, uint64_t delay, bool
 	/* stop if there is no congestion */
 	if (!congested) {
 		sd->is_congested = false;
+		sched_report_congestion(p, false);
 		return;
 	}
 
 	/* try to add an additional core right away */
 	ret = ias_add_kthread(sd);
-	if (!ret)
+
+	if (!ret) {
+		sched_report_congestion(p, false);
 		return;
+	}
 
 	/* otherwise mark the process as congested, cores can be added later */
 	sd->is_congested = true;
+	sched_report_congestion(p, true);
 }
 
 static int ias_kthread_score(struct ias_data *sd, int core)

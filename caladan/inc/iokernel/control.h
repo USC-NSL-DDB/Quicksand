@@ -38,6 +38,8 @@ struct q_ptrs {
 BUILD_ASSERT(sizeof(struct q_ptrs) <= CACHE_LINE_SIZE);
 
 struct congestion_info {
+	bool                    congested;
+	uint32_t                granted_cores;
 	float			load;
 	uint64_t		delay_us;
 };

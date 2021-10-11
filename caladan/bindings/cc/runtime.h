@@ -34,4 +34,8 @@ inline unsigned int RuntimeGuaranteedCores() {
   return runtime_guaranteed_cores();
 }
 
+inline bool RuntimeCongested() { return runtime_congested(); }
+
+inline uint32_t RuntimeGrantedCores() { return runtime_granted_cores(); }
+
 };  // namespace rt
