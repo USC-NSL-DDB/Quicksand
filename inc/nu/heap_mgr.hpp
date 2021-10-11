@@ -76,8 +76,10 @@ public:
   bool remove(void *heap_base);
   bool remove_with_present(void *heap_base);
   void mark_absent(void *heap_base);
-  std::vector<HeapRange> pick_heaps(const Resource &pressure);
+  std::vector<HeapRange> pick_heaps(uint32_t min_num_heaps,
+                                    uint32_t min_mem_mbs);
   uint64_t get_mem_usage();
+  uint32_t get_num_present_heaps();
 
 private:
   std::unordered_set<void *> present_heaps_;

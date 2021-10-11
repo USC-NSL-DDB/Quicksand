@@ -181,4 +181,9 @@ inline HeapHeader *OutermostMigrationDisabledGuard::get_heap_header() {
   return heap_header_;
 }
 
+inline uint32_t HeapManager::get_num_present_heaps() {
+  rt::MutexGuard guard(&mutex_);
+  return present_heaps_.size();
+}
+
 } // namespace nu

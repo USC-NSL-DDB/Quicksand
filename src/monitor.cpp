@@ -4,6 +4,7 @@
 extern "C" {
 #include <runtime/timer.h>
 }
+#include <runtime.h>
 #include <thread.h>
 
 #include "nu/commons.hpp"
@@ -15,7 +16,11 @@ constexpr static bool kEnableLogging = false;
 
 namespace nu {
 
-Monitor::Monitor() : mock_pressure_(std::nullopt), stopped_(false) {}
+Monitor::Monitor()
+    : mock_pressure_(std::nullopt), stopped_(false),
+      past_granted_cores_(rt::RuntimeMaxCores()) // For now we just assume all
+                                                 // cores are granted initially
+{}
 
 void Monitor::stop_loop() { ACCESS_ONCE(stopped_) = true; }
 
@@ -35,7 +40,13 @@ void Monitor::run_loop() {
                   << ", .mem_mbs = " << pressure.mem_mbs << " }." << std::endl;
       }
 
-      auto heaps = Runtime::heap_manager->pick_heaps(pressure);
+      auto core_ratio = static_cast<double>(pressure.cores) /
+                        (pressure.cores + past_granted_cores_);
+      auto min_num_heaps =
+          Runtime::heap_manager->get_num_present_heaps() * core_ratio;
+      auto min_mem_mbs = pressure.mem_mbs;
+      auto heaps =
+          Runtime::heap_manager->pick_heaps(min_num_heaps, min_mem_mbs);
       if (!heaps.empty()) {
         Runtime::migrator->migrate(pressure, heaps);
       }
@@ -57,13 +68,23 @@ bool Monitor::detect_pressure(Resource *pressure) {
     mock_pressure_ = std::nullopt;
     has_pressure = true;
   } else {
-    // Detect the real pressure through Linux interface.
+    // Detect memory pressure through Linux interface.
     struct sysinfo info;
     BUG_ON(sysinfo(&info) != 0);
     auto free_ram_mbs = info.freeram / kOneMB;
     if (free_ram_mbs < kMemLowWaterMarkMB) {
       pressure->mem_mbs = kMemLowWaterMarkMB - free_ram_mbs;
       has_pressure = true;
+    }
+
+    // Detect cpu pressure through Caladan interface.
+    if (kMonitorCPUCongestion && rt::RuntimeCongested()) {
+      auto granted_cores = rt::RuntimeGrantedCores();
+      if (granted_cores < past_granted_cores_) {
+        pressure->cores = past_granted_cores_ - granted_cores;
+        past_granted_cores_ = granted_cores;
+        has_pressure = true;
+      }
     }
   }
   return has_pressure;

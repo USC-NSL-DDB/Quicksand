@@ -92,7 +92,8 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
   }
 }
 
-std::vector<HeapRange> HeapManager::pick_heaps(const Resource &pressure) {
+std::vector<HeapRange> HeapManager::pick_heaps(uint32_t min_num_heaps,
+                                               uint32_t min_mem_mbs) {
   std::vector<HeapRange> heaps;
   uint32_t picked_heaps_mem_mbs = 0;
   rt::MutexGuard guard(&mutex_);
@@ -108,8 +109,8 @@ std::vector<HeapRange> HeapManager::pick_heaps(const Resource &pressure) {
       heaps.push_back(range);
 
       picked_heaps_mem_mbs += len / kOneMB;
-      // TODO: also consider CPU pressure.
-      if (picked_heaps_mem_mbs >= pressure.mem_mbs) {
+      if (picked_heaps_mem_mbs >= min_mem_mbs &&
+          heaps.size() >= min_num_heaps) {
         break;
       }
     }
