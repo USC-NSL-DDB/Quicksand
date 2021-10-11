@@ -29,11 +29,18 @@
 #include <nu/runtime.hpp>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <thread.h>
 
 #include "map_reduce.h"
 
 constexpr char fname_A[] = "matrix_file_A.txt";
 constexpr char fname_B[] = "matrix_file_B.txt";
+constexpr uint32_t kNumWorkerThreads = 46 * 4;
+constexpr uint32_t kNumWorkerNodes = 2;
+constexpr uint32_t kWorkerNodeIps[] = {
+    MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 5),
+    MAKE_IP_ADDR(18, 18, 1, 7), MAKE_IP_ADDR(18, 18, 1, 8),
+    MAKE_IP_ADDR(18, 18, 1, 9)};
 
 struct mm_data_t {
   uint64_t matrix_len;
@@ -46,9 +53,30 @@ struct mm_data_t {
 
 using Row = std::vector<int>;
 
-struct WorkerState {
-  int fd_A, fd_B, file_size;
-  int *matrix_A, *matrix_B;
+int fd_A, fd_B, file_size;
+int *matrix_A, *matrix_B;
+
+class WorkerNodeInitializer {
+public:
+  WorkerNodeInitializer(void *matrix_A_addr = nullptr,
+                        void *matrix_B_addr = nullptr) {
+    struct stat finfo_A;
+    CHECK_ERROR((fd_A = open(fname_A, O_RDONLY)) < 0);
+    CHECK_ERROR((fd_B = open(fname_B, O_RDONLY)) < 0);
+    CHECK_ERROR(fstat(fd_A, &finfo_A) < 0);
+    file_size = finfo_A.st_size;
+    int flags =  MAP_PRIVATE | MAP_POPULATE;
+    if (matrix_A_addr) {
+      flags |= MAP_FIXED_NOREPLACE;
+    }
+    CHECK_ERROR((matrix_A = (int *)mmap(matrix_A_addr, file_size + 1, PROT_READ,
+                                        flags, fd_A, 0)) == NULL);
+    CHECK_ERROR((matrix_B = (int *)mmap(matrix_B_addr, file_size + 1, PROT_READ,
+                                        flags, fd_B, 0)) == NULL);
+    for (uint32_t i = 0; i < kNumWorkerNodes; i++) {
+      nu::Runtime::reserve_conn(kWorkerNodeIps[i]);
+    }
+  }  
 };
 
 class MatrixMulMR : public MapReduce<MatrixMulMR, mm_data_t, uint64_t, Row> { 
@@ -56,41 +84,16 @@ public:
   int matrix_size;
   int row;
 
-  explicit MatrixMulMR(int size) : matrix_size(size), row(0) {}
-
-  void worker_init() {
-    auto *state = new WorkerState();
-    worker_state = state;
-
-    struct stat finfo_A;
-    CHECK_ERROR((state->fd_A = open(fname_A, O_RDONLY)) < 0);
-    CHECK_ERROR((state->fd_B = open(fname_B, O_RDONLY)) < 0);
-    CHECK_ERROR(fstat(state->fd_A, &finfo_A) < 0);
-    state->file_size = finfo_A.st_size;
-    CHECK_ERROR((state->matrix_A = (int *)mmap(
-                     0, state->file_size + 1, PROT_READ,
-                     MAP_PRIVATE | MAP_POPULATE, state->fd_A, 0)) == NULL);
-    CHECK_ERROR((state->matrix_B = (int *)mmap(
-                     0, state->file_size + 1, PROT_READ,
-                     MAP_PRIVATE | MAP_POPULATE, state->fd_B, 0)) == NULL);
-  }
-
-  void worker_cleanup() {
-    auto *state = reinterpret_cast<WorkerState *>(worker_state);
-    CHECK_ERROR(munmap(state->matrix_A, state->file_size + 1) < 0);
-    CHECK_ERROR(close(state->fd_A) < 0);
-    CHECK_ERROR(munmap(state->matrix_B, state->file_size + 1) < 0);
-    CHECK_ERROR(close(state->fd_B) < 0);
-    delete state;
-  }
+  explicit MatrixMulMR(int size)
+      : MapReduce<MatrixMulMR, mm_data_t, uint64_t, Row>(kNumWorkerThreads),
+        matrix_size(size), row(0) {}
 
   /** matrixmul_map()
    * Multiplies the allocated regions of matrix to compute partial sums
    */
   void map(mm_data_t const &data, map_container &out) const {
-    auto *state = reinterpret_cast<WorkerState *>(worker_state);
-    auto *tmp_A = state->matrix_A;
-    auto *tmp_B = state->matrix_B;
+    auto *tmp_A = matrix_A;
+    auto *tmp_B = matrix_B;
     tmp_A += data.matrix_len * data.row_id;
 
     std::vector<int> output(data.matrix_len);
@@ -99,6 +102,7 @@ public:
         output[j] += tmp_A[i] * tmp_B[j];
       }
       tmp_B += data.matrix_len;
+      rt::Yield();
     }
     emit_intermediate(out, data.row_id, output);
   }
@@ -200,6 +204,17 @@ void real_main(int argc, char *argv[]) {
   get_time(begin);
   std::vector<MatrixMulMR::keyval> result;
   MatrixMulMR mapReduce(matrix_len);
+
+  std::cout << "Press enter to initialize worker nodes" << std::endl;
+  std::cin.ignore();
+  
+  WorkerNodeInitializer initializer;
+  nu::RemObj<WorkerNodeInitializer> rem_initializers[kNumWorkerNodes];
+  for (uint32_t i = 0; i < kNumWorkerNodes; i++) {
+    rem_initializers[i] = nu::RemObj<WorkerNodeInitializer>::create(
+        reinterpret_cast<void *>(matrix_A), reinterpret_cast<void *>(matrix_B));
+  }
+
   mapReduce.run(result);
   get_time(end);
   print_time("library", begin, end);
