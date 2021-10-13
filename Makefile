@@ -74,10 +74,6 @@ bench_fake_migration_src = bench/bench_fake_migration.cpp
 bench_fake_migration_obj = $(bench_fake_migration_src:.cpp=.o)
 bench_fragmentation_src = bench/bench_fragmentation.cpp
 bench_fragmentation_obj = $(bench_fragmentation_src:.cpp=.o)
-bench_memcached_server_src = bench/bench_memcached_server.cpp
-bench_memcached_server_obj = $(bench_memcached_server_src:.cpp=.o)
-bench_memcached_client_src = bench/bench_memcached_client.cpp
-bench_memcached_client_obj = $(bench_memcached_client_src:.cpp=.o)
 bench_real_mem_pressure_src = bench/bench_real_mem_pressure.cpp
 bench_real_mem_pressure_obj = $(bench_real_mem_pressure_src:.cpp=.o)
 bench_real_cpu_pressure_src = bench/bench_real_cpu_pressure.cpp
@@ -89,8 +85,8 @@ bin/bench_rpc_tput bin/bench_rem_obj_call_tput bin/bench_rem_obj_call_lat bin/be
 bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
 bin/bench_hashtable_timeseries bin/bench_fake_migration bin/test_nested_rem_obj \
 bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
-bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_memcached_server \
-bin/bench_memcached_client bin/bench_real_mem_pressure bin/bench_real_cpu_pressure
+bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
+bin/bench_real_cpu_pressure
 
 libnu.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -149,10 +145,6 @@ bin/bench_fake_migration: $(bench_fake_migration_obj) $(librt_libs) $(RUNTIME_DE
 	$(LDXX) -o $@ $(bench_fake_migration_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_fragmentation: $(bench_fragmentation_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_fragmentation_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/bench_memcached_server: $(bench_memcached_server_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(bench_memcached_server_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/bench_memcached_client: $(bench_memcached_client_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(bench_memcached_client_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_real_mem_pressure: $(bench_real_mem_pressure_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_real_mem_pressure_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_real_cpu_pressure: $(bench_real_cpu_pressure_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
