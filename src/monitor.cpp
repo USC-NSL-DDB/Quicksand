@@ -82,7 +82,7 @@ bool Monitor::detect_pressure(Resource *pressure) {
       auto granted_cores = rt::RuntimeGrantedCores();
       if (granted_cores < past_granted_cores_) {
 	// Be conservative to deal with small CPU usage oscillations.
-        granted_cores = std::max(granted_cores - 1, static_cast<uint32_t>(0));
+        granted_cores = std::max(static_cast<int>(granted_cores) - 1, 0);
         pressure->cores = past_granted_cores_ - granted_cores;
         past_granted_cores_ = granted_cores;
         has_pressure = true;
