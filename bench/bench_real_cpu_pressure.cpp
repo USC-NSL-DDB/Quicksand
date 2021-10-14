@@ -22,7 +22,7 @@ extern "C" {
 
 #include "nu/commons.hpp"
 
-constexpr uint32_t kNumCPUCores = 22;
+constexpr uint32_t kNumCPUCores = 46;
 
 bool signalled = false;
 
