@@ -31,3 +31,5 @@ echo 1 > /sys/kernel/mm/zero_page/enabled
 # load msr module
 modprobe msr
 
+# clean cache
+sync; echo 3 > /proc/sys/vm/drop_caches
