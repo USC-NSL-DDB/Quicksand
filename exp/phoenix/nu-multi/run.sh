@@ -17,21 +17,31 @@ set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
 DIR=`pwd`
-cd ../../../app/phoenix++-1.0/
-make clean
-make -j
-cd tests/matrix_multiply/
-make clean
-make -j
-cp matrix_multiply $DIR/main
-cd $DIR
+
 for ip in ${REMOTE_SERVER_IPS[*]}
-do    
-    scp main $ip:`pwd`
+do
+    scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_A.txt \
+	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply
+    scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_B.txt \
+	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply
 done
 
 for num_worker_servers in `seq 1 4`
 do
+    cd ../../../app/phoenix++-1.0/
+    make clean
+    make -j
+    cd tests/matrix_multiply/
+    sed "s/constexpr uint32_t kNumWorkerNodes.*/constexpr uint32_t kNumWorkerNodes = $num_worker_servers;/g" \
+	-i matrix_multiply.cpp
+    make clean
+    make -j
+    cp matrix_multiply $DIR/main
+    cd $DIR
+    for ip in ${REMOTE_SERVER_IPS[*]}
+    do
+	scp main $ip:`pwd`
+    done
     sleep 5
     sudo $NU_DIR/caladan/iokerneld &
     for i in `seq 1 $num_worker_servers`
