@@ -18,9 +18,11 @@ for num_worker_nodes in `seq 1 4`
 do
     mop=${mops[`expr $num_worker_nodes - 1`]}
 
+    ssh $DOCKER_MASTER_IP "cd $SOCIAL_NET_DIR; ./install_docker.sh"
     join_cmd=`ssh $DOCKER_MASTER_IP "docker swarm init --advertise-addr $DOCKER_MASTER_IP" | grep token | head -n 1`
     for i in `seq 1 $num_worker_nodes`
     do
+	ssh ${REMOTE_SERVER_IPS[$i]} "cd $SOCIAL_NET_DIR; ./install_docker.sh"
 	ssh ${REMOTE_SERVER_IPS[$i]} "$join_cmd"
     done
 
@@ -41,16 +43,16 @@ do
 	    ssh $ip "cd $SOCIAL_NET_DIR; python3 scripts/init_social_graph.py"
 	fi
 	if [[ $has_composepost -ne 0 ]]; then
-	    composepost_ip=$ip
+	    composepost_ip=$(to_100g_addr $ip)
 	fi
 	if [[ $has_usertimeline -ne 0 ]]; then
-	    usertimeline_ip=$ip
+	    usertimeline_ip=$(to_100g_addr $ip)
 	fi
 	if [[ $has_socialgraph -ne 0 ]]; then
-	    socialgraph_ip=$ip
+	    socialgraph_ip=$(to_100g_addr $ip)
 	fi
 	if [[ $has_hometimeline -ne 0 ]]; then
-	    hometimeline_ip=$ip
+	    hometimeline_ip=$(to_100g_addr $ip)
 	fi
     done
 
