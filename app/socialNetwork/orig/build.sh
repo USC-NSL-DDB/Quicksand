@@ -1,11 +1,13 @@
 #!/bin/bash
 
-version=0.12.0 && git clone -b $version https://github.com/apache/thrift.git
-cd thrift
+pushd ../thrift
 ./bootstrap.sh
-./configure
+./configure --enable-caladanthreads=yes --enable-caladantcp=yes \
+            --with-caladan=`pwd`/../../../caladan/  \
+            --enable-shared=no --enable-tests=no --enable-tutorial=no \
+	    --with-libevent=no
 make -j
-cd ..
+popd
 
 mkdir build
 cd build
