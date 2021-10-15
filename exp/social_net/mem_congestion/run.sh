@@ -34,6 +34,7 @@ make -j
 cd ..
 scp build/src/main $SRC_SERVER_IP:`pwd`/build/src
 scp build/src/main $DEST_SERVER_IP:`pwd`/build/src
+ssh $CLIENT_IP "mkdir -p `pwd`/build/bench"
 scp build/bench/client $CLIENT_IP:`pwd`/build/bench
 
 sudo $NU_DIR/caladan/iokerneld &
