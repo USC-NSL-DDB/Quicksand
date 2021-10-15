@@ -9,12 +9,12 @@ rm -rf logs/*
 NGINX_SERVER_IP=$SERVER7_IP
 SOCIAL_NET_DIR=`pwd`/../../../app/socialNetwork/orig/
 
-NGINX_SERVER_SIB_IP=$(to_100g_addr $NGINX_SERVER_IP)
-CALADAN_IP=`echo $NGINX_SERVER_SIB_IP | sed "s/\(.*\)\.\(.*\)\.\(.*\)\.\(.*\)/\1\.\2\.\3\.254/g"`
+NGINX_SERVER_100G_IP=$(to_100g_addr $NGINX_SERVER_IP)
+CALADAN_IP=`echo $NGINX_SERVER_100G_IP | sed "s/\(.*\)\.\(.*\)\.\(.*\)\.\(.*\)/\1\.\2\.\3\.254/g"`
 sed "s/host_addr.*/host_addr $CALADAN_IP/g" -i conf/client.conf
 
 cd $SOCIAL_NET_DIR
-sed "s/constexpr static char kHostIP.*/constexpr static char kHostIP[] = \"$NGINX_SERVER_SIB_IP\";/g" \
+sed "s/constexpr static char kHostIP.*/constexpr static char kHostIP[] = \"$NGINX_SERVER_100G_IP\";/g" \
     -i src/Client/client.cpp
 ./build.sh
 
