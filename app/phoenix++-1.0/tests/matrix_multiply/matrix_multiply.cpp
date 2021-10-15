@@ -36,7 +36,7 @@
 constexpr char fname_A[] = "matrix_file_A.txt";
 constexpr char fname_B[] = "matrix_file_B.txt";
 constexpr uint32_t kNumWorkerThreads = 46 * 4;
-constexpr uint32_t kNumWorkerNodes = 2;
+constexpr uint32_t kNumWorkerNodes = 4;
 constexpr uint32_t kWorkerNodeIps[] = {
     MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 5),
     MAKE_IP_ADDR(18, 18, 1, 7), MAKE_IP_ADDR(18, 18, 1, 8),
@@ -58,24 +58,19 @@ int *matrix_A, *matrix_B;
 
 class WorkerNodeInitializer {
 public:
-  WorkerNodeInitializer(void *matrix_A_addr = nullptr,
-                        void *matrix_B_addr = nullptr) {
+  WorkerNodeInitializer() {
     struct stat finfo_A;
     CHECK_ERROR((fd_A = open(fname_A, O_RDONLY)) < 0);
     CHECK_ERROR((fd_B = open(fname_B, O_RDONLY)) < 0);
     CHECK_ERROR(fstat(fd_A, &finfo_A) < 0);
     file_size = finfo_A.st_size;
-    int flags =  MAP_PRIVATE | MAP_POPULATE;
-    if (matrix_A_addr) {
-      flags |= MAP_FIXED_NOREPLACE;
-    }
-    CHECK_ERROR((matrix_A = (int *)mmap(matrix_A_addr, file_size + 1, PROT_READ,
-                                        flags, fd_A, 0)) == NULL);
-    CHECK_ERROR((matrix_B = (int *)mmap(matrix_B_addr, file_size + 1, PROT_READ,
-                                        flags, fd_B, 0)) == NULL);
-    for (uint32_t i = 0; i < kNumWorkerNodes; i++) {
-      nu::Runtime::reserve_conn(kWorkerNodeIps[i]);
-    }
+    int flags = MAP_PRIVATE | MAP_POPULATE | MAP_FIXED_NOREPLACE;
+    CHECK_ERROR((matrix_A = (int *)mmap(
+                     reinterpret_cast<void *>(0x600000000000), file_size + 1,
+                     PROT_READ, flags, fd_A, 0)) == (void *)-1);
+    CHECK_ERROR((matrix_B = (int *)mmap(
+                     reinterpret_cast<void *>(0x610000000000), file_size + 1,
+                     PROT_READ, flags, fd_B, 0)) == (void *)-1);
   }  
 };
 
@@ -102,7 +97,6 @@ public:
         output[j] += tmp_A[i] * tmp_B[j];
       }
       tmp_B += data.matrix_len;
-      rt::Yield();
     }
     emit_intermediate(out, data.row_id, output);
   }
@@ -205,14 +199,9 @@ void real_main(int argc, char *argv[]) {
   std::vector<MatrixMulMR::keyval> result;
   MatrixMulMR mapReduce(matrix_len);
 
-  std::cout << "Press enter to initialize worker nodes" << std::endl;
-  std::cin.ignore();
-  
-  WorkerNodeInitializer initializer;
   nu::RemObj<WorkerNodeInitializer> rem_initializers[kNumWorkerNodes];
   for (uint32_t i = 0; i < kNumWorkerNodes; i++) {
-    rem_initializers[i] = nu::RemObj<WorkerNodeInitializer>::create(
-        reinterpret_cast<void *>(matrix_A), reinterpret_cast<void *>(matrix_B));
+    rem_initializers[i] = nu::RemObj<WorkerNodeInitializer>::create();
   }
 
   mapReduce.run(result);
