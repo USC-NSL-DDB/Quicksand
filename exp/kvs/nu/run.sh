@@ -7,6 +7,9 @@ mops=( 1 2 3 4 5 6 7 8 9 10 11 12 12.2 12.4 12.6 12.8 )
 mkdir logs
 rm -rf logs/*
 
+set_bridge $CONTROLLER_ETHER
+set_bridge $CLIENT1_ETHER
+
 make -j
 scp server $SERVER2_IP:`pwd`/
 
@@ -32,5 +35,8 @@ do
     ssh $SERVER2_IP "sudo pkill -9 iokerneld"
     ssh $SERVER2_IP "sudo pkill -9 server"
 done
+
+unset_bridge $CONTROLLER_ETHER
+unset_bridge $CLIENT1_ETHER
 
 rm logs/.tmp
