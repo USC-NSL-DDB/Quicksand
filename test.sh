@@ -7,7 +7,7 @@ all_passed=1
 local_unit_tests=("test_slab" "test_perf")
 
 function prepare {
-    sync; echo 3 > /proc/sys/vm/drop_caches
+    sudo sync; sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
     if [[ ! -v DPDK_NIC ]]; then
 	echo 'Please set env var $DPDK_NIC, e.g., export DPDK_NIC=enp5s0f0'
 	exit 1
