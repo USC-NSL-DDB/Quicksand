@@ -1095,6 +1095,7 @@ bool thread_is_migrated(void)
 void pause_migrating_threads(void)
 {
 	int i;
+	struct kthread *k;
 
 	for (i = 0; i < nrks; i++) {
 		ks[i]->pause_req = true;
@@ -1102,9 +1103,11 @@ void pause_migrating_threads(void)
 	store_release(&global_pause_req_mask, true);
 
 	kthread_yield_all_cores();
-	spin_lock(&myk()->lock);
+	k = getk();
+	spin_lock(&k->lock);
 	check_pending_pause_req();
-	spin_unlock(&myk()->lock);
+	spin_unlock(&k->lock);
+	putk();
 retry:
 	for (i = 0; i < nrks; i++)
 		if (ACCESS_ONCE(ks[i]->pause_req))
