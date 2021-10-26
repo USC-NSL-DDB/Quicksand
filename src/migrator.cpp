@@ -695,17 +695,20 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
   auto *heap_header = Runtime::get_current_obj_heap_header();
   netaddr old_server_addr = {.ip = heap_header->old_server_ip,
                              .port = kMigratorServerPort};
-  auto migrator_conn = migrator_conn_mgr_.get(old_server_addr);
-  auto *conn = migrator_conn.get_tcp_conn();
-  uint64_t stack_top = get_obj_stack_range(thread_self()).end;
-  const iovec iovecs[] = {{&type, sizeof(type)},
-                          {&rc, sizeof(rc)},
-                          {returner, sizeof(*returner)},
-                          {&stack_top, sizeof(stack_top)},
-                          {&payload_len, sizeof(payload_len)}};
-  BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
-  if (payload_len) {
-    BUG_ON(conn->WriteFull(payload, payload_len) < 0);
+  {
+    RuntimeHeapGuard guard;
+    auto migrator_conn = migrator_conn_mgr_.get(old_server_addr);
+    auto *conn = migrator_conn.get_tcp_conn();
+    uint64_t stack_top = get_obj_stack_range(thread_self()).end;
+    const iovec iovecs[] = {{&type, sizeof(type)},
+                            {&rc, sizeof(rc)},
+                            {returner, sizeof(*returner)},
+                            {&stack_top, sizeof(stack_top)},
+                            {&payload_len, sizeof(payload_len)}};
+    BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
+    if (payload_len) {
+      BUG_ON(conn->WriteFull(payload, payload_len) < 0);
+    }
   }
   heap_header->forward_wg.Done();
 }
