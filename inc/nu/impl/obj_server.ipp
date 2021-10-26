@@ -76,6 +76,7 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
 
   if (latest_cnt == 0) {
     if (likely(Runtime::heap_manager->remove_with_present(heap_header))) {
+      // Will never be migrated at this point.
       *deallocate = true;
       obj.~Cls();
       Runtime::heap_manager->mark_absent(heap_header);
@@ -116,6 +117,8 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
       &deallocate);
 
   if (deallocate) {
+    // Wait for all ongoing invocations to finish.
+    heap_header->rcu_lock.writer_sync();
     Runtime::heap_manager->deallocate(heap_base);
   }
 
