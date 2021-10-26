@@ -41,8 +41,6 @@ struct HeapHeader {
 
   // Migration related.
   std::unique_ptr<RefcountHashSet<thread_t *>> threads;
-  std::unique_ptr<RefcountHashSet<Mutex *>> mutexes;
-  std::unique_ptr<RefcountHashSet<CondVar *>> condvars;
   std::unique_ptr<Time> time;
   bool migratable;
 

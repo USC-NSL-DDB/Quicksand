@@ -11,6 +11,7 @@ extern "C" {
 }
 
 #include "nu/rem_obj.hpp"
+#include "nu/utils/mutex.hpp"
 #include "nu/utils/spinlock.hpp"
 #include "nu/utils/sync_hash_map.hpp"
 
@@ -19,21 +20,15 @@ namespace nu {
 // TODO: support batch interface.
 // TODO: support dynamic upsharding/downsharding.
 template <typename K, typename V, typename Hash = std::hash<K>,
-          typename KeyEqual = std::equal_to<K>, uint64_t NumBuckets = 65536>
+          typename KeyEqual = std::equal_to<K>, uint64_t NumBuckets = 32768>
 class DistributedHashTable {
 public:
   constexpr static uint32_t kDefaultPowerNumShards = 13;
   constexpr static uint64_t kNumBucketsPerShard = NumBuckets;
 
-  struct MigratableYieldLock {
-    SpinLock lock;
-    void Lock() { while (!lock.TryLock()) rt::Yield(); }
-    void Unlock() { lock.Unlock(); }
-  };
-
   using HashTableShard =
       SyncHashMap<NumBuckets, K, V, Hash, std::equal_to<K>,
-                  std::allocator<std::pair<const K, V>>, MigratableYieldLock>;
+                  std::allocator<std::pair<const K, V>>, Mutex>;
   struct Cap {
     std::vector<typename RemObj<HashTableShard>::Cap> shard_caps;
 

@@ -20,6 +20,7 @@ extern "C" {
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_deleter.hpp"
+#include "nu/utils/slab.hpp"
 
 namespace nu {
 
@@ -192,7 +193,7 @@ wrong_args:
 
 inline void *__new(size_t size) {
   void *ptr;
-  auto *slab = reinterpret_cast<nu::SlabAllocator *>(get_uthread_specific());
+  auto *slab = reinterpret_cast<nu::SlabAllocator *>(get_obj_heap());
 
   if (slab) {
     ptr = slab->allocate(size);

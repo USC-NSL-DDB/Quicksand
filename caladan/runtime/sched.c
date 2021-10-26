@@ -51,20 +51,6 @@ static bool global_pause_req_mask = false;
  */
 thread_t *thread_self(void);
 
-uint64_t get_uthread_specific(void)
-{
-	if (!__self)
-		return 0;
-	else
-		return __self->tlsvar;
-}
-
-void set_uthread_specific(uint64_t val)
-{
-	BUG_ON(!__self);
-	__self->tlsvar = val;
-}
-
 /**
  * cores_have_affinity - returns true if two cores have cache affinity
  * @cpua: the first core
@@ -861,9 +847,10 @@ static __always_inline thread_t *__thread_create(void)
 	th->thread_running = false;
 	th->run_start_tsc = UINT64_MAX;
 	if (__self)
-		th->tlsvar = __self->tlsvar;
+		th->obj_heap = __self->obj_heap;
 	else
-		th->tlsvar = 0;
+		th->obj_heap = NULL;
+	th->waiter_info = 0;
 	th->migration_state = NO_MIGRATION;
 
 	return th;
@@ -1123,11 +1110,11 @@ void *thread_get_trap_frame(thread_t *th, size_t *size)
 	return &th->tf;
 }
 
-thread_t *create_migrated_thread(void *tf, uint64_t tlsvar)
+thread_t *create_migrated_thread(void *tf, void *obj_heap)
 {
 	thread_t *th = __thread_create();
 	BUG_ON(!th);
-	th->tlsvar = tlsvar;
+	th->obj_heap = obj_heap;
 	th->tf = *((struct thread_tf *)tf);
 	th->migration_state = MIGRATED;
 	return th;
@@ -1143,7 +1130,8 @@ void gc_migrated_threads(void)
 			if (th->migration_state == MIGRATED) {
 				stack_free(th->stack);
 				tcache_free(&perthread_get(thread_pt), th);
-			}
+			} else
+				BUG();
 		}
 	}
 }
@@ -1153,3 +1141,45 @@ void *thread_get_runtime_stack_base(void)
 	return &__self->stack->usable[STACK_PTR_SIZE - 1];
 }
 
+void *get_obj_heap()
+{
+       if (!__self)
+		return 0;
+       else
+		return __self->obj_heap;
+}
+
+void set_obj_heap(void *obj_heap)
+{
+       __self->obj_heap = obj_heap;
+}
+
+uint64_t get_waiter_info(thread_t *th)
+{
+       return th->waiter_info;
+}
+
+void set_waiter_info(thread_t *th, uint64_t waiter_info)
+{
+       th->waiter_info = waiter_info;
+}
+
+void get_waiter_info_and_ready(thread_t *th, uint64_t *waiter_info,
+                               bool *ready) {
+       *waiter_info = th->waiter_info;
+       *ready = th->thread_ready;
+}
+
+uint64_t get_self_waiter_info(void) {
+       uint64_t waiter_info;
+       preempt_disable();
+       waiter_info = __self->waiter_info;
+       preempt_enable();
+       return waiter_info;
+}
+
+void set_self_waiter_info(uint64_t waiter_info) {
+       preempt_disable();
+       __self->waiter_info = waiter_info;
+       preempt_enable();
+}

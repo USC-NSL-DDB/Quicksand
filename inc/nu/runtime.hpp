@@ -91,8 +91,6 @@ private:
   template <typename Cls, typename... A0s, typename... A1s>
   static bool run_within_obj_env(void *heap_base, void (*fn)(A0s...),
                                  A1s &&... args);
-  static void *get_heap();
-  static void set_heap(void *heap);
   static void switch_to_obj_heap(void *obj_ptr);
   static void switch_to_runtime_heap();
   template <typename T, typename... Args>

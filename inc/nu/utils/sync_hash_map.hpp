@@ -9,12 +9,14 @@
 
 #include <sync.h>
 
+#include "nu/utils/spinlock.hpp"
+
 namespace nu {
 
 template <size_t NBuckets, typename K, typename V, typename Hash = std::hash<K>,
           typename KeyEqual = std::equal_to<K>,
           typename Allocator = std::allocator<std::pair<const K, V>>,
-          typename Lock = rt::Spin>
+          typename Lock = SpinLock>
 class SyncHashMap {
 public:
   SyncHashMap();

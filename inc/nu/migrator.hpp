@@ -14,14 +14,15 @@ extern "C" {
 #include <net.h>
 #include <sync.h>
 
-#include "nu/cond_var.hpp"
-#include "nu/mutex.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/utils/netaddr.hpp"
 #include "nu/utils/slab.hpp"
 
 namespace nu {
 
+class Mutex;
+class CondVar;
+class Time;
 enum MigratorRPC_t { kCopy, kMigrate, kForward, kUnmap };
 
 struct RPCReqReserveConns {
@@ -102,12 +103,9 @@ private:
   void transmit_heap(rt::TcpConn *c, HeapHeader *heap_header);
   void transmit_heap_mmap_populate_ranges(rt::TcpConn *c,
                                           const std::vector<HeapRange> &heaps);
-  void transmit_mutexes(rt::TcpConn *c, HeapHeader *heap_header,
-                        std::unordered_set<thread_t *> *mutex_threads);
-  void transmit_condvars(rt::TcpConn *c, HeapHeader *heap_header,
-                         std::unordered_set<thread_t *> *condvar_threads);
-  void transmit_time(rt::TcpConn *c, HeapHeader *heap_header,
-                     std::unordered_set<thread_t *> *time_threads);
+  void transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes);
+  void transmit_condvars(rt::TcpConn *c, std::vector<CondVar *> condvars);
+  void transmit_time(rt::TcpConn *c, Time *time);
   void transmit_threads(rt::TcpConn *c, const std::vector<thread_t *> &threads);
   void transmit_one_thread(rt::TcpConn *c, thread_t *thread);
   bool mark_migrating_threads(HeapHeader *heap_header);

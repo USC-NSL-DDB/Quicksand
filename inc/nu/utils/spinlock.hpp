@@ -10,9 +10,9 @@ public:
   SpinLock(const SpinLock &) = delete;
   SpinLock &operator=(const SpinLock &) = delete;
   ~SpinLock();
-  void Lock();
-  void Unlock();
-  bool TryLock();
+  void lock();
+  void unlock();
+  bool try_lock();
 
 private:
   spinlock_t spinlock_;

@@ -11,11 +11,11 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/cond_var.hpp"
 #include "nu/monitor.hpp"
-#include "nu/mutex.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
+#include "nu/utils/cond_var.hpp"
+#include "nu/utils/mutex.hpp"
 
 using namespace nu;
 
@@ -29,19 +29,19 @@ public:
   int get_credits() { return credits_; }
 
   void consume() {
-    mutex_.Lock();
+    mutex_.lock();
     while (ACCESS_ONCE(credits_) == 0) {
       condvar_.wait(&mutex_);
     }
     credits_--;
-    mutex_.Unlock();
+    mutex_.unlock();
   }
 
   void produce() {
-    mutex_.Lock();
+    mutex_.lock();
     credits_++;
     condvar_.signal();
-    mutex_.Unlock();
+    mutex_.unlock();
   }
 
   void migrate() {

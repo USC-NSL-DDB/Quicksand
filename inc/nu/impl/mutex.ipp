@@ -1,31 +1,33 @@
-#include "nu/heap_mgr.hpp"
-#include "nu/runtime.hpp"
+#include <sync.h>
 
 namespace nu {
 
 inline Mutex::Mutex() {
-  auto *heap_header = Runtime::get_current_obj_heap_header();
-  if (heap_header) {
-    RuntimeHeapGuard guard;
-    heap_header->mutexes->put(this);
-  }
   mutex_init(&mutex_);
 }
 
 inline Mutex::~Mutex() {
-  auto *heap_header = Runtime::get_current_obj_heap_header();
-  if (heap_header) {
-    RuntimeHeapGuard guard;
-    heap_header->mutexes->remove(this);
-  }
   assert(!mutex_held(&mutex_));
 }
 
-inline void Mutex::Lock() { mutex_lock(&mutex_); }
+inline void Mutex::lock() {
+  if (unlikely(!try_lock())) {
+    WaiterInfo waiter_info;
+    waiter_info.type = WaiterType::kMutex;
+    waiter_info.addr = reinterpret_cast<uint64_t>(this);
+    set_self_waiter_info(waiter_info.raw);
+    __mutex_lock(&mutex_);
+    set_self_waiter_info(0);
+  }
+}
 
-inline void Mutex::Unlock() { mutex_unlock(&mutex_); }
+inline void Mutex::unlock() {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+  mutex_unlock(&mutex_);
+}
 
-inline bool Mutex::TryLock() { return mutex_try_lock(&mutex_); }
+inline bool Mutex::try_lock() { return mutex_try_lock(&mutex_); }
 
 inline list_head *Mutex::get_waiters() { return &mutex_.waiters; }
 

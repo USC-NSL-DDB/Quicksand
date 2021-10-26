@@ -12,9 +12,9 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/monitor.hpp"
-#include "nu/mutex.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
+#include "nu/utils/mutex.hpp"
 #include "nu/utils/spinlock.hpp"
 
 using namespace nu;
@@ -29,10 +29,10 @@ public:
   void do_work() { delay_us(100 * 1000); }
 
   void mutex() {
-    mutex_.Lock();
+    mutex_.lock();
     do_work();
     cnt_++;
-    mutex_.Unlock();
+    mutex_.unlock();
   }
 
   void migrate() {

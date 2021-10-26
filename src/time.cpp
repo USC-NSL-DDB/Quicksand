@@ -70,7 +70,11 @@ void Time::obj_env_sleep_until(uint64_t deadline_us) {
   entries_.push_back(e);
   arg->iter = --entries_.end();
   timer_start(e, physical_us);
+  WaiterInfo waiter_info;
+  waiter_info.type = WaiterType::kTimer;
+  set_self_waiter_info(waiter_info.raw);
   thread_park_and_unlock_np(reinterpret_cast<spinlock_t *>(&spin_));
+  set_self_waiter_info(0);
 }
 
 } // namespace nu

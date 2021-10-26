@@ -7,10 +7,8 @@ extern "C" {
 #include <runtime/thread.h>
 }
 
-#include "nu/cond_var.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/monitor.hpp"
-#include "nu/mutex.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"
 
@@ -51,8 +49,6 @@ void HeapManager::deallocate(void *heap_base) {
   auto total_munmap_size = kHeapSize - kPageSize;
   RuntimeHeapGuard guard;
   heap_header->threads.reset();
-  heap_header->mutexes.reset();
-  heap_header->condvars.reset();
   heap_header->time.reset();
   std::destroy_at(&heap_header->forward_wg);
   std::destroy_at(&heap_header->spin);
@@ -67,14 +63,6 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
   heap_header->threads.release();
   heap_header->threads.reset(
       new decltype(heap_header->threads)::element_type());
-
-  heap_header->mutexes.release();
-  heap_header->mutexes.reset(
-      new decltype(heap_header->mutexes)::element_type());
-
-  heap_header->condvars.release();
-  heap_header->condvars.reset(
-      new decltype(heap_header->condvars)::element_type());
 
   heap_header->time.release();
   heap_header->time.reset(new decltype(heap_header->time)::element_type());

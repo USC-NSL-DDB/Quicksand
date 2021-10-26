@@ -36,20 +36,20 @@ V *SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_with_hash(
   auto bucket_idx = key_hash % NBuckets;
   auto *bucket_node = &buckets_[bucket_idx];
   auto &lock = locks_[bucket_idx];
-  lock.Lock();
+  lock.lock();
 
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
       auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
       if (equaler(k, pair->first)) {
         auto ret = &pair->second;
-        lock.Unlock();
+        lock.unlock();
         return ret;
       }
     }
     bucket_node = bucket_node->next;
   }
-  lock.Unlock();
+  lock.unlock();
   return nullptr;
 }
 
@@ -63,20 +63,20 @@ std::optional<V> SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
   auto bucket_idx = key_hash % NBuckets;
   auto *bucket_node = &buckets_[bucket_idx];
   auto &lock = locks_[bucket_idx];
-  lock.Lock();
+  lock.lock();
 
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
       auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
       if (equaler(k, pair->first)) {
         auto ret = std::make_optional(pair->second);
-        lock.Unlock();
+        lock.unlock();
         return ret;
       }
     }
     bucket_node = bucket_node->next;
   }
-  lock.Unlock();
+  lock.unlock();
   return std::nullopt;
 }
 
@@ -100,14 +100,14 @@ void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
   auto *bucket_node = &buckets_[bucket_idx];
   BucketNode **prev_next = nullptr;
   auto &lock = locks_[bucket_idx];
-  lock.Lock();
+  lock.lock();
 
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
       auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
       if (equaler(k, pair->first)) {
         pair->second = std::forward<V1>(v);
-        lock.Unlock();
+        lock.unlock();
         return;
       }
     }
@@ -131,7 +131,7 @@ void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
     new_bucket_node->next = nullptr;
     *prev_next = new_bucket_node;
   }
-  lock.Unlock();
+  lock.unlock();
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
@@ -210,7 +210,7 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
   auto *bucket_node = &buckets_[bucket_idx];
   BucketNode **prev_next = nullptr;
   auto &lock = locks_[bucket_idx];
-  lock.Lock();
+  lock.lock();
 
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
@@ -225,7 +225,7 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
         } else {
           *prev_next = bucket_node->next;
         }
-        lock.Unlock();
+        lock.unlock();
         auto allocator = Allocator();
         std::destroy_at(pair);
         allocator.deallocate(pair, 1);
@@ -239,7 +239,7 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
     prev_next = &bucket_node->next;
     bucket_node = bucket_node->next;
   }
-  lock.Unlock();
+  lock.unlock();
   return false;
 }
 
@@ -323,14 +323,14 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
   RetT reduced_val(std::move(init_val));
   for (size_t i = 0; i < NBuckets; i++) {
     if (buckets_[i].pair) {
-      locks_[i].Lock();
+      locks_[i].lock();
       auto *bucket_node = &buckets_[i];
       while (bucket_node && bucket_node->pair) {
         auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
         reduce_fn(reduced_val, *pair, std::forward<A1s>(args)...);
         bucket_node = bucket_node->next;
       }
-      locks_[i].Unlock();
+      locks_[i].unlock();
     }
   }
   return reduced_val;
