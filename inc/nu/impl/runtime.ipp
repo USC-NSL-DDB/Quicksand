@@ -78,7 +78,6 @@ __run_within_obj_env(OutermostMigrationDisabledGuard *guard, uint8_t *obj_stack,
   if (unlikely(thread_is_migrated())) {
     auto runtime_stack_base = thread_get_runtime_stack_base();
     switch_to_runtime_stack(runtime_stack_base);
-    guard_on_obj_stack.reset();
     rt::Exit();
   }
 }
