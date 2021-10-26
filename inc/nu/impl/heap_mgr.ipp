@@ -15,9 +15,10 @@ inline void HeapManager::allocate(void *heap_base, bool migratable) {
 }
 
 inline void HeapManager::mmap(void *heap_base) {
-  auto mmap_addr = ::mmap(heap_base, kHeapSize, PROT_READ | PROT_WRITE,
+  auto mmap_addr = ::mmap(reinterpret_cast<uint8_t *>(heap_base) + kPageSize,
+                          kHeapSize - kPageSize, PROT_READ | PROT_WRITE,
                           MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
-  BUG_ON(mmap_addr != heap_base);
+  BUG_ON(mmap_addr == reinterpret_cast<void *>(-1));
 }
 
 inline void HeapManager::insert(void *heap_base) {
