@@ -5,26 +5,24 @@ extern "C" {
 #include <runtime/preempt.h>
 }
 
-#include <sync.h>
 #include <thread.h>
 
 namespace nu {
 
-// TODO: fix the potential live lock in which the writer core was ceded.
 inline void RCULock::detect_sync_barrier() {
-  while (unlikely(rt::access_once(sync_barrier_))) {
-    rt::Yield();
+  if (unlikely(rt::access_once(sync_barrier_))) {
+    __detect_sync_barrier();
   }
 }
 
 inline void RCULock::reader_lock() {
-  detect_sync_barrier();
+  detect_sync_barrier(); // Avoid starvation.
   int core = get_cpu();
   Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
+  cnt.raw = per_core_data_[core].cnt.raw;
   cnt.data.c++;
   cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
+  per_core_data_[core].cnt.data = cnt.data;
   put_cpu();
 }
 
@@ -34,10 +32,10 @@ inline bool RCULock::try_reader_lock() {
   }
   int core = get_cpu();
   Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
+  cnt.raw = per_core_data_[core].cnt.raw;
   cnt.data.c++;
   cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
+  per_core_data_[core].cnt.data = cnt.data;
   put_cpu();
 
   return true;
@@ -46,10 +44,10 @@ inline bool RCULock::try_reader_lock() {
 inline void RCULock::reader_unlock() {
   int core = get_cpu();
   Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
+  cnt.raw = per_core_data_[core].cnt.raw;
   cnt.data.c--;
   cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
+  per_core_data_[core].cnt.data = cnt.data;
   put_cpu();
 }
 

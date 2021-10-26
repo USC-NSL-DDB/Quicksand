@@ -258,10 +258,18 @@ template <typename L>
 class ScopedLockAndPark {
  public:
   explicit ScopedLockAndPark(L *lock) : lock_(lock) { lock_->Lock(); }
-  ~ScopedLockAndPark() { lock_->UnlockAndPark(); }
+  ~ScopedLockAndPark() {
+    if (lock_) {
+      lock_->UnlockAndPark();
+    }
+  }
+  void reset() {
+    lock_->Unlock();
+    lock_ = nullptr;
+  }
 
  private:
-  L *const lock_;
+  L *lock_;
 
   ScopedLockAndPark(const ScopedLockAndPark&) = delete;
   ScopedLockAndPark& operator=(const ScopedLockAndPark&) = delete;
