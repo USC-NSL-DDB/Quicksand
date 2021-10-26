@@ -41,6 +41,6 @@ cargo clean
 cargo build --release
 sudo target/release/synthetic $MEMCACHED_100G_IP:8888 --config $DIR/conf/client --mode runtime-client \
      --protocol memcached --transport tcp --mpps 6 --samples 20 --threads 48 --start_mpps 0.2 \
-     --runtime=5 --nvalues=107374182 --key_size 20 --value_size 2 >$DIR/log
+     --runtime=5 --nvalues=53687091 --key_size 20 --value_size 2 >$DIR/log
 sudo pkill -9 iokerneld
 ssh $MEMCACHED_IP "sudo pkill -9 memcached"

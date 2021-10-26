@@ -25,14 +25,14 @@ sudo ./server conf/controller CTL 18.18.1.3 &
 ssh $SRC_SERVER_IP "cd `pwd`; source ../../shared.sh; set_bridge $SERVER1_ETHER"
 ssh $SRC_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
-ssh $SRC_SERVER_IP "cd `pwd`; sudo ./server conf/server1 SRV 18.18.1.3" &
+ssh $SRC_SERVER_IP "cd `pwd`; sudo ./server conf/server1 SRV 18.18.1.3" >logs/.src &
 sleep 5
 sudo ./server conf/client1 CLT 18.18.1.3 >logs/.server &
 ( tail -f -n0 logs/.server & ) | grep -q "finish initing"
 ssh $DEST_SERVER_IP "cd `pwd`; source ../../shared.sh; set_bridge $SERVER2_ETHER"
 ssh $DEST_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
-ssh $DEST_SERVER_IP "cd `pwd`; sudo ./server conf/server2 SRV 18.18.1.3" &
+ssh $DEST_SERVER_IP "cd `pwd`; sudo ./server conf/server2 SRV 18.18.1.3" >logs/.dest &
 sleep 5
 sudo pkill -SIGHUP server
 ssh $SRC_SERVER_IP "cd `pwd`; sudo stdbuf -o0 ../../../bin/bench_real_mem_pressure conf/client3" >logs/.pressure &

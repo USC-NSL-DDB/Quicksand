@@ -10,6 +10,7 @@ rm -rf logs/*
 set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
+make clean
 make -j
 scp server $SERVER2_IP:`pwd`/
 
