@@ -19,10 +19,10 @@ inline void RCULock::reader_lock() {
   detect_sync_barrier(); // Avoid starvation.
   int core = get_cpu();
   Cnt cnt;
-  cnt.raw = per_core_data_[core].cnt.raw;
+  cnt.raw = aligned_cnts_[core].cnt.raw;
   cnt.data.c++;
   cnt.data.ver++;
-  per_core_data_[core].cnt.data = cnt.data;
+  aligned_cnts_[core].cnt.data = cnt.data;
   put_cpu();
 }
 
@@ -32,10 +32,10 @@ inline bool RCULock::try_reader_lock() {
   }
   int core = get_cpu();
   Cnt cnt;
-  cnt.raw = per_core_data_[core].cnt.raw;
+  cnt.raw = aligned_cnts_[core].cnt.raw;
   cnt.data.c++;
   cnt.data.ver++;
-  per_core_data_[core].cnt.data = cnt.data;
+  aligned_cnts_[core].cnt.data = cnt.data;
   put_cpu();
 
   return true;
@@ -44,10 +44,10 @@ inline bool RCULock::try_reader_lock() {
 inline void RCULock::reader_unlock() {
   int core = get_cpu();
   Cnt cnt;
-  cnt.raw = per_core_data_[core].cnt.raw;
+  cnt.raw = aligned_cnts_[core].cnt.raw;
   cnt.data.c--;
   cnt.data.ver++;
-  per_core_data_[core].cnt.data = cnt.data;
+  aligned_cnts_[core].cnt.data = cnt.data;
   put_cpu();
 }
 

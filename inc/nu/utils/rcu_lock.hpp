@@ -8,11 +8,16 @@
 #include "nu/commons.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
+#include "nu/utils/spinlock.hpp"
 
 namespace nu {
 
 class RCULock {
 public:
+  constexpr static uint32_t kReaderWaitFastPathMaxUs = 20;
+  constexpr static uint32_t kWriterWaitFastPathMaxUs = 20;
+  constexpr static uint32_t kWriterWaitSlowPathSleepUs = 10;
+
   RCULock();
   ~RCULock();
   void reader_lock();
@@ -30,14 +35,14 @@ private:
   };
   static_assert(sizeof(Cnt) == sizeof(Cnt::Data));
 
-  struct alignas(kCacheLineBytes) PerCoreData {
+  struct alignas(kCacheLineBytes) AlignedCnt {
     Cnt cnt;
-    rt::Spin spin;
-    std::vector<rt::ThreadWaker> wakers;
   };
 
   bool sync_barrier_;
-  PerCoreData per_core_data_[kNumCores];
+  AlignedCnt aligned_cnts_[kNumCores];
+  std::vector<rt::ThreadWaker> wakers_;
+  rt::Spin spin_;
 
   template <typename Fn> void write_sync_general(Fn &&fn);
   void detect_sync_barrier();

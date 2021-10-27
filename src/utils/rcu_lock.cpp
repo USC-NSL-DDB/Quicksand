@@ -7,9 +7,7 @@ extern "C" {
 namespace nu {
 
 RCULock::RCULock() : sync_barrier_(false) {
-  for (uint32_t i = 0; i < kNumCores; i++) {
-    per_core_data_[i].cnt.raw = 0;
-  }
+  memset(aligned_cnts_, 0, sizeof(aligned_cnts_));
 }
 
 RCULock::~RCULock() {
@@ -17,7 +15,7 @@ RCULock::~RCULock() {
   int32_t sum = 0;
   for (size_t i = 0; i < kNumCores; i++) {
     Cnt cnt;
-    cnt.raw = ACCESS_ONCE(per_core_data_[i].cnt.raw);
+    cnt.raw = ACCESS_ONCE(aligned_cnts_[i].cnt.raw);
     sum += cnt.data.c;
   }
   assert(sum == 0);
@@ -30,44 +28,56 @@ void RCULock::writer_sync() {
 
   int32_t sum;
   int32_t snapshot_vers[kNumCores];
+  auto start_us = microtime();
+
 retry:
   sum = 0;
   for (size_t i = 0; i < kNumCores; i++) {
     Cnt cnt;
-    cnt.raw = ACCESS_ONCE(per_core_data_[i].cnt.raw);
+    cnt.raw = ACCESS_ONCE(aligned_cnts_[i].cnt.raw);
     snapshot_vers[i] = cnt.data.ver;
     sum += cnt.data.c;
   }
   if (sum != 0) {
-    rt::Yield();
+    if (likely(microtime() < start_us + kWriterWaitFastPathMaxUs)) {
+      // Fast path.
+      rt::Yield();
+    } else {
+      // Slow path.
+      timer_sleep(kWriterWaitSlowPathSleepUs);
+    }
     goto retry;
   }
   for (size_t i = 0; i < kNumCores; i++) {
-    if (unlikely(ACCESS_ONCE(per_core_data_[i].cnt.data.ver) !=
+    if (unlikely(ACCESS_ONCE(aligned_cnts_[i].cnt.data.ver) !=
                  snapshot_vers[i])) {
       goto retry;
     }
   }
 
   rt::access_once(sync_barrier_) = false;
-  for (uint32_t i = 0; i < kNumCores; i++) {
-    auto &per_core_data = per_core_data_[i];
-    rt::SpinGuard guard(&per_core_data.spin);
-    for (auto &waker : per_core_data.wakers) {
-      waker.Wake();
-    }
-    per_core_data.wakers.clear();
+  rt::SpinGuard guard(&spin_);
+  for (auto &waker : wakers_) {
+    waker.Wake();
   }
+  wakers_.clear();
 }
 
 void RCULock::__detect_sync_barrier() {
-  auto &per_core_data = per_core_data_[read_cpu()];
-  rt::SpinGuardAndPark guard_and_park(&per_core_data.spin);
-  if (likely(rt::access_once(sync_barrier_))) {
-    per_core_data.wakers.emplace_back();
-    per_core_data.wakers.back().Arm();
-  } else {
-    guard_and_park.reset();
+  // Fast path.
+  auto start_us = microtime();
+  do {
+    rt::Yield();
+  } while (microtime() < start_us + kReaderWaitFastPathMaxUs &&
+           unlikely(rt::access_once(sync_barrier_)));
+
+  if (unlikely(rt::access_once(sync_barrier_))) {
+    // Slow path.
+    rt::SpinGuard spin_guard(&spin_);
+    if (likely(rt::access_once(sync_barrier_))) {
+      wakers_.emplace_back();
+      spin_guard.Park(&wakers_.back());
+    }
   }
 }
 
