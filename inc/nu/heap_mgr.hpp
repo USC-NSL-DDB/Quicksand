@@ -26,7 +26,6 @@ class Mutex;
 class CondVar;
 class Time;
 template <typename T> class RuntimeAllocator;
-template <typename K, typename V, typename Allocator> class RCUHashMap;
 
 struct HeapHeader {
   ~HeapHeader();

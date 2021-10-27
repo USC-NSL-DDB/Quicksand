@@ -6,8 +6,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include <sync.h>
-
+#include "nu/utils/cond_var.hpp"
 #include "nu/utils/rcu_lock.hpp"
 
 namespace nu {
@@ -16,6 +15,8 @@ template <typename K, typename V,
           typename Allocator = std::allocator<std::pair<const K, V>>>
 class RCUHashMap {
 public:
+  constexpr static uint32_t kReaderWaitFastPathMaxUs = 20;
+
   template <typename K1> V *get(K1 &&k);
   template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
   template <typename K1, typename V1> void put_if_not_exists(K1 &&k, V1 &&v);
@@ -34,9 +35,15 @@ private:
   using KeyEqual = std::equal_to<K>;
 
   std::unordered_map<K, V, Hash, KeyEqual, Allocator> map_;
-  rt::Mutex mutex_;
   RCULock rcu_;
   bool writer_barrier_ = false;
+  Mutex mutex_;
+  CondVar cond_var_;
+
+  void reader_lock();
+  void reader_unlock();
+  void writer_lock();
+  void writer_unlock();
 };
 } // namespace nu
 

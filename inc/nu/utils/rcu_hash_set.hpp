@@ -8,6 +8,7 @@
 
 #include <sync.h>
 
+#include "nu/utils/cond_var.hpp"
 #include "nu/utils/rcu_lock.hpp"
 
 namespace nu {
@@ -15,6 +16,8 @@ namespace nu {
 template <typename K, typename Allocator = std::allocator<K>>
 class RCUHashSet {
 public:
+  constexpr static uint32_t kReaderWaitFastPathMaxUs = 20;
+
   template <typename K1> void put(K1 &&k);
   template <typename K1> bool remove(K1 &&k);
   template <typename K1> bool contains(K1 &&k);
@@ -25,9 +28,15 @@ private:
   using KeyEqual = std::equal_to<K>;
 
   std::unordered_set<K, Hash, KeyEqual, Allocator> set_;
-  rt::Mutex mutex_;
   RCULock rcu_;
   bool writer_barrier_ = false;
+  Mutex mutex_;
+  CondVar cond_var_;
+
+  void reader_lock();
+  void reader_unlock();
+  void writer_lock();
+  void writer_unlock();
 };
 } // namespace nun
 
