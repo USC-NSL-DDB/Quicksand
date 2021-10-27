@@ -100,28 +100,6 @@ void Migrator::handle_copy(rt::TcpConn *c) {
 
 inline void Migrator::handle_load(rt::TcpConn *c) { load(c); }
 
-void Migrator::handle_forward(rt::TcpConn *c) {
-  RPCReturnCode rc;
-  RPCReturner returner;
-  uint64_t stack_top;
-  uint64_t payload_len;
-  const iovec iovecs[] = {{&rc, sizeof(rc)},
-                          {&returner, sizeof(returner)},
-                          {&stack_top, sizeof(stack_top)},
-                          {&payload_len, sizeof(payload_len)}};
-  BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
-
-  if (payload_len) {
-    auto payload_buf = std::make_unique_for_overwrite<std::byte[]>(payload_len);
-    BUG_ON(c->ReadFull(payload_buf.get(), payload_len) <= 0);
-    auto span = std::span(payload_buf.get(), payload_len);
-    returner.Return(rc, span, [payload_buf = std::move(payload_buf)] {});
-  } else {
-    returner.Return(rc);
-  }
-  Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(stack_top));
-}
-
 void Migrator::run_loop() {
   netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = kMigratorServerPort};
   auto tcp_queue =
@@ -145,9 +123,6 @@ void Migrator::run_loop() {
           break;
         case kMigrate:
           handle_load(c);
-          break;
-        case kForward:
-          handle_forward(c);
           break;
         case kUnmap:
           handle_unmap(c);
@@ -369,7 +344,8 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header) {
   transmit_condvars(c,
                     std::vector<CondVar *>(condvars.begin(), condvars.end()));
   transmit_time(c, heap_header->time.get());
-  transmit_threads(c, ready_threads);;
+  transmit_threads(c, ready_threads);
+  ;
 }
 
 bool Migrator::mark_migrating_threads(HeapHeader *heap_header) {
@@ -710,26 +686,39 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
                                           RPCReturner *returner,
                                           uint64_t payload_len,
                                           const void *payload) {
-  uint8_t type = kForward;
   auto *heap_header = Runtime::get_current_obj_heap_header();
-  netaddr old_server_addr = {.ip = heap_header->old_server_ip,
-                             .port = kMigratorServerPort};
+  auto req_buf_len = sizeof(RPCReqForward) + payload_len;
+  auto req_buf = std::make_unique_for_overwrite<std::byte[]>(req_buf_len);
+  auto *req = reinterpret_cast<RPCReqForward *>(req_buf.get());
+  std::construct_at(req);
+  req->rc = rc;
+  req->returner = *returner;
+  req->stack_top = get_obj_stack_range(thread_self()).end;
+  req->payload_len = payload_len;
+  memcpy(req->payload, payload, payload_len);
+  auto req_span = std::span(req_buf.get(), req_buf_len);
+  RPCReturnBuffer return_buf;
   {
     RuntimeHeapGuard guard;
-    auto migrator_conn = migrator_conn_mgr_.get(old_server_addr);
-    auto *conn = migrator_conn.get_tcp_conn();
-    uint64_t stack_top = get_obj_stack_range(thread_self()).end;
-    const iovec iovecs[] = {{&type, sizeof(type)},
-                            {&rc, sizeof(rc)},
-                            {returner, sizeof(*returner)},
-                            {&stack_top, sizeof(stack_top)},
-                            {&payload_len, sizeof(payload_len)}};
-    BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
-    if (payload_len) {
-      BUG_ON(conn->WriteFull(payload, payload_len) < 0);
-    }
+    auto *client =
+        Runtime::rpc_client_mgr->get_by_ip(heap_header->old_server_ip);
+    BUG_ON(client->Call(req_span, &return_buf) != kOk);
   }
   heap_header->forward_wg.Done();
+}
+
+void Migrator::forward_to_client(RPCReqForward &req) {
+  if (req.payload_len) {
+    auto payload_buf =
+        std::make_unique_for_overwrite<std::byte[]>(req.payload_len);
+    memcpy(payload_buf.get(), req.payload, req.payload_len);
+    auto span = std::span(payload_buf.get(), req.payload_len);
+    req.returner.Return(req.rc, span,
+                        [payload_buf = std::move(payload_buf)] {});
+  } else {
+    req.returner.Return(req.rc);
+  }
+  Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(req.stack_top));
 }
 
 } // namespace nu

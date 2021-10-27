@@ -23,12 +23,21 @@ namespace nu {
 class Mutex;
 class CondVar;
 class Time;
-enum MigratorRPC_t { kCopy, kMigrate, kForward, kUnmap };
+enum MigratorTCPOp_t { kCopy, kMigrate, kUnmap };
 
 struct RPCReqReserveConns {
   RPCReqType rpc_type = kReserveConns;
   netaddr dest_server_addr;
 } __attribute__((packed));
+
+struct RPCReqForward {
+  RPCReqType rpc_type = kForward;
+  RPCReturnCode rc;
+  RPCReturner returner;
+  uint64_t stack_top;
+  uint64_t payload_len;
+  uint8_t payload[0];
+};
 
 struct HeapMmapPopulateTask {
   HeapRange range;
@@ -87,6 +96,7 @@ public:
   void reserve_conns(netaddr dest_server_addr);
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,
                                   uint64_t payload_len, const void *payload);
+  void forward_to_client(RPCReqForward &req);
 
 private:
   constexpr static uint32_t kTCPListenBackLog = 64;
@@ -95,7 +105,6 @@ private:
 
   void handle_copy(rt::TcpConn *c);
   void handle_load(rt::TcpConn *c);
-  void handle_forward(rt::TcpConn *c);
   void handle_unmap(rt::TcpConn *c);
   VAddrRange load_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit(rt::TcpConn *c, HeapHeader *heap_header);

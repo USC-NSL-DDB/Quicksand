@@ -20,6 +20,12 @@ void RPCServer::run_loop() {
       returner->Return(kOk);
       break;
     }
+    case kForward: {
+      auto &req = from_span<RPCReqForward>(args);
+      Runtime::migrator->forward_to_client(req);
+      returner->Return(kOk);
+      break;
+    }
     // Controller
     case kRegisterNode: {
       auto &req = from_span<RPCReqRegisterNode>(args);

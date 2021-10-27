@@ -9,6 +9,7 @@ namespace nu {
 enum RPCReqEnum {
   // Migrator
   kReserveConns,
+  kForward,
   // Controller
   kRegisterNode,
   kAllocateObj,
