@@ -610,6 +610,11 @@ void Migrator::load_threads(rt::TcpConn *c, HeapHeader *heap_header) {
     auto *th = load_one_thread(c, heap_header);
     thread_ready(th);
   }
+
+  // Wakeup the blocked threads.
+  heap_header->mutex.lock();
+  heap_header->cond_var.signal_all();
+  heap_header->mutex.unlock();
 }
 
 VAddrRange Migrator::load_stack_cluster_mmap_task(rt::TcpConn *c) {

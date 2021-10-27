@@ -65,9 +65,11 @@ inline void HeapManager::migration_disable(HeapHeader *heap_header) {
   heap_header->rcu_lock.reader_lock();
   if (unlikely(!rt::access_once(heap_header->present))) {
     heap_header->rcu_lock.reader_unlock();
+    heap_header->mutex.lock();
     while (!thread_is_migrated()) {
-      rt::Yield();
+      heap_header->cond_var.wait(&heap_header->mutex);
     }
+    heap_header->mutex.unlock();
   }
 }
 

@@ -83,9 +83,11 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
     } else {
       {
         MigrationEnabledGuard guard;
+        heap_header->mutex.lock();
         while (!thread_is_migrated()) {
-          rt::Yield();
+          heap_header->cond_var.wait(&heap_header->mutex);
         }
+        heap_header->mutex.unlock();
       }
 
       // Safe without acquiring the lock since the obj is dead now.

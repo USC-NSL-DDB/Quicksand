@@ -14,6 +14,8 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/commons.hpp"
+#include "nu/utils/cond_var.hpp"
+#include "nu/utils/mutex.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/refcount_hash_set.hpp"
 #include "nu/utils/slab.hpp"
@@ -34,6 +36,8 @@ struct HeapHeader {
 
   // For synchronization on migration.
   RCULock rcu_lock;
+  Mutex mutex;
+  CondVar cond_var;
 
   //--- Fields above are always mmaped in all object servers. ---/
   uint8_t always_mmaped_end[0];

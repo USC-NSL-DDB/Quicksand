@@ -24,6 +24,8 @@ HeapManager::HeapManager() {
     auto *heap_header = reinterpret_cast<HeapHeader *>(mmap_addr);
     heap_header->present = false;
     std::construct_at(&heap_header->rcu_lock);
+    std::construct_at(&heap_header->mutex);
+    std::construct_at(&heap_header->cond_var);
   }
 }
 
