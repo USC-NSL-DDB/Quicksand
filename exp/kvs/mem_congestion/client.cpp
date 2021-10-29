@@ -14,7 +14,6 @@
 #include <runtime.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/monitor.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"

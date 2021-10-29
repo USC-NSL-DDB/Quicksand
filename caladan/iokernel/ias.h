@@ -17,6 +17,10 @@
 #define IAS_BW_INTERVAL_US		10
 /* the HT controller's adjustment interval */
 #define IAS_HT_INTERVAL_US		10
+/* the resource pressure controller's adjustment interval */
+#define IAS_PS_INTERVAL_US		1000
+/* the low watermark used to detect memory pressure*/
+#define IAS_PS_MEM_LOW_MB 		1024
 /* the time before the core-local cache is assumed to be evicted */
 #define IAS_LOC_EVICTED_US		100
 /* the debug info printing interval */
@@ -53,6 +57,10 @@ struct ias_data {
 
 	/* memory bandwidth subcontroller */
 	float			bw_llc_miss_rate;
+
+	/* will it react to resource pressure? */
+	bool                    react_mem_pressure;
+	bool                    react_cpu_pressure;
 };
 
 extern struct list_head all_procs;
@@ -109,6 +117,11 @@ extern void ias_bw_poll(void);
 extern int ias_bw_init(void);
 extern float ias_bw_estimate_multiplier;
 
+/*
+ * Resource Pressure (PS) subcontroller definitions
+ */
+
+extern bool ias_ps_poll(void);
 
 /*
  * Counters

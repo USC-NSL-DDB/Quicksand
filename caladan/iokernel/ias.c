@@ -63,10 +63,15 @@ static int ias_attach(struct proc *p, struct sched_spec *sched_cfg)
 		return -ENOMEM;
 	memset(sd, 0, sizeof(*sd));
 	sd->p = p;
+	sd->p->resource_pressure_info->mem_mbs_to_release = 0;
+	sd->p->resource_pressure_info->num_cores_to_release = 0;
+	sd->p->resource_pressure_info->num_cores_granted = sched_cfg->max_cores;
 	sd->threads_guaranteed = sched_cfg->guaranteed_cores;
 	sd->threads_max = sched_cfg->max_cores;
 	sd->threads_limit = sched_cfg->max_cores;
 	sd->is_lc = sched_cfg->priority == SCHED_PRIO_LC;
+	sd->react_cpu_pressure = sched_cfg->react_cpu_pressure;
+	sd->react_mem_pressure = sched_cfg->react_mem_pressure;
 	if (sd->is_lc)
 		sd->ht_punish_us = sched_cfg->ht_punish_us;
 	if (sd->ht_punish_us)
@@ -379,7 +384,6 @@ static void ias_notify_congested(struct proc *p, bool busy, uint64_t delay, bool
 	/* stop if there is no congestion */
 	if (!congested) {
 		sd->is_congested = false;
-		sched_report_congestion(p, false);
 		return;
 	}
 
@@ -387,13 +391,11 @@ static void ias_notify_congested(struct proc *p, bool busy, uint64_t delay, bool
 	ret = ias_add_kthread(sd);
 
 	if (!ret) {
-		sched_report_congestion(p, false);
 		return;
 	}
 
 	/* otherwise mark the process as congested, cores can be added later */
 	sd->is_congested = true;
-	sched_report_congestion(p, true);
 }
 
 static int ias_kthread_score(struct ias_data *sd, int core)
@@ -496,7 +498,7 @@ static void ias_print_debug_info(void)
 
 static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 {
-	static uint64_t last_bw_us, last_ht_us;
+	static uint64_t last_bw_us, last_ht_us, last_ps_us;
 #ifdef IAS_DEBUG
 	static uint64_t debug_ts = 0;
 #endif
@@ -529,6 +531,10 @@ static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 		last_ht_us = now;
 		ias_ht_poll();
 	}
+
+	if (!cfg.nops && now - last_ps_us >= IAS_PS_INTERVAL_US)
+		if (ias_ps_poll())
+			last_ps_us = now;
 
 #ifdef IAS_DEBUG
 	if (now - debug_ts >= IAS_DEBUG_PRINT_US) {

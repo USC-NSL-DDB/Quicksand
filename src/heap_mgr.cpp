@@ -8,7 +8,6 @@ extern "C" {
 }
 
 #include "nu/heap_mgr.hpp"
-#include "nu/monitor.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"
 

@@ -342,6 +342,17 @@ static int parse_enable_gc(const char *name, const char *val)
 #endif
 }
 
+static int parse_runtime_react_cpu_pressure(const char *name, const char *val)
+{
+	cfg_react_cpu_pressure = true;
+	return 0;
+}
+
+static int parse_runtime_react_mem_pressure(const char *name, const char *val)
+{
+	cfg_react_mem_pressure = true;
+	return 0;
+}
 
 /*
  * Parsing Infrastructure
@@ -370,6 +381,8 @@ static const struct cfg_handler cfg_handlers[] = {
 	{ "runtime_priority", parse_runtime_priority, false },
 	{ "runtime_ht_punish_us", parse_runtime_ht_punish_us, false },
 	{ "runtime_qdelay_us", parse_runtime_qdelay_us, false },
+	{ "runtime_react_cpu_pressure", parse_runtime_react_cpu_pressure, false },
+	{ "runtime_react_mem_pressure", parse_runtime_react_mem_pressure, false },
 	{ "static_arp", parse_static_arp_entry, false },
 	{ "log_level", parse_log_level, false },
 	{ "disable_watchdog", parse_watchdog_flag, false },

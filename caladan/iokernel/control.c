@@ -158,6 +158,12 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 	if (!p->congestion_info)
 		goto fail;
 	memset(p->congestion_info, 0, sizeof(*p->congestion_info));
+	p->resource_pressure_info = shmptr_to_ptr(&reg, hdr.resource_pressure_info,
+                                                  sizeof(*p->resource_pressure_info));
+	if (!p->resource_pressure_info)
+		goto fail;
+	memset(p->resource_pressure_info, 0,
+               sizeof(*p->resource_pressure_info));
 
 	/* initialize the threads */
 	for (i = 0; i < hdr.thread_count; i++) {

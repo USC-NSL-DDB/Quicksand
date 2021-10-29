@@ -27,7 +27,6 @@ class ControllerClient;
 class ControllerServer;
 class RPCClientMgr;
 class Migrator;
-class Monitor;
 class RPCServer;
 template <typename T> class RuntimeAllocator;
 template <typename T> class RuntimeDeleter;
@@ -55,14 +54,12 @@ private:
   static std::unique_ptr<StackManager> stack_manager;
   static std::unique_ptr<RPCClientMgr> rpc_client_mgr;
   static std::unique_ptr<Migrator> migrator;
-  static std::unique_ptr<Monitor> monitor;
   static std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> archive_pool;
   static std::unique_ptr<RPCServer> rpc_server;
 
   friend class Test;
   friend class ObjServer;
   friend class RPCClientMgr;
-  friend class Monitor;
   friend class Migrator;
   friend class Mutex;
   friend class CondVar;
@@ -71,6 +68,7 @@ private:
   friend class RPCServer;
   friend class Controller;
   friend class ControllerClient;
+  friend class PressureHandler;
   friend class DistributedMemPool;
   friend class RuntimeHeapGuard;
   friend class ObjHeapGuard;

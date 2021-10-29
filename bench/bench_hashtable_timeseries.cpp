@@ -18,7 +18,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/monitor.hpp"
+#include "nu/pressure_handler.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
@@ -80,8 +80,9 @@ public:
   Test(uint32_t pressure_mem_mbs) : pressure_mem_mbs_(pressure_mem_mbs) {}
 
   int migrate() {
-    Resource resource = {.cores = 0, .mem_mbs = pressure_mem_mbs_};
-    Runtime::monitor->mock_set_pressure(resource);
+    ResourcePressureInfo pressure = {.mem_mbs_to_release = pressure_mem_mbs_,
+                                     .num_cores_to_release = 0};
+    PressureHandler::mock_set_pressure(pressure);
     return 0;
   }
 

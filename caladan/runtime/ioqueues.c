@@ -29,6 +29,8 @@
 #define PACKET_QUEUE_MCOUNT	4096
 #define COMMAND_QUEUE_MCOUNT	4096
 
+extern struct resource_pressure_info *resource_pressure_info;
+
 /* the egress buffer pool must be large enough to fill all the TXQs entirely */
 static size_t calculate_egress_pool_size(void)
 {
@@ -42,6 +44,8 @@ struct iokernel_control iok;
 bool cfg_prio_is_lc;
 uint64_t cfg_ht_punish_us;
 uint64_t cfg_qdelay_us = 10;
+bool cfg_react_cpu_pressure;
+bool cfg_react_mem_pressure;
 
 static int generate_random_mac(struct eth_addr *mac)
 {
@@ -69,6 +73,8 @@ static size_t estimate_shm_space(void)
 	// Header + queue_spec information
 	ret += sizeof(struct control_hdr);
 	ret += sizeof(struct thread_spec) * maxks;
+	ret += sizeof(struct congestion_info);
+	ret += sizeof(struct resource_pressure_info);
 	ret = align_up(ret, CACHE_LINE_SIZE);
 
 	// Compute congestion signal line
@@ -206,6 +212,8 @@ int ioqueues_init(void)
 	iok.threads = iok_shm_alloc(sizeof(*ts) * maxks, 0, NULL);
 	runtime_congestion = iok_shm_alloc(sizeof(struct congestion_info),
 					   0, &iok.hdr->congestion_info);
+	resource_pressure_info = iok_shm_alloc(sizeof(struct resource_pressure_info),
+                                          0, &iok.hdr->resource_pressure_info);
 
 	for (i = 0; i < maxks; i++) {
 		ts = &iok.threads[i];
@@ -257,6 +265,8 @@ int ioqueues_register_iokernel(void)
 	hdr->sched_cfg.max_cores = maxks;
 	hdr->sched_cfg.guaranteed_cores = guaranteedks;
 	hdr->sched_cfg.preferred_socket = preferred_socket;
+	hdr->sched_cfg.react_cpu_pressure = cfg_react_cpu_pressure;
+	hdr->sched_cfg.react_mem_pressure = cfg_react_mem_pressure;
 
 	hdr->thread_specs = ptr_to_shmptr(r, iok.threads, sizeof(*iok.threads) * maxks);
 

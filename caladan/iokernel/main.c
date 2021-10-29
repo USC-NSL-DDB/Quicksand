@@ -167,6 +167,8 @@ int main(int argc, char *argv[])
 			cfg.noht = true;
 		} else if (!strcmp(argv[i], "nobw")) {
 			cfg.nobw = true;
+		} else if (!strcmp(argv[i], "nops")) {
+			cfg.nops = true;
 		} else if (!strcmp(argv[i], "no_hw_qdel")) {
 			cfg.no_hw_qdel = true;
 		} else if (!strcmp(argv[i], "selfpair")) {

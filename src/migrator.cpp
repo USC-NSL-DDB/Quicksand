@@ -345,7 +345,6 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header) {
                     std::vector<CondVar *>(condvars.begin(), condvars.end()));
   transmit_time(c, heap_header->time.get());
   transmit_threads(c, ready_threads);
-  ;
 }
 
 bool Migrator::mark_migrating_threads(HeapHeader *heap_header) {
@@ -390,9 +389,9 @@ void Migrator::handle_unmap(rt::TcpConn *c) {
   }
 }
 
-void Migrator::migrate(Resource pressure, std::vector<HeapRange> heaps) {
+void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
   auto optional_dest_addr =
-      Runtime::controller_client->get_migration_dest(pressure);
+      Runtime::controller_client->get_migration_dest(resource);
   BUG_ON(!optional_dest_addr);
   auto dest_addr = *optional_dest_addr;
   auto migration_conn = migrator_conn_mgr_.get(dest_addr);

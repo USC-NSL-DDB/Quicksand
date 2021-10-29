@@ -4,18 +4,19 @@
 
 #include <sched.h>
 
-#include <base/stddef.h>
-#include <base/lock.h>
-#include <base/list.h>
 #include <base/hash.h>
 #include <base/limits.h>
-#include <base/tcache.h>
-#include <base/slab.h>
+#include <base/list.h>
+#include <base/lock.h>
 #include <base/log.h>
+#include <base/slab.h>
+#include <base/stddef.h>
+#include <base/tcache.h>
 #include <runtime/sync.h>
 #include <runtime/thread.h>
 
 #include "defs.h"
+#include "pressure.h"
 
 const int thread_link_offset = offsetof(struct thread, link);
 
@@ -380,6 +381,9 @@ static __noreturn __noinline void schedule(void)
 	ACCESS_ONCE(l->q_ptrs->rcu_gen) += 1;
 	assert((l->rcu_gen & 0x1) == 0x0);
 
+	if (check_resource_pressure()) {
+		goto done;
+	}
 	check_pending_pause_req();
 
 #ifdef GC
@@ -410,7 +414,11 @@ static __noreturn __noinline void schedule(void)
 	l->rq_head = l->rq_tail = 0;
 
 again:
+	if (check_resource_pressure()) {
+		goto done;
+	}
 	check_pending_pause_req();
+
 	/* then check for local softirqs */
 	if (softirq_sched(l)) {
 		STAT(SOFTIRQS_LOCAL)++;
@@ -519,6 +527,7 @@ static __always_inline void enter_schedule(thread_t *curth)
 	spin_lock(&k->lock);
 	now = rdtsc();
 
+	check_resource_pressure();
 	check_pending_pause_req();
 
 	/* slow path: switch from the uthread stack to the runtime stack */

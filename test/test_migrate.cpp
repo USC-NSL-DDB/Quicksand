@@ -10,7 +10,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/monitor.hpp"
+#include "nu/pressure_handler.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 
@@ -26,10 +26,10 @@ public:
   int run() {
     // Should be printed at the initial server node.
     std::cout << "I am here" << std::endl;
-    Resource resource = {.cores = 0, .mem_mbs = 1000};
-    // Mock a resource pressure which will be detected by the nu::Monitor
-    // instance very quickly.
-    Runtime::monitor->mock_set_pressure(resource);
+    ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
+                                     .num_cores_to_release = 0};
+    // Set resource pressure using the mock interface
+    PressureHandler::mock_set_pressure(pressure);
     // Ensure that the migration happens before the function returns.
     delay_us(1000 * 1000);
     // Should be printed at the new server node.

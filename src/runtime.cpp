@@ -6,6 +6,7 @@ extern "C" {
 #include <base/assert.h>
 #include <base/compiler.h>
 #include <net/ip.h>
+#include <runtime/pressure.h>
 #include <runtime/thread.h>
 }
 #include <runtime.h>
@@ -14,8 +15,8 @@ extern "C" {
 #include "nu/ctrl_client.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
-#include "nu/monitor.hpp"
 #include "nu/obj_server.hpp"
+#include "nu/pressure_handler.hpp"
 #include "nu/rpc_client_mgr.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
@@ -35,7 +36,6 @@ std::unique_ptr<ControllerClient> Runtime::controller_client;
 std::unique_ptr<ControllerServer> Runtime::controller_server;
 std::unique_ptr<RPCClientMgr> Runtime::rpc_client_mgr;
 std::unique_ptr<Migrator> Runtime::migrator;
-std::unique_ptr<Monitor> Runtime::monitor;
 std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
 std::unique_ptr<RPCServer> Runtime::rpc_server;
 
@@ -56,18 +56,18 @@ void Runtime::init_as_controller() {
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
+  register_resource_pressure_handler(PressureHandler::handle);
   obj_server.reset(new decltype(obj_server)::element_type());
   rt::Thread([&] { rpc_server->run_loop(); }).Detach();
   migrator.reset(new decltype(migrator)::element_type());
-  rt::Thread([&] { migrator->run_loop(); }).Detach();
+  auto migrator_thread = rt::Thread([&] { migrator->run_loop(); });
   controller_client.reset(
       new decltype(controller_client)::element_type(remote_ctrl_ip, SERVER));
   heap_manager.reset(new decltype(heap_manager)::element_type());
   stack_manager.reset(new decltype(stack_manager)::element_type(
       controller_client->get_stack_cluster()));
   archive_pool.reset(new decltype(archive_pool)::element_type());
-  monitor.reset(new decltype(monitor)::element_type());
-  rt::Thread([&] { monitor->run_loop(); }).Join();
+  migrator_thread.Join();
 }
 
 void Runtime::init_as_client(uint32_t remote_ctrl_ip) {
@@ -114,7 +114,6 @@ Runtime::~Runtime() {
   heap_manager.reset();
   stack_manager.reset();
   rpc_client_mgr.reset();
-  monitor.reset();
   migrator.reset();
   archive_pool.reset();
   barrier();

@@ -72,13 +72,3 @@ static inline int runtime_guaranteed_cores(void)
 {
 	return guaranteedks;
 }
-
-static inline bool runtime_congested(void)
-{
-	return ACCESS_ONCE(runtime_congestion->congested);
-}
-
-static inline uint32_t runtime_granted_cores(void)
-{
-	return ACCESS_ONCE(runtime_congestion->granted_cores);
-}

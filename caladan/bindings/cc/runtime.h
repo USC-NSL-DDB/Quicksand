@@ -31,11 +31,6 @@ inline unsigned int RuntimeMaxCores() { return runtime_max_cores(); }
 
 // Gets the guaranteed number of cores the runtime will at least get.
 inline unsigned int RuntimeGuaranteedCores() {
-  return runtime_guaranteed_cores();
-}
-
-inline bool RuntimeCongested() { return runtime_congested(); }
-
-inline uint32_t RuntimeGrantedCores() { return runtime_granted_cores(); }
+  return runtime_guaranteed_cores();}
 
 };  // namespace rt

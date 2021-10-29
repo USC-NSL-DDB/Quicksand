@@ -410,11 +410,12 @@ struct kthread {
 	thread_t		*directpath_softirq;
 	thread_t		*timer_softirq;
 	thread_t		*storage_softirq;
+	thread_t		*resource_pressure_handler;
 	bool			iokernel_busy;
 	bool			directpath_busy;
 	bool			timer_busy;
 	bool			storage_busy;
-	char                    pad2[12];
+	char                    pad2[4];
 
 	/* 9th cache-line, storage nvme queues */
 	struct storage_q	storage_q;
@@ -480,6 +481,8 @@ extern struct kthread *ks[NCPU];
 extern bool cfg_prio_is_lc;
 extern uint64_t cfg_ht_punish_us;
 extern uint64_t cfg_qdelay_us;
+extern bool cfg_react_cpu_pressure;
+extern bool cfg_react_mem_pressure;
 
 extern void kthread_park(bool voluntary);
 extern void kthread_wait_to_attach(void);
@@ -524,6 +527,12 @@ extern bool disable_watchdog;
 extern bool softirq_pending(struct kthread *k);
 extern bool softirq_sched(struct kthread *k);
 extern bool softirq_run(void);
+
+/*
+ * Resource pressure
+ */
+
+extern bool check_resource_pressure(void);
 
 /*
  * Network stack
@@ -627,6 +636,7 @@ extern int net_init_thread(void);
 extern int smalloc_init_thread(void);
 extern int storage_init_thread(void);
 extern int directpath_init_thread(void);
+extern int resource_pressure_init_thread(void);
 
 /* global initialization */
 extern int kthread_init(void);

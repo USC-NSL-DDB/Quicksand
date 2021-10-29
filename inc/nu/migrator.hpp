@@ -92,7 +92,7 @@ public:
 
   ~Migrator();
   void run_loop();
-  void migrate(Resource pressure, std::vector<HeapRange> heaps);
+  void migrate(Resource resource, std::vector<HeapRange> heaps);
   void reserve_conns(netaddr dest_server_addr);
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,
                                   uint64_t payload_len, const void *payload);

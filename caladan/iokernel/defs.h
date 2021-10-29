@@ -27,6 +27,7 @@
 struct iokernel_cfg {
 	bool	noht; /* disable hyperthreads */
 	bool	nobw; /* disable bandwidth controller */
+	bool    nops; /* disable resource pressure controller */
 	bool	ias_prefer_selfpair; /* prefer self-pairings */
 	float	ias_bw_limit; /* IAS bw limit, (MB/s) */
 	bool	no_hw_qdel; /* Disable use of hardware timestamps for qdelay */
@@ -116,47 +117,49 @@ static inline bool hwq_busy(struct hwq *h, uint32_t cq_idx)
 }
 
 struct proc {
-	pid_t			pid;
-	struct shm_region	region;
-	bool			removed;
-	bool			has_directpath;
-	struct ref		ref;
-	unsigned int		kill:1;       /* the proc is being torn down */
-	unsigned int		attach_fail:1;
-	struct congestion_info	*congestion_info;
-	unsigned long		policy_data;
-	float			load;
+	pid_t			       pid;
+	struct shm_region	       region;
+	bool			       removed;
+	bool			       has_directpath;
+	struct ref		       ref;
+	unsigned int		       kill:1; /* the proc is being torn down */
+	unsigned int		       attach_fail:1;
+	struct congestion_info	       *congestion_info;
+	struct resource_pressure_info  *resource_pressure_info;
+	unsigned long		       policy_data;
+	float			       load;
 
 	/* scheduler data */
-	struct sched_spec	sched_cfg;
+	struct sched_spec	       sched_cfg;
 
 	/* the flow steering table */
-	unsigned int		flow_tbl[NCPU];
+	unsigned int		       flow_tbl[NCPU];
 
 	/* runtime threads */
-	unsigned int		thread_count;
-	unsigned int		active_thread_count;
-	struct thread		threads[NCPU];
-	struct thread		*active_threads[NCPU];
-	struct list_head	idle_threads;
-	unsigned int		next_thread_rr; // for spraying join requests/overflow completions
+	unsigned int		       thread_count;
+	unsigned int		       active_thread_count;
+	struct thread		       threads[NCPU];
+	struct thread		       *active_threads[NCPU];
+	struct list_head	       idle_threads;
+	// for spraying join requests/overflow completions
+	unsigned int		       next_thread_rr;
 
 	/* network data */
-	struct eth_addr		mac;
+	struct eth_addr		       mac;
 
 	/* Unique identifier -- never recycled across runtimes*/
 #ifdef MLX
-	uint32_t		lkey;
-	void			*mr;
+	uint32_t		       lkey;
+	void			       *mr;
 #endif
 
-	/* Overfloq queue for completion data */
-	size_t max_overflows;
-	size_t nr_overflows;
-	unsigned long *overflow_queue;
+	/* Overflow queue for completion data */
+	size_t                         max_overflows;
+	size_t                         nr_overflows;
+	unsigned long                  *overflow_queue;
 
 	/* table of physical addresses for shared memory */
-	physaddr_t		page_paddrs[];
+	physaddr_t		       page_paddrs[];
 };
 
 extern void proc_release(struct ref *r);

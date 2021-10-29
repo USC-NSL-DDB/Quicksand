@@ -11,7 +11,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/monitor.hpp"
+#include "nu/pressure_handler.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/cond_var.hpp"
@@ -45,8 +45,9 @@ public:
   }
 
   void migrate() {
-    Resource resource = {.cores = 0, .mem_mbs = 1000};
-    Runtime::monitor->mock_set_pressure(resource);
+    ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
+                                     .num_cores_to_release = 0};
+    PressureHandler::mock_set_pressure(pressure);
   }
 
 private:

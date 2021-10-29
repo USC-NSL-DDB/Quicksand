@@ -38,10 +38,21 @@ struct q_ptrs {
 BUILD_ASSERT(sizeof(struct q_ptrs) <= CACHE_LINE_SIZE);
 
 struct congestion_info {
-	bool                    congested;
-	uint32_t                granted_cores;
 	float			load;
 	uint64_t		delay_us;
+};
+
+enum {
+	HANDLED = 0,
+	PENDING,
+	HANDLING
+};
+
+struct resource_pressure_info {
+	uint32_t                mem_mbs_to_release;
+	uint8_t                 num_cores_to_release;
+	uint8_t                 num_cores_granted;
+	uint8_t                 status;
 };
 
 enum {
@@ -94,6 +105,8 @@ struct sched_spec {
 	unsigned int		preferred_socket;
 	uint64_t		qdelay_us;
 	uint64_t		ht_punish_us;
+	bool                    react_cpu_pressure;
+	bool                    react_mem_pressure;
 };
 
 #define CONTROL_HDR_MAGIC	0x696f6b3a /* "iok:" */
@@ -108,6 +121,7 @@ struct control_hdr {
 	struct eth_addr		mac;
 	struct sched_spec	sched_cfg;
 	shmptr_t		thread_specs;
+	shmptr_t                resource_pressure_info;
 };
 
 /* information shared from iokernel to all runtimes */
