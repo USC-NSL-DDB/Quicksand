@@ -71,7 +71,7 @@ void mark_task_parked(struct task_struct *tsk)
 	tsk->trace = PARKED;
 }
 
-bool try_mask_task_unparked_locked(struct task_struct *tsk) {
+bool try_mark_task_unparked_locked(struct task_struct *tsk) {
 	bool success = false;
 
 	lockdep_assert_held(&tsk->pi_lock);
@@ -142,7 +142,7 @@ static void ksched_next_tid(struct ksched_percpu *kp, int cpu, pid_t tid)
 
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	already_running = p->on_cpu || p->state == TASK_WAKING ||
-		p->state == TASK_RUNNING || !try_mask_task_unparked_locked(p);
+		p->state == TASK_RUNNING || !try_mark_task_unparked_locked(p);
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 	if (unlikely(already_running)) {
 		rcu_read_unlock();
