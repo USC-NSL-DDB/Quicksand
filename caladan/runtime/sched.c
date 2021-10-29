@@ -16,7 +16,6 @@
 #include <runtime/thread.h>
 
 #include "defs.h"
-#include "pressure.h"
 
 const int thread_link_offset = offsetof(struct thread, link);
 
