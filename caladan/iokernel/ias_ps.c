@@ -9,14 +9,14 @@
 #include "ias.h"
 #include "ksched.h"
 
-static void ias_ps_interrupt_core(struct ias_data *sd)
+static bool ias_ps_interrupt_core(struct ias_data *sd)
 {
 	unsigned int th_idx, core;
 
 	if (!sd->p->active_thread_count) {
                 /* No core to handle pressure, immediately add one. */
 		ias_add_kthread(sd);
-		return;
+		return false;
 	}
 
 	/* Pick a random core to handle pressure. */
@@ -24,11 +24,12 @@ static void ias_ps_interrupt_core(struct ias_data *sd)
 	core = sd->p->active_threads[th_idx]->core;
 
 	ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
+	return true;
 }
 
 bool ias_ps_poll(void)
 {
-	bool done = true, has_pressure;
+	bool success = true, has_pressure;
 	struct sysinfo info;
 	uint64_t free_ram_in_mbs, mem_mbs_to_release;
 	struct resource_pressure_info *pressure;
@@ -62,10 +63,6 @@ bool ias_ps_poll(void)
 				if (num_cores_taken > 0) {
 					pressure->num_cores_to_release =
                                                 num_cores_taken;
-					/* Be a bit conservative to accommodate
-                                           oscillations. */
-					if (sd->threads_active)
-						pressure->num_cores_to_release++;
 					pressure->num_cores_granted =
 						sd->threads_active;
 					has_pressure = true;
@@ -76,12 +73,9 @@ bool ias_ps_poll(void)
 				store_release(&pressure->status, PENDING);
 		}
 
-                if (pressure->status == PENDING) {
-			ias_ps_interrupt_core(sd);
-			/* Allows us to perform a quick recheck. */
-			done = false;
-		}
+		if (pressure->status == PENDING)
+			success &= ias_ps_interrupt_core(sd);
         }
 
-	return done;
+	return success;
 }

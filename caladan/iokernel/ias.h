@@ -18,7 +18,7 @@
 /* the HT controller's adjustment interval */
 #define IAS_HT_INTERVAL_US		10
 /* the resource pressure controller's adjustment interval */
-#define IAS_PS_INTERVAL_US		1000
+#define IAS_PS_INTERVAL_US		100
 /* the low watermark used to detect memory pressure*/
 #define IAS_PS_MEM_LOW_MB 		1024
 /* the time before the core-local cache is assumed to be evicted */
