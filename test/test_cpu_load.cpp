@@ -13,23 +13,29 @@ extern "C" {
 
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
+#include "nu/time.hpp"
 
 using namespace nu;
 
 Runtime::Mode mode;
 
-class CPULightObj {
-public:
-  constexpr static uint32_t kTimeUs = 10;
-
-  void compute() { delay_us(kTimeUs); }
-};
 
 class CPUHeavyObj {
 public:
   constexpr static uint32_t kTimeUs = 100;
 
   void compute() { delay_us(kTimeUs); }
+};
+
+class CPULightObj {
+public:
+  constexpr static uint32_t kTimeUs = 10;
+
+  void compute() {
+    Time time;
+    delay_us(kTimeUs);
+    time.sleep(CPUHeavyObj::kTimeUs - kTimeUs);
+  }
 };
 
 namespace nu {
