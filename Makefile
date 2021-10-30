@@ -55,6 +55,8 @@ test_fragmentation_src = test/test_fragmentation.cpp
 test_fragmentation_obj = $(test_fragmentation_src:.cpp=.o)
 test_perf_src = test/test_perf.cpp
 test_perf_obj = $(test_perf_src:.cpp=.o)
+test_compute_intensity_src = test/test_compute_intensity.cpp
+test_compute_intensity_obj = $(test_compute_intensity_src:.cpp=.o)
 
 bench_rpc_tput_src = bench/bench_rpc_tput.cpp
 bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
@@ -86,7 +88,7 @@ bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
 bin/bench_hashtable_timeseries bin/bench_fake_migration bin/test_nested_rem_obj \
 bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
-bin/bench_real_cpu_pressure
+bin/bench_real_cpu_pressure bin/test_compute_intensity
 
 libnu.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -128,6 +130,8 @@ bin/test_rem_shared_ptr: $(test_rem_shared_ptr_obj) $(librt_libs) $(RUNTIME_DEPS
 	$(LDXX) -o $@ $(test_rem_shared_ptr_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_perf: $(test_perf_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_perf_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_compute_intensity: $(test_compute_intensity_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_compute_intensity_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
