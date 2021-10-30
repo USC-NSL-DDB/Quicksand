@@ -31,6 +31,8 @@ inline uint64_t Time::obj_env_microtime() {
   return to_logical_us(::microtime());
 }
 
+inline uint64_t Time::obj_env_rdtsc() { return to_logical_tsc(::rdtsc()); }
+
 inline void Time::obj_env_sleep(uint64_t duration_us) {
   obj_env_sleep_until(obj_env_microtime() + duration_us);
 }

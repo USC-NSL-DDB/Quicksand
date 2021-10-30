@@ -26,6 +26,15 @@ void Time::timer_callback(unsigned long arg_addr) {
   thread_ready(arg->th);
 }
 
+uint64_t Time::rdtsc() {
+  auto *heap_header = Runtime::get_current_obj_heap_header();
+  if (heap_header) {
+    return heap_header->time->obj_env_rdtsc();
+  } else {
+    return ::rdtsc();
+  }
+}
+
 uint64_t Time::microtime() {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {

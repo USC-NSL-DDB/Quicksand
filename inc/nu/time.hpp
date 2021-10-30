@@ -19,6 +19,7 @@ public:
   constexpr static uint64_t kSeconds = 1000000;
 
   Time();
+  static uint64_t rdtsc();
   static uint64_t microtime();
   static void delay(uint64_t us);
   static void sleep_until(uint64_t deadline_us);
@@ -32,6 +33,7 @@ private:
 
   static void timer_callback(unsigned long arg_addr);
   uint64_t obj_env_microtime();
+  uint64_t obj_env_rdtsc();
   void obj_env_sleep(uint64_t duration_us);
   void obj_env_sleep_until(uint64_t deadline_us);
   uint64_t to_logical_tsc(uint64_t physical_tsc);
