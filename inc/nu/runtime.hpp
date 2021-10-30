@@ -64,6 +64,7 @@ private:
   friend class Mutex;
   friend class CondVar;
   friend class Time;
+  friend class CPULoad;
   friend class HeapManager;
   friend class RPCServer;
   friend class Controller;

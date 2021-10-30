@@ -52,7 +52,8 @@ private:
                                HeapHeader *heap_header, int delta,
                                bool *destructed);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-  static void __run_closure(Cls &obj, cereal::BinaryInputArchive &ia,
+  static void __run_closure(Cls &obj, HeapHeader *heap_header,
+                            cereal::BinaryInputArchive &ia,
                             RPCReturner returner);
 };
 } // namespace nu

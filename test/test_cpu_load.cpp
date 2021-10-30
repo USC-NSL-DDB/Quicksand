@@ -20,14 +20,14 @@ Runtime::Mode mode;
 
 class CPULightObj {
 public:
-  constexpr static uint32_t kTimeUs = 100;
+  constexpr static uint32_t kTimeUs = 10;
 
   void compute() { delay_us(kTimeUs); }
 };
 
 class CPUHeavyObj {
 public:
-  constexpr static uint32_t kTimeUs = 1000;
+  constexpr static uint32_t kTimeUs = 100;
 
   void compute() { delay_us(kTimeUs); }
 };
@@ -42,7 +42,7 @@ public:
     auto light_obj = RemObj<CPULightObj>::create();
     auto heavy_obj = RemObj<CPUHeavyObj>::create();
 
-    for (uint32_t i = 0; i < 10000; i++) {
+    for (uint32_t i = 0; i < 100000; i++) {
       auto light_future = light_obj.run_async(&CPULightObj::compute);
       auto heavy_future = heavy_obj.run_async(&CPUHeavyObj::compute);
     }
@@ -60,7 +60,7 @@ public:
     auto ratio = heavy_cpu_load / light_cpu_load;
     auto expected_ratio = CPUHeavyObj::kTimeUs / CPULightObj::kTimeUs;
 
-    passed = (std::abs(ratio - expected_ratio) / expected_ratio < 0.1);
+    passed = (std::abs(ratio - expected_ratio) / expected_ratio < 0.2);
     return passed;
   };
 };

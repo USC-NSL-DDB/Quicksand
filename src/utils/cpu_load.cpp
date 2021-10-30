@@ -1,19 +1,25 @@
 #include <sync.h>
 
+#include "nu/runtime.hpp"
 #include "nu/utils/cpu_load.hpp"
 
 namespace nu {
 
-void CPULoad::reset() {
-  last_refresh_tsc = 0;
-  memset(infos, 0, sizeof(infos));
+CPULoad::State CPULoad::__monitor_start() {
+  State state;
+  state.sampled = true;
+  state.start_tsc = Runtime::get_current_obj_heap_header()->time->rdtsc();
+  return state;
 }
 
-void CPULoad::add_trace(uint64_t start_tsc, uint64_t end_tsc) {
+void CPULoad::__monitor_end(const State &state) {
   rt::Preempt p;
   rt::PreemptGuard guard(&p);
 
+  auto start_tsc = state.start_tsc;
+  auto end_tsc = Runtime::get_current_obj_heap_header()->time->rdtsc();
   assert(start_tsc < end_tsc);
+
   auto last_tsc = last_refresh_tsc;
   if (unlikely(last_tsc + kRefreshIntervalTSC < start_tsc)) {
     if (__sync_bool_compare_and_swap(&last_refresh_tsc, last_tsc, start_tsc)) {
@@ -43,6 +49,7 @@ double CPULoad::get_load() const {
     }
   }
 
-  return static_cast<double>(active_sum) / (curr_tsc - last_refresh_tsc);
+  return static_cast<double>(kSampleInterval) * active_sum /
+         (curr_tsc - last_refresh_tsc);
 }
 } // namespace nu

@@ -153,8 +153,11 @@ void ObjServer::update_ref_cnt_locally(RemObjID id, int delta) {
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-void ObjServer::__run_closure(Cls &obj, cereal::BinaryInputArchive &ia,
+void ObjServer::__run_closure(Cls &obj, HeapHeader *heap_header,
+                              cereal::BinaryInputArchive &ia,
                               RPCReturner returner) {
+  auto state = heap_header->cpu_load.monitor_start();
+
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
 
   FnPtr fn;
@@ -185,6 +188,7 @@ void ObjServer::__run_closure(Cls &obj, cereal::BinaryInputArchive &ia,
   }
 
   send_rpc_resp_ok(oa_sstream, &returner);
+  heap_header->cpu_load.monitor_end(state);
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
@@ -193,26 +197,19 @@ void ObjServer::run_closure(cereal::BinaryInputArchive &ia,
   RemObjID id;
   ia >> id;
   auto *heap_header = to_heap_header(id);
-
-  auto &time = heap_header->time;
-  auto start_tsc = time->rdtsc();
-
   bool heap_not_found = !Runtime::run_within_obj_env<Cls>(
-      heap_header, __run_closure<Cls, RetT, FnPtr, S1s...>, ia, *returner);
+      heap_header, __run_closure<Cls, RetT, FnPtr, S1s...>, heap_header, ia,
+      *returner);
   if (heap_not_found) {
     send_rpc_resp_wrong_client(returner);
   }
-
-  auto end_tsc = time->rdtsc();
-  heap_header->cpu_load.add_trace(start_tsc, end_tsc);
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
                                     S1s &&... states) {
   auto *heap_header = to_heap_header(id);
-  auto &time = heap_header->time;
-  auto start_tsc = time->rdtsc();
+  auto state = heap_header->cpu_load.monitor_start();
 
   auto *obj = Runtime::get_obj<Cls>(id);
   if constexpr (!std::is_same<RetT, void>::value) {
@@ -221,9 +218,7 @@ RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
       ObjHeapGuard guard(obj);
       ret = fn_ptr(*obj, std::forward<S1s>(states)...);
     }
-
-    auto end_tsc = time->rdtsc();
-    heap_header->cpu_load.add_trace(start_tsc, end_tsc);
+    heap_header->cpu_load.monitor_end(state);
 
     // Perform a copy to ensure that the return value is allocated from
     // the caller heap. It must be a "deep copy"; for now we just assume
@@ -237,9 +232,7 @@ RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
   } else {
     ObjHeapGuard guard(obj);
     fn_ptr(*obj, std::forward<S1s>(states)...);
-
-    auto end_tsc = time->rdtsc();
-    heap_header->cpu_load.add_trace(start_tsc, end_tsc);
+    heap_header->cpu_load.monitor_end(state);
   }
 }
 
