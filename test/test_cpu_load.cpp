@@ -18,14 +18,14 @@ using namespace nu;
 
 Runtime::Mode mode;
 
-class ComputationalLightObj {
+class CPULightObj {
 public:
   constexpr static uint32_t kTimeUs = 100;
 
   void compute() { delay_us(kTimeUs); }
 };
 
-class ComputationalHeavyObj {
+class CPUHeavyObj {
 public:
   constexpr static uint32_t kTimeUs = 1000;
 
@@ -39,27 +39,26 @@ public:
   bool run() {
     bool passed;
 
-    auto light_obj = RemObj<ComputationalLightObj>::create();
-    auto heavy_obj = RemObj<ComputationalHeavyObj>::create();
+    auto light_obj = RemObj<CPULightObj>::create();
+    auto heavy_obj = RemObj<CPUHeavyObj>::create();
 
     for (uint32_t i = 0; i < 10000; i++) {
-      auto light_future = light_obj.run_async(&ComputationalLightObj::compute);
-      auto heavy_future = heavy_obj.run_async(&ComputationalHeavyObj::compute);
+      auto light_future = light_obj.run_async(&CPULightObj::compute);
+      auto heavy_future = heavy_obj.run_async(&CPUHeavyObj::compute);
     }
 
-    auto light_compute_intensity = light_obj.run(+[](ComputationalLightObj &_) {
+    auto light_cpu_load = light_obj.run(+[](CPULightObj &_) {
       auto *heap_header = Runtime::get_current_obj_heap_header();
-      return heap_header->compute_intensity.get_compute_intensity();
+      return heap_header->cpu_load.get_load();
     });
 
-    auto heavy_compute_intensity = heavy_obj.run(+[](ComputationalHeavyObj &_) {
+    auto heavy_cpu_load = heavy_obj.run(+[](CPUHeavyObj &_) {
       auto *heap_header = Runtime::get_current_obj_heap_header();
-      return heap_header->compute_intensity.get_compute_intensity();
+      return heap_header->cpu_load.get_load();
     });
 
-    auto ratio = heavy_compute_intensity / light_compute_intensity;
-    auto expected_ratio =
-        ComputationalHeavyObj::kTimeUs / ComputationalLightObj::kTimeUs;
+    auto ratio = heavy_cpu_load / light_cpu_load;
+    auto expected_ratio = CPUHeavyObj::kTimeUs / CPULightObj::kTimeUs;
 
     passed = (std::abs(ratio - expected_ratio) / expected_ratio < 0.1);
     return passed;

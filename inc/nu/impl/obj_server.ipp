@@ -30,7 +30,7 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   Runtime::heap_manager->insert(base);
 
   auto *heap_header = reinterpret_cast<HeapHeader *>(base);
-  heap_header->compute_intensity.reset();
+  heap_header->cpu_load.reset();
   auto &slab = heap_header->slab;
   auto obj_space = slab.yield(sizeof(Cls));
 
@@ -58,7 +58,7 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
     Runtime::heap_manager->insert(base);
 
     auto *heap_header = reinterpret_cast<HeapHeader *>(base);
-    heap_header->compute_intensity.reset();
+    heap_header->cpu_load.reset();
     auto &slab = heap_header->slab;
     auto obj_space = slab.yield(sizeof(Cls));
 
@@ -204,7 +204,7 @@ void ObjServer::run_closure(cereal::BinaryInputArchive &ia,
   }
 
   auto end_tsc = time->rdtsc();
-  heap_header->compute_intensity.add_trace(start_tsc, end_tsc);
+  heap_header->cpu_load.add_trace(start_tsc, end_tsc);
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
@@ -223,7 +223,7 @@ RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
     }
 
     auto end_tsc = time->rdtsc();
-    heap_header->compute_intensity.add_trace(start_tsc, end_tsc);
+    heap_header->cpu_load.add_trace(start_tsc, end_tsc);
 
     // Perform a copy to ensure that the return value is allocated from
     // the caller heap. It must be a "deep copy"; for now we just assume
@@ -239,7 +239,7 @@ RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
     fn_ptr(*obj, std::forward<S1s>(states)...);
 
     auto end_tsc = time->rdtsc();
-    heap_header->compute_intensity.add_trace(start_tsc, end_tsc);
+    heap_header->cpu_load.add_trace(start_tsc, end_tsc);
   }
 }
 

@@ -1,15 +1,15 @@
 #include <sync.h>
 
-#include "nu/utils/compute_intensity.hpp"
+#include "nu/utils/cpu_load.hpp"
 
 namespace nu {
 
-void ComputeIntensity::reset() {
+void CPULoad::reset() {
   last_refresh_tsc = 0;
   memset(infos, 0, sizeof(infos));
 }
 
-void ComputeIntensity::add_trace(uint64_t start_tsc, uint64_t end_tsc) {
+void CPULoad::add_trace(uint64_t start_tsc, uint64_t end_tsc) {
   rt::Preempt p;
   rt::PreemptGuard guard(&p);
 
@@ -32,7 +32,7 @@ void ComputeIntensity::add_trace(uint64_t start_tsc, uint64_t end_tsc) {
   info.active_tsc += end_tsc - start_tsc;
 }
 
-double ComputeIntensity::get_compute_intensity() const {
+double CPULoad::get_load() const {
   uint64_t active_sum = 0;
 
   auto curr_tsc = rdtsc();

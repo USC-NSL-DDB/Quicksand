@@ -14,7 +14,7 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/commons.hpp"
-#include "nu/utils/compute_intensity.hpp"
+#include "nu/utils/cpu_load.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/rcu_lock.hpp"
@@ -43,8 +43,8 @@ struct HeapHeader {
   //--- Fields above are always mmaped in all object servers. ---/
   uint8_t always_mmaped_end[0];
 
-  // Used for monitoring compute intensity.
-  ComputeIntensity compute_intensity;
+  // Used for monitoring cpu load.
+  CPULoad cpu_load;
 
   // Migration related.
   std::unique_ptr<RefcountHashSet<thread_t *>> threads;
