@@ -519,12 +519,14 @@ static __always_inline void enter_schedule(thread_t *curth)
 
 	assert_preempt_disabled();
 
+	now = rdtsc();
+	curth->running_cycles += now - curth->run_start_tsc;
+
 	/* prepare current thread for sleeping */
 	curth->run_start_tsc = UINT64_MAX;
 	curth->last_cpu = k->curr_cpu;
 
 	spin_lock(&k->lock);
-	now = rdtsc();
 
 	check_resource_pressure();
 	check_pending_pause_req();
@@ -823,8 +825,11 @@ static void thread_finish_cede(void)
  */
 void thread_cede(void)
 {
+	struct thread *th = thread_self();
+
 	/* this will switch from the thread stack to the runtime stack */
 	preempt_disable();
+	th->running_cycles += rdtsc() - th->run_start_tsc;
 	jmp_runtime(thread_finish_cede);
 }
 
@@ -854,6 +859,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->thread_ready = false;
 	th->thread_running = false;
 	th->run_start_tsc = UINT64_MAX;
+	th->running_cycles = 0;
 	if (__self)
 		th->obj_heap = __self->obj_heap;
 	else
@@ -1173,12 +1179,14 @@ void set_waiter_info(thread_t *th, uint64_t waiter_info)
 }
 
 void get_waiter_info_and_ready(thread_t *th, uint64_t *waiter_info,
-                               bool *ready) {
+                               bool *ready)
+{
        *waiter_info = th->waiter_info;
        *ready = th->thread_ready;
 }
 
-uint64_t get_self_waiter_info(void) {
+uint64_t get_self_waiter_info(void)
+{
        uint64_t waiter_info;
        preempt_disable();
        waiter_info = __self->waiter_info;
@@ -1186,8 +1194,16 @@ uint64_t get_self_waiter_info(void) {
        return waiter_info;
 }
 
-void set_self_waiter_info(uint64_t waiter_info) {
+void set_self_waiter_info(uint64_t waiter_info)
+{
        preempt_disable();
        __self->waiter_info = waiter_info;
        preempt_enable();
+}
+
+uint64_t get_thread_running_cycles(uint64_t now_tsc)
+{
+       struct thread *th = thread_self();
+
+       return th->running_cycles + now_tsc - th->run_start_tsc;
 }

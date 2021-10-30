@@ -61,6 +61,8 @@ static inline thread_id_t get_thread_id(thread_t *th)
 extern uint64_t get_uthread_specific(void);
 extern void set_uthread_specific(uint64_t val);
 
+extern uint64_t get_thread_running_cycles(uint64_t now_tsc);
+
 /*
  * High-level routines, use this API most of the time.
  */
@@ -69,6 +71,9 @@ extern void thread_yield(void);
 extern int thread_spawn(thread_fn_t fn, void *arg);
 extern void thread_exit(void) __noreturn;
 
+/*
+ * Used by Nu.
+ */
 extern void thread_mark_migrating(thread_t *thread);
 extern void thread_mark_migrated(thread_t *thread);
 extern bool thread_is_migrated(void);

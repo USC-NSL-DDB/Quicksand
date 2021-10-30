@@ -12,6 +12,7 @@ public:
   struct State {
     bool sampled;
     uint64_t start_tsc;
+    uint64_t start_cycles;
   };
 
   void reset();
@@ -23,7 +24,7 @@ private:
   uint64_t last_refresh_tsc;
   struct {
     bool refresh;
-    uint64_t active_tsc;
+    uint64_t active_cycles;
     uint64_t sample_cnt;
   } infos[kNumCores];
 

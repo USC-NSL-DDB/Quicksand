@@ -1,3 +1,7 @@
+extern "C" {
+#include <runtime/thread.h>
+}
+
 namespace nu {
 
 inline void CPULoad::reset() {
@@ -16,6 +20,9 @@ inline CPULoad::State CPULoad::monitor_start() {
 
 inline void CPULoad::monitor_end(const State &state) {
   if (likely(!state.sampled)) {
+    return;
+  }
+  if (unlikely(thread_is_migrated())) {
     return;
   }
   __monitor_end(state);

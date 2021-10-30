@@ -104,6 +104,7 @@ struct thread {
 	unsigned int		last_cpu;
 	uint64_t		run_start_tsc;
 	uint64_t		ready_tsc;
+	uint64_t                running_cycles;
 #ifdef GC
 	struct list_node	gc_link;
 	unsigned int		onk;
