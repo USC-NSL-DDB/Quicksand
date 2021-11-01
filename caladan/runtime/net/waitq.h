@@ -26,6 +26,21 @@ static inline void waitq_wait(waitq_t *q, spinlock_t *l)
 	spin_lock_np(l);
 }
 
+static inline void waitq_wait_poll(waitq_t *q, spinlock_t *l, void (*fn)(void))
+{
+	struct thread *th = thread_self();
+
+	assert_spin_lock_held(l);
+	list_add_tail(&q->waiters, &th->link);
+	spin_unlock_np(l);
+	ACCESS_ONCE(th->wq_spin) = true;
+	while (ACCESS_ONCE(th->wq_spin)) {
+		if (fn)
+			fn();
+	}
+	spin_lock_np(l);
+}
+
 /**
  * waitq_signal - wakes up to one waiter on the wake queue
  * @q: the wake queue
@@ -46,8 +61,12 @@ static inline thread_t *waitq_signal(waitq_t *q, spinlock_t *l)
  */
 static inline void waitq_signal_finish(thread_t *th)
 {
-	if (th)
-		thread_ready(th);
+	if (th) {
+		if (ACCESS_ONCE(th->wq_spin))
+			ACCESS_ONCE(th->wq_spin) = false;
+		else
+			thread_ready(th);
+	}
 }
 
 /**
@@ -71,12 +90,12 @@ static inline void waitq_signal_locked(waitq_t *q, spinlock_t *l)
  */
 static inline void waitq_release(waitq_t *q)
 {
-	while (true) {
-		thread_t *th = list_pop(&q->waiters, thread_t, link);
-		if (!th)
-			break;
-		thread_ready(th);
-	}
+	thread_t *th;
+
+	do {
+		th = list_pop(&q->waiters, thread_t, link);
+		waitq_signal_finish(th);
+	} while (th);
 }
 
 static inline void waitq_release_start(waitq_t *q, struct list_head *waiters)
@@ -86,12 +105,12 @@ static inline void waitq_release_start(waitq_t *q, struct list_head *waiters)
 
 static inline void waitq_release_finish(struct list_head *waiters)
 {
-	while (true) {
-		thread_t *th = list_pop(waiters, thread_t, link);
-		if (!th)
-			break;
-		thread_ready(th);
-	}
+	thread_t *th;
+
+	do {
+		th = list_pop(waiters, thread_t, link);
+		waitq_signal_finish(th);
+	} while (th);
 }
 
 

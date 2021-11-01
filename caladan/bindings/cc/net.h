@@ -48,8 +48,10 @@ inline void gather_from(uint8_t *buf, std::span<const iovec, Extent> iov) {
 class NetConn {
  public:
    virtual ~NetConn(){};
-   virtual ssize_t Read(void *buf, size_t len, bool nt = false) = 0;
-   virtual ssize_t Write(const void *buf, size_t len, bool nt = false) = 0;
+   virtual ssize_t Read(void *buf, size_t len, bool nt = false,
+                        bool poll = false) = 0;
+   virtual ssize_t Write(const void *buf, size_t len, bool nt = false,
+                         bool poll = false) = 0;
 };
 
 // UDP Connections.
@@ -102,14 +104,14 @@ class UdpConn : public NetConn {
   }
 
   // Reads a datagram.
-  ssize_t Read(void *buf, size_t len, bool nt = false) {
-    BUG_ON(nt); // Not implemented.
+  ssize_t Read(void *buf, size_t len, bool nt = false, bool poll = false) {
+    BUG_ON(nt || poll); // Not implemented.
     return udp_read(c_, buf, len);
   }
 
   // Writes a datagram.
-  ssize_t Write(const void *buf, size_t len, bool nt = false) {
-    BUG_ON(nt); // Not implemented.
+  ssize_t Write(const void *buf, size_t len, bool nt = false, bool poll = false) {
+    BUG_ON(nt || poll); // Not implemented.
     return udp_write(c_, buf, len);
   }
 
@@ -166,28 +168,31 @@ class TcpConn : public NetConn {
   netaddr RemoteAddr() const { return tcp_remote_addr(c_); }
 
   // Reads from the TCP stream.
-  ssize_t Read(void *buf, size_t len, bool nt = false) {
-    return __tcp_read(c_, buf, len, nt);
+  ssize_t Read(void *buf, size_t len, bool nt = false, bool poll = false) {
+    return __tcp_read(c_, buf, len, nt, poll);
   };
   // Writes to the TCP stream.
-  ssize_t Write(const void *buf, size_t len, bool nt = false) {
-    return __tcp_write(c_, buf, len, nt);
+  ssize_t Write(const void *buf, size_t len, bool nt = false,
+                bool poll = false) {
+    return __tcp_write(c_, buf, len, nt, poll);
   }
   // Reads a vector from the TCP stream.
-  ssize_t Readv(const iovec *iov, int iovcnt, bool nt = false) {
-    return __tcp_readv(c_, iov, iovcnt, nt);
+  ssize_t Readv(const iovec *iov, int iovcnt, bool nt = false,
+                bool poll = false) {
+    return __tcp_readv(c_, iov, iovcnt, nt, poll);
   }
   // Writes a vector to the TCP stream.
-  ssize_t Writev(const iovec *iov, int iovcnt, bool nt = false) {
-    return __tcp_writev(c_, iov, iovcnt, nt);
+  ssize_t Writev(const iovec *iov, int iovcnt, bool nt = false,
+                 bool poll = false) {
+    return __tcp_writev(c_, iov, iovcnt, nt, poll);
   }
 
   // Reads exactly @len bytes from the TCP stream.
-  ssize_t ReadFull(void *buf, size_t len, bool nt = false) {
+  ssize_t ReadFull(void *buf, size_t len, bool nt = false, bool poll = false) {
     char *pos = reinterpret_cast<char *>(buf);
     size_t n = 0;
     while (n < len) {
-      ssize_t ret = Read(pos + n, len - n, nt);
+      ssize_t ret = Read(pos + n, len - n, nt, poll);
       if (ret <= 0) return ret;
       n += ret;
     }
@@ -196,11 +201,12 @@ class TcpConn : public NetConn {
   }
 
   // Writes exactly @len bytes to the TCP stream.
-  ssize_t WriteFull(const void *buf, size_t len, bool nt = false) {
+  ssize_t WriteFull(const void *buf, size_t len, bool nt = false,
+                    bool poll = false) {
     const char *pos = reinterpret_cast<const char *>(buf);
     size_t n = 0;
     while (n < len) {
-      ssize_t ret = Write(pos + n, len - n, nt);
+      ssize_t ret = Write(pos + n, len - n, nt, poll);
       if (ret < 0) return ret;
       assert(ret > 0);
       n += ret;
@@ -211,49 +217,53 @@ class TcpConn : public NetConn {
 
   // Reads exactly a vector of bytes from the TCP stream.
   template <std::size_t Extent>
-  ssize_t ReadvFull(std::span<const iovec, Extent> iov, bool nt = false) {
+  ssize_t ReadvFull(std::span<const iovec, Extent> iov, bool nt = false,
+                    bool poll = false) {
     if constexpr (Extent != std::dynamic_extent) {
       if constexpr (iov.size() == 1) {
-        return ReadFull(iov[0].iov_base, iov[0].iov_len, nt);
+        return ReadFull(iov[0].iov_base, iov[0].iov_len, nt, poll);
       }
       auto total_len = std::accumulate(
           iov.begin(), iov.end(), static_cast<std::size_t>(0),
           [](std::size_t s, const iovec a) { return s + a.iov_len; });
       if (total_len <= kIOVCopyThresh) {
-        auto ret = ReadFull(buf_, total_len, nt);
+        auto ret = ReadFull(buf_, total_len, nt, poll);
         detail::scatter_to(buf_, iov);
         return ret;
       }
     }
-    return ReadvFullRaw(iov, nt);
+    return ReadvFullRaw(iov, nt, poll);
   }
 
   // Writes exactly a vector of bytes to the TCP stream.
   template <std::size_t Extent>
-  ssize_t WritevFull(std::span<const iovec, Extent> iov, bool nt = false) {
+  ssize_t WritevFull(std::span<const iovec, Extent> iov, bool nt = false,
+                     bool poll = false) {
     if constexpr (Extent != std::dynamic_extent) {
       if constexpr (iov.size() == 1) {
-        return WriteFull(iov[0].iov_base, iov[0].iov_len, nt);
+        return WriteFull(iov[0].iov_base, iov[0].iov_len, nt, poll);
       }
       auto total_len = std::accumulate(
           iov.begin(), iov.end(), static_cast<std::size_t>(0),
           [](std::size_t s, const iovec a) { return s + a.iov_len; });
       if (total_len <= kIOVCopyThresh) {
         detail::gather_from(buf_, iov);
-        return WriteFull(buf_, total_len, nt);
+        return WriteFull(buf_, total_len, nt, poll);
       }
     }
-    return WritevFullRaw(iov, nt);
+    return WritevFullRaw(iov, nt, poll);
   }
 
   // Reads exactly a vector of bytes from the TCP stream.
-  ssize_t ReadvFull(const iovec *iov, int iovcnt, bool nt = false) {
-    return ReadvFull(std::span{iov, static_cast<size_t>(iovcnt)}, nt);
+  ssize_t ReadvFull(const iovec *iov, int iovcnt, bool nt = false,
+                    bool poll = false) {
+    return ReadvFull(std::span{iov, static_cast<size_t>(iovcnt)}, nt, poll);
   }
 
   // Writes exactly a vector of bytes to the TCP stream.
-  ssize_t WritevFull(const iovec *iov, int iovcnt, bool nt = false) {
-    return WritevFull(std::span{iov, static_cast<size_t>(iovcnt)}, nt);
+  ssize_t WritevFull(const iovec *iov, int iovcnt, bool nt = false,
+                     bool poll = false) {
+    return WritevFull(std::span{iov, static_cast<size_t>(iovcnt)}, nt, poll);
   }
 
   // If the connection has pending data to read.
@@ -277,8 +287,8 @@ class TcpConn : public NetConn {
   TcpConn(const TcpConn &) = delete;
   TcpConn &operator=(const TcpConn &) = delete;
 
-  ssize_t WritevFullRaw(std::span<const iovec> iov, bool nt);
-  ssize_t ReadvFullRaw(std::span<const iovec> iov, bool nt);
+  ssize_t WritevFullRaw(std::span<const iovec> iov, bool nt, bool poll);
+  ssize_t ReadvFullRaw(std::span<const iovec> iov, bool nt, bool poll);
 
   tcpconn_t *c_;
   uint8_t buf_[kIOVCopyThresh];

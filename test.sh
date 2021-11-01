@@ -4,7 +4,7 @@ source shared.sh
 
 all_passed=1
 
-local_unit_tests=("test_slab" "test_perf")
+local_unit_tests=("test_slab" "test_perf" "test_tcp_poll")
 
 function prepare {
     sudo sync; sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"

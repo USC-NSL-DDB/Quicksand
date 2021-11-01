@@ -14,7 +14,7 @@ static bool softirq_iokernel_pending(struct kthread *k)
 	return !lrpc_empty(&k->rxq);
 }
 
-static bool softirq_directpath_pending(struct kthread *k)
+bool softirq_directpath_pending(struct kthread *k)
 {
 	return rx_pending(k->directpath_rxq);
 }

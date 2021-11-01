@@ -584,8 +584,7 @@ done:
 
 	/* deferred work (delayed until after the lock was dropped) */
 	waitq_release_finish(&waiters);
-	if (rx_th)
-		waitq_signal_finish(rx_th);
+	waitq_signal_finish(rx_th);
 	mbuf_list_free(&q);
 	tcp_tx_fast_retransmit_finish(c, retransmit);
 	if (do_ack)

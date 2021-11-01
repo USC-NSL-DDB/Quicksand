@@ -673,8 +673,34 @@ struct netaddr tcp_remote_addr(tcpconn_t *c)
 	return c->e.raddr;
 }
 
+
+/* FIXME: support the non-directpath code path. */
+static void check_net_softirq(void)
+{
+	struct kthread *l, *k;
+	int i;
+
+	l = getk();
+	spin_lock(&l->lock);
+
+	if (softirq_directpath_pending(l) && !l->directpath_busy)
+		directpath_softirq_one(l);
+
+	for (i = 0; i < nrks; i++) {
+		k = ks[i];
+		if (k == l || !softirq_directpath_pending(k) ||
+		    !spin_try_lock(&k->lock))
+			continue;
+		if (!k->directpath_busy)
+			directpath_softirq_one(k);
+		spin_unlock(&k->lock);
+	}
+
+	spin_unlock_np(&l->lock);
+}
+
 static ssize_t tcp_read_wait(tcpconn_t *c, size_t len,
-			     struct list_head *q, struct mbuf **mout)
+			     struct list_head *q, struct mbuf **mout, bool poll)
 {
 	struct mbuf *m;
 	size_t readlen = 0;
@@ -684,8 +710,12 @@ static ssize_t tcp_read_wait(tcpconn_t *c, size_t len,
 	spin_lock_np(&c->lock);
 
 	/* block until there is an actionable event */
-	while (!c->rx_closed && (c->rx_exclusive || list_empty(&c->rxq)))
-		waitq_wait(&c->rx_wq, &c->lock);
+	while (!c->rx_closed && (c->rx_exclusive || list_empty(&c->rxq))) {
+		if (poll)
+			waitq_wait_poll(&c->rx_wq, &c->lock, check_net_softirq);
+		else
+			waitq_wait(&c->rx_wq, &c->lock);
+	}
 
 	/* is the socket closed? */
 	if (c->rx_closed) {
@@ -744,7 +774,7 @@ static void tcp_read_finish(tcpconn_t *c, struct mbuf *m)
 	waitq_release_finish(&waiters);
 }
 
-ssize_t __tcp_read(tcpconn_t *c, void *buf, size_t len, bool nt)
+ssize_t __tcp_read(tcpconn_t *c, void *buf, size_t len, bool nt, bool poll)
 {
 	char *pos = buf;
 	struct list_head q;
@@ -754,7 +784,7 @@ ssize_t __tcp_read(tcpconn_t *c, void *buf, size_t len, bool nt)
 	list_head_init(&q);
 
 	/* wait for data to become available */
-	ret = tcp_read_wait(c, len, &q, &m);
+	ret = tcp_read_wait(c, len, &q, &m, poll);
 
 	/* check if connection was closed */
 	if (ret <= 0)
@@ -803,7 +833,8 @@ static size_t iov_len(const struct iovec *iov, int iovcnt)
 	return len;
 }
 
-ssize_t __tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt, bool nt)
+ssize_t __tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt, bool nt,
+                    bool poll)
 {
 	struct list_head q;
 	struct mbuf *m;
@@ -814,7 +845,7 @@ ssize_t __tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt, bool nt)
 	list_head_init(&q);
 
 	/* wait for data to become available */
-	len = tcp_read_wait(c, len, &q, &m);
+	len = tcp_read_wait(c, len, &q, &m, poll);
 
 	/* check if connection was closed */
 	if (len <= 0)
@@ -881,7 +912,7 @@ ssize_t __tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt, bool nt)
 	return len;
 }
 
-static int tcp_write_wait(tcpconn_t *c, size_t *winlen)
+static int tcp_write_wait(tcpconn_t *c, size_t *winlen, bool poll)
 {
 	spin_lock_np(&c->lock);
 
@@ -895,7 +926,10 @@ static int tcp_write_wait(tcpconn_t *c, size_t *winlen)
 			c->zero_wnd_ts = microtime();
 			tcp_timer_update(c);
 		}
-		waitq_wait(&c->tx_wq, &c->lock);
+		if (poll)
+			waitq_wait_poll(&c->tx_wq, &c->lock, check_net_softirq);
+		else
+			waitq_wait(&c->tx_wq, &c->lock);
 	}
 	c->zero_wnd = false;
 
@@ -955,13 +989,14 @@ static void tcp_write_finish(tcpconn_t *c)
 	mbuf_list_free(&q);
 }
 
-ssize_t __tcp_write(tcpconn_t *c, const void *buf, size_t len, bool nt)
+ssize_t __tcp_write(tcpconn_t *c, const void *buf, size_t len, bool nt,
+                    bool poll)
 {
 	size_t winlen;
 	ssize_t ret;
 
 	/* block until the data can be sent */
-	ret = tcp_write_wait(c, &winlen);
+	ret = tcp_write_wait(c, &winlen, poll);
 	if (ret)
 		return ret;
 
@@ -975,14 +1010,14 @@ ssize_t __tcp_write(tcpconn_t *c, const void *buf, size_t len, bool nt)
 }
 
 ssize_t __tcp_writev(tcpconn_t *c, const struct iovec *iov, int iovcnt,
-                     bool nt)
+                     bool nt, bool poll)
 {
 	size_t winlen;
 	ssize_t sent = 0, ret;
 	int i;
 
 	/* block until the data can be sent */
-	ret = tcp_write_wait(c, &winlen);
+	ret = tcp_write_wait(c, &winlen, poll);
 	if (ret)
 		return ret;
 

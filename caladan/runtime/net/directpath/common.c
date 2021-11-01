@@ -79,7 +79,7 @@ static int rx_memory_init(void)
 	return 0;
 }
 
-static void directpath_softirq_one(struct kthread *k)
+void directpath_softirq_one(struct kthread *k)
 {
 	struct mbuf *ms[RUNTIME_RX_BATCH_SIZE];
 	int cnt;

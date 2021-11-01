@@ -27,12 +27,14 @@ extern void tcp_close(tcpconn_t *c);
 extern bool tcp_wait_for_read(tcpconn_t *c);
 extern bool tcp_has_pending_data_to_read(tcpconn_t *c);
 
-extern ssize_t __tcp_write(tcpconn_t *c, const void *buf, size_t len, bool nt);
+extern ssize_t __tcp_write(tcpconn_t *c, const void *buf, size_t len, bool nt,
+                           bool poll);
 extern ssize_t __tcp_writev(tcpconn_t *c, const struct iovec *iov, int iovcnt,
-                            bool nt);
-extern ssize_t __tcp_read(tcpconn_t *c, void *buf, size_t len, bool nt);
+                            bool nt, bool poll);
+extern ssize_t __tcp_read(tcpconn_t *c, void *buf, size_t len, bool nt,
+			  bool poll);
 extern ssize_t __tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt,
-                           bool nt);
+                           bool nt, bool poll);
 
 extern int __tcp_dial(struct netaddr laddr, struct netaddr raddr,
 		      tcpconn_t **c_out, uint8_t dscp);
@@ -55,7 +57,7 @@ extern int __tcp_listen(struct netaddr laddr, int backlog, tcpqueue_t **q_out,
  */
 static inline ssize_t tcp_write(tcpconn_t *c, const void *buf, size_t len)
 {
-	return __tcp_write(c, buf, len, false);
+	return __tcp_write(c, buf, len, false, false);
 }
 
 /**
@@ -63,7 +65,15 @@ static inline ssize_t tcp_write(tcpconn_t *c, const void *buf, size_t len)
  */
 static inline ssize_t tcp_write_nt(tcpconn_t *c, const void *buf, size_t len)
 {
-	return __tcp_write(c, buf, len, true);
+	return __tcp_write(c, buf, len, true, false);
+}
+
+/**
+ * tcp_write_nt - similar with tcp_write, but keeps polling on waitq
+ */
+static inline ssize_t tcp_write_poll(tcpconn_t *c, const void *buf, size_t len)
+{
+	return __tcp_write(c, buf, len, false, true);
 }
 
 /**
@@ -78,7 +88,7 @@ static inline ssize_t tcp_write_nt(tcpconn_t *c, const void *buf, size_t len)
 static inline ssize_t tcp_writev(tcpconn_t *c, const struct iovec *iov,
 				 int iovcnt)
 {
-	return __tcp_writev(c, iov, iovcnt, false);
+	return __tcp_writev(c, iov, iovcnt, false, false);
 }
 
 /**
@@ -87,7 +97,16 @@ static inline ssize_t tcp_writev(tcpconn_t *c, const struct iovec *iov,
 static inline ssize_t tcp_writev_nt(tcpconn_t *c, const struct iovec *iov,
 				    int iovcnt)
 {
-	return __tcp_writev(c, iov, iovcnt, true);
+	return __tcp_writev(c, iov, iovcnt, true, false);
+}
+
+/**
+ * tcp_writev_nt - similar with tcp_writev, but keeps polling on waitq
+ */
+static inline ssize_t tcp_writev_poll(tcpconn_t *c, const struct iovec *iov,
+				    int iovcnt)
+{
+	return __tcp_writev(c, iov, iovcnt, false, true);
 }
 
 /**
@@ -101,7 +120,7 @@ static inline ssize_t tcp_writev_nt(tcpconn_t *c, const struct iovec *iov,
  */
 static inline ssize_t tcp_read(tcpconn_t *c, void *buf, size_t len)
 {
-	return __tcp_read(c, buf, len, false);
+	return __tcp_read(c, buf, len, false, false);
 }
 
 /**
@@ -109,7 +128,15 @@ static inline ssize_t tcp_read(tcpconn_t *c, void *buf, size_t len)
  */
 static inline ssize_t tcp_read_nt(tcpconn_t *c, void *buf, size_t len)
 {
-	return __tcp_read(c, buf, len, true);
+	return __tcp_read(c, buf, len, true, false);
+}
+
+/**
+ * tcp_read_poll - similar with tcp_read, but keeps polling on waitq
+ */
+static inline ssize_t tcp_read_poll(tcpconn_t *c, void *buf, size_t len)
+{
+	return __tcp_read(c, buf, len, true, true);
 }
 
 /**
@@ -124,7 +151,7 @@ static inline ssize_t tcp_read_nt(tcpconn_t *c, void *buf, size_t len)
 static inline ssize_t tcp_readv(tcpconn_t *c, const struct iovec *iov,
 				int iovcnt)
 {
-	return __tcp_readv(c, iov, iovcnt, false);
+	return __tcp_readv(c, iov, iovcnt, false, false);
 }
 
 /**
@@ -133,7 +160,16 @@ static inline ssize_t tcp_readv(tcpconn_t *c, const struct iovec *iov,
 static inline ssize_t tcp_readv_nt(tcpconn_t *c, const struct iovec *iov,
 				   int iovcnt)
 {
-	return __tcp_readv(c, iov, iovcnt, true);
+	return __tcp_readv(c, iov, iovcnt, true, false);
+}
+
+/**
+ * tcp_readv_poll - similar with tcp_readv, but keeps polling on waitq
+ */
+static inline ssize_t tcp_readv_poll(tcpconn_t *c, const struct iovec *iov,
+				   int iovcnt)
+{
+	return __tcp_readv(c, iov, iovcnt, true, true);
 }
 
 /**

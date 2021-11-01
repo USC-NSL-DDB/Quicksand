@@ -105,6 +105,7 @@ struct thread {
 	uint64_t		run_start_tsc;
 	uint64_t		ready_tsc;
 	uint64_t                running_cycles;
+	bool                    wq_spin;
 #ifdef GC
 	struct list_node	gc_link;
 	unsigned int		onk;
@@ -528,6 +529,8 @@ extern bool disable_watchdog;
 extern bool softirq_pending(struct kthread *k);
 extern bool softirq_sched(struct kthread *k);
 extern bool softirq_run(void);
+extern bool softirq_directpath_pending(struct kthread *k);
+extern void directpath_softirq_one(struct kthread *k);
 
 /*
  * Resource pressure

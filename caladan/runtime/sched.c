@@ -860,6 +860,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->thread_running = false;
 	th->run_start_tsc = UINT64_MAX;
 	th->running_cycles = 0;
+	th->wq_spin = false;
 	if (__self)
 		th->obj_heap = __self->obj_heap;
 	else
