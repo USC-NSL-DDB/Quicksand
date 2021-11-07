@@ -566,22 +566,33 @@ static void check_net_softirq(void)
 	int i;
 
 	l = getk();
+
+	/* check local directpath softirq */
 	spin_lock(&l->lock);
-
-	if (softirq_directpath_pending(l) && !l->directpath_busy)
+	if (softirq_directpath_pending(l) && !l->directpath_busy) {
+		l->directpath_busy = true;
+		spin_unlock(&l->lock);
 		directpath_softirq_one(l);
+		l->directpath_busy = false;
+        } else
+		spin_unlock(&l->lock);
 
-	for (i = 0; i < nrks; i++) {
-		k = ks[i];
-		if (k == l || !softirq_directpath_pending(k) ||
-		    !spin_try_lock(&k->lock))
-			continue;
-		if (!k->directpath_busy)
-			directpath_softirq_one(k);
-		spin_unlock(&k->lock);
-	}
+        /* check remote directpath softirq */
+        for (i = 0; i < nrks; i++) {
+                k = ks[i];
+                if (k == l || !softirq_directpath_pending(k) ||
+                    !spin_try_lock(&k->lock))
+                        continue;
+                if (!k->directpath_busy) {
+                        k->directpath_busy = true;
+                        spin_unlock(&k->lock);
+                        directpath_softirq_one(k);
+                        k->directpath_busy = false;
+                } else
+                        spin_unlock(&k->lock);
+        }
 
-	spin_unlock_np(&l->lock);
+        putk();
 }
 
 /*
