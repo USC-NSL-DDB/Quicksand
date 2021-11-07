@@ -156,13 +156,13 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
   auto *bucket_node = &buckets_[bucket_idx];
   BucketNode **prev_next = nullptr;
   auto &lock = locks_[bucket_idx];
-  lock.Lock();
+  lock.lock();
 
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
       auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
       if (equaler(k, pair->first)) {
-        lock.Unlock();
+        lock.unlock();
         return false;
       }
     }
@@ -186,7 +186,7 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
     new_bucket_node->next = nullptr;
     *prev_next = new_bucket_node;
   }
-  lock.Unlock();
+  lock.unlock();
   return true;
 }
 
@@ -271,7 +271,7 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
   Allocator allocator;
 
   auto &lock = locks_[bucket_idx];
-  lock.Lock();
+  lock.lock();
 
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
@@ -303,11 +303,11 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 apply_fn:
   if constexpr (!std::is_same<RetT, void>::value) {
     auto ret = fn(*pair, std::forward<A1s>(args)...);
-    lock.Unlock();
+    lock.unlock();
     return ret;
   } else {
     fn(*pair, std::forward<A1s>(args)...);
-    lock.Unlock();
+    lock.unlock();
   }
 }
 
