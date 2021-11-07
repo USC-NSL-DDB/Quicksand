@@ -85,7 +85,7 @@ std::vector<HeapRange> HeapManager::pick_heaps(uint32_t min_num_heaps,
                                                uint32_t min_mem_mbs) {
   std::vector<HeapRange> heaps;
   uint32_t picked_heaps_mem_mbs = 0;
-  rt::MutexGuard guard(&mutex_);
+  rt::SpinGuard guard(&spin_);
 
   for (auto *heap_base : present_heaps_) {
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
@@ -110,7 +110,7 @@ std::vector<HeapRange> HeapManager::pick_heaps(uint32_t min_num_heaps,
 
 uint64_t HeapManager::get_mem_usage() {
   uint64_t total_mem_usage = 0;
-  rt::MutexGuard guard(&mutex_);
+  rt::SpinGuard guard(&spin_);
 
   for (auto *heap_base : present_heaps_) {
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);

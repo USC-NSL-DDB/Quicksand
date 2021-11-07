@@ -412,7 +412,7 @@ struct kthread {
 	thread_t		*directpath_softirq;
 	thread_t		*timer_softirq;
 	thread_t		*storage_softirq;
-	thread_t		*resource_pressure_handler;
+	thread_t                **preemptor;
 	bool			iokernel_busy;
 	bool			directpath_busy;
 	bool			timer_busy;
@@ -533,12 +533,6 @@ extern bool softirq_directpath_pending(struct kthread *k);
 extern void directpath_softirq_one(struct kthread *k);
 
 /*
- * Resource pressure
- */
-
-extern bool check_resource_pressure(void);
-
-/*
  * Network stack
  */
 
@@ -640,7 +634,6 @@ extern int net_init_thread(void);
 extern int smalloc_init_thread(void);
 extern int storage_init_thread(void);
 extern int directpath_init_thread(void);
-extern int resource_pressure_init_thread(void);
 
 /* global initialization */
 extern int kthread_init(void);

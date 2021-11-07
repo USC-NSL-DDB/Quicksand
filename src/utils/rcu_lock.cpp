@@ -22,7 +22,7 @@ RCULock::~RCULock() {
 #endif
 }
 
-void RCULock::writer_sync() {
+void RCULock::writer_sync(bool poll) {
   sync_barrier_ = true;
   barrier();
 
@@ -39,12 +39,16 @@ retry:
     sum += cnt.data.c;
   }
   if (sum != 0) {
-    if (likely(microtime() < start_us + kWriterWaitFastPathMaxUs)) {
-      // Fast path.
-      rt::Yield();
+    if (unlikely(poll)) {
+      cpu_relax();
     } else {
-      // Slow path.
-      timer_sleep(kWriterWaitSlowPathSleepUs);
+      if (likely(microtime() < start_us + kWriterWaitFastPathMaxUs)) {
+        // Fast path.
+        rt::Yield();
+      } else {
+        // Slow path.
+        timer_sleep(kWriterWaitSlowPathSleepUs);
+      }
     }
     goto retry;
   }

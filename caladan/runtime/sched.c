@@ -220,12 +220,24 @@ static inline bool has_pending_pause_req(struct kthread *k) {
 	return load_acquire(&k->pause_req) & global_pause_req_mask;
 }
 
-static inline void check_pending_pause_req(void)
+static inline void pause_local_migrating_threads_locked(void)
 {
 	struct kthread *l = myk();
+
 	assert_spin_lock_held(&l->lock);
 	if (has_pending_pause_req(l))
 		pop_migrating_threads(l);
+}
+
+void pause_local_migrating_threads(void)
+{
+	struct kthread *l = getk();
+
+	spin_lock(&l->lock);
+	if (has_pending_pause_req(l))
+		pop_migrating_threads(l);
+	spin_unlock(&l->lock);
+	putk();
 }
 
 static bool handle_pending_pause_req_of(struct kthread *k)
@@ -248,6 +260,19 @@ static bool handle_pending_pause_req_of(struct kthread *k)
 
 	spin_unlock(&k->lock);
 	return handled;
+}
+
+static inline bool handle_preemptor(void)
+{
+	struct kthread *k = myk();
+
+	assert_preempt_disabled();
+	if (unlikely(*k->preemptor)) {
+		thread_ready_head_locked(*k->preemptor);
+		*k->preemptor = NULL;
+		return true;
+	}
+	return false;
 }
 
 static bool steal_work(struct kthread *l, struct kthread *r)
@@ -380,10 +405,10 @@ static __noreturn __noinline void schedule(void)
 	ACCESS_ONCE(l->q_ptrs->rcu_gen) += 1;
 	assert((l->rcu_gen & 0x1) == 0x0);
 
-	if (check_resource_pressure()) {
+	pause_local_migrating_threads_locked();
+	if (handle_preemptor()) {
 		goto done;
 	}
-	check_pending_pause_req();
 
 #ifdef GC
 	if (unlikely(get_gc_gen() != l->local_gc_gen))
@@ -413,10 +438,10 @@ static __noreturn __noinline void schedule(void)
 	l->rq_head = l->rq_tail = 0;
 
 again:
-	if (check_resource_pressure()) {
+	pause_local_migrating_threads_locked();
+	if (handle_preemptor()) {
 		goto done;
 	}
-	check_pending_pause_req();
 
 	/* then check for local softirqs */
 	if (softirq_sched(l)) {
@@ -528,8 +553,8 @@ static __always_inline void enter_schedule(thread_t *curth)
 
 	spin_lock(&k->lock);
 
-	check_resource_pressure();
-	check_pending_pause_req();
+	pause_local_migrating_threads_locked();
+	handle_preemptor();
 
 	/* slow path: switch from the uthread stack to the runtime stack */
 	if (k->rq_head == k->rq_tail ||
@@ -1094,22 +1119,17 @@ bool thread_is_migrated(void)
 	return __self->migration_state == MIGRATED;
 }
 
-void pause_migrating_threads(void)
+void pause_all_migrating_threads(void)
 {
 	int i;
-	struct kthread *k;
 
 	for (i = 0; i < nrks; i++) {
 		ks[i]->pause_req = true;
 	}
 	store_release(&global_pause_req_mask, true);
-
 	kthread_yield_all_cores();
-	k = getk();
-	spin_lock(&k->lock);
-	check_pending_pause_req();
-	spin_unlock(&k->lock);
-	putk();
+	pause_local_migrating_threads();
+
 retry:
 	for (i = 0; i < nrks; i++)
 		if (ACCESS_ONCE(ks[i]->pause_req))

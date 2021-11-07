@@ -4,54 +4,36 @@
 
 /* real-time resource pressure signals (shared with the iokernel) */
 struct resource_pressure_info *resource_pressure_info;
-/* the handler for resource pressure */
-resource_pressure_handler handler;
+/* number of resource pressure handlers */
+uint8_t *num_resource_pressure_handlers;
+/* the handlers */
+struct thread **resource_pressure_handlers;
 
-void register_resource_pressure_handler(resource_pressure_handler h)
-{
-	handler = h;
-}
+struct handler_thread_args {
+	resource_pressure_handler handler;
+	void *handler_args;
+};
 
-void deregister_resource_pressure_handler(void)
+static void thread_wrapper(void *args)
 {
-	handler = NULL;
-}
+	struct handler_thread_args *thread_args =
+		(struct handler_thread_args *)args;
 
-static void invoke_resource_pressure_handler(void *unused)
-{
 	while (true) {
-		handler();
 		preempt_disable();
+		thread_args->handler(thread_args->handler_args);
 		thread_park_and_preempt_enable();
 	}
 }
 
-bool check_resource_pressure(void)
+void add_resource_pressure_handler(resource_pressure_handler handler,
+                                   void *args)
 {
-	struct kthread *k = myk();
+	struct handler_thread_args *thread_args;
 
-	assert_preempt_disabled();
-	assert_spin_lock_held(&k->lock);
-
-	if (handler && resource_pressure_info &&
-	    resource_pressure_info->status == PENDING)
-		if (__sync_bool_compare_and_swap(
-			 &resource_pressure_info->status, PENDING, HANDLING)) {
-			thread_ready_head_locked(k->resource_pressure_handler);
-			return true;
-		}
-	return false;
-}
-
-int resource_pressure_init_thread(void)
-{
-	struct kthread *k = myk();
-	thread_t *th;
-
-	th = thread_create(invoke_resource_pressure_handler, k);
-	if (!th)
-		return -ENOMEM;
-
-	k->resource_pressure_handler = th;
-	return 0;
+	resource_pressure_handlers[(*num_resource_pressure_handlers)++] =
+		thread_create_with_buf(thread_wrapper, (void **)&thread_args,
+				       sizeof(struct handler_thread_args));
+	thread_args->handler = handler;
+	thread_args->handler_args = args;
 }

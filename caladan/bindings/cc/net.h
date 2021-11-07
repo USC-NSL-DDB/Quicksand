@@ -137,9 +137,9 @@ class TcpConn : public NetConn {
 
   // Creates a TCP connection between a local and remote address.
   static TcpConn *Dial(netaddr laddr, netaddr raddr,
-                       uint8_t dscp = DEFAULT_DSCP) {
+                       uint8_t dscp = DEFAULT_DSCP, bool poll = false) {
     tcpconn_t *c;
-    int ret = tcp_dial_dscp(laddr, raddr, &c, dscp);
+    int ret = tcp_dial_dscp(laddr, raddr, &c, dscp, poll);
     if (ret) return nullptr;
     return new TcpConn(c);
   }

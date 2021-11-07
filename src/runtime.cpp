@@ -56,7 +56,7 @@ void Runtime::init_as_controller() {
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
-  register_resource_pressure_handler(PressureHandler::handle);
+  PressureHandler::register_handlers();
   obj_server.reset(new decltype(obj_server)::element_type());
   rt::Thread([&] { rpc_server->run_loop(); }).Detach();
   migrator.reset(new decltype(migrator)::element_type());

@@ -80,7 +80,7 @@ std::optional<netaddr> ControllerClient::get_migration_dest(Resource resource) {
   req.src_ip = get_cfg_ip();
   req.resource = resource;
   RPCReturnBuffer return_buf;
-  BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
+  BUG_ON(rpc_client_->CallPoll(to_span(req), &return_buf) != kOk);
   auto &resp = from_span<RPCRespGetMigrationDest>(return_buf.get_buf());
   if (resp.empty) {
     return std::nullopt;

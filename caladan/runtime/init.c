@@ -71,9 +71,6 @@ static const struct init_entry thread_init_handlers[] = {
 
 	/* storage */
 	THREAD_INITIALIZER(storage),
-
-	/* resource pressure */
-	THREAD_INITIALIZER(resource_pressure),
 };
 
 #define LATE_INITIALIZER(name) \

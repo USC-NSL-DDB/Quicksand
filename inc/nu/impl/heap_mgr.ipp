@@ -22,18 +22,18 @@ inline void HeapManager::mmap(void *heap_base) {
 }
 
 inline void HeapManager::insert(void *heap_base) {
-  rt::MutexGuard guard(&mutex_);
+  rt::SpinGuard guard(&spin_);
   reinterpret_cast<HeapHeader *>(heap_base)->present = true;
   BUG_ON(!present_heaps_.emplace(heap_base).second);
 }
 
 inline bool HeapManager::remove_with_present(void *heap_base) {
-  rt::MutexGuard guard(&mutex_);
+  rt::SpinGuard guard(&spin_);
   return present_heaps_.erase(heap_base);
 }
 
 inline bool HeapManager::remove(void *heap_base) {
-  rt::MutexGuard guard(&mutex_);
+  rt::SpinGuard guard(&spin_);
   reinterpret_cast<HeapHeader *>(heap_base)->present = false;
   return present_heaps_.erase(heap_base);
 }
@@ -185,7 +185,7 @@ inline HeapHeader *OutermostMigrationDisabledGuard::get_heap_header() {
 }
 
 inline uint32_t HeapManager::get_num_present_heaps() {
-  rt::MutexGuard guard(&mutex_);
+  rt::SpinGuard guard(&spin_);
   return present_heaps_.size();
 }
 

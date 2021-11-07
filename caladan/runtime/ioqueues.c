@@ -30,6 +30,8 @@
 #define COMMAND_QUEUE_MCOUNT	4096
 
 extern struct resource_pressure_info *resource_pressure_info;
+extern uint8_t *num_resource_pressure_handlers;
+extern struct thread **resource_pressure_handlers;
 
 /* the egress buffer pool must be large enough to fill all the TXQs entirely */
 static size_t calculate_egress_pool_size(void)
@@ -75,6 +77,8 @@ static size_t estimate_shm_space(void)
 	ret += sizeof(struct thread_spec) * maxks;
 	ret += sizeof(struct congestion_info);
 	ret += sizeof(struct resource_pressure_info);
+	ret += sizeof(uint8_t); // num_resource_pressure_handlers
+	ret += sizeof(struct thread *) * maxks; // resource_pressure_handlers
 	ret = align_up(ret, CACHE_LINE_SIZE);
 
 	// Compute congestion signal line
@@ -99,6 +103,10 @@ static size_t estimate_shm_space(void)
 
 	// Shared queue pointers for the iokernel to use to determine busyness
 	q = align_up(sizeof(struct q_ptrs), CACHE_LINE_SIZE);
+	ret += q * maxks;
+
+	// Preemptor
+	q = align_up(sizeof(struct thread *), CACHE_LINE_SIZE);
 	ret += q * maxks;
 
 	ret = align_up(ret, PGSIZE_2MB);
@@ -214,6 +222,12 @@ int ioqueues_init(void)
 					   0, &iok.hdr->congestion_info);
 	resource_pressure_info = iok_shm_alloc(sizeof(struct resource_pressure_info),
                                           0, &iok.hdr->resource_pressure_info);
+	num_resource_pressure_handlers =
+		iok_shm_alloc(sizeof(uint8_t), 0,
+			      &iok.hdr->num_resource_pressure_handlers);
+	resource_pressure_handlers =
+		iok_shm_alloc(sizeof(struct thread *) * maxks, 0,
+			      &iok.hdr->resource_pressure_handlers);
 
 	for (i = 0; i < maxks; i++) {
 		ts = &iok.threads[i];
@@ -222,6 +236,7 @@ int ioqueues_init(void)
 		ioqueue_alloc(&ts->txcmdq, COMMAND_QUEUE_MCOUNT, true);
 
 		iok_shm_alloc(sizeof(struct q_ptrs), CACHE_LINE_SIZE, &ts->q_ptrs);
+		iok_shm_alloc(sizeof(struct thread *), CACHE_LINE_SIZE, &ts->preemptor);
 		ts->rxq.wb = ts->q_ptrs;
 	}
 
@@ -330,6 +345,9 @@ int ioqueues_init_thread(void)
 	myk()->q_ptrs = (struct q_ptrs *) shmptr_to_ptr(r, ts->q_ptrs,
 			sizeof(uint32_t));
 	BUG_ON(!myk()->q_ptrs);
+	myk()->preemptor = (struct thread **) shmptr_to_ptr(r, ts->preemptor,
+			sizeof(struct thread *));
+	BUG_ON(!myk()->preemptor);
 
 	return 0;
 }

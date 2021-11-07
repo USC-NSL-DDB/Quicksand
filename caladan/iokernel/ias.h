@@ -18,7 +18,7 @@
 /* the HT controller's adjustment interval */
 #define IAS_HT_INTERVAL_US		10
 /* the resource pressure controller's adjustment interval */
-#define IAS_PS_INTERVAL_US		100
+#define IAS_PS_INTERVAL_US		500
 /* the low watermark used to detect memory pressure*/
 #define IAS_PS_MEM_LOW_MB 		1024
 /* the time before the core-local cache is assumed to be evicted */
@@ -40,6 +40,7 @@ struct ias_data {
 	uint64_t		qdelay_us;
 	struct list_node	all_link;
 	DEFINE_BITMAP(reserved_cores, NCPU);
+	DEFINE_BITMAP(reserved_handler_cores, NCPU);
 
 	/* thread usage limits */
 	int			threads_guaranteed;/* the number promised */

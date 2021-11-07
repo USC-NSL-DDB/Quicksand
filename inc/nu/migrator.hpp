@@ -42,24 +42,22 @@ struct RPCReqForward {
 struct HeapMmapPopulateTask {
   HeapRange range;
   bool mmapped;
-  std::unique_ptr<rt::Mutex> mu;
-  std::unique_ptr<rt::CondVar> cv;
 
-  HeapMmapPopulateTask(HeapRange _range)
-      : range(_range), mmapped(false), mu(new rt::Mutex()),
-        cv(new rt::CondVar()) {}
+  HeapMmapPopulateTask(HeapRange _range) : range(_range), mmapped(false) {}
 };
 
 class MigratorConnManager;
 
 class MigratorConn {
 public:
+  MigratorConn();
   ~MigratorConn();
   MigratorConn(const MigratorConn &) = delete;
   MigratorConn &operator=(const MigratorConn &) = delete;
   MigratorConn(MigratorConn &&);
   MigratorConn &operator=(MigratorConn &&);
   rt::TcpConn *get_tcp_conn();
+  void release();
 
 private:
   rt::TcpConn *tcp_conn_;
@@ -77,7 +75,7 @@ public:
   MigratorConn get(netaddr addr);
 
 private:
-  rt::Mutex mutex_;
+  rt::Spin spin_;
   std::unordered_map<netaddr, std::stack<rt::TcpConn *>> pool_map_;
   friend class MigratorConn;
 

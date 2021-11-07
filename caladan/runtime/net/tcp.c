@@ -559,12 +559,36 @@ void tcp_qclose(tcpqueue_t *q)
 	kref_put(&q->ref, tcp_queue_release_ref);
 }
 
+/* FIXME: support the non-directpath code path. */
+static void check_net_softirq(void)
+{
+	struct kthread *l, *k;
+	int i;
+
+	l = getk();
+	spin_lock(&l->lock);
+
+	if (softirq_directpath_pending(l) && !l->directpath_busy)
+		directpath_softirq_one(l);
+
+	for (i = 0; i < nrks; i++) {
+		k = ks[i];
+		if (k == l || !softirq_directpath_pending(k) ||
+		    !spin_try_lock(&k->lock))
+			continue;
+		if (!k->directpath_busy)
+			directpath_softirq_one(k);
+		spin_unlock(&k->lock);
+	}
+
+	spin_unlock_np(&l->lock);
+}
 
 /*
  * Support for the TCP socket API
  */
 int __tcp_dial(struct netaddr laddr, struct netaddr raddr, tcpconn_t **c_out,
-               uint8_t dscp)
+               uint8_t dscp, bool poll)
 {
 	struct tcp_options opts;
 	tcpconn_t *c;
@@ -601,8 +625,12 @@ int __tcp_dial(struct netaddr laddr, struct netaddr raddr, tcpconn_t **c_out,
 	tcp_conn_set_state(c, TCP_STATE_SYN_SENT);
 
 	/* wait until the connection is established or there is a failure */
-	while (!c->tx_closed && c->pcb.state < TCP_STATE_ESTABLISHED)
-		waitq_wait(&c->tx_wq, &c->lock);
+	while (!c->tx_closed && c->pcb.state < TCP_STATE_ESTABLISHED) {
+		if (poll)
+			waitq_wait_poll(&c->tx_wq, &c->lock, check_net_softirq);
+		else
+			waitq_wait(&c->tx_wq, &c->lock);
+	}
 
 	/* check if the connection failed */
 	if (c->tx_closed) {
@@ -645,7 +673,7 @@ int __tcp_dial_affinity(uint32_t in_aff, struct netaddr raddr,
 		} while (out_aff != in_aff || base_port == 0);
 
 		laddr.port = base_port;
-		ret = __tcp_dial(laddr, raddr, &c, dscp);
+		ret = __tcp_dial(laddr, raddr, &c, dscp, false);
 		if (ret == -EADDRINUSE)
 			continue;
 		if (!ret)
@@ -671,32 +699,6 @@ struct netaddr tcp_local_addr(tcpconn_t *c)
 struct netaddr tcp_remote_addr(tcpconn_t *c)
 {
 	return c->e.raddr;
-}
-
-
-/* FIXME: support the non-directpath code path. */
-static void check_net_softirq(void)
-{
-	struct kthread *l, *k;
-	int i;
-
-	l = getk();
-	spin_lock(&l->lock);
-
-	if (softirq_directpath_pending(l) && !l->directpath_busy)
-		directpath_softirq_one(l);
-
-	for (i = 0; i < nrks; i++) {
-		k = ks[i];
-		if (k == l || !softirq_directpath_pending(k) ||
-		    !spin_try_lock(&k->lock))
-			continue;
-		if (!k->directpath_busy)
-			directpath_softirq_one(k);
-		spin_unlock(&k->lock);
-	}
-
-	spin_unlock_np(&l->lock);
 }
 
 static ssize_t tcp_read_wait(tcpconn_t *c, size_t len,

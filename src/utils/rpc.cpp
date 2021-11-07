@@ -96,6 +96,7 @@ void RPCCompletion::Done(ssize_t len, rt::TcpConn *c) {
     }
   }
 
+  poll_ = false;
   w_.Wake();
 }
 

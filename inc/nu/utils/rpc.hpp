@@ -93,10 +93,14 @@ namespace rpc_internal {
 // RPCCompletion manages the completion of an inflight request.
 class RPCCompletion {
 public:
-  RPCCompletion(RPCReturnBuffer *return_buf) : return_buf_(return_buf) {
-    w_.Arm();
+  RPCCompletion(RPCReturnBuffer *return_buf, bool poll = false)
+      : return_buf_(return_buf), poll_(poll) {
+    if (!poll) {
+      w_.Arm();
+    }
   }
-  RPCCompletion(RPCCallback &&callback) : callback_(std::move(callback)) {
+  RPCCompletion(RPCCallback &&callback)
+      : callback_(std::move(callback)), poll_(false) {
     w_.Arm();
   }
   ~RPCCompletion() {}
@@ -105,13 +109,19 @@ public:
   // thread.
   void Done(ssize_t len, rt::TcpConn *c);
 
-  RPCReturnCode get_return_code() const { return rc_; }
+  RPCReturnCode get_return_code() const {
+    while (rt::access_once(poll_)) {
+      cpu_relax();
+    }
+    return rc_;
+  }
 
 private:
   RPCReturnCode rc_;
   RPCReturnBuffer *return_buf_;
   RPCCallback callback_;
   rt::ThreadWaker w_;
+  bool poll_;
 };
 
 // RPCFlow encapsulates one of the TCP connections used by an RPCClient.
@@ -176,6 +186,9 @@ public:
   // Calls an RPC method, the RPC layer allocates a return buffer and stores
   // response into it.
   RPCReturnCode Call(std::span<const std::byte> args, RPCReturnBuffer *buf);
+
+  // Ditto, but busy polling for response.
+  RPCReturnCode CallPoll(std::span<const std::byte> args, RPCReturnBuffer *buf);
 
   // Calls an RPC method, the RPC layer invokes the callback when the response
   // is ready on the TCP connection.

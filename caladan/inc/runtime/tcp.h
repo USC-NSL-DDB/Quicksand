@@ -37,7 +37,7 @@ extern ssize_t __tcp_readv(tcpconn_t *c, const struct iovec *iov, int iovcnt,
                            bool nt, bool poll);
 
 extern int __tcp_dial(struct netaddr laddr, struct netaddr raddr,
-		      tcpconn_t **c_out, uint8_t dscp);
+		      tcpconn_t **c_out, uint8_t dscp, bool poll);
 extern int __tcp_dial_affinity(uint32_t affinity, struct netaddr raddr,
                                tcpconn_t **c_out, uint8_t dscp);
 extern int __tcp_dial_conn_affinity(tcpconn_t *in, struct netaddr raddr,
@@ -183,19 +183,19 @@ static inline ssize_t tcp_readv_poll(tcpconn_t *c, const struct iovec *iov,
 static inline int tcp_dial(struct netaddr laddr, struct netaddr raddr,
 	                   tcpconn_t **c_out)
 {
-	return __tcp_dial(laddr, raddr, c_out, IPTOS_DSCP_CS0);
+	return __tcp_dial(laddr, raddr, c_out, IPTOS_DSCP_CS0, false);
 }
 
 /**
  * tcp_dial_dscp - similar with tcp_dial, but allows to specify dscp.
  */
 static inline int tcp_dial_dscp(struct netaddr laddr, struct netaddr raddr,
-		                tcpconn_t **c_out, uint8_t dscp)
+		                tcpconn_t **c_out, uint8_t dscp, bool poll)
 {
 	if (unlikely(dscp > IPTOS_DSCP_MAX)) {
 		return -EINVAL;
 	}
-	return __tcp_dial(laddr, raddr, c_out, dscp);
+	return __tcp_dial(laddr, raddr, c_out, dscp, poll);
 }
 
 /**

@@ -9,21 +9,28 @@
 #include "ias.h"
 #include "ksched.h"
 
-static bool ias_ps_interrupt_core(struct ias_data *sd)
+static bool ias_ps_preempt_core(struct ias_data *sd)
 {
-	unsigned int th_idx, core;
+	unsigned int num_cores_needed, i, core;
 
-	if (!sd->p->active_thread_count) {
-                /* No core to handle pressure, immediately add one. */
-		ias_add_kthread(sd);
-		return false;
+	num_cores_needed = *sd->p->num_resource_pressure_handlers;
+	while (sd->p->active_thread_count < num_cores_needed)
+		if (unlikely(ias_add_kthread(sd) != 0))
+			return false;
+
+	/* Preempt the first num_cores_needed cores. */
+	for (i = 0; i < num_cores_needed; i++) {
+		core = sd->p->active_threads[i]->core;
+		/* Grant exclusive access by marking the core as reserved. */
+		if (!bitmap_test(sd->reserved_cores, core)) {
+			bitmap_set(sd->reserved_cores, core);
+			bitmap_set(sd->reserved_handler_cores, core);
+		}
+		*sd->p->active_threads[i]->preemptor =
+			sd->p->resource_pressure_handlers[i];
+		ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
 	}
 
-	/* Pick a random core to handle pressure. */
-	th_idx = rand_city() % sd->p->active_thread_count;
-	core = sd->p->active_threads[th_idx]->core;
-
-	ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
 	return true;
 }
 
@@ -34,7 +41,7 @@ bool ias_ps_poll(void)
 	uint64_t free_ram_in_mbs, mem_mbs_to_release;
 	struct resource_pressure_info *pressure;
 	struct ias_data *sd;
-	int num_cores_taken;
+	int num_cores_taken, pos;
 
 	BUG_ON(sysinfo(&info) != 0);
 	free_ram_in_mbs = info.freeram / SIZE_MB;
@@ -48,6 +55,12 @@ bool ias_ps_poll(void)
 
 		has_pressure = false;
 		if (pressure->status == HANDLED) {
+		        /* Take away the exclusive access. */
+	                bitmap_for_each_set(sd->reserved_handler_cores, NCPU, pos) {
+				bitmap_clear(sd->reserved_handler_cores, pos);
+				bitmap_clear(sd->reserved_cores, pos);
+	                }
+
 			/* Memory pressure. */
 	                if (sd->react_mem_pressure && mem_mbs_to_release) {
 				pressure->mem_mbs_to_release =
@@ -73,8 +86,12 @@ bool ias_ps_poll(void)
 				store_release(&pressure->status, PENDING);
 		}
 
-		if (pressure->status == PENDING)
-			success &= ias_ps_interrupt_core(sd);
+		if (pressure->status == PENDING) {
+			if (likely(ias_ps_preempt_core(sd)))
+				pressure->status = HANDLING;
+			else
+				success = false;
+		}
         }
 
 	return success;

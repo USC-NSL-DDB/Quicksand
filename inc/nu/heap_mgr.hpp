@@ -88,7 +88,7 @@ public:
 
 private:
   std::unordered_set<void *> present_heaps_;
-  rt::Mutex mutex_;
+  rt::Spin spin_;
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
   friend class OutermostMigrationDisabledGuard;

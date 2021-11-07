@@ -23,7 +23,7 @@ public:
   void reader_lock();
   bool try_reader_lock();
   void reader_unlock();
-  void writer_sync();
+  void writer_sync(bool poll = false);
 
 private:
   union Cnt {

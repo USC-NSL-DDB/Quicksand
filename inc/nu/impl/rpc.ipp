@@ -43,7 +43,6 @@ inline void RPCServer::Return(RPCReturnCode rc, RPCReturnBuffer &&buf,
 }
 
 inline void RPCFlow::Call(std::span<const std::byte> src, RPCCompletion *c) {
-  assert_preempt_disabled();
   rt::SpinGuard guard(&lock_);
   reqs_.emplace(req_ctx{src, c});
   if (sent_count_ - recv_count_ < credits_) wake_sender_.Wake();
@@ -86,6 +85,13 @@ inline RPCReturnCode RPCClient::Call(std::span<const std::byte> args,
     rt::PreemptGuardAndPark guard(&p);
     flows_[p.get_cpu()]->Call(args, &completion);
   }
+  return completion.get_return_code();
+}
+
+inline RPCReturnCode RPCClient::CallPoll(std::span<const std::byte> args,
+                                         RPCReturnBuffer *return_buf) {
+  RPCCompletion completion(return_buf, /* poll = */ true);
+  flows_[read_cpu()]->Call(args, &completion);
   return completion.get_return_code();
 }
 

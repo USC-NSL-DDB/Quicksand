@@ -101,6 +101,7 @@ struct thread {
 	};
 	struct timer		timer_heap;
 	struct list_node	idle_link;
+	void                    **preemptor;
 };
 
 static inline bool hwq_busy(struct hwq *h, uint32_t cq_idx)
@@ -126,6 +127,8 @@ struct proc {
 	unsigned int		       attach_fail:1;
 	struct congestion_info	       *congestion_info;
 	struct resource_pressure_info  *resource_pressure_info;
+	uint8_t                        *num_resource_pressure_handlers;
+	void                           **resource_pressure_handlers;
 	unsigned long		       policy_data;
 	float			       load;
 
