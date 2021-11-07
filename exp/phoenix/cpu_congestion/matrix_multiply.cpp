@@ -105,7 +105,6 @@ public:
         output[j] += tmp_A[i] * tmp_B[j];
       }
       tmp_B += data.matrix_len;
-      rt::Yield();
     }
     emit_intermediate(out, data.row_id, output);
   }
