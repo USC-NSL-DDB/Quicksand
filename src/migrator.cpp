@@ -302,15 +302,19 @@ void Migrator::transmit_time(rt::TcpConn *c, Time *time) {
 void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
   size_t tf_size;
   auto *tf = thread_get_trap_frame(thread, &tf_size);
-  BUG_ON(c->WriteFull(tf, tf_size, /* nt = */ false, /* poll = */ true) < 0);
+  auto *monitor_cycles = thread_get_monitor_cycles(thread);
+  const iovec iovecs0[] = {{tf, tf_size},
+                           {&monitor_cycles, sizeof(monitor_cycles)}};
+  BUG_ON(c->WritevFull(std::span(iovecs0), /* nt = */ false,
+                       /* poll = */ true) < 0);
 
   auto stack_range = get_obj_stack_range(thread);
   auto stack_len = stack_range.end - stack_range.start;
-  const iovec iovecs[] = {
+  const iovec iovecs1[] = {
       {&stack_range, sizeof(stack_range)},
       {reinterpret_cast<void *>(stack_range.start), stack_len}};
-  BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ false, /* poll = */ true) <
-         0);
+  BUG_ON(c->WritevFull(std::span(iovecs1), /* nt = */ false,
+                       /* poll = */ true) < 0);
 
   thread_mark_migrated(thread);
 }
@@ -483,6 +487,8 @@ void Migrator::load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task) {
   auto *slab = &heap_header->slab;
   nu::SlabAllocator::register_slab_by_id(slab, slab->get_id());
 
+  heap_header->cpu_load.reset();
+
   if constexpr (kEnableLogging) {
     t2 = rdtsc();
     preempt_disable();
@@ -498,14 +504,17 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
   size_t tf_size;
   thread_get_trap_frame(thread_self(), &tf_size);
   auto tf = std::make_unique<uint8_t[]>(tf_size);
-  BUG_ON(c->ReadFull(tf.get(), tf_size) <= 0);
+  aligned_cycles *monitor_cycles;
+  const iovec iovecs[] = {{tf.get(), tf_size},
+                          {&monitor_cycles, sizeof(monitor_cycles)}};
+  BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
 
   VAddrRange stack_range;
   BUG_ON(c->ReadFull(&stack_range, sizeof(stack_range)) <= 0);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                      /* nt = */ true) <= 0);
-  auto *th = create_migrated_thread(tf.get(), obj_heap);
+  auto *th = create_migrated_thread(tf.get(), obj_heap, monitor_cycles);
   heap_header->threads->put(th);
   return th;
 }

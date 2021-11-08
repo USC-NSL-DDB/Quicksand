@@ -102,9 +102,9 @@ struct thread {
 	unsigned int		thread_ready;
 	unsigned int		thread_running;
 	unsigned int		last_cpu;
-	uint64_t		run_start_tsc;
+	uint64_t                run_start_tsc;
 	uint64_t		ready_tsc;
-	uint64_t                running_cycles;
+	struct aligned_cycles	*run_cycles;
 	bool                    wq_spin;
 #ifdef GC
 	struct list_node	gc_link;
@@ -390,11 +390,11 @@ struct kthread {
 	struct mbufq		txcmdq_overflow;
 	unsigned int		rcu_gen;
 	unsigned int		curr_cpu;
+	thread_t		*curr_th;
 #ifdef GC
 	uint64_t		local_gc_gen;
-	unsigned long		pad1[1];
 #else
-	unsigned long		pad1[2];
+	unsigned long		pad1[1];
 #endif
 
 	/* 3rd cache-line */

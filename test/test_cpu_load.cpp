@@ -11,6 +11,7 @@ extern "C" {
 }
 #include <runtime.h>
 
+#include "nu/pressure_handler.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 #include "nu/time.hpp"
@@ -18,7 +19,8 @@ extern "C" {
 using namespace nu;
 
 Runtime::Mode mode;
-
+netaddr addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 2),
+                .port = ObjServer::kObjServerPort};
 
 class CPUHeavyObj {
 public:
@@ -34,23 +36,76 @@ public:
   void compute() {
     Time time;
     delay_us(kTimeUs);
-    time.sleep(CPUHeavyObj::kTimeUs - kTimeUs);
   }
+};
+
+class CPUSpinObj {
+public:
+  void compute() {
+    while (!rt::access_once(done_))
+      cpu_relax();
+  }
+
+  void done() { done_ = true; }
+
+  bool done_ = false;
+};
+
+class CPUNestedObj {
+public:
+  constexpr static uint32_t kTime0Us = 40;
+  constexpr static uint32_t kTime1Us = 50;
+  constexpr static uint32_t kTimeUs = kTime0Us + kTime1Us;
+
+  CPUNestedObj()
+      : light_obj_(RemObj<CPULightObj>::create_at(addr)),
+        heavy_obj_(RemObj<CPUHeavyObj>::create_at(addr)) {}
+
+  void compute() {
+    delay_us(kTime0Us);
+    light_obj_.run(&CPULightObj::compute);
+    delay_us(kTime1Us);
+    heavy_obj_.run(&CPUHeavyObj::compute);
+  }
+
+  RemObj<CPULightObj> light_obj_;
+  RemObj<CPUHeavyObj> heavy_obj_;
 };
 
 namespace nu {
 
+class Migration {
+public:
+  void trigger() {
+    ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
+                                     .num_cores_to_release = 0};
+    PressureHandler::mock_set_pressure(pressure);
+  }
+};
+
 class Test {
 public:
+  bool mostly_equals(double real, double expected) {
+    return std::abs((real - expected) / real < 0.05);
+  }
+
   bool run() {
-    bool passed;
+    bool passed = true;
 
-    auto light_obj = RemObj<CPULightObj>::create();
-    auto heavy_obj = RemObj<CPUHeavyObj>::create();
+    auto light_obj = RemObj<CPULightObj>::create_at(addr);
+    auto heavy_obj = RemObj<CPUHeavyObj>::create_at(addr);
+    auto nested_obj = RemObj<CPUNestedObj>::create_at(addr);
+    auto spin_obj = RemObj<CPUSpinObj>::create_at(addr);
+    auto migration_obj = RemObj<Migration>::create_at(addr);
 
+    auto spin_future = spin_obj.run_async(&CPUSpinObj::compute);
     for (uint32_t i = 0; i < 100000; i++) {
       auto light_future = light_obj.run_async(&CPULightObj::compute);
       auto heavy_future = heavy_obj.run_async(&CPUHeavyObj::compute);
+      auto nested_future = nested_obj.run_async(&CPUNestedObj::compute);
+      if (i == 50000) {
+        migration_obj.run(&Migration::trigger);
+      }
     }
 
     auto light_cpu_load = light_obj.run(+[](CPULightObj &_) {
@@ -63,10 +118,23 @@ public:
       return heap_header->cpu_load.get_load();
     });
 
-    auto ratio = heavy_cpu_load / light_cpu_load;
-    auto expected_ratio = CPUHeavyObj::kTimeUs / CPULightObj::kTimeUs;
+    auto nested_cpu_load = nested_obj.run(+[](CPUNestedObj &_) {
+      auto *heap_header = Runtime::get_current_obj_heap_header();
+      return heap_header->cpu_load.get_load();
+    });
 
-    passed = (std::abs(ratio - expected_ratio) / expected_ratio < 0.2);
+    auto spin_cpu_load = spin_obj.run(+[](CPUSpinObj &_) {
+      auto *heap_header = Runtime::get_current_obj_heap_header();
+      CPULoad::flush_all();
+      return heap_header->cpu_load.get_load();
+    });
+    spin_obj.run(&CPUSpinObj::done);
+
+    passed &= mostly_equals(spin_cpu_load, 1);
+    passed &= mostly_equals(heavy_cpu_load / light_cpu_load,
+                            CPUHeavyObj::kTimeUs / CPULightObj::kTimeUs);
+    passed &= mostly_equals(nested_cpu_load / light_cpu_load,
+                            CPUNestedObj::kTimeUs / CPULightObj::kTimeUs);
     return passed;
   };
 };

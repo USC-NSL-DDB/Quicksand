@@ -87,12 +87,17 @@ std::vector<HeapRange> HeapManager::pick_heaps(uint32_t min_num_heaps,
   uint32_t picked_heaps_mem_mbs = 0;
   rt::SpinGuard guard(&spin_);
 
+  CPULoad::flush_all();
+
   for (auto *heap_base : present_heaps_) {
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
     if (heap_header->migratable) {
       auto &slab = heap_header->slab;
       uint64_t len = reinterpret_cast<uint64_t>(slab.get_base()) +
                      slab.get_usage() - reinterpret_cast<uint64_t>(heap_header);
+      [[maybe_unused]] auto cpu_load =
+          heap_header->cpu_load.get_load(); // Do something with it.
+      heap_header->cpu_load.reset();
 
       HeapRange range{heap_header, len};
       heaps.push_back(range);

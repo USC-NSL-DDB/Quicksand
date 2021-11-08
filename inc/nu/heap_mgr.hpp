@@ -14,8 +14,8 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/commons.hpp"
-#include "nu/utils/cpu_load.hpp"
 #include "nu/utils/cond_var.hpp"
+#include "nu/utils/cpu_load.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/refcount_hash_set.hpp"
@@ -134,7 +134,8 @@ public:
   // By default guards the current object header.
   OutermostMigrationDisabledGuard(HeapHeader *heap_header);
   OutermostMigrationDisabledGuard(OutermostMigrationDisabledGuard &&o);
-  OutermostMigrationDisabledGuard &operator=(OutermostMigrationDisabledGuard &&o);
+  OutermostMigrationDisabledGuard &
+  operator=(OutermostMigrationDisabledGuard &&o);
   ~OutermostMigrationDisabledGuard();
   void reset();
   operator bool() const;

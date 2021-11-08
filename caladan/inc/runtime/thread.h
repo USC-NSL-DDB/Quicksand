@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <asm/cpu.h>
 #include <base/compiler.h>
 #include <base/types.h>
 #include <iokernel/control.h>
@@ -15,7 +16,12 @@ typedef void (*thread_fn_t)(void *arg);
 typedef struct thread thread_t;
 typedef uint64_t thread_id_t;
 
+struct aligned_cycles {
+        uint64_t c;
+} __aligned(CACHE_LINE_SIZE);
+
 extern const int thread_link_offset;
+extern const int thread_run_cycles_offset;
 
 /*
  * Low-level routines, these are helpful for bindings and synchronization
@@ -61,7 +67,14 @@ static inline thread_id_t get_thread_id(thread_t *th)
 extern uint64_t get_uthread_specific(void);
 extern void set_uthread_specific(uint64_t val);
 
-extern uint64_t get_thread_running_cycles(uint64_t now_tsc);
+extern struct aligned_cycles *
+thread_start_monitor_cycles(struct aligned_cycles *output);
+extern void thread_end_monitor_cycles(struct aligned_cycles *old_output);
+extern void thread_flush_all_monitor_cycles(void);
+extern struct aligned_cycles *thread_get_monitor_cycles(thread_t *th);
+inline bool thread_monitored(void) {
+	return *(void **)((uint64_t)__self + thread_run_cycles_offset);
+}
 
 /*
  * High-level routines, use this API most of the time.
@@ -81,7 +94,8 @@ extern uint64_t thread_get_rsp(thread_t *th);
 extern void *thread_get_trap_frame(thread_t *th, size_t *size);
 extern void pause_all_migrating_threads(void);
 extern void pause_local_migrating_threads(void);
-extern thread_t *create_migrated_thread(void *tf, void *obj_heap);
+extern thread_t *create_migrated_thread(void *tf, void *obj_heap,
+                                        struct aligned_cycles *monitor_cycles);
 extern void gc_migrated_threads(void);
 extern void *thread_get_runtime_stack_base(void);
 extern void *get_obj_heap(void);

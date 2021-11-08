@@ -18,6 +18,7 @@
 #include "defs.h"
 
 const int thread_link_offset = offsetof(struct thread, link);
+const int thread_run_cycles_offset = offsetof(struct thread, run_cycles);
 
 /* the current running thread, or NULL if there isn't one */
 __thread thread_t *__self;
@@ -75,6 +76,7 @@ static __noreturn void jmp_thread(thread_t *th)
 	assert(th->thread_ready);
 
 	__self = th;
+	myk()->curr_th = th;
 	th->thread_ready = false;
 	if (unlikely(load_acquire(&th->thread_running))) {
 		/* wait until the scheduler finishes switching stacks */
@@ -99,6 +101,7 @@ static void jmp_thread_direct(thread_t *oldth, thread_t *newth)
 	assert(newth->thread_ready);
 
 	__self = newth;
+	myk()->curr_th = newth;
 	newth->thread_ready = false;
 	if (unlikely(load_acquire(&newth->thread_running))) {
 		/* wait until the scheduler finishes switching stacks */
@@ -387,6 +390,7 @@ static __noreturn __noinline void schedule(void)
 	if (likely(__self != NULL)) {
 		store_release(&__self->thread_running, false);
 		__self = NULL;
+		myk()->curr_th = NULL;
 	}
 
 	/* clear thread run start time */
@@ -545,7 +549,8 @@ static __always_inline void enter_schedule(thread_t *curth)
 	assert_preempt_disabled();
 
 	now = rdtsc();
-	curth->running_cycles += now - curth->run_start_tsc;
+	if (curth->run_cycles)
+		curth->run_cycles[read_cpu()].c += now - curth->run_start_tsc;
 
 	/* prepare current thread for sleeping */
 	curth->run_start_tsc = UINT64_MAX;
@@ -802,6 +807,7 @@ static void thread_finish_cede(void)
 	myth->thread_ready = true;
 	myth->last_cpu = k->curr_cpu;
 	__self = NULL;
+	myk()->curr_th = NULL;
 
 	/* clear thread run start time */
 	ACCESS_ONCE(k->q_ptrs->run_start_tsc) = UINT64_MAX;
@@ -851,10 +857,12 @@ static void thread_finish_cede(void)
 void thread_cede(void)
 {
 	struct thread *th = thread_self();
+	int core_id;
 
 	/* this will switch from the thread stack to the runtime stack */
-	preempt_disable();
-	th->running_cycles += rdtsc() - th->run_start_tsc;
+	core_id = get_cpu();
+	if (th->run_cycles)
+		th->run_cycles[core_id].c += rdtsc() - th->run_start_tsc;
 	jmp_runtime(thread_finish_cede);
 }
 
@@ -884,7 +892,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->thread_ready = false;
 	th->thread_running = false;
 	th->run_start_tsc = UINT64_MAX;
-	th->running_cycles = 0;
+	th->run_cycles = NULL;
 	th->wq_spin = false;
 	if (__self)
 		th->obj_heap = __self->obj_heap;
@@ -996,6 +1004,7 @@ static void thread_finish_exit(void)
 	stack_free(th->stack);
 	tcache_free(&perthread_get(thread_pt), th);
 	__self = NULL;
+	myk()->curr_th = NULL;
 
 	spin_lock(&myk()->lock);
 	schedule();
@@ -1145,13 +1154,16 @@ void *thread_get_trap_frame(thread_t *th, size_t *size)
 	return &th->tf;
 }
 
-thread_t *create_migrated_thread(void *tf, void *obj_heap)
+thread_t *create_migrated_thread(void *tf, void *obj_heap,
+                                 struct aligned_cycles *monitor_cycles)
 {
 	thread_t *th = __thread_create();
 	BUG_ON(!th);
 	th->obj_heap = obj_heap;
 	th->tf = *((struct thread_tf *)tf);
 	th->migration_state = MIGRATED;
+	th->run_cycles = monitor_cycles;
+
 	return th;
 }
 
@@ -1222,9 +1234,52 @@ void set_self_waiter_info(uint64_t waiter_info)
        preempt_enable();
 }
 
-uint64_t get_thread_running_cycles(uint64_t now_tsc)
+struct aligned_cycles *
+thread_start_monitor_cycles(struct aligned_cycles *output)
 {
-       struct thread *th = thread_self();
+       int core_id = get_cpu();
+       uint64_t curr_tsc = rdtsc();
+       struct aligned_cycles *old_output;
 
-       return th->running_cycles + now_tsc - th->run_start_tsc;
+       if (__self->run_cycles) {
+              __self->run_cycles[core_id].c +=
+                     curr_tsc - __self->run_start_tsc;
+	      old_output = __self->run_cycles;
+       } else
+	      old_output = NULL;
+       __self->run_start_tsc = curr_tsc;
+       __self->run_cycles = output;
+       put_cpu();
+
+       return old_output;
+}
+
+void thread_end_monitor_cycles(struct aligned_cycles *old_output) {
+       int core_id = get_cpu();
+       uint64_t curr_tsc = rdtsc();
+
+       __self->run_cycles[core_id].c += curr_tsc - __self->run_start_tsc;
+       __self->run_cycles = old_output;
+       __self->run_start_tsc = curr_tsc;
+       put_cpu();
+}
+
+void thread_flush_all_monitor_cycles(void)
+{
+       int i;
+       thread_t *th;
+       uint64_t curr_tsc = rdtsc();
+
+       for (i = 0; i < nrks; i++) {
+              th = ks[i]->curr_th;
+	      if (th && th->run_cycles) {
+                     th->run_cycles[i].c += curr_tsc - th->run_start_tsc;
+                     th->run_start_tsc = curr_tsc;
+	      }
+       }
+}
+
+struct aligned_cycles *thread_get_monitor_cycles(thread_t *th)
+{
+       return th->run_cycles;
 }
