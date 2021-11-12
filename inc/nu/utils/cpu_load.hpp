@@ -17,7 +17,7 @@ public:
   void reset();
   State monitor_start();
   void monitor_end(const State &state);
-  double get_load() const;
+  float get_load() const;
   static void flush_all();
 
 private:

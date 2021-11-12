@@ -5,7 +5,7 @@
 
 namespace nu {
 
-double CPULoad::get_load() const {
+float CPULoad::get_load() const {
   uint64_t sum_cycles = 0;
   uint64_t sum_invocation_cnts = 0;
   uint64_t sum_sample_cnts = 0;
@@ -15,9 +15,13 @@ double CPULoad::get_load() const {
     sum_invocation_cnts += cnts_[i].invocations;
     sum_sample_cnts += cnts_[i].samples;
   }
-
-  return static_cast<double>(sum_invocation_cnts) / sum_sample_cnts *
-         sum_cycles / (rdtsc() - last_refresh_tsc_);
+  auto sample_ratio_inverse =
+      sum_sample_cnts
+          ? static_cast<float>(sum_invocation_cnts) / sum_sample_cnts
+          : 1.0;
+  auto cycles_ratio =
+      static_cast<float>(sum_cycles) / (rdtsc() - last_refresh_tsc_);
+  return sample_ratio_inverse * cycles_ratio;
 }
 
 } // namespace nu
