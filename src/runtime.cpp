@@ -57,7 +57,6 @@ void Runtime::init_as_controller() {
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
-  pressure_handler.reset(new decltype(pressure_handler)::element_type());
   obj_server.reset(new decltype(obj_server)::element_type());
   rt::Thread([&] { rpc_server->run_loop(); }).Detach();
   migrator.reset(new decltype(migrator)::element_type());
@@ -65,6 +64,7 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
   controller_client.reset(
       new decltype(controller_client)::element_type(remote_ctrl_ip, SERVER));
   heap_manager.reset(new decltype(heap_manager)::element_type());
+  pressure_handler.reset(new decltype(pressure_handler)::element_type());
   stack_manager.reset(new decltype(stack_manager)::element_type(
       controller_client->get_stack_cluster()));
   archive_pool.reset(new decltype(archive_pool)::element_type());
