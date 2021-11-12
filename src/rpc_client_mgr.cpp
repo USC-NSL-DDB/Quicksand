@@ -82,7 +82,7 @@ void RPCClientMgr::update_cache(RemObjID rem_obj_id, uint32_t gen) {
     }
     BUG_ON(gen > info.gen);
     auto optional_location =
-        Runtime::controller_client->resolve_obj(rem_obj_id, gen++);
+        Runtime::controller_client->resolve_obj(rem_obj_id, ++gen);
     BUG_ON(!optional_location);
     info.ip = optional_location->addr.ip;
     info.id = this->get_node_id_by_node_ip(info.ip);
