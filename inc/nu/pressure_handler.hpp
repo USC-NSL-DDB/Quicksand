@@ -18,7 +18,7 @@ struct AuxHandlerState {
   };
 
   TCPWriteTask task;
-  bool task_ready = false;
+  bool task_pending = false;
   bool done = false;
 };
 
@@ -27,12 +27,20 @@ public:
   constexpr static uint32_t kNumAuxHandlers =
       Migrator::kTransmitHeapNumThreads - 1;
 
-  static void register_handlers();
+  PressureHandler();
+  void mock_set_pressure(ResourcePressureInfo pressure);
+  void wait_aux_tasks();
+  void dispatch_aux_task(uint32_t handler_id,
+                         AuxHandlerState::TCPWriteTask &task);
+
+private:
+  AuxHandlerState aux_handler_states[kNumAuxHandlers];
+
+  void register_handlers();
+  std::vector<HeapRange> pick_heaps(uint32_t min_num_heaps,
+                                    uint32_t min_mem_mbs);
   static void main_handler(void *unsed);
   static void aux_handler(void *args);
-  static void mock_set_pressure(ResourcePressureInfo pressure);
-
-  static AuxHandlerState aux_handler_states[kNumAuxHandlers];
 };
 
 } // namespace nu

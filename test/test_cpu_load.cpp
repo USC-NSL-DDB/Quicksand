@@ -74,17 +74,14 @@ public:
 
 namespace nu {
 
-class Migration {
-public:
-  void trigger() {
-    ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
-                                     .num_cores_to_release = 0};
-    PressureHandler::mock_set_pressure(pressure);
-  }
-};
-
 class Test {
 public:
+  void migrate() {
+    ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
+                                     .num_cores_to_release = 0};
+    Runtime::pressure_handler->mock_set_pressure(pressure);
+  }
+
   bool mostly_equals(double real, double expected) {
     return std::abs((real - expected) / real < 0.05);
   }
@@ -96,7 +93,7 @@ public:
     auto heavy_obj = RemObj<CPUHeavyObj>::create_at(addr);
     auto nested_obj = RemObj<CPUNestedObj>::create_at(addr);
     auto spin_obj = RemObj<CPUSpinObj>::create_at(addr);
-    auto migration_obj = RemObj<Migration>::create_at(addr);
+    auto migration_obj = RemObj<Test>::create_at(addr);
 
     auto spin_future = spin_obj.run_async(&CPUSpinObj::compute);
     for (uint32_t i = 0; i < 100000; i++) {
@@ -104,7 +101,7 @@ public:
       auto heavy_future = heavy_obj.run_async(&CPUHeavyObj::compute);
       auto nested_future = nested_obj.run_async(&CPUNestedObj::compute);
       if (i == 50000) {
-        migration_obj.run(&Migration::trigger);
+        migration_obj.run(&Test::migrate);
       }
     }
 

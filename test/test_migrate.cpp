@@ -29,7 +29,7 @@ public:
     ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
                                      .num_cores_to_release = 0};
     // Set resource pressure using the mock interface
-    PressureHandler::mock_set_pressure(pressure);
+    Runtime::pressure_handler->mock_set_pressure(pressure);
     // Ensure that the migration happens before the function returns.
     delay_us(1000 * 1000);
     // Should be printed at the new server node.

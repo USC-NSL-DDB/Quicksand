@@ -82,7 +82,7 @@ public:
   int migrate() {
     ResourcePressureInfo pressure = {.mem_mbs_to_release = pressure_mem_mbs_,
                                      .num_cores_to_release = 0};
-    PressureHandler::mock_set_pressure(pressure);
+    Runtime::pressure_handler->mock_set_pressure(pressure);
     return 0;
   }
 

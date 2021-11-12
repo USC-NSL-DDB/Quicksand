@@ -28,6 +28,7 @@ class ControllerServer;
 class RPCClientMgr;
 class Migrator;
 class RPCServer;
+class PressureHandler;
 template <typename T> class RuntimeAllocator;
 template <typename T> class RuntimeDeleter;
 
@@ -56,6 +57,7 @@ private:
   static std::unique_ptr<Migrator> migrator;
   static std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> archive_pool;
   static std::unique_ptr<RPCServer> rpc_server;
+  static std::unique_ptr<PressureHandler> pressure_handler;
 
   friend class Test;
   friend class ObjServer;

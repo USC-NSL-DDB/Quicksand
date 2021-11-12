@@ -38,6 +38,7 @@ std::unique_ptr<RPCClientMgr> Runtime::rpc_client_mgr;
 std::unique_ptr<Migrator> Runtime::migrator;
 std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
 std::unique_ptr<RPCServer> Runtime::rpc_server;
+std::unique_ptr<PressureHandler> Runtime::pressure_handler;
 
 void Runtime::init_runtime_heap() {
   auto addr = reinterpret_cast<void *>(kMinRuntimeHeapVaddr);
@@ -56,7 +57,7 @@ void Runtime::init_as_controller() {
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
-  PressureHandler::register_handlers();
+  pressure_handler.reset(new decltype(pressure_handler)::element_type());
   obj_server.reset(new decltype(obj_server)::element_type());
   rt::Thread([&] { rpc_server->run_loop(); }).Detach();
   migrator.reset(new decltype(migrator)::element_type());

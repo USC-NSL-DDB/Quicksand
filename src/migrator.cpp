@@ -162,15 +162,12 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   BUG_ON(c->ReadFull(&wg, sizeof(wg), /* nt = */ false, /* poll = */ true) <=
          0);
 
-  AuxHandlerState::TCPWriteTask tcp_write_state;
+  AuxHandlerState::TCPWriteTask task;
   for (uint32_t i = 0; i < kTransmitHeapNumThreads; i++) {
     req_start_addrs[i] = start_addr + i * per_thread_len;
     req_lens[i] = (i != kTransmitHeapNumThreads - 1)
                       ? per_thread_len
                       : start_addr + len - req_start_addrs[i];
-    auto &task = (i == kTransmitHeapNumThreads - 1)
-                     ? tcp_write_state
-                     : PressureHandler::aux_handler_states[i].task;
     task.conn = migrator_conn_mgr_.get(c->RemoteAddr());
     task.sgl[0] = iovec(&type, sizeof(type));
     task.sgl[1] = iovec(&req_start_addrs[i], sizeof(req_start_addrs[i]));
@@ -178,25 +175,20 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
     task.sgl[3] = iovec(&wg, sizeof(wg));
     task.sgl[4] =
         iovec(reinterpret_cast<std::byte *>(req_start_addrs[i]), req_lens[i]);
-    if (i == kTransmitHeapNumThreads - 1) {
+    if (i < PressureHandler::kNumAuxHandlers) {
+      // Dispatch to aux handler.
+      Runtime::pressure_handler->dispatch_aux_task(i, task);
+    } else {
       // Execute the task itself.
       auto *c = task.conn.get_tcp_conn();
       BUG_ON(c->WritevFull(std::span(reinterpret_cast<const iovec *>(task.sgl),
                                      std::size(task.sgl)),
                            /* nt = */ false,
                            /* poll = */ true) < 0);
-    } else {
-      // Dispatch to aux handler.
-      store_release(&PressureHandler::aux_handler_states[i].task_ready, true);
     }
   }
 
-  for (uint32_t i = 0; i < kTransmitHeapNumThreads - 1; i++) {
-    while (rt::access_once(PressureHandler::aux_handler_states[i].task_ready)) {
-      cpu_relax();
-    }
-  }
-
+  Runtime::pressure_handler->wait_aux_tasks();
   BUG_ON(c->WriteFull(&heap_header->ref_cnt, sizeof(heap_header->ref_cnt),
                       /* nt = */ false, /* poll = */ true) < 0);
 
