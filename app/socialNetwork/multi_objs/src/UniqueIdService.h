@@ -17,9 +17,9 @@
 #include <iomanip>
 #include <iostream>
 #include <mutex>
+#include <nu/utils/mutex.hpp>
 #include <sstream>
 #include <string>
-#include <nu/mutex.hpp>
 extern "C" {
 #include <runtime/timer.h>
 #include <runtime/preempt.h>

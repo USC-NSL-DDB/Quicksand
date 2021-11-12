@@ -7,8 +7,8 @@
 #include <jwt/jwt.hpp>
 #include <nlohmann/json.hpp>
 #include <nu/dis_hash_table.hpp>
-#include <nu/mutex.hpp>
 #include <nu/rem_obj.hpp>
+#include <nu/utils/mutex.hpp>
 #include <random>
 #include <stdexcept>
 #include <string>

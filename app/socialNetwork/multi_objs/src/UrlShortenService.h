@@ -2,7 +2,7 @@
 
 #include <chrono>
 #include <nu/dis_hash_table.hpp>
-#include <nu/mutex.hpp>
+#include <nu/utils/mutex.hpp>
 #include <random>
 
 #include "../gen-cpp/social_network_types.h"

@@ -3,7 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <nlohmann/json.hpp>
-#include <nu/mutex.hpp>
+#include <nu/utils/mutex.hpp>
 #include <random>
 #include <string>
 #include <vector>

@@ -7,7 +7,6 @@
 #include "ThriftBackEndServer.hpp"
 
 constexpr uint32_t kNumEntryObjs = 1;
-constexpr bool kEnableMigration = false;
 
 using namespace social_network;
 
@@ -35,22 +34,6 @@ public:
   }
 };
 
-namespace nu {
-class Test {
-public:
-  Test(uint32_t pressure_mem_mbs) : pressure_mem_mbs_(pressure_mem_mbs) {}
-
-  int migrate() {
-    Resource resource = {.cores = 0, .mem_mbs = pressure_mem_mbs_};
-    Runtime::monitor->mock_set_pressure(resource);
-    return 0;
-  }
-
-private:
-  uint32_t pressure_mem_mbs_;
-};
-} // namespace nu
-
 void DoWork() {
   auto states = std::make_unique<States>();
 
@@ -58,14 +41,6 @@ void DoWork() {
   for (uint32_t i = 0; i < kNumEntryObjs; i++) {
     thrift_futures.emplace_back(nu::async(
         [&] { nu::RemObj<ServiceEntry>::create_pinned(states->get_caps()); }));
-  }
-
-  if constexpr (kEnableMigration) {
-    auto test = nu::RemObj<nu::Test>::create_pinned(32 * 1024);
-    std::cout << "Press enter to start migration..." << std::endl;
-    std::cin.ignore();
-    std::cout << "Start migrating..." << std::endl;
-    test.run(&nu::Test::migrate);
   }
 }
 
