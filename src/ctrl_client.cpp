@@ -61,17 +61,19 @@ void ControllerClient::destroy_obj(RemObjID id) {
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
 }
 
-std::optional<netaddr> ControllerClient::resolve_obj(RemObjID id) {
+std::optional<ObjLocation> ControllerClient::resolve_obj(RemObjID id,
+                                                         uint32_t min_gen) {
   RPCReqResolveObj req;
   req.id = id;
+  req.min_gen = min_gen;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
   auto &resp = from_span<RPCRespResolveObj>(return_buf.get_buf());
   if (resp.empty) {
     return std::nullopt;
   } else {
-    auto addr = resp.addr;
-    return addr;
+    auto location = resp.location;
+    return location;
   }
 }
 

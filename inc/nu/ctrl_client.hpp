@@ -27,7 +27,7 @@ public:
   std::optional<std::pair<RemObjID, netaddr>>
   allocate_obj(std::optional<netaddr> hint);
   void destroy_obj(RemObjID id);
-  std::optional<netaddr> resolve_obj(RemObjID id);
+  std::optional<ObjLocation> resolve_obj(RemObjID id, uint32_t min_gen);
   std::optional<netaddr> get_migration_dest(Resource resource);
   void update_location(RemObjID id, netaddr obj_srv_addr);
   VAddrRange get_stack_cluster() const;

@@ -16,17 +16,17 @@ extern "C" {
 namespace nu {
 
 Controller::Controller() {
-  for (uint64_t vaddr = kMinHeapVAddr; vaddr + kHeapSize <= kMaxHeapVAddr;
-       vaddr += kHeapSize) {
-    VAddrRange range = {.start = vaddr, .end = vaddr + kHeapSize};
-    free_heap_ranges_.push(range);
+  for (uint64_t start_addr = kMinHeapVAddr;
+       start_addr + kHeapSize <= kMaxHeapVAddr; start_addr += kHeapSize) {
+    free_heap_segments_.push(start_addr);
   }
 
-  for (uint64_t vaddr = kMinStackClusterVAddr;
-       vaddr + kStackClusterSize <= kMaxStackClusterVAddr;
-       vaddr += kStackClusterSize) {
-    VAddrRange range = {.start = vaddr, .end = vaddr + kStackClusterSize};
-    free_stack_cluster_ranges_.push(range);
+  for (uint64_t start_addr = kMinStackClusterVAddr;
+       start_addr + kStackClusterSize <= kMaxStackClusterVAddr;
+       start_addr += kStackClusterSize) {
+    VAddrRange range = {.start = start_addr,
+                        .end = start_addr + kStackClusterSize};
+    free_stack_cluster_segments_.push(range);
   }
 
   nodes_iter_ = nodes_.end();
@@ -37,14 +37,15 @@ Controller::~Controller() {}
 VAddrRange Controller::register_node(Node &node) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  BUG_ON(free_stack_cluster_ranges_.empty());
+  BUG_ON(free_stack_cluster_segments_.empty());
   // TODO: should GC the allocated stack somehow through heartbeat or an
   // explicit deregister_node() call.
-  auto stack_cluster = free_stack_cluster_ranges_.top();
-  free_stack_cluster_ranges_.pop();
+  auto stack_cluster = free_stack_cluster_segments_.top();
+  free_stack_cluster_segments_.pop();
 
   for (auto old_node : nodes_) {
-    auto *client = Runtime::rpc_client_mgr->get_by_ip(old_node.migrator_addr.ip);
+    auto *client =
+        Runtime::rpc_client_mgr->get_by_ip(old_node.migrator_addr.ip);
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
     req.dest_server_addr = node.migrator_addr;
@@ -67,17 +68,19 @@ std::optional<std::pair<RemObjID, netaddr>>
 Controller::allocate_obj(netaddr hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  if (unlikely(free_heap_ranges_.empty())) {
+  if (unlikely(free_heap_segments_.empty())) {
     return std::nullopt;
   }
-  auto range = free_heap_ranges_.top();
-  auto id = range.start;
-  free_heap_ranges_.pop();
+  auto start_addr = free_heap_segments_.top();
+  auto id = start_addr;
+  free_heap_segments_.pop();
   auto node_optional = select_node_for_obj(hint);
   if (unlikely(!node_optional)) {
     return std::nullopt;
   }
-  objs_map_.emplace(id, std::make_pair(range, node_optional->obj_srv_addr));
+  auto [iter, _] = objs_map_.try_emplace(id);
+  ObjLocation location{.gen = 0, .addr = node_optional->obj_srv_addr};
+  iter->second.second = location;
   return std::make_pair(id, node_optional->obj_srv_addr);
 }
 
@@ -89,13 +92,13 @@ void Controller::destroy_obj(RemObjID id) {
     WARN();
     return;
   }
-  auto &p = iter->second;
-  auto &range = p.first;
-  free_heap_ranges_.push(range);
+  auto range = id;
+  free_heap_segments_.push(range);
   objs_map_.erase(iter);
 }
 
-std::optional<netaddr> Controller::resolve_obj(RemObjID id) {
+std::optional<ObjLocation> Controller::resolve_obj(RemObjID id,
+                                                   uint32_t min_gen) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto iter = objs_map_.find(id);
@@ -103,8 +106,11 @@ std::optional<netaddr> Controller::resolve_obj(RemObjID id) {
     return std::nullopt;
   } else {
     auto &p = iter->second;
-    auto &addr = p.second;
-    return addr;
+    auto &location = p.second;
+    while (unlikely(rt::access_once(location.gen) < min_gen)) {
+      p.first.Wait(&mutex_);
+    }
+    return location;
   }
 }
 
@@ -145,7 +151,10 @@ void Controller::update_location(RemObjID id, netaddr obj_srv_addr) {
 
   auto iter = objs_map_.find(id);
   BUG_ON(iter == objs_map_.end());
-  iter->second.second = obj_srv_addr;
+  auto &[cv, location] = iter->second;
+  location.gen++;
+  location.addr = obj_srv_addr;
+  cv.SignalAll();
 }
 
 } // namespace nu

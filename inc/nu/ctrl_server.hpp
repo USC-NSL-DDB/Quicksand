@@ -21,7 +21,7 @@ struct RPCReqRegisterNode {
 
 struct RPCRespRegisterNode {
   VAddrRange stack_cluster;
-};
+} __attribute__((packed));
 
 struct RPCReqAllocateObj {
   RPCReqType rpc_type = kAllocateObj;
@@ -32,7 +32,7 @@ struct RPCRespAllocateObj {
   bool empty;
   RemObjID id;
   netaddr server_addr;
-};
+} __attribute__((packed));
 
 struct RPCReqDestroyObj {
   RPCReqType rpc_type = kDestroyObj;
@@ -41,17 +41,18 @@ struct RPCReqDestroyObj {
 
 struct RPCRespDestroyObj {
   bool ok;
-};
+} __attribute__((packed));
 
 struct RPCReqResolveObj {
   RPCReqType rpc_type = kResolveObj;
   RemObjID id;
+  uint32_t min_gen;
 } __attribute__((packed));
 
 struct RPCRespResolveObj {
   bool empty;
-  netaddr addr;
-};
+  ObjLocation location;
+} __attribute__((packed));
 
 struct RPCReqUpdateLocation {
   RPCReqType rpc_type = kUpdateLocation;
@@ -65,11 +66,10 @@ struct RPCReqGetMigrationDest {
   Resource resource;
 } __attribute__((packed));
 
-
 struct RPCRespGetMigrationDest {
   bool empty;
   netaddr addr;
-};
+} __attribute__((packed));
 
 class ControllerServer {
 public:

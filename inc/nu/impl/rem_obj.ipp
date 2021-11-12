@@ -50,14 +50,12 @@ retry:
   auto args_span = std::span(states_data, states_size);
   {
     RuntimeHeapGuard guard;
-    auto client = Runtime::rpc_client_mgr->get_by_rem_obj_id(id);
+    auto [gen, client] = Runtime::rpc_client_mgr->get_by_rem_obj_id(id);
     rc = client->Call(args_span, &return_buf);
-  }
-
-  if (unlikely(rc == kErrWrongClient)) {
-    RuntimeHeapGuard guard;
-    Runtime::rpc_client_mgr->invalidate_cache(id);
-    goto retry;
+    if (unlikely(rc == kErrWrongClient)) {
+      Runtime::rpc_client_mgr->update_cache(id, gen);
+      goto retry;
+    }
   }
 
   auto return_span = return_buf.get_mut_buf();

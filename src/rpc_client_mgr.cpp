@@ -16,9 +16,11 @@ NodeID RPCClientMgr::get_node_id_by_node_ip(NodeIP ip) {
 }
 
 RPCClientMgr::NodeInfo::NodeInfo(RemObjID rem_obj_id, RPCClientMgr *mgr) {
-  auto optional_addr = Runtime::controller_client->resolve_obj(rem_obj_id);
-  BUG_ON(!optional_addr);
-  ip = optional_addr->ip;
+  auto optional_location =
+      Runtime::controller_client->resolve_obj(rem_obj_id, 0);
+  BUG_ON(!optional_location);
+  ip = optional_location->addr.ip;
+  gen = optional_location->gen;
   id = mgr->get_node_id_by_node_ip(ip);
 }
 
@@ -43,7 +45,8 @@ RPCClient *RPCClientMgr::get_by_ip(NodeIP ip) {
   return get(info);
 }
 
-RPCClient *RPCClientMgr::get_by_rem_obj_id(RemObjID rem_obj_id) {
+std::pair<uint32_t, RPCClient *>
+RPCClientMgr::get_by_rem_obj_id(RemObjID rem_obj_id) {
 retry:
   auto *info = rem_id_to_node_info_map_.get(rem_obj_id);
 
@@ -53,7 +56,7 @@ retry:
     goto retry;
   }
 
-  return get(*info);
+  return std::make_pair(info->gen, get(*info));
 }
 
 uint32_t RPCClientMgr::get_ip_by_rem_obj_id(RemObjID rem_obj_id) {
@@ -69,8 +72,24 @@ retry:
   return info->ip;
 }
 
-void RPCClientMgr::invalidate_cache(RemObjID rem_obj_id) {
-  rem_id_to_node_info_map_.remove(rem_obj_id);
+void RPCClientMgr::update_cache(RemObjID rem_obj_id, uint32_t gen) {
+  std::function update_fn = [&](std::pair<const RemObjID, NodeInfo> *p) {
+    auto &info = p->second;
+    rt::MutexGuard g(&info.mutex);
+
+    if (unlikely(gen < info.gen)) {
+      return;
+    }
+    BUG_ON(gen > info.gen);
+    auto optional_location =
+        Runtime::controller_client->resolve_obj(rem_obj_id, gen++);
+    BUG_ON(!optional_location);
+    info.ip = optional_location->addr.ip;
+    info.id = this->get_node_id_by_node_ip(info.ip);
+    BUG_ON(gen > optional_location->gen);
+    info.gen = optional_location->gen;
+  };
+  rem_id_to_node_info_map_.apply(rem_obj_id, update_fn);
 }
 
 } // namespace nu
