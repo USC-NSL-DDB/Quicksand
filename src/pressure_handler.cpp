@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <sync.h>
+#include <thread.h>
 
 #include "nu/migrator.hpp"
 #include "nu/pressure_handler.hpp"
@@ -10,7 +11,60 @@ constexpr static bool kEnableLogging = false;
 
 namespace nu {
 
-PressureHandler::PressureHandler() { register_handlers(); }
+PressureHandler::PressureHandler() {
+  register_handlers();
+  update_thread_ = rt::Thread([&] {
+    done_ = false;
+    while (!rt::access_once(done_)) {
+      timer_sleep(kSortedHeapsUpdateIntervalMs * kOneMilliSecond);
+      update_sorted_heaps();
+    }
+  });
+}
+
+PressureHandler::~PressureHandler() {
+  rt::access_once(done_) = true;
+  update_thread_.Join();
+}
+
+inline uint64_t get_heap_size(HeapHeader *heap_header) {
+  auto &slab = heap_header->slab;
+  auto size_in_bytes = reinterpret_cast<uint64_t>(slab.get_base()) +
+                       slab.get_usage() -
+                       reinterpret_cast<uint64_t>(heap_header);
+  return size_in_bytes;
+}
+
+float utility(HeapHeader *heap_header) {
+  auto size = get_heap_size(heap_header);
+  auto cpu_load = heap_header->cpu_load.get_load();
+  heap_header->cpu_load.reset();
+  cpu_load = std::max(cpu_load, static_cast<float>(1e-5));
+  return size / cpu_load;
+}
+
+void PressureHandler::update_sorted_heaps() {
+  CPULoad::flush_all();
+
+  std::set<HeapInfo> new_sorted_heaps;
+  auto all_heaps = Runtime::heap_manager->get_all_heaps();
+  for (auto *heap_base : all_heaps) {
+    auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+    heap_header->mutex.lock();
+    if (unlikely(!heap_header->present || !heap_header->migratable)) {
+      heap_header->mutex.unlock();
+      continue;
+    }
+    auto val = utility(heap_header);
+    heap_header->mutex.unlock();
+
+    HeapInfo tmp{heap_header, val};
+    new_sorted_heaps.insert(tmp);
+  }
+
+  rt::SpinGuard g(&spin_);
+  sorted_heaps_ = std::move(new_sorted_heaps);
+}
 
 void PressureHandler::register_handlers() {
   add_resource_pressure_handler(main_handler, nullptr);
@@ -97,33 +151,47 @@ void PressureHandler::aux_handler(void *args) {
 
 std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
                                                    uint32_t min_mem_mbs) {
+  uint32_t picked_mem_mbs = 0;
+  uint32_t picked_num = 0;
+  bool done = false;
   std::vector<HeapRange> heaps;
-  uint32_t picked_heaps_mem_mbs = 0;
 
-  CPULoad::flush_all();
+  auto pick_fn = [&](HeapHeader *header) {
+    auto size = get_heap_size(header);
+    HeapRange range{header, size};
+    heaps.push_back(range);
+    picked_mem_mbs += size / kOneMB;
+    picked_num++;
+    done = ((picked_mem_mbs >= min_mem_mbs) && (picked_num >= min_num_heaps));
+  };
 
-  auto &all_heaps = Runtime::heap_manager->acquire_heaps_set();
-  for (auto *heap_base : all_heaps) {
-    auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-    if (heap_header->migratable) {
-      auto &slab = heap_header->slab;
-      uint64_t len = reinterpret_cast<uint64_t>(slab.get_base()) +
-                     slab.get_usage() - reinterpret_cast<uint64_t>(heap_header);
-      [[maybe_unused]] auto cpu_load =
-          heap_header->cpu_load.get_load(); // Do something with it.
-      heap_header->cpu_load.reset();
+  {
+    rt::SpinGuard g(&spin_);
 
-      HeapRange range{heap_header, len};
-      heaps.push_back(range);
-
-      picked_heaps_mem_mbs += len / kOneMB;
-      if (picked_heaps_mem_mbs >= min_mem_mbs &&
-          heaps.size() >= min_num_heaps) {
-        break;
+    auto iter = sorted_heaps_.begin();
+    while (iter != sorted_heaps_.end() && !done) {
+      auto *header = iter->header;
+      iter = sorted_heaps_.erase(iter);
+      if (unlikely(!header->present)) {
+        continue;
       }
+      pick_fn(header);
     }
   }
-  Runtime::heap_manager->release_heaps_set();
+
+  if (unlikely(heaps.empty())) {
+    auto &all_heaps = Runtime::heap_manager->acquire_all_heaps();
+    auto iter = all_heaps.begin();
+    while (iter != all_heaps.end() && !done) {
+      auto *header = reinterpret_cast<HeapHeader *>(*iter);
+      iter++;
+      if (unlikely(!header->present || !header->migratable)) {
+        continue;
+      }
+      pick_fn(header);
+    }
+    Runtime::heap_manager->release_all_heaps();
+  }
 
   return heaps;
 }

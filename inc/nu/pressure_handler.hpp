@@ -1,4 +1,6 @@
+#include <climits>
 #include <cstddef>
+#include <set>
 
 extern "C" {
 #include <runtime/pressure.h>
@@ -26,19 +28,33 @@ class PressureHandler {
 public:
   constexpr static uint32_t kNumAuxHandlers =
       Migrator::kTransmitHeapNumThreads - 1;
+  constexpr static uint32_t kSortedHeapsUpdateIntervalMs = 50;
 
   PressureHandler();
+  ~PressureHandler();
   void mock_set_pressure(ResourcePressureInfo pressure);
   void wait_aux_tasks();
   void dispatch_aux_task(uint32_t handler_id,
                          AuxHandlerState::TCPWriteTask &task);
 
 private:
+  struct HeapInfo {
+    HeapHeader *header;
+    float val;
+
+    bool operator<(const HeapInfo &o) const { return val < o.val; }
+  };
+
   AuxHandlerState aux_handler_states[kNumAuxHandlers];
+  rt::Spin spin_;
+  std::set<HeapInfo> sorted_heaps_;
+  rt::Thread update_thread_;
+  bool done_;
 
   void register_handlers();
   std::vector<HeapRange> pick_heaps(uint32_t min_num_heaps,
                                     uint32_t min_mem_mbs);
+  void update_sorted_heaps();
   static void main_handler(void *unsed);
   static void aux_handler(void *args);
 };

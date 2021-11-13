@@ -46,6 +46,9 @@ void HeapManager::mmap_populate(void *heap_base, uint64_t populate_len) {
 
 void HeapManager::deallocate(void *heap_base) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  heap_header->mutex.lock();
+
+  heap_header->present = false;
   auto *munmap_base = reinterpret_cast<uint8_t *>(heap_base) + kPageSize;
   auto total_munmap_size = kHeapSize - kPageSize;
   RuntimeHeapGuard guard;
@@ -55,6 +58,8 @@ void HeapManager::deallocate(void *heap_base) {
   std::destroy_at(&heap_header->spin);
   std::destroy_at(&heap_header->slab);
   BUG_ON(munmap(munmap_base, total_munmap_size) == -1);
+
+  heap_header->mutex.unlock();
 }
 
 void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
@@ -81,12 +86,17 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
   }
 }
 
-std::unordered_set<void *> &HeapManager::acquire_heaps_set() {
+std::vector<void *> HeapManager::get_all_heaps() {
+  rt::SpinGuard guard(&spin_);
+  return std::vector<void *>(present_heaps_.begin(), present_heaps_.end());
+}
+
+std::unordered_set<void *> &HeapManager::acquire_all_heaps() {
   spin_.Lock();
   return present_heaps_;
 }
 
-void HeapManager::release_heaps_set() { spin_.Unlock(); }
+void HeapManager::release_all_heaps() { spin_.Unlock(); }
 
 uint64_t HeapManager::get_mem_usage() {
   uint64_t total_mem_usage = 0;

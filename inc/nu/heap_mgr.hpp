@@ -81,8 +81,9 @@ public:
   bool remove(void *heap_base);
   bool remove_with_present(void *heap_base);
   void mark_absent(void *heap_base);
-  std::unordered_set<void *> &acquire_heaps_set();
-  void release_heaps_set();
+  std::vector<void *> get_all_heaps();
+  std::unordered_set<void *> &acquire_all_heaps();
+  void release_all_heaps();
   uint64_t get_mem_usage();
   uint32_t get_num_present_heaps();
 
