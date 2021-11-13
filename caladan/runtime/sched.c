@@ -1269,12 +1269,16 @@ void thread_flush_all_monitor_cycles(void)
        int i;
        thread_t *th;
        uint64_t curr_tsc = rdtsc();
+       struct aligned_cycles *run_cycles;
 
        for (i = 0; i < nrks; i++) {
               th = ks[i]->curr_th;
-	      if (th && th->run_cycles) {
-                     th->run_cycles[i].c += curr_tsc - th->run_start_tsc;
-                     th->run_start_tsc = curr_tsc;
+	      if (th) {
+                     run_cycles = th->run_cycles;
+                     if (run_cycles) {
+                            run_cycles[i].c += curr_tsc - th->run_start_tsc;
+                            th->run_start_tsc = curr_tsc;
+                     }
 	      }
        }
 }
