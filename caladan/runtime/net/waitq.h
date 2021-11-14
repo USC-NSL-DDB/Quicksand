@@ -30,10 +30,10 @@ static inline void waitq_wait_poll(waitq_t *q, spinlock_t *l, void (*fn)(void))
 {
 	struct thread *th = thread_self();
 
+	ACCESS_ONCE(th->wq_spin) = true;
 	assert_spin_lock_held(l);
 	list_add_tail(&q->waiters, &th->link);
 	spin_unlock_np(l);
-	ACCESS_ONCE(th->wq_spin) = true;
 	while (ACCESS_ONCE(th->wq_spin)) {
 		if (fn)
 			fn();
