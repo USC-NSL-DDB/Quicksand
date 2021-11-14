@@ -75,6 +75,8 @@ extern struct aligned_cycles *thread_get_monitor_cycles(thread_t *th);
 inline bool thread_monitored(void) {
 	return *(void **)((uint64_t)__self + thread_run_cycles_offset);
 }
+extern bool thread_hold_rcu(void *rcu);
+extern void thread_unhold_rcu(void *rcu);
 
 /*
  * High-level routines, use this API most of the time.

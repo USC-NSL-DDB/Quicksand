@@ -67,7 +67,7 @@ retry:
   wakers_.clear();
 }
 
-void RCULock::__detect_sync_barrier() {
+void RCULock::reader_wait() {
   // Fast path.
   auto start_us = microtime();
   do {
@@ -83,6 +83,27 @@ void RCULock::__detect_sync_barrier() {
       spin_guard.Park(&wakers_.back());
     }
   }
+}
+
+void RCULock::__reader_lock() {
+  int core = get_cpu();
+  Cnt cnt;
+  cnt.raw = aligned_cnts_[core].cnt.raw;
+  cnt.data.c++;
+  cnt.data.ver++;
+  aligned_cnts_[core].cnt.data = cnt.data;
+  put_cpu();
+}
+
+void RCULock::reader_unlock() {
+  thread_unhold_rcu(this);
+  int core = get_cpu();
+  Cnt cnt;
+  cnt.raw = aligned_cnts_[core].cnt.raw;
+  cnt.data.c--;
+  cnt.data.ver++;
+  aligned_cnts_[core].cnt.data = cnt.data;
+  put_cpu();
 }
 
 } // namespace nu

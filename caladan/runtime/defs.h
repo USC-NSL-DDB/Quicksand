@@ -86,13 +86,20 @@ struct thread_tf {
  * Thread support
  */
 
+struct stack;
+
+#define MAX_NUM_RCUS_HELD       7
+
 enum {
 	NO_MIGRATION = 0,
 	MIGRATING,
 	MIGRATED,
 };
 
-struct stack;
+struct rcu_info {
+	uint64_t                addr:48;
+	uint64_t                cnt:16;
+};
 
 struct thread {
 	struct thread_tf	tf;
@@ -112,8 +119,10 @@ struct thread {
 #endif
 	/* nu-related fields */
 	uint8_t                 migration_state;
+	uint8_t                 num_rcus_held;
 	void                    *obj_heap;
 	uint64_t                waiter_info;
+	struct rcu_info         rcus_held[MAX_NUM_RCUS_HELD];
 };
 
 typedef void (*runtime_fn_t)(void);

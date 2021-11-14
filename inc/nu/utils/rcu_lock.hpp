@@ -18,10 +18,12 @@ public:
   constexpr static uint32_t kWriterWaitFastPathMaxUs = 20;
   constexpr static uint32_t kWriterWaitSlowPathSleepUs = 10;
 
+  enum Result { Failed = 0, Succeed, Already };
+
   RCULock();
   ~RCULock();
-  void reader_lock();
-  bool try_reader_lock();
+  Result reader_lock();
+  Result try_reader_lock();
   void reader_unlock();
   void writer_sync(bool poll = false);
 
@@ -45,8 +47,8 @@ private:
   rt::Spin spin_;
 
   template <typename Fn> void write_sync_general(Fn &&fn);
-  void detect_sync_barrier();
-  void __detect_sync_barrier();
+  void reader_wait();
+  void __reader_lock();
 };
 } // namespace nu
 

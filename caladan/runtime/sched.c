@@ -894,10 +894,16 @@ static __always_inline thread_t *__thread_create(void)
 	th->run_start_tsc = UINT64_MAX;
 	th->run_cycles = NULL;
 	th->wq_spin = false;
-	if (__self)
+	if (__self) {
 		th->obj_heap = __self->obj_heap;
-	else
+		th->num_rcus_held = __self->num_rcus_held;
+		memcpy(th->rcus_held, __self->rcus_held,
+		       sizeof(struct rcu_info) * th->num_rcus_held);
+	}
+	else {
 		th->obj_heap = NULL;
+		th->num_rcus_held = 0;
+	}
 	th->waiter_info = 0;
 	th->migration_state = NO_MIGRATION;
 
@@ -1286,4 +1292,42 @@ void thread_flush_all_monitor_cycles(void)
 struct aligned_cycles *thread_get_monitor_cycles(thread_t *th)
 {
        return th->run_cycles;
+}
+
+bool thread_hold_rcu(void *rcu)
+{
+       thread_t *th = thread_self();
+       uint32_t i;
+       uint64_t addr = (uint64_t)rcu;
+
+       for (i = 0; i < th->num_rcus_held; i++) {
+              if (th->rcus_held[i].addr == addr) {
+                     th->rcus_held[i].cnt++;
+                     BUG_ON(!th->rcus_held[i].cnt);
+                     return false;
+              }
+       }
+       BUG_ON(th->num_rcus_held >= MAX_NUM_RCUS_HELD);
+       th->rcus_held[th->num_rcus_held].addr = addr;
+       th->rcus_held[th->num_rcus_held].cnt = 1;
+       th->num_rcus_held++;
+       return true;
+}
+
+void thread_unhold_rcu(void *rcu)
+{
+       thread_t *th = thread_self();
+       uint32_t i;
+       uint64_t addr = (uint64_t)rcu;
+
+       for (i = 0; i < th->num_rcus_held; i++) {
+              if (th->rcus_held[i].addr == addr) {
+                     if (!(--th->rcus_held[i].cnt)) {
+                            BUG_ON(i != th->num_rcus_held - 1);
+                            th->num_rcus_held--;
+                     }
+                     return;
+              }
+       }
+       BUG();
 }

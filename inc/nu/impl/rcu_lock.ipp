@@ -9,46 +9,23 @@ extern "C" {
 
 namespace nu {
 
-inline void RCULock::detect_sync_barrier() {
-  if (unlikely(rt::access_once(sync_barrier_))) {
-    __detect_sync_barrier();
+inline RCULock::Result RCULock::reader_lock() {
+  bool just_held = thread_hold_rcu(this);
+  if (unlikely(just_held && rt::access_once(sync_barrier_))) {
+    reader_wait();
   }
+  __reader_lock();
+  return just_held ? Result::Succeed : Result::Already;
 }
 
-inline void RCULock::reader_lock() {
-  detect_sync_barrier(); // Avoid starvation.
-  int core = get_cpu();
-  Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
-  cnt.data.c++;
-  cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
-  put_cpu();
-}
-
-inline bool RCULock::try_reader_lock() {
-  if (unlikely(rt::access_once(sync_barrier_))) {
-    return false;
+inline RCULock::Result RCULock::try_reader_lock() {
+  bool just_held = thread_hold_rcu(this);
+  if (unlikely(just_held && rt::access_once(sync_barrier_))) {
+    thread_unhold_rcu(this);
+    return Result::Failed;
   }
-  int core = get_cpu();
-  Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
-  cnt.data.c++;
-  cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
-  put_cpu();
-
-  return true;
-}
-
-inline void RCULock::reader_unlock() {
-  int core = get_cpu();
-  Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
-  cnt.data.c--;
-  cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
-  put_cpu();
+  __reader_lock();
+  return just_held ? Result::Succeed : Result::Already;
 }
 
 } // namespace nu

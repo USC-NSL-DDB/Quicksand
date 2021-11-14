@@ -47,14 +47,13 @@ inline void HeapManager::migration_enable_final(HeapHeader *heap_header) {
 }
 
 inline void HeapManager::migration_enable(HeapHeader *heap_header) {
-  if (heap_header->migratable) {
-    heap_header->rcu_lock.reader_unlock();
-  }
+  heap_header->rcu_lock.reader_unlock();
 }
 
 inline bool HeapManager::migration_disable_initial(HeapHeader *heap_header) {
-  heap_header->rcu_lock.reader_lock();
-  if (unlikely(!rt::access_once(heap_header->present))) {
+  auto result = heap_header->rcu_lock.reader_lock();
+  if (unlikely(result != RCULock::Result::Already &&
+               !rt::access_once(heap_header->present))) {
     heap_header->rcu_lock.reader_unlock();
     return false;
   }
@@ -62,8 +61,9 @@ inline bool HeapManager::migration_disable_initial(HeapHeader *heap_header) {
 }
 
 inline void HeapManager::migration_disable(HeapHeader *heap_header) {
-  heap_header->rcu_lock.reader_lock();
-  if (unlikely(!rt::access_once(heap_header->present))) {
+  auto result = heap_header->rcu_lock.reader_lock();
+  if (unlikely(result != RCULock::Result::Already &&
+               !rt::access_once(heap_header->present))) {
     heap_header->rcu_lock.reader_unlock();
     heap_header->mutex.lock();
     while (!thread_is_migrated()) {
