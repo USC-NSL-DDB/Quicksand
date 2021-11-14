@@ -83,18 +83,18 @@ std::optional<V> SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1, typename V1>
-void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::put(K1 &&k,
-                                                                       V1 &&v) {
+void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::put(K1 k,
+                                                                       V1 v) {
   auto hasher = Hash();
   auto key_hash = hasher(k);
-  put_with_hash(std::forward<K1>(k), std::forward<V1>(v), key_hash);
+  put_with_hash(std::move(k), std::move(v), key_hash);
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1, typename V1>
 void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
-                 Lock>::put_with_hash(K1 &&k, V1 &&v, uint64_t key_hash) {
+                 Lock>::put_with_hash(K1 k, V1 v, uint64_t key_hash) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
   auto *bucket_node = &buckets_[bucket_idx];
@@ -117,7 +117,7 @@ void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
   auto allocator = Allocator();
   auto *pair = allocator.allocate(1);
-  new (pair) Pair(std::forward<K1>(k), std::forward<V1>(v));
+  new (pair) Pair(k, v);
 
   if (!prev_next) {
     bucket_node->key_hash = key_hash;
@@ -138,19 +138,18 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1, typename... Args>
 bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::try_emplace(
-    K1 &&k, Args &&... args) {
+    K1 k, Args... args) {
   auto hasher = Hash();
   auto key_hash = hasher(k);
-  return try_emplace_with_hash(std::forward<K1>(k), key_hash,
-                               std::forward<Args>(args)...);
+  return try_emplace_with_hash(k, key_hash, std::move(args)...);
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1, typename... Args>
 bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
-                 Lock>::try_emplace_with_hash(K1 &&k, uint64_t key_hash,
-                                              Args &&... args) {
+                 Lock>::try_emplace_with_hash(K1 k, uint64_t key_hash,
+                                              Args... args) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
   auto *bucket_node = &buckets_[bucket_idx];
@@ -172,7 +171,7 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
   auto allocator = Allocator();
   auto *pair = allocator.allocate(1);
-  new (pair) Pair(std::forward<K1>(k), V1(std::forward<Args>(args)...));
+  new (pair) Pair(k, V1(args)...);
 
   if (!prev_next) {
     bucket_node->key_hash = key_hash;
