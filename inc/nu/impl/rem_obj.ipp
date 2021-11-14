@@ -174,11 +174,17 @@ template <typename T>
 template <typename... As>
 RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
                                     As &&... args) {
-  auto optional = Runtime::controller_client->allocate_obj(hint);
-  if (unlikely(!optional)) {
-    throw OutOfMemory();
+  RemObjID id;
+  netaddr server_addr;
+
+  {
+    RuntimeHeapGuard guard;
+    auto optional = Runtime::controller_client->allocate_obj(hint);
+    if (unlikely(!optional)) {
+      throw OutOfMemory();
+    }
+    std::tie(id, server_addr) = *optional;
   }
-  auto [id, server_addr] = *optional;
 
   RemObj<T> rem_obj;
   rem_obj.id_ = id;
