@@ -149,4 +149,10 @@ service BackEndService {
   string GetMedia(
     1: string filename
   ) throws (1: ServiceException se)
+
+  void RemovePosts(
+    1: i64 user_id,
+    2: i32 start,
+    3: i32 stop
+  ) throws (1: ServiceException se)
 }

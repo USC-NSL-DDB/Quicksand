@@ -1,4 +1,5 @@
 #include <atomic>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <nu/commons.hpp>
@@ -18,7 +19,7 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 200;
-constexpr static double kTargetMops = 0.9;
+constexpr static double kTargetMops = 1;
 constexpr static double kTotalMops = 1;
 constexpr static uint32_t kNumEntryObjs = 1;
 const static std::string kEntryObjIps[] = {
@@ -27,9 +28,11 @@ const static std::string kEntryObjIps[] = {
 constexpr static uint32_t kEntryObjPort = 9091;
 constexpr static uint32_t kUserTimelinePercent = 60;
 constexpr static uint32_t kHomeTimelinePercent = 30;
-constexpr static uint32_t kComposePostPercent = 10;
+constexpr static uint32_t kComposePostPercent = 5;
+constexpr static uint32_t kRemovePostsPercent = 5;
 constexpr static uint32_t kFollowPercent =
-    100 - kUserTimelinePercent - kHomeTimelinePercent - kComposePostPercent;
+    100 - kUserTimelinePercent - kHomeTimelinePercent - kComposePostPercent -
+    kRemovePostsPercent;
 constexpr static uint32_t kNumUsers = 962;
 constexpr static char kCharSet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "abcdefghijklmnopqrstuvwxyz";
@@ -38,6 +41,7 @@ constexpr static uint32_t kUrlLen = 64;
 constexpr static uint32_t kMaxNumMentionsPerText = 2;
 constexpr static uint32_t kMaxNumUrlsPerText = 2;
 constexpr static uint32_t kMaxNumMediasPerText = 2;
+constexpr static uint64_t kTimeSeriesIntervalUs = 10 * 1000;
 
 class ClientPtr {
 public:
@@ -101,6 +105,12 @@ struct ComposePostRequest : nu::PerfRequest {
   social_network::PostType::type post_type;
 };
 
+struct RemovePostsRequest : nu::PerfRequest {
+  int64_t user_id;
+  int32_t start;
+  int32_t stop;
+};
+
 struct FollowReq : nu::PerfRequest {
   int64_t user_id;
   int64_t followee_id;
@@ -117,6 +127,7 @@ public:
 
   std::unique_ptr<nu::PerfRequest> gen_req(nu::PerfThreadState *perf_state) {
     auto *state = reinterpret_cast<socialNetworkThreadState *>(perf_state);
+
     auto rand_int = (state->dist_1_100)(state->gen);
     if (rand_int <= kUserTimelinePercent) {
       return gen_user_timeline_req(state);
@@ -129,11 +140,14 @@ public:
     if (rand_int <= kComposePostPercent) {
       return gen_compose_post_req(state);
     }
+    rand_int -= kComposePostPercent;
+    if (rand_int <= kRemovePostsPercent) {
+      return gen_remove_posts_req(state);
+    }
     return gen_follow_req(state);
   }
 
-  bool serve_req(nu::PerfThreadState *perf_state,
-                 const nu::PerfRequest *perf_req) {
+  bool serve_req(nu::PerfThreadState *perf_state, const nu::PerfRequest *perf_req) {
     try {
       auto *state = reinterpret_cast<socialNetworkThreadState *>(perf_state);
       auto *user_timeline_req =
@@ -161,6 +175,14 @@ public:
             compose_post_req->username, compose_post_req->user_id,
             compose_post_req->text, compose_post_req->media_ids,
             compose_post_req->media_types, compose_post_req->post_type);
+        return true;
+      }
+      auto *remove_posts_req =
+          dynamic_cast<const RemovePostsRequest *>(perf_req);
+      if (remove_posts_req) {
+        state->client->RemovePosts(remove_posts_req->user_id,
+                                   remove_posts_req->start,
+                                   remove_posts_req->stop);
         return true;
       }
       auto *follow_req = dynamic_cast<const FollowReq *>(perf_req);
@@ -219,6 +241,15 @@ private:
     return std::unique_ptr<ComposePostRequest>(compose_post_req);
   }
 
+  std::unique_ptr<RemovePostsRequest>
+  gen_remove_posts_req(socialNetworkThreadState *state) {
+    auto *remove_posts_req = new RemovePostsRequest();
+    remove_posts_req->user_id = (state->dist_1_numusers)(state->gen);
+    remove_posts_req->start = 0;
+    remove_posts_req->stop = remove_posts_req->start + 1;
+    return std::unique_ptr<RemovePostsRequest>(remove_posts_req);
+  }
+
   std::unique_ptr<FollowReq> gen_follow_req(socialNetworkThreadState *state) {
     auto *follow_req = new FollowReq();
     follow_req->user_id = (state->dist_1_numusers)(state->gen);
@@ -249,6 +280,11 @@ void do_work() {
             << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
             << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
             << perf.get_nth_lat(99.9) << std::endl;
+  auto timeseries_vec = perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99);
+  std::ofstream ofs("timeseries");
+  for (auto [us, lat] : timeseries_vec) {
+    ofs << us << " " << lat << std::endl;
+  }
 }
 
 int main(int argc, char **argv) {

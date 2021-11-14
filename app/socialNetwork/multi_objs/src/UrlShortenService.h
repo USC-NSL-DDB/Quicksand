@@ -19,6 +19,7 @@ public:
   UrlShortenService();
   std::vector<Url> ComposeUrls(std::vector<std::string>);
   std::vector<std::string> GetExtendedUrls(std::vector<std::string>);
+  void RemoveUrls(std::vector<std::string>);
 
 private:
   nu::DistributedHashTable<std::string, std::string, decltype(kHashStrtoU64)>

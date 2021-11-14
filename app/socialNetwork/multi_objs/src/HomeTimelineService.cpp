@@ -54,4 +54,15 @@ std::vector<Post> HomeTimelineService::ReadHomeTimeline(int64_t user_id,
                                        post_ids);
 }
 
+void HomeTimelineService::RemovePost(int64_t user_id, int64_t post_id,
+                                     int64_t post_timestamp) {
+  _userid_to_timeline_map.apply(
+      user_id,
+      +[](std::pair<const int64_t, Tree> &p, int64_t timestamp,
+          int64_t post_id) {
+        (p.second).erase(std::make_pair(timestamp, post_id));
+      },
+      post_timestamp, post_id);
+}
+
 } // namespace social_network

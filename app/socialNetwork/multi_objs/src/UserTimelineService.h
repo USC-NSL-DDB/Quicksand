@@ -23,6 +23,7 @@ public:
   UserTimelineService(nu::RemObj<PostStorageService>::Cap cap);
   void WriteUserTimeline(int64_t post_id, int64_t user_id, int64_t timestamp);
   std::vector<Post> ReadUserTimeline(int64_t, int, int);
+  void RemovePost(int64_t user_id, int64_t post_id, int64_t post_timestamp);
 
 private:
   using Tree =

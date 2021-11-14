@@ -21,6 +21,7 @@ public:
       nu::RemObj<SocialGraphService>::Cap social_graph_service_obj_cap);
   std::vector<Post> ReadHomeTimeline(int64_t, int, int);
   void WriteHomeTimeline(int64_t, int64_t, int64_t, std::vector<int64_t>);
+  void RemovePost(int64_t user_id, int64_t post_id, int64_t post_timestamp);
 
 private:
   using Tree =

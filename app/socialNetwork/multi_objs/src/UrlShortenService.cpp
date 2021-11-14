@@ -40,6 +40,13 @@ std::vector<Url> UrlShortenService::ComposeUrls(std::vector<std::string> urls) {
   return target_urls;
 }
 
+void UrlShortenService::RemoveUrls(std::vector<std::string> shortened_urls) {
+  std::vector<nu::Future<bool>> futures;
+  for (const auto &url : shortened_urls) {
+    futures.emplace_back(_short_to_extended_map.remove_async(url));
+  }
+}
+
 std::vector<std::string>
 UrlShortenService::GetExtendedUrls(std::vector<std::string> shortened_urls) {
   std::vector<nu::Future<std::optional<std::string>>>

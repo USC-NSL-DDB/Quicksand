@@ -15,6 +15,7 @@ public:
   PostStorageService();
   void StorePost(Post post);
   Post ReadPost(int64_t post_id);
+  bool RemovePost(int64_t post_id);
   std::vector<Post> ReadPosts(std::vector<int64_t> post_ids);
 
 private:

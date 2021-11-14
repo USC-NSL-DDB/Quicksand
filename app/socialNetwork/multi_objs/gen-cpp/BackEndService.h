@@ -35,6 +35,7 @@ class BackEndServiceIf {
   virtual void ReadHomeTimeline(std::vector<Post> & _return, const int64_t user_id, const int32_t start, const int32_t stop) = 0;
   virtual void UploadMedia(const std::string& filename, const std::string& data) = 0;
   virtual void GetMedia(std::string& _return, const std::string& filename) = 0;
+  virtual void RemovePosts(const int64_t user_id, const int32_t start, const int32_t stop) = 0;
 };
 
 class BackEndServiceIfFactory {
@@ -104,6 +105,9 @@ class BackEndServiceNull : virtual public BackEndServiceIf {
     return;
   }
   void GetMedia(std::string& /* _return */, const std::string& /* filename */) {
+    return;
+  }
+  void RemovePosts(const int64_t /* user_id */, const int32_t /* start */, const int32_t /* stop */) {
     return;
   }
 };
@@ -1766,6 +1770,124 @@ class BackEndService_GetMedia_presult {
 
 };
 
+typedef struct _BackEndService_RemovePosts_args__isset {
+  _BackEndService_RemovePosts_args__isset() : user_id(false), start(false), stop(false) {}
+  bool user_id :1;
+  bool start :1;
+  bool stop :1;
+} _BackEndService_RemovePosts_args__isset;
+
+class BackEndService_RemovePosts_args {
+ public:
+
+  BackEndService_RemovePosts_args(const BackEndService_RemovePosts_args&);
+  BackEndService_RemovePosts_args& operator=(const BackEndService_RemovePosts_args&);
+  BackEndService_RemovePosts_args() : user_id(0), start(0), stop(0) {
+  }
+
+  virtual ~BackEndService_RemovePosts_args() throw();
+  int64_t user_id;
+  int32_t start;
+  int32_t stop;
+
+  _BackEndService_RemovePosts_args__isset __isset;
+
+  void __set_user_id(const int64_t val);
+
+  void __set_start(const int32_t val);
+
+  void __set_stop(const int32_t val);
+
+  bool operator == (const BackEndService_RemovePosts_args & rhs) const
+  {
+    if (!(user_id == rhs.user_id))
+      return false;
+    if (!(start == rhs.start))
+      return false;
+    if (!(stop == rhs.stop))
+      return false;
+    return true;
+  }
+  bool operator != (const BackEndService_RemovePosts_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const BackEndService_RemovePosts_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class BackEndService_RemovePosts_pargs {
+ public:
+
+
+  virtual ~BackEndService_RemovePosts_pargs() throw();
+  const int64_t* user_id;
+  const int32_t* start;
+  const int32_t* stop;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _BackEndService_RemovePosts_result__isset {
+  _BackEndService_RemovePosts_result__isset() : se(false) {}
+  bool se :1;
+} _BackEndService_RemovePosts_result__isset;
+
+class BackEndService_RemovePosts_result {
+ public:
+
+  BackEndService_RemovePosts_result(const BackEndService_RemovePosts_result&);
+  BackEndService_RemovePosts_result& operator=(const BackEndService_RemovePosts_result&);
+  BackEndService_RemovePosts_result() {
+  }
+
+  virtual ~BackEndService_RemovePosts_result() throw();
+  ServiceException se;
+
+  _BackEndService_RemovePosts_result__isset __isset;
+
+  void __set_se(const ServiceException& val);
+
+  bool operator == (const BackEndService_RemovePosts_result & rhs) const
+  {
+    if (!(se == rhs.se))
+      return false;
+    return true;
+  }
+  bool operator != (const BackEndService_RemovePosts_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const BackEndService_RemovePosts_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _BackEndService_RemovePosts_presult__isset {
+  _BackEndService_RemovePosts_presult__isset() : se(false) {}
+  bool se :1;
+} _BackEndService_RemovePosts_presult__isset;
+
+class BackEndService_RemovePosts_presult {
+ public:
+
+
+  virtual ~BackEndService_RemovePosts_presult() throw();
+  ServiceException se;
+
+  _BackEndService_RemovePosts_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
 class BackEndServiceClient : virtual public BackEndServiceIf {
  public:
   BackEndServiceClient(apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> prot) {
@@ -1833,6 +1955,9 @@ class BackEndServiceClient : virtual public BackEndServiceIf {
   void GetMedia(std::string& _return, const std::string& filename);
   void send_GetMedia(const std::string& filename);
   void recv_GetMedia(std::string& _return);
+  void RemovePosts(const int64_t user_id, const int32_t start, const int32_t stop);
+  void send_RemovePosts(const int64_t user_id, const int32_t start, const int32_t stop);
+  void recv_RemovePosts();
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;
@@ -1862,6 +1987,7 @@ class BackEndServiceProcessor : public ::apache::thrift::TDispatchProcessor {
   void process_ReadHomeTimeline(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_UploadMedia(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_GetMedia(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_RemovePosts(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
  public:
   BackEndServiceProcessor(::apache::thrift::stdcxx::shared_ptr<BackEndServiceIf> iface) :
     iface_(iface) {
@@ -1879,6 +2005,7 @@ class BackEndServiceProcessor : public ::apache::thrift::TDispatchProcessor {
     processMap_["ReadHomeTimeline"] = &BackEndServiceProcessor::process_ReadHomeTimeline;
     processMap_["UploadMedia"] = &BackEndServiceProcessor::process_UploadMedia;
     processMap_["GetMedia"] = &BackEndServiceProcessor::process_GetMedia;
+    processMap_["RemovePosts"] = &BackEndServiceProcessor::process_RemovePosts;
   }
 
   virtual ~BackEndServiceProcessor() {}
@@ -2039,6 +2166,15 @@ class BackEndServiceMultiface : virtual public BackEndServiceIf {
     return;
   }
 
+  void RemovePosts(const int64_t user_id, const int32_t start, const int32_t stop) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->RemovePosts(user_id, start, stop);
+    }
+    ifaces_[i]->RemovePosts(user_id, start, stop);
+  }
+
 };
 
 // The 'concurrent' client is a thread safe client that correctly handles
@@ -2111,6 +2247,9 @@ class BackEndServiceConcurrentClient : virtual public BackEndServiceIf {
   void GetMedia(std::string& _return, const std::string& filename);
   int32_t send_GetMedia(const std::string& filename);
   void recv_GetMedia(std::string& _return, const int32_t seqid);
+  void RemovePosts(const int64_t user_id, const int32_t start, const int32_t stop);
+  int32_t send_RemovePosts(const int64_t user_id, const int32_t start, const int32_t stop);
+  void recv_RemovePosts(const int32_t seqid);
  protected:
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   apache::thrift::stdcxx::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;

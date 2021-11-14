@@ -30,6 +30,7 @@ public:
   BackEndHandler(const StateCaps &cap);
   ~BackEndHandler() override = default;
 
+  void RemovePosts(int64_t user_id, int start, int stop);
   void ComposePost(const std::string &username, int64_t user_id,
                    const std::string &text,
                    const std::vector<int64_t> &media_ids,
@@ -67,6 +68,49 @@ private:
 };
 
 BackEndHandler::BackEndHandler(const StateCaps &caps) : _states(caps) {}
+
+void BackEndHandler::RemovePosts(int64_t user_id, int start, int stop) {
+  auto posts_future = _states.user_timeline_service_obj.run_async(
+      &UserTimelineService::ReadUserTimeline, user_id, start, stop);
+  auto followers_future = _states.social_graph_service_obj.run_async(
+      &SocialGraphService::GetFollowers, user_id);
+  auto posts = std::move(posts_future.get());
+  auto followers = std::move(followers_future.get());
+
+  std::vector<nu::Future<bool>> remove_post_futures;
+  std::vector<nu::Future<void>> remove_from_timeline_futures;
+  std::vector<nu::Future<void>> remove_short_url_futures;
+
+  for (auto post : posts) {
+    remove_post_futures.emplace_back(_states.post_storage_service_obj.run_async(
+        &PostStorageService::RemovePost, post.post_id));
+
+    remove_from_timeline_futures.emplace_back(
+        _states.user_timeline_service_obj.run_async(
+            &UserTimelineService::RemovePost, user_id, post.post_id,
+            post.timestamp));
+    for (auto mention : post.user_mentions) {
+      remove_from_timeline_futures.emplace_back(
+          _states.home_timeline_service_obj.run_async(
+              &HomeTimelineService::RemovePost, mention.user_id, post.post_id,
+              post.timestamp));
+    }
+    for (auto user_id : followers) {
+      remove_from_timeline_futures.emplace_back(
+          _states.home_timeline_service_obj.run_async(
+              &HomeTimelineService::RemovePost, user_id, post.post_id,
+              post.timestamp));
+    }
+
+    std::vector<std::string> shortened_urls;
+    for (auto &url : post.urls) {
+      shortened_urls.emplace_back(std::move(url.shortened_url));
+    }
+    remove_short_url_futures.emplace_back(
+        _states.url_shorten_service_obj.run_async(
+            &UrlShortenService::RemoveUrls, shortened_urls));
+  }
+}
 
 void BackEndHandler::ComposePost(const std::string &username, int64_t user_id,
                                  const std::string &text,
@@ -176,8 +220,8 @@ void BackEndHandler::Unfollow(const int64_t user_id,
                                        followee_id);
 }
 
-void BackEndHandler::UnfollowWithUsername(const std::string &user_username,
-    const std::string &followee_username) {
+void BackEndHandler::UnfollowWithUsername(
+    const std::string &user_username, const std::string &followee_username) {
   _states.social_graph_service_obj.run(
       &SocialGraphService::UnfollowWithUsername, user_username,
       followee_username);

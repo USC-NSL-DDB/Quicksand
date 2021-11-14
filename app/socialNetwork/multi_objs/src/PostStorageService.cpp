@@ -9,6 +9,10 @@ void PostStorageService::StorePost(social_network::Post post) {
   _postid_to_post_map.put(post.post_id, std::move(post));
 }
 
+bool PostStorageService::RemovePost(int64_t post_id) {
+  return _postid_to_post_map.remove(post_id);
+}
+
 Post PostStorageService::ReadPost(int64_t post_id) {
   auto optional = _postid_to_post_map.get(post_id);
   BUG_ON(!optional);
