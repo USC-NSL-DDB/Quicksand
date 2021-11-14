@@ -116,7 +116,7 @@ void PressureHandler::main_handler(void *unused) {
 }
 
 void PressureHandler::wait_aux_tasks() {
-  for (uint32_t i = 0; i < kNumAuxHandlers - 1; i++) {
+  for (uint32_t i = 0; i < kNumAuxHandlers; i++) {
     while (rt::access_once(aux_handler_states[i].task_pending)) {
       cpu_relax();
     }
