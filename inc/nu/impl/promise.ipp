@@ -17,10 +17,14 @@ Promise<T>::Promise() : futurized_(false), ready_(false) {}
 inline Promise<void>::Promise() : futurized_(false), ready_(false) {}
 
 template <typename T> Promise<T>::~Promise() {
-  rt::ScopedLock<rt::Mutex> l(&mutex_);
+  mutex_.lock();
+  mutex_.unlock();
 }
 
-inline Promise<void>::~Promise() { rt::ScopedLock<rt::Mutex> l(&mutex_); }
+inline Promise<void>::~Promise() {
+  mutex_.lock();
+  mutex_.unlock();
+}
 
 template <typename T>
 template <typename Deleter>
@@ -37,17 +41,19 @@ template <typename Deleter> Future<void, Deleter> Promise<void>::get_future() {
 }
 
 template <typename T> void Promise<T>::set_ready() {
-  rt::ScopedLock<rt::Mutex> l(&mutex_);
+  mutex_.lock();
   ready_ = true;
   barrier();
-  cv_.SignalAll();
+  cv_.signal_all();
+  mutex_.unlock();
 }
 
 inline void Promise<void>::set_ready() {
-  rt::ScopedLock<rt::Mutex> l(&mutex_);
+  mutex_.lock();
   ready_ = true;
   barrier();
-  cv_.SignalAll();
+  cv_.signal_all();
+  mutex_.unlock();
 }
 
 template <typename T> T *Promise<T>::data() { return &t_; }

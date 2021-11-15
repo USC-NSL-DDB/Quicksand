@@ -76,10 +76,11 @@ template <typename T, typename Deleter> T &Future<T, Deleter>::get() {
     return promise_->t_;
   }
 
-  rt::ScopedLock<rt::Mutex> lock(&promise_->mutex_);
+  promise_->mutex_.lock();
   while (!is_ready()) {
-    promise_->cv_.Wait(&promise_->mutex_);
+    promise_->cv_.wait(&promise_->mutex_);
   }
+  promise_->mutex_.unlock();
   return promise_->t_;
 }
 
@@ -88,10 +89,11 @@ template <typename Deleter> void Future<void, Deleter>::get() {
     return;
   }
 
-  rt::ScopedLock<rt::Mutex> lock(&promise_->mutex_);
+  promise_->mutex_.lock();
   while (!is_ready()) {
-    promise_->cv_.Wait(&promise_->mutex_);
+    promise_->cv_.wait(&promise_->mutex_);
   }
+  promise_->mutex_.unlock();
 }
 
 template <typename F, typename Allocator>
