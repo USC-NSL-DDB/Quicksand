@@ -3,8 +3,7 @@
 #include <functional>
 #include <memory>
 
-#include "nu/utils/cond_var.hpp"
-#include "nu/utils/mutex.hpp"
+#include "nu/utils/thread.hpp"
 
 namespace nu {
 
@@ -22,14 +21,11 @@ public:
 
 private:
   bool futurized_;
-  bool ready_;
-  Mutex mutex_;
-  CondVar cv_;
   T t_;
+  Thread th_;
   template <typename U, typename Deleter> friend class Future;
 
   Promise();
-  void set_ready();
   T *data();
 };
 
@@ -45,13 +41,10 @@ public:
 
 private:
   bool futurized_;
-  bool ready_;
-  Mutex mutex_;
-  CondVar cv_;
+  Thread th_;
   template <typename U, typename Deleter> friend class Future;
 
   Promise();
-  void set_ready();
 };
 } // namespace nu
 

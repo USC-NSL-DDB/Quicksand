@@ -1,5 +1,6 @@
 #pragma once
 
+#include <folly/Function.h>
 #include <memory>
 
 #include <sync.h>
@@ -11,11 +12,10 @@
 namespace nu {
 
 struct join_data {
-  template <typename F>
-  join_data(F &&f) : done(false), func(std::forward<F>(f)) {}
+  template <typename F> join_data(F &&f) : done(false), func(std::move(f)) {}
   template <typename F>
   join_data(F &&f, OutermostMigrationDisabledGuard &&g)
-      : done(false), func(std::forward<F>(f)), guard(std::move(g)) {}
+      : done(false), func(std::move(f)), guard(std::move(g)) {}
 
   SpinLock lock;
   bool done;

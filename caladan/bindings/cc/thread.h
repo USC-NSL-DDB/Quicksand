@@ -2,12 +2,12 @@
 
 #pragma once
 
+#include <folly/Function.h>
+
 extern "C" {
 #include <base/assert.h>
 #include <runtime/sync.h>
 }
-
-#include <folly/Function.h>
 
 namespace rt {
 namespace thread_internal {

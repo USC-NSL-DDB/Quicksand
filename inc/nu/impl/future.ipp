@@ -36,8 +36,8 @@ Future<void, Deleter>::Future(Future<void, Deleter> &&o)
     : promise_(std::move(o.promise_)) {}
 
 template <typename Deleter>
-Future<void, Deleter> &Future<void, Deleter>::
-operator=(Future<void, Deleter> &&o) {
+Future<void, Deleter> &
+Future<void, Deleter>::operator=(Future<void, Deleter> &&o) {
   promise_ = std::move(o.promise_);
   return *this;
 }
@@ -64,11 +64,11 @@ template <typename Deleter> Future<void, Deleter>::operator bool() const {
 }
 
 template <typename T, typename Deleter> bool Future<T, Deleter>::is_ready() {
-  return ACCESS_ONCE(promise_->ready_);
+  return !promise_->th_.joinable();
 }
 
 template <typename Deleter> bool Future<void, Deleter>::is_ready() {
-  return ACCESS_ONCE(promise_->ready_);
+  return !promise_->th_.joinable();
 }
 
 template <typename T, typename Deleter> T &Future<T, Deleter>::get() {
@@ -76,11 +76,7 @@ template <typename T, typename Deleter> T &Future<T, Deleter>::get() {
     return promise_->t_;
   }
 
-  promise_->mutex_.lock();
-  while (!is_ready()) {
-    promise_->cv_.wait(&promise_->mutex_);
-  }
-  promise_->mutex_.unlock();
+  promise_->th_.join();
   return promise_->t_;
 }
 
@@ -89,11 +85,7 @@ template <typename Deleter> void Future<void, Deleter>::get() {
     return;
   }
 
-  promise_->mutex_.lock();
-  while (!is_ready()) {
-    promise_->cv_.wait(&promise_->mutex_);
-  }
-  promise_->mutex_.unlock();
+  promise_->th_.join();
 }
 
 template <typename F, typename Allocator>

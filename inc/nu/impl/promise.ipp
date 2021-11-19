@@ -5,25 +5,25 @@ extern "C" {
 #include <base/compiler.h>
 }
 #include <sync.h>
-#include <thread.h>
 
 #include "nu/utils/future.hpp"
 
 namespace nu {
 
-template <typename T>
-Promise<T>::Promise() : futurized_(false), ready_(false) {}
+template <typename T> Promise<T>::Promise() : futurized_(false) {}
 
-inline Promise<void>::Promise() : futurized_(false), ready_(false) {}
+inline Promise<void>::Promise() : futurized_(false) {}
 
 template <typename T> Promise<T>::~Promise() {
-  mutex_.lock();
-  mutex_.unlock();
+  if (th_.joinable()) {
+    th_.join();
+  }
 }
 
 inline Promise<void>::~Promise() {
-  mutex_.lock();
-  mutex_.unlock();
+  if (th_.joinable()) {
+    th_.join();
+  }
 }
 
 template <typename T>
@@ -40,34 +40,16 @@ template <typename Deleter> Future<void, Deleter> Promise<void>::get_future() {
   return Future<void, Deleter>(this);
 }
 
-template <typename T> void Promise<T>::set_ready() {
-  mutex_.lock();
-  ready_ = true;
-  barrier();
-  cv_.signal_all();
-  mutex_.unlock();
-}
-
-inline void Promise<void>::set_ready() {
-  mutex_.lock();
-  ready_ = true;
-  barrier();
-  cv_.signal_all();
-  mutex_.unlock();
-}
-
 template <typename T> T *Promise<T>::data() { return &t_; }
 
 template <typename T>
 template <typename F, typename Allocator>
-Promise<T> *Promise<T>::create(F && f) {
+Promise<T> *Promise<T>::create(F &&f) {
   Allocator allocator;
   auto *promise = allocator.allocate(1);
   new (promise) Promise<T>();
-  rt::Thread([promise, f = std::forward<F>(f)]() mutable {
-    *promise->data() = f();
-    promise->set_ready();
-  }).Detach();
+  promise->th_ = Thread(
+      [promise, f = std::forward<F>(f)]() mutable { *promise->data() = f(); });
   return promise;
 }
 
@@ -76,10 +58,7 @@ Promise<void> *Promise<void>::create(F &&f) {
   Allocator allocator;
   auto *promise = allocator.allocate(1);
   new (promise) Promise<void>();
-  rt::Thread([promise, f = std::forward<F>(f)]() mutable {
-    f();
-    promise->set_ready();
-  }).Detach();
+  promise->th_ = Thread([promise, f = std::forward<F>(f)]() mutable { f(); });
   return promise;
 }
 

@@ -12,7 +12,6 @@ extern "C" {
 
 #include "nu/commons.hpp"
 #include "nu/utils/archive_pool.hpp"
-#include "nu/utils/future.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/rpc.hpp"
 #include "nu/utils/slab.hpp"
@@ -31,9 +30,6 @@ class RPCServer;
 class PressureHandler;
 template <typename T> class RuntimeAllocator;
 template <typename T> class RuntimeDeleter;
-
-template <typename T>
-using RuntimeFuture = Future<T, RuntimeDeleter<Promise<T>>>;
 
 class Runtime {
 public:
