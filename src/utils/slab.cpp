@@ -106,7 +106,10 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
     auto *hdr = reinterpret_cast<PtrHeader *>(ret);
     hdr->size = size;
     hdr->slab_id = slab_id_;
-    ret = reinterpret_cast<uint8_t *>(ret) + sizeof(PtrHeader);
+    auto addr = reinterpret_cast<uintptr_t>(ret);
+    addr += sizeof(PtrHeader);
+    assert(addr % kAlignment == 0);
+    ret = reinterpret_cast<uint8_t *>(addr);
   }
   
   return ret;
@@ -144,6 +147,7 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
 
 void *SlabAllocator::yield(size_t size) noexcept {
   rt::ScopedLock<rt::Spin> lock(&spin_);
+  size = (((size - 1) / kAlignment) + 1) * kAlignment;
   if (unlikely(cur_ + size > end_)) {
     return nullptr;
   }
