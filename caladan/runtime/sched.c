@@ -18,7 +18,9 @@
 #include "defs.h"
 
 const int thread_link_offset = offsetof(struct thread, link);
-const int thread_run_cycles_offset = offsetof(struct thread, run_cycles);
+const int thread_run_cycles_offset =
+       offsetof(struct thread, nu_state) +
+       offsetof(struct thread_nu_state, run_cycles);
 
 /* the current running thread, or NULL if there isn't one */
 __thread thread_t *__self;
@@ -84,7 +86,7 @@ static __noreturn void jmp_thread(thread_t *th)
 			cpu_relax();
 	}
 	th->thread_running = true;
-	__jmp_thread(&th->tf);
+	__jmp_thread(&th->nu_state.tf);
 }
 
 /**
@@ -109,7 +111,8 @@ static void jmp_thread_direct(thread_t *oldth, thread_t *newth)
 			cpu_relax();
 	}
 	newth->thread_running = true;
-	__jmp_thread_direct(&oldth->tf, &newth->tf, &oldth->thread_running);
+	__jmp_thread_direct(&oldth->nu_state.tf, &newth->nu_state.tf,
+			    &oldth->thread_running);
 }
 
 /**
@@ -127,7 +130,7 @@ static void jmp_runtime(runtime_fn_t fn)
 	assert_preempt_disabled();
 	assert(thread_self() != NULL);
 
-	__jmp_runtime(&thread_self()->tf, fn, runtime_stack);
+	__jmp_runtime(&thread_self()->nu_state.tf, fn, runtime_stack);
 }
 
 /**
@@ -193,7 +196,7 @@ static void pop_migrating_threads(struct kthread *k)
 	avail = load_acquire(&k->rq_head) - k->rq_tail;
 	for (i = 0; i < avail; i++) {
 		th = k->rq[k->rq_tail++ % RUNTIME_RQ_SIZE];
-		if (th->migration_state == MIGRATING) {
+		if (th->nu_state.migration_state == MIGRATING) {
 			num_popped++;
 			list_add_tail(&k->migrating_ths, &th->link);
 		} else {
@@ -206,7 +209,7 @@ static void pop_migrating_threads(struct kthread *k)
 	        list_add_tail(&k->rq_overflow, &sentinel.link);
 		while ((th = list_pop(&k->rq_overflow, thread_t, link)) !=
 		       &sentinel) {
-			if (th->migration_state == MIGRATING) {
+			if (th->nu_state.migration_state == MIGRATING) {
 				num_popped++;
 				list_add_tail(&k->migrating_ths, &th->link);
 			} else {
@@ -549,8 +552,8 @@ static __always_inline void enter_schedule(thread_t *curth)
 	assert_preempt_disabled();
 
 	now = rdtsc();
-	if (curth->run_cycles)
-		curth->run_cycles[read_cpu()].c += now - curth->run_start_tsc;
+	if (curth->nu_state.run_cycles)
+		curth->nu_state.run_cycles[read_cpu()].c += now - curth->run_start_tsc;
 
 	/* prepare current thread for sleeping */
 	curth->run_start_tsc = UINT64_MAX;
@@ -861,8 +864,9 @@ void thread_cede(void)
 
 	/* this will switch from the thread stack to the runtime stack */
 	core_id = get_cpu();
-	if (th->run_cycles)
-		th->run_cycles[core_id].c += rdtsc() - th->run_start_tsc;
+	if (th->nu_state.run_cycles)
+		th->nu_state.run_cycles[core_id].c +=
+			rdtsc() - th->run_start_tsc;
 	jmp_runtime(thread_finish_cede);
 }
 
@@ -892,20 +896,21 @@ static __always_inline thread_t *__thread_create(void)
 	th->thread_ready = false;
 	th->thread_running = false;
 	th->run_start_tsc = UINT64_MAX;
-	th->run_cycles = NULL;
 	th->wq_spin = false;
+	th->nu_state.run_cycles = NULL;
+	th->nu_state.nu_thread = NULL;
 	if (__self) {
-		th->obj_heap = __self->obj_heap;
-		th->num_rcus_held = __self->num_rcus_held;
-		memcpy(th->rcus_held, __self->rcus_held,
-		       sizeof(struct rcu_info) * th->num_rcus_held);
+		th->nu_state.obj_heap = __self->nu_state.obj_heap;
+		th->nu_state.num_rcus_held = __self->nu_state.num_rcus_held;
+		memcpy(th->nu_state.rcus_held, __self->nu_state.rcus_held,
+		       sizeof(struct rcu_info) * th->nu_state.num_rcus_held);
 	}
 	else {
-		th->obj_heap = NULL;
-		th->num_rcus_held = 0;
+		th->nu_state.obj_heap = NULL;
+		th->nu_state.num_rcus_held = 0;
 	}
-	th->waiter_info = 0;
-	th->migration_state = NO_MIGRATION;
+	th->nu_state.waiter_info = 0;
+	th->nu_state.migration_state = NO_MIGRATION;
 
 	return th;
 }
@@ -923,10 +928,11 @@ thread_t *thread_create(thread_fn_t fn, void *arg)
 	if (unlikely(!th))
 		return NULL;
 
-	th->tf.rsp = stack_init_to_rsp(th->stack, thread_exit);
-	th->tf.rdi = (uint64_t)arg;
-	th->tf.rbp = (uint64_t)0; /* just in case base pointers are enabled */
-	th->tf.rip = (uint64_t)fn;
+	th->nu_state.tf.rsp = stack_init_to_rsp(th->stack, thread_exit);
+	th->nu_state.tf.rdi = (uint64_t)arg;
+	/* just in case base pointers are enabled */
+	th->nu_state.tf.rbp = (uint64_t)0;
+	th->nu_state.tf.rip = (uint64_t)fn;
 	gc_register_thread(th);
 	return th;
 }
@@ -947,11 +953,12 @@ thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t buf_len)
 	if (unlikely(!th))
 		return NULL;
 
-	th->tf.rsp = stack_init_to_rsp_with_buf(th->stack, &ptr, buf_len,
-						thread_exit);
-	th->tf.rdi = (uint64_t)ptr;
-	th->tf.rbp = (uint64_t)0; /* just in case base pointers are enabled */
-	th->tf.rip = (uint64_t)fn;
+	th->nu_state.tf.rsp = stack_init_to_rsp_with_buf(th->stack, &ptr, buf_len,
+						         thread_exit);
+	th->nu_state.tf.rdi = (uint64_t)ptr;
+	/* just in case base pointers are enabled */
+	th->nu_state.tf.rbp = (uint64_t)0;
+	th->nu_state.tf.rip = (uint64_t)fn;
 	*buf = ptr;
 	gc_register_thread(th);
 	return th;
@@ -1125,13 +1132,13 @@ int sched_init(void)
 	return 0;
 }
 
-void thread_mark_migrating(thread_t *th) { th->migration_state = MIGRATING; }
+void thread_mark_migrating(thread_t *th) { th->nu_state.migration_state = MIGRATING; }
 
-void thread_mark_migrated(thread_t *th) { th->migration_state = MIGRATED; }
+void thread_mark_migrated(thread_t *th) { th->nu_state.migration_state = MIGRATED; }
 
 bool thread_is_migrated(void)
 {
-	return __self->migration_state == MIGRATED;
+	return __self->nu_state.migration_state == MIGRATED;
 }
 
 void pause_all_migrating_threads(void)
@@ -1152,23 +1159,20 @@ retry:
 	store_release(&global_pause_req_mask, false);
 }
 
-uint64_t thread_get_rsp(thread_t *th) { return th->tf.rsp; }
+uint64_t thread_get_rsp(thread_t *th) { return th->nu_state.tf.rsp; }
 
-void *thread_get_trap_frame(thread_t *th, size_t *size)
+void *thread_get_nu_state(thread_t *th, size_t *nu_state_size)
 {
-	*size = sizeof(struct thread_tf);
-	return &th->tf;
+	*nu_state_size = sizeof(struct thread_nu_state);
+	return &th->nu_state;
 }
 
-thread_t *create_migrated_thread(void *tf, void *obj_heap,
-                                 struct aligned_cycles *monitor_cycles)
+thread_t *create_migrated_thread(void *nu_state)
 {
 	thread_t *th = __thread_create();
 	BUG_ON(!th);
-	th->obj_heap = obj_heap;
-	th->tf = *((struct thread_tf *)tf);
-	th->migration_state = MIGRATED;
-	th->run_cycles = monitor_cycles;
+	th->nu_state = *(struct thread_nu_state *)nu_state;
+	th->nu_state.migration_state = MIGRATED;
 
 	return th;
 }
@@ -1180,7 +1184,7 @@ void gc_migrated_threads(void)
 
 	for (i = 0; i < nrks; i++) {
 		while ((th = list_pop(&ks[i]->migrating_ths, thread_t, link))) {
-			if (th->migration_state == MIGRATED) {
+			if (th->nu_state.migration_state == MIGRATED) {
 				stack_free(th->stack);
 				tcache_free(&perthread_get(thread_pt), th);
 			} else
@@ -1194,49 +1198,49 @@ void *thread_get_runtime_stack_base(void)
 	return &__self->stack->usable[STACK_PTR_SIZE - 1];
 }
 
-void *get_obj_heap()
+void *thread_get_obj_heap()
 {
        if (!__self)
 		return 0;
        else
-		return __self->obj_heap;
+		return __self->nu_state.obj_heap;
 }
 
-void set_obj_heap(void *obj_heap)
+void thread_set_obj_heap(void *obj_heap)
 {
-       __self->obj_heap = obj_heap;
+       __self->nu_state.obj_heap = obj_heap;
 }
 
-uint64_t get_waiter_info(thread_t *th)
+uint64_t thread_get_waiter_info(thread_t *th)
 {
-       return th->waiter_info;
+       return th->nu_state.waiter_info;
 }
 
-void set_waiter_info(thread_t *th, uint64_t waiter_info)
+void thread_set_waiter_info(thread_t *th, uint64_t waiter_info)
 {
-       th->waiter_info = waiter_info;
+       th->nu_state.waiter_info = waiter_info;
 }
 
-void get_waiter_info_and_ready(thread_t *th, uint64_t *waiter_info,
-                               bool *ready)
+void thread_get_waiter_info_and_ready(thread_t *th, uint64_t *waiter_info,
+                                      bool *ready)
 {
-       *waiter_info = th->waiter_info;
+       *waiter_info = th->nu_state.waiter_info;
        *ready = th->thread_ready;
 }
 
-uint64_t get_self_waiter_info(void)
+uint64_t thread_get_self_waiter_info(void)
 {
        uint64_t waiter_info;
        preempt_disable();
-       waiter_info = __self->waiter_info;
+       waiter_info = __self->nu_state.waiter_info;
        preempt_enable();
        return waiter_info;
 }
 
-void set_self_waiter_info(uint64_t waiter_info)
+void thread_set_self_waiter_info(uint64_t waiter_info)
 {
        preempt_disable();
-       __self->waiter_info = waiter_info;
+       __self->nu_state.waiter_info = waiter_info;
        preempt_enable();
 }
 
@@ -1247,14 +1251,14 @@ thread_start_monitor_cycles(struct aligned_cycles *output)
        uint64_t curr_tsc = rdtsc();
        struct aligned_cycles *old_output;
 
-       if (__self->run_cycles) {
-              __self->run_cycles[core_id].c +=
+       if (__self->nu_state.run_cycles) {
+              __self->nu_state.run_cycles[core_id].c +=
                      curr_tsc - __self->run_start_tsc;
-	      old_output = __self->run_cycles;
+	      old_output = __self->nu_state.run_cycles;
        } else
 	      old_output = NULL;
        __self->run_start_tsc = curr_tsc;
-       __self->run_cycles = output;
+       __self->nu_state.run_cycles = output;
        put_cpu();
 
        return old_output;
@@ -1264,8 +1268,9 @@ void thread_end_monitor_cycles(struct aligned_cycles *old_output) {
        int core_id = get_cpu();
        uint64_t curr_tsc = rdtsc();
 
-       __self->run_cycles[core_id].c += curr_tsc - __self->run_start_tsc;
-       __self->run_cycles = old_output;
+       __self->nu_state.run_cycles[core_id].c +=
+              curr_tsc - __self->run_start_tsc;
+       __self->nu_state.run_cycles = old_output;
        __self->run_start_tsc = curr_tsc;
        put_cpu();
 }
@@ -1280,7 +1285,7 @@ void thread_flush_all_monitor_cycles(void)
        for (i = 0; i < nrks; i++) {
               th = ks[i]->curr_th;
 	      if (th) {
-                     run_cycles = th->run_cycles;
+                     run_cycles = th->nu_state.run_cycles;
                      if (run_cycles) {
                             run_cycles[i].c += curr_tsc - th->run_start_tsc;
                             th->run_start_tsc = curr_tsc;
@@ -1291,7 +1296,7 @@ void thread_flush_all_monitor_cycles(void)
 
 struct aligned_cycles *thread_get_monitor_cycles(thread_t *th)
 {
-       return th->run_cycles;
+       return th->nu_state.run_cycles;
 }
 
 bool thread_hold_rcu(void *rcu)
@@ -1300,17 +1305,17 @@ bool thread_hold_rcu(void *rcu)
        uint32_t i;
        uint64_t addr = (uint64_t)rcu;
 
-       for (i = 0; i < th->num_rcus_held; i++) {
-              if (th->rcus_held[i].addr == addr) {
-                     th->rcus_held[i].cnt++;
-                     BUG_ON(!th->rcus_held[i].cnt);
+       for (i = 0; i < th->nu_state.num_rcus_held; i++) {
+              if (th->nu_state.rcus_held[i].addr == addr) {
+                     th->nu_state.rcus_held[i].cnt++;
+                     BUG_ON(!th->nu_state.rcus_held[i].cnt);
                      return false;
               }
        }
-       BUG_ON(th->num_rcus_held >= MAX_NUM_RCUS_HELD);
-       th->rcus_held[th->num_rcus_held].addr = addr;
-       th->rcus_held[th->num_rcus_held].cnt = 1;
-       th->num_rcus_held++;
+       BUG_ON(th->nu_state.num_rcus_held >= MAX_NUM_RCUS_HELD);
+       th->nu_state.rcus_held[th->nu_state.num_rcus_held].addr = addr;
+       th->nu_state.rcus_held[th->nu_state.num_rcus_held].cnt = 1;
+       th->nu_state.num_rcus_held++;
        return true;
 }
 
@@ -1320,14 +1325,24 @@ void thread_unhold_rcu(void *rcu)
        uint32_t i;
        uint64_t addr = (uint64_t)rcu;
 
-       for (i = 0; i < th->num_rcus_held; i++) {
-              if (th->rcus_held[i].addr == addr) {
-                     if (!(--th->rcus_held[i].cnt)) {
-                            BUG_ON(i != th->num_rcus_held - 1);
-                            th->num_rcus_held--;
+       for (i = 0; i < th->nu_state.num_rcus_held; i++) {
+              if (th->nu_state.rcus_held[i].addr == addr) {
+                     if (!(--th->nu_state.rcus_held[i].cnt)) {
+                            BUG_ON(i != th->nu_state.num_rcus_held - 1);
+                            th->nu_state.num_rcus_held--;
                      }
                      return;
               }
        }
        BUG();
+}
+
+void thread_set_nu_thread(thread_t *th, void *nu_thread)
+{
+       th->nu_state.nu_thread = nu_thread;
+}
+
+void *thread_get_nu_thread(thread_t *th)
+{
+       return th->nu_state.nu_thread;
 }

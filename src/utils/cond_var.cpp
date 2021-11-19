@@ -17,9 +17,9 @@ void CondVar::wait(Mutex *mutex) {
   WaiterInfo waiter_info;
   waiter_info.type = WaiterType::kCondVar;
   waiter_info.addr = reinterpret_cast<uint64_t>(this);
-  set_self_waiter_info(waiter_info.raw);
+  thread_set_self_waiter_info(waiter_info.raw);
   thread_park_and_unlock_np(&condvar_.waiter_lock);
-  set_self_waiter_info(0);
+  thread_set_self_waiter_info(0);
 
   mutex->lock();
 }
@@ -37,9 +37,9 @@ void CondVar::wait(SpinLock *spin) {
   WaiterInfo waiter_info;
   waiter_info.type = WaiterType::kCondVar;
   waiter_info.addr = reinterpret_cast<uint64_t>(this);
-  set_self_waiter_info(waiter_info.raw);
+  thread_set_self_waiter_info(waiter_info.raw);
   thread_park_and_unlock_np(&condvar_.waiter_lock);
-  set_self_waiter_info(0);
+  thread_set_self_waiter_info(0);
 
   spin->lock();
 }

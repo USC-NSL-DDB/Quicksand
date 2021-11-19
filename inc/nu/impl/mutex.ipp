@@ -15,9 +15,9 @@ inline void Mutex::lock() {
     WaiterInfo waiter_info;
     waiter_info.type = WaiterType::kMutex;
     waiter_info.addr = reinterpret_cast<uint64_t>(this);
-    set_self_waiter_info(waiter_info.raw);
+    thread_set_self_waiter_info(waiter_info.raw);
     __mutex_lock(&mutex_);
-    set_self_waiter_info(0);
+    thread_set_self_waiter_info(0);
   }
 }
 

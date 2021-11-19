@@ -1,3 +1,5 @@
+#include <sync.h>
+
 #include "nu/heap_mgr.hpp"
 #include "nu/runtime.hpp"
 
@@ -10,17 +12,16 @@ inline Thread::Thread() : th_(nullptr), join_data_(nullptr) {}
 
 inline Thread::~Thread() { BUG_ON(join_data_); }
 
-inline Thread::Thread(Thread &&t)
-    : th_(t.th_), join_data_(t.join_data_) {
-  t.th_ = nullptr;
-  t.join_data_ = nullptr;
-}
+inline Thread::Thread(Thread &&t) { *this = std::move(t); }
 
 inline Thread &Thread::operator=(Thread &&t) {
+  rt::Preempt p;
+  rt::PreemptGuard guard(&p);
   th_ = t.th_;
   t.th_ = nullptr;
   join_data_ = t.join_data_;
-  t.join_data_= nullptr;
+  t.join_data_ = nullptr;
+  thread_set_nu_thread(th_, this);
   return *this;
 }
 
@@ -53,6 +54,7 @@ retry:
   }
   th_ = thread_create_with_buf(trampoline_in_obj_env,
                                reinterpret_cast<void **>(&args), sizeof(*args));
+  thread_set_nu_thread(th_, this);
   BUG_ON(!th_);
   join_data_ = new join_data(std::forward<F>(f), std::move(guard));
   *args = join_data_;

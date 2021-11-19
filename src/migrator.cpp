@@ -23,6 +23,7 @@ extern "C" {
 #include "nu/runtime_alloc.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
+#include "nu/utils/thread.hpp"
 
 constexpr static bool kEnableLogging = false;
 
@@ -292,13 +293,10 @@ void Migrator::transmit_time(rt::TcpConn *c, Time *time) {
 }
 
 void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
-  size_t tf_size;
-  auto *tf = thread_get_trap_frame(thread, &tf_size);
-  auto *monitor_cycles = thread_get_monitor_cycles(thread);
-  const iovec iovecs0[] = {{tf, tf_size},
-                           {&monitor_cycles, sizeof(monitor_cycles)}};
-  BUG_ON(c->WritevFull(std::span(iovecs0), /* nt = */ false,
-                       /* poll = */ true) < 0);
+  size_t nu_state_size;
+  auto *nu_state = thread_get_nu_state(thread, &nu_state_size);
+  BUG_ON(c->WriteFull(nu_state, nu_state_size, /* nt = */ false,
+                      /* poll = */ true) < 0);
 
   auto stack_range = get_obj_stack_range(thread);
   auto stack_len = stack_range.end - stack_range.start;
@@ -352,7 +350,7 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header) {
   for (auto *thread : all_threads) {
     WaiterInfo waiter_info;
     bool ready;
-    get_waiter_info_and_ready(thread, &waiter_info.raw, &ready);
+    thread_get_waiter_info_and_ready(thread, &waiter_info.raw, &ready);
     // Cannot simply use waiter_info.type == WaiterType::None here, since it's
     // vulnerable to race conditions.
     if (likely(ready)) {
@@ -491,23 +489,22 @@ void Migrator::load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task) {
 }
 
 thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
-  auto *obj_heap = &heap_header->slab;
-
-  size_t tf_size;
-  thread_get_trap_frame(thread_self(), &tf_size);
-  auto tf = std::make_unique<uint8_t[]>(tf_size);
-  aligned_cycles *monitor_cycles;
-  const iovec iovecs[] = {{tf.get(), tf_size},
-                          {&monitor_cycles, sizeof(monitor_cycles)}};
-  BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
+  size_t nu_state_size;
+  thread_get_nu_state(thread_self(), &nu_state_size);
+  auto nu_state = std::make_unique<uint8_t[]>(nu_state_size);
+  BUG_ON(c->ReadFull(nu_state.get(), nu_state_size) <= 0);
 
   VAddrRange stack_range;
   BUG_ON(c->ReadFull(&stack_range, sizeof(stack_range)) <= 0);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                      /* nt = */ true) <= 0);
-  auto *th = create_migrated_thread(tf.get(), obj_heap, monitor_cycles);
+  auto *th = create_migrated_thread(nu_state.get());
   heap_header->threads->put(th);
+  auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
+  if (nu_thread) {
+    nu_thread->th_ = th;
+  }
   return th;
 }
 
@@ -534,7 +531,7 @@ void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
         WaiterInfo waiter_info;
         waiter_info.type = WaiterType::kMutex;
         waiter_info.addr = reinterpret_cast<uint64_t>(mutex);
-        set_waiter_info(th, waiter_info.raw);
+        thread_set_waiter_info(th, waiter_info.raw);
         auto *th_link = reinterpret_cast<list_node *>(
             reinterpret_cast<uintptr_t>(th) + thread_link_offset);
         list_add_tail(waiters, th_link);
@@ -566,7 +563,7 @@ void Migrator::load_condvars(rt::TcpConn *c, HeapHeader *heap_header) {
         WaiterInfo waiter_info;
         waiter_info.type = WaiterType::kCondVar;
         waiter_info.addr = reinterpret_cast<uint64_t>(condvar);
-        set_waiter_info(th, waiter_info.raw);
+        thread_set_waiter_info(th, waiter_info.raw);
         auto *th_link = reinterpret_cast<list_node *>(
             reinterpret_cast<uintptr_t>(th) + thread_link_offset);
         list_add_tail(waiters, th_link);

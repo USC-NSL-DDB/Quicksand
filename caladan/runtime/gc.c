@@ -160,11 +160,13 @@ void gc_discover_all_stacks(stack_bounds_cb discover_cb)
 	for (i = 0; i < maxks; i++) {
 		spin_lock(&all_threads[i].lock);
 		list_for_each(&all_threads[i].threads, th, gc_link) {
-			top = th->tf.rsp;
+			top = th->nu_state.tf.rsp;
 			if (th == myth)
 				top = (uint64_t)&th;
 			else
-				discover_cb(sizeof(th->tf) + (uintptr_t)&th->tf, (uintptr_t)&th->tf); // scan trapframes also
+				discover_cb(sizeof(th->nu_state.tf) +
+					    (uintptr_t)&th->nu_state.tf,
+					    (uintptr_t)&th->nu_state.tf); // scan trapframes also
 			discover_cb((uintptr_t)&th->stack->usable[STACK_PTR_SIZE], top);
 		}
 		spin_unlock(&all_threads[i].lock);

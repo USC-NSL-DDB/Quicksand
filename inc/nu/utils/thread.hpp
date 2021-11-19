@@ -40,6 +40,7 @@ public:
 private:
   thread_t *th_;
   join_data *join_data_;
+  friend class Migrator;
 
   template <typename F> void create_in_obj_env(F &&f, HeapHeader *header);
   template <typename F> void create_in_runtime_env(F &&f);

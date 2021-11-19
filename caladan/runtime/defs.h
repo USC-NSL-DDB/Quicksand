@@ -101,8 +101,18 @@ struct rcu_info {
 	uint64_t                cnt:16;
 };
 
-struct thread {
+struct thread_nu_state {
 	struct thread_tf	tf;
+	uint8_t                 migration_state;
+	struct aligned_cycles	*run_cycles;
+	uint8_t                 num_rcus_held;
+	void                    *obj_heap;
+	uint64_t                waiter_info;
+	struct rcu_info         rcus_held[MAX_NUM_RCUS_HELD];
+	void                    *nu_thread;
+};
+
+struct thread {
 	struct list_node	link;
 	struct stack		*stack;
 	unsigned int		main_thread:1;
@@ -111,18 +121,12 @@ struct thread {
 	unsigned int		last_cpu;
 	uint64_t                run_start_tsc;
 	uint64_t		ready_tsc;
-	struct aligned_cycles	*run_cycles;
-	bool                    wq_spin;
 #ifdef GC
 	struct list_node	gc_link;
 	unsigned int		onk;
 #endif
-	/* nu-related fields */
-	uint8_t                 migration_state;
-	uint8_t                 num_rcus_held;
-	void                    *obj_heap;
-	uint64_t                waiter_info;
-	struct rcu_info         rcus_held[MAX_NUM_RCUS_HELD];
+	bool                    wq_spin;
+	struct thread_nu_state  nu_state;
 };
 
 typedef void (*runtime_fn_t)(void);

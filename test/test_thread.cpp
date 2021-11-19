@@ -14,9 +14,10 @@ class Test {
 public:
   void inc() {
     nu::Thread t([&] {
-      Time::sleep(1000 * 1000);
+      Time::sleep(2 * 1000 * 1000);
       s_++;
     });
+    Time::sleep(1000 * 1000);
     t.join();
   }
 

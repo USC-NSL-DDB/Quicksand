@@ -93,18 +93,19 @@ extern void thread_mark_migrating(thread_t *thread);
 extern void thread_mark_migrated(thread_t *thread);
 extern bool thread_is_migrated(void);
 extern uint64_t thread_get_rsp(thread_t *th);
-extern void *thread_get_trap_frame(thread_t *th, size_t *size);
 extern void pause_all_migrating_threads(void);
 extern void pause_local_migrating_threads(void);
-extern thread_t *create_migrated_thread(void *tf, void *obj_heap,
-                                        struct aligned_cycles *monitor_cycles);
+extern void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
+extern thread_t *create_migrated_thread(void *nu_state);
 extern void gc_migrated_threads(void);
 extern void *thread_get_runtime_stack_base(void);
-extern void *get_obj_heap(void);
-extern void set_obj_heap(void *obj_heap);
-extern uint64_t get_waiter_info(thread_t *th);
-extern uint64_t get_self_waiter_info(void);
-extern void get_waiter_info_and_ready(thread_t *th, uint64_t *waiter_info,
-                                      bool *ready);
-extern void set_waiter_info(thread_t *th, uint64_t waiter_info);
-extern void set_self_waiter_info(uint64_t waiter_info);
+extern void *thread_get_obj_heap(void);
+extern void thread_set_obj_heap(void *obj_heap);
+extern uint64_t thread_get_waiter_info(thread_t *th);
+extern uint64_t thread_get_self_waiter_info(void);
+extern void thread_get_waiter_info_and_ready(thread_t *th, uint64_t *waiter_info,
+                                             bool *ready);
+extern void thread_set_waiter_info(thread_t *th, uint64_t waiter_info);
+extern void thread_set_self_waiter_info(uint64_t waiter_info);
+extern void thread_set_nu_thread(thread_t *th, void *nu_thread);
+extern void *thread_get_nu_thread(thread_t *th);

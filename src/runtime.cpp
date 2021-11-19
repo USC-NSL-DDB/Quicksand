@@ -193,7 +193,7 @@ wrong_args:
 
 inline void *__new(size_t size) {
   void *ptr;
-  auto *slab = reinterpret_cast<nu::SlabAllocator *>(get_obj_heap());
+  auto *slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_heap());
 
   if (slab) {
     ptr = slab->allocate(size);

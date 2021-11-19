@@ -15,12 +15,14 @@ extern "C" {
 
 namespace nu {
 
-inline void Runtime::switch_to_obj_heap(void *heap) { set_obj_heap(heap); }
+inline void Runtime::switch_to_obj_heap(void *heap) {
+  thread_set_obj_heap(heap);
+}
 
-inline void Runtime::switch_to_runtime_heap() { set_obj_heap(nullptr); }
+inline void Runtime::switch_to_runtime_heap() { thread_set_obj_heap(nullptr); }
 
 inline HeapHeader *Runtime::get_current_obj_heap_header() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_obj_heap());
+  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_heap());
   if (!obj_slab) {
     return nullptr;
   }
@@ -35,7 +37,7 @@ inline RemObjID Runtime::get_current_obj_id() {
 }
 
 template <typename T> T *Runtime::get_current_obj() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(get_obj_heap());
+  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_heap());
   if (!obj_slab) {
     return nullptr;
   }
@@ -115,19 +117,19 @@ template <typename T> void Runtime::delete_on_runtime_heap(T *ptr) {
 }
 
 inline RuntimeHeapGuard::RuntimeHeapGuard()
-    : original_heap_(get_obj_heap()) {
+    : original_heap_(thread_get_obj_heap()) {
   Runtime::switch_to_runtime_heap();
 }
 
 inline RuntimeHeapGuard::~RuntimeHeapGuard() {
-  set_obj_heap(original_heap_);
+  thread_set_obj_heap(original_heap_);
 }
 
 inline ObjHeapGuard::ObjHeapGuard(void *heap)
-    : original_heap_(get_obj_heap()) {
+    : original_heap_(thread_get_obj_heap()) {
   Runtime::switch_to_obj_heap(heap);
 }
 
-inline ObjHeapGuard::~ObjHeapGuard() { set_obj_heap(original_heap_); }
+inline ObjHeapGuard::~ObjHeapGuard() { thread_set_obj_heap(original_heap_); }
 
 } // namespace nu
