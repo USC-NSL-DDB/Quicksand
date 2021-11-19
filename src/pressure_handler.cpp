@@ -50,13 +50,13 @@ void PressureHandler::update_sorted_heaps() {
   auto all_heaps = Runtime::heap_manager->get_all_heaps();
   for (auto *heap_base : all_heaps) {
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-    heap_header->mutex.lock();
+    heap_header->spin_lock.lock();
     if (unlikely(!heap_header->present || !heap_header->migratable)) {
-      heap_header->mutex.unlock();
+      heap_header->spin_lock.unlock();
       continue;
     }
     auto val = utility(heap_header);
-    heap_header->mutex.unlock();
+    heap_header->spin_lock.unlock();
 
     HeapInfo tmp{heap_header, val};
     new_sorted_heaps.insert(tmp);

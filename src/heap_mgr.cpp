@@ -46,7 +46,7 @@ void HeapManager::mmap_populate(void *heap_base, uint64_t populate_len) {
 
 void HeapManager::deallocate(void *heap_base) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-  heap_header->mutex.lock();
+  heap_header->spin_lock.lock(); // Sync with PressureHandler.
 
   heap_header->present = false;
   auto *munmap_base = reinterpret_cast<uint8_t *>(heap_base) + kPageSize;
@@ -59,7 +59,7 @@ void HeapManager::deallocate(void *heap_base) {
   std::destroy_at(&heap_header->slab);
   BUG_ON(munmap(munmap_base, total_munmap_size) == -1);
 
-  heap_header->mutex.unlock();
+  heap_header->spin_lock.unlock();
 }
 
 void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
