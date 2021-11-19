@@ -15,11 +15,7 @@ extern "C" {
 
 namespace nu {
 
-inline void Runtime::switch_to_obj_heap(void *obj_ptr) {
-  auto slab_base = reinterpret_cast<uint64_t>(obj_ptr);
-  auto *heap_header = reinterpret_cast<HeapHeader *>(slab_base) - 1;
-  set_obj_heap(&heap_header->slab);
-}
+inline void Runtime::switch_to_obj_heap(void *heap) { set_obj_heap(heap); }
 
 inline void Runtime::switch_to_runtime_heap() { set_obj_heap(nullptr); }
 
@@ -59,15 +55,17 @@ __attribute__((optimize("no-omit-frame-pointer"))) void
 __run_within_obj_env(OutermostMigrationDisabledGuard *guard, uint8_t *obj_stack,
                      Cls *obj_ptr, void (*fn)(A0s...), A1s &&... args) {
   OutermostMigrationDisabledGuard guard_on_obj_stack(std::move(*guard));
+  auto *heap_header = guard_on_obj_stack.get_heap_header();
 
   fn(*obj_ptr, std::forward<A1s>(args)...);
 
   {
     RuntimeHeapGuard g;
-    guard_on_obj_stack.get_heap_header()->threads->remove(thread_self());
+    heap_header->threads->remove(thread_self());
   }
 
   if (unlikely(thread_is_migrated())) {
+    heap_header->migrated_wg.Done();
     auto runtime_stack_base = thread_get_runtime_stack_base();
     switch_to_runtime_stack(runtime_stack_base);
     rt::Exit();
@@ -76,7 +74,7 @@ __run_within_obj_env(OutermostMigrationDisabledGuard *guard, uint8_t *obj_stack,
 
 // By default, fn will be invoked with migration disabled.
 template <typename Cls, typename... A0s, typename... A1s>
-bool __attribute__((optimize("no-omit-frame-pointer")))
+__attribute__((optimize("no-omit-frame-pointer"))) bool
 Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
                             A1s &&... args) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
@@ -86,21 +84,21 @@ Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
   }
   heap_header->threads->put(thread_self());
 
-  auto &slab = heap_header->slab;
-  auto *obj_ptr =
-      reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab.get_base()));
-  switch_to_obj_heap(obj_ptr);
-
   auto *obj_stack = Runtime::stack_manager->get();
   BUG_ON(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment);
+  auto &slab = heap_header->slab;
+
+  switch_to_obj_heap(&slab);
   auto *old_rsp = switch_to_obj_stack(obj_stack);
 
+  auto *obj_ptr =
+      reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab.get_base()));
   __run_within_obj_env<Cls>(&guard, obj_stack, obj_ptr, fn,
                             std::forward<A1s>(args)...);
 
   switch_to_runtime_stack(old_rsp);
-  Runtime::stack_manager->put(obj_stack);
   switch_to_runtime_heap();
+  Runtime::stack_manager->put(obj_stack);
   return true;
 }
 
@@ -125,9 +123,9 @@ inline RuntimeHeapGuard::~RuntimeHeapGuard() {
   set_obj_heap(original_heap_);
 }
 
-inline ObjHeapGuard::ObjHeapGuard(void *obj_ptr)
+inline ObjHeapGuard::ObjHeapGuard(void *heap)
     : original_heap_(get_obj_heap()) {
-  Runtime::switch_to_obj_heap(obj_ptr);
+  Runtime::switch_to_obj_heap(heap);
 }
 
 inline ObjHeapGuard::~ObjHeapGuard() { set_obj_heap(original_heap_); }

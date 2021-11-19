@@ -7,6 +7,7 @@ extern "C" {
 namespace nu {
 
 class Mutex;
+class SpinLock;
 
 class CondVar {
 public:
@@ -15,6 +16,7 @@ public:
   CondVar &operator=(const CondVar &) = delete;
   ~CondVar();
   void wait(Mutex *mutex);
+  void wait(SpinLock *spin);
   void signal();
   void signal_all();
 

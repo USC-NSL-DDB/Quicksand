@@ -59,6 +59,8 @@ test_cpu_load_src = test/test_cpu_load.cpp
 test_cpu_load_obj = $(test_cpu_load_src:.cpp=.o)
 test_tcp_poll_src = test/test_tcp_poll.cpp
 test_tcp_poll_obj = $(test_tcp_poll_src:.cpp=.o)
+test_thread_src = test/test_thread.cpp
+test_thread_obj = $(test_thread_src:.cpp=.o)
 
 bench_rpc_tput_src = bench/bench_rpc_tput.cpp
 bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
@@ -90,7 +92,7 @@ bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
 bin/bench_hashtable_timeseries bin/bench_fake_migration bin/test_nested_rem_obj \
 bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
-bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll
+bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread
 
 libnu.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -136,6 +138,8 @@ bin/test_cpu_load: $(test_cpu_load_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_cpu_load_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_tcp_poll: $(test_tcp_poll_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_tcp_poll_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_thread: $(test_thread_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_thread_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)

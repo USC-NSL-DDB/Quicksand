@@ -20,6 +20,7 @@ extern "C" {
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/refcount_hash_set.hpp"
 #include "nu/utils/slab.hpp"
+#include "nu/utils/spinlock.hpp"
 
 namespace nu {
 
@@ -38,6 +39,7 @@ struct HeapHeader {
   // For synchronization on migration.
   RCULock rcu_lock;
   Mutex mutex;
+  SpinLock spin_lock;
   CondVar cond_var;
 
   //--- Fields above are always mmaped in all object servers. ---/
@@ -53,7 +55,7 @@ struct HeapHeader {
 
   // Forwarding related.
   uint32_t old_server_ip;
-  rt::WaitGroup forward_wg;
+  rt::WaitGroup migrated_wg;
 
   //--- Fields below will be automatically copied during migration. ---/
   uint8_t copy_start[0];
@@ -132,7 +134,8 @@ private:
 
 class OutermostMigrationDisabledGuard {
 public:
-  // By default guards the current object header.
+  // By default does not guard anything.
+  OutermostMigrationDisabledGuard();
   OutermostMigrationDisabledGuard(HeapHeader *heap_header);
   OutermostMigrationDisabledGuard(OutermostMigrationDisabledGuard &&o);
   OutermostMigrationDisabledGuard &

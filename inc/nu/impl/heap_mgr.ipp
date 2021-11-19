@@ -142,6 +142,9 @@ inline void MigrationDisabledGuard::reset() {
   heap_header_ = nullptr;
 }
 
+inline OutermostMigrationDisabledGuard::OutermostMigrationDisabledGuard()
+    : heap_header_(nullptr) {}
+
 inline OutermostMigrationDisabledGuard::OutermostMigrationDisabledGuard(
     HeapHeader *heap_header)
     : heap_header_(heap_header) {

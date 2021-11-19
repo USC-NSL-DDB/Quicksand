@@ -16,6 +16,7 @@ public:
 
 private:
   spinlock_t spinlock_;
+  friend class CondVar;
 };
 } // namespace nu
 

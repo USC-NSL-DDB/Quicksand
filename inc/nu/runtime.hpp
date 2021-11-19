@@ -66,6 +66,7 @@ private:
   friend class Mutex;
   friend class CondVar;
   friend class Time;
+  friend class Thread;
   friend class CPULoad;
   friend class HeapManager;
   friend class RPCServer;
@@ -92,7 +93,7 @@ private:
   template <typename Cls, typename... A0s, typename... A1s>
   static bool run_within_obj_env(void *heap_base, void (*fn)(A0s...),
                                  A1s &&... args);
-  static void switch_to_obj_heap(void *obj_ptr);
+  static void switch_to_obj_heap(void *slab);
   static void switch_to_runtime_heap();
   template <typename T, typename... Args>
   static T *new_on_runtime_heap(Args &&... args);

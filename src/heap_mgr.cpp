@@ -54,7 +54,7 @@ void HeapManager::deallocate(void *heap_base) {
   RuntimeHeapGuard guard;
   heap_header->threads.reset();
   heap_header->time.reset();
-  std::destroy_at(&heap_header->forward_wg);
+  std::destroy_at(&heap_header->migrated_wg);
   std::destroy_at(&heap_header->spin);
   std::destroy_at(&heap_header->slab);
   BUG_ON(munmap(munmap_base, total_munmap_size) == -1);
@@ -75,7 +75,7 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
 
   heap_header->migratable = migratable;
 
-  std::construct_at(&heap_header->forward_wg);
+  std::construct_at(&heap_header->migrated_wg);
 
   if (!from_migration) {
     std::construct_at(&heap_header->spin);

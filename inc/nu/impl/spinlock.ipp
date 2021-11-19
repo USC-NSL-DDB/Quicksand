@@ -1,8 +1,8 @@
 namespace nu {
 
-inline SpinLock::SpinLock() {}
+inline SpinLock::SpinLock() { spin_lock_init(&spinlock_); }
 
-inline SpinLock::~SpinLock() {}
+inline SpinLock::~SpinLock() { assert(!spin_lock_held(&spinlock_)); }
 
 inline void SpinLock::lock() { spin_lock(&spinlock_); }
 

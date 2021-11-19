@@ -38,9 +38,8 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
   std::apply(
       [&](auto &&... args) {
-        Runtime::switch_to_obj_heap(obj_space);
+        ObjHeapGuard obj_heap_guard(&slab);
         new (obj_space) Cls(std::forward<As>(args)...);
-        Runtime::switch_to_runtime_heap();
       },
       args);
 
@@ -63,7 +62,7 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
     auto obj_space = slab.yield(sizeof(Cls));
 
     {
-      ObjHeapGuard obj_heap_guard(obj_space);
+      ObjHeapGuard obj_heap_guard(&slab);
       new (obj_space) Cls(std::forward<As>(args)...);
     }
   }
@@ -143,7 +142,7 @@ void ObjServer::update_ref_cnt_locally(RemObjID id, int delta) {
 
   if (latest_cnt == 0) {
     auto *obj = Runtime::get_obj<Cls>(id);
-    ObjHeapGuard obj_heap_guard(obj);
+    ObjHeapGuard obj_heap_guard(&heap_header->slab);
     obj->~Cls();
     {
       RuntimeHeapGuard runtime_heap_guard;
@@ -209,13 +208,14 @@ template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
                                     S1s &&... states) {
   auto *heap_header = to_heap_header(id);
+  auto *slab = &heap_header->slab;
   auto state = heap_header->cpu_load.monitor_start();
 
   auto *obj = Runtime::get_obj<Cls>(id);
   if constexpr (!std::is_same<RetT, void>::value) {
     RetT ret;
     {
-      ObjHeapGuard guard(obj);
+      ObjHeapGuard guard(slab);
       ret = fn_ptr(*obj, std::forward<S1s>(states)...);
     }
     heap_header->cpu_load.monitor_end(state);
@@ -230,7 +230,7 @@ RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
       return ret;
     }
   } else {
-    ObjHeapGuard guard(obj);
+    ObjHeapGuard guard(slab);
     fn_ptr(*obj, std::forward<S1s>(states)...);
     heap_header->cpu_load.monitor_end(state);
   }

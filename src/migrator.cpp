@@ -525,7 +525,7 @@ void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
 
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
-      heap_header->forward_wg.Add(num_threads);
+      heap_header->migrated_wg.Add(num_threads);
 
       auto *waiters = mutex->get_waiters();
       list_head_init(waiters);
@@ -557,7 +557,7 @@ void Migrator::load_condvars(rt::TcpConn *c, HeapHeader *heap_header) {
 
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
-      heap_header->forward_wg.Add(num_threads);
+      heap_header->migrated_wg.Add(num_threads);
 
       auto *waiters = condvar->get_waiters();
       list_head_init(waiters);
@@ -583,7 +583,7 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
   const iovec iovecs[] = {{&sum_tsc, sizeof(sum_tsc)},
                           {&num_entries, sizeof(num_entries)}};
   BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
-  heap_header->forward_wg.Add(num_entries);
+  heap_header->migrated_wg.Add(num_entries);
 
   auto loader_tsc = rdtscp(nullptr) - start_tsc;
   time->offset_tsc_ = sum_tsc - loader_tsc;
@@ -612,7 +612,7 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
 void Migrator::load_threads(rt::TcpConn *c, HeapHeader *heap_header) {
   uint64_t num_threads;
   BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
-  heap_header->forward_wg.Add(num_threads);
+  heap_header->migrated_wg.Add(num_threads);
 
   for (uint64_t i = 0; i < num_threads; i++) {
     auto *th = load_one_thread(c, heap_header);
@@ -695,7 +695,7 @@ void Migrator::load(rt::TcpConn *c) {
     load_threads(c, heap_header);
 
     rt::Thread([heap_header, stack_cluster] {
-      heap_header->forward_wg.Wait();
+      heap_header->migrated_wg.Wait();
       ACCESS_ONCE(heap_header->migratable) = true;
       Runtime::stack_manager->add_ref_cnt(stack_cluster, -1);
     }).Detach();
@@ -734,7 +734,6 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
         Runtime::rpc_client_mgr->get_by_ip(heap_header->old_server_ip);
     BUG_ON(client->Call(req_span, &return_buf) != kOk);
   }
-  heap_header->forward_wg.Done();
 }
 
 void Migrator::forward_to_client(RPCReqForward &req) {
