@@ -503,6 +503,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
   heap_header->threads->put(th);
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
   if (nu_thread) {
+    BUG_ON(!nu_thread->th_);
     nu_thread->th_ = th;
   }
   return th;

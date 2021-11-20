@@ -75,6 +75,7 @@ void Thread::join() {
     join_data_->cv.signal();
     join_data_->lock.unlock();
     join_data_ = nullptr;
+    thread_set_nu_thread(th_, nullptr);
     return;
   }
 
@@ -83,5 +84,6 @@ void Thread::join() {
   join_data_->lock.unlock();
   delete join_data_;
   join_data_ = nullptr;
+  thread_set_nu_thread(th_, nullptr);
 }
 }

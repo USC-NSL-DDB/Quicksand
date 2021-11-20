@@ -7,18 +7,24 @@
 #include "nu/time.hpp"
 #include "nu/utils/thread.hpp"
 
-constexpr uint32_t kNumThreads = 1000;
+constexpr uint32_t kNumInvocations = 1000;
+constexpr uint32_t kNumThreadsPerInvocation = 4;
 
 namespace nu {
 class Test {
 public:
   void inc() {
-    nu::Thread t([&] {
-      Time::sleep(2 * 1000 * 1000);
-      s_++;
-    });
-    Time::sleep(1000 * 1000);
-    t.join();
+    std::vector<nu::Thread> threads;
+    for (uint32_t i = 0; i < kNumThreadsPerInvocation; i++) {
+      threads.emplace_back([&] {
+        Time::sleep(2 * 1000 * 1000);
+        s_++;
+      });
+      Time::sleep(1000 * 1000);
+    }
+    for (auto &thread : threads) {
+      thread.join();
+    }
   }
 
   int read() { return s_; }
@@ -37,32 +43,39 @@ private:
 bool run_in_obj_env() {
   auto rem_obj = nu::RemObj<nu::Test>::create();
   std::vector<nu::Future<void>> futures;
-  for (uint32_t i = 0; i < kNumThreads; i++) {
+  for (uint32_t i = 0; i < kNumInvocations; i++) {
     futures.emplace_back(rem_obj.run_async(&nu::Test::inc));
   }
   rem_obj.run(&nu::Test::migrate);
   for (auto &future : futures) {
     future.get();
   }
-  return rem_obj.run(&nu::Test::read) == kNumThreads;
+  return rem_obj.run(&nu::Test::read) ==
+         kNumInvocations * kNumThreadsPerInvocation;
 }
 
 bool run_in_runtime_env() {
   std::atomic<int> s{0};
-  std::vector<nu::Thread> threads;
+  std::vector<nu::Thread> invocations;
 
-  for (uint32_t i = 0; i < kNumThreads; i++) {
-    threads.emplace_back(nu::Thread([&] { s++; }));
+  for (uint32_t i = 0; i < kNumInvocations; i++) {
+    invocations.emplace_back([&] {
+      std::vector<nu::Thread> threads;
+      for (uint32_t i = 0; i < kNumThreadsPerInvocation; i++) {
+        threads.emplace_back([&] { s++; });
+      }
+      for (auto &thread : threads) {
+        thread.join();
+      }
+    });
   }  
-  for (auto &thread : threads) {
-    thread.join();
+  for (auto &invocation : invocations) {
+    invocation.join();
   }
-  return s == kNumThreads;
+  return s == kNumInvocations * kNumThreadsPerInvocation;
 }
 
-bool run_all_tests() {
-  return run_in_runtime_env() && run_in_obj_env();
-}
+bool run_all_tests() { return run_in_runtime_env() && run_in_obj_env(); }
 
 int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv, [](int, char **) {
