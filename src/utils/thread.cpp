@@ -5,20 +5,8 @@ namespace nu {
 __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer"))) void
 Thread::__trampoline_in_obj_env(join_data *d, HeapHeader *heap_header) {
-  {
-    OutermostMigrationDisabledGuard guard = std::move(d->guard);
-
-    {
-      MigrationEnabledGuard guard;
-      d->func();
-    }
-
-    {
-      RuntimeHeapGuard g;
-      heap_header->threads->remove(thread_self());
-    }
-  }
-
+  d->guard.reset();
+  d->func();
   d->lock.lock();
   if (d->done) {
     d->cv.signal();
@@ -28,6 +16,12 @@ Thread::__trampoline_in_obj_env(join_data *d, HeapHeader *heap_header) {
     d->cv.wait(&d->lock);
     d->lock.unlock();
     delete d;
+  }
+
+  {
+    MigrationDisabledGuard migration_guard;
+    RuntimeHeapGuard heap_guard;
+    heap_header->threads->remove(thread_self());
   }
 
   if (unlikely(thread_is_migrated())) {
