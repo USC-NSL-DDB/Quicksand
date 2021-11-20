@@ -52,7 +52,7 @@ constexpr static uint64_t kNumCores = NCORES;
 constexpr static uint64_t kCacheLineBytes = 64;
 constexpr static uint64_t kStackAlignment = 16;
 constexpr static uint64_t kStackRedZoneSize = 128;
-constexpr static uint64_t kStackSize = 256ULL << 10;
+constexpr static uint64_t kStackSize = 64ULL << 10;
 constexpr static uint64_t kPageSize = 4096;
 
 constexpr static RemObjID kNullRemObjID = 0;
