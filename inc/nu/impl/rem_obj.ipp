@@ -378,9 +378,10 @@ RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
 
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
   MigrationDisabledGuard caller_disabled_guard;
+  auto *caller_heap_header = caller_disabled_guard.get_heap_header();
 
   if (caller_disabled_guard) {
-    auto callee_heap_header = to_heap_header(id_);
+    auto *callee_heap_header = to_heap_header(id_);
     OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
     if (callee_disabled_guard) {
       // Fast path: the heap is actually local, use function call.
@@ -394,12 +395,14 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
   auto *handler = ObjServer::update_ref_cnt<T>;
   serialize(oa_sstream, handler, id_, delta);
 
-  return Promise<void>::create(
+  auto *promise = Promise<void>::create(
       [&, caller_disabled_guard = std::move(caller_disabled_guard), id = id_,
        oa_sstream] {
         invoke_remote<void>(id, &oa_sstream->ss);
         Runtime::archive_pool->put_oa_sstream(oa_sstream);
       });
+  thread_unhold_rcu(&caller_heap_header->rcu_lock);
+  return promise;
 }
 
 template <typename T> void RemObj<T>::reset() {

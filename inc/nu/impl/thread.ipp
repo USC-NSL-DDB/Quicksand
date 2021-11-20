@@ -54,6 +54,7 @@ retry:
   }
   th_ = thread_create_with_buf(trampoline_in_obj_env,
                                reinterpret_cast<void **>(&args), sizeof(*args));
+  thread_unhold_rcu(&header->rcu_lock);
   thread_set_nu_thread(th_, this);
   BUG_ON(!th_);
   join_data_ = new join_data(std::forward<F>(f), std::move(guard));

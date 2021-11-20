@@ -1327,10 +1327,10 @@ void thread_unhold_rcu(void *rcu)
 
        for (i = 0; i < th->nu_state.num_rcus_held; i++) {
               if (th->nu_state.rcus_held[i].addr == addr) {
-                     if (!(--th->nu_state.rcus_held[i].cnt)) {
-                            BUG_ON(i != th->nu_state.num_rcus_held - 1);
+                     --th->nu_state.rcus_held[i].cnt;
+                     while (th->nu_state.num_rcus_held &&
+			    !th->nu_state.rcus_held[th->nu_state.num_rcus_held - 1].cnt)
                             th->nu_state.num_rcus_held--;
-                     }
                      return;
               }
        }
