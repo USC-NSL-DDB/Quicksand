@@ -70,6 +70,7 @@ inline void HeapManager::migration_disable(HeapHeader *heap_header) {
       heap_header->cond_var.wait(&heap_header->mutex);
     }
     heap_header->mutex.unlock();
+    heap_header->rcu_lock.reader_lock();
   }
 }
 
