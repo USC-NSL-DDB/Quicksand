@@ -49,6 +49,8 @@ ssh $DEST_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
 ssh $DEST_SERVER_IP "cd `pwd`; sudo build/src/BackEndService $DIR/conf/server2 SRV 18.18.1.3" >$DIR/logs/dest &
 sleep 5
+sudo pkill -SIGHUP BackEndService
+sleep 5
 ssh $NGINX_IP "cd `pwd`; python3 scripts/init_social_graph.py"
 ssh $SRC_SERVER_IP "cd $DIR; sudo stdbuf -o0 ../../../bin/bench_real_cpu_pressure conf/client3" &
 sleep 5
