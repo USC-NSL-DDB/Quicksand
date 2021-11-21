@@ -397,11 +397,14 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
 
   auto *promise = Promise<void>::create(
       [&, caller_disabled_guard = std::move(caller_disabled_guard), id = id_,
-       oa_sstream] {
+       oa_sstream]() mutable {
         invoke_remote<void>(id, &oa_sstream->ss);
         Runtime::archive_pool->put_oa_sstream(oa_sstream);
+        caller_disabled_guard.reset();
       });
-  thread_unhold_rcu(&caller_heap_header->rcu_lock);
+  if (caller_heap_header) {
+    thread_unhold_rcu(&caller_heap_header->rcu_lock);
+  }
   return promise;
 }
 
