@@ -69,7 +69,7 @@ __run_within_obj_env(OutermostMigrationDisabledGuard *guard, uint8_t *obj_stack,
   if (unlikely(thread_is_migrated())) {
     heap_header->migrated_wg.Done();
     auto runtime_stack_base = thread_get_runtime_stack_base();
-    switch_to_runtime_stack(runtime_stack_base);
+    switch_stack(runtime_stack_base);
     rt::Exit();
   }
 }
@@ -87,18 +87,18 @@ Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
   heap_header->threads->put(thread_self());
 
   auto *obj_stack = Runtime::stack_manager->get();
-  BUG_ON(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment);
+  assert(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment == 0);
   auto &slab = heap_header->slab;
 
   switch_to_obj_heap(&slab);
-  auto *old_rsp = switch_to_obj_stack(obj_stack);
+  auto *old_rsp = switch_stack(obj_stack);
 
   auto *obj_ptr =
       reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab.get_base()));
   __run_within_obj_env<Cls>(&guard, obj_stack, obj_ptr, fn,
                             std::forward<A1s>(args)...);
 
-  switch_to_runtime_stack(old_rsp);
+  switch_stack(old_rsp);
   switch_to_runtime_heap();
   Runtime::stack_manager->put(obj_stack);
   return true;

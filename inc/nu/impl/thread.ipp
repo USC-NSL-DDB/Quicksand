@@ -45,31 +45,30 @@ static inline void wait_for_migration(HeapHeader *header) {
 
 template <typename F>
 void Thread::create_in_obj_env(F &&f, HeapHeader *header) {
-  join_data **args;
 retry:
   OutermostMigrationDisabledGuard guard(header);
   if (unlikely(!guard)) {
     wait_for_migration(header);
     goto retry;
   }
-  th_ = thread_create_with_buf(trampoline_in_obj_env,
-                               reinterpret_cast<void **>(&args), sizeof(*args));
-  thread_unhold_rcu(&header->rcu_lock);
-  thread_set_nu_thread(th_, this);
+  auto *obj_stack = Runtime::stack_manager->get();
+  assert(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment == 0);
+  th_ = thread_nu_create_with_buf(
+      this, &header->slab, obj_stack, kStackSize, trampoline_in_obj_env,
+      reinterpret_cast<void **>(&join_data_), sizeof(*join_data_));
   BUG_ON(!th_);
-  join_data_ = new join_data(std::forward<F>(f), std::move(guard));
-  *args = join_data_;
+  header->threads->put(th_);
+  new (join_data_) join_data(std::forward<F>(f), header);
   thread_ready(th_);
 }
 
 template <typename F>
 void Thread::create_in_runtime_env(F &&f) {
-  join_data **args;
   th_ = thread_create_with_buf(trampoline_in_runtime_env,
-                               reinterpret_cast<void **>(&args), sizeof(*args));
+                               reinterpret_cast<void **>(&join_data_),
+                               sizeof(*join_data_));
   BUG_ON(!th_);
-  join_data_ = new join_data(std::forward<F>(f));
-  *args = join_data_;
+  new (join_data_) join_data(std::forward<F>(f));
   thread_ready(th_);
 }
 

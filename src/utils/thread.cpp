@@ -2,10 +2,10 @@
 
 namespace nu {
 
-__attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer"))) void
-Thread::__trampoline_in_obj_env(join_data *d, HeapHeader *heap_header) {
-  d->guard.reset();
+Thread::trampoline_in_obj_env(void *args) {
+  auto *d = reinterpret_cast<join_data *>(args);
+
   d->func();
   d->lock.lock();
   if (d->done) {
@@ -15,44 +15,34 @@ Thread::__trampoline_in_obj_env(join_data *d, HeapHeader *heap_header) {
     d->done = true;
     d->cv.wait(&d->lock);
     d->lock.unlock();
-    delete d;
   }
+  std::destroy_at(&d->func);
+
+  auto runtime_stack_base = thread_get_runtime_stack_base();
+  auto old_rsp = switch_stack(runtime_stack_base);
 
   {
-    MigrationDisabledGuard migration_guard;
-    RuntimeHeapGuard heap_guard;
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+    Runtime::switch_to_runtime_heap();
+
+    auto *heap_header = d->header;
     heap_header->threads->remove(thread_self());
+    if (likely(!thread_is_migrated())) {
+      auto obj_stack_addr =
+          ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &
+           (~(kStackSize - 1)));
+      Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(obj_stack_addr));
+    } else {
+      heap_header->migrated_wg.Done();
+    }
   }
 
-  if (unlikely(thread_is_migrated())) {
-    heap_header->migrated_wg.Done();
-    auto runtime_stack_base = thread_get_runtime_stack_base();
-    switch_to_runtime_stack(runtime_stack_base);
-    rt::Exit();
-  }
-}
-
-__attribute__((optimize("no-omit-frame-pointer"))) void
-Thread::trampoline_in_obj_env(void *args) {
-  auto *d = *reinterpret_cast<join_data **>(args);  
-  auto *heap_header = d->guard.get_heap_header();
-  BUG_ON(!heap_header);
-  heap_header->threads->put(thread_self());
-  auto *obj_stack = Runtime::stack_manager->get();
-  BUG_ON(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment);
-  auto &slab = heap_header->slab;
-  Runtime::switch_to_obj_heap(&slab);
-  auto *old_rsp = switch_to_obj_stack(obj_stack);
-
-  __trampoline_in_obj_env(d, heap_header);
-
-  switch_to_runtime_stack(old_rsp);
-  Runtime::switch_to_runtime_heap();
-  Runtime::stack_manager->put(obj_stack);
+  rt::Exit();
 }
 
 void Thread::trampoline_in_runtime_env(void *args) {
-  auto *d = *reinterpret_cast<join_data **>(args);
+  auto *d = reinterpret_cast<join_data *>(args);
 
   d->func();
   d->lock.lock();
@@ -63,8 +53,8 @@ void Thread::trampoline_in_runtime_env(void *args) {
     d->done = true;
     d->cv.wait(&d->lock);
     d->lock.unlock();
-    delete d;
   }
+  std::destroy_at(&d->func);
 }
 
 void Thread::join() {
@@ -82,8 +72,26 @@ void Thread::join() {
   join_data_->done = true;
   join_data_->cv.wait(&join_data_->lock);
   join_data_->lock.unlock();
-  delete join_data_;
   join_data_ = nullptr;
   thread_set_nu_thread(th_, nullptr);
 }
+
+void Thread::detach() {
+  BUG_ON(!join_data_);
+
+  join_data_->lock.lock();
+  if (join_data_->done) {
+    join_data_->cv.signal();
+    join_data_->lock.unlock();
+    join_data_ = nullptr;
+    thread_set_nu_thread(th_, nullptr);
+    return;
+  }
+
+  join_data_->done = true;
+  join_data_->lock.unlock();
+  join_data_ = nullptr;
+  thread_set_nu_thread(th_, nullptr);
 }
+
+} // namespace nu

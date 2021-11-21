@@ -12,16 +12,17 @@
 namespace nu {
 
 struct join_data {
-  template <typename F> join_data(F &&f) : done(false), func(std::move(f)) {}
   template <typename F>
-  join_data(F &&f, OutermostMigrationDisabledGuard &&g)
-      : done(false), func(std::move(f)), guard(std::move(g)) {}
+  join_data(F &&f) : done(false), func(std::move(f)), header(nullptr) {}
+  template <typename F>
+  join_data(F &&f, HeapHeader *hdr)
+      : done(false), func(std::move(f)), header(hdr) {}
 
   SpinLock lock;
   bool done;
   CondVar cv;
   folly::Function<void()> func;
-  OutermostMigrationDisabledGuard guard;
+  HeapHeader *header;
 };
 
 class Thread {
@@ -36,6 +37,7 @@ public:
 
   bool joinable();
   void join();
+  void detach();
 
 private:
   thread_t *th_;
@@ -46,7 +48,6 @@ private:
   template <typename F> void create_in_runtime_env(F &&f);
   static void trampoline_in_runtime_env(void *args);
   static void trampoline_in_obj_env(void *args);
-  static void __trampoline_in_obj_env(join_data *d, HeapHeader *heap_header);
 };
 
 } // namespace nu

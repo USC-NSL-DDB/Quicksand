@@ -12,7 +12,7 @@ namespace nu {
 
 class StackManager {
 public:
-  constexpr static uint32_t kPerCoreCacheSize = 8;
+  constexpr static uint32_t kPerCoreCacheSize = 32;
 
   StackManager(VAddrRange stack_cluster);
   uint8_t *get();

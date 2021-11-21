@@ -899,6 +899,9 @@ static __always_inline thread_t *__thread_create(void)
 	th->wq_spin = false;
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
+	th->nu_state.waiter_info = 0;
+	th->nu_state.migration_state = NO_MIGRATION;
+
 	if (__self) {
 		th->nu_state.obj_heap = __self->nu_state.obj_heap;
 		th->nu_state.num_rcus_held = __self->nu_state.num_rcus_held;
@@ -909,8 +912,6 @@ static __always_inline thread_t *__thread_create(void)
 		th->nu_state.obj_heap = NULL;
 		th->nu_state.num_rcus_held = 0;
 	}
-	th->nu_state.waiter_info = 0;
-	th->nu_state.migration_state = NO_MIGRATION;
 
 	return th;
 }
@@ -955,6 +956,29 @@ thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t buf_len)
 
 	th->nu_state.tf.rsp = stack_init_to_rsp_with_buf(th->stack, &ptr, buf_len,
 						         thread_exit);
+	th->nu_state.tf.rdi = (uint64_t)ptr;
+	/* just in case base pointers are enabled */
+	th->nu_state.tf.rbp = (uint64_t)0;
+	th->nu_state.tf.rip = (uint64_t)fn;
+	*buf = ptr;
+	gc_register_thread(th);
+	return th;
+}
+
+thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_heap,
+				    void *obj_stack, uint32_t obj_stack_size,
+				    thread_fn_t fn, void **buf, size_t buf_len)
+{
+	void *ptr;
+	thread_t *th = __thread_create();
+	if (unlikely(!th))
+		return NULL;
+
+	th->nu_state.nu_thread = nu_thread;
+	th->nu_state.obj_heap = obj_heap;
+	th->nu_state.tf.rsp =
+		nu_stack_init_to_rsp_with_buf(obj_stack, obj_stack_size, &ptr,
+					      buf_len);
 	th->nu_state.tf.rdi = (uint64_t)ptr;
 	/* just in case base pointers are enabled */
 	th->nu_state.tf.rbp = (uint64_t)0;

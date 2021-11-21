@@ -7,23 +7,23 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/utils/future.hpp"
+#include "nu/utils/thread.hpp"
 
 namespace nu {
 
-template <typename T> Promise<T>::Promise() : futurized_(false) {}
+template <typename T>
+Promise<T>::Promise() : futurized_(false), ready_(false) {}
 
-inline Promise<void>::Promise() : futurized_(false) {}
+inline Promise<void>::Promise() : futurized_(false), ready_(false) {}
 
 template <typename T> Promise<T>::~Promise() {
-  if (th_.joinable()) {
-    th_.join();
-  }
+  spin_.lock();
+  spin_.unlock();
 }
 
 inline Promise<void>::~Promise() {
-  if (th_.joinable()) {
-    th_.join();
-  }
+  spin_.lock();
+  spin_.unlock();
 }
 
 template <typename T>
@@ -40,16 +40,32 @@ template <typename Deleter> Future<void, Deleter> Promise<void>::get_future() {
   return Future<void, Deleter>(this);
 }
 
+template <typename T> void Promise<T>::set_ready() {
+  spin_.lock();
+  ready_ = true;
+  cv_.signal_all();
+  spin_.unlock();
+}
+
+inline void Promise<void>::set_ready() {
+  spin_.lock();
+  ready_ = true;
+  cv_.signal_all();
+  spin_.unlock();
+}
+
 template <typename T> T *Promise<T>::data() { return &t_; }
 
 template <typename T>
 template <typename F, typename Allocator>
-Promise<T> *Promise<T>::create(F &&f) {
+Promise<T> *Promise<T>::create(F && f) {
   Allocator allocator;
   auto *promise = allocator.allocate(1);
   new (promise) Promise<T>();
-  promise->th_ = Thread(
-      [promise, f = std::forward<F>(f)]() mutable { *promise->data() = f(); });
+  Thread([promise, f = std::forward<F>(f)]() mutable {
+    *promise->data() = f();
+    promise->set_ready();
+  }).detach();
   return promise;
 }
 
@@ -58,7 +74,10 @@ Promise<void> *Promise<void>::create(F &&f) {
   Allocator allocator;
   auto *promise = allocator.allocate(1);
   new (promise) Promise<void>();
-  promise->th_ = Thread([promise, f = std::forward<F>(f)]() mutable { f(); });
+  Thread([promise, f = std::forward<F>(f)]() mutable {
+    f();
+    promise->set_ready();
+  }).detach();
   return promise;
 }
 

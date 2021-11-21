@@ -18,19 +18,14 @@ inline RemObjID to_obj_id(void *heap_base) {
   return reinterpret_cast<RemObjID>(heap_base);
 }
 
-inline __attribute__((always_inline)) void *switch_to_obj_stack(void *stack) {
+inline __attribute__((always_inline)) void *switch_stack(void *new_rsp) {
   void *old_rsp;
   asm volatile("movq %%rsp, %0\n\t"
                "movq %1, %%rsp"
                : "=&r"(old_rsp)
-               : "r"(stack)
+               : "r"(new_rsp)
                :);
   return old_rsp;
-}
-
-inline __attribute__((always_inline)) void
-switch_to_runtime_stack(void *old_rsp) {
-  asm volatile("movq %0, %%rsp" : : "r"(old_rsp) :);
 }
 
 inline VAddrRange get_obj_stack_range(thread_t *thread) {

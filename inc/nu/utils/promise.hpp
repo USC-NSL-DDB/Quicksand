@@ -3,7 +3,8 @@
 #include <functional>
 #include <memory>
 
-#include "nu/utils/thread.hpp"
+#include "nu/utils/cond_var.hpp"
+#include "nu/utils/spinlock.hpp"
 
 namespace nu {
 
@@ -21,11 +22,14 @@ public:
 
 private:
   bool futurized_;
+  bool ready_;
+  SpinLock spin_;
+  CondVar cv_;
   T t_;
-  Thread th_;
   template <typename U, typename Deleter> friend class Future;
 
   Promise();
+  void set_ready();
   T *data();
 };
 
@@ -41,10 +45,13 @@ public:
 
 private:
   bool futurized_;
-  Thread th_;
+  bool ready_;
+  SpinLock spin_;
+  CondVar cv_;
   template <typename U, typename Deleter> friend class Future;
 
   Promise();
+  void set_ready();
 };
 } // namespace nu
 
