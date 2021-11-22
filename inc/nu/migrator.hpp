@@ -105,7 +105,8 @@ private:
   void handle_load(rt::TcpConn *c);
   void handle_unmap(rt::TcpConn *c);
   VAddrRange load_stack_cluster_mmap_task(rt::TcpConn *c);
-  void transmit(rt::TcpConn *c, HeapHeader *heap_header);
+  void transmit(rt::TcpConn *c, HeapHeader *heap_header,
+                const std::vector<thread_t *> &all_threads);
   void transmit_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit_heap(rt::TcpConn *c, HeapHeader *heap_header);
   void transmit_heap_mmap_populate_ranges(rt::TcpConn *c,
@@ -115,7 +116,8 @@ private:
   void transmit_time(rt::TcpConn *c, Time *time);
   void transmit_threads(rt::TcpConn *c, const std::vector<thread_t *> &threads);
   void transmit_one_thread(rt::TcpConn *c, thread_t *thread);
-  bool mark_migrating_threads(HeapHeader *heap_header);
+  bool mark_migrating_threads(HeapHeader *heap_header,
+                              std::vector<thread_t *> *all_threads);
   void unmap_destructed_heaps(rt::TcpConn *c,
                               std::vector<HeapHeader *> *destructed_heaps);
   void load(rt::TcpConn *c);

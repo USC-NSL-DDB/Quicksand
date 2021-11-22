@@ -57,7 +57,7 @@ retry:
       this, &header->slab, obj_stack, kStackSize, trampoline_in_obj_env,
       reinterpret_cast<void **>(&join_data_), sizeof(*join_data_));
   BUG_ON(!th_);
-  header->threads->put(th_);
+  header->threads.put(th_);
   new (join_data_) join_data(std::forward<F>(f), header);
   thread_ready(th_);
 }

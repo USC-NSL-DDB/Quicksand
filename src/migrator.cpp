@@ -339,10 +339,10 @@ void Migrator::transmit_heap_mmap_populate_ranges(
   }
 }
 
-void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header) {
+void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header,
+                        const std::vector<thread_t *> &all_threads) {
   transmit_heap(c, heap_header);
 
-  auto all_threads = heap_header->threads->all_keys();
   std::vector<thread_t *> ready_threads;
   std::unordered_set<Mutex *> mutexes;
   std::unordered_set<CondVar *> condvars;
@@ -373,13 +373,14 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header) {
   transmit_threads(c, ready_threads);
 }
 
-bool Migrator::mark_migrating_threads(HeapHeader *heap_header) {
+bool Migrator::mark_migrating_threads(HeapHeader *heap_header,
+                                      std::vector<thread_t *> *all_threads) {
   if (unlikely(!Runtime::heap_manager->remove(heap_header))) {
     return false;
   }
   heap_header->rcu_lock.writer_sync(/* poll = */ true);
-  auto all_threads = heap_header->threads->all_keys();
-  for (auto thread : all_threads) {
+  *all_threads = heap_header->threads.all_threads();
+  for (auto thread : *all_threads) {
     thread_mark_migrating(thread);
   }
   return true;
@@ -431,16 +432,17 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
 
   std::vector<HeapHeader *> migrated_heaps;
   std::vector<HeapHeader *> destructed_heaps;
+  std::vector<thread_t *> all_threads;
   migrated_heaps.reserve(heaps.size());
   for (auto [heap_header, _] : heaps) {
-    if (unlikely(!mark_migrating_threads(heap_header))) {
+    if (unlikely(!mark_migrating_threads(heap_header, &all_threads))) {
       destructed_heaps.push_back(heap_header);
       continue;
     }
 
     migrated_heaps.push_back(heap_header);
     pause_all_migrating_threads();
-    transmit(conn, heap_header);
+    transmit(conn, heap_header, all_threads);
     SlabAllocator::deregister_slab_by_id(to_u16(heap_header));
     gc_migrated_threads();
   }
@@ -500,7 +502,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
   BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                      /* nt = */ true) <= 0);
   auto *th = create_migrated_thread(nu_state.get());
-  heap_header->threads->put(th);
+  heap_header->threads.put(th, get_thread_set_idx(th));
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
   if (nu_thread) {
     BUG_ON(!nu_thread->th_);

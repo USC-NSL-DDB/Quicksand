@@ -18,9 +18,9 @@ extern "C" {
 #include "nu/utils/cpu_load.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/rcu_lock.hpp"
-#include "nu/utils/refcount_hash_set.hpp"
 #include "nu/utils/slab.hpp"
 #include "nu/utils/spinlock.hpp"
+#include "nu/utils/thread_set.hpp"
 
 namespace nu {
 
@@ -49,7 +49,7 @@ struct HeapHeader {
   CPULoad cpu_load;
 
   // Migration related.
-  std::unique_ptr<RefcountHashSet<thread_t *>> threads;
+  ThreadSet threads;
   std::unique_ptr<Time> time;
   bool migratable;
 

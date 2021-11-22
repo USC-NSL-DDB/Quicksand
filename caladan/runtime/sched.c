@@ -900,6 +900,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
 	th->nu_state.waiter_info = 0;
+	th->nu_state.thread_set_idx = -1;
 	th->nu_state.migration_state = NO_MIGRATION;
 
 	if (__self) {
@@ -1369,4 +1370,13 @@ void thread_set_nu_thread(thread_t *th, void *nu_thread)
 void *thread_get_nu_thread(thread_t *th)
 {
        return th->nu_state.nu_thread;
+}
+
+void set_thread_set_idx(thread_t *th, int8_t idx) {
+       th->nu_state.thread_set_idx = idx;
+}
+
+int8_t get_thread_set_idx(thread_t *th) {
+       assert(th->nu_state.thread_set_idx != -1);
+       return th->nu_state.thread_set_idx;
 }

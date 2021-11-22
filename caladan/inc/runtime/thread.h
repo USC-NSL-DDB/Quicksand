@@ -114,3 +114,5 @@ extern void thread_set_waiter_info(thread_t *th, uint64_t waiter_info);
 extern void thread_set_self_waiter_info(uint64_t waiter_info);
 extern void thread_set_nu_thread(thread_t *th, void *nu_thread);
 extern void *thread_get_nu_thread(thread_t *th);
+extern void set_thread_set_idx(thread_t *th, int8_t idx);
+extern int8_t get_thread_set_idx(thread_t *th);
