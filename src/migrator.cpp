@@ -443,12 +443,12 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
     migrated_heaps.push_back(heap_header);
     pause_all_migrating_threads();
     transmit(conn, heap_header, all_threads);
-    SlabAllocator::deregister_slab_by_id(to_u16(heap_header));
     gc_migrated_threads();
   }
 
   for (auto *heap_header : migrated_heaps) {
     Runtime::heap_manager->deallocate(heap_header);
+    SlabAllocator::deregister_slab_by_id(to_u16(heap_header));
   }
 
   unmap_destructed_heaps(conn, &destructed_heaps);
