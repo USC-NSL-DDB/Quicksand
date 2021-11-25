@@ -46,7 +46,7 @@ float utility(HeapHeader *heap_header) {
 void PressureHandler::update_sorted_heaps() {
   CPULoad::flush_all();
 
-  std::set<HeapInfo> new_sorted_heaps;
+  auto new_sorted_heaps = std::make_shared<std::set<HeapInfo>>();
   auto all_heaps = Runtime::heap_manager->get_all_heaps();
   for (auto *heap_base : all_heaps) {
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
@@ -59,11 +59,10 @@ void PressureHandler::update_sorted_heaps() {
     heap_header->spin_lock.unlock();
 
     HeapInfo tmp{heap_header, val};
-    new_sorted_heaps.insert(tmp);
+    new_sorted_heaps->insert(tmp);
   }
 
-  rt::SpinGuard g(&spin_);
-  sorted_heaps_ = std::move(new_sorted_heaps);
+  std::atomic_exchange(&sorted_heaps_, new_sorted_heaps);
 }
 
 void PressureHandler::register_handlers() {
@@ -154,24 +153,23 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
   uint32_t picked_mem_mbs = 0;
   uint32_t picked_num = 0;
   bool done = false;
-  std::vector<HeapRange> heaps;
+  std::vector<HeapRange> picked_heaps;
 
   auto pick_fn = [&](HeapHeader *header) {
     auto size = get_heap_size(header);
     HeapRange range{header, size};
-    heaps.push_back(range);
+    picked_heaps.push_back(range);
     picked_mem_mbs += size / kOneMB;
     picked_num++;
     done = ((picked_mem_mbs >= min_mem_mbs) && (picked_num >= min_num_heaps));
   };
 
-  {
-    rt::SpinGuard g(&spin_);
-
-    auto iter = sorted_heaps_.begin();
-    while (iter != sorted_heaps_.end() && !done) {
+  auto sorted_heaps = std::atomic_load(&sorted_heaps_);
+  if (sorted_heaps) {
+    auto iter = sorted_heaps->begin();
+    while (iter != sorted_heaps->end() && !done) {
       auto *header = iter->header;
-      iter = sorted_heaps_.erase(iter);
+      iter = sorted_heaps->erase(iter);
       if (unlikely(!header->present)) {
         continue;
       }
@@ -179,7 +177,7 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
     }
   }
 
-  if (unlikely(heaps.empty())) {
+  if (unlikely(picked_heaps.empty())) {
     auto &all_heaps = Runtime::heap_manager->acquire_all_heaps();
     auto iter = all_heaps.begin();
     while (iter != all_heaps.end() && !done) {
@@ -193,7 +191,7 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
     Runtime::heap_manager->release_all_heaps();
   }
 
-  return heaps;
+  return picked_heaps;
 }
 
 void PressureHandler::mock_set_pressure(ResourcePressureInfo pressure) {

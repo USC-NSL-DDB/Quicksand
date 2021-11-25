@@ -1,5 +1,6 @@
 #include <climits>
 #include <cstddef>
+#include <memory>
 #include <set>
 
 extern "C" {
@@ -46,8 +47,7 @@ private:
   };
 
   AuxHandlerState aux_handler_states[kNumAuxHandlers];
-  rt::Spin spin_;
-  std::set<HeapInfo> sorted_heaps_;
+  std::shared_ptr<std::set<HeapInfo>> sorted_heaps_;
   rt::Thread update_thread_;
   bool done_;
 
