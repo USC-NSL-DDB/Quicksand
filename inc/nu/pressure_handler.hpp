@@ -47,7 +47,8 @@ private:
   };
 
   AuxHandlerState aux_handler_states[kNumAuxHandlers];
-  std::shared_ptr<std::set<HeapInfo>> sorted_heaps_;
+  std::shared_ptr<std::set<HeapInfo>> mem_pressure_sorted_heaps_;
+  std::shared_ptr<std::set<HeapInfo>> cpu_pressure_sorted_heaps_;
   rt::Thread update_thread_;
   bool done_;
 

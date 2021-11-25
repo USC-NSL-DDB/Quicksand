@@ -27,7 +27,7 @@ PressureHandler::~PressureHandler() {
   update_thread_.Join();
 }
 
-inline uint64_t get_heap_size(HeapHeader *heap_header) {
+uint64_t get_heap_size(HeapHeader *heap_header) {
   auto &slab = heap_header->slab;
   auto size_in_bytes = reinterpret_cast<uint64_t>(slab.get_base()) +
                        slab.get_usage() -
@@ -35,18 +35,21 @@ inline uint64_t get_heap_size(HeapHeader *heap_header) {
   return size_in_bytes;
 }
 
-float utility(HeapHeader *heap_header) {
+std::pair<float, float> utility(HeapHeader *heap_header) {
   auto size = get_heap_size(heap_header);
   auto cpu_load = heap_header->cpu_load.get_load();
   heap_header->cpu_load.reset();
   cpu_load = std::max(cpu_load, static_cast<float>(1e-5));
-  return size / cpu_load;
+  auto cpu_pressure_utility = size / cpu_load;
+  auto mem_pressure_utility = size * cpu_load;
+  return std::make_pair(cpu_pressure_utility, mem_pressure_utility);
 }
 
 void PressureHandler::update_sorted_heaps() {
   CPULoad::flush_all();
 
-  auto new_sorted_heaps = std::make_shared<std::set<HeapInfo>>();
+  auto new_mem_pressure_sorted_heaps = std::make_shared<std::set<HeapInfo>>();
+  auto new_cpu_pressure_sorted_heaps = std::make_shared<std::set<HeapInfo>>();
   auto all_heaps = Runtime::heap_manager->get_all_heaps();
   for (auto *heap_base : all_heaps) {
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
@@ -55,14 +58,19 @@ void PressureHandler::update_sorted_heaps() {
       heap_header->spin_lock.unlock();
       continue;
     }
-    auto val = utility(heap_header);
+    auto [cpu_pressure_utility, mem_pressure_utility] = utility(heap_header);
     heap_header->spin_lock.unlock();
 
-    HeapInfo tmp{heap_header, val};
-    new_sorted_heaps->insert(tmp);
+    HeapInfo cpu{heap_header, cpu_pressure_utility};
+    new_cpu_pressure_sorted_heaps->insert(cpu);
+    HeapInfo mem{heap_header, mem_pressure_utility};
+    new_mem_pressure_sorted_heaps->insert(mem);
   }
 
-  std::atomic_exchange(&sorted_heaps_, new_sorted_heaps);
+  std::atomic_exchange(&cpu_pressure_sorted_heaps_,
+                       new_cpu_pressure_sorted_heaps);
+  std::atomic_exchange(&mem_pressure_sorted_heaps_,
+                       new_mem_pressure_sorted_heaps);
 }
 
 void PressureHandler::register_handlers() {
@@ -164,7 +172,10 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
     done = ((picked_mem_mbs >= min_mem_mbs) && (picked_num >= min_num_heaps));
   };
 
-  auto sorted_heaps = std::atomic_load(&sorted_heaps_);
+  bool cpu_pressure = min_num_heaps;
+  auto sorted_heaps = cpu_pressure
+                          ? std::atomic_load(&cpu_pressure_sorted_heaps_)
+                          : std::atomic_load(&mem_pressure_sorted_heaps_);
   if (sorted_heaps) {
     auto iter = sorted_heaps->begin();
     while (iter != sorted_heaps->end() && !done) {
