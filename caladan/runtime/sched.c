@@ -531,7 +531,7 @@ done:
 		STAT(REMOTE_RUNS)++;
 
 	/* update exported thread run start time */
-	th->run_start_tsc = MIN(last_tsc, th->run_start_tsc);
+	th->run_start_tsc = last_tsc;
 	ACCESS_ONCE(l->q_ptrs->run_start_tsc) = th->run_start_tsc;
 
 	/* increment the RCU generation number (odd is in thread) */
@@ -556,7 +556,6 @@ static __always_inline void enter_schedule(thread_t *curth)
 		curth->nu_state.run_cycles[read_cpu()].c += now - curth->run_start_tsc;
 
 	/* prepare current thread for sleeping */
-	curth->run_start_tsc = UINT64_MAX;
 	curth->last_cpu = k->curr_cpu;
 
 	spin_lock(&k->lock);
@@ -592,7 +591,7 @@ static __always_inline void enter_schedule(thread_t *curth)
 	spin_unlock(&k->lock);
 
 	/* update exported thread run start time */
-	th->run_start_tsc = MIN(last_tsc, th->run_start_tsc);
+	th->run_start_tsc = last_tsc;
 	ACCESS_ONCE(k->q_ptrs->run_start_tsc) = th->run_start_tsc;
 
 	/* increment the RCU generation number (odd is in thread) */
