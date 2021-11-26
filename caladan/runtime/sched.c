@@ -1219,7 +1219,7 @@ void gc_migrated_threads(void)
 
 void *thread_get_runtime_stack_base(void)
 {
-	return &__self->stack->usable[STACK_PTR_SIZE - 1];
+	return &__self->stack->usable[STACK_PTR_SIZE];
 }
 
 void *thread_get_obj_heap()
