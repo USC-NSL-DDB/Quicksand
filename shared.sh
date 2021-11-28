@@ -41,7 +41,7 @@ function run_iokerneld {
 
 function rerun_iokerneld {
     kill_iokerneld
-    run_iokerneld simple
+    run_iokerneld ias
 }
 
 function run_client_prog {
