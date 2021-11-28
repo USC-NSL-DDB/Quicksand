@@ -24,13 +24,17 @@ ssh $NGINX_IP "sudo ip addr add $NGINX_SERVER_CALADAN_IP_AND_MASK dev $NGINX_SER
 
 DIR=`pwd`
 cd $SOCIAL_NET_DIR
+mv src/BackEndService.cpp src/BackEndService.cpp.bak
 mv bench/client.cpp bench/client.cpp.bak
+cp $DIR/BackEndService.cpp src/BackEndService.cpp
 cp $DIR/client.cpp bench/client.cpp
 cd build
 make clean
 make -j
 cd ..
+ssh $SRC_SERVER_IP "mkdir -p `pwd`/build/src"
 scp build/src/BackEndService $SRC_SERVER_IP:`pwd`/build/src
+ssh $DEST_SERVER_IP "mkdir -p `pwd`/build/src"
 scp build/src/BackEndService $DEST_SERVER_IP:`pwd`/build/src
 ssh $CLIENT_IP "mkdir -p `pwd`/build/bench"
 scp build/bench/client $CLIENT_IP:`pwd`/build/bench
@@ -62,6 +66,8 @@ sleep 20
 ssh $SRC_SERVER_IP "sudo pkill -SIGHUP bench_real_cpu"
 wait $pid_client
 scp $CLIENT_IP:$SOCIAL_NET_DIR/timeseries $DIR/logs/
+
+mv src/BackEndService.cpp.bak src/BackEndService.cpp
 mv bench/client.cpp.bak bench/client.cpp
 
 sudo pkill -9 iokerneld; sudo pkill -9 BackEndService

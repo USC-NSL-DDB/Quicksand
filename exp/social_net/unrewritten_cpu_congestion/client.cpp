@@ -19,7 +19,7 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 200;
-constexpr static double kTargetMops = 0.8;
+constexpr static double kTargetMops = 0.6;
 constexpr static double kTotalMops = 10;
 constexpr static uint32_t kNumEntryObjs = 1;
 const static std::string kEntryObjIps[] = {
