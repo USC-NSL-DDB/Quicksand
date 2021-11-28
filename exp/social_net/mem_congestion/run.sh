@@ -32,7 +32,9 @@ cd build
 make clean
 make -j
 cd ..
+ssh $SRC_SERVER_IP "mkdir -p `pwd`/build/src"
 scp build/src/main $SRC_SERVER_IP:`pwd`/build/src
+ssh $DEST_SERVER_IP "mkdir -p `pwd`/build/src"
 scp build/src/main $DEST_SERVER_IP:`pwd`/build/src
 ssh $CLIENT_IP "mkdir -p `pwd`/build/bench"
 scp build/bench/client $CLIENT_IP:`pwd`/build/bench
@@ -61,7 +63,7 @@ ssh $CLIENT_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
 ssh $CLIENT_IP "cd `pwd`; sudo build/bench/client $DIR/conf/client2" &
 pid_client=$!
-sleep 20
+sleep 13
 ssh $SRC_SERVER_IP "sudo pkill -SIGHUP bench_real_mem"
 wait $pid_client
 ssh $SRC_SERVER_IP "sudo pkill -SIGHUP bench_real_mem"
