@@ -17,6 +17,7 @@ public:
   ~CondVar();
   void wait(Mutex *mutex);
   void wait(SpinLock *spin);
+  void wait_and_unlock(SpinLock *spin);
   void signal();
   void signal_all();
 

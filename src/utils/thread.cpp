@@ -70,8 +70,7 @@ void Thread::join() {
   }
 
   join_data_->done = true;
-  join_data_->cv.wait(&join_data_->lock);
-  join_data_->lock.unlock();
+  join_data_->cv.wait_and_unlock(&join_data_->lock);
   join_data_ = nullptr;
   thread_set_nu_thread(th_, nullptr);
 }

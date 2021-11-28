@@ -18,8 +18,8 @@ struct join_data {
   join_data(F &&f, HeapHeader *hdr)
       : done(false), func(std::move(f)), header(hdr) {}
 
-  SpinLock lock;
   bool done;
+  SpinLock lock;
   CondVar cv;
   folly::Function<void()> func;
   HeapHeader *header;

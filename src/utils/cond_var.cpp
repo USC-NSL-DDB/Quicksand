@@ -25,6 +25,11 @@ void CondVar::wait(Mutex *mutex) {
 }
 
 void CondVar::wait(SpinLock *spin) {
+  wait_and_unlock(spin);
+  spin->lock();
+}
+
+void CondVar::wait_and_unlock(SpinLock *spin) {
   thread_t *myth;
 
   assert_spin_lock_held(&spin->spinlock_);
@@ -40,8 +45,6 @@ void CondVar::wait(SpinLock *spin) {
   thread_set_self_waiter_info(waiter_info.raw);
   thread_park_and_unlock_np(&condvar_.waiter_lock);
   thread_set_self_waiter_info(0);
-
-  spin->lock();
 }
 
 } // namespace nu
