@@ -46,6 +46,7 @@ static __thread uint64_t last_tsc;
 static __thread uint64_t last_watchdog_tsc;
 
 static bool global_pause_req_mask = false;
+static void *global_prioritized_rcu = NULL;
 
 /**
  * In inc/runtime/thread.h, this function is declared inline (rather than static
@@ -170,7 +171,8 @@ static bool work_available(struct kthread *k)
 #endif
 
 	return ACCESS_ONCE(k->rq_tail) != ACCESS_ONCE(k->rq_head) ||
-	       softirq_pending(k);
+	       softirq_pending(k) ||
+	       !list_empty_volatile(&k->rq_deprioritized);
 }
 
 static void update_oldest_tsc(struct kthread *k)
@@ -186,18 +188,18 @@ static void update_oldest_tsc(struct kthread *k)
 	}
 }
 
-static void pop_migrating_threads(struct kthread *k)
+static void __pause_migrating_threads_locked(struct kthread *k)
 {
 	thread_t *th;
 	thread_t sentinel;
-	uint32_t i, avail, num_popped = 0;
+	uint32_t i, avail, num_paused = 0;
 
 	assert_spin_lock_held(&k->lock);
 	avail = load_acquire(&k->rq_head) - k->rq_tail;
 	for (i = 0; i < avail; i++) {
 		th = k->rq[k->rq_tail++ % RUNTIME_RQ_SIZE];
 		if (th->nu_state.migration_state == MIGRATING) {
-			num_popped++;
+			num_paused++;
 			list_add_tail(&k->migrating_ths, &th->link);
 		} else {
 			k->rq[k->rq_head % RUNTIME_RQ_SIZE] = th;
@@ -210,7 +212,7 @@ static void pop_migrating_threads(struct kthread *k)
 		while ((th = list_pop(&k->rq_overflow, thread_t, link)) !=
 		       &sentinel) {
 			if (th->nu_state.migration_state == MIGRATING) {
-				num_popped++;
+				num_paused++;
 				list_add_tail(&k->migrating_ths, &th->link);
 			} else {
 				list_add_tail(&k->rq_overflow, &th->link);
@@ -218,7 +220,7 @@ static void pop_migrating_threads(struct kthread *k)
 		}
 	}
 
-	k->q_ptrs->rq_tail += num_popped;
+	k->q_ptrs->rq_tail += num_paused;
 	store_release(&k->pause_req, false);
 }
 
@@ -232,7 +234,7 @@ static inline void pause_local_migrating_threads_locked(void)
 
 	assert_spin_lock_held(&l->lock);
 	if (has_pending_pause_req(l))
-		pop_migrating_threads(l);
+		__pause_migrating_threads_locked(l);
 }
 
 void pause_local_migrating_threads(void)
@@ -240,13 +242,97 @@ void pause_local_migrating_threads(void)
 	struct kthread *l = getk();
 
 	spin_lock(&l->lock);
-	if (has_pending_pause_req(l))
-		pop_migrating_threads(l);
+	pause_local_migrating_threads_locked();
 	spin_unlock(&l->lock);
 	putk();
 }
 
-static bool handle_pending_pause_req_of(struct kthread *k)
+static inline bool thread_has_held_rcu(thread_t *th, void *rcu)
+{
+	uint32_t i = 0;
+
+	for (i = 0; i < th->nu_state.num_rcus_held; i++) {
+		if (th->nu_state.rcus_held[i].addr == (uint64_t)rcu &&
+		    th->nu_state.rcus_held[i].cnt)
+			return true;
+	}
+	return false;
+}
+
+static void __prioritize_rcu_readers_locked(struct kthread *k)
+{
+	thread_t *th;
+	thread_t sentinel;
+	uint32_t i, avail, num_paused = 0;
+
+	assert_spin_lock_held(&k->lock);
+	avail = load_acquire(&k->rq_head) - k->rq_tail;
+	for (i = 0; i < avail; i++) {
+		th = k->rq[k->rq_tail++ % RUNTIME_RQ_SIZE];
+		if (!thread_has_held_rcu(th, global_prioritized_rcu)) {
+			num_paused++;
+			list_add_tail(&k->rq_deprioritized, &th->link);
+		} else {
+			k->rq[k->rq_head % RUNTIME_RQ_SIZE] = th;
+	                ACCESS_ONCE(k->rq_head)++;
+		}
+	}
+
+	if (unlikely(!list_empty(&k->rq_overflow))) {
+	        list_add_tail(&k->rq_overflow, &sentinel.link);
+		while ((th = list_pop(&k->rq_overflow, thread_t, link)) !=
+		       &sentinel) {
+			if (!thread_has_held_rcu(th, global_prioritized_rcu)) {
+				num_paused++;
+				list_add_tail(&k->rq_deprioritized, &th->link);
+			} else
+				list_add_tail(&k->rq_overflow, &th->link);
+		}
+	}
+
+	k->q_ptrs->rq_tail += num_paused;
+	store_release(&k->prioritize_req, false);
+}
+
+static inline bool has_pending_prioritize_req(struct kthread *k) {
+	return load_acquire(&k->prioritize_req) &
+	       (!!global_prioritized_rcu);
+}
+
+static inline void prioritize_local_rcu_readers_locked(void)
+{
+	struct kthread *l = myk();
+
+	assert_spin_lock_held(&l->lock);
+	if (has_pending_prioritize_req(l))
+		__prioritize_rcu_readers_locked(l);
+}
+
+void prioritize_local_rcu_readers(void)
+{
+	struct kthread *l = getk();
+
+	spin_lock(&l->lock);
+	prioritize_local_rcu_readers_locked();
+	spin_unlock(&l->lock);
+	putk();
+}
+
+static void pop_deprioritized_threads_locked(struct kthread *k)
+{
+	thread_t sentinel, *th;
+
+	assert_spin_lock_held(&k->lock);
+
+	list_add_tail(&k->rq_deprioritized, &sentinel.link);
+	while ((th = list_pop(&k->rq_deprioritized, thread_t, link)) !=
+	       &sentinel) {
+		th->thread_ready = false;
+		thread_ready_locked(th);
+	}
+}
+
+static bool handle_pending_pause_req(struct kthread *k)
 {
 	bool handled;
 	if (!spin_try_lock(&k->lock))
@@ -258,7 +344,29 @@ static bool handle_pending_pause_req_of(struct kthread *k)
 	}
 
 	if (ACCESS_ONCE(k->parked)) {
-		pop_migrating_threads(k);
+		__pause_migrating_threads_locked(k);
+		handled = true;
+	}
+	else
+		handled = false;
+
+	spin_unlock(&k->lock);
+	return handled;
+}
+
+static bool handle_pending_prioritize_req(struct kthread *k)
+{
+	bool handled;
+	if (!spin_try_lock(&k->lock))
+		return false;
+
+	if (unlikely(!has_pending_prioritize_req(k))) {
+		spin_unlock(&k->lock);
+		return true;
+	}
+
+	if (ACCESS_ONCE(k->parked)) {
+	        __prioritize_rcu_readers_locked(k);
 		handled = true;
 	}
 	else
@@ -290,7 +398,10 @@ static bool steal_work(struct kthread *l, struct kthread *r)
 	assert(l->rq_head == 0 && l->rq_tail == 0);
 
 	if (unlikely(ACCESS_ONCE(r->pause_req)) &&
-	    !handle_pending_pause_req_of(r))
+	    !handle_pending_pause_req(r))
+	        return false;
+	if (unlikely(ACCESS_ONCE(r->prioritize_req)) &&
+	    !handle_pending_prioritize_req(r))
 	        return false;
 	if (!work_available(r))
 		return false;
@@ -353,6 +464,12 @@ static bool steal_work(struct kthread *l, struct kthread *r)
 		return true;
 	}
 
+	if (unlikely(!list_empty(&r->rq_deprioritized))) {
+		pop_deprioritized_threads_locked(r);
+		spin_unlock(&r->lock);
+		return true;
+	}
+
 	/* check for softirqs */
 	if (softirq_sched(r)) {
 		STAT(SOFTIRQS_STOLEN)++;
@@ -412,6 +529,7 @@ static __noreturn __noinline void schedule(void)
 	ACCESS_ONCE(l->q_ptrs->rcu_gen) += 1;
 	assert((l->rcu_gen & 0x1) == 0x0);
 
+	prioritize_local_rcu_readers_locked();
 	pause_local_migrating_threads_locked();
 	if (handle_preemptor()) {
 		goto done;
@@ -445,6 +563,7 @@ static __noreturn __noinline void schedule(void)
 	l->rq_head = l->rq_tail = 0;
 
 again:
+	prioritize_local_rcu_readers_locked();
 	pause_local_migrating_threads_locked();
 	if (handle_preemptor()) {
 		goto done;
@@ -473,6 +592,11 @@ again:
 		if (r && r != l && steal_work(l, r)) {
 			goto done;
 		}
+	}
+
+	if (unlikely(!list_empty(&l->rq_deprioritized))) {
+		pop_deprioritized_threads_locked(l);
+		goto done;
 	}
 
 	/* recheck for local softirqs one last time */
@@ -560,6 +684,7 @@ static __always_inline void enter_schedule(thread_t *curth)
 
 	spin_lock(&k->lock);
 
+	prioritize_local_rcu_readers_locked();
 	pause_local_migrating_threads_locked();
 	handle_preemptor();
 
@@ -1378,4 +1503,22 @@ void set_thread_set_idx(thread_t *th, int8_t idx) {
 int8_t get_thread_set_idx(thread_t *th) {
        assert(th->nu_state.thread_set_idx != -1);
        return th->nu_state.thread_set_idx;
+}
+
+void prioritize_rcu_readers(void *rcu)
+{
+	int i;
+
+	for (i = 0; i < nrks; i++) {
+		ks[i]->prioritize_req = true;
+	}
+	store_release(&global_prioritized_rcu, rcu);
+	kthread_yield_all_cores();
+        prioritize_local_rcu_readers();
+retry:
+	for (i = 0; i < nrks; i++)
+		if (ACCESS_ONCE(ks[i]->prioritize_req) ||
+		    !list_empty_volatile(&ks[i]->rq_deprioritized))
+			goto retry;
+	store_release(&global_prioritized_rcu, NULL);
 }

@@ -100,6 +100,8 @@ extern bool thread_is_migrated(void);
 extern uint64_t thread_get_rsp(thread_t *th);
 extern void pause_all_migrating_threads(void);
 extern void pause_local_migrating_threads(void);
+extern void prioritize_rcu_readers(void *rcu);
+extern void prioritize_local_rcu_readers(void);
 extern void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
 extern thread_t *create_migrated_thread(void *nu_state);
 extern void gc_migrated_threads(void);

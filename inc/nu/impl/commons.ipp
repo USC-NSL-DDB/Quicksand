@@ -19,6 +19,7 @@ inline RemObjID to_obj_id(void *heap_base) {
 }
 
 inline __attribute__((always_inline)) void *switch_stack(void *new_rsp) {
+  assert(reinterpret_cast<uintptr_t>(new_rsp) % kStackAlignment == 0);
   void *old_rsp;
   asm volatile("movq %%rsp, %0\n\t"
                "movq %1, %%rsp"

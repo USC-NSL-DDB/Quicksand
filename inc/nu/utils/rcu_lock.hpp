@@ -25,7 +25,7 @@ public:
   Result reader_lock();
   Result try_reader_lock();
   void reader_unlock();
-  void writer_sync(bool poll = false);
+  void writer_sync(bool prioritize_readers = false);
 
 private:
   union Cnt {

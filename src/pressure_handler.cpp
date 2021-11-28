@@ -151,6 +151,7 @@ void PressureHandler::aux_handler(void *args) {
       task.conn.release();
     }
     pause_local_migrating_threads();
+    prioritize_local_rcu_readers();
     cpu_relax();
   }
   state->done = false;

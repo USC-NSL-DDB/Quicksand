@@ -460,9 +460,11 @@ struct kthread {
 
 	/* 11th cache-line, direct path RX queues and migration states */
 	struct hardware_q	*directpath_rxq;
-	bool                    pause_req;
 	struct list_head        migrating_ths;
-	unsigned long		pad4[4];
+	struct list_head	rq_deprioritized;
+	bool                    pause_req;
+	bool                    prioritize_req;
+	unsigned long		pad4[2];
 
 	/* 12th cache-line, statistics counters */
 	uint64_t		stats[STAT_NR];

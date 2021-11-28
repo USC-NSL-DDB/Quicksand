@@ -55,6 +55,7 @@ static struct kthread *allock(void)
 	memset(k, 0, sizeof(*k));
 	spin_lock_init(&k->lock);
 	list_head_init(&k->rq_overflow);
+	list_head_init(&k->rq_deprioritized);
 	list_head_init(&k->migrating_ths);
 	mbufq_init(&k->txpktq_overflow);
 	mbufq_init(&k->txcmdq_overflow);

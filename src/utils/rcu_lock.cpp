@@ -22,13 +22,14 @@ RCULock::~RCULock() {
 #endif
 }
 
-void RCULock::writer_sync(bool poll) {
+void RCULock::writer_sync(bool prioritize_readers) {
   sync_barrier_ = true;
   barrier();
 
   int32_t sum;
   int32_t snapshot_vers[kNumCores];
   auto start_us = microtime();
+  bool prioritized = false;
 
 retry:
   sum = 0;
@@ -39,8 +40,11 @@ retry:
     sum += cnt.data.c;
   }
   if (sum != 0) {
-    if (unlikely(poll)) {
-      cpu_relax();
+    if (prioritize_readers) {
+      if (!prioritized) {
+        prioritize_rcu_readers(this);
+        prioritized = true;
+      }
     } else {
       if (likely(microtime() < start_us + kWriterWaitFastPathMaxUs)) {
         // Fast path.
