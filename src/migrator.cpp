@@ -339,13 +339,13 @@ void Migrator::transmit_heap_mmap_populate_ranges(
   }
 }
 
-void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header,
-                        const std::vector<thread_t *> &all_threads) {
+void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header) {
   transmit_heap(c, heap_header);
 
   std::vector<thread_t *> ready_threads;
   std::unordered_set<Mutex *> mutexes;
   std::unordered_set<CondVar *> condvars;
+  auto all_threads = heap_header->threads.all_threads();
 
   for (auto *thread : all_threads) {
     WaiterInfo waiter_info;
@@ -373,14 +373,13 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header,
   transmit_threads(c, ready_threads);
 }
 
-bool Migrator::mark_migrating_threads(HeapHeader *heap_header,
-                                      std::vector<thread_t *> *all_threads) {
+bool Migrator::mark_migrating_threads(HeapHeader *heap_header) {
   if (unlikely(!Runtime::heap_manager->remove(heap_header))) {
     return false;
   }
   heap_header->rcu_lock.writer_sync(/* poll = */ true);
-  *all_threads = heap_header->threads.all_threads();
-  for (auto thread : *all_threads) {
+  auto all_threads = heap_header->threads.all_threads();
+  for (auto thread : all_threads) {
     thread_mark_migrating(thread);
   }
   return true;
@@ -432,17 +431,16 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
 
   std::vector<HeapHeader *> migrated_heaps;
   std::vector<HeapHeader *> destructed_heaps;
-  std::vector<thread_t *> all_threads;
   migrated_heaps.reserve(heaps.size());
   for (auto [heap_header, _] : heaps) {
-    if (unlikely(!mark_migrating_threads(heap_header, &all_threads))) {
+    if (unlikely(!mark_migrating_threads(heap_header))) {
       destructed_heaps.push_back(heap_header);
       continue;
     }
 
     migrated_heaps.push_back(heap_header);
     pause_all_migrating_threads();
-    transmit(conn, heap_header, all_threads);
+    transmit(conn, heap_header);
     gc_migrated_threads();
   }
 
