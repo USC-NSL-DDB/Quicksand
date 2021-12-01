@@ -4,9 +4,9 @@ extern "C" {
 #include <base/assert.h>
 }
 
-#include "nu/time.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_deleter.hpp"
+#include "nu/utils/time.hpp"
 
 namespace nu {
 
@@ -21,7 +21,10 @@ void Time::timer_callback(unsigned long arg_addr) {
 
   time = heap_header->time.get();
   time->spin_.Lock();
-  time->entries_.erase(arg->iter);
+  {
+    RuntimeHeapGuard g;
+    time->entries_.erase(arg->iter);
+  }
   time->spin_.Unlock();
   thread_ready(arg->th);
 }
@@ -76,7 +79,10 @@ void Time::obj_env_sleep_until(uint64_t deadline_us) {
   timer_init(e, Time::timer_callback, reinterpret_cast<unsigned long>(arg));
 
   spin_.Lock();
-  entries_.push_back(e);
+  {
+    RuntimeHeapGuard g;
+    entries_.push_back(e);
+  }
   arg->iter = --entries_.end();
   timer_start(e, physical_us);
   WaiterInfo waiter_info;

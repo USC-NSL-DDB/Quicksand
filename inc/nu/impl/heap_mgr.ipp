@@ -2,8 +2,8 @@
 
 #include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"
-#include "nu/time.hpp"
 #include "nu/utils/rcu_hash_map.hpp"
+#include "nu/utils/time.hpp"
 
 namespace nu {
 

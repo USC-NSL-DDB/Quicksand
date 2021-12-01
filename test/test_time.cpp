@@ -12,7 +12,7 @@ extern "C" {
 #include "nu/pressure_handler.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
-#include "nu/time.hpp"
+#include "nu/utils/time.hpp"
 
 using namespace nu;
 

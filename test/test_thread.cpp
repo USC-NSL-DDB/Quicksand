@@ -4,8 +4,8 @@
 #include "nu/pressure_handler.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
-#include "nu/time.hpp"
 #include "nu/utils/thread.hpp"
+#include "nu/utils/time.hpp"
 
 constexpr uint32_t kNumInvocations = 1000;
 constexpr uint32_t kNumThreadsPerInvocation = 4;

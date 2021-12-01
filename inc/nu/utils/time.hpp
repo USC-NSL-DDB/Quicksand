@@ -9,8 +9,6 @@ extern "C" {
 }
 #include <sync.h>
 
-#include "nu/runtime_alloc.hpp"
-
 namespace nu {
 
 class Time {
@@ -27,7 +25,7 @@ public:
 
 private:
   int64_t offset_tsc_;
-  std::list<timer_entry *, RuntimeAllocator<timer_entry *>> entries_;
+  std::list<timer_entry *> entries_;
   rt::Spin spin_;
   friend class Migrator;
 
@@ -46,8 +44,9 @@ struct TimerCallbackArg {
   thread_t *th;
   HeapHeader *heap_header;
   uint64_t logical_deadline_us;
-  std::list<timer_entry *, RuntimeAllocator<timer_entry *>>::iterator iter;
+  std::list<timer_entry *>::iterator iter;
 };
+
 } // namespace nu
 
 #include "nu/impl/time.ipp"
