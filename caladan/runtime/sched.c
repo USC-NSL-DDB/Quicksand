@@ -45,8 +45,10 @@ static __thread uint64_t last_tsc;
 /* used to force timer and network processing after a timeout */
 static __thread uint64_t last_watchdog_tsc;
 
+static void *pause_req_obj_heap = NULL;
 static bool global_pause_req_mask = false;
 static void *global_prioritized_rcu = NULL;
+LIST_HEAD(all_migrating_ths);
 
 /**
  * In inc/runtime/thread.h, this function is declared inline (rather than static
@@ -198,7 +200,7 @@ static void __pause_migrating_threads_locked(struct kthread *k)
 	avail = load_acquire(&k->rq_head) - k->rq_tail;
 	for (i = 0; i < avail; i++) {
 		th = k->rq[k->rq_tail++ % RUNTIME_RQ_SIZE];
-		if (th->nu_state.migration_state == MIGRATING) {
+		if (th->nu_state.obj_heap == pause_req_obj_heap) {
 			num_paused++;
 			list_add_tail(&k->migrating_ths, &th->link);
 		} else {
@@ -211,7 +213,7 @@ static void __pause_migrating_threads_locked(struct kthread *k)
 	        list_add_tail(&k->rq_overflow, &sentinel.link);
 		while ((th = list_pop(&k->rq_overflow, thread_t, link)) !=
 		       &sentinel) {
-			if (th->nu_state.migration_state == MIGRATING) {
+			if (th->nu_state.obj_heap == pause_req_obj_heap) {
 				num_paused++;
 				list_add_tail(&k->migrating_ths, &th->link);
 			} else {
@@ -1023,9 +1025,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->wq_spin = false;
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
-	th->nu_state.waiter_info = 0;
-	th->nu_state.thread_set_idx = -1;
-	th->nu_state.migration_state = NO_MIGRATION;
+	th->nu_state.migrated = false;
 
 	if (__self) {
 		th->nu_state.obj_heap = __self->nu_state.obj_heap;
@@ -1281,22 +1281,19 @@ int sched_init(void)
 	return 0;
 }
 
-void thread_mark_migrating(thread_t *th) { th->nu_state.migration_state = MIGRATING; }
-
-void thread_mark_migrated(thread_t *th) { th->nu_state.migration_state = MIGRATED; }
-
 bool thread_is_migrated(void)
 {
-	return __self->nu_state.migration_state == MIGRATED;
+	return __self->nu_state.migrated;
 }
 
-void pause_all_migrating_threads(void)
+struct list_head *pause_all_migrating_threads(void *obj_heap)
 {
 	int i;
 
 	for (i = 0; i < nrks; i++) {
 		ks[i]->pause_req = true;
 	}
+	pause_req_obj_heap = obj_heap;
 	store_release(&global_pause_req_mask, true);
 	kthread_yield_all_cores();
 	pause_local_migrating_threads();
@@ -1306,6 +1303,10 @@ retry:
 		if (ACCESS_ONCE(ks[i]->pause_req))
 			goto retry;
 	store_release(&global_pause_req_mask, false);
+	for (i = 0; i < nrks; i++) {
+		list_append_list(&all_migrating_ths, &ks[i]->migrating_ths);
+	}
+	return &all_migrating_ths;
 }
 
 uint64_t thread_get_rsp(thread_t *th) { return th->nu_state.tf.rsp; }
@@ -1321,24 +1322,18 @@ thread_t *create_migrated_thread(void *nu_state)
 	thread_t *th = __thread_create();
 	BUG_ON(!th);
 	th->nu_state = *(struct thread_nu_state *)nu_state;
-	th->nu_state.migration_state = MIGRATED;
+	th->nu_state.migrated = true;
 
 	return th;
 }
 
 void gc_migrated_threads(void)
 {
-	int i;
 	thread_t *th;
 
-	for (i = 0; i < nrks; i++) {
-		while ((th = list_pop(&ks[i]->migrating_ths, thread_t, link))) {
-			if (th->nu_state.migration_state == MIGRATED) {
-				stack_free(th->stack);
-				tcache_free(&perthread_get(thread_pt), th);
-			} else
-				BUG();
-		}
+	while ((th = list_pop(&all_migrating_ths, thread_t, link))) {
+		stack_free(th->stack);
+		tcache_free(&perthread_get(thread_pt), th);
 	}
 }
 
@@ -1358,39 +1353,6 @@ void *thread_get_obj_heap()
 void thread_set_obj_heap(void *obj_heap)
 {
        __self->nu_state.obj_heap = obj_heap;
-}
-
-uint64_t thread_get_waiter_info(thread_t *th)
-{
-       return th->nu_state.waiter_info;
-}
-
-void thread_set_waiter_info(thread_t *th, uint64_t waiter_info)
-{
-       th->nu_state.waiter_info = waiter_info;
-}
-
-void thread_get_waiter_info_and_ready(thread_t *th, uint64_t *waiter_info,
-                                      bool *ready)
-{
-       *waiter_info = th->nu_state.waiter_info;
-       *ready = th->thread_ready;
-}
-
-uint64_t thread_get_self_waiter_info(void)
-{
-       uint64_t waiter_info;
-       preempt_disable();
-       waiter_info = __self->nu_state.waiter_info;
-       preempt_enable();
-       return waiter_info;
-}
-
-void thread_set_self_waiter_info(uint64_t waiter_info)
-{
-       preempt_disable();
-       __self->nu_state.waiter_info = waiter_info;
-       preempt_enable();
 }
 
 struct aligned_cycles *
@@ -1494,15 +1456,6 @@ void thread_set_nu_thread(thread_t *th, void *nu_thread)
 void *thread_get_nu_thread(thread_t *th)
 {
        return th->nu_state.nu_thread;
-}
-
-void set_thread_set_idx(thread_t *th, int8_t idx) {
-       th->nu_state.thread_set_idx = idx;
-}
-
-int8_t get_thread_set_idx(thread_t *th) {
-       assert(th->nu_state.thread_set_idx != -1);
-       return th->nu_state.thread_set_idx;
 }
 
 void prioritize_rcu_readers(void *rcu)

@@ -18,11 +18,13 @@ public:
   bool try_lock();
 
 private:
-  mutex_t mutex_;
+  mutex_t m_;
   friend class CondVar;
   friend class Migrator;
 
   list_head *get_waiters();
+  void __lock();
+  void __unlock();
 };
 } // namespace nu
 

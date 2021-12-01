@@ -52,8 +52,8 @@ void HeapManager::deallocate(void *heap_base) {
   auto *munmap_base = reinterpret_cast<uint8_t *>(heap_base) + kPageSize;
   auto total_munmap_size = kHeapSize - kPageSize;
   RuntimeHeapGuard guard;
-  std::destroy_at(&heap_header->threads);
-  heap_header->time.reset();
+  std::destroy_at(&heap_header->blocked_syncer);
+  std::destroy_at(&heap_header->time);
   std::destroy_at(&heap_header->migrated_wg);
   std::destroy_at(&heap_header->spin);
   std::destroy_at(&heap_header->slab);
@@ -66,9 +66,8 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
   RuntimeHeapGuard guard;
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
 
-  std::construct_at(&heap_header->threads);
-  heap_header->time.release();
-  heap_header->time.reset(new decltype(heap_header->time)::element_type());
+  std::construct_at(&heap_header->blocked_syncer);
+  std::construct_at(&heap_header->time);
   heap_header->migratable = migratable;
   std::construct_at(&heap_header->migrated_wg);
 

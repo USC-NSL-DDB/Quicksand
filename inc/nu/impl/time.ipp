@@ -2,9 +2,6 @@ extern "C" {
 #include <runtime/timer.h>
 }
 
-#include "nu/heap_mgr.hpp"
-#include "nu/runtime.hpp"
-
 namespace nu {
 
 inline Time::Time() : offset_tsc_(0) {}

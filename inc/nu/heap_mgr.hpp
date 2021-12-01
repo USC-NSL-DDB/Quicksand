@@ -14,13 +14,14 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/commons.hpp"
+#include "nu/utils/blocked_syncer.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/cpu_load.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/slab.hpp"
 #include "nu/utils/spinlock.hpp"
-#include "nu/utils/thread_set.hpp"
+#include "nu/utils/time.hpp"
 
 namespace nu {
 
@@ -49,8 +50,8 @@ struct HeapHeader {
   CPULoad cpu_load;
 
   // Migration related.
-  ThreadSet threads;
-  std::unique_ptr<Time> time;
+  BlockedSyncer blocked_syncer;
+  Time time;
   bool migratable;
 
   // Forwarding related.

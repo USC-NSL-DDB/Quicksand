@@ -12,27 +12,26 @@ namespace nu {
 
 void Time::timer_callback(unsigned long arg_addr) {
   auto *arg = reinterpret_cast<TimerCallbackArg *>(arg_addr);
-  Time *time;
 
   auto *heap_header = arg->heap_header;
   if (unlikely(!rt::access_once(heap_header->present))) {
     return;
   }
 
-  time = heap_header->time.get();
-  time->spin_.Lock();
+  auto &time = heap_header->time;
+  time.spin_.Lock();
   {
     RuntimeHeapGuard g;
-    time->entries_.erase(arg->iter);
+    time.entries_.erase(arg->iter);
   }
-  time->spin_.Unlock();
+  time.spin_.Unlock();
   thread_ready(arg->th);
 }
 
 uint64_t Time::rdtsc() {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
-    return heap_header->time->obj_env_rdtsc();
+    return heap_header->time.obj_env_rdtsc();
   } else {
     return ::rdtsc();
   }
@@ -41,7 +40,7 @@ uint64_t Time::rdtsc() {
 uint64_t Time::microtime() {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
-    return heap_header->time->obj_env_microtime();
+    return heap_header->time.obj_env_microtime();
   } else {
     return ::microtime();
   }
@@ -50,7 +49,7 @@ uint64_t Time::microtime() {
 void Time::sleep_until(uint64_t deadline_us) {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
-    heap_header->time->obj_env_sleep_until(deadline_us);
+    heap_header->time.obj_env_sleep_until(deadline_us);
   } else {
     timer_sleep_until(deadline_us);
   };
@@ -59,7 +58,7 @@ void Time::sleep_until(uint64_t deadline_us) {
 void Time::sleep(uint64_t duration_us) {
   auto *heap_header = Runtime::get_current_obj_heap_header();
   if (heap_header) {
-    heap_header->time->obj_env_sleep(duration_us);
+    heap_header->time.obj_env_sleep(duration_us);
   } else {
     timer_sleep(duration_us);
   };
@@ -85,11 +84,7 @@ void Time::obj_env_sleep_until(uint64_t deadline_us) {
   }
   arg->iter = --entries_.end();
   timer_start(e, physical_us);
-  WaiterInfo waiter_info;
-  waiter_info.type = WaiterType::kTimer;
-  thread_set_self_waiter_info(waiter_info.raw);
   thread_park_and_unlock_np(reinterpret_cast<spinlock_t *>(&spin_));
-  thread_set_self_waiter_info(0);
 }
 
 } // namespace nu

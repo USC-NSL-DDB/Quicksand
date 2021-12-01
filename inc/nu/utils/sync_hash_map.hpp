@@ -32,7 +32,7 @@ public:
   template <typename K1, typename... Args>
   bool try_emplace_with_hash(K1 k, uint64_t key_hash, Args... args);
   template <typename K1> bool remove(K1 &&k);
-   template <typename K1> bool remove_with_hash(K1 &&k, uint64_t key_hash);
+  template <typename K1> bool remove_with_hash(K1 &&k, uint64_t key_hash);
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
   RetT apply(K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...),
              A1s &&... args);

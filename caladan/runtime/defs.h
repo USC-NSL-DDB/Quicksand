@@ -90,24 +90,16 @@ struct stack;
 
 #define MAX_NUM_RCUS_HELD       7
 
-enum {
-	NO_MIGRATION = 0,
-	MIGRATING,
-	MIGRATED,
-};
-
 struct rcu_info {
 	uint64_t                addr:48;
 	uint64_t                cnt:16;
 };
 
 struct thread_nu_state {
-	uint8_t                 migration_state;
+	bool                    migrated;
 	uint8_t                 num_rcus_held;
-	int8_t                  thread_set_idx;
 	struct aligned_cycles	*run_cycles;
 	void                    *obj_heap;
-	uint64_t                waiter_info;
 	struct rcu_info         rcus_held[MAX_NUM_RCUS_HELD];
 	void                    *nu_thread;
 	struct thread_tf	tf;

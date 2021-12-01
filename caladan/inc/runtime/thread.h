@@ -94,11 +94,9 @@ extern void thread_exit(void) __noreturn;
 /*
  * Used by Nu.
  */
-extern void thread_mark_migrating(thread_t *thread);
-extern void thread_mark_migrated(thread_t *thread);
 extern bool thread_is_migrated(void);
 extern uint64_t thread_get_rsp(thread_t *th);
-extern void pause_all_migrating_threads(void);
+extern struct list_head *pause_all_migrating_threads(void *obj_heap);
 extern void pause_local_migrating_threads(void);
 extern void prioritize_rcu_readers(void *rcu);
 extern void prioritize_local_rcu_readers(void);
@@ -108,13 +106,5 @@ extern void gc_migrated_threads(void);
 extern void *thread_get_runtime_stack_base(void);
 extern void *thread_get_obj_heap(void);
 extern void thread_set_obj_heap(void *obj_heap);
-extern uint64_t thread_get_waiter_info(thread_t *th);
-extern uint64_t thread_get_self_waiter_info(void);
-extern void thread_get_waiter_info_and_ready(thread_t *th, uint64_t *waiter_info,
-                                             bool *ready);
-extern void thread_set_waiter_info(thread_t *th, uint64_t waiter_info);
-extern void thread_set_self_waiter_info(uint64_t waiter_info);
 extern void thread_set_nu_thread(thread_t *th, void *nu_thread);
 extern void *thread_get_nu_thread(thread_t *th);
-extern void set_thread_set_idx(thread_t *th, int8_t idx);
-extern int8_t get_thread_set_idx(thread_t *th);

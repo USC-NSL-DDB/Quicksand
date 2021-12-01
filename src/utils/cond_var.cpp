@@ -1,4 +1,6 @@
 #include "nu/utils/cond_var.hpp"
+#include "nu/runtime.hpp"
+#include "nu/utils/blocked_syncer.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/spinlock.hpp"
 
@@ -7,19 +9,20 @@ namespace nu {
 void CondVar::wait(Mutex *mutex) {
   thread_t *myth;
 
-  assert_mutex_held(&mutex->mutex_);
-  spin_lock_np(&condvar_.waiter_lock);
+  assert_mutex_held(&mutex->m_);
+  spin_lock_np(&cv_.waiter_lock);
   myth = thread_self();
   mutex->unlock();
+  if (list_empty(&cv_.waiters)) {
+    auto *heap_header = Runtime::get_current_obj_heap_header();
+    if (heap_header) {
+      heap_header->blocked_syncer.add(this, BlockedSyncer::Type::kCondVar);
+    }
+  }
   auto *myth_link = reinterpret_cast<list_node *>(
       reinterpret_cast<uintptr_t>(myth) + thread_link_offset);
-  list_add_tail(&condvar_.waiters, myth_link);
-  WaiterInfo waiter_info;
-  waiter_info.type = WaiterType::kCondVar;
-  waiter_info.addr = reinterpret_cast<uint64_t>(this);
-  thread_set_self_waiter_info(waiter_info.raw);
-  thread_park_and_unlock_np(&condvar_.waiter_lock);
-  thread_set_self_waiter_info(0);
+  list_add_tail(&cv_.waiters, myth_link);
+  thread_park_and_unlock_np(&cv_.waiter_lock);
 
   mutex->lock();
 }
@@ -33,18 +36,69 @@ void CondVar::wait_and_unlock(SpinLock *spin) {
   thread_t *myth;
 
   assert_spin_lock_held(&spin->spinlock_);
-  spin_lock_np(&condvar_.waiter_lock);
+  spin_lock_np(&cv_.waiter_lock);
   myth = thread_self();
   spin->unlock();
+  if (list_empty(&cv_.waiters)) {
+    auto *heap_header = Runtime::get_current_obj_heap_header();
+    if (heap_header) {
+      heap_header->blocked_syncer.add(this, BlockedSyncer::Type::kCondVar);
+    }
+  }
   auto *myth_link = reinterpret_cast<list_node *>(
       reinterpret_cast<uintptr_t>(myth) + thread_link_offset);
-  list_add_tail(&condvar_.waiters, myth_link);
-  WaiterInfo waiter_info;
-  waiter_info.type = WaiterType::kCondVar;
-  waiter_info.addr = reinterpret_cast<uint64_t>(this);
-  thread_set_self_waiter_info(waiter_info.raw);
-  thread_park_and_unlock_np(&condvar_.waiter_lock);
-  thread_set_self_waiter_info(0);
+  list_add_tail(&cv_.waiters, myth_link);
+  thread_park_and_unlock_np(&cv_.waiter_lock);
+}
+
+void CondVar::signal() {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+
+  thread_t *waketh;
+
+  spin_lock_np(&cv_.waiter_lock);
+  waketh = reinterpret_cast<thread_t *>(
+      const_cast<void *>(list_pop_(&cv_.waiters, thread_link_offset)));
+  if (waketh && unlikely(list_empty(&cv_.waiters))) {
+    auto *heap_header = Runtime::get_current_obj_heap_header();
+    if (heap_header) {
+      heap_header->blocked_syncer.remove(this);
+    }
+  }
+  spin_unlock_np(&cv_.waiter_lock);
+  if (waketh) {
+    thread_ready(waketh);
+  }
+}
+
+void CondVar::signal_all() {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+
+  thread_t *waketh;
+  struct list_head tmp;
+
+  list_head_init(&tmp);
+
+  spin_lock_np(&cv_.waiter_lock);
+  if (!list_empty(&cv_.waiters)) {
+    auto *heap_header = Runtime::get_current_obj_heap_header();
+    if (heap_header) {
+      heap_header->blocked_syncer.remove(this);
+    }
+  }
+  list_append_list(&tmp, &cv_.waiters);
+  spin_unlock_np(&cv_.waiter_lock);
+
+  while (true) {
+    waketh = reinterpret_cast<thread_t *>(
+        const_cast<void *>(list_pop_(&tmp, thread_link_offset)));
+    if (!waketh) {
+      break;
+    }
+    thread_ready(waketh);
+  }
 }
 
 } // namespace nu

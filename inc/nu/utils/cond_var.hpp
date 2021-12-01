@@ -22,7 +22,7 @@ public:
   void signal_all();
 
 private:
-  condvar_t condvar_;
+  condvar_t cv_;
   friend class Migrator;
 
   list_head *get_waiters();

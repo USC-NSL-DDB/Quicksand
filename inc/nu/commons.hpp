@@ -34,16 +34,6 @@ struct HeapRange {
   uint64_t len;
 };
 
-union WaiterInfo {
-  struct {
-    uint64_t type : 16;
-    uint64_t addr : 48;
-  };
-  uint64_t raw;
-};
-
-enum WaiterType { kNone = 0, kMutex, kCondVar, kTimer };
-
 struct ErasedType {};
 
 using RemObjID = uint64_t;

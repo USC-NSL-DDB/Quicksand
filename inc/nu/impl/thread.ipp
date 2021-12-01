@@ -57,13 +57,11 @@ retry:
       this, &header->slab, obj_stack, kStackSize, trampoline_in_obj_env,
       reinterpret_cast<void **>(&join_data_), sizeof(*join_data_));
   BUG_ON(!th_);
-  header->threads.put(th_);
   new (join_data_) join_data(std::forward<F>(f), header);
   thread_ready(th_);
 }
 
-template <typename F>
-void Thread::create_in_runtime_env(F &&f) {
+template <typename F> void Thread::create_in_runtime_env(F &&f) {
   th_ = thread_create_with_buf(trampoline_in_runtime_env,
                                reinterpret_cast<void **>(&join_data_),
                                sizeof(*join_data_));
@@ -73,4 +71,4 @@ void Thread::create_in_runtime_env(F &&f) {
 }
 
 inline bool Thread::joinable() { return join_data_; }
-}
+} // namespace nu

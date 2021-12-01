@@ -1,34 +1,34 @@
+extern "C" {
+#include <base/atomic.h>
+}
+
 #include <sync.h>
 
 namespace nu {
 
 inline Mutex::Mutex() {
-  mutex_init(&mutex_);
+  mutex_init(&m_);
 }
 
 inline Mutex::~Mutex() {
-  assert(!mutex_held(&mutex_));
+  assert(!mutex_held(&m_));
 }
 
 inline void Mutex::lock() {
   if (unlikely(!try_lock())) {
-    WaiterInfo waiter_info;
-    waiter_info.type = WaiterType::kMutex;
-    waiter_info.addr = reinterpret_cast<uint64_t>(this);
-    thread_set_self_waiter_info(waiter_info.raw);
-    __mutex_lock(&mutex_);
-    thread_set_self_waiter_info(0);
+    __lock();
   }
 }
 
 inline void Mutex::unlock() {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
-  mutex_unlock(&mutex_);
+  if (likely(atomic_cmpxchg(&m_.held, 1, 0))) {
+    return;
+  }
+  __unlock();
 }
 
-inline bool Mutex::try_lock() { return mutex_try_lock(&mutex_); }
+inline bool Mutex::try_lock() { return mutex_try_lock(&m_); }
 
-inline list_head *Mutex::get_waiters() { return &mutex_.waiters; }
+inline list_head *Mutex::get_waiters() { return &m_.waiters; }
 
 } // namespace nu
