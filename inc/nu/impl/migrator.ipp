@@ -5,8 +5,15 @@
 namespace nu {
 
 template <typename RetT>
-void Migrator::load_callee_thread(void *raw_caller_ptr, uint64_t payload_len,
-                                  uint8_t *payload) {
+RPCReturnCode Migrator::load_callee_thread(HeapHeader *caller_heap_header,
+                                           void *raw_caller_ptr,
+                                           uint64_t payload_len,
+                                           uint8_t *payload) {
+  OutermostMigrationDisabledGuard caller_guard(caller_heap_header);
+  if (unlikely(!caller_guard)) {
+    return kErrWrongClient;
+  }
+
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto *th = create_migrated_thread(payload, /* returned_callee = */ true);
@@ -33,6 +40,7 @@ void Migrator::load_callee_thread(void *raw_caller_ptr, uint64_t payload_len,
   Runtime::archive_pool->put_ia_sstream(ia_sstream);
 
   thread_ready(th);
+  return kOk;
 }
 
 template <typename RetT>
@@ -67,6 +75,7 @@ void Migrator::migrate_callee_thread_back_to_caller(RemObjID caller_id,
         auto *req = reinterpret_cast<RPCReqMigrateCalleeBack *>(req_buf.get());
         std::construct_at(req);
         req->handler = load_callee_thread<RetT>;
+        req->caller_heap_header = to_heap_header(caller_id);
         req->caller_ptr = caller_ptr;
         req->payload_len = payload_len;
         memcpy(req->payload, nu_state, nu_state_size);
@@ -78,14 +87,17 @@ void Migrator::migrate_callee_thread_back_to_caller(RemObjID caller_id,
         to_heap_header(callee_id)->migrated_wg.Done();
 
         auto req_span = std::span(req_buf.get(), req_buf_len);
-        auto *rpc_client =
-            Runtime::rpc_client_mgr->get_by_rem_obj_id(caller_id).second;
         RPCReturnBuffer return_buf;
         {
           RuntimeHeapGuard guard;
-          BUG_ON(rpc_client->Call(req_span, &return_buf) != kOk);
-          // TODO: handle the case that caller gets migrated between
-          // rpc_client_mgr->get_by_rem_obj_id() and rpc_client->Call().
+        retry:
+          auto [gen, rpc_client] =
+              Runtime::rpc_client_mgr->get_by_rem_obj_id(caller_id);
+          auto rc = rpc_client->Call(req_span, &return_buf);
+          if (unlikely(rc == kErrWrongClient)) {
+            Runtime::rpc_client_mgr->update_cache(caller_id, gen);
+            goto retry;
+          }
         }
       },
       /* head = */ true)

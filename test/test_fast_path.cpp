@@ -45,8 +45,7 @@ private:
 
 int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv, [](int, char **) {
-    auto test_obj = nu::RemObj<nu::Test>::create_at(addr);
-    // auto test_obj = nu::RemObj<nu::Test>::create_pinned_at(addr);
+    auto test_obj = nu::RemObj<nu::Test>::create_pinned_at(addr);
     if (test_obj.run(&nu::Test::foo) == kMagic) {
       std::cout << "Passed" << std::endl;
     } else {

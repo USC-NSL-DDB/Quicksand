@@ -14,6 +14,7 @@ extern "C" {
 #include <net.h>
 #include <sync.h>
 
+#include "nu/heap_mgr.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/utils/netaddr.hpp"
 #include "nu/utils/slab.hpp"
@@ -41,7 +42,8 @@ struct RPCReqForward {
 
 struct RPCReqMigrateCalleeBack {
   RPCReqType rpc_type = kMigrateCalleeBack;
-  void (*handler)(void *, uint64_t, uint8_t *);
+  RPCReturnCode (*handler)(HeapHeader *, void *, uint64_t, uint8_t *);
+  HeapHeader *caller_heap_header;
   void *caller_ptr;
   uint64_t payload_len;
   uint8_t payload[0];
@@ -108,8 +110,9 @@ public:
   migrate_callee_thread_back_to_caller(RemObjID caller_id, RemObjID callee_id,
                                        RetT *caller_ptr, RetT *callee_ptr);
   template <typename RetT>
-  static void load_callee_thread(void *raw_caller_ptr, uint64_t payload_len,
-                                 uint8_t *payload);
+  static RPCReturnCode
+  load_callee_thread(HeapHeader *caller_heap_header, void *raw_caller_ptr,
+                     uint64_t payload_len, uint8_t *payload);
 
 private:
   constexpr static uint32_t kTCPListenBackLog = 64;
