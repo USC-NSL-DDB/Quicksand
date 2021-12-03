@@ -26,6 +26,12 @@ void RPCServer::run_loop() {
       returner->Return(kOk);
       break;
     }
+    case kMigrateCalleeBack: {
+      auto &req = from_span<RPCReqMigrateCalleeBack>(args);
+      req.handler(req.caller_ptr, req.payload_len, req.payload);
+      returner->Return(kOk);
+      break;
+    }
     // Controller
     case kRegisterNode: {
       auto &req = from_span<RPCReqRegisterNode>(args);

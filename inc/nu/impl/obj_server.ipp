@@ -5,6 +5,7 @@ extern "C" {
 #include <runtime/preempt.h>
 }
 #include <net.h>
+#include <sync.h>
 #include <thread.h>
 
 #include "nu/ctrl.hpp"
@@ -205,35 +206,61 @@ void ObjServer::run_closure(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-RetT ObjServer::run_closure_locally(RemObjID id, FnPtr fn_ptr,
+void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
+                                    RemObjID callee_id, FnPtr fn_ptr,
                                     S1s &&... states) {
-  auto *heap_header = to_heap_header(id);
-  auto *slab = &heap_header->slab;
-  auto state = heap_header->cpu_load.monitor_start();
+  auto *callee_heap_header = to_heap_header(callee_id);
+  auto *caller_heap_header = to_heap_header(caller_id);
+  auto state = callee_heap_header->cpu_load.monitor_start();
 
-  auto *obj = Runtime::get_obj<Cls>(id);
+  auto *obj = Runtime::get_obj<Cls>(callee_id);
   if constexpr (!std::is_same<RetT, void>::value) {
     RetT ret;
-    {
-      ObjHeapGuard guard(slab);
-      ret = fn_ptr(*obj, std::forward<S1s>(states)...);
-    }
-    heap_header->cpu_load.monitor_end(state);
+    ret = fn_ptr(*obj, std::forward<S1s>(states)...);
+    callee_heap_header->cpu_load.monitor_end(state);
 
-    // Perform a copy to ensure that the return value is allocated from
-    // the caller heap. It must be a "deep copy"; for now we just assume
-    // it is.
-    if constexpr (std::is_copy_constructible<RetT>::value) {
-      auto ret_copy = ret;
-      return ret_copy;
+    MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
+    preempt_disable();
+    if (likely(caller_heap_header->present)) {
+      if constexpr (!std::is_trivial<RetT>::value) {
+        ObjHeapGuard caller_heap_guard(caller_heap_header);
+        if constexpr (std::is_copy_constructible<RetT>::value) {
+          // Perform a copy to ensure that the return value is allocated from
+          // the caller heap. It must be a "deep copy"; for now we just assume
+          // it is.
+          *caller_ptr = ret;
+        } else {
+          // Actually we should use ser/deser here.
+          *caller_ptr = std::move(ret);
+        }
+      }
+      preempt_enable();
     } else {
-      return ret;
+      Migrator::migrate_callee_thread_back_to_caller<RetT>(caller_id, callee_id,
+                                                           caller_ptr, &ret);
     }
   } else {
-    ObjHeapGuard guard(slab);
     fn_ptr(*obj, std::forward<S1s>(states)...);
-    heap_header->cpu_load.monitor_end(state);
+    callee_heap_header->cpu_load.monitor_end(state);
+
+    MigrationDisabledGuard guard(callee_heap_header);
+    if (unlikely(!caller_heap_header->present)) {
+      preempt_disable();
+      Migrator::migrate_callee_thread_back_to_caller<void>(caller_id, callee_id,
+                                                           nullptr, nullptr);
+    }
   }
+}
+
+template <typename RetT>
+void receive_callee_result(void *raw_caller_ptr, uint64_t payload_len,
+                           std::byte *payload) {
+  auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
+  auto *caller_ptr = reinterpret_cast<RetT *>(raw_caller_ptr);
+  auto &[ret_ss, ia] = *ia_sstream;
+  ret_ss.span({reinterpret_cast<char *>(payload), payload_len});
+  ia >> *caller_ptr;
+  Runtime::archive_pool->put_ia_sstream(ia_sstream);
 }
 
 } // namespace nu

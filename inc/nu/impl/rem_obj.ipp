@@ -251,24 +251,37 @@ template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   MigrationDisabledGuard caller_disabled_guard;
+  auto *caller_heap_header = caller_disabled_guard.get_heap_header();
 
   if (caller_disabled_guard) {
     auto callee_heap_header = to_heap_header(id_);
-    OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
-    if (callee_disabled_guard) {
-      // Fast path: the heap is actually local, use function call.
-      auto *local_fn =
-          ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>;
+    void *caller_heap = nullptr;
+    {
+      OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
+      if (callee_disabled_guard) {
+        caller_heap = Runtime::switch_to_heap(&callee_heap_header->slab);
+      }
+    }
+    if (caller_heap) {
+      // Fast path: the callee heap is actually local, use function call.
       if constexpr (!std::is_same<RetT, void>::value) {
-        return local_fn(id_, fn, std::forward<S1s>(states)...);
+        RetT ret;
+        ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
+            &ret, to_obj_id(caller_heap_header), id_, fn,
+            std::forward<S1s>(states)...);
+        Runtime::switch_to_heap(caller_heap);
+        return ret;
       } else {
-        local_fn(id_, fn, std::forward<S1s>(states)...);
+        ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
+            nullptr, to_obj_id(caller_heap_header), id_, fn,
+            std::forward<S1s>(states)...);
+        Runtime::switch_to_heap(caller_heap);
         return;
       }
     }
   }
 
-  // Slow path: the heap is actually remote, use RPC.
+  // Slow path: the callee heap is actually remote, use RPC.
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler = ObjServer::run_closure<T, RetT, decltype(fn), S1s...>;
   serialize(oa_sstream, handler, id_, fn, std::forward<S1s>(states)...);
@@ -287,27 +300,41 @@ template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT RemObj<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
                                   S1s &&... states) {
+  *is_local = false;
+
   MigrationDisabledGuard caller_disabled_guard;
+  auto *caller_heap_header = caller_disabled_guard.get_heap_header();
 
   if (caller_disabled_guard) {
     auto callee_heap_header = to_heap_header(id_);
-    OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
-    if (callee_disabled_guard) {
-      *is_local = true;
-      // Fast path: the heap is actually local, use function call.
-      auto *local_fn =
-          ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>;
+    void *caller_heap;
+    {
+      OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
+      if (callee_disabled_guard) {
+        *is_local = true;
+        caller_heap = Runtime::switch_to_heap(&callee_heap_header->slab);
+      }
+    }
+    if (*is_local) {
+      // Fast path: the callee heap is actually local, use normal function call.
       if constexpr (!std::is_same<RetT, void>::value) {
-        return local_fn(id_, fn, std::forward<S1s>(states)...);
+	RetT ret;
+        ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
+            &ret, to_obj_id(caller_heap_header), id_, fn,
+            std::forward<S1s>(states)...);
+        Runtime::switch_to_heap(caller_heap);
+        return ret;
       } else {
-        local_fn(id_, fn, std::forward<S1s>(states)...);
+        ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
+            nullptr, to_obj_id(caller_heap_header), id_, fn,
+            std::forward<S1s>(states)...);
+        Runtime::switch_to_heap(caller_heap);
         return;
       }
     }
   }
 
-  *is_local = false;
-  // Slow path: the heap is actually remote, use RPC.
+  // Slow path: the callee heap is actually remote, use RPC.
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   auto *handler = ObjServer::run_closure<T, RetT, decltype(fn), S1s...>;
   serialize(oa_sstream, handler, id_, fn, std::forward<S1s>(states)...);

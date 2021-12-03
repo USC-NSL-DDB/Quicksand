@@ -1025,7 +1025,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->wq_spin = false;
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
-	th->nu_state.migrated = false;
+	th->nu_state.migration_cnt = 0;
 
 	if (__self) {
 		th->nu_state.obj_heap = __self->nu_state.obj_heap;
@@ -1283,7 +1283,7 @@ int sched_init(void)
 
 bool thread_is_migrated(void)
 {
-	return __self->nu_state.migrated;
+	return __self->nu_state.migration_cnt;
 }
 
 struct list_head *pause_all_migrating_threads(void *obj_heap)
@@ -1317,12 +1317,18 @@ void *thread_get_nu_state(thread_t *th, size_t *nu_state_size)
 	return &th->nu_state;
 }
 
-thread_t *create_migrated_thread(void *nu_state)
+thread_t *create_migrated_thread(void *nu_state, bool returned_callee)
 {
 	thread_t *th = __thread_create();
 	BUG_ON(!th);
 	th->nu_state = *(struct thread_nu_state *)nu_state;
-	th->nu_state.migrated = true;
+	if (returned_callee) {
+		assert(th->nu_state.migration_cnt);
+		th->nu_state.migration_cnt--;
+	} else {
+		th->nu_state.migration_cnt++;
+		assert(th->nu_state.migration_cnt);
+	}
 
 	return th;
 }
@@ -1350,9 +1356,12 @@ void *thread_get_obj_heap()
 		return __self->nu_state.obj_heap;
 }
 
-void thread_set_obj_heap(void *obj_heap)
+void *thread_set_obj_heap(void *obj_heap)
 {
+       void *old_obj_heap = __self->nu_state.obj_heap;
+
        __self->nu_state.obj_heap = obj_heap;
+       return old_obj_heap;
 }
 
 struct aligned_cycles *

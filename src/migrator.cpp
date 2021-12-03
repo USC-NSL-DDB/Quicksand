@@ -302,11 +302,9 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
 
   auto stack_range = get_obj_stack_range(thread);
   auto stack_len = stack_range.end - stack_range.start;
-  const iovec iovecs1[] = {
-      {&stack_range, sizeof(stack_range)},
-      {reinterpret_cast<void *>(stack_range.start), stack_len}};
-  BUG_ON(c->WritevFull(std::span(iovecs1), /* nt = */ false,
-                       /* poll = */ true) < 0);
+  BUG_ON(c->WriteFull(reinterpret_cast<void *>(stack_range.start), stack_len,
+                      /* nt = */ false,
+                      /* poll = */ true) < 0);
 }
 
 void Migrator::transmit_threads(rt::TcpConn *c,
@@ -489,13 +487,14 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto nu_state = std::make_unique<uint8_t[]>(nu_state_size);
   BUG_ON(c->ReadFull(nu_state.get(), nu_state_size) <= 0);
+  auto *th =
+      create_migrated_thread(nu_state.get(), /* returned_callee = */ false);
 
-  VAddrRange stack_range;
-  BUG_ON(c->ReadFull(&stack_range, sizeof(stack_range)) <= 0);
+  auto stack_range = get_obj_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                      /* nt = */ true) <= 0);
-  auto *th = create_migrated_thread(nu_state.get());
+
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
   if (nu_thread) {
     BUG_ON(!nu_thread->th_);
@@ -683,7 +682,7 @@ void Migrator::load(rt::TcpConn *c) {
 
     rt::Thread([heap_header, stack_cluster] {
       heap_header->migrated_wg.Wait();
-      ACCESS_ONCE(heap_header->migratable) = true;
+      rt::access_once(heap_header->migratable) = true;
       Runtime::stack_manager->add_ref_cnt(stack_cluster, -1);
     }).Detach();
   }

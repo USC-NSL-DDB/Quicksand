@@ -5,7 +5,13 @@
 #include <memory>
 #include <sstream>
 
+extern "C" {
+#include <runtime/net.h>
+}
+
+#include "nu/runtime_alloc.hpp"
 #include "nu/utils/archive_pool.hpp"
+#include "nu/utils/rpc.hpp"
 #include "nu/utils/trace_logger.hpp"
 
 namespace nu {
@@ -31,7 +37,9 @@ public:
   static void run_closure(cereal::BinaryInputArchive &ia,
                           RPCReturner *returner);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-  static RetT run_closure_locally(RemObjID id, FnPtr fn_ptr, S1s &&... states);
+  static void run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
+                                  RemObjID callee_id, FnPtr fn_ptr,
+                                  S1s &&... states);
 
 private:
   using GenericHandler = void (*)(cereal::BinaryInputArchive &ia,

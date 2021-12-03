@@ -39,6 +39,14 @@ struct RPCReqForward {
   uint8_t payload[0];
 };
 
+struct RPCReqMigrateCalleeBack {
+  RPCReqType rpc_type = kMigrateCalleeBack;
+  void (*handler)(void *, uint64_t, uint8_t *);
+  void *caller_ptr;
+  uint64_t payload_len;
+  uint8_t payload[0];
+};
+
 struct HeapMmapPopulateTask {
   HeapRange range;
   bool mmapped;
@@ -95,6 +103,13 @@ public:
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,
                                   uint64_t payload_len, const void *payload);
   void forward_to_client(RPCReqForward &req);
+  template <typename RetT>
+  static void
+  migrate_callee_thread_back_to_caller(RemObjID caller_id, RemObjID callee_id,
+                                       RetT *caller_ptr, RetT *callee_ptr);
+  template <typename RetT>
+  static void load_callee_thread(void *raw_caller_ptr, uint64_t payload_len,
+                                 uint8_t *payload);
 
 private:
   constexpr static uint32_t kTCPListenBackLog = 64;
@@ -131,6 +146,9 @@ private:
   do_heap_mmap_populate(uint32_t old_server_ip,
                         const std::vector<HeapRange> &populate_ranges,
                         std::vector<HeapMmapPopulateTask> *populate_tasks);
+
 };
 
 } // namespace nu
+
+#include "nu/impl/migrator.ipp"

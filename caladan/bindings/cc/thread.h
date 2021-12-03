@@ -72,7 +72,7 @@ class Thread {
   }
 
   // Spawns a thread.
-  template <typename F> Thread(F&& f) {
+  template <typename F> Thread(F&& f, bool head = false) {
     thread_internal::join_data *buf;
     th_ =
         thread_create_with_buf(thread_internal::ThreadTrampolineWithJoin,
@@ -81,7 +81,11 @@ class Thread {
       BUG();
     new (buf) thread_internal::join_data(std::forward<F>(f));
     join_data_ = buf;
-    thread_ready(th_);
+    if (head) {
+      thread_ready_head(th_);
+    } else {
+      thread_ready(th_);
+    }
   }
 
   // Checks if the thread object identifies an active thread of execution.

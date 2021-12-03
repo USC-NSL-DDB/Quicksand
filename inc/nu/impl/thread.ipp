@@ -1,6 +1,5 @@
 #include <sync.h>
 
-#include "nu/heap_mgr.hpp"
 #include "nu/runtime.hpp"
 
 namespace nu {

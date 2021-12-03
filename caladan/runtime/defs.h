@@ -96,7 +96,7 @@ struct rcu_info {
 };
 
 struct thread_nu_state {
-	bool                    migrated;
+	uint8_t                 migration_cnt;
 	uint8_t                 num_rcus_held;
 	struct aligned_cycles	*run_cycles;
 	void                    *obj_heap;
