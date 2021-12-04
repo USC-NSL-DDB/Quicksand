@@ -1025,6 +1025,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->wq_spin = false;
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
+	th->nu_state.creator_ip = 0;
 	th->nu_state.migration_cnt = 0;
 
 	if (__self) {
@@ -1483,4 +1484,14 @@ retry:
 		    !list_empty_volatile(&ks[i]->rq_deprioritized))
 			goto retry;
 	store_release(&global_prioritized_rcu, NULL);
+}
+
+uint32_t thread_get_creator_ip(void)
+{
+	return __self->nu_state.creator_ip;
+}
+
+void thread_set_creator_ip(uint32_t creator_ip)
+{
+	__self->nu_state.creator_ip = creator_ip;
 }

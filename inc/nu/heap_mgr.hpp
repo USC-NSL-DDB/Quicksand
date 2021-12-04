@@ -55,7 +55,6 @@ struct HeapHeader {
   bool migratable;
 
   // Forwarding related.
-  uint32_t old_server_ip;
   rt::WaitGroup migrated_wg;
 
   //--- Fields below will be automatically copied during migration. ---/

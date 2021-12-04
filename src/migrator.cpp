@@ -633,20 +633,19 @@ Migrator::load_heap_mmap_populate_ranges(rt::TcpConn *c) {
 }
 
 rt::Thread Migrator::do_heap_mmap_populate(
-    uint32_t old_server_ip, const std::vector<HeapRange> &populate_ranges,
+    const std::vector<HeapRange> &populate_ranges,
     std::vector<HeapMmapPopulateTask> *populate_tasks) {
   populate_tasks->reserve(populate_ranges.size());
   for (size_t i = 0; i < populate_ranges.size(); i++) {
     populate_tasks->emplace_back(populate_ranges[i]);
   }
-  return rt::Thread([populate_tasks, old_server_ip] {
+  return rt::Thread([populate_tasks] {
     for (auto &task : *populate_tasks) {
       Runtime::heap_manager->mmap_populate(task.range.heap_header,
                                            task.range.len);
       Runtime::heap_manager->setup(task.range.heap_header,
                                    /* migratable = */ false,
                                    /* from_migration = */ true);
-      task.range.heap_header->old_server_ip = old_server_ip;
       rt::access_once(task.mmapped) = true;
     }
   });
@@ -657,8 +656,8 @@ void Migrator::load(rt::TcpConn *c) {
   auto populate_ranges = load_heap_mmap_populate_ranges(c);
 
   std::vector<HeapMmapPopulateTask> heap_mmap_populate_tasks;
-  auto mmap_thread = do_heap_mmap_populate(c->RemoteAddr().ip, populate_ranges,
-                                           &heap_mmap_populate_tasks);
+  auto mmap_thread =
+      do_heap_mmap_populate(populate_ranges, &heap_mmap_populate_tasks);
   Runtime::stack_manager->add_ref_cnt(stack_cluster,
                                       heap_mmap_populate_tasks.size());
 
@@ -702,7 +701,6 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
                                           RPCReturner *returner,
                                           uint64_t payload_len,
                                           const void *payload) {
-  auto *heap_header = Runtime::get_current_obj_heap_header();
   auto req_buf_len = sizeof(RPCReqForward) + payload_len;
   auto req_buf = std::make_unique_for_overwrite<std::byte[]>(req_buf_len);
   auto *req = reinterpret_cast<RPCReqForward *>(req_buf.get());
@@ -716,8 +714,7 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
   RPCReturnBuffer return_buf;
   {
     RuntimeHeapGuard guard;
-    auto *client =
-        Runtime::rpc_client_mgr->get_by_ip(heap_header->old_server_ip);
+    auto *client = Runtime::rpc_client_mgr->get_by_ip(thread_get_creator_ip());
     BUG_ON(client->Call(req_span, &return_buf) != kOk);
   }
 }

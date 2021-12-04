@@ -98,6 +98,7 @@ struct rcu_info {
 struct thread_nu_state {
 	uint8_t                 migration_cnt;
 	uint8_t                 num_rcus_held;
+	uint32_t                creator_ip;
 	struct aligned_cycles	*run_cycles;
 	void                    *obj_heap;
 	struct rcu_info         rcus_held[MAX_NUM_RCUS_HELD];

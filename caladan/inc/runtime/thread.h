@@ -108,3 +108,5 @@ extern void *thread_get_obj_heap(void);
 extern void *thread_set_obj_heap(void *obj_heap);
 extern void thread_set_nu_thread(thread_t *th, void *nu_thread);
 extern void *thread_get_nu_thread(thread_t *th);
+extern uint32_t thread_get_creator_ip(void);
+extern void thread_set_creator_ip(uint32_t creator_ip);

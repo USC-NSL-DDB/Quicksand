@@ -146,10 +146,8 @@ private:
   void load_threads(rt::TcpConn *c, HeapHeader *heap_header);
   thread_t *load_one_thread(rt::TcpConn *c, HeapHeader *heap_header);
   rt::Thread
-  do_heap_mmap_populate(uint32_t old_server_ip,
-                        const std::vector<HeapRange> &populate_ranges,
+  do_heap_mmap_populate(const std::vector<HeapRange> &populate_ranges,
                         std::vector<HeapMmapPopulateTask> *populate_tasks);
-
 };
 
 } // namespace nu

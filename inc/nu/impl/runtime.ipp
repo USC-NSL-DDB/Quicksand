@@ -82,6 +82,8 @@ Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
     return false;
   }
 
+  thread_set_creator_ip(get_cfg_ip());
+
   auto *obj_stack = Runtime::stack_manager->get();
   assert(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment == 0);
   auto &slab = heap_header->slab;
