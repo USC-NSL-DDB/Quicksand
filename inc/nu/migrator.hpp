@@ -106,9 +106,9 @@ public:
                                   uint64_t payload_len, const void *payload);
   void forward_to_client(RPCReqForward &req);
   template <typename RetT>
-  static void
-  migrate_callee_thread_back_to_caller(RemObjID caller_id, RemObjID callee_id,
-                                       RetT *caller_ptr, RetT *callee_ptr);
+  static void migrate_callee_thread_back_to_caller(
+      MigrationDisabledGuard *callee_disabled_guard, RemObjID caller_id,
+      RemObjID callee_id, RetT *caller_ptr, RetT *callee_ptr);
   template <typename RetT>
   static RPCReturnCode
   load_callee_thread(HeapHeader *caller_heap_header, void *raw_caller_ptr,

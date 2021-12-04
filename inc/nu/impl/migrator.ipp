@@ -44,11 +44,9 @@ RPCReturnCode Migrator::load_callee_thread(HeapHeader *caller_heap_header,
 }
 
 template <typename RetT>
-void Migrator::migrate_callee_thread_back_to_caller(RemObjID caller_id,
-                                                    RemObjID callee_id,
-                                                    RetT *caller_ptr,
-                                                    RetT *callee_ptr) {
-  assert_preempt_disabled();
+void Migrator::migrate_callee_thread_back_to_caller(
+    MigrationDisabledGuard *callee_disabled_guard, RemObjID caller_id,
+    RemObjID callee_id, RetT *caller_ptr, RetT *callee_ptr) {
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
 
   oa_sstream = Runtime::archive_pool->get_oa_sstream();
@@ -57,7 +55,8 @@ void Migrator::migrate_callee_thread_back_to_caller(RemObjID caller_id,
   }
 
   rt::Thread(
-      [oa_sstream, caller_ptr, caller_id, callee_id, th = thread_self()] {
+      [&callee_disabled_guard, oa_sstream, caller_ptr, caller_id, callee_id,
+       th = thread_self()] {
         size_t nu_state_size;
         auto *nu_state = thread_get_nu_state(th, &nu_state_size);
 
@@ -84,6 +83,7 @@ void Migrator::migrate_callee_thread_back_to_caller(RemObjID caller_id,
         memcpy(req->payload + nu_state_size + stack_len, ret_val, ret_val_len);
 
         Runtime::archive_pool->put_oa_sstream(oa_sstream);
+        callee_disabled_guard->reset();
         to_heap_header(callee_id)->migrated_wg.Done();
 
         auto req_span = std::span(req_buf.get(), req_buf_len);
@@ -103,7 +103,8 @@ void Migrator::migrate_callee_thread_back_to_caller(RemObjID caller_id,
       /* head = */ true)
       .Detach();
 
-  thread_park_and_preempt_enable();
+  rt::Preempt p;
+  rt::PreemptGuardAndPark gp(&p);
 }
 
 } // namespace nu

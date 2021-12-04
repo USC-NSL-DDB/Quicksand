@@ -220,7 +220,6 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
     callee_heap_header->cpu_load.monitor_end(state);
 
     MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
-    preempt_disable();
     if (likely(caller_heap_header->present)) {
       if constexpr (!std::is_trivial<RetT>::value) {
         ObjHeapGuard caller_heap_guard(caller_heap_header);
@@ -234,20 +233,18 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
           *caller_ptr = std::move(ret);
         }
       }
-      preempt_enable();
     } else {
-      Migrator::migrate_callee_thread_back_to_caller<RetT>(caller_id, callee_id,
-                                                           caller_ptr, &ret);
+      Migrator::migrate_callee_thread_back_to_caller<RetT>(
+          &callee_disabled_guard, caller_id, callee_id, caller_ptr, &ret);
     }
   } else {
     fn_ptr(*obj, std::forward<S1s>(states)...);
     callee_heap_header->cpu_load.monitor_end(state);
 
-    MigrationDisabledGuard guard(callee_heap_header);
+    MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
     if (unlikely(!caller_heap_header->present)) {
-      preempt_disable();
-      Migrator::migrate_callee_thread_back_to_caller<void>(caller_id, callee_id,
-                                                           nullptr, nullptr);
+      Migrator::migrate_callee_thread_back_to_caller<void>(
+          &callee_disabled_guard, caller_id, callee_id, nullptr, nullptr);
     }
   }
 }
