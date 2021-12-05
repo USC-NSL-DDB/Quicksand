@@ -153,9 +153,11 @@ inline OutermostMigrationDisabledGuard::OutermostMigrationDisabledGuard()
 inline OutermostMigrationDisabledGuard::OutermostMigrationDisabledGuard(
     HeapHeader *heap_header)
     : heap_header_(heap_header) {
-  if (unlikely(
-          !Runtime::heap_manager->migration_disable_initial(heap_header_))) {
-    heap_header_ = nullptr;
+  if (heap_header_) {
+    if (unlikely(
+            !Runtime::heap_manager->migration_disable_initial(heap_header_))) {
+      heap_header_ = nullptr;
+    }
   }
 }
 

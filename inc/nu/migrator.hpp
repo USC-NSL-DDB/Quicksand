@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <folly/Function.h>
 #include <functional>
 #include <memory>
+#include <span>
 #include <unordered_set>
 #include <vector>
 
@@ -40,11 +42,11 @@ struct RPCReqForward {
   uint8_t payload[0];
 };
 
-struct RPCReqMigrateCalleeBack {
-  RPCReqType rpc_type = kMigrateCalleeBack;
+struct RPCReqMigrateThreadAndRetVal {
+  RPCReqType rpc_type = kMigrateThreadAndRetVal;
   RPCReturnCode (*handler)(HeapHeader *, void *, uint64_t, uint8_t *);
-  HeapHeader *caller_heap_header;
-  void *caller_ptr;
+  HeapHeader *dest_heap_header;
+  void *dest_ret_val_ptr;
   uint64_t payload_len;
   uint8_t payload[0];
 };
@@ -106,13 +108,15 @@ public:
                                   uint64_t payload_len, const void *payload);
   void forward_to_client(RPCReqForward &req);
   template <typename RetT>
-  static void migrate_callee_thread_back_to_caller(
-      MigrationDisabledGuard *callee_disabled_guard, RemObjID caller_id,
-      RemObjID callee_id, RetT *caller_ptr, RetT *callee_ptr);
+  static void
+  migrate_thread_and_ret_val(std::span<const std::byte> ret_val_span,
+                             RemObjID dest_id, RetT *dest_ret_val_ptr,
+                             folly::Function<void()> cleanup_fn);
   template <typename RetT>
-  static RPCReturnCode
-  load_callee_thread(HeapHeader *caller_heap_header, void *raw_caller_ptr,
-                     uint64_t payload_len, uint8_t *payload);
+  static RPCReturnCode load_thread_and_ret_val(HeapHeader *dest_heap_header,
+                                               void *raw_dest_ret_val_ptr,
+                                               uint64_t payload_len,
+                                               uint8_t *payload);
 
 private:
   constexpr static uint32_t kTCPListenBackLog = 64;

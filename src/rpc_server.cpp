@@ -26,9 +26,9 @@ void RPCServer::run_loop() {
       returner->Return(kOk);
       break;
     }
-    case kMigrateCalleeBack: {
-      auto &req = from_span<RPCReqMigrateCalleeBack>(args);
-      auto rc = req.handler(req.caller_heap_header, req.caller_ptr,
+    case kMigrateThreadAndRetVal: {
+      auto &req = from_span<RPCReqMigrateThreadAndRetVal>(args);
+      auto rc = req.handler(req.dest_heap_header, req.dest_ret_val_ptr,
                             req.payload_len, req.payload);
       returner->Return(rc);
       break;

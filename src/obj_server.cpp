@@ -62,7 +62,7 @@ void ObjServer::send_rpc_resp_ok(
   } else {
     auto span = std::span(data, len);
 
-    RuntimeHeapGuard guard;
+    RuntimeSlabGuard guard;
     returner->Return(kOk, span, [oa_sstream]() {
       Runtime::archive_pool->put_oa_sstream(oa_sstream);
     });

@@ -70,8 +70,8 @@ private:
   friend class ControllerClient;
   friend class PressureHandler;
   friend class DistributedMemPool;
-  friend class RuntimeHeapGuard;
-  friend class ObjHeapGuard;
+  friend class RuntimeSlabGuard;
+  friend class ObjSlabGuard;
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
   friend class OutermostMigrationDisabledGuard;
@@ -89,8 +89,8 @@ private:
   template <typename Cls, typename... A0s, typename... A1s>
   static bool run_within_obj_env(void *heap_base, void (*fn)(A0s...),
                                  A1s &&... args);
-  static void *switch_to_heap(void *slab);
-  static void *switch_to_runtime_heap();
+  static void *switch_slab(void *slab);
+  static void *switch_to_runtime_slab();
   template <typename T, typename... Args>
   static T *new_on_runtime_heap(Args &&... args);
   template <typename T> static void delete_on_runtime_heap(T *ptr);
@@ -100,22 +100,22 @@ private:
   template <typename T> static T *get_obj(RemObjID id);
 };
 
-class RuntimeHeapGuard {
+class RuntimeSlabGuard {
 public:
-  RuntimeHeapGuard();
-  ~RuntimeHeapGuard();
+  RuntimeSlabGuard();
+  ~RuntimeSlabGuard();
 
 private:
-  void *original_heap_;
+  void *original_slab_;
 };
 
-class ObjHeapGuard {
+class ObjSlabGuard {
 public:
-  ObjHeapGuard(void *obj_ptr);
-  ~ObjHeapGuard();
+  ObjSlabGuard(void *slab);
+  ~ObjSlabGuard();
 
 private:
-  void *original_heap_;
+  void *original_slab_;
 };
 
 int runtime_main_init(int argc, char **argv,

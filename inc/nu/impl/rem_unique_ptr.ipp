@@ -73,7 +73,7 @@ template <typename T> void RemUniquePtr<T>::reset_bg() {
   if (RemPtr<T>::get()) {
     // Should allocate from the runtime slab, since the root object might be
     // destructed earlier than this background thread.
-    RuntimeHeapGuard guard;
+    RuntimeSlabGuard guard;
     Runtime::rcu_lock.reader_lock();
     rt::Thread([rem_ptr = *static_cast<RemPtr<T> *>(this)]() {
       rem_ptr.run(get_free_fn<T>());

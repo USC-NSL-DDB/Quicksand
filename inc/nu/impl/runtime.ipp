@@ -15,16 +15,16 @@ extern "C" {
 
 namespace nu {
 
-inline void *Runtime::switch_to_heap(void *heap) {
-  return thread_set_obj_heap(heap);
+inline void *Runtime::switch_slab(void *slab) {
+  return thread_set_obj_slab(slab);
 }
 
-inline void *Runtime::switch_to_runtime_heap() {
-  return thread_set_obj_heap(nullptr);
+inline void *Runtime::switch_to_runtime_slab() {
+  return thread_set_obj_slab(nullptr);
 }
 
 inline HeapHeader *Runtime::get_current_obj_heap_header() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_heap());
+  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_slab());
   if (!obj_slab) {
     return nullptr;
   }
@@ -39,7 +39,7 @@ inline RemObjID Runtime::get_current_obj_id() {
 }
 
 template <typename T> T *Runtime::get_current_obj() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_heap());
+  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_slab());
   if (!obj_slab) {
     return nullptr;
   }
@@ -82,13 +82,13 @@ Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
     return false;
   }
 
-  thread_set_creator_ip(get_cfg_ip());
+  thread_set_creator_ip_and_owner_heap(get_cfg_ip(), heap_base);
 
   auto *obj_stack = Runtime::stack_manager->get();
   assert(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment == 0);
   auto &slab = heap_header->slab;
 
-  switch_to_heap(&slab);
+  switch_slab(&slab);
   auto *old_rsp = switch_stack(obj_stack);
 
   auto *obj_ptr =
@@ -97,7 +97,7 @@ Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
                             std::forward<A1s>(args)...);
 
   switch_stack(old_rsp);
-  switch_to_runtime_heap();
+  switch_to_runtime_slab();
   Runtime::stack_manager->put(obj_stack);
   return true;
 }
@@ -114,18 +114,18 @@ template <typename T> void Runtime::delete_on_runtime_heap(T *ptr) {
   Runtime::runtime_slab.free(ptr);
 }
 
-inline RuntimeHeapGuard::RuntimeHeapGuard() {
-  original_heap_ = Runtime::switch_to_runtime_heap();
+inline RuntimeSlabGuard::RuntimeSlabGuard() {
+  original_slab_ = Runtime::switch_to_runtime_slab();
 }
 
-inline RuntimeHeapGuard::~RuntimeHeapGuard() {
-  thread_set_obj_heap(original_heap_);
+inline RuntimeSlabGuard::~RuntimeSlabGuard() {
+  thread_set_obj_slab(original_slab_);
 }
 
-inline ObjHeapGuard::ObjHeapGuard(void *heap) {
-  original_heap_ = Runtime::switch_to_heap(heap);
+inline ObjSlabGuard::ObjSlabGuard(void *slab) {
+  original_slab_ = Runtime::switch_slab(slab);
 }
 
-inline ObjHeapGuard::~ObjHeapGuard() { thread_set_obj_heap(original_heap_); }
+inline ObjSlabGuard::~ObjSlabGuard() { thread_set_obj_slab(original_slab_); }
 
 } // namespace nu

@@ -129,7 +129,7 @@ uint32_t Runtime::get_ip_by_rem_obj_id(RemObjID id) {
 }
 
 void Runtime::reserve_conn(uint32_t ip) {
-  RuntimeHeapGuard guard;
+  RuntimeSlabGuard guard;
   rpc_client_mgr->get_by_ip(ip);
 }
 
@@ -193,7 +193,7 @@ wrong_args:
 
 inline void *__new(size_t size) {
   void *ptr;
-  auto *slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_heap());
+  auto *slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_slab());
 
   if (slab) {
     ptr = slab->allocate(size);

@@ -24,7 +24,7 @@ Thread::trampoline_in_obj_env(void *args) {
   {
     rt::Preempt p;
     rt::PreemptGuard g(&p);
-    Runtime::switch_to_runtime_heap();
+    Runtime::switch_to_runtime_slab();
 
     auto *heap_header = d->header;
     if (likely(!thread_is_migrated())) {

@@ -433,7 +433,7 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
     }
 
     migrated_heaps.push_back(heap_header);
-    auto *paused_ths_list = pause_all_migrating_threads(&heap_header->slab);
+    auto *paused_ths_list = pause_all_migrating_threads(heap_header);
     transmit(conn, heap_header, paused_ths_list);
     gc_migrated_threads();
   }
@@ -713,7 +713,7 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
   auto req_span = std::span(req_buf.get(), req_buf_len);
   RPCReturnBuffer return_buf;
   {
-    RuntimeHeapGuard guard;
+    RuntimeSlabGuard guard;
     auto *client = Runtime::rpc_client_mgr->get_by_ip(thread_get_creator_ip());
     BUG_ON(client->Call(req_span, &return_buf) != kOk);
   }

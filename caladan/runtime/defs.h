@@ -99,8 +99,9 @@ struct thread_nu_state {
 	uint8_t                 migration_cnt;
 	uint8_t                 num_rcus_held;
 	uint32_t                creator_ip;
+	void                    *owner_heap;
 	struct aligned_cycles	*run_cycles;
-	void                    *obj_heap;
+	void                    *obj_slab;
 	struct rcu_info         rcus_held[MAX_NUM_RCUS_HELD];
 	void                    *nu_thread;
 	struct thread_tf	tf;

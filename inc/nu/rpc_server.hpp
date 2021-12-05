@@ -10,7 +10,7 @@ enum RPCReqEnum {
   // Migrator
   kReserveConns,
   kForward,
-  kMigrateCalleeBack,
+  kMigrateThreadAndRetVal,
   // Controller
   kRegisterNode,
   kAllocateObj,

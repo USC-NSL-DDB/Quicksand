@@ -70,7 +70,8 @@ private:
   RemObj(RemObjID id, bool ref_cnted);
   Promise<void> *update_ref_cnt(int delta);
   template <typename RetT>
-  static RetT invoke_remote(RemObjID id, auto *states_ss);
+  static RetT invoke_remote_with_ret(RemObjID id, auto *states_ss);
+  static void invoke_remote(RemObjID id, auto *states_ss);
   template <typename... As>
   static RemObj general_create(bool pinned, std::optional<netaddr> hint,
                                As &&... args);

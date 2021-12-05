@@ -34,9 +34,7 @@ private:
   };
 
   uint16_t port_;
-  RCUHashMap<RemObjID, NodeInfo,
-             RuntimeAllocator<std::pair<const RemObjID, NodeInfo>>>
-      rem_id_to_node_info_map_;
+  RCUHashMap<RemObjID, NodeInfo> rem_id_to_node_info_map_;
   std::unordered_map<NodeIP, NodeID> node_ip_to_node_id_map_;
   NodeID next_node_id_;
   std::unique_ptr<RPCClient>

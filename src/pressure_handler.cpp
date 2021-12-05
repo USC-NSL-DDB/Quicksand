@@ -207,8 +207,6 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
 }
 
 void PressureHandler::mock_set_pressure(ResourcePressureInfo pressure) {
-  RuntimeHeapGuard guard;
-
   pressure.status = PENDING;
   *resource_pressure_info = pressure;
 }

@@ -45,7 +45,7 @@ static __thread uint64_t last_tsc;
 /* used to force timer and network processing after a timeout */
 static __thread uint64_t last_watchdog_tsc;
 
-static void *pause_req_obj_heap = NULL;
+static void *pause_req_owner_heap = NULL;
 static bool global_pause_req_mask = false;
 static void *global_prioritized_rcu = NULL;
 LIST_HEAD(all_migrating_ths);
@@ -200,7 +200,7 @@ static void __pause_migrating_threads_locked(struct kthread *k)
 	avail = load_acquire(&k->rq_head) - k->rq_tail;
 	for (i = 0; i < avail; i++) {
 		th = k->rq[k->rq_tail++ % RUNTIME_RQ_SIZE];
-		if (th->nu_state.obj_heap == pause_req_obj_heap) {
+		if (th->nu_state.owner_heap == pause_req_owner_heap) {
 			num_paused++;
 			list_add_tail(&k->migrating_ths, &th->link);
 		} else {
@@ -213,7 +213,7 @@ static void __pause_migrating_threads_locked(struct kthread *k)
 	        list_add_tail(&k->rq_overflow, &sentinel.link);
 		while ((th = list_pop(&k->rq_overflow, thread_t, link)) !=
 		       &sentinel) {
-			if (th->nu_state.obj_heap == pause_req_obj_heap) {
+			if (th->nu_state.owner_heap == pause_req_owner_heap) {
 				num_paused++;
 				list_add_tail(&k->migrating_ths, &th->link);
 			} else {
@@ -1025,17 +1025,19 @@ static __always_inline thread_t *__thread_create(void)
 	th->wq_spin = false;
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
+	th->nu_state.owner_heap = NULL;
 	th->nu_state.creator_ip = 0;
 	th->nu_state.migration_cnt = 0;
 
 	if (__self) {
-		th->nu_state.obj_heap = __self->nu_state.obj_heap;
+		th->nu_state.obj_slab = __self->nu_state.obj_slab;
+		th->nu_state.owner_heap = __self->nu_state.owner_heap;
 		th->nu_state.num_rcus_held = __self->nu_state.num_rcus_held;
 		memcpy(th->nu_state.rcus_held, __self->nu_state.rcus_held,
 		       sizeof(struct rcu_info) * th->nu_state.num_rcus_held);
 	}
 	else {
-		th->nu_state.obj_heap = NULL;
+		th->nu_state.obj_slab = NULL;
 		th->nu_state.num_rcus_held = 0;
 	}
 
@@ -1091,7 +1093,7 @@ thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t buf_len)
 	return th;
 }
 
-thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_heap,
+thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_slab,
 				    void *obj_stack, uint32_t obj_stack_size,
 				    thread_fn_t fn, void **buf, size_t buf_len)
 {
@@ -1101,7 +1103,7 @@ thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_heap,
 		return NULL;
 
 	th->nu_state.nu_thread = nu_thread;
-	th->nu_state.obj_heap = obj_heap;
+	th->nu_state.obj_slab = obj_slab;
 	th->nu_state.tf.rsp =
 		nu_stack_init_to_rsp_with_buf(obj_stack, obj_stack_size, &ptr,
 					      buf_len);
@@ -1287,14 +1289,14 @@ bool thread_is_migrated(void)
 	return __self->nu_state.migration_cnt;
 }
 
-struct list_head *pause_all_migrating_threads(void *obj_heap)
+struct list_head *pause_all_migrating_threads(void *owner_heap)
 {
 	int i;
 
 	for (i = 0; i < nrks; i++) {
 		ks[i]->pause_req = true;
 	}
-	pause_req_obj_heap = obj_heap;
+	pause_req_owner_heap = owner_heap;
 	store_release(&global_pause_req_mask, true);
 	kthread_yield_all_cores();
 	pause_local_migrating_threads();
@@ -1349,20 +1351,20 @@ void *thread_get_runtime_stack_base(void)
 	return &__self->stack->usable[STACK_PTR_SIZE];
 }
 
-void *thread_get_obj_heap()
+void *thread_get_obj_slab()
 {
        if (!__self)
 		return 0;
        else
-		return __self->nu_state.obj_heap;
+		return __self->nu_state.obj_slab;
 }
 
-void *thread_set_obj_heap(void *obj_heap)
+void *thread_set_obj_slab(void *obj_slab)
 {
-       void *old_obj_heap = __self->nu_state.obj_heap;
+       void *old_obj_slab = __self->nu_state.obj_slab;
 
-       __self->nu_state.obj_heap = obj_heap;
-       return old_obj_heap;
+       __self->nu_state.obj_slab = obj_slab;
+       return old_obj_slab;
 }
 
 struct aligned_cycles *
@@ -1491,7 +1493,20 @@ uint32_t thread_get_creator_ip(void)
 	return __self->nu_state.creator_ip;
 }
 
-void thread_set_creator_ip(uint32_t creator_ip)
+void thread_set_creator_ip_and_owner_heap(uint32_t creator_ip, void *owner_heap)
 {
 	__self->nu_state.creator_ip = creator_ip;
+	__self->nu_state.owner_heap = owner_heap;
+}
+
+void *thread_unset_owner_heap(void)
+{
+	void *owner_heap =  __self->nu_state.owner_heap;
+	__self->nu_state.owner_heap = NULL;
+	return owner_heap;
+}
+
+void thread_set_owner_heap(thread_t *th, void *owner_heap)
+{
+	th->nu_state.owner_heap = owner_heap;
 }

@@ -34,7 +34,7 @@ extern void thread_ready(thread_t *thread);
 extern void thread_ready_head(thread_t *thread);
 extern thread_t *thread_create(thread_fn_t fn, void *arg);
 extern thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
-extern thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_heap,
+extern thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_slab,
                                            void *obj_stack,
                                            uint32_t obj_stack_size,
                                            thread_fn_t fn, void **buf,
@@ -96,7 +96,7 @@ extern void thread_exit(void) __noreturn;
  */
 extern bool thread_is_migrated(void);
 extern uint64_t thread_get_rsp(thread_t *th);
-extern struct list_head *pause_all_migrating_threads(void *obj_heap);
+extern struct list_head *pause_all_migrating_threads(void *owner_heap);
 extern void pause_local_migrating_threads(void);
 extern void prioritize_rcu_readers(void *rcu);
 extern void prioritize_local_rcu_readers(void);
@@ -104,9 +104,12 @@ extern void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
 extern thread_t *create_migrated_thread(void *nu_state, bool returned_callee);
 extern void gc_migrated_threads(void);
 extern void *thread_get_runtime_stack_base(void);
-extern void *thread_get_obj_heap(void);
-extern void *thread_set_obj_heap(void *obj_heap);
+extern void *thread_get_obj_slab(void);
+extern void *thread_set_obj_slab(void *obj_slab);
 extern void thread_set_nu_thread(thread_t *th, void *nu_thread);
 extern void *thread_get_nu_thread(thread_t *th);
 extern uint32_t thread_get_creator_ip(void);
-extern void thread_set_creator_ip(uint32_t creator_ip);
+extern void thread_set_creator_ip_and_owner_heap(uint32_t creator_ip,
+                                                 void *owner_heap);
+extern void *thread_unset_owner_heap(void);
+extern void thread_set_owner_heap(thread_t *th, void *owner_heap);

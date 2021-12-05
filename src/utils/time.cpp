@@ -21,7 +21,7 @@ void Time::timer_callback(unsigned long arg_addr) {
   auto &time = heap_header->time;
   time.spin_.Lock();
   {
-    RuntimeHeapGuard g;
+    RuntimeSlabGuard g;
     time.entries_.erase(arg->iter);
   }
   time.spin_.Unlock();
@@ -79,7 +79,7 @@ void Time::obj_env_sleep_until(uint64_t deadline_us) {
 
   spin_.Lock();
   {
-    RuntimeHeapGuard g;
+    RuntimeSlabGuard g;
     entries_.push_back(e);
   }
   arg->iter = --entries_.end();

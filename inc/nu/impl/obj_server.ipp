@@ -39,7 +39,7 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
   std::apply(
       [&](auto &&... args) {
-        ObjHeapGuard obj_heap_guard(&slab);
+        ObjSlabGuard obj_slab_guard(&slab);
         new (obj_space) Cls(std::forward<As>(args)...);
       },
       args);
@@ -53,7 +53,7 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
 template <typename Cls, typename... As>
 void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
   {
-    RuntimeHeapGuard runtime_heap_guard;
+    RuntimeSlabGuard runtime_slab_guard;
     Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
     Runtime::heap_manager->insert(base);
 
@@ -63,7 +63,7 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
     auto obj_space = slab.yield(sizeof(Cls));
 
     {
-      ObjHeapGuard obj_heap_guard(&slab);
+      ObjSlabGuard obj_slab_guard(&slab);
       new (obj_space) Cls(std::forward<As>(args)...);
     }
   }
@@ -96,7 +96,7 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
 
       // Safe without acquiring the lock since the obj is dead now.
       heap_header->ref_cnt = -delta;
-      RuntimeHeapGuard guard;
+      RuntimeSlabGuard guard;
       send_rpc_resp_wrong_client(&returner);
       return;
     }
@@ -143,10 +143,10 @@ void ObjServer::update_ref_cnt_locally(RemObjID id, int delta) {
 
   if (latest_cnt == 0) {
     auto *obj = Runtime::get_obj<Cls>(id);
-    ObjHeapGuard obj_heap_guard(&heap_header->slab);
+    ObjSlabGuard obj_slab_guard(&heap_header->slab);
     obj->~Cls();
     {
-      RuntimeHeapGuard runtime_heap_guard;
+      RuntimeSlabGuard runtime_slab_guard;
       Runtime::heap_manager->deallocate(heap_header);
     }
   }
@@ -222,7 +222,7 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
     MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
     if (likely(caller_heap_header->present)) {
       if constexpr (!std::is_trivial<RetT>::value) {
-        ObjHeapGuard caller_heap_guard(caller_heap_header);
+        ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
         if constexpr (std::is_copy_constructible<RetT>::value) {
           // Perform a copy to ensure that the return value is allocated from
           // the caller heap. It must be a "deep copy"; for now we just assume
@@ -234,8 +234,20 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
         }
       }
     } else {
-      Migrator::migrate_callee_thread_back_to_caller<RetT>(
-          &callee_disabled_guard, caller_id, callee_id, caller_ptr, &ret);
+      decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
+      oa_sstream = Runtime::archive_pool->get_oa_sstream();
+      oa_sstream->oa << ret;
+      auto ss_view = oa_sstream->ss.view();
+      auto ret_val_span = std::span<const std::byte>(
+          reinterpret_cast<const std::byte *>(ss_view.data()),
+          oa_sstream->ss.tellp());
+
+      Migrator::migrate_thread_and_ret_val<RetT>(
+          ret_val_span, caller_id, caller_ptr, [&] {
+            callee_disabled_guard.reset();
+            callee_heap_header->migrated_wg.Done();
+            Runtime::archive_pool->put_oa_sstream(oa_sstream);
+          });
     }
   } else {
     fn_ptr(*obj, std::forward<S1s>(states)...);
@@ -243,8 +255,11 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
 
     MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
     if (unlikely(!caller_heap_header->present)) {
-      Migrator::migrate_callee_thread_back_to_caller<void>(
-          &callee_disabled_guard, caller_id, callee_id, nullptr, nullptr);
+      Migrator::migrate_thread_and_ret_val<void>(
+          std::span<const std::byte>(), caller_id, nullptr, [&] {
+            callee_disabled_guard.reset();
+            callee_heap_header->migrated_wg.Done();
+          });
     }
   }
 }
