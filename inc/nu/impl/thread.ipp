@@ -34,22 +34,10 @@ template <typename F> Thread::Thread(F &&f) {
   }
 }
 
-static inline void wait_for_migration(HeapHeader *header) {
-  header->mutex.lock();
-  while (!thread_is_migrated()) {
-    header->cond_var.wait(&header->mutex);
-  }
-  header->mutex.unlock();
-}
-
 template <typename F>
 void Thread::create_in_obj_env(F &&f, HeapHeader *header) {
-retry:
-  OutermostMigrationDisabledGuard guard(header);
-  if (unlikely(!guard)) {
-    wait_for_migration(header);
-    goto retry;
-  }
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
   auto *obj_stack = Runtime::stack_manager->get();
   assert(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment == 0);
   th_ = thread_nu_create_with_buf(

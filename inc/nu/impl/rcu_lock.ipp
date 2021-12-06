@@ -9,23 +9,22 @@ extern "C" {
 
 namespace nu {
 
-inline RCULock::Result RCULock::reader_lock() {
-  bool just_held = thread_hold_rcu(this);
-  if (unlikely(just_held && rt::access_once(sync_barrier_))) {
+inline void RCULock::reader_lock() {
+  thread_hold_rcu(this);
+  if (unlikely(rt::access_once(sync_barrier_))) {
     reader_wait();
   }
   __reader_lock();
-  return just_held ? Result::Succeed : Result::Already;
 }
 
-inline RCULock::Result RCULock::try_reader_lock() {
-  bool just_held = thread_hold_rcu(this);
-  if (unlikely(just_held && rt::access_once(sync_barrier_))) {
-    thread_unhold_rcu(this);
-    return Result::Failed;
+inline bool RCULock::try_reader_lock() {
+  thread_hold_rcu(this);
+  if (unlikely(rt::access_once(sync_barrier_))) {
+    thread_unhold_rcu();
+    return false;
   }
   __reader_lock();
-  return just_held ? Result::Succeed : Result::Already;
+  return true;
 }
 
 } // namespace nu

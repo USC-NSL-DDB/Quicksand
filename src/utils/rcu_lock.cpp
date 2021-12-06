@@ -100,7 +100,7 @@ void RCULock::__reader_lock() {
 }
 
 void RCULock::reader_unlock() {
-  thread_unhold_rcu(this);
+  thread_unhold_rcu();
   int core = get_cpu();
   Cnt cnt;
   cnt.raw = aligned_cnts_[core].cnt.raw;

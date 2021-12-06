@@ -56,7 +56,7 @@ void ObjServer::send_rpc_resp_ok(
   auto data = reinterpret_cast<const std::byte *>(view.data());
   auto len = oa_sstream->ss.tellp();
 
-  if (unlikely(thread_is_migrated())) {
+  if (unlikely(thread_is_migrated(thread_self()))) {
     Runtime::migrator->forward_to_original_server(kOk, returner, len, data);
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
   } else {
@@ -70,7 +70,7 @@ void ObjServer::send_rpc_resp_ok(
 }
 
 void ObjServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
-  if (unlikely(thread_is_migrated())) {
+  if (unlikely(thread_is_migrated(thread_self()))) {
     Runtime::migrator->forward_to_original_server(kErrWrongClient, returner, 0,
                                                   nullptr);
   } else {

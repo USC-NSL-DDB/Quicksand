@@ -12,8 +12,8 @@ extern "C" {
 namespace nu {
 
 inline DistributedMemPool::Heap::Heap(uint32_t shard_size) {
-  auto *heap_header = Runtime::get_current_obj_heap_header();
-  BUG_ON(!heap_header->slab.try_shrink(shard_size));
+  auto *slab = Runtime::get_current_obj_slab();
+  BUG_ON(!slab->try_shrink(shard_size));
 }
 
 template <typename T, typename... As>

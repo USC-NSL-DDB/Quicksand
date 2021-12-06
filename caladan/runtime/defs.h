@@ -88,21 +88,11 @@ struct thread_tf {
 
 struct stack;
 
-#define MAX_NUM_RCUS_HELD       7
-
-struct rcu_info {
-	uint64_t                addr:48;
-	uint64_t                cnt:16;
-};
-
 struct thread_nu_state {
-	uint8_t                 migration_cnt;
-	uint8_t                 num_rcus_held;
 	uint32_t                creator_ip;
 	void                    *owner_heap;
 	struct aligned_cycles	*run_cycles;
 	void                    *obj_slab;
-	struct rcu_info         rcus_held[MAX_NUM_RCUS_HELD];
 	void                    *nu_thread;
 	struct thread_tf	tf;
 };
@@ -116,6 +106,7 @@ struct thread {
 	unsigned int		last_cpu;
 	uint64_t                run_start_tsc;
 	uint64_t		ready_tsc;
+	void                    *rcu;
 #ifdef GC
 	struct list_node	gc_link;
 	unsigned int		onk;

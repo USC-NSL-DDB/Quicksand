@@ -487,8 +487,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto nu_state = std::make_unique<uint8_t[]>(nu_state_size);
   BUG_ON(c->ReadFull(nu_state.get(), nu_state_size) <= 0);
-  auto *th =
-      create_migrated_thread(nu_state.get(), /* returned_callee = */ false);
+  auto *th = create_migrated_thread(nu_state.get());
 
   auto stack_range = get_obj_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
@@ -518,7 +517,8 @@ void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
 
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
-      heap_header->migrated_wg.Add(num_threads);
+      // FIXME
+      // heap_header->migrated_wg.Add(num_threads);
 
       auto *waiters = mutex->get_waiters();
       list_head_init(waiters);
@@ -547,7 +547,8 @@ void Migrator::load_condvars(rt::TcpConn *c, HeapHeader *heap_header) {
 
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
-      heap_header->migrated_wg.Add(num_threads);
+      // FIXME
+      // heap_header->migrated_wg.Add(num_threads);
 
       auto *waiters = condvar->get_waiters();
       list_head_init(waiters);
@@ -569,7 +570,8 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
   const iovec iovecs[] = {{&sum_tsc, sizeof(sum_tsc)},
                           {&num_entries, sizeof(num_entries)}};
   BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
-  heap_header->migrated_wg.Add(num_entries);
+  // FIXME
+  // heap_header->migrated_wg.Add(num_entries);
 
   auto loader_tsc = rdtscp(nullptr) - start_tsc;
   time.offset_tsc_ = sum_tsc - loader_tsc;
@@ -598,7 +600,8 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
 void Migrator::load_threads(rt::TcpConn *c, HeapHeader *heap_header) {
   uint64_t num_threads;
   BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
-  heap_header->migrated_wg.Add(num_threads);
+  // FIXME
+  // heap_header->migrated_wg.Add(num_threads);
 
   for (uint64_t i = 0; i < num_threads; i++) {
     auto *th = load_one_thread(c, heap_header);
@@ -679,11 +682,12 @@ void Migrator::load(rt::TcpConn *c) {
 
     load_threads(c, heap_header);
 
-    rt::Thread([heap_header, stack_cluster] {
-      heap_header->migrated_wg.Wait();
-      rt::access_once(heap_header->migratable) = true;
-      Runtime::stack_manager->add_ref_cnt(stack_cluster, -1);
-    }).Detach();
+    // FIXME
+    // rt::Thread([heap_header, stack_cluster] {
+    //   heap_header->migrated_wg.Wait();
+    //   rt::access_once(heap_header->migratable) = true;
+    //   Runtime::stack_manager->add_ref_cnt(stack_cluster, -1);
+    // }).Detach();
   }
 
   mmap_thread.Join();

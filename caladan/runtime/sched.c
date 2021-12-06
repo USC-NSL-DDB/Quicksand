@@ -249,18 +249,6 @@ void pause_local_migrating_threads(void)
 	putk();
 }
 
-static inline bool thread_has_held_rcu(thread_t *th, void *rcu)
-{
-	uint32_t i = 0;
-
-	for (i = 0; i < th->nu_state.num_rcus_held; i++) {
-		if (th->nu_state.rcus_held[i].addr == (uint64_t)rcu &&
-		    th->nu_state.rcus_held[i].cnt)
-			return true;
-	}
-	return false;
-}
-
 static void __prioritize_rcu_readers_locked(struct kthread *k)
 {
 	thread_t *th;
@@ -271,7 +259,7 @@ static void __prioritize_rcu_readers_locked(struct kthread *k)
 	avail = load_acquire(&k->rq_head) - k->rq_tail;
 	for (i = 0; i < avail; i++) {
 		th = k->rq[k->rq_tail++ % RUNTIME_RQ_SIZE];
-		if (!thread_has_held_rcu(th, global_prioritized_rcu)) {
+		if (th->rcu != global_prioritized_rcu) {
 			num_paused++;
 			list_add_tail(&k->rq_deprioritized, &th->link);
 		} else {
@@ -284,7 +272,7 @@ static void __prioritize_rcu_readers_locked(struct kthread *k)
 	        list_add_tail(&k->rq_overflow, &sentinel.link);
 		while ((th = list_pop(&k->rq_overflow, thread_t, link)) !=
 		       &sentinel) {
-			if (!thread_has_held_rcu(th, global_prioritized_rcu)) {
+			if (th->rcu != global_prioritized_rcu) {
 				num_paused++;
 				list_add_tail(&k->rq_deprioritized, &th->link);
 			} else
@@ -678,7 +666,8 @@ static __always_inline void enter_schedule(thread_t *curth)
 	assert_preempt_disabled();
 
 	now = rdtsc();
-	if (curth->nu_state.run_cycles)
+	// FIXME
+	if (curth->nu_state.owner_heap && curth->nu_state.run_cycles)
 		curth->nu_state.run_cycles[read_cpu()].c += now - curth->run_start_tsc;
 
 	/* prepare current thread for sleeping */
@@ -1023,22 +1012,18 @@ static __always_inline thread_t *__thread_create(void)
 	th->thread_running = false;
 	th->run_start_tsc = UINT64_MAX;
 	th->wq_spin = false;
+	th->rcu = NULL;
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
-	th->nu_state.owner_heap = NULL;
 	th->nu_state.creator_ip = 0;
-	th->nu_state.migration_cnt = 0;
 
 	if (__self) {
 		th->nu_state.obj_slab = __self->nu_state.obj_slab;
 		th->nu_state.owner_heap = __self->nu_state.owner_heap;
-		th->nu_state.num_rcus_held = __self->nu_state.num_rcus_held;
-		memcpy(th->nu_state.rcus_held, __self->nu_state.rcus_held,
-		       sizeof(struct rcu_info) * th->nu_state.num_rcus_held);
 	}
 	else {
 		th->nu_state.obj_slab = NULL;
-		th->nu_state.num_rcus_held = 0;
+		th->nu_state.owner_heap = NULL;
 	}
 
 	return th;
@@ -1284,9 +1269,10 @@ int sched_init(void)
 	return 0;
 }
 
-bool thread_is_migrated(void)
+bool thread_is_migrated(thread_t *th)
 {
-	return __self->nu_state.migration_cnt;
+	return th->nu_state.creator_ip != get_cfg_ip() &&
+	       th->nu_state.creator_ip;
 }
 
 struct list_head *pause_all_migrating_threads(void *owner_heap)
@@ -1320,19 +1306,11 @@ void *thread_get_nu_state(thread_t *th, size_t *nu_state_size)
 	return &th->nu_state;
 }
 
-thread_t *create_migrated_thread(void *nu_state, bool returned_callee)
+thread_t *create_migrated_thread(void *nu_state)
 {
 	thread_t *th = __thread_create();
 	BUG_ON(!th);
 	th->nu_state = *(struct thread_nu_state *)nu_state;
-	if (returned_callee) {
-		assert(th->nu_state.migration_cnt);
-		th->nu_state.migration_cnt--;
-	} else {
-		th->nu_state.migration_cnt++;
-		assert(th->nu_state.migration_cnt);
-	}
-
 	return th;
 }
 
@@ -1422,42 +1400,15 @@ struct aligned_cycles *thread_get_monitor_cycles(thread_t *th)
        return th->nu_state.run_cycles;
 }
 
-bool thread_hold_rcu(void *rcu)
+void thread_hold_rcu(void *rcu)
 {
-       thread_t *th = thread_self();
-       uint32_t i;
-       uint64_t addr = (uint64_t)rcu;
-
-       for (i = 0; i < th->nu_state.num_rcus_held; i++) {
-              if (th->nu_state.rcus_held[i].addr == addr) {
-                     th->nu_state.rcus_held[i].cnt++;
-                     BUG_ON(!th->nu_state.rcus_held[i].cnt);
-                     return false;
-              }
-       }
-       BUG_ON(th->nu_state.num_rcus_held >= MAX_NUM_RCUS_HELD);
-       th->nu_state.rcus_held[th->nu_state.num_rcus_held].addr = addr;
-       th->nu_state.rcus_held[th->nu_state.num_rcus_held].cnt = 1;
-       th->nu_state.num_rcus_held++;
-       return true;
+       BUG_ON(__self->rcu); /* no nested rcu locks */
+       __self->rcu = rcu;
 }
 
-void thread_unhold_rcu(void *rcu)
+void thread_unhold_rcu(void)
 {
-       thread_t *th = thread_self();
-       uint32_t i;
-       uint64_t addr = (uint64_t)rcu;
-
-       for (i = 0; i < th->nu_state.num_rcus_held; i++) {
-              if (th->nu_state.rcus_held[i].addr == addr) {
-                     --th->nu_state.rcus_held[i].cnt;
-                     while (th->nu_state.num_rcus_held &&
-			    !th->nu_state.rcus_held[th->nu_state.num_rcus_held - 1].cnt)
-                            th->nu_state.num_rcus_held--;
-                     return;
-              }
-       }
-       BUG();
+       __self->rcu = NULL;
 }
 
 void thread_set_nu_thread(thread_t *th, void *nu_thread)
@@ -1509,4 +1460,9 @@ void *thread_unset_owner_heap(void)
 void thread_set_owner_heap(thread_t *th, void *owner_heap)
 {
 	th->nu_state.owner_heap = owner_heap;
+}
+
+void *thread_get_owner_heap(void)
+{
+	return __self->nu_state.owner_heap;
 }

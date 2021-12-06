@@ -16,7 +16,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(HeapHeader *dest_heap_header,
 
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);
-  auto *th = create_migrated_thread(payload, /* returned_callee = */ true);
+  auto *th = create_migrated_thread(payload);
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
   if (nu_thread) {
     BUG_ON(!nu_thread->th_);

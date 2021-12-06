@@ -80,8 +80,8 @@ extern struct aligned_cycles *thread_get_monitor_cycles(thread_t *th);
 inline bool thread_monitored(void) {
 	return *(void **)((uint64_t)__self + thread_run_cycles_offset);
 }
-extern bool thread_hold_rcu(void *rcu);
-extern void thread_unhold_rcu(void *rcu);
+extern void thread_hold_rcu(void *rcu);
+extern void thread_unhold_rcu(void);
 
 /*
  * High-level routines, use this API most of the time.
@@ -94,14 +94,14 @@ extern void thread_exit(void) __noreturn;
 /*
  * Used by Nu.
  */
-extern bool thread_is_migrated(void);
+extern bool thread_is_migrated(thread_t *th);
 extern uint64_t thread_get_rsp(thread_t *th);
 extern struct list_head *pause_all_migrating_threads(void *owner_heap);
 extern void pause_local_migrating_threads(void);
 extern void prioritize_rcu_readers(void *rcu);
 extern void prioritize_local_rcu_readers(void);
 extern void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
-extern thread_t *create_migrated_thread(void *nu_state, bool returned_callee);
+extern thread_t *create_migrated_thread(void *nu_state);
 extern void gc_migrated_threads(void);
 extern void *thread_get_runtime_stack_base(void);
 extern void *thread_get_obj_slab(void);
@@ -113,3 +113,4 @@ extern void thread_set_creator_ip_and_owner_heap(uint32_t creator_ip,
                                                  void *owner_heap);
 extern void *thread_unset_owner_heap(void);
 extern void thread_set_owner_heap(thread_t *th, void *owner_heap);
+extern void *thread_get_owner_heap(void);

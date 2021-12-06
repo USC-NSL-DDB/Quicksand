@@ -18,12 +18,10 @@ public:
   constexpr static uint32_t kWriterWaitFastPathMaxUs = 20;
   constexpr static uint32_t kWriterWaitSlowPathSleepUs = 10;
 
-  enum Result { Failed = 0, Succeed, Already };
-
   RCULock();
   ~RCULock();
-  Result reader_lock();
-  Result try_reader_lock();
+  void reader_lock();
+  bool try_reader_lock();
   void reader_unlock();
   void writer_sync(bool prioritize_readers = false);
 

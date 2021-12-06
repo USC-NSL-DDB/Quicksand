@@ -27,13 +27,14 @@ Thread::trampoline_in_obj_env(void *args) {
     Runtime::switch_to_runtime_slab();
 
     auto *heap_header = d->header;
-    if (likely(!thread_is_migrated())) {
+    if (likely(!thread_is_migrated(thread_self()))) {
       auto obj_stack_addr =
           ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &
            (~(kStackSize - 1)));
       Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(obj_stack_addr));
     } else {
-      heap_header->migrated_wg.Done();
+      // FIXME
+      // heap_header->migrated_wg.Done();
     }
   }
 

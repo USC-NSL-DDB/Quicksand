@@ -23,13 +23,12 @@ inline void *Runtime::switch_to_runtime_slab() {
   return thread_set_obj_slab(nullptr);
 }
 
+inline SlabAllocator *Runtime::get_current_obj_slab() {
+  return reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_slab());
+}
+
 inline HeapHeader *Runtime::get_current_obj_heap_header() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_slab());
-  if (!obj_slab) {
-    return nullptr;
-  }
-  auto *heap_header = container_of(obj_slab, HeapHeader, slab);
-  return heap_header;
+  return reinterpret_cast<HeapHeader *>(thread_get_owner_heap());
 }
 
 inline RemObjID Runtime::get_current_obj_id() {
@@ -39,12 +38,12 @@ inline RemObjID Runtime::get_current_obj_id() {
 }
 
 template <typename T> T *Runtime::get_current_obj() {
-  auto obj_slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_slab());
-  if (!obj_slab) {
+  auto *heap_header = get_current_obj_heap_header();
+  if (!heap_header) {
     return nullptr;
   }
   return reinterpret_cast<T *>(
-      reinterpret_cast<uintptr_t>(obj_slab->get_base()));
+      reinterpret_cast<uintptr_t>(heap_header->slab.get_base()));
 }
 
 template <typename T> T *Runtime::get_obj(RemObjID id) {
@@ -63,8 +62,9 @@ __run_within_obj_env(OutermostMigrationDisabledGuard *guard, uint8_t *obj_stack,
 
   fn(*obj_ptr, std::forward<A1s>(args)...);
 
-  if (unlikely(thread_is_migrated())) {
-    heap_header->migrated_wg.Done();
+  if (unlikely(thread_is_migrated(thread_self()))) {
+    // FIXME
+    // heap_header->migrated_wg.Done();
     auto runtime_stack_base = thread_get_runtime_stack_base();
     switch_stack(runtime_stack_base);
     rt::Exit();

@@ -1,5 +1,8 @@
+#include <alloca.h>
+#include <memory>
 #include <type_traits>
 #include <utility>
+#include <alloca.h>
 
 extern "C" {
 #include <runtime/preempt.h>
@@ -88,7 +91,7 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
       {
         MigrationEnabledGuard guard;
         heap_header->mutex.lock();
-        while (!thread_is_migrated()) {
+        while (!thread_is_migrated(thread_self())) {
           heap_header->cond_var.wait(&heap_header->mutex);
         }
         heap_header->mutex.unlock();
@@ -163,15 +166,20 @@ void ObjServer::__run_closure(Cls &obj, HeapHeader *heap_header,
   FnPtr fn;
   ia >> fn;
 
-  std::tuple<std::decay_t<S1s>...> states;
-  std::apply([&](auto &&... states) { ((ia >> states), ...); }, states);
+  // TODO: refactor this. States part looks ugly since for now we want to avoid
+  // nested RCU locks.
+  using States = std::tuple<std::decay_t<S1s>...>;
+  auto *states = reinterpret_cast<States *>(alloca(sizeof(States)));
+  std::construct_at(states);
+  std::apply([&](auto &&... states) { ((ia >> states), ...); }, *states);
 
   if constexpr (std::is_same<RetT, void>::value) {
     {
       MigrationEnabledGuard guard;
       std::apply(
           [&](auto &&... states) { fn(obj, std::forward<S1s>(states)...); },
-          states);
+          *states);
+      std::destroy_at(states);
     }
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
   } else {
@@ -180,7 +188,8 @@ void ObjServer::__run_closure(Cls &obj, HeapHeader *heap_header,
         [&](auto &&... states) {
           return fn(obj, std::forward<S1s>(states)...);
         },
-        states);
+        *states);
+    std::destroy_at(states);
     guard.reset();
 
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
@@ -215,8 +224,9 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
 
   auto *obj = Runtime::get_obj<Cls>(callee_id);
   if constexpr (!std::is_same<RetT, void>::value) {
-    RetT ret;
-    ret = fn_ptr(*obj, std::forward<S1s>(states)...);
+    auto *ret = reinterpret_cast<RetT *>(alloca(sizeof(RetT)));
+    std::construct_at(ret);
+    *ret = fn_ptr(*obj, std::forward<S1s>(states)...);
     callee_heap_header->cpu_load.monitor_end(state);
 
     MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
@@ -227,25 +237,30 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
           // Perform a copy to ensure that the return value is allocated from
           // the caller heap. It must be a "deep copy"; for now we just assume
           // it is.
-          *caller_ptr = ret;
+          *caller_ptr = *ret;
         } else {
           // Actually we should use ser/deser here.
-          *caller_ptr = std::move(ret);
+          *caller_ptr = std::move(*ret);
         }
       }
     } else {
       decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
       oa_sstream = Runtime::archive_pool->get_oa_sstream();
-      oa_sstream->oa << ret;
+      oa_sstream->oa << *ret;
       auto ss_view = oa_sstream->ss.view();
       auto ret_val_span = std::span<const std::byte>(
           reinterpret_cast<const std::byte *>(ss_view.data()),
           oa_sstream->ss.tellp());
+      std::destroy_at(ret);
 
+      RuntimeSlabGuard slab_guard;
       Migrator::migrate_thread_and_ret_val<RetT>(
-          ret_val_span, caller_id, caller_ptr, [&] {
+          ret_val_span, caller_id, caller_ptr, [&, th = thread_self()] {
             callee_disabled_guard.reset();
-            callee_heap_header->migrated_wg.Done();
+            // FIXME
+            // if (thread_is_migrated(th)) {
+            // callee_heap_header->migrated_wg.Done();
+            // }
             Runtime::archive_pool->put_oa_sstream(oa_sstream);
           });
     }
@@ -255,24 +270,18 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
 
     MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
     if (unlikely(!caller_heap_header->present)) {
+      RuntimeSlabGuard slab_guard;
       Migrator::migrate_thread_and_ret_val<void>(
-          std::span<const std::byte>(), caller_id, nullptr, [&] {
+          std::span<const std::byte>(), caller_id, nullptr,
+          [&, th = thread_self()] {
             callee_disabled_guard.reset();
-            callee_heap_header->migrated_wg.Done();
+            // FIXME
+            // if (thread_is_migrated(th)) {
+            //   callee_heap_header->migrated_wg.Done();
+            // }
           });
     }
   }
-}
-
-template <typename RetT>
-void receive_callee_result(void *raw_caller_ptr, uint64_t payload_len,
-                           std::byte *payload) {
-  auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
-  auto *caller_ptr = reinterpret_cast<RetT *>(raw_caller_ptr);
-  auto &[ret_ss, ia] = *ia_sstream;
-  ret_ss.span({reinterpret_cast<char *>(payload), payload_len});
-  ia >> *caller_ptr;
-  Runtime::archive_pool->put_ia_sstream(ia_sstream);
 }
 
 } // namespace nu

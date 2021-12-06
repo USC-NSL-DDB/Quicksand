@@ -94,6 +94,7 @@ private:
   template <typename T, typename... Args>
   static T *new_on_runtime_heap(Args &&... args);
   template <typename T> static void delete_on_runtime_heap(T *ptr);
+  static SlabAllocator *get_current_obj_slab();
   static HeapHeader *get_current_obj_heap_header();
   static RemObjID get_current_obj_id();
   template <typename T> static T *get_current_obj();
