@@ -9,7 +9,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(HeapHeader *dest_heap_header,
                                                 void *raw_dest_ret_val_ptr,
                                                 uint64_t payload_len,
                                                 uint8_t *payload) {
-  OutermostMigrationDisabledGuard guard(dest_heap_header);
+  NonBlockingMigrationDisabledGuard guard(dest_heap_header);
   if (unlikely(!guard)) {
     return kErrWrongClient;
   }
@@ -25,6 +25,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(HeapHeader *dest_heap_header,
 
   auto stack_range = get_obj_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
+
   memcpy(reinterpret_cast<void *>(stack_range.start), payload + nu_state_size,
          stack_len);
 
@@ -49,6 +50,7 @@ void Migrator::migrate_thread_and_ret_val(
     RetT *dest_ret_val_ptr, folly::Function<void()> cleanup_fn) {
   rt::Thread(
       [&, th = thread_self()] {
+	thread_wait_until_parked(th);
         auto *dest_heap_header = to_heap_header(dest_id);
         thread_set_owner_heap(th, dest_heap_header);
 

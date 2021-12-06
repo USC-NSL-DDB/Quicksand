@@ -88,10 +88,12 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
       obj.~Cls();
       Runtime::heap_manager->mark_absent(heap_header);
     } else {
+      // Will be migrated at this point, so we wait for migration to be
+      // finished.
       {
         MigrationEnabledGuard guard;
         heap_header->mutex.lock();
-        while (!thread_is_migrated(thread_self())) {
+        while (!rt::access_once(heap_header->present)) {
           heap_header->cond_var.wait(&heap_header->mutex);
         }
         heap_header->mutex.unlock();
@@ -231,17 +233,15 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
 
     MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
     if (likely(caller_heap_header->present)) {
-      if constexpr (!std::is_trivial<RetT>::value) {
-        ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
-        if constexpr (std::is_copy_constructible<RetT>::value) {
-          // Perform a copy to ensure that the return value is allocated from
-          // the caller heap. It must be a "deep copy"; for now we just assume
-          // it is.
-          *caller_ptr = *ret;
-        } else {
-          // Actually we should use ser/deser here.
-          *caller_ptr = std::move(*ret);
-        }
+      ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
+      if constexpr (std::is_copy_constructible<RetT>::value) {
+        // Perform a copy to ensure that the return value is allocated from
+        // the caller heap. It must be a "deep copy"; for now we just assume
+        // it is.
+        *caller_ptr = *ret;
+      } else {
+        // Actually we should use ser/deser here.
+        *caller_ptr = std::move(*ret);
       }
     } else {
       decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;

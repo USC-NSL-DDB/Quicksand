@@ -112,6 +112,7 @@ struct thread {
 	unsigned int		onk;
 #endif
 	bool                    wq_spin;
+	bool                    migrated;
 	struct thread_nu_state  nu_state;
 };
 

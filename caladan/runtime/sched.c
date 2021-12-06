@@ -666,8 +666,7 @@ static __always_inline void enter_schedule(thread_t *curth)
 	assert_preempt_disabled();
 
 	now = rdtsc();
-	// FIXME
-	if (curth->nu_state.owner_heap && curth->nu_state.run_cycles)
+	if (curth->nu_state.run_cycles)
 		curth->nu_state.run_cycles[read_cpu()].c += now - curth->run_start_tsc;
 
 	/* prepare current thread for sleeping */
@@ -1012,10 +1011,11 @@ static __always_inline thread_t *__thread_create(void)
 	th->thread_running = false;
 	th->run_start_tsc = UINT64_MAX;
 	th->wq_spin = false;
+	th->migrated = false;
 	th->rcu = NULL;
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
-	th->nu_state.creator_ip = 0;
+	th->nu_state.creator_ip = get_cfg_ip();
 
 	if (__self) {
 		th->nu_state.obj_slab = __self->nu_state.obj_slab;
@@ -1269,10 +1269,14 @@ int sched_init(void)
 	return 0;
 }
 
-bool thread_is_migrated(thread_t *th)
+bool thread_has_been_migrated(void)
 {
-	return th->nu_state.creator_ip != get_cfg_ip() &&
-	       th->nu_state.creator_ip;
+	return __self->migrated;
+}
+
+bool thread_is_at_creator(void)
+{
+	return __self->nu_state.creator_ip == get_cfg_ip();
 }
 
 struct list_head *pause_all_migrating_threads(void *owner_heap)
@@ -1311,6 +1315,7 @@ thread_t *create_migrated_thread(void *nu_state)
 	thread_t *th = __thread_create();
 	BUG_ON(!th);
 	th->nu_state = *(struct thread_nu_state *)nu_state;
+	th->migrated = true;
 	return th;
 }
 
@@ -1444,12 +1449,6 @@ uint32_t thread_get_creator_ip(void)
 	return __self->nu_state.creator_ip;
 }
 
-void thread_set_creator_ip_and_owner_heap(uint32_t creator_ip, void *owner_heap)
-{
-	__self->nu_state.creator_ip = creator_ip;
-	__self->nu_state.owner_heap = owner_heap;
-}
-
 void *thread_unset_owner_heap(void)
 {
 	void *owner_heap =  __self->nu_state.owner_heap;
@@ -1465,4 +1464,10 @@ void thread_set_owner_heap(thread_t *th, void *owner_heap)
 void *thread_get_owner_heap(void)
 {
 	return __self->nu_state.owner_heap;
+}
+
+void thread_wait_until_parked(thread_t *th)
+{
+	while (load_acquire(&th->thread_running))
+		cpu_relax();
 }

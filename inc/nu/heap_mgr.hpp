@@ -43,11 +43,11 @@ struct HeapHeader {
   SpinLock spin_lock;
   CondVar cond_var;
 
-  //--- Fields above are always mmaped in all object servers. ---/
-  uint8_t always_mmaped_end[0];
-
   // Used for monitoring cpu load.
   CPULoad cpu_load;
+
+  //--- Fields above are always mmaped in all object servers. ---/
+  uint8_t always_mmaped_end[0];
 
   // Migration related.
   BlockedSyncer blocked_syncer;
@@ -69,8 +69,6 @@ struct HeapHeader {
   SlabAllocator slab;
 };
 
-static_assert(offsetof(HeapHeader, always_mmaped_end) <= kPageSize);
-
 class HeapManager {
 public:
   HeapManager();
@@ -91,17 +89,21 @@ public:
   uint32_t get_num_present_heaps();
 
 private:
+  constexpr static uint32_t kNumAlwaysMmapedPages =
+      (offsetof(HeapHeader, always_mmaped_end) - 1) / kPageSize + 1;
+  constexpr static uint32_t kNumAlwaysMmapedBytes =
+      kNumAlwaysMmapedPages * kPageSize;
+
   std::unordered_set<void *> present_heaps_;
   rt::Spin spin_;
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
-  friend class OutermostMigrationDisabledGuard;
+  friend class NonBlockingMigrationDisabledGuard;
   friend class Test;
 
-  bool migration_disable_initial(HeapHeader *heap_header);
-  void migration_disable(HeapHeader *heap_header);
-  static void migration_enable_final(HeapHeader *heap_header);
-  static void migration_enable(HeapHeader *heap_header);
+  bool try_disable_migration(HeapHeader *heap_header);
+  void disable_migration(HeapHeader *heap_header);
+  static void enable_migration(HeapHeader *heap_header);
 };
 
 class MigrationEnabledGuard {
@@ -134,15 +136,15 @@ private:
   HeapHeader *heap_header_;
 };
 
-class OutermostMigrationDisabledGuard {
+class NonBlockingMigrationDisabledGuard {
 public:
-  // By default does not guard anything.
-  OutermostMigrationDisabledGuard();
-  OutermostMigrationDisabledGuard(HeapHeader *heap_header);
-  OutermostMigrationDisabledGuard(OutermostMigrationDisabledGuard &&o);
-  OutermostMigrationDisabledGuard &
-  operator=(OutermostMigrationDisabledGuard &&o);
-  ~OutermostMigrationDisabledGuard();
+  // By default guards the current object header.
+  NonBlockingMigrationDisabledGuard();
+  NonBlockingMigrationDisabledGuard(HeapHeader *heap_header);
+  NonBlockingMigrationDisabledGuard(NonBlockingMigrationDisabledGuard &&o);
+  NonBlockingMigrationDisabledGuard &
+  operator=(NonBlockingMigrationDisabledGuard &&o);
+  ~NonBlockingMigrationDisabledGuard();
   void reset();
   operator bool() const;
   HeapHeader *get_heap_header();

@@ -15,9 +15,10 @@ inline void HeapManager::allocate(void *heap_base, bool migratable) {
 }
 
 inline void HeapManager::mmap(void *heap_base) {
-  auto mmap_addr = ::mmap(reinterpret_cast<uint8_t *>(heap_base) + kPageSize,
-                          kHeapSize - kPageSize, PROT_READ | PROT_WRITE,
-                          MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+  auto mmap_addr =
+      ::mmap(reinterpret_cast<uint8_t *>(heap_base) + kNumAlwaysMmapedBytes,
+             kHeapSize - kNumAlwaysMmapedBytes, PROT_READ | PROT_WRITE,
+             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
   BUG_ON(mmap_addr == reinterpret_cast<void *>(-1));
 }
 
@@ -42,15 +43,11 @@ inline void HeapManager::mark_absent(void *heap_base) {
   reinterpret_cast<HeapHeader *>(heap_base)->present = false;
 }
 
-inline void HeapManager::migration_enable_final(HeapHeader *heap_header) {
+inline void HeapManager::enable_migration(HeapHeader *heap_header) {
   heap_header->rcu_lock.reader_unlock();
 }
 
-inline void HeapManager::migration_enable(HeapHeader *heap_header) {
-  heap_header->rcu_lock.reader_unlock();
-}
-
-inline bool HeapManager::migration_disable_initial(HeapHeader *heap_header) {
+inline bool HeapManager::try_disable_migration(HeapHeader *heap_header) {
   heap_header->rcu_lock.reader_lock();
   if (unlikely(!rt::access_once(heap_header->present))) {
     heap_header->rcu_lock.reader_unlock();
@@ -59,12 +56,12 @@ inline bool HeapManager::migration_disable_initial(HeapHeader *heap_header) {
   return true;
 }
 
-inline void HeapManager::migration_disable(HeapHeader *heap_header) {
+inline void HeapManager::disable_migration(HeapHeader *heap_header) {
   heap_header->rcu_lock.reader_lock();
   if (unlikely(!rt::access_once(heap_header->present))) {
     heap_header->rcu_lock.reader_unlock();
     heap_header->mutex.lock();
-    while (!thread_is_migrated(thread_self())) {
+    while (!rt::access_once(heap_header->present)) {
       heap_header->cond_var.wait(&heap_header->mutex);
     }
     heap_header->mutex.unlock();
@@ -78,7 +75,7 @@ inline MigrationEnabledGuard::MigrationEnabledGuard()
 inline MigrationEnabledGuard::MigrationEnabledGuard(HeapHeader *heap_header)
     : heap_header_(heap_header) {
   if (heap_header_) {
-    HeapManager::migration_enable(heap_header_);
+    HeapManager::enable_migration(heap_header_);
   }
 }
 
@@ -96,7 +93,7 @@ MigrationEnabledGuard::operator=(MigrationEnabledGuard &&o) {
 
 inline MigrationEnabledGuard::~MigrationEnabledGuard() {
   if (heap_header_) {
-    Runtime::heap_manager->migration_disable(heap_header_);
+    Runtime::heap_manager->disable_migration(heap_header_);
   }
 }
 
@@ -111,7 +108,7 @@ inline MigrationDisabledGuard::MigrationDisabledGuard()
 inline MigrationDisabledGuard::MigrationDisabledGuard(HeapHeader *heap_header)
     : heap_header_(heap_header) {
   if (heap_header_) {
-    Runtime::heap_manager->migration_disable(heap_header_);
+    Runtime::heap_manager->disable_migration(heap_header_);
   }
 }
 
@@ -130,7 +127,7 @@ MigrationDisabledGuard::operator=(MigrationDisabledGuard &&o) {
 
 inline MigrationDisabledGuard::~MigrationDisabledGuard() {
   if (heap_header_) {
-    HeapManager::migration_enable(heap_header_);
+    HeapManager::enable_migration(heap_header_);
   }
 }
 
@@ -145,50 +142,49 @@ inline HeapHeader *MigrationDisabledGuard::get_heap_header() {
   return heap_header_;
 }
 
-inline OutermostMigrationDisabledGuard::OutermostMigrationDisabledGuard()
-    : heap_header_(nullptr) {}
+inline NonBlockingMigrationDisabledGuard::NonBlockingMigrationDisabledGuard()
+    : heap_header_(Runtime::get_current_obj_heap_header()) {}
 
-inline OutermostMigrationDisabledGuard::OutermostMigrationDisabledGuard(
+inline NonBlockingMigrationDisabledGuard::NonBlockingMigrationDisabledGuard(
     HeapHeader *heap_header)
     : heap_header_(heap_header) {
   if (heap_header_) {
-    if (unlikely(
-            !Runtime::heap_manager->migration_disable_initial(heap_header_))) {
+    if (unlikely(!Runtime::heap_manager->try_disable_migration(heap_header_))) {
       heap_header_ = nullptr;
     }
   }
 }
 
-inline OutermostMigrationDisabledGuard::OutermostMigrationDisabledGuard(
-    OutermostMigrationDisabledGuard &&o)
+inline NonBlockingMigrationDisabledGuard::NonBlockingMigrationDisabledGuard(
+    NonBlockingMigrationDisabledGuard &&o)
     : heap_header_(o.heap_header_) {
   o.heap_header_ = nullptr;
 }
 
-inline OutermostMigrationDisabledGuard &
-OutermostMigrationDisabledGuard::operator=(
-    OutermostMigrationDisabledGuard &&o) {
+inline NonBlockingMigrationDisabledGuard &
+NonBlockingMigrationDisabledGuard::operator=(
+    NonBlockingMigrationDisabledGuard &&o) {
   heap_header_ = o.heap_header_;
   o.heap_header_ = nullptr;
   return *this;
 }
 
-inline OutermostMigrationDisabledGuard::~OutermostMigrationDisabledGuard() {
+inline NonBlockingMigrationDisabledGuard::~NonBlockingMigrationDisabledGuard() {
   if (heap_header_) {
-    HeapManager::migration_enable_final(heap_header_);
+    HeapManager::enable_migration(heap_header_);
   }
 }
 
-inline OutermostMigrationDisabledGuard::operator bool() const {
+inline NonBlockingMigrationDisabledGuard::operator bool() const {
   return heap_header_;
 }
 
-inline void OutermostMigrationDisabledGuard::reset() {
-  this->~OutermostMigrationDisabledGuard();
+inline void NonBlockingMigrationDisabledGuard::reset() {
+  this->~NonBlockingMigrationDisabledGuard();
   heap_header_ = nullptr;
 }
 
-inline HeapHeader *OutermostMigrationDisabledGuard::get_heap_header() {
+inline HeapHeader *NonBlockingMigrationDisabledGuard::get_heap_header() {
   return heap_header_;
 }
 

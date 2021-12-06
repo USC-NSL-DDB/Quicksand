@@ -94,7 +94,8 @@ extern void thread_exit(void) __noreturn;
 /*
  * Used by Nu.
  */
-extern bool thread_is_migrated(thread_t *th);
+extern bool thread_has_been_migrated(void);
+extern bool thread_is_at_creator(void);
 extern uint64_t thread_get_rsp(thread_t *th);
 extern struct list_head *pause_all_migrating_threads(void *owner_heap);
 extern void pause_local_migrating_threads(void);
@@ -109,8 +110,7 @@ extern void *thread_set_obj_slab(void *obj_slab);
 extern void thread_set_nu_thread(thread_t *th, void *nu_thread);
 extern void *thread_get_nu_thread(thread_t *th);
 extern uint32_t thread_get_creator_ip(void);
-extern void thread_set_creator_ip_and_owner_heap(uint32_t creator_ip,
-                                                 void *owner_heap);
 extern void *thread_unset_owner_heap(void);
 extern void thread_set_owner_heap(thread_t *th, void *owner_heap);
 extern void *thread_get_owner_heap(void);
+extern void thread_wait_until_parked(thread_t *th);

@@ -18,7 +18,7 @@ HeapManager::HeapManager() {
        vaddr += kHeapSize) {
     auto *heap_base = reinterpret_cast<HeapHeader *>(vaddr);
     auto mmap_addr =
-        ::mmap(heap_base, kPageSize, PROT_READ | PROT_WRITE,
+        ::mmap(heap_base, kNumAlwaysMmapedBytes, PROT_READ | PROT_WRITE,
                MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_POPULATE, -1, 0);
     auto *heap_header = reinterpret_cast<HeapHeader *>(mmap_addr);
     heap_header->present = false;
@@ -29,9 +29,10 @@ HeapManager::HeapManager() {
 }
 
 void HeapManager::mmap_populate(void *heap_base, uint64_t populate_len) {
-  auto *mmap_base = reinterpret_cast<uint8_t *>(heap_base) + kPageSize;
-  auto total_mmap_size = kHeapSize - kPageSize;
-  populate_len -= kPageSize;
+  auto *mmap_base =
+      reinterpret_cast<uint8_t *>(heap_base) + kNumAlwaysMmapedBytes;
+  auto total_mmap_size = kHeapSize - kNumAlwaysMmapedBytes;
+  populate_len -= kNumAlwaysMmapedBytes;
   populate_len = ((populate_len - 1) / kPageSize + 1) * kPageSize;
   auto mmap_addr =
       ::mmap(mmap_base, populate_len, PROT_READ | PROT_WRITE,
@@ -49,8 +50,9 @@ void HeapManager::deallocate(void *heap_base) {
   heap_header->spin_lock.lock(); // Sync with PressureHandler.
 
   heap_header->present = false;
-  auto *munmap_base = reinterpret_cast<uint8_t *>(heap_base) + kPageSize;
-  auto total_munmap_size = kHeapSize - kPageSize;
+  auto *munmap_base =
+      reinterpret_cast<uint8_t *>(heap_base) + kNumAlwaysMmapedBytes;
+  auto total_munmap_size = kHeapSize - kNumAlwaysMmapedBytes;
   RuntimeSlabGuard guard;
   std::destroy_at(&heap_header->blocked_syncer);
   std::destroy_at(&heap_header->time);

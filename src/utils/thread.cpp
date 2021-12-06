@@ -27,7 +27,7 @@ Thread::trampoline_in_obj_env(void *args) {
     Runtime::switch_to_runtime_slab();
 
     auto *heap_header = d->header;
-    if (likely(!thread_is_migrated(thread_self()))) {
+    if (likely(thread_is_at_creator())) {
       auto obj_stack_addr =
           ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &
            (~(kStackSize - 1)));

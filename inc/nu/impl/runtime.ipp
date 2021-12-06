@@ -55,18 +55,17 @@ template <typename T> T *Runtime::get_obj(RemObjID id) {
 template <typename Cls, typename... A0s, typename... A1s>
 __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer"))) void
-__run_within_obj_env(OutermostMigrationDisabledGuard *guard, uint8_t *obj_stack,
-                     Cls *obj_ptr, void (*fn)(A0s...), A1s &&... args) {
-  OutermostMigrationDisabledGuard guard_on_obj_stack(std::move(*guard));
+__run_within_obj_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
+                     void (*fn)(A0s...), A1s &&... args) {
+  NonBlockingMigrationDisabledGuard guard_on_obj_stack(std::move(*guard));
   auto *heap_header = guard_on_obj_stack.get_heap_header();
 
   fn(*obj_ptr, std::forward<A1s>(args)...);
 
-  if (unlikely(thread_is_migrated(thread_self()))) {
+  if (unlikely(thread_has_been_migrated())) {
     // FIXME
     // heap_header->migrated_wg.Done();
-    auto runtime_stack_base = thread_get_runtime_stack_base();
-    switch_stack(runtime_stack_base);
+    switch_stack(thread_get_runtime_stack_base());
     rt::Exit();
   }
 }
@@ -77,24 +76,22 @@ __attribute__((optimize("no-omit-frame-pointer"))) bool
 Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
                             A1s &&... args) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-  OutermostMigrationDisabledGuard guard(heap_header);
+  NonBlockingMigrationDisabledGuard guard(heap_header);
   if (unlikely(!guard)) {
     return false;
   }
 
-  thread_set_creator_ip_and_owner_heap(get_cfg_ip(), heap_base);
-
+  auto *slab = &heap_header->slab;
+  auto *obj_ptr =
+      reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab->get_base()));
   auto *obj_stack = Runtime::stack_manager->get();
   assert(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment == 0);
-  auto &slab = heap_header->slab;
 
-  switch_slab(&slab);
+  switch_slab(slab);
+  thread_set_owner_heap(thread_self(), heap_base);
   auto *old_rsp = switch_stack(obj_stack);
 
-  auto *obj_ptr =
-      reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab.get_base()));
-  __run_within_obj_env<Cls>(&guard, obj_stack, obj_ptr, fn,
-                            std::forward<A1s>(args)...);
+  __run_within_obj_env<Cls>(&guard, obj_ptr, fn, std::forward<A1s>(args)...);
 
   switch_stack(old_rsp);
   switch_to_runtime_slab();

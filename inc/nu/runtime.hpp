@@ -74,7 +74,7 @@ private:
   friend class ObjSlabGuard;
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
-  friend class OutermostMigrationDisabledGuard;
+  friend class NonBlockingMigrationDisabledGuard;
   template <typename T> friend class RemObj;
   template <typename T> friend class RemRawPtr;
   template <typename T> friend class RemUniquePtr;

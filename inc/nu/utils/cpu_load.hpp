@@ -10,7 +10,7 @@ public:
 
   struct State {
     bool sampled;
-    struct aligned_cycles *callee_output;
+    struct aligned_cycles *caller_output;
   };
 
   CPULoad();

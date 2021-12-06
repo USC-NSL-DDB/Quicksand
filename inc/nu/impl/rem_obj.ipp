@@ -70,7 +70,7 @@ retry:
     }
   }
 
-  OutermostMigrationDisabledGuard disabled_guard(heap_header);
+  NonBlockingMigrationDisabledGuard disabled_guard(heap_header);
   if (heap_header && unlikely(!disabled_guard)) {
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
 
@@ -120,7 +120,7 @@ retry:
     }
   }
 
-  OutermostMigrationDisabledGuard disabled_guard(heap_header);
+  NonBlockingMigrationDisabledGuard disabled_guard(heap_header);
   if (heap_header && unlikely(!disabled_guard)) {
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
 
@@ -260,7 +260,7 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
     }
     std::tie(id, server_addr) = *optional;
 
-    OutermostMigrationDisabledGuard disabled_guard(heap_header);
+    NonBlockingMigrationDisabledGuard disabled_guard(heap_header);
     if (heap_header && unlikely(!disabled_guard)) {
       Migrator::migrate_thread_and_ret_val<void>(
           std::span<std::byte>(), to_obj_id(heap_header), nullptr, nullptr);
@@ -331,7 +331,8 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
     auto callee_heap_header = to_heap_header(id_);
     void *caller_slab = nullptr;
     {
-      OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
+      NonBlockingMigrationDisabledGuard callee_disabled_guard(
+          callee_heap_header);
       if (callee_disabled_guard) {
         caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
         thread_set_owner_heap(thread_self(), callee_heap_header);
@@ -377,7 +378,8 @@ RetT RemObj<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
     auto callee_heap_header = to_heap_header(id_);
     void *caller_slab = nullptr;
     {
-      OutermostMigrationDisabledGuard callee_disabled_guard(callee_heap_header);
+      NonBlockingMigrationDisabledGuard callee_disabled_guard(
+          callee_heap_header);
       if (callee_disabled_guard) {
         caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
         thread_set_owner_heap(thread_self(), callee_heap_header);
