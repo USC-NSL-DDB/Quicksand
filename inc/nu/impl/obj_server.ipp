@@ -55,20 +55,18 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
 
 template <typename Cls, typename... As>
 void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
+  RuntimeSlabGuard runtime_slab_guard;
+  Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
+  Runtime::heap_manager->insert(base);
+
+  auto *heap_header = reinterpret_cast<HeapHeader *>(base);
+  heap_header->cpu_load.reset();
+  auto &slab = heap_header->slab;
+  auto obj_space = slab.yield(sizeof(Cls));
+
   {
-    RuntimeSlabGuard runtime_slab_guard;
-    Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
-    Runtime::heap_manager->insert(base);
-
-    auto *heap_header = reinterpret_cast<HeapHeader *>(base);
-    heap_header->cpu_load.reset();
-    auto &slab = heap_header->slab;
-    auto obj_space = slab.yield(sizeof(Cls));
-
-    {
-      ObjSlabGuard obj_slab_guard(&slab);
-      new (obj_space) Cls(std::forward<As>(args)...);
-    }
+    ObjSlabGuard obj_slab_guard(&slab);
+    new (obj_space) Cls(std::forward<As>(args)...);
   }
 }
 
@@ -231,59 +229,68 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
     *ret = fn_ptr(*obj, std::forward<S1s>(states)...);
     callee_heap_header->cpu_load.monitor_end(state);
 
-    MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
-    if (likely(caller_heap_header->present)) {
-      ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
-      if constexpr (std::is_copy_constructible<RetT>::value) {
-        // Perform a copy to ensure that the return value is allocated from
-        // the caller heap. It must be a "deep copy"; for now we just assume
-        // it is.
-        *caller_ptr = *ret;
-      } else {
-        // Actually we should use ser/deser here.
-        *caller_ptr = std::move(*ret);
-      }
-      thread_set_owner_heap(thread_self(), caller_heap_header);
-    } else {
-      decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
-      oa_sstream = Runtime::archive_pool->get_oa_sstream();
-      oa_sstream->oa << *ret;
-      auto ss_view = oa_sstream->ss.view();
-      auto ret_val_span = std::span<const std::byte>(
-          reinterpret_cast<const std::byte *>(ss_view.data()),
-          oa_sstream->ss.tellp());
-      std::destroy_at(ret);
+    {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
 
-      RuntimeSlabGuard slab_guard;
-      Migrator::migrate_thread_and_ret_val<RetT>(
-          ret_val_span, caller_id, caller_ptr, [&, th = thread_self()] {
-            callee_disabled_guard.reset();
-            // FIXME
-            // if (thread_is_migrated(th)) {
-            // callee_heap_header->migrated_wg.Done();
-            // }
-            Runtime::archive_pool->put_oa_sstream(oa_sstream);
-          });
+      if (likely(caller_heap_header->present)) {
+        ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
+        if constexpr (std::is_copy_constructible<RetT>::value) {
+          // Perform a copy to ensure that the return value is allocated from
+          // the caller heap. It must be a "deep copy"; for now we just assume
+          // it is.
+          *caller_ptr = *ret;
+        } else {
+          // Actually we should use ser/deser here.
+          *caller_ptr = std::move(*ret);
+        }
+        thread_set_owner_heap(thread_self(), caller_heap_header);
+	return;
+      }
     }
+
+    decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
+    oa_sstream = Runtime::archive_pool->get_oa_sstream();
+    oa_sstream->oa << *ret;
+    auto ss_view = oa_sstream->ss.view();
+    auto ret_val_span = std::span<const std::byte>(
+        reinterpret_cast<const std::byte *>(ss_view.data()),
+        oa_sstream->ss.tellp());
+    std::destroy_at(ret);
+
+    RuntimeSlabGuard slab_guard;
+    Migrator::migrate_thread_and_ret_val<RetT>(
+        ret_val_span, caller_id, caller_ptr, [&, th = thread_self()] {
+          // FIXME
+          // if (thread_is_migrated(th)) {
+          // callee_heap_header->migrated_wg.Done();
+          // }
+          Runtime::archive_pool->put_oa_sstream(oa_sstream);
+        });
   } else {
     fn_ptr(*obj, std::forward<S1s>(states)...);
     callee_heap_header->cpu_load.monitor_end(state);
 
-    MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
-    if (likely(caller_heap_header->present)) {
-      thread_set_owner_heap(thread_self(), caller_heap_header);
-    } else {
-      RuntimeSlabGuard slab_guard;
-      Migrator::migrate_thread_and_ret_val<void>(
-          std::span<const std::byte>(), caller_id, nullptr,
-          [&, th = thread_self()] {
-            callee_disabled_guard.reset();
-            // FIXME
-            // if (thread_is_migrated(th)) {
-            //   callee_heap_header->migrated_wg.Done();
-            // }
-          });
+    {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
+
+      if (likely(caller_heap_header->present)) {
+        thread_set_owner_heap(thread_self(), caller_heap_header);
+        return;
+      }
     }
+
+    RuntimeSlabGuard slab_guard;
+    Migrator::migrate_thread_and_ret_val<void>(std::span<const std::byte>(),
+                                               caller_id, nullptr,
+                                               [&, th = thread_self()] {
+                                                 // FIXME
+                                                 // if (thread_is_migrated(th))
+                                                 // {
+                                                 //   callee_heap_header->migrated_wg.Done();
+                                                 // }
+                                               });
   }
 }
 

@@ -333,9 +333,10 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
     auto callee_heap_header = to_heap_header(id_);
     void *caller_slab = nullptr;
     {
-      NonBlockingMigrationDisabledGuard callee_disabled_guard(
-          callee_heap_header);
-      if (callee_disabled_guard) {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
+
+      if (callee_heap_header->present) {
         caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
         thread_set_owner_heap(thread_self(), callee_heap_header);
       }

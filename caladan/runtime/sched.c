@@ -21,6 +21,12 @@ const int thread_link_offset = offsetof(struct thread, link);
 const int thread_run_cycles_offset =
        offsetof(struct thread, nu_state) +
        offsetof(struct thread_nu_state, run_cycles);
+const int thread_owner_heap_offset =
+       offsetof(struct thread, nu_state) +
+       offsetof(struct thread_nu_state, owner_heap);
+const int thread_obj_slab_offset =
+       offsetof(struct thread, nu_state) +
+       offsetof(struct thread_nu_state, obj_slab);
 
 /* the current running thread, or NULL if there isn't one */
 __thread thread_t *__self;
@@ -1328,22 +1334,6 @@ void *thread_get_runtime_stack_base(void)
 	return &__self->stack->usable[STACK_PTR_SIZE];
 }
 
-void *thread_get_obj_slab()
-{
-       if (!__self)
-		return 0;
-       else
-		return __self->nu_state.obj_slab;
-}
-
-void *thread_set_obj_slab(void *obj_slab)
-{
-       void *old_obj_slab = __self->nu_state.obj_slab;
-
-       __self->nu_state.obj_slab = obj_slab;
-       return old_obj_slab;
-}
-
 struct aligned_cycles *
 thread_start_monitor_cycles(struct aligned_cycles *output)
 {
@@ -1441,23 +1431,6 @@ retry:
 uint32_t thread_get_creator_ip(void)
 {
 	return __self->nu_state.creator_ip;
-}
-
-void *thread_unset_owner_heap(void)
-{
-	void *owner_heap =  __self->nu_state.owner_heap;
-	__self->nu_state.owner_heap = NULL;
-	return owner_heap;
-}
-
-void thread_set_owner_heap(thread_t *th, void *owner_heap)
-{
-	th->nu_state.owner_heap = owner_heap;
-}
-
-void *thread_get_owner_heap(void)
-{
-	return __self->nu_state.owner_heap;
 }
 
 void thread_wait_until_parked(thread_t *th)

@@ -22,6 +22,8 @@ struct aligned_cycles {
 
 extern const int thread_link_offset;
 extern const int thread_run_cycles_offset;
+extern const int thread_owner_heap_offset;
+extern const int thread_obj_slab_offset;
 
 /*
  * Low-level routines, these are helpful for bindings and synchronization
@@ -58,7 +60,7 @@ inline thread_t *thread_self(void)
 /**
  * get_current_thread_id - get the thread id of the currently running thread
  */
-static inline thread_id_t get_current_thread_id()  
+static inline thread_id_t get_current_thread_id(void)
 {
 	return (thread_id_t)thread_self();
 }
@@ -104,12 +106,48 @@ extern void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
 extern thread_t *create_migrated_thread(void *nu_state);
 extern void gc_migrated_threads(void);
 extern void *thread_get_runtime_stack_base(void);
-extern void *thread_get_obj_slab(void);
-extern void *thread_set_obj_slab(void *obj_slab);
 extern void thread_set_nu_thread(thread_t *th, void *nu_thread);
 extern void *thread_get_nu_thread(thread_t *th);
 extern uint32_t thread_get_creator_ip(void);
-extern void *thread_unset_owner_heap(void);
-extern void thread_set_owner_heap(thread_t *th, void *owner_heap);
-extern void *thread_get_owner_heap(void);
 extern void thread_wait_until_parked(thread_t *th);
+
+static inline void *thread_unset_owner_heap(void)
+{
+	void **owner_heap_p =
+		(void **)((uint64_t)__self + thread_owner_heap_offset);
+	void *old_owner_heap = *owner_heap_p;
+	*owner_heap_p = NULL;
+
+	return old_owner_heap;
+}
+
+static inline void thread_set_owner_heap(thread_t *th, void *owner_heap)
+{
+	void **owner_heap_p =
+		(void **)((uint64_t)th + thread_owner_heap_offset);
+	*owner_heap_p = owner_heap;
+}
+
+static inline void *thread_get_owner_heap(void)
+{
+	void **owner_heap_p =
+		(void **)((uint64_t)__self + thread_owner_heap_offset);
+	return *owner_heap_p;
+}
+
+static inline void *thread_get_obj_slab(void)
+{
+       if (!__self)
+		return 0;
+
+       return *(void **)((uint64_t)__self + thread_obj_slab_offset);
+}
+
+static inline void *thread_set_obj_slab(void *obj_slab)
+{
+       void **obj_slab_p = (void **)((uint64_t)__self + thread_obj_slab_offset);
+       void *old_obj_slab = *obj_slab_p;
+       *obj_slab_p = obj_slab;
+
+       return old_obj_slab;
+}
