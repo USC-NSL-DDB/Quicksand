@@ -34,8 +34,7 @@ extern void thread_ready(thread_t *thread);
 extern void thread_ready_head(thread_t *thread);
 extern thread_t *thread_create(thread_fn_t fn, void *arg);
 extern thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
-extern thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_slab,
-                                           void *obj_stack,
+extern thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_stack,
                                            uint32_t obj_stack_size,
                                            thread_fn_t fn, void **buf,
                                            size_t buf_len);

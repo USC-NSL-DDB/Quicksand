@@ -62,7 +62,9 @@ __run_within_obj_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
 
   fn(*obj_ptr, std::forward<A1s>(args)...);
 
-  if (unlikely(thread_has_been_migrated())) {
+  if (likely(!thread_has_been_migrated())) {
+    thread_unset_owner_heap();
+  } else {
     // FIXME
     // heap_header->migrated_wg.Done();
     switch_stack(thread_get_runtime_stack_base());

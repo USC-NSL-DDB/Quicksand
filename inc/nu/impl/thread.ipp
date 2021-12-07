@@ -41,7 +41,7 @@ void Thread::create_in_obj_env(F &&f, HeapHeader *header) {
   auto *obj_stack = Runtime::stack_manager->get();
   assert(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment == 0);
   th_ = thread_nu_create_with_buf(
-      this, &header->slab, obj_stack, kStackSize, trampoline_in_obj_env,
+      this, obj_stack, kStackSize, trampoline_in_obj_env,
       reinterpret_cast<void **>(&join_data_), sizeof(*join_data_));
   BUG_ON(!th_);
   new (join_data_) join_data(std::forward<F>(f), header);

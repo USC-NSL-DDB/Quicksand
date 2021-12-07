@@ -1016,15 +1016,8 @@ static __always_inline thread_t *__thread_create(void)
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
 	th->nu_state.creator_ip = get_cfg_ip();
-
-	if (__self) {
-		th->nu_state.obj_slab = __self->nu_state.obj_slab;
-		th->nu_state.owner_heap = __self->nu_state.owner_heap;
-	}
-	else {
-		th->nu_state.obj_slab = NULL;
-		th->nu_state.owner_heap = NULL;
-	}
+	th->nu_state.obj_slab = NULL;
+	th->nu_state.owner_heap = NULL;
 
 	return th;
 }
@@ -1078,17 +1071,18 @@ thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t buf_len)
 	return th;
 }
 
-thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_slab,
-				    void *obj_stack, uint32_t obj_stack_size,
-				    thread_fn_t fn, void **buf, size_t buf_len)
+thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_stack,
+				    uint32_t obj_stack_size, thread_fn_t fn,
+				    void **buf, size_t buf_len)
 {
 	void *ptr;
 	thread_t *th = __thread_create();
 	if (unlikely(!th))
 		return NULL;
 
+	th->nu_state.obj_slab = __self->nu_state.obj_slab;
+	th->nu_state.owner_heap = __self->nu_state.owner_heap;
 	th->nu_state.nu_thread = nu_thread;
-	th->nu_state.obj_slab = obj_slab;
 	th->nu_state.tf.rsp =
 		nu_stack_init_to_rsp_with_buf(obj_stack, obj_stack_size, &ptr,
 					      buf_len);

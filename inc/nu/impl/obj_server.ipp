@@ -243,6 +243,7 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
         // Actually we should use ser/deser here.
         *caller_ptr = std::move(*ret);
       }
+      thread_set_owner_heap(thread_self(), caller_heap_header);
     } else {
       decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
       oa_sstream = Runtime::archive_pool->get_oa_sstream();
@@ -269,7 +270,9 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
     callee_heap_header->cpu_load.monitor_end(state);
 
     MigrationDisabledGuard callee_disabled_guard(callee_heap_header);
-    if (unlikely(!caller_heap_header->present)) {
+    if (likely(caller_heap_header->present)) {
+      thread_set_owner_heap(thread_self(), caller_heap_header);
+    } else {
       RuntimeSlabGuard slab_guard;
       Migrator::migrate_thread_and_ret_val<void>(
           std::span<const std::byte>(), caller_id, nullptr,

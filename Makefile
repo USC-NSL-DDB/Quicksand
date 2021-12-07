@@ -63,6 +63,8 @@ test_thread_src = test/test_thread.cpp
 test_thread_obj = $(test_thread_src:.cpp=.o)
 test_fast_path_src = test/test_fast_path.cpp
 test_fast_path_obj = $(test_fast_path_src:.cpp=.o)
+test_slow_path_src = test/test_slow_path.cpp
+test_slow_path_obj = $(test_slow_path_src:.cpp=.o)
 
 bench_rpc_tput_src = bench/bench_rpc_tput.cpp
 bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
@@ -95,7 +97,7 @@ bin/bench_hashtable_timeseries bin/bench_fake_migration bin/test_nested_rem_obj 
 bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
-bin/test_fast_path
+bin/test_fast_path bin/test_slow_path
 
 libnu.a: $(lib_obj)
 	$(AR) rcs $@ $^
@@ -145,6 +147,8 @@ bin/test_thread: $(test_thread_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_thread_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_fast_path: $(test_fast_path_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_fast_path_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_slow_path: $(test_slow_path_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_slow_path_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)

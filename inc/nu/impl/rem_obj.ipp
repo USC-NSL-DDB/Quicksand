@@ -264,6 +264,8 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
     if (heap_header && unlikely(!disabled_guard)) {
       Migrator::migrate_thread_and_ret_val<void>(
           std::span<std::byte>(), to_obj_id(heap_header), nullptr, nullptr);
+    } else {
+      thread_set_owner_heap(thread_self(), heap_header);
     }
   }
 

@@ -18,26 +18,27 @@ Thread::trampoline_in_obj_env(void *args) {
   }
   std::destroy_at(&d->func);
 
-  auto runtime_stack_base = thread_get_runtime_stack_base();
-  auto old_rsp = switch_stack(runtime_stack_base);
-
   {
     rt::Preempt p;
     rt::PreemptGuard g(&p);
-    Runtime::switch_to_runtime_slab();
 
-    auto *heap_header = d->header;
-    if (likely(thread_is_at_creator())) {
-      auto obj_stack_addr =
-          ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &
-           (~(kStackSize - 1)));
-      Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(obj_stack_addr));
-    } else {
-      // FIXME
-      // heap_header->migrated_wg.Done();
-    }
+    thread_unset_owner_heap();
   }
 
+  auto runtime_stack_base = thread_get_runtime_stack_base();
+  auto old_rsp = switch_stack(runtime_stack_base);
+  Runtime::switch_to_runtime_slab();
+
+  auto *heap_header = d->header;
+  if (likely(thread_is_at_creator())) {
+    auto obj_stack_addr =
+        ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &
+         (~(kStackSize - 1)));
+    Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(obj_stack_addr));
+  } else {
+    // FIXME
+    // heap_header->migrated_wg.Done();
+  }
   rt::Exit();
 }
 
