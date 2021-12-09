@@ -159,7 +159,7 @@ void PressureHandler::aux_handler(void *args) {
 
 std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
                                                    uint32_t min_mem_mbs) {
-  uint32_t picked_mem_mbs = 0;
+  float picked_mem_mbs = 0;
   uint32_t picked_num = 0;
   bool done = false;
   std::vector<HeapRange> picked_heaps;
@@ -168,7 +168,7 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
     auto size = get_heap_size(header);
     HeapRange range{header, size};
     picked_heaps.push_back(range);
-    picked_mem_mbs += size / kOneMB;
+    picked_mem_mbs += size / static_cast<float>(kOneMB);
     picked_num++;
     done = ((picked_mem_mbs >= min_mem_mbs) && (picked_num >= min_num_heaps));
   };
@@ -189,7 +189,8 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
     }
   }
 
-  if (unlikely(picked_heaps.empty())) {
+  if (unlikely(!done)) {
+    picked_heaps.clear();
     auto &all_heaps = Runtime::heap_manager->acquire_all_heaps();
     auto iter = all_heaps.begin();
     while (iter != all_heaps.end() && !done) {
