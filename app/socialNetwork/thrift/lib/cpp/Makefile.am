@@ -115,8 +115,8 @@ libthrift_la_SOURCES += src/thrift/concurrency/BoostThreadFactory.cpp \
                         src/thrift/concurrency/BoostMonitor.cpp \
                         src/thrift/concurrency/BoostMutex.cpp
 else
-if WITH_CALADANTHREADS
-libthrift_la_SOURCES += src/thrift/concurrency/CaladanThreadFactory.cpp \
+if WITH_NUTHREADS
+libthrift_la_SOURCES += src/thrift/concurrency/NuThreadFactory.cpp \
                         src/thrift/concurrency/CaladanMonitor.cpp \
                         src/thrift/concurrency/CaladanMutex.cpp
 else

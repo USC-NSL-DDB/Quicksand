@@ -19,15 +19,15 @@
 
 #include <thrift/thrift-config.h>
 
-#if USE_CALADAN_THREAD
+#if USE_NU_THREAD
 
-#include <thrift/concurrency/CaladanThreadFactory.h>
+#include <thrift/concurrency/NuThreadFactory.h>
 #include <thrift/concurrency/Exception.h>
 #include <thrift/concurrency/Monitor.h>
 #include <thrift/stdcxx.h>
 
 #include <cassert>
-#include <thread>
+#include <nu/utils/thread.hpp>
 
 namespace apache {
 namespace thrift {
@@ -42,26 +42,26 @@ namespace concurrency {
  *
  * @version $Id:$
  */
-class CaladanThread : public Thread, public stdcxx::enable_shared_from_this<CaladanThread> {
+class NuThread : public Thread, public stdcxx::enable_shared_from_this<NuThread> {
 public:
   enum STATE { uninitialized, starting, started, stopping, stopped };
 
-  static void threadMain(stdcxx::shared_ptr<CaladanThread> thread);
+  static void threadMain(stdcxx::shared_ptr<NuThread> thread);
 
 private:
-  std::unique_ptr<rt::Thread> thread_;
+  std::unique_ptr<nu::Thread> thread_;
   Monitor monitor_;
   STATE state_;
   bool detached_;
 
 public:
-  CaladanThread(bool detached, stdcxx::shared_ptr<Runnable> runnable)
+  NuThread(bool detached, stdcxx::shared_ptr<Runnable> runnable)
     : state_(uninitialized), detached_(detached) {
     this->Thread::runnable(runnable);
   }
 
-  ~CaladanThread() {
-    if (!detached_ && thread_->Joinable()) {
+  ~NuThread() {
+    if (!detached_ && thread_->joinable()) {
       try {
         join();
       } catch (...) {
@@ -93,14 +93,14 @@ public:
       return;
     }
 
-    stdcxx::shared_ptr<CaladanThread> selfRef = shared_from_this();
+    stdcxx::shared_ptr<NuThread> selfRef = shared_from_this();
     setState(starting);
 
     Synchronized sync(monitor_);
-    thread_ = std::unique_ptr<rt::Thread>(new rt::Thread([=] { threadMain(selfRef); }));
+    thread_ = std::unique_ptr<nu::Thread>(new nu::Thread([=] { threadMain(selfRef); }));
 
     if (detached_)
-      thread_->Detach();
+      thread_->detach();
 
     // Wait for the thread to start and get far enough to grab everything
     // that it needs from the calling context, thus absolving the caller
@@ -110,18 +110,18 @@ public:
 
   void join() {
     if (!detached_ && state_ != uninitialized) {
-      thread_->Join();
+      thread_->join();
     }
   }
 
-  Thread::id_t getId() { return thread_.get() ? thread_->GetId() : rt::Thread::id(); }
+  Thread::id_t getId() { return thread_.get() ? thread_->get_id() : nu::Thread::id(); }
 
   stdcxx::shared_ptr<Runnable> runnable() const { return Thread::runnable(); }
 
   void runnable(stdcxx::shared_ptr<Runnable> value) { Thread::runnable(value); }
 };
 
-void CaladanThread::threadMain(stdcxx::shared_ptr<CaladanThread> thread) {
+void NuThread::threadMain(stdcxx::shared_ptr<NuThread> thread) {
 #if GOOGLE_PERFTOOLS_REGISTER_THREAD
   ProfilerRegisterThread();
 #endif
@@ -134,21 +134,21 @@ void CaladanThread::threadMain(stdcxx::shared_ptr<CaladanThread> thread) {
   }
 }
 
-CaladanThreadFactory::CaladanThreadFactory(bool detached) : ThreadFactory(detached) {
+NuThreadFactory::NuThreadFactory(bool detached) : ThreadFactory(detached) {
 }
 
-stdcxx::shared_ptr<Thread> CaladanThreadFactory::newThread(stdcxx::shared_ptr<Runnable> runnable) const {
-  stdcxx::shared_ptr<CaladanThread> result
-      = stdcxx::shared_ptr<CaladanThread>(new CaladanThread(isDetached(), runnable));
+stdcxx::shared_ptr<Thread> NuThreadFactory::newThread(stdcxx::shared_ptr<Runnable> runnable) const {
+  stdcxx::shared_ptr<NuThread> result
+      = stdcxx::shared_ptr<NuThread>(new NuThread(isDetached(), runnable));
   runnable->thread(result);
   return result;
 }
 
-Thread::id_t CaladanThreadFactory::getCurrentThreadId() const {
-  return rt::Thread::GetCurrentId();
+Thread::id_t NuThreadFactory::getCurrentThreadId() const {
+  return nu::Thread::get_current_id();
 }
 }
 }
 } // apache::thrift::concurrency
 
-#endif // USE_CALADAN_THREAD
+#endif // USE_NU_THREAD

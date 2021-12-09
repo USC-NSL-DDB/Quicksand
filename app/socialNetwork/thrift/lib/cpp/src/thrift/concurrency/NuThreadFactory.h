@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef _THRIFT_CONCURRENCY_CALADANTHREADFACTORY_H_
-#define _THRIFT_CONCURRENCY_CALADANTHREADFACTORY_H_ 1
+#ifndef _THRIFT_CONCURRENCY_NUTHREADFACTORY_H_
+#define _THRIFT_CONCURRENCY_NUTHREADFACTORY_H_ 1
 
 #include <thrift/concurrency/Thread.h>
 
@@ -29,15 +29,15 @@ namespace thrift {
 namespace concurrency {
 
 /**
- * A thread factory to create rt::Threads.
+ * A thread factory to create nu::Threads.
  *
  * @version $Id:$
  */
-class CaladanThreadFactory : public ThreadFactory {
+class NuThreadFactory : public ThreadFactory {
 
 public:
   /**
-   * Caladan thread factory.  All threads created by a factory are reference-counted
+   * Nu thread factory.  All threads created by a factory are reference-counted
    * via stdcxx::shared_ptr.  The factory guarantees that threads and the Runnable tasks
    * they host will be properly cleaned up once the last strong reference
    * to both is given up.
@@ -45,7 +45,7 @@ public:
    * By default threads are not joinable.
    */
 
-  CaladanThreadFactory(bool detached = true);
+  NuThreadFactory(bool detached = true);
 
   // From ThreadFactory;
   stdcxx::shared_ptr<Thread> newThread(stdcxx::shared_ptr<Runnable> runnable) const;
@@ -58,4 +58,4 @@ public:
 }
 } // apache::thrift::concurrency
 
-#endif // #ifndef _THRIFT_CONCURRENCY_CaladanTHREADFACTORY_H_
+#endif // #ifndef _THRIFT_CONCURRENCY_NUTHREADFACTORY_H_

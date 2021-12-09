@@ -22,8 +22,8 @@
 
 // clang-format off
 #include <thrift/thrift-config.h>
-#if USE_CALADAN_THREAD
-#  include <thrift/concurrency/CaladanThreadFactory.h>
+#if USE_NU_THREAD
+#  include <thrift/concurrency/NuThreadFactory.h>
 #elif USE_BOOST_THREAD
 #  include <thrift/concurrency/BoostThreadFactory.h>
 #elif USE_STD_THREAD
@@ -38,8 +38,8 @@ namespace thrift {
 namespace concurrency {
 
 // clang-format off
-#if USE_CALADAN_THREAD
-  typedef CaladanThreadFactory PlatformThreadFactory;
+#if USE_NU_THREAD
+  typedef NuThreadFactory PlatformThreadFactory;
 #elif USE_BOOST_THREAD
   typedef BoostThreadFactory PlatformThreadFactory;
 #elif USE_STD_THREAD

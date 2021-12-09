@@ -27,6 +27,8 @@ struct join_data {
 
 class Thread {
 public:
+  using id = thread_id_t;
+
   template <typename F> Thread(F &&f);
   Thread();
   ~Thread();
@@ -34,10 +36,12 @@ public:
   Thread &operator=(const Thread &) = delete;
   Thread(Thread &&t);
   Thread &operator=(Thread &&t);
-
   bool joinable();
   void join();
   void detach();
+  // Warning: in the current implementation, the ID may change after migration.
+  id get_id() { return get_thread_id(th_); }
+  static id get_current_id() { return get_current_thread_id(); }
 
 private:
   thread_t *th_;

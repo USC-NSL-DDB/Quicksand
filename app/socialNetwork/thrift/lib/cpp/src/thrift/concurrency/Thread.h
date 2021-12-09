@@ -25,7 +25,7 @@
 
 #include <thrift/thrift-config.h>
 
-#if USE_CALADAN_THREAD
+#if USE_NU_THREAD
 #include <thread.h>
 #elif USE_BOOST_THREAD
 #include <boost/thread.hpp>
@@ -82,7 +82,7 @@ private:
 class Thread {
 
 public:
-#if USE_CALADAN_THREAD
+#if USE_NU_THREAD
   typedef rt::Thread::id id_t;
 
   static inline bool is_current(id_t t) { return t == get_current(); }

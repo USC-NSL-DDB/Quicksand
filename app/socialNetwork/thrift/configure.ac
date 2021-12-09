@@ -794,21 +794,21 @@ fi
 
 AM_CONDITIONAL([WITH_BOOSTTHREADS], [test "x[$]ENABLE_BOOSTTHREADS" = "x1"])
 
-AC_ARG_ENABLE(caladanthreads,
-              [  --enable-caladanthreads use caladan threads, instead of POSIX pthread (experimental) ],
+AC_ARG_ENABLE(nuthreads,
+              [  --enable-nuthreads use nu threads, instead of POSIX pthread (experimental) ],
               [case "${enableval}" in
-                yes) ENABLE_CALADANTHREADS=1 ;;
-                no) ENABLE_CALADANTHREADS=0 ;;
-                *) AC_MSG_ERROR(bad value ${enableval} for --enable-caladanthreads) ;;
+                yes) ENABLE_NUTHREADS=1 ;;
+                no) ENABLE_NUTHREADS=0 ;;
+                *) AC_MSG_ERROR(bad value ${enableval} for --enable-nuthreads) ;;
               esac],
-              [ENABLE_CALADANTHREADS=2])
+              [ENABLE_NUTHREADS=2])
 
-if test "x[$]ENABLE_CALADANTHREADS" = "x1"; then
-  AC_MSG_WARN(enable caladanthreads)
-  AC_DEFINE([USE_CALADAN_THREAD], [1], [experimental --enable-caladanthreads that replaces POSIX pthread by rt::Thread])
+if test "x[$]ENABLE_NUTHREADS" = "x1"; then
+  AC_MSG_WARN(enable nuthreads)
+  AC_DEFINE([USE_NU_THREAD], [1], [experimental --enable-nuthreads that replaces POSIX pthread by nu::Thread])
 fi
 
-AM_CONDITIONAL([WITH_CALADANTHREADS], [test "x[$]ENABLE_CALADANTHREADS" = "x1"])
+AM_CONDITIONAL([WITH_NUTHREADS], [test "x[$]ENABLE_NUTHREADS" = "x1"])
 
 AC_ARG_ENABLE(caladantcp,
               [  --enable-caladantcp     use caladan TCP, instead of Linux Socket (experimental) ],
@@ -826,13 +826,15 @@ fi
 
 AM_CONDITIONAL([WITH_CALADANTCP], [test "x[$]ENABLE_CALADANTCP" = "x1"])
 
-if test "x[$]ENABLE_CALADANTHREADS" = "x1" -o "x[$]ENABLE_CALADANTCP" = "x1"; then
-  AC_ARG_WITH([caladan],
-    [AS_HELP_STRING([--with-caladan@<:@=ARG@:>@],
-      [specify the Caladan root location (ARG=<path>).])],
-    [CALADAN_PATH="$withval"])
-  CXXFLAGS="-I$CALADAN_PATH/inc -I$CALADAN_PATH/bindings/cc -I$CALADAN_PATH/deps/folly/include $CXXFLAGS"
-  LIBS="-L$CALADAN_PATH/bindings/cc -lrt++ -L$CALADAN_PATH -lruntime -lnet -lbase"
+if test "x[$]ENABLE_NUTHREADS" = "x1" -o "x[$]ENABLE_CALADANTCP" = "x1"; then
+  AC_ARG_WITH([nu],
+    [AS_HELP_STRING([--with-nu@<:@=ARG@:>@],
+      [specify the nu root location (ARG=<path>).])],
+    [NU_PATH="$withval"])
+  NCORES=`nproc`
+  CXXFLAGS="-I$NU_PATH/inc -DNCORES=$NCORES $CXXFLAGS"
+  CXXFLAGS="-I$NU_PATH/caladan/inc -I$NU_PATH/caladan/bindings/cc -I$NU_PATH/caladan/deps/folly/include $CXXFLAGS"
+  LIBS="-L$NU_PATH/caladan/bindings/cc -lrt++ -L$NU_PATH/caladan -lruntime -lnet -lbase"
 fi
 
 AC_CONFIG_HEADERS(config.h:config.hin)
