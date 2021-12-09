@@ -1293,7 +1293,8 @@ struct list_head *pause_all_migrating_threads(void *owner_heap)
 
 retry:
 	for (i = 0; i < nrks; i++)
-		if (ACCESS_ONCE(ks[i]->pause_req))
+		if (ACCESS_ONCE(ks[i]->pause_req) &&
+		    !handle_pending_pause_req(ks[i]))
 			goto retry;
 	store_release(&global_pause_req_mask, false);
 	for (i = 0; i < nrks; i++) {
