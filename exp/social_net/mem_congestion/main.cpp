@@ -1,6 +1,5 @@
 #include <iostream>
 #include <memory>
-#include <nu/monitor.hpp>
 #include <nu/rem_obj.hpp>
 #include <nu/runtime.hpp>
 

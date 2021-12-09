@@ -12,12 +12,6 @@ SRC_SERVER_IP=$SERVER3_IP
 DEST_SERVER_IP=$SERVER4_IP
 
 DIR=`pwd`
-cd ../../../
-cp inc/nu/monitor.hpp inc/nu/monitor.hpp.bak
-sed "s/constexpr static bool kMonitorCPUCongestion.*/constexpr static bool kMonitorCPUCongestion = true;/g" \
-    -i inc/nu/monitor.hpp
-make clean
-make -j
 
 cd $DIR
 make clean
@@ -26,12 +20,6 @@ make -j
 scp server $SRC_SERVER_IP:`pwd`
 scp server $DEST_SERVER_IP:`pwd`
 
-cd $NU_DIR
-mv inc/nu/monitor.hpp.bak inc/nu/monitor.hpp
-make clean
-make -j
-
-cd $DIR
 sudo $NU_DIR/caladan/iokerneld &
 sleep 5
 sudo ./server conf/controller CTL 18.18.1.3 &
@@ -69,3 +57,4 @@ unset_bridge $CONTROLLER_ETHER
 unset_bridge $CLIENT1_ETHER
 ssh $SRC_SERVER_IP "cd `pwd`; source ../../shared.sh; unset_bridge $SERVER1_ETHER"
 ssh $DEST_SERVER_IP "cd `pwd`; source ../../shared.sh; unset_bridge $SERVER2_ETHER"
+

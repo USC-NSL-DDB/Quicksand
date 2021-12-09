@@ -18,6 +18,7 @@
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
+#include "nu/utils/thread.hpp"
 
 using namespace nu;
 
@@ -84,7 +85,7 @@ void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
 }
 
 void init(Test::DSHashTable *hash_table) {
-  std::vector<rt::Thread> threads;
+  std::vector<nu::Thread> threads;
   constexpr uint32_t kNumThreads = 400;
   for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back([&, tid = i] {
@@ -102,7 +103,7 @@ void init(Test::DSHashTable *hash_table) {
     });
   }
   for (auto &thread : threads) {
-    thread.Join();
+    thread.join();
   }
 }
 
@@ -117,7 +118,7 @@ public:
     auto *queue = rt::TcpQueue::Listen(laddr, 128);
     rt::TcpConn *c;
     while ((c = queue->Accept())) {
-      rt::Thread([&, c] { handle(c); }).Detach();
+      nu::Thread([&, c] { handle(c); }).detach();
     }
   }
 

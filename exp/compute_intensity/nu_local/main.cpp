@@ -49,7 +49,7 @@ public:
   void run() {
     auto obj = RemObj<Obj>::create();
 
-    std::vector<rt::Thread> threads;
+    std::vector<nu::Thread> threads;
     for (uint32_t i = 0; i < kNumThreads; i++) {
       threads.emplace_back([&, tid = i] {
         while (true) {

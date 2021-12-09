@@ -11,7 +11,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/monitor.hpp"
+#include "nu/pressure_handler.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 
@@ -19,7 +19,7 @@ using namespace nu;
 
 Runtime::Mode mode;
 
-constexpr uint32_t kObjSize = 16777216;
+constexpr uint32_t kObjSize = 2097152;
 constexpr uint32_t kNumObjs = 128;
 
 class Obj {
@@ -33,8 +33,9 @@ namespace nu {
 class Test {
 public:
   void migrate() {
-    Resource resource = {.cores = 0, .mem_mbs = 65535};
-    Runtime::monitor->mock_set_pressure(resource);
+    ResourcePressureInfo pressure = {.mem_mbs_to_release = 65535,
+                                     .num_cores_to_release = 0};
+    Runtime::pressure_handler->mock_set_pressure(pressure);
     delay_ms(1000);
   }
 };
