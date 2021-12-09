@@ -234,18 +234,21 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
       rt::PreemptGuard g(&p);
 
       if (likely(caller_heap_header->present)) {
-        ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
-        if constexpr (std::is_copy_constructible<RetT>::value) {
-          // Perform a copy to ensure that the return value is allocated from
-          // the caller heap. It must be a "deep copy"; for now we just assume
-          // it is.
-          *caller_ptr = *ret;
-        } else {
-          // Actually we should use ser/deser here.
-          *caller_ptr = std::move(*ret);
+        {
+          ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
+          if constexpr (std::is_copy_constructible<RetT>::value) {
+            // Perform a copy to ensure that the return value is allocated from
+            // the caller heap. It must be a "deep copy"; for now we just assume
+            // it is.
+            *caller_ptr = *ret;
+          } else {
+            // Actually we should use ser/deser here.
+            *caller_ptr = std::move(*ret);
+          }
         }
         thread_set_owner_heap(thread_self(), caller_heap_header);
-	return;
+        std::destroy_at(ret);
+        return;
       }
     }
 
