@@ -50,7 +50,7 @@ void Migrator::migrate_thread_and_ret_val(
     RetT *dest_ret_val_ptr, folly::Function<void()> cleanup_fn) {
   rt::Thread(
       [&, th = thread_self()] {
-	thread_wait_until_parked(th);
+        thread_wait_until_parked(th);
         auto *dest_heap_header = to_heap_header(dest_id);
         thread_set_owner_heap(th, dest_heap_header);
 
@@ -83,16 +83,14 @@ void Migrator::migrate_thread_and_ret_val(
 
         auto req_span = std::span(req_buf.get(), req_buf_len);
         RPCReturnBuffer return_buf;
-        {
-          RuntimeSlabGuard guard;
-        retry:
-          auto [gen, rpc_client] =
-              Runtime::rpc_client_mgr->get_by_rem_obj_id(dest_id);
-          auto rc = rpc_client->Call(req_span, &return_buf);
-          if (unlikely(rc == kErrWrongClient)) {
-            Runtime::rpc_client_mgr->update_cache(dest_id, gen);
-            goto retry;
-          }
+
+      retry:
+        auto [gen, rpc_client] =
+            Runtime::rpc_client_mgr->get_by_rem_obj_id(dest_id);
+        auto rc = rpc_client->Call(req_span, &return_buf);
+        if (unlikely(rc == kErrWrongClient)) {
+          Runtime::rpc_client_mgr->update_cache(dest_id, gen);
+          goto retry;
         }
       },
       /* head = */ true)

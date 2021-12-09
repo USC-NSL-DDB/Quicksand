@@ -26,6 +26,7 @@ extern "C" {
 
 namespace nu {
 
+// TODO: use runtime slab for ser/deser.
 template <typename... S1s> void serialize(auto *oa_sstream, S1s &&... states) {
   auto &ss = oa_sstream->ss;
   auto *rpc_type = const_cast<RPCReqType *>(
