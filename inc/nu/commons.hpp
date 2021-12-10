@@ -71,6 +71,7 @@ RemObjID to_obj_id(void *heap_base);
 void *switch_stack(void *new_rsp);
 VAddrRange get_obj_stack_range(thread_t *thread);
 uint16_t to_u16(void *heap_base);
+bool is_in_heap(void *ptr, void *heap_base);
 template <typename T> std::span<std::byte> to_span(T &t);
 template <typename T> T &from_span(std::span<std::byte> span);
 template <typename T> const T &from_span(std::span<const std::byte> span);

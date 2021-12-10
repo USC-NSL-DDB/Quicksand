@@ -50,6 +50,11 @@ inline uint16_t to_u16(void *heap_base) {
   return __to_u16(reinterpret_cast<uint64_t>(heap_base));
 }
 
+inline bool is_in_heap(void *ptr, void *heap_base) {
+  return (reinterpret_cast<uint64_t>(ptr) & (~(kHeapSize - 1))) ==
+         reinterpret_cast<uint64_t>(heap_base);
+}
+
 template <typename T> std::span<std::byte> to_span(T &t) {
   return std::span<std::byte>(reinterpret_cast<std::byte *>(&t), sizeof(t));
 }
