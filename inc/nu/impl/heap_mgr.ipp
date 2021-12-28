@@ -9,38 +9,31 @@ namespace nu {
 
 inline HeapHeader::~HeapHeader() {}
 
-inline void HeapManager::allocate(void *heap_base, bool migratable) {
-  mmap(heap_base);
-  setup(heap_base, migratable, /* from_migration = */ false);
-}
-
-inline void HeapManager::mmap(void *heap_base) {
-  auto mmap_addr =
-      ::mmap(reinterpret_cast<uint8_t *>(heap_base) + kNumAlwaysMmapedBytes,
-             kHeapSize - kNumAlwaysMmapedBytes, PROT_READ | PROT_WRITE,
-             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
-  BUG_ON(mmap_addr == reinterpret_cast<void *>(-1));
+inline void HeapManager::wait_until_present(HeapHeader *heap_header) {
+  heap_header->spin_lock.lock();
+  while (rt::access_once(heap_header->status) != kPresent) {
+    heap_header->cond_var.wait(&heap_header->spin_lock);
+  }
+  heap_header->spin_lock.unlock();
 }
 
 inline void HeapManager::insert(void *heap_base) {
   rt::SpinGuard guard(&spin_);
-  reinterpret_cast<HeapHeader *>(heap_base)->present = true;
-  BUG_ON(!present_heaps_.emplace(heap_base).second);
-}
-
-inline bool HeapManager::remove_with_present(void *heap_base) {
-  rt::SpinGuard guard(&spin_);
-  return present_heaps_.erase(heap_base);
+  reinterpret_cast<HeapHeader *>(heap_base)->status = kPresent;
+  num_present_heaps_++;
+  present_heaps_.push_back(heap_base);
 }
 
 inline bool HeapManager::remove(void *heap_base) {
   rt::SpinGuard guard(&spin_);
-  reinterpret_cast<HeapHeader *>(heap_base)->present = false;
-  return present_heaps_.erase(heap_base);
-}
-
-inline void HeapManager::mark_absent(void *heap_base) {
-  reinterpret_cast<HeapHeader *>(heap_base)->present = false;
+  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  if (heap_header->status == kPresent) {
+    num_present_heaps_--;
+    heap_header->status = kAbsent;
+    return true;
+  } else {
+    return false;
+  }
 }
 
 inline void HeapManager::enable_migration(HeapHeader *heap_header) {
@@ -49,7 +42,7 @@ inline void HeapManager::enable_migration(HeapHeader *heap_header) {
 
 inline bool HeapManager::try_disable_migration(HeapHeader *heap_header) {
   heap_header->rcu_lock.reader_lock();
-  if (unlikely(!rt::access_once(heap_header->present))) {
+  if (unlikely(rt::access_once(heap_header->status) != kPresent)) {
     heap_header->rcu_lock.reader_unlock();
     return false;
   }
@@ -58,13 +51,9 @@ inline bool HeapManager::try_disable_migration(HeapHeader *heap_header) {
 
 inline void HeapManager::disable_migration(HeapHeader *heap_header) {
   heap_header->rcu_lock.reader_lock();
-  if (unlikely(!rt::access_once(heap_header->present))) {
+  if (unlikely(rt::access_once(heap_header->status) != kPresent)) {
     heap_header->rcu_lock.reader_unlock();
-    heap_header->mutex.lock();
-    while (!rt::access_once(heap_header->present)) {
-      heap_header->cond_var.wait(&heap_header->mutex);
-    }
-    heap_header->mutex.unlock();
+    HeapManager::wait_until_present(heap_header);
     heap_header->rcu_lock.reader_lock();
   }
 }
@@ -97,9 +86,12 @@ inline MigrationEnabledGuard::~MigrationEnabledGuard() {
   }
 }
 
-inline void MigrationEnabledGuard::reset() {
+inline void MigrationEnabledGuard::reset(HeapHeader *heap_header) {
   this->~MigrationEnabledGuard();
-  heap_header_ = nullptr;
+  heap_header_ = heap_header;
+  if (heap_header) {
+    Runtime::heap_manager->enable_migration(heap_header);
+  }
 }
 
 inline MigrationDisabledGuard::MigrationDisabledGuard()
@@ -133,9 +125,12 @@ inline MigrationDisabledGuard::~MigrationDisabledGuard() {
 
 inline MigrationDisabledGuard::operator bool() const { return heap_header_; }
 
-inline void MigrationDisabledGuard::reset() {
+inline void MigrationDisabledGuard::reset(HeapHeader *heap_header) {
   this->~MigrationDisabledGuard();
-  heap_header_ = nullptr;
+  heap_header_ = heap_header;
+  if (heap_header) {
+    Runtime::heap_manager->disable_migration(heap_header);
+  }
 }
 
 inline HeapHeader *MigrationDisabledGuard::get_heap_header() {
@@ -179,9 +174,14 @@ inline NonBlockingMigrationDisabledGuard::operator bool() const {
   return heap_header_;
 }
 
-inline void NonBlockingMigrationDisabledGuard::reset() {
+inline void NonBlockingMigrationDisabledGuard::reset(HeapHeader *heap_header) {
   this->~NonBlockingMigrationDisabledGuard();
-  heap_header_ = nullptr;
+  heap_header_ = heap_header;
+  if (heap_header) {
+    if (unlikely(!Runtime::heap_manager->try_disable_migration(heap_header))) {
+      heap_header_ = nullptr;
+    }
+  }
 }
 
 inline HeapHeader *NonBlockingMigrationDisabledGuard::get_heap_header() {
@@ -189,8 +189,7 @@ inline HeapHeader *NonBlockingMigrationDisabledGuard::get_heap_header() {
 }
 
 inline uint32_t HeapManager::get_num_present_heaps() {
-  rt::SpinGuard guard(&spin_);
-  return present_heaps_.size();
+  return num_present_heaps_;
 }
 
 } // namespace nu

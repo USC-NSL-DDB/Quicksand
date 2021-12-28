@@ -38,6 +38,8 @@ public:
 // Open-loop, possion arrival.
 class Perf {
 public:
+  constexpr static uint32_t kReqMissThreshUs = 500;
+
   Perf(PerfAdapter &adapter);
   void reset();
   void run(uint32_t num_threads, double target_mops, uint64_t duration_us,

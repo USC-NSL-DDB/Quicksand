@@ -9,24 +9,31 @@ RPCReturnCode Migrator::load_thread_and_ret_val(HeapHeader *dest_heap_header,
                                                 void *raw_dest_ret_val_ptr,
                                                 uint64_t payload_len,
                                                 uint8_t *payload) {
+retry:
   NonBlockingMigrationDisabledGuard guard(dest_heap_header);
   if (unlikely(!guard)) {
-    return kErrWrongClient;
+    if (unlikely(rt::access_once(dest_heap_header->status) >= kLoading)) {
+      HeapManager::wait_until_present(dest_heap_header);
+      goto retry;
+    } else {
+      return kErrWrongClient;
+    }
   }
 
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto *th = create_migrated_thread(payload);
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
-  // Only rewrite the pointer if the nu_thread locates at the dest heap.
-  if (is_in_heap(nu_thread, dest_heap_header)) {
-    BUG_ON(!nu_thread->th_);
-    nu_thread->th_ = th;
-  }
 
   auto stack_range = get_obj_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
 
+  // Only rewrite the pointer if the nu_thread locates at the dest heap.
+  if (is_in_heap(nu_thread, dest_heap_header) ||
+      is_in_stack(nu_thread, stack_range)) {
+    BUG_ON(!nu_thread->th_);
+    nu_thread->th_ = th;
+  }
   memcpy(reinterpret_cast<void *>(stack_range.start), payload + nu_state_size,
          stack_len);
 
@@ -42,15 +49,17 @@ RPCReturnCode Migrator::load_thread_and_ret_val(HeapHeader *dest_heap_header,
   Runtime::archive_pool->put_ia_sstream(ia_sstream);
 
   thread_ready(th);
+
   return kOk;
 }
 
 template <typename RetT>
-void Migrator::migrate_thread_and_ret_val(
-    std::span<const std::byte> ret_val_span, RemObjID dest_id,
-    RetT *dest_ret_val_ptr, folly::Function<void()> cleanup_fn) {
+void Migrator::migrate_thread_and_ret_val(RPCReturnBuffer &&ret_val_buf,
+                                          RemObjID dest_id,
+                                          RetT *dest_ret_val_ptr,
+                                          folly::Function<void()> cleanup_fn) {
   rt::Thread(
-      [&, th = thread_self()] {
+      [&, th = thread_self(), ret_val_buf = std::move(ret_val_buf)] {
         thread_wait_until_parked(th);
         auto *dest_heap_header = to_heap_header(dest_id);
         thread_set_owner_heap(th, dest_heap_header);
@@ -61,6 +70,7 @@ void Migrator::migrate_thread_and_ret_val(
         auto stack_range = get_obj_stack_range(th);
         auto stack_len = stack_range.end - stack_range.start;
 
+        auto ret_val_span = ret_val_buf.get_buf();
         auto payload_len =
             nu_state_size + stack_len + ret_val_span.size_bytes();
         auto req_buf_len = sizeof(RPCReqMigrateThreadAndRetVal) + payload_len;
@@ -83,14 +93,14 @@ void Migrator::migrate_thread_and_ret_val(
         }
 
         auto req_span = std::span(req_buf.get(), req_buf_len);
-        RPCReturnBuffer return_buf;
+        RPCReturnBuffer unused_buf;
 
       retry:
-        auto [gen, rpc_client] =
-            Runtime::rpc_client_mgr->get_by_rem_obj_id(dest_id);
-        auto rc = rpc_client->Call(req_span, &return_buf);
+        auto *rpc_client = Runtime::rpc_client_mgr->get_by_rem_obj_id(dest_id);
+        auto rc = rpc_client->CallPoll(req_span, &unused_buf);
+
         if (unlikely(rc == kErrWrongClient)) {
-          Runtime::rpc_client_mgr->update_cache(dest_id, gen);
+          Runtime::rpc_client_mgr->update_cache(dest_id, rpc_client);
           goto retry;
         }
       },

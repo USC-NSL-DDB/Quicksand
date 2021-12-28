@@ -80,21 +80,16 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
   heap_header->spin.Unlock();
 
   if (latest_cnt == 0) {
-    if (likely(Runtime::heap_manager->remove_with_present(heap_header))) {
+    if (likely(Runtime::heap_manager->remove(heap_header))) {
       // Will never be migrated at this point.
       *deallocate = true;
       obj.~Cls();
-      Runtime::heap_manager->mark_absent(heap_header);
     } else {
       // Will be migrated at this point, so we wait for migration to be
       // finished.
       {
         MigrationEnabledGuard guard;
-        heap_header->mutex.lock();
-        while (!rt::access_once(heap_header->present)) {
-          heap_header->cond_var.wait(&heap_header->mutex);
-        }
-        heap_header->mutex.unlock();
+        HeapManager::wait_until_present(heap_header);
       }
 
       // Safe without acquiring the lock since the obj is dead now.
@@ -233,7 +228,7 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
       rt::Preempt p;
       rt::PreemptGuard g(&p);
 
-      if (likely(caller_heap_header->present)) {
+      if (likely(caller_heap_header->status == kPresent)) {
         {
           ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
           if constexpr (std::is_copy_constructible<RetT>::value) {
@@ -259,11 +254,12 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
     auto ret_val_span = std::span<const std::byte>(
         reinterpret_cast<const std::byte *>(ss_view.data()),
         oa_sstream->ss.tellp());
+    RPCReturnBuffer ret_val_buf(ret_val_span);
     std::destroy_at(ret);
 
     RuntimeSlabGuard slab_guard;
     Migrator::migrate_thread_and_ret_val<RetT>(
-        ret_val_span, caller_id, caller_ptr, [&, th = thread_self()] {
+        std::move(ret_val_buf), caller_id, caller_ptr, [&, th = thread_self()] {
           // FIXME
           // if (thread_is_migrated(th)) {
           // callee_heap_header->migrated_wg.Done();
@@ -278,22 +274,22 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
       rt::Preempt p;
       rt::PreemptGuard g(&p);
 
-      if (likely(caller_heap_header->present)) {
+      if (likely(caller_heap_header->status == kPresent)) {
         thread_set_owner_heap(thread_self(), caller_heap_header);
         return;
       }
     }
 
     RuntimeSlabGuard slab_guard;
-    Migrator::migrate_thread_and_ret_val<void>(std::span<const std::byte>(),
-                                               caller_id, nullptr,
-                                               [&, th = thread_self()] {
-                                                 // FIXME
-                                                 // if (thread_is_migrated(th))
-                                                 // {
-                                                 //   callee_heap_header->migrated_wg.Done();
-                                                 // }
-                                               });
+    RPCReturnBuffer ret_val_buf;
+    Migrator::migrate_thread_and_ret_val<void>(
+        std::move(ret_val_buf), caller_id, nullptr, [&, th = thread_self()] {
+          // FIXME
+          // if (thread_is_migrated(th))
+          // {
+          //   callee_heap_header->migrated_wg.Done();
+          // }
+        });
   }
 }
 

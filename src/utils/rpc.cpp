@@ -347,7 +347,7 @@ std::unique_ptr<RPCClient> RPCClient::Dial(netaddr raddr) {
   for (unsigned int i = 0; i < rt::RuntimeMaxCores(); ++i) {
     v.emplace_back(RPCFlow::New(i, raddr));
   }
-  return std::unique_ptr<RPCClient>(new RPCClient(std::move(v)));
+  return std::unique_ptr<RPCClient>(new RPCClient(std::move(v), raddr));
 }
 
 }  // namespace nu

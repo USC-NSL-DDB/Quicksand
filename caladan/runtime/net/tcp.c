@@ -568,31 +568,18 @@ static void check_net_softirq(void)
 	l = getk();
 
 	/* check local directpath softirq */
-	spin_lock(&l->lock);
-	if (softirq_directpath_pending(l) && !l->directpath_busy) {
-		l->directpath_busy = true;
-		spin_unlock(&l->lock);
+	if (softirq_directpath_pending(l))
 		directpath_softirq_one(l);
-		l->directpath_busy = false;
-        } else
-		spin_unlock(&l->lock);
 
-        /* check remote directpath softirq */
-        for (i = 0; i < nrks; i++) {
-                k = ks[i];
-                if (k == l || !softirq_directpath_pending(k) ||
-                    !spin_try_lock(&k->lock))
-                        continue;
-                if (!k->directpath_busy) {
-                        k->directpath_busy = true;
-                        spin_unlock(&k->lock);
-                        directpath_softirq_one(k);
-                        k->directpath_busy = false;
-                } else
-                        spin_unlock(&k->lock);
-        }
+	/* check remote directpath softirq */
+	for (i = 0; i < nrks; i++) {
+		k = ks[i];
+		if (k == l || !softirq_directpath_pending(k))
+			continue;
+		directpath_softirq_one(k);
+	}
 
-        putk();
+	putk();
 }
 
 /*
@@ -935,9 +922,13 @@ static int tcp_write_wait(tcpconn_t *c, size_t *winlen, bool poll)
 		tcp_is_snd_full(c))) {
 		/* arm window probing if needed */
 		if (!c->zero_wnd && tcp_is_snd_full(c)) {
-			c->zero_wnd = true;
-			c->zero_wnd_ts = microtime();
-			tcp_timer_update(c);
+			if (poll)
+				tcp_tx_probe_window(c);
+			else {
+				c->zero_wnd = true;
+				c->zero_wnd_ts = microtime();
+				tcp_timer_update(c);
+			}
 		}
 		if (poll)
 			waitq_wait_poll(&c->tx_wq, &c->lock, check_net_softirq);

@@ -58,13 +58,12 @@ __attribute__((optimize("no-omit-frame-pointer"))) void
 __run_within_obj_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
                      void (*fn)(A0s...), A1s &&... args) {
   NonBlockingMigrationDisabledGuard guard_on_obj_stack(std::move(*guard));
-  auto *heap_header = guard_on_obj_stack.get_heap_header();
+  // auto *heap_header = guard_on_obj_stack.get_heap_header();
 
   fn(*obj_ptr, std::forward<A1s>(args)...);
 
-  if (likely(!thread_has_been_migrated())) {
-    thread_unset_owner_heap();
-  } else {
+  thread_unset_owner_heap();
+  if (unlikely(thread_has_been_migrated())) {
     // FIXME
     // heap_header->migrated_wg.Done();
     switch_stack(thread_get_runtime_stack_base());
@@ -78,9 +77,15 @@ __attribute__((optimize("no-omit-frame-pointer"))) bool
 Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
                             A1s &&... args) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+retry:
   NonBlockingMigrationDisabledGuard guard(heap_header);
   if (unlikely(!guard)) {
-    return false;
+    if (unlikely(rt::access_once(heap_header->status) >= kLoading)) {
+      HeapManager::wait_until_present(heap_header);
+      goto retry;
+    } else {
+      return false;
+    }
   }
 
   auto *slab = &heap_header->slab;

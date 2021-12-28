@@ -51,6 +51,8 @@ constexpr static RemObjID kNullRemObjID = 0;
 constexpr static uint64_t kMinHeapVAddr = 0x300000000000ULL;
 constexpr static uint64_t kMaxHeapVAddr = 0x400000000000ULL;
 constexpr static uint64_t kHeapSize = 0x40000000ULL;
+constexpr static uint64_t kMaxNumHeaps =
+    (kMaxHeapVAddr - kMinHeapVAddr) / kHeapSize;
 constexpr static uint64_t kMinStackClusterVAddr = kMaxHeapVAddr;
 constexpr static uint64_t kMaxStackClusterVAddr = 0x500000000000ULL;
 constexpr static uint64_t kStackClusterSize = 1ULL << 30;
@@ -72,6 +74,8 @@ void *switch_stack(void *new_rsp);
 VAddrRange get_obj_stack_range(thread_t *thread);
 uint16_t to_u16(void *heap_base);
 bool is_in_heap(void *ptr, void *heap_base);
+bool is_in_stack(void *ptr, VAddrRange stack);
+bool is_copied_on_migration(void *ptr, HeapHeader *heap_header);
 template <typename T> std::span<std::byte> to_span(T &t);
 template <typename T> T &from_span(std::span<std::byte> span);
 template <typename T> const T &from_span(std::span<const std::byte> span);

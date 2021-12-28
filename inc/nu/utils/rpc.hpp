@@ -18,7 +18,7 @@ class RPCReturnBuffer {
 public:
   RPCReturnBuffer() {}
   RPCReturnBuffer(std::span<const std::byte> buf,
-                  folly::Function<void()> deleter_fn)
+                  folly::Function<void()> deleter_fn = {})
       : buf_(buf), deleter_fn_(std::move(deleter_fn)) {}
   ~RPCReturnBuffer() {
     if (deleter_fn_)
@@ -46,7 +46,7 @@ public:
   explicit operator bool() const { return !buf_.empty(); }
 
   // replaces the return data buffer.
-  void Reset(std::span<const std::byte> buf,
+  void Reset(std::span<const std::byte> buf = {},
              folly::Function<void()> deleter_fn = nullptr) {
     if (deleter_fn_)
       deleter_fn_();
@@ -194,6 +194,8 @@ public:
   // is ready on the TCP connection.
   RPCReturnCode Call(std::span<const std::byte> args, RPCCallback &&callback);
 
+  netaddr GetAddr() { return raddr_; }
+
   // disable move and copy.
   RPCClient(const RPCClient &) = delete;
   RPCClient &operator=(const RPCClient &) = delete;
@@ -202,11 +204,12 @@ private:
   using RPCCompletion = rpc_internal::RPCCompletion;
   using RPCFlow = rpc_internal::RPCFlow;
 
-  RPCClient(std::vector<std::unique_ptr<RPCFlow>> flows)
-      : flows_(std::move(flows)) {}
+  RPCClient(std::vector<std::unique_ptr<RPCFlow>> flows, netaddr raddr)
+      : flows_(std::move(flows)), raddr_(raddr) {}
 
   // an array of per-kthread RPC flows.
   std::vector<std::unique_ptr<RPCFlow>> flows_;
+  netaddr raddr_;
 };
 
 } // namespace nu

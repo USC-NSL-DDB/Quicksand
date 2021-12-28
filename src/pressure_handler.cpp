@@ -54,7 +54,7 @@ void PressureHandler::update_sorted_heaps() {
   for (auto *heap_base : all_heaps) {
     auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
     heap_header->spin_lock.lock();
-    if (unlikely(!heap_header->present || !heap_header->migratable)) {
+    if (unlikely(heap_header->status != kPresent || !heap_header->migratable)) {
       heap_header->spin_lock.unlock();
       continue;
     }
@@ -130,31 +130,35 @@ void PressureHandler::wait_aux_tasks() {
   }
 }
 
+void PressureHandler::init_aux_handler(uint32_t handler_id,
+                                       MigratorConn &&conn) {
+  aux_handler_states[handler_id].conn = std::move(conn);
+}
+
 void PressureHandler::dispatch_aux_task(uint32_t handler_id,
-                                        AuxHandlerState::TCPWriteTask &task) {
+                                        std::vector<iovec> &&write_task) {
   auto &state = aux_handler_states[handler_id];
-  state.task = std::move(task);
+  state.write_task = std::move(write_task);
   store_release(&state.task_pending, true);
 }
 
 void PressureHandler::aux_handler(void *args) {
   auto *state = reinterpret_cast<AuxHandlerState *>(args);
+  // Service tasks.
   while (!rt::access_once(state->done)) {
     if (unlikely(load_acquire(&state->task_pending))) {
-      auto &task = state->task;
-      auto *c = task.conn.get_tcp_conn();
-      BUG_ON(c->WritevFull(std::span(reinterpret_cast<const iovec *>(task.sgl),
-                                     std::size(task.sgl)),
+      auto *c = state->conn.get_tcp_conn();
+      BUG_ON(c->WritevFull(std::span<const iovec>(state->write_task),
                            /* nt = */ false,
                            /* poll = */ true) < 0);
       rt::access_once(state->task_pending) = false;
-      task.conn.release();
     }
     pause_local_migrating_threads();
     prioritize_local_rcu_readers();
     cpu_relax();
   }
-  state->done = false;
+  state->conn.release();
+  store_release(&state->done, false);
 }
 
 std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
@@ -182,7 +186,7 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
     while (iter != sorted_heaps->end() && !done) {
       auto *header = iter->header;
       iter = sorted_heaps->erase(iter);
-      if (unlikely(!header->present)) {
+      if (unlikely(header->status != kPresent)) {
         continue;
       }
       pick_fn(header);
@@ -191,17 +195,16 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
 
   if (unlikely(!done)) {
     picked_heaps.clear();
-    auto &all_heaps = Runtime::heap_manager->acquire_all_heaps();
+    auto all_heaps = Runtime::heap_manager->get_all_heaps();
     auto iter = all_heaps.begin();
     while (iter != all_heaps.end() && !done) {
       auto *header = reinterpret_cast<HeapHeader *>(*iter);
       iter++;
-      if (unlikely(!header->present || !header->migratable)) {
+      if (unlikely(header->status != kPresent || !header->migratable)) {
         continue;
       }
       pick_fn(header);
     }
-    Runtime::heap_manager->release_all_heaps();
   }
 
   return picked_heaps;

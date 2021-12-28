@@ -432,11 +432,11 @@ struct kthread {
 	thread_t		*timer_softirq;
 	thread_t		*storage_softirq;
 	thread_t                **preemptor;
-	bool			iokernel_busy;
-	bool			directpath_busy;
-	bool			timer_busy;
-	bool			storage_busy;
-	char                    pad2[4];
+	bool			iokernel_sched;
+	bool			directpath_sched;
+	bool			timer_sched;
+	bool			storage_sched;
+	atomic_t                directpath_busy;
 
 	/* 9th cache-line, storage nvme queues */
 	struct storage_q	storage_q;

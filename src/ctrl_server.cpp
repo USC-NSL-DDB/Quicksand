@@ -43,10 +43,10 @@ ControllerServer::handle_destroy_obj(const RPCReqDestroyObj &req) {
 std::unique_ptr<RPCRespResolveObj>
 ControllerServer::handle_resolve_obj(const RPCReqResolveObj &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespResolveObj>();
-  auto location = ctrl_.resolve_obj(req.id, req.min_gen);
-  if (location) {
+  auto addr = ctrl_.resolve_obj(req.id);
+  if (addr) {
     resp->empty = false;
-    resp->location = *location;
+    resp->addr = *addr;
   } else {
     resp->empty = true;
   }

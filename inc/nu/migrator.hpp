@@ -26,7 +26,7 @@ namespace nu {
 class Mutex;
 class CondVar;
 class Time;
-enum MigratorTCPOp_t { kCopy, kMigrate, kUnmap };
+enum MigratorTCPOp_t { kCopyHeap, kMigrate, kUnmap, kEnablePoll, kDisablePoll };
 
 struct RPCReqReserveConns {
   RPCReqType rpc_type = kReserveConns;
@@ -49,13 +49,6 @@ struct RPCReqMigrateThreadAndRetVal {
   void *dest_ret_val_ptr;
   uint64_t payload_len;
   uint8_t payload[0];
-};
-
-struct HeapMmapPopulateTask {
-  HeapRange range;
-  bool mmapped;
-
-  HeapMmapPopulateTask(HeapRange _range) : range(_range), mmapped(false) {}
 };
 
 class MigratorConnManager;
@@ -108,10 +101,10 @@ public:
                                   uint64_t payload_len, const void *payload);
   void forward_to_client(RPCReqForward &req);
   template <typename RetT>
-  static void
-  migrate_thread_and_ret_val(std::span<const std::byte> ret_val_span,
-                             RemObjID dest_id, RetT *dest_ret_val_ptr,
-                             folly::Function<void()> cleanup_fn);
+  static void migrate_thread_and_ret_val(RPCReturnBuffer &&return_buf,
+                                         RemObjID dest_id,
+                                         RetT *dest_ret_val_ptr,
+                                         folly::Function<void()> cleanup_fn);
   template <typename RetT>
   static RPCReturnCode load_thread_and_ret_val(HeapHeader *dest_heap_header,
                                                void *raw_dest_ret_val_ptr,
@@ -123,7 +116,7 @@ private:
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   MigratorConnManager migrator_conn_mgr_;
 
-  void handle_copy(rt::TcpConn *c);
+  void handle_copy_heap(rt::TcpConn *c);
   void handle_load(rt::TcpConn *c);
   void handle_unmap(rt::TcpConn *c);
   VAddrRange load_stack_cluster_mmap_task(rt::TcpConn *c);
@@ -142,16 +135,15 @@ private:
   void unmap_destructed_heaps(rt::TcpConn *c,
                               std::vector<HeapHeader *> *destructed_heaps);
   void load(rt::TcpConn *c);
-  void load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task);
+  void load_heap(rt::TcpConn *c, HeapHeader *heap_header);
   std::vector<HeapRange> load_heap_mmap_populate_ranges(rt::TcpConn *c);
   void load_mutexes(rt::TcpConn *c, HeapHeader *heap_header);
   void load_condvars(rt::TcpConn *c, HeapHeader *heap_header);
   void load_time(rt::TcpConn *c, HeapHeader *heap_header);
   void load_threads(rt::TcpConn *c, HeapHeader *heap_header);
   thread_t *load_one_thread(rt::TcpConn *c, HeapHeader *heap_header);
-  rt::Thread
-  do_heap_mmap_populate(const std::vector<HeapRange> &populate_ranges,
-                        std::vector<HeapMmapPopulateTask> *populate_tasks);
+  void init_aux_handlers(netaddr dest_addr);
+  void finish_aux_handlers();
 };
 
 } // namespace nu

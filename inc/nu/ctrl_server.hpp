@@ -46,12 +46,11 @@ struct RPCRespDestroyObj {
 struct RPCReqResolveObj {
   RPCReqType rpc_type = kResolveObj;
   RemObjID id;
-  uint32_t min_gen;
 } __attribute__((packed));
 
 struct RPCRespResolveObj {
   bool empty;
-  ObjLocation location;
+  netaddr addr;
 } __attribute__((packed));
 
 struct RPCReqUpdateLocation {

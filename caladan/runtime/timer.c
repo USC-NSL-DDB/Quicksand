@@ -289,7 +289,7 @@ static void timer_softirq(void *arg)
 	while (true) {
 		preempt_disable();
 		timer_softirq_one(k);
-		k->timer_busy = false;
+		k->timer_sched = false;
 		thread_park_and_preempt_enable();
 	}
 }

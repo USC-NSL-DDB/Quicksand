@@ -3,6 +3,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <memory>
+#include <span>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -94,19 +95,30 @@ void MigratorConnManager::put(netaddr addr, rt::TcpConn *tcp_conn) {
 
 Migrator::~Migrator() { BUG(); }
 
-void Migrator::handle_copy(rt::TcpConn *c) {
+void Migrator::handle_copy_heap(rt::TcpConn *c) {
   uint64_t start_addr, len;
-  rt::WaitGroup *wg;
   const iovec iovecs[] = {{&start_addr, sizeof(start_addr)},
-                          {&len, sizeof(len)},
-                          {&wg, sizeof(wg)}};
-  BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
+                          {&len, sizeof(len)}};
+  BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false, /* poll = */ true) <=
+         0);
+  auto heap_base_addr = (start_addr & (~(kHeapSize - 1)));
+  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base_addr);
+
+  while (unlikely(rt::access_once(heap_header->status) != kMapped)) {
+    cpu_relax();
+  }
+
   BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(start_addr), len,
-                     /* nt = */ true) <= 0);
-  wg->Done();
+                     /* nt = */ true, /* poll = */ true) <= 0);
+  heap_header->pending_load_cnt--;
 }
 
-inline void Migrator::handle_load(rt::TcpConn *c) { load(c); }
+inline void Migrator::handle_load(rt::TcpConn *c) {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+
+  load(c);
+}
 
 void Migrator::run_loop() {
   netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = kMigratorServerPort};
@@ -119,21 +131,31 @@ void Migrator::run_loop() {
     rt::Thread([&, c] {
       std::unique_ptr<rt::TcpConn> gc(c);
 
+      bool poll = false;
       while (true) {
         uint8_t type;
-        if (unlikely(c->ReadFull(&type, sizeof(type)) <= 0)) {
+        if (unlikely(c->ReadFull(&type, sizeof(type), /* nt = */ false, poll) <=
+                     0)) {
           break;
         }
 
         switch (type) {
-        case kCopy:
-          handle_copy(c);
+        case kCopyHeap:
+          handle_copy_heap(c);
           break;
         case kMigrate:
           handle_load(c);
           break;
         case kUnmap:
           handle_unmap(c);
+          break;
+        case kEnablePoll:
+          poll = true;
+          preempt_disable();
+          break;
+        case kDisablePoll:
+          poll = false;
+          preempt_enable();
           break;
         default:
           BUG();
@@ -150,8 +172,8 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
     start_tsc = rdtsc();
   }
 
-  uint8_t type = kCopy;
-  auto start_addr = reinterpret_cast<uint64_t>(&heap_header->slab);
+  uint8_t type = kCopyHeap;
+  auto start_addr = reinterpret_cast<uint64_t>(heap_header->copy_start);
   auto len =
       (reinterpret_cast<uint64_t>(heap_header->slab.get_base()) - start_addr) +
       heap_header->slab.get_usage();
@@ -159,39 +181,27 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   uint64_t req_start_addrs[kTransmitHeapNumThreads];
   uint64_t req_lens[kTransmitHeapNumThreads];
 
-  rt::WaitGroup *wg;
-  BUG_ON(c->ReadFull(&wg, sizeof(wg), /* nt = */ false, /* poll = */ true) <=
-         0);
-
-  AuxHandlerState::TCPWriteTask task;
   for (uint32_t i = 0; i < kTransmitHeapNumThreads; i++) {
     req_start_addrs[i] = start_addr + i * per_thread_len;
     req_lens[i] = (i != kTransmitHeapNumThreads - 1)
                       ? per_thread_len
                       : start_addr + len - req_start_addrs[i];
-    task.conn = migrator_conn_mgr_.get(c->RemoteAddr());
-    task.sgl[0] = iovec(&type, sizeof(type));
-    task.sgl[1] = iovec(&req_start_addrs[i], sizeof(req_start_addrs[i]));
-    task.sgl[2] = iovec(&req_lens[i], sizeof(req_lens[i]));
-    task.sgl[3] = iovec(&wg, sizeof(wg));
-    task.sgl[4] =
-        iovec(reinterpret_cast<std::byte *>(req_start_addrs[i]), req_lens[i]);
+    std::vector<iovec> task{
+        {&type, sizeof(type)},
+        {&req_start_addrs[i], sizeof(req_start_addrs[i])},
+        {&req_lens[i], sizeof(req_lens[i])},
+        {reinterpret_cast<std::byte *>(req_start_addrs[i]), req_lens[i]}};
     if (i < PressureHandler::kNumAuxHandlers) {
       // Dispatch to aux handler.
-      Runtime::pressure_handler->dispatch_aux_task(i, task);
+      Runtime::pressure_handler->dispatch_aux_task(i, std::move(task));
     } else {
       // Execute the task itself.
-      auto *c = task.conn.get_tcp_conn();
-      BUG_ON(c->WritevFull(std::span(reinterpret_cast<const iovec *>(task.sgl),
-                                     std::size(task.sgl)),
-                           /* nt = */ false,
+      BUG_ON(c->WritevFull(std::span<const iovec>(task), /* nt = */ false,
                            /* poll = */ true) < 0);
     }
   }
 
   Runtime::pressure_handler->wait_aux_tasks();
-  BUG_ON(c->WriteFull(&heap_header->ref_cnt, sizeof(heap_header->ref_cnt),
-                      /* nt = */ false, /* poll = */ true) < 0);
 
   if constexpr (kEnableLogging) {
     end_tsc = rdtsc();
@@ -230,6 +240,7 @@ void Migrator::transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes) {
     for (auto th : ths) {
       transmit_one_thread(c, th);
     }
+    list_head_init(waiters);
   }
 }
 
@@ -263,6 +274,7 @@ void Migrator::transmit_condvars(rt::TcpConn *c,
     for (auto th : ths) {
       transmit_one_thread(c, th);
     }
+    list_head_init(waiters);
   }
 }
 
@@ -400,14 +412,39 @@ void Migrator::handle_unmap(rt::TcpConn *c) {
   VAddrRange stack_cluster;
   const iovec iovecs[] = {{&num_heaps, sizeof(num_heaps)},
                           {&stack_cluster, sizeof(stack_cluster)}};
-  BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
+  BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false,
+                      /* poll = */ true) <= 0);
   HeapHeader *heaps[num_heaps];
-  BUG_ON(c->ReadFull(heaps, sizeof(heaps)) <= 0);
+  BUG_ON(c->ReadFull(heaps, sizeof(heaps), /* nt = */ false,
+                     /* poll = */ true) <= 0);
 
   Runtime::stack_manager->add_ref_cnt(stack_cluster, -num_heaps);
   for (uint64_t i = 0; i < num_heaps; i++) {
     Runtime::heap_manager->deallocate(heaps[i]);
   }
+}
+
+void Migrator::init_aux_handlers(netaddr dest_addr) {
+  uint8_t type = kEnablePoll;
+  std::vector<iovec> task{{&type, sizeof(type)}};
+
+  for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
+    auto aux_migration_conn = migrator_conn_mgr_.get(dest_addr);
+    Runtime::pressure_handler->init_aux_handler(i,
+                                                std::move(aux_migration_conn));
+    Runtime::pressure_handler->dispatch_aux_task(i, std::move(task));
+  }
+  Runtime::pressure_handler->wait_aux_tasks();
+}
+
+void Migrator::finish_aux_handlers() {
+  uint8_t type = kDisablePoll;
+  std::vector<iovec> task{{&type, sizeof(type)}};
+
+  for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
+    Runtime::pressure_handler->dispatch_aux_task(i, std::move(task));
+  }
+  Runtime::pressure_handler->wait_aux_tasks();
 }
 
 void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
@@ -417,21 +454,24 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
   auto dest_addr = *optional_dest_addr;
   auto migration_conn = migrator_conn_mgr_.get(dest_addr);
   auto *conn = migration_conn.get_tcp_conn();
+  init_aux_handlers(dest_addr);
 
   uint8_t type = kMigrate;
-  BUG_ON(conn->WriteFull(&type, sizeof(type)) < 0);
-  transmit_stack_cluster_mmap_task(conn);
+  BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
+                         /* poll = */ true) < 0);
   transmit_heap_mmap_populate_ranges(conn, heaps);
+  transmit_stack_cluster_mmap_task(conn);
 
   std::vector<HeapHeader *> migrated_heaps;
   std::vector<HeapHeader *> destructed_heaps;
   migrated_heaps.reserve(heaps.size());
   for (auto [heap_header, _] : heaps) {
+    Runtime::controller_client->update_location(to_obj_id(heap_header),
+                                                dest_addr);
     if (unlikely(!try_mark_heap_migrating(heap_header))) {
       destructed_heaps.push_back(heap_header);
       continue;
     }
-
     migrated_heaps.push_back(heap_header);
     auto *paused_ths_list = pause_all_migrating_threads(heap_header);
     transmit(conn, heap_header, paused_ths_list);
@@ -444,34 +484,36 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
   }
 
   unmap_destructed_heaps(conn, &destructed_heaps);
+  finish_aux_handlers();
 }
 
-void Migrator::load_heap(rt::TcpConn *c, HeapMmapPopulateTask *task) {
+void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   [[maybe_unused]] uint64_t t0, t1, t2;
   if constexpr (kEnableLogging) {
     t0 = rdtsc();
   }
 
-  while (unlikely(!rt::access_once(task->mmapped))) {
-    cpu_relax();
-  }
-
+  heap_header->pending_load_cnt += kTransmitHeapNumThreads;
   if constexpr (kEnableLogging) {
     t1 = rdtsc();
   }
-  rt::WaitGroup wg(kTransmitHeapNumThreads);
-  auto *wg_p = &wg;
-  BUG_ON(c->WriteFull(&wg_p, sizeof(wg_p)) < 0);
 
-  auto *heap_header = task->range.heap_header;
-  BUG_ON(c->ReadFull(&heap_header->ref_cnt, sizeof(heap_header->ref_cnt)) <= 0);
+  uint8_t type;
+  BUG_ON(c->ReadFull(&type, sizeof(type), /* nt = */ false,
+                     /* poll = */ true) <= 0);
+  BUG_ON(type != kCopyHeap);
+  handle_copy_heap(c);
 
-  wg.Wait();
+  Runtime::heap_manager->setup(heap_header,
+                               /* migratable = */ false,
+                               /* from_migration = */ true);
+  heap_header->cpu_load.reset();
+  while (heap_header->pending_load_cnt.load()) {
+    cpu_relax();
+  }
 
   auto *slab = &heap_header->slab;
   nu::SlabAllocator::register_slab_by_id(slab, slab->get_id());
-
-  heap_header->cpu_load.reset();
 
   if constexpr (kEnableLogging) {
     t2 = rdtsc();
@@ -486,16 +528,19 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto nu_state = std::make_unique<uint8_t[]>(nu_state_size);
-  BUG_ON(c->ReadFull(nu_state.get(), nu_state_size) <= 0);
+  BUG_ON(c->ReadFull(nu_state.get(), nu_state_size, /* nt = */ false,
+                     /* poll = */ true) <= 0);
   auto *th = create_migrated_thread(nu_state.get());
 
   auto stack_range = get_obj_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
-                     /* nt = */ true) <= 0);
+                     /* nt = */ false,
+                     /* poll = */ true) <= 0);
 
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
-  if (nu_thread) {
+  if (is_in_heap(nu_thread, heap_header) ||
+      is_in_stack(nu_thread, stack_range)) {
     BUG_ON(!nu_thread->th_);
     nu_thread->th_ = th;
   }
@@ -504,24 +549,29 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
 
 void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
   size_t num_mutexes;
-  BUG_ON(c->ReadFull(&num_mutexes, sizeof(num_mutexes)) <= 0);
+  BUG_ON(c->ReadFull(&num_mutexes, sizeof(num_mutexes), /* nt = */ false,
+                     /* poll = */ true) <= 0);
 
   if (num_mutexes) {
     auto mutexes = std::make_unique<Mutex *[]>(num_mutexes);
     BUG_ON(c->ReadFull(mutexes.get(), num_mutexes * sizeof(Mutex *),
-                       /* nt = */ true) <= 0);
+                       /* nt = */ false,
+                       /* poll = */ true) <= 0);
 
     for (size_t i = 0; i < num_mutexes; i++) {
       auto *mutex = mutexes[i];
       heap_header->blocked_syncer.add(mutex, BlockedSyncer::kMutex);
 
       size_t num_threads;
-      BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
+      BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
+                         /* poll = */ true) <= 0);
       // FIXME
       // heap_header->migrated_wg.Add(num_threads);
 
       auto *waiters = mutex->get_waiters();
-      list_head_init(waiters);
+      if (heap_header->will_be_copied_on_migration(mutex)) {
+        list_head_init(waiters);
+      }
       for (size_t j = 0; j < num_threads; j++) {
         auto *th = load_one_thread(c, heap_header);
         auto *th_link = reinterpret_cast<list_node *>(
@@ -534,24 +584,29 @@ void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
 
 void Migrator::load_condvars(rt::TcpConn *c, HeapHeader *heap_header) {
   size_t num_condvars;
-  BUG_ON(c->ReadFull(&num_condvars, sizeof(num_condvars)) <= 0);
+  BUG_ON(c->ReadFull(&num_condvars, sizeof(num_condvars), /* nt = */ false,
+                     /* poll = */ true) <= 0);
 
   if (num_condvars) {
     auto condvars = std::make_unique<CondVar *[]>(num_condvars);
     BUG_ON(c->ReadFull(condvars.get(), num_condvars * sizeof(CondVar *),
-                       /* nt = */ true) <= 0);
+                       /* nt = */ false,
+                       /* poll = */ true) <= 0);
 
     for (size_t i = 0; i < num_condvars; i++) {
       auto *condvar = condvars[i];
       heap_header->blocked_syncer.add(condvar, BlockedSyncer::kCondVar);
 
       size_t num_threads;
-      BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
+      BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
+                         /* poll = */ true) <= 0);
       // FIXME
       // heap_header->migrated_wg.Add(num_threads);
 
       auto *waiters = condvar->get_waiters();
-      list_head_init(waiters);
+      if (heap_header->will_be_copied_on_migration(condvar)) {
+        list_head_init(waiters);
+      }
       for (size_t j = 0; j < num_threads; j++) {
         auto *th = load_one_thread(c, heap_header);
         auto *th_link = reinterpret_cast<list_node *>(
@@ -569,7 +624,8 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
   size_t num_entries;
   const iovec iovecs[] = {{&sum_tsc, sizeof(sum_tsc)},
                           {&num_entries, sizeof(num_entries)}};
-  BUG_ON(c->ReadvFull(std::span(iovecs)) <= 0);
+  BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false,
+                      /* poll = */ true) <= 0);
   // FIXME
   // heap_header->migrated_wg.Add(num_entries);
 
@@ -579,7 +635,8 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
   if (num_entries) {
     auto timer_entries = std::make_unique<timer_entry *[]>(num_entries);
     BUG_ON(c->ReadFull(timer_entries.get(), sizeof(timer_entry *) * num_entries,
-                       /* nt = */ true) <= 0);
+                       /* nt = */ false,
+                       /* poll = */ true) <= 0);
 
     for (size_t i = 0; i < num_entries; i++) {
       auto *entry = timer_entries[i];
@@ -599,7 +656,8 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
 
 void Migrator::load_threads(rt::TcpConn *c, HeapHeader *heap_header) {
   uint64_t num_threads;
-  BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads)) <= 0);
+  BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
+                     /* poll = */ true) <= 0);
   // FIXME
   // heap_header->migrated_wg.Add(num_threads);
 
@@ -607,16 +665,12 @@ void Migrator::load_threads(rt::TcpConn *c, HeapHeader *heap_header) {
     auto *th = load_one_thread(c, heap_header);
     thread_ready(th);
   }
-
-  // Wakeup the blocked threads.
-  heap_header->mutex.lock();
-  heap_header->cond_var.signal_all();
-  heap_header->mutex.unlock();
 }
 
 VAddrRange Migrator::load_stack_cluster_mmap_task(rt::TcpConn *c) {
   VAddrRange stack_cluster;
-  BUG_ON(c->ReadFull(&stack_cluster, sizeof(stack_cluster)) <= 0);
+  BUG_ON(c->ReadFull(&stack_cluster, sizeof(stack_cluster), /* nt = */ false,
+                     /* poll = */ true) <= 0);
   return stack_cluster;
 }
 
@@ -625,49 +679,36 @@ Migrator::load_heap_mmap_populate_ranges(rt::TcpConn *c) {
   std::vector<HeapRange> populate_ranges;
   uint64_t size;
 
-  BUG_ON(c->ReadFull(&size, sizeof(size)) <= 0);
+  BUG_ON(c->ReadFull(&size, sizeof(size), /* nt = */ false,
+                     /* poll = */ true) <= 0);
 
   if (size) {
     populate_ranges.resize(size / sizeof(HeapRange));
-    BUG_ON(c->ReadFull(&populate_ranges[0], size, /* nt = */ true) <= 0);
+    BUG_ON(c->ReadFull(&populate_ranges[0], size, /* nt = */ false,
+                       /* poll = */ true) <= 0);
   }
 
   return populate_ranges;
 }
 
-rt::Thread Migrator::do_heap_mmap_populate(
-    const std::vector<HeapRange> &populate_ranges,
-    std::vector<HeapMmapPopulateTask> *populate_tasks) {
-  populate_tasks->reserve(populate_ranges.size());
-  for (size_t i = 0; i < populate_ranges.size(); i++) {
-    populate_tasks->emplace_back(populate_ranges[i]);
+void Migrator::load(rt::TcpConn *c) {
+  auto populate_ranges = load_heap_mmap_populate_ranges(c);
+  for (auto &range : populate_ranges) {
+    rt::access_once(range.heap_header->status) = kLoading;
   }
-  return rt::Thread([populate_tasks] {
-    for (auto &task : *populate_tasks) {
-      Runtime::heap_manager->mmap_populate(task.range.heap_header,
-                                           task.range.len);
-      Runtime::heap_manager->setup(task.range.heap_header,
-                                   /* migratable = */ false,
-                                   /* from_migration = */ true);
-      rt::access_once(task.mmapped) = true;
+  auto mmap_thread = rt::Thread([&] {
+    for (auto &range : populate_ranges) {
+      Runtime::heap_manager->mmap_populate(range.heap_header, range.len);
     }
   });
-}
 
-void Migrator::load(rt::TcpConn *c) {
   auto stack_cluster = load_stack_cluster_mmap_task(c);
-  auto populate_ranges = load_heap_mmap_populate_ranges(c);
+  Runtime::stack_manager->add_ref_cnt(stack_cluster, populate_ranges.size());
 
-  std::vector<HeapMmapPopulateTask> heap_mmap_populate_tasks;
-  auto mmap_thread =
-      do_heap_mmap_populate(populate_ranges, &heap_mmap_populate_tasks);
-  Runtime::stack_manager->add_ref_cnt(stack_cluster,
-                                      heap_mmap_populate_tasks.size());
+  for (auto &range : populate_ranges) {
+    auto *heap_header = range.heap_header;
 
-  for (auto &task : heap_mmap_populate_tasks) {
-    auto *heap_header = task.range.heap_header;
-
-    load_heap(c, &task);
+    load_heap(c, heap_header);
 
     load_mutexes(c, heap_header);
     load_condvars(c, heap_header);
@@ -675,12 +716,12 @@ void Migrator::load(rt::TcpConn *c) {
 
     Runtime::heap_manager->insert(heap_header);
 
-    rt::Thread([heap_header] {
-      Runtime::controller_client->update_location(
-          to_obj_id(heap_header), Runtime::obj_server->get_addr());
-    }).Detach();
-
     load_threads(c, heap_header);
+
+    // Wakeup the blocked threads.
+    heap_header->spin_lock.lock();
+    heap_header->cond_var.signal_all();
+    heap_header->spin_lock.unlock();
 
     // FIXME
     // rt::Thread([heap_header, stack_cluster] {

@@ -15,18 +15,9 @@ NodeID RPCClientMgr::get_node_id_by_node_ip(NodeIP ip) {
   return id;
 }
 
-RPCClientMgr::NodeInfo::NodeInfo(RemObjID rem_obj_id, RPCClientMgr *mgr) {
-  auto optional_location =
-      Runtime::controller_client->resolve_obj(rem_obj_id, 0);
-  BUG_ON(!optional_location);
-  ip = optional_location->addr.ip;
-  gen = optional_location->gen;
-  id = mgr->get_node_id_by_node_ip(ip);
-}
-
 RPCClientMgr::RPCClientMgr(uint16_t port) : port_(port), next_node_id_(0) {}
 
-RPCClient *RPCClientMgr::get(const NodeInfo &info) {
+RPCClient *RPCClientMgr::get_client(NodeInfo info) {
   auto &client = rpc_clients_[info.id];
   if (unlikely(!client)) {
     rt::ScopedLock<rt::Mutex> guard(&mutex_);
@@ -42,54 +33,53 @@ RPCClient *RPCClientMgr::get_by_ip(NodeIP ip) {
   NodeInfo info;
   info.ip = ip;
   info.id = get_node_id_by_node_ip(ip);
-  return get(info);
+  return get_client(info);
 }
 
-std::pair<uint32_t, RPCClient *>
-RPCClientMgr::get_by_rem_obj_id(RemObjID rem_obj_id) {
-retry:
-  auto *info = rem_id_to_node_info_map_.get(rem_obj_id);
+inline uint16_t get_heap_num(RemObjID rem_obj_id) {
+  return (rem_obj_id - kMinHeapVAddr) / kHeapSize;
+}
 
-  if (unlikely(!info)) {
-    rem_id_to_node_info_map_.emplace_if_not_exists(rem_obj_id, rem_obj_id,
-                                                   this);
+RPCClientMgr::NodeInfo RPCClientMgr::get_info(RemObjID rem_obj_id) {
+retry:
+  auto heap_num = get_heap_num(rem_obj_id);
+  auto info = rem_id_to_node_info_[heap_num];
+
+  if (unlikely(!info.raw)) {
+    rt::MutexGuard g(&node_info_mutexes_[heap_num]);
+    auto &info_ref = rem_id_to_node_info_[heap_num];
+    if (!info_ref.raw) {
+      auto optional_addr = Runtime::controller_client->resolve_obj(rem_obj_id);
+      BUG_ON(!optional_addr);
+      NodeInfo info;
+      info.ip = optional_addr->ip;
+      info.id = get_node_id_by_node_ip(info.ip);
+      info_ref = info;
+    }
     goto retry;
   }
 
-  return std::make_pair(info->gen, get(*info));
+  return info;
+}
+
+RPCClient *RPCClientMgr::get_by_rem_obj_id(RemObjID rem_obj_id) {
+  return get_client(get_info(rem_obj_id));
 }
 
 uint32_t RPCClientMgr::get_ip_by_rem_obj_id(RemObjID rem_obj_id) {
-retry:
-  auto *info = rem_id_to_node_info_map_.get(rem_obj_id);
-
-  if (unlikely(!info)) {
-    rem_id_to_node_info_map_.emplace_if_not_exists(rem_obj_id, rem_obj_id,
-                                                   this);
-    goto retry;
-  }
-
-  return info->ip;
+  return get_info(rem_obj_id).ip;
 }
 
-void RPCClientMgr::update_cache(RemObjID rem_obj_id, uint32_t gen) {
-  std::function update_fn = [&](std::pair<const RemObjID, NodeInfo> *p) {
-    auto &info = p->second;
-    rt::MutexGuard g(&info.mutex);
-
-    if (unlikely(gen < info.gen)) {
+void RPCClientMgr::update_cache(RemObjID rem_obj_id, RPCClient *old_client) {
+  auto heap_num = get_heap_num(rem_obj_id);
+  auto &info_ref = rem_id_to_node_info_[heap_num];
+  if (info_ref.raw) {
+    if (info_ref.ip != old_client->GetAddr().ip) {
       return;
+    } else {
+      info_ref.raw = 0;
     }
-    BUG_ON(gen > info.gen);
-    auto optional_location =
-        Runtime::controller_client->resolve_obj(rem_obj_id, ++gen);
-    BUG_ON(!optional_location);
-    info.ip = optional_location->addr.ip;
-    info.id = this->get_node_id_by_node_ip(info.ip);
-    BUG_ON(gen > optional_location->gen);
-    info.gen = optional_location->gen;
-  };
-  rem_id_to_node_info_map_.apply(rem_obj_id, update_fn);
+  }
 }
 
 } // namespace nu

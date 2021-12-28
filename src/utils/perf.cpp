@@ -63,25 +63,19 @@ std::vector<Trace> Perf::benchmark(
     threads.emplace_back([&, &reqs = all_reqs[i], &traces = all_traces[i],
                           thread_state = thread_states[i].get()] {
       auto start_us = microtime();
-      bool skipping = false;
 
       for (const auto &req : reqs) {
         auto relative_us = microtime() - start_us;
         if (req.start_us > relative_us) {
           timer_sleep(req.start_us - relative_us);
-        } else if (skipping) {
+        } else if (req.start_us + kReqMissThreshUs < relative_us) {
           continue;
         }
-        skipping = false;
-        bool ok = adapter_.serve_req(thread_state, req.req.get());
         Trace trace;
-        trace.start_us = req.start_us;
+        trace.start_us = microtime() - start_us;
+        bool ok = adapter_.serve_req(thread_state, req.req.get());
         trace.duration_us = microtime() - start_us - trace.start_us;
-        if (!ok || trace.duration_us > max_req_us) {
-          // Timeouted or an OS-level interruption occured. In this case, we
-          // skip all missed reqs.
-          skipping = true;
-        } else {
+        if (ok && trace.duration_us <= max_req_us) {
           traces.push_back(trace);
         }
       }

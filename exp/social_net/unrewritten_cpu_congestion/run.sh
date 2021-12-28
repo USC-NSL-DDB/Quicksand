@@ -62,7 +62,7 @@ ssh $CLIENT_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
 ssh $CLIENT_IP "cd `pwd`; sudo build/bench/client $DIR/conf/client2" &
 pid_client=$!
-sleep 20
+sleep 25
 ssh $SRC_SERVER_IP "sudo pkill -SIGHUP bench_real_cpu"
 wait $pid_client
 scp $CLIENT_IP:$SOCIAL_NET_DIR/timeseries $DIR/logs/

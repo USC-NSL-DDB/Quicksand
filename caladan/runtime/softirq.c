@@ -55,29 +55,29 @@ bool softirq_sched(struct kthread *k)
 	assert_spin_lock_held(&k->lock);
 
 	/* check for iokernel softirq work */
-	if (!k->iokernel_busy && softirq_iokernel_pending(k)) {
-		k->iokernel_busy = true;
+	if (!k->iokernel_sched && softirq_iokernel_pending(k)) {
+		k->iokernel_sched = true;
 		thread_ready_head_locked(k->iokernel_softirq);
 		work_done = true;
 	}
 
 	/* check for directpath softirq work */
-	if (!k->directpath_busy && softirq_directpath_pending(k)) {
-		k->directpath_busy = true;
+	if (!k->directpath_sched && softirq_directpath_pending(k)) {
+		k->directpath_sched = true;
 		thread_ready_head_locked(k->directpath_softirq);
 		work_done = true;
 	}
 
 	/* check for timer softirq work */
-	if (!k->timer_busy && softirq_timer_pending(k)) {
-		k->timer_busy = true;
+	if (!k->timer_sched && softirq_timer_pending(k)) {
+		k->timer_sched = true;
 		thread_ready_head_locked(k->timer_softirq);
 		work_done = true;
 	}
 
 	/* check for storage softirq work */
-	if (!k->storage_busy && softirq_storage_pending(k)) {
-		k->storage_busy = true;
+	if (!k->storage_sched && softirq_storage_pending(k)) {
+		k->storage_sched = true;
 		thread_ready_head_locked(k->storage_softirq);
 		work_done = true;
 	}
@@ -104,29 +104,29 @@ bool softirq_run(void)
 	spin_lock(&k->lock);
 
 	/* check for iokernel softirq work */
-	if (!k->iokernel_busy && softirq_iokernel_pending(k)) {
-		k->iokernel_busy = true;
+	if (!k->iokernel_sched && softirq_iokernel_pending(k)) {
+		k->iokernel_sched = true;
 		thread_ready_head_locked(k->iokernel_softirq);
 		work_done = true;
 	}
 
 	/* check for directpath softirq work */
-	if (!k->directpath_busy && softirq_directpath_pending(k)) {
-		k->directpath_busy = true;
+	if (!k->directpath_sched && softirq_directpath_pending(k)) {
+		k->directpath_sched = true;
 		thread_ready_head_locked(k->directpath_softirq);
 		work_done = true;
 	}
 
 	/* check for timer softirq work */
-	if (!k->timer_busy && softirq_timer_pending(k)) {
-		k->timer_busy = true;
+	if (!k->timer_sched && softirq_timer_pending(k)) {
+		k->timer_sched = true;
 		thread_ready_head_locked(k->timer_softirq);
 		work_done = true;
 	}
 
 	/* check for storage softirq work */
-	if (!k->storage_busy && softirq_storage_pending(k)) {
-		k->storage_busy = true;
+	if (!k->storage_sched && softirq_storage_pending(k)) {
+		k->storage_sched = true;
 		thread_ready_head_locked(k->storage_softirq);
 		work_done = true;
 	}

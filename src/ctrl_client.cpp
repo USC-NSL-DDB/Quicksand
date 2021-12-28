@@ -61,19 +61,17 @@ void ControllerClient::destroy_obj(RemObjID id) {
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
 }
 
-std::optional<ObjLocation> ControllerClient::resolve_obj(RemObjID id,
-                                                         uint32_t min_gen) {
+std::optional<netaddr> ControllerClient::resolve_obj(RemObjID id) {
   RPCReqResolveObj req;
   req.id = id;
-  req.min_gen = min_gen;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
   auto &resp = from_span<RPCRespResolveObj>(return_buf.get_buf());
   if (resp.empty) {
     return std::nullopt;
   } else {
-    auto location = resp.location;
-    return location;
+    auto addr = resp.addr;
+    return addr;
   }
 }
 
@@ -97,7 +95,7 @@ void ControllerClient::update_location(RemObjID id, netaddr obj_srv_addr) {
   req.id = id;
   req.obj_srv_addr = obj_srv_addr;
   RPCReturnBuffer return_buf;
-  BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
+  BUG_ON(rpc_client_->CallPoll(to_span(req), &return_buf) != kOk);
 }
 
 VAddrRange ControllerClient::get_stack_cluster() const {

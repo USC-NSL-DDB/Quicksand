@@ -26,8 +26,9 @@ extern "C" {
 
 namespace nu {
 
-// TODO: use runtime slab for ser/deser.
 template <typename... S1s> void serialize(auto *oa_sstream, S1s &&... states) {
+  RuntimeSlabGuard slab_guard;
+
   auto &ss = oa_sstream->ss;
   auto *rpc_type = const_cast<RPCReqType *>(
       reinterpret_cast<const RPCReqType *>(ss.view().data()));
@@ -56,28 +57,27 @@ retry:
   auto states_data = reinterpret_cast<const std::byte *>(states_view.data());
   auto states_size = oa_sstream->ss.tellp();
 
+  NonBlockingMigrationDisabledGuard disabled_guard(nullptr);
   RPCReturnBuffer return_buf;
   RPCReturnCode rc;
   auto args_span = std::span(states_data, states_size);
-  uint32_t gen;
-  RPCClient *client;
   {
     RuntimeSlabGuard slab_guard;
-    std::tie(gen, client) = Runtime::rpc_client_mgr->get_by_rem_obj_id(id);
+    auto *client = Runtime::rpc_client_mgr->get_by_rem_obj_id(id);
     rc = client->Call(args_span, &return_buf);
     if (unlikely(rc == kErrWrongClient)) {
-      Runtime::rpc_client_mgr->update_cache(id, gen);
+      Runtime::rpc_client_mgr->update_cache(id, client);
       goto retry;
     }
   }
 
-  NonBlockingMigrationDisabledGuard disabled_guard(heap_header);
+  disabled_guard.reset(heap_header);
   if (heap_header && unlikely(!disabled_guard)) {
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
 
     RuntimeSlabGuard slab_guard;
     Migrator::migrate_thread_and_ret_val<void>(
-        std::span<std::byte>(), to_obj_id(heap_header), nullptr, nullptr);
+        std::move(return_buf), to_obj_id(heap_header), nullptr, nullptr);
     return;
   }
 
@@ -104,36 +104,34 @@ retry:
   auto states_data = reinterpret_cast<const std::byte *>(states_view.data());
   auto states_size = oa_sstream->ss.tellp();
 
+  NonBlockingMigrationDisabledGuard disabled_guard(nullptr);
   RPCReturnBuffer return_buf;
-  std::span<std::byte> return_span;
   RPCReturnCode rc;
   auto args_span = std::span(states_data, states_size);
-  uint32_t gen;
-  RPCClient *client;
   {
     RuntimeSlabGuard slab_guard;
-    std::tie(gen, client) = Runtime::rpc_client_mgr->get_by_rem_obj_id(id);
+    auto *client = Runtime::rpc_client_mgr->get_by_rem_obj_id(id);
     rc = client->Call(args_span, &return_buf);
-    return_span = return_buf.get_mut_buf();
     if (unlikely(rc == kErrWrongClient)) {
-      Runtime::rpc_client_mgr->update_cache(id, gen);
+      Runtime::rpc_client_mgr->update_cache(id, client);
       goto retry;
     }
   }
 
-  NonBlockingMigrationDisabledGuard disabled_guard(heap_header);
+  disabled_guard.reset(heap_header);
   if (heap_header && unlikely(!disabled_guard)) {
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
 
     RuntimeSlabGuard slab_guard;
     Migrator::migrate_thread_and_ret_val<RetT>(
-        return_span, to_obj_id(heap_header), &ret, nullptr);
+        std::move(return_buf), to_obj_id(heap_header), &ret, nullptr);
     return ret;
   }
 
   assert(rc == kOk);
   auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
   auto &[ret_ss, ia] = *ia_sstream;
+  auto return_span = return_buf.get_mut_buf();
   ret_ss.span(
       {reinterpret_cast<char *>(return_span.data()), return_span.size()});
   ia >> ret;
@@ -141,6 +139,7 @@ retry:
 
   Runtime::archive_pool->put_oa_sstream(oa_sstream);
   thread_set_owner_heap(thread_self(), heap_header);
+
   return ret;
 }
 
@@ -263,8 +262,9 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
 
     NonBlockingMigrationDisabledGuard disabled_guard(heap_header);
     if (heap_header && unlikely(!disabled_guard)) {
+      RPCReturnBuffer return_buf;
       Migrator::migrate_thread_and_ret_val<void>(
-          std::span<std::byte>(), to_obj_id(heap_header), nullptr, nullptr);
+          std::move(return_buf), to_obj_id(heap_header), nullptr, nullptr);
     } else {
       thread_set_owner_heap(thread_self(), heap_header);
     }
@@ -337,7 +337,7 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
       rt::Preempt p;
       rt::PreemptGuard g(&p);
 
-      if (callee_heap_header->present) {
+      if (callee_heap_header->status == kPresent) {
         caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
         thread_set_owner_heap(thread_self(), callee_heap_header);
       }
@@ -481,7 +481,7 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
     rt::PreemptGuard g(&p);
 
     auto *callee_heap_header = to_heap_header(id_);
-    if (Runtime::obj_server && callee_heap_header->present) {
+    if (Runtime::obj_server && callee_heap_header->status == kPresent) {
       // Fast path: the heap is actually local, use function call.
       ObjServer::update_ref_cnt_locally<T>(id_, delta);
       return nullptr;

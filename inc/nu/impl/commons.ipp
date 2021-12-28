@@ -55,6 +55,11 @@ inline bool is_in_heap(void *ptr, void *heap_base) {
          reinterpret_cast<uint64_t>(heap_base);
 }
 
+inline bool is_in_stack(void *ptr, VAddrRange stack) {
+  auto ptr_addr = reinterpret_cast<uint64_t>(ptr);
+  return ptr_addr >= stack.start && ptr_addr < stack.end;
+}
+
 template <typename T> std::span<std::byte> to_span(T &t) {
   return std::span<std::byte>(reinterpret_cast<std::byte *>(&t), sizeof(t));
 }

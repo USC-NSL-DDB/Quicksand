@@ -84,8 +84,12 @@ void directpath_softirq_one(struct kthread *k)
 	struct mbuf *ms[RUNTIME_RX_BATCH_SIZE];
 	int cnt;
 
+	if (unlikely(!atomic_cmpxchg(&k->directpath_busy, 0, 1)))
+		return;
+
 	cnt = net_ops.rx_batch(k->directpath_rxq, ms, RUNTIME_RX_BATCH_SIZE);
 	net_rx_batch(ms, cnt);
+	atomic_write(&k->directpath_busy, 0);
 }
 
 static void directpath_softirq(void *arg)
@@ -93,9 +97,9 @@ static void directpath_softirq(void *arg)
 	struct kthread *k = arg;
 
 	while (true) {
-		directpath_softirq_one(k);
 		preempt_disable();
-		k->directpath_busy = false;
+		directpath_softirq_one(k);
+		k->directpath_sched = false;
 		thread_park_and_preempt_enable();
 	}
 }

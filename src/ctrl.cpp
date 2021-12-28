@@ -79,9 +79,9 @@ Controller::allocate_obj(netaddr hint) {
     return std::nullopt;
   }
   auto [iter, _] = objs_map_.try_emplace(id);
-  ObjLocation location{.gen = 0, .addr = node_optional->obj_srv_addr};
-  iter->second.second = location;
-  return std::make_pair(id, node_optional->obj_srv_addr);
+  auto addr = node_optional->obj_srv_addr;
+  iter->second = addr;
+  return std::make_pair(id, addr);
 }
 
 void Controller::destroy_obj(RemObjID id) {
@@ -97,20 +97,15 @@ void Controller::destroy_obj(RemObjID id) {
   objs_map_.erase(iter);
 }
 
-std::optional<ObjLocation> Controller::resolve_obj(RemObjID id,
-                                                   uint32_t min_gen) {
+std::optional<netaddr> Controller::resolve_obj(RemObjID id) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto iter = objs_map_.find(id);
   if (unlikely(iter == objs_map_.end())) {
     return std::nullopt;
   } else {
-    auto &p = iter->second;
-    auto &location = p.second;
-    while (unlikely(rt::access_once(location.gen) < min_gen)) {
-      p.first.Wait(&mutex_);
-    }
-    return location;
+    auto addr = iter->second;
+    return addr;
   }
 }
 
@@ -151,10 +146,7 @@ void Controller::update_location(RemObjID id, netaddr obj_srv_addr) {
 
   auto iter = objs_map_.find(id);
   BUG_ON(iter == objs_map_.end());
-  auto &[cv, location] = iter->second;
-  location.gen++;
-  location.addr = obj_srv_addr;
-  cv.SignalAll();
+  iter->second = obj_srv_addr;
 }
 
 } // namespace nu

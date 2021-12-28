@@ -29,7 +29,7 @@ Thread::trampoline_in_obj_env(void *args) {
   auto old_rsp = switch_stack(runtime_stack_base);
   Runtime::switch_to_runtime_slab();
 
-  auto *heap_header = d->header;
+  // auto *heap_header = d->header;
   if (likely(thread_is_at_creator())) {
     auto obj_stack_addr =
         ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &

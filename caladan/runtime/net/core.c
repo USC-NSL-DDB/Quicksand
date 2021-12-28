@@ -270,7 +270,7 @@ static void iokernel_softirq(void *arg)
 	while (true) {
 		iokernel_softirq_poll(k);
 		preempt_disable();
-		k->iokernel_busy = false;
+		k->iokernel_sched = false;
 		thread_park_and_preempt_enable();
 	}
 }

@@ -1,11 +1,12 @@
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <list>
 #include <memory>
-#include <unordered_set>
+#include <vector>
 
 extern "C" {
 #include <runtime/net.h>
@@ -32,14 +33,15 @@ class CondVar;
 class Time;
 template <typename T> class RuntimeAllocator;
 
+enum HeapStatus { kAbsent = 0, kLoading, kMapped, kPresent };
+
 struct HeapHeader {
   ~HeapHeader();
 
-  bool present;
+  uint8_t status;
 
   // For synchronization on migration.
   RCULock rcu_lock;
-  Mutex mutex;
   SpinLock spin_lock;
   CondVar cond_var;
 
@@ -50,6 +52,7 @@ struct HeapHeader {
   uint8_t always_mmaped_end[0];
 
   // Migration related.
+  std::atomic<uint8_t> pending_load_cnt;
   BlockedSyncer blocked_syncer;
   Time time;
   bool migratable;
@@ -67,6 +70,10 @@ struct HeapHeader {
 
   // Heap Mem allocator. Must be the last field.
   SlabAllocator slab;
+
+  bool will_be_copied_on_migration(void *ptr) {
+    return reinterpret_cast<uint8_t *>(ptr) > copy_start;
+  }
 };
 
 class HeapManager {
@@ -74,17 +81,13 @@ public:
   HeapManager();
 
   static void allocate(void *heap_base, bool migratable);
-  static void mmap(void *heap_base);
   static void mmap_populate(void *heap_base, uint64_t populate_len);
   static void setup(void *heap_base, bool migratable, bool from_migration);
   static void deallocate(void *heap_base);
+  static void wait_until_present(HeapHeader *heap_header);
   void insert(void *heap_base);
   bool remove(void *heap_base);
-  bool remove_with_present(void *heap_base);
-  void mark_absent(void *heap_base);
   std::vector<void *> get_all_heaps();
-  std::unordered_set<void *> &acquire_all_heaps();
-  void release_all_heaps();
   uint64_t get_mem_usage();
   uint32_t get_num_present_heaps();
 
@@ -94,7 +97,8 @@ private:
   constexpr static uint32_t kNumAlwaysMmapedBytes =
       kNumAlwaysMmapedPages * kPageSize;
 
-  std::unordered_set<void *> present_heaps_;
+  std::vector<void *> present_heaps_;
+  uint32_t num_present_heaps_;
   rt::Spin spin_;
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
@@ -113,7 +117,7 @@ public:
   MigrationEnabledGuard(HeapHeader *heap_header);
   MigrationEnabledGuard(MigrationEnabledGuard &&o);
   MigrationEnabledGuard &operator=(MigrationEnabledGuard &&o);
-  void reset();
+  void reset(HeapHeader *heap_header = nullptr);
   ~MigrationEnabledGuard();
 
 private:
@@ -127,7 +131,7 @@ public:
   MigrationDisabledGuard(HeapHeader *heap_header);
   MigrationDisabledGuard(MigrationDisabledGuard &&o);
   MigrationDisabledGuard &operator=(MigrationDisabledGuard &&o);
-  void reset();
+  void reset(HeapHeader *heap_header = nullptr);
   ~MigrationDisabledGuard();
   operator bool() const;
   HeapHeader *get_heap_header();
@@ -145,7 +149,7 @@ public:
   NonBlockingMigrationDisabledGuard &
   operator=(NonBlockingMigrationDisabledGuard &&o);
   ~NonBlockingMigrationDisabledGuard();
-  void reset();
+  void reset(HeapHeader *heap_header = nullptr);
   operator bool() const;
   HeapHeader *get_heap_header();
 

@@ -15,12 +15,8 @@ namespace nu {
 using ResourcePressureInfo = struct resource_pressure_info;
 
 struct AuxHandlerState {
-  struct TCPWriteTask {
-    MigratorConn conn;
-    iovec sgl[5];
-  };
-
-  TCPWriteTask task;
+  MigratorConn conn;
+  std::vector<iovec> write_task;
   bool task_pending = false;
   bool done = false;
 };
@@ -35,8 +31,8 @@ public:
   ~PressureHandler();
   void mock_set_pressure(ResourcePressureInfo pressure);
   void wait_aux_tasks();
-  void dispatch_aux_task(uint32_t handler_id,
-                         AuxHandlerState::TCPWriteTask &task);
+  void init_aux_handler(uint32_t handler_id, MigratorConn &&conn);
+  void dispatch_aux_task(uint32_t handler_id, std::vector<iovec> &&write_task);
 
 private:
   struct HeapInfo {

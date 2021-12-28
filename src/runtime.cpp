@@ -124,6 +124,7 @@ Runtime::~Runtime() {
   preempt_enable();
 }
 
+// FIXME
 uint32_t Runtime::get_ip_by_rem_obj_id(RemObjID id) {
   auto *owner_heap = thread_unset_owner_heap();
   auto ip = rpc_client_mgr->get_ip_by_rem_obj_id(id);
@@ -232,3 +233,4 @@ void operator delete(void *ptr) noexcept {
     preempt_enable();
   }
 }
+
