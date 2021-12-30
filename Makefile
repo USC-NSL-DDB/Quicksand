@@ -10,6 +10,7 @@ INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/inclu
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offsetof -DNCORES=$(NCORES)
 override LDFLAGS += -Lglibc/build/install/lib
+override LDFLAGS += -lcrypto -lz -ldl
 override LDFLAGS += -static -static-libstdc++ -static-libgcc -lpthread
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
