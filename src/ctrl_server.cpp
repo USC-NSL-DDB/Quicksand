@@ -2,9 +2,9 @@ extern "C" {
 #include <base/assert.h>
 #include <net/ip.h>
 }
+
 #include <thread.h>
 
-#include "nu/commons.hpp"
 #include "nu/ctrl_server.hpp"
 
 namespace nu {

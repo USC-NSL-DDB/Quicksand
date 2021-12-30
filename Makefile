@@ -15,6 +15,7 @@ override LDFLAGS += -static -static-libstdc++ -static-libgcc -lpthread
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
 
 lib_src = $(wildcard src/*.cpp) $(wildcard src/utils/*.cpp)
+lib_src := $(filter-out $(wildcard src/*main.cpp),$(lib_src))
 lib_obj = $(lib_src:.cpp=.o)
 
 src = $(lib_src)
@@ -89,6 +90,9 @@ bench_real_mem_pressure_obj = $(bench_real_mem_pressure_src:.cpp=.o)
 bench_real_cpu_pressure_src = bench/bench_real_cpu_pressure.cpp
 bench_real_cpu_pressure_obj = $(bench_real_cpu_pressure_src:.cpp=.o)
 
+ctrl_main_src = src/ctrl_main.cpp
+ctrl_main_obj = $(ctrl_main_src:.cpp=.o)
+
 all: libnu.a bin/test_slab bin/test_rem_obj bin/test_multi_objs \
 bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
 bin/bench_rpc_tput bin/bench_rem_obj_call_tput bin/bench_rem_obj_call_lat bin/bench_thread \
@@ -97,10 +101,8 @@ bin/bench_hashtable_timeseries bin/bench_fake_migration bin/test_nested_rem_obj 
 bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
-bin/test_fast_path bin/test_slow_path
+bin/test_fast_path bin/test_slow_path bin/ctrl_main
 
-libnu.a: $(lib_obj)
-	$(AR) rcs $@ $^
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -170,6 +172,14 @@ bin/bench_real_mem_pressure: $(bench_real_mem_pressure_obj) $(librt_libs) $(RUNT
 	$(LDXX) -o $@ $(bench_real_mem_pressure_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_real_cpu_pressure: $(bench_real_cpu_pressure_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_real_cpu_pressure_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+
+bin/ctrl_main: $(ctrl_main_obj) $(lib_obj)
+	$(LDXX) -o $@ $(ctrl_main_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+$(ctrl_main_obj): $(ctrl_main_src)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+libnu.a: $(lib_obj)
+	$(AR) rcs $@ $^
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)

@@ -21,28 +21,29 @@ function prepare {
 function run_test {
     BIN="$ROOT_PATH/bin/$1"
 
-    run_controller_prog $BIN >/dev/null 2>&1 &
+    run_controller 1>/dev/null 2>&1 &
     disown -r
     sleep 3
 
-    run_server_prog $BIN 1 >/dev/null 2>&1 &
+    run_server 1 $BIN 1>/dev/null 2>&1 &
     disown -r
     sleep 3
 
-    run_server_prog $BIN 2 >/dev/null 2>&1 &
+    run_server 2 $BIN 1>/dev/null 2>&1 &
     disown -r
     sleep 3    
 
-    run_client_prog $BIN 2>/dev/null | grep -q "Passed"
+    run_client $BIN 2>/dev/null | grep -q "Passed"
     ret=$?
 
+    kill_controller
     kill_process test_
     sleep 3
     return $ret
 }
 
 function run_local_unit_test {
-    run_client_prog ./bin/$1 2>/dev/null | grep -q "Passed"
+    run_client ./bin/$1 2>/dev/null | grep -q "Passed"
 }
 
 function run_single_test {

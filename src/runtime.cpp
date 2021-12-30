@@ -137,20 +137,6 @@ void Runtime::reserve_conn(uint32_t ip) {
   rpc_client_mgr->get_by_ip(ip);
 }
 
-uint32_t str_to_ip(std::string ip_str) {
-  auto pos0 = ip_str.find('.');
-  BUG_ON(pos0 == std::string::npos);
-  auto pos1 = ip_str.find('.', pos0 + 1);
-  BUG_ON(pos1 == std::string::npos);
-  auto pos2 = ip_str.find('.', pos1 + 1);
-  BUG_ON(pos2 == std::string::npos);
-  auto addr0 = stoi(ip_str.substr(0, pos0));
-  auto addr1 = stoi(ip_str.substr(pos0 + 1, pos1 - pos0));
-  auto addr2 = stoi(ip_str.substr(pos1 + 1, pos2 - pos1));
-  auto addr3 = stoi(ip_str.substr(pos2 + 1));
-  return MAKE_IP_ADDR(addr0, addr1, addr2, addr3);
-}
-
 int runtime_main_init(int argc, char **argv,
                       std::function<void(int argc, char **argv)> main_func) {
   int ret;
@@ -167,8 +153,6 @@ int runtime_main_init(int argc, char **argv,
     mode = nu::Runtime::Mode::kClient;
   } else if (mode_str == "SRV") {
     mode = nu::Runtime::Mode::kServer;
-  } else if (mode_str == "CTL") {
-    mode = nu::Runtime::Mode::kController;
   } else {
     goto wrong_args;
   }
@@ -189,7 +173,7 @@ int runtime_main_init(int argc, char **argv,
   return 0;
 
 wrong_args:
-  std::cerr << "usage: cfg_file CLT/SRV/CTL ctrl_ip [app args] " << std::endl;
+  std::cerr << "usage: cfg_file CLT/SRV ctrl_ip [app args] " << std::endl;
   return -EINVAL;
 }
 

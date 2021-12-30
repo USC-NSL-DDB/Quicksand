@@ -44,15 +44,18 @@ function rerun_iokerneld {
     run_iokerneld ias
 }
 
-function run_client_prog {
+function run_client {
     sudo stdbuf -o0 sh -c "$1 $ROOT_PATH/conf/client1 CLT $CTRL_IP"
 }
 
-function run_server_prog {
-    sudo stdbuf -o0 sh -c "$1 $ROOT_PATH/conf/server$2 SRV $CTRL_IP"
+function run_server {
+    sudo stdbuf -o0 sh -c "$2 $ROOT_PATH/conf/server$1 SRV $CTRL_IP"
 }
 
-function run_controller_prog {
-    sudo stdbuf -o0 sh -c "$1 $ROOT_PATH/conf/controller CTL $CTRL_IP"
+function run_controller {
+    sudo stdbuf -o0 sh -c "bin/ctrl_main $ROOT_PATH/conf/controller $CTRL_IP"
 }
 
+function kill_controller {
+    kill_process ctrl_main
+}

@@ -6,6 +6,7 @@ extern "C" {
 
 #include <cstddef>
 #include <span>
+#include <string>
 
 namespace nu {
 
@@ -79,6 +80,7 @@ bool is_copied_on_migration(void *ptr, HeapHeader *heap_header);
 template <typename T> std::span<std::byte> to_span(T &t);
 template <typename T> T &from_span(std::span<std::byte> span);
 template <typename T> const T &from_span(std::span<const std::byte> span);
+uint32_t str_to_ip(std::string ip_str);
 
 } // namespace nu
 
