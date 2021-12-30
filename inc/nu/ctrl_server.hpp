@@ -8,6 +8,7 @@ extern "C" {
 #include <memory>
 #include <net.h>
 
+#include "nu/commons.hpp"
 #include "nu/ctrl.hpp"
 #include "nu/utils/rpc.hpp"
 #include "nu/rpc_server.hpp"
@@ -20,6 +21,8 @@ struct RPCReqRegisterNode {
 } __attribute__((packed));
 
 struct RPCRespRegisterNode {
+  bool empty;
+  lpid_t lpid;
   VAddrRange stack_cluster;
 } __attribute__((packed));
 

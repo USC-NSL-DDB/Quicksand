@@ -56,13 +56,13 @@ void Runtime::init_as_controller() {
   rpc_server->run_background_loop();
 }
 
-void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
+void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
   obj_server.reset(new decltype(obj_server)::element_type());
   rpc_server->run_background_loop();
   migrator.reset(new decltype(migrator)::element_type());
   migrator->run_background_loop();
-  controller_client.reset(
-      new decltype(controller_client)::element_type(remote_ctrl_ip, kServer));
+  controller_client.reset(new decltype(controller_client)::element_type(
+      remote_ctrl_ip, kServer, lpid));
   heap_manager.reset(new decltype(heap_manager)::element_type());
   pressure_handler.reset(new decltype(pressure_handler)::element_type());
   stack_manager.reset(new decltype(stack_manager)::element_type(
@@ -70,9 +70,9 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
   archive_pool.reset(new decltype(archive_pool)::element_type());
 }
 
-void Runtime::init_as_client(uint32_t remote_ctrl_ip) {
-  controller_client.reset(
-      new decltype(controller_client)::element_type(remote_ctrl_ip, kClient));
+void Runtime::init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid) {
+  controller_client.reset(new decltype(controller_client)::element_type(
+      remote_ctrl_ip, kClient, lpid));
   archive_pool.reset(new decltype(archive_pool)::element_type());
 }
 
@@ -83,16 +83,16 @@ void Runtime::common_init() {
       new decltype(rpc_client_mgr)::element_type(RPCServer::kPort));
 }
 
-Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode) {
+Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid) {
   common_init();
 
   if (mode == kClient){
-    init_as_client(remote_ctrl_ip);
+    init_as_client(remote_ctrl_ip, lpid);
   } else {
     if (mode == kController) {
       init_as_controller();
     } else if (mode == kServer) {
-      init_as_server(remote_ctrl_ip);
+      init_as_server(remote_ctrl_ip, lpid);
     } else {
       BUG();
     }
@@ -102,9 +102,10 @@ Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode) {
   }
 }
 
-std::unique_ptr<Runtime> Runtime::init(uint32_t remote_ctrl_ip, Mode mode) {
+std::unique_ptr<Runtime> Runtime::init(uint32_t remote_ctrl_ip, Mode mode,
+                                       lpid_t lpid) {
   BUG_ON(active_runtime);
-  auto runtime_ptr = new Runtime(remote_ctrl_ip, mode);
+  auto runtime_ptr = new Runtime(remote_ctrl_ip, mode, lpid);
   return std::unique_ptr<Runtime>(runtime_ptr);
 }
 
@@ -143,8 +144,9 @@ int runtime_main_init(int argc, char **argv,
   std::string mode_str;
   Runtime::Mode mode;
   uint32_t remote_ctrl_ip;
+  lpid_t lpid;
 
-  if (argc < 4) {
+  if (argc < 5) {
     goto wrong_args;
   }
 
@@ -158,11 +160,12 @@ int runtime_main_init(int argc, char **argv,
   }
 
   remote_ctrl_ip = str_to_ip(std::string(argv[3]));
+  lpid = stoi(std::string(argv[4]));
 
   ret = rt::RuntimeInit(std::string(argv[1]), [&] {
-    auto runtime = nu::Runtime::init(remote_ctrl_ip, mode);
-    argv[3] = argv[0];
-    main_func(argc - 3, &argv[3]);
+    auto runtime = nu::Runtime::init(remote_ctrl_ip, mode, lpid);
+    argv[4] = argv[0];
+    main_func(argc - 4, &argv[4]);
   });
 
   if (ret) {
@@ -173,7 +176,7 @@ int runtime_main_init(int argc, char **argv,
   return 0;
 
 wrong_args:
-  std::cerr << "usage: cfg_file CLT/SRV ctrl_ip [app args] " << std::endl;
+  std::cerr << "usage: cfg_file CLT/SRV ctrl_ip lpid -- [app args] " << std::endl;
   return -EINVAL;
 }
 

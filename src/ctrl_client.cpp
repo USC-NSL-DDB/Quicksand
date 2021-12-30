@@ -11,28 +11,35 @@ extern "C" {
 
 namespace nu {
 
-ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode)
+ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode,
+                                   lpid_t lpid)
     : rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
-  switch (mode) {
-  case Runtime::kServer:
-    stack_cluster_ =
-        register_node(Node{get_cfg_ip(), RPCServer::kPort, Migrator::kPort});
-    break;
-  case Runtime::kClient:
-    break;
-  default:
-    BUG();
+  if (mode == Runtime::kServer) {
+    auto optional = register_node(
+        Node{get_cfg_ip(), RPCServer::kPort, Migrator::kPort, lpid});
+    BUG_ON(!optional);
+    std::tie(lpid_, stack_cluster_) = *optional;
+    std::cout << "running with lpid = " << lpid_ << std::endl;
+  } else {
+    BUG_ON(mode != Runtime::kClient);
   }
 }
 
-VAddrRange ControllerClient::register_node(const Node &node) {
+std::optional<std::pair<lpid_t, VAddrRange>>
+ControllerClient::register_node(const Node &node) {
   RPCReqRegisterNode req;
   req.node = node;
   RPCReturnBuffer return_buf;
   auto rc = rpc_client_->Call(to_span(req), &return_buf);
   BUG_ON(rc != kOk);
   auto &resp = from_span<RPCRespRegisterNode>(return_buf.get_buf());
-  return resp.stack_cluster;
+  if (resp.empty) {
+    return std::nullopt;
+  } else {
+    auto lpid = resp.lpid;
+    auto stack_cluster = resp.stack_cluster;
+    return std::make_pair(lpid, stack_cluster);
+  }
 }
 
 std::optional<std::pair<RemObjID, netaddr>>

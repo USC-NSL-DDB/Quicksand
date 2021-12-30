@@ -15,7 +15,14 @@ std::unique_ptr<RPCRespRegisterNode>
 ControllerServer::handle_register_node(const RPCReqRegisterNode &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespRegisterNode>();
   auto node = req.node;
-  resp->stack_cluster = ctrl_.register_node(node);
+  auto optional = ctrl_.register_node(node);
+  if (optional) {
+    resp->empty = false;
+    resp->lpid = optional->first;
+    resp->stack_cluster = optional->second;
+  } else {
+    resp->empty = true;
+  }
   return resp;
 }
 

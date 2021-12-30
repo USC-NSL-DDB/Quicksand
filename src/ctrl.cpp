@@ -1,5 +1,6 @@
 #include <cereal/archives/binary.hpp>
 #include <cstdint>
+#include <limits>
 
 extern "C" {
 #include <base/assert.h>
@@ -16,9 +17,14 @@ extern "C" {
 namespace nu {
 
 Controller::Controller() {
+  for (lpid_t lpid = 1; lpid < std::numeric_limits<lpid_t>::max(); lpid++) {
+    free_lpids_.insert(lpid);
+  }
+
   for (uint64_t start_addr = kMinHeapVAddr;
        start_addr + kHeapSize <= kMaxHeapVAddr; start_addr += kHeapSize) {
-    free_heap_segments_.push(start_addr);
+    VAddrRange range = {.start = start_addr, .end = start_addr + kHeapSize};
+    free_heap_segments_.push(range);
   }
 
   for (uint64_t start_addr = kMinStackClusterVAddr;
@@ -34,10 +40,30 @@ Controller::Controller() {
 
 Controller::~Controller() {}
 
-VAddrRange Controller::register_node(Node &node) {
+std::optional<std::pair<lpid_t, VAddrRange>>
+Controller::register_node(Node &node) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  BUG_ON(free_stack_cluster_segments_.empty());
+  if (node.lpid) {
+    auto iter = free_lpids_.find(node.lpid);
+    if (unlikely(iter == free_lpids_.end())) {
+      return std::nullopt;
+    }
+    free_lpids_.erase(iter);
+  } else {
+    if (unlikely(free_lpids_.empty())) {
+      return std::nullopt;
+    }
+    auto begin_iter = free_lpids_.begin();
+    node.lpid = *begin_iter;
+    free_lpids_.erase(begin_iter);
+  }
+
+  if (unlikely(free_stack_cluster_segments_.empty())) {
+    free_lpids_.insert(node.lpid);
+    return std::nullopt;
+  }
+
   // TODO: should GC the allocated stack somehow through heartbeat or an
   // explicit deregister_node() call.
   auto stack_cluster = free_stack_cluster_segments_.top();
@@ -60,7 +86,7 @@ VAddrRange Controller::register_node(Node &node) {
   }
 
   nodes_.insert(node);
-  return stack_cluster;
+  return std::make_pair(node.lpid, stack_cluster);
 }
 
 std::optional<std::pair<RemObjID, netaddr>>
@@ -70,7 +96,7 @@ Controller::allocate_obj(netaddr hint) {
   if (unlikely(free_heap_segments_.empty())) {
     return std::nullopt;
   }
-  auto start_addr = free_heap_segments_.top();
+  auto start_addr = free_heap_segments_.top().start;
   auto id = start_addr;
   free_heap_segments_.pop();
   auto node_optional = select_node_for_obj(hint);
@@ -92,8 +118,7 @@ void Controller::destroy_obj(RemObjID id) {
     WARN();
     return;
   }
-  auto range = id;
-  free_heap_segments_.push(range);
+  free_heap_segments_.push(VAddrRange{id, id + kHeapSize});
   objs_map_.erase(iter);
 }
 

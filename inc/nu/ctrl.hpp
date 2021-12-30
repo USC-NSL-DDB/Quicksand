@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <list>
-#include <optional>
 #include <set>
 #include <stack>
 #include <unordered_map>
@@ -22,11 +21,13 @@ extern "C" {
 
 namespace nu {
 
+// This is really a logical node as opposed to the real physical node.
 struct Node {
   // TODO: add other informations, e.g., free mem size.
   uint32_t ip;
   uint16_t rpc_srv_port;
   uint16_t migrator_port;
+  lpid_t lpid;
 
   bool operator<(const Node &o) const { return ip < o.ip; }
 };
@@ -35,7 +36,7 @@ class Controller {
 public:
   Controller();
   ~Controller();
-  VAddrRange register_node(Node &node);
+  std::optional<std::pair<lpid_t, VAddrRange>> register_node(Node &node);
   std::optional<std::pair<RemObjID, netaddr>> allocate_obj(netaddr hint);
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);
@@ -44,8 +45,9 @@ public:
   void update_location(RemObjID id, netaddr obj_srv_addr);
 
 private:
-  std::stack<uint64_t> free_heap_segments_;            // One range per RemObj.
-  std::stack<VAddrRange> free_stack_cluster_segments_; // One range per server.
+  std::stack<VAddrRange> free_heap_segments_;            // One segment per RemObj.
+  std::stack<VAddrRange> free_stack_cluster_segments_;   // One segment per Node.
+  std::set<lpid_t> free_lpids_;
   std::unordered_map<RemObjID, netaddr> objs_map_;
   std::set<Node> nodes_;
   std::set<Node>::iterator nodes_iter_;

@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <optional>
 #include <utility>
 
 extern "C" {
@@ -38,7 +37,8 @@ public:
   static SlabAllocator runtime_slab;
 
   ~Runtime();
-  static std::unique_ptr<Runtime> init(uint32_t remote_ctrl_ip, Mode mode);
+  static std::unique_ptr<Runtime> init(uint32_t remote_ctrl_ip, Mode mode,
+                                       lpid_t lpid);
   static uint32_t get_ip_by_rem_obj_id(RemObjID id);
   static void reserve_conn(uint32_t ip);
 
@@ -80,12 +80,12 @@ private:
   template <typename T> friend class RemUniquePtr;
   template <typename T> friend class RemSharedPtr;
 
-  Runtime(uint32_t remote_ctrl_ip, Mode mode);
+  Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid);
   static void common_init();
   static void init_runtime_heap();
   static void init_as_controller();
-  static void init_as_server(uint32_t remote_ctrl_ip);
-  static void init_as_client(uint32_t remote_ctrl_ip);
+  static void init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid);
+  static void init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid);
   template <typename Cls, typename... A0s, typename... A1s>
   static bool run_within_obj_env(void *heap_base, void (*fn)(A0s...),
                                  A1s &&... args);

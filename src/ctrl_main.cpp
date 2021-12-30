@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
   ctrl_ip = nu::str_to_ip(std::string(argv[2]));
 
   ret = rt::RuntimeInit(std::string(argv[1]), [&] {
-    nu::Runtime::init(ctrl_ip, nu::Runtime::Mode::kController);
+    nu::Runtime::init(ctrl_ip, nu::Runtime::Mode::kController, 0);
   });
 
   if (ret) {

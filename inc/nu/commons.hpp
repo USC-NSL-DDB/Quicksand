@@ -38,6 +38,7 @@ struct HeapRange {
 struct ErasedType {};
 
 using RemObjID = uint64_t;
+using lpid_t = uint16_t;
 
 constexpr static uint64_t kNumCores = NCORES;
 constexpr static uint64_t kCacheLineBytes = 64;

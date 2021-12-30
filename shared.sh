@@ -45,11 +45,11 @@ function rerun_iokerneld {
 }
 
 function run_client {
-    sudo stdbuf -o0 sh -c "$1 $ROOT_PATH/conf/client1 CLT $CTRL_IP"
+    sudo stdbuf -o0 sh -c "$1 $ROOT_PATH/conf/client1 CLT $CTRL_IP 0"
 }
 
 function run_server {
-    sudo stdbuf -o0 sh -c "$2 $ROOT_PATH/conf/server$1 SRV $CTRL_IP"
+    sudo stdbuf -o0 sh -c "$2 $ROOT_PATH/conf/server$1 SRV $CTRL_IP 0"
 }
 
 function run_controller {
