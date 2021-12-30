@@ -173,8 +173,7 @@ private:
 } // namespace rpc_internal
 
 // Initializes and runs the RPC server.
-void RPCServerInit(uint16_t port, RPCHandler &handler);
-void RPCServerInit(uint16_t port, RPCHandler &&handler);
+void RPCServerInit(uint16_t port, RPCHandler &&handler, bool blocking = true);
 
 class RPCClient {
 public:

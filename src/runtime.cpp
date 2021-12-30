@@ -53,14 +53,14 @@ void Runtime::init_runtime_heap() {
 
 void Runtime::init_as_controller() {
   controller_server.reset(new decltype(controller_server)::element_type());
-  rt::Thread([&] { rpc_server->run_loop(); }).Join();
+  rpc_server->run_background_loop();
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
   obj_server.reset(new decltype(obj_server)::element_type());
-  rt::Thread([&] { rpc_server->run_loop(); }).Detach();
+  rpc_server->run_background_loop();
   migrator.reset(new decltype(migrator)::element_type());
-  auto migrator_thread = rt::Thread([&] { migrator->run_loop(); });
+  migrator->run_background_loop();
   controller_client.reset(
       new decltype(controller_client)::element_type(remote_ctrl_ip, kServer));
   heap_manager.reset(new decltype(heap_manager)::element_type());
@@ -68,7 +68,6 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
   stack_manager.reset(new decltype(stack_manager)::element_type(
       controller_client->get_stack_cluster()));
   archive_pool.reset(new decltype(archive_pool)::element_type());
-  migrator_thread.Join();
 }
 
 void Runtime::init_as_client(uint32_t remote_ctrl_ip) {
@@ -87,18 +86,19 @@ void Runtime::common_init() {
 Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode) {
   common_init();
 
-  switch (mode) {
-  case kController:
-    init_as_controller();
-    break;
-  case kServer:
-    init_as_server(remote_ctrl_ip);
-    break;
-  case kClient:
+  if (mode == kClient){
     init_as_client(remote_ctrl_ip);
-    break;
-  default:
-    BUG();
+  } else {
+    if (mode == kController) {
+      init_as_controller();
+    } else if (mode == kServer) {
+      init_as_server(remote_ctrl_ip);
+    } else {
+      BUG();
+    }
+
+    rt::Preempt p;
+    rt::PreemptGuardAndPark pg(&p);
   }
 }
 

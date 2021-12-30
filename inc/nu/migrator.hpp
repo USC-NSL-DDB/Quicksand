@@ -94,7 +94,7 @@ public:
   constexpr static uint32_t kPort = 8002;
 
   ~Migrator();
-  void run_loop();
+  void run_background_loop();
   void migrate(Resource resource, std::vector<HeapRange> heaps);
   void reserve_conns(netaddr dest_server_addr);
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,

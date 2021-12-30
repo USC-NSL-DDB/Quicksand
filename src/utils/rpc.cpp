@@ -61,15 +61,23 @@ void RPCServerWorker(std::unique_ptr<rt::TcpConn> c, RPCHandler &handler) {
   s.Run();
 }
 
-void RPCServerListener(uint16_t port, RPCHandler &handler) {
+void RPCServerListener(uint16_t port, RPCHandler &&handler, bool blocking) {
   std::unique_ptr<rt::TcpQueue> q(rt::TcpQueue::Listen({0, port}, 4096));
   BUG_ON(!q);
 
-  while (true) {
-    std::unique_ptr<rt::TcpConn> c(q->Accept());
-    rt::Thread([c = std::move(c), &handler]() mutable {
-      RPCServerWorker(std::move(c), handler);
-    }).Detach();
+  rt::Thread th([q = std::move(q), handler = std::move(handler)]() mutable {
+    while (true) {
+      std::unique_ptr<rt::TcpConn> c(q->Accept());
+      rt::Thread([c = std::move(c), &handler]() mutable {
+        RPCServerWorker(std::move(c), handler);
+      }).Detach();
+    }
+  });
+
+  if (blocking) {
+    th.Join();
+  } else {
+    th.Detach();
   }
 }
 
@@ -334,12 +342,8 @@ std::unique_ptr<RPCFlow> RPCFlow::New(unsigned int cpu_affinity,
 
 } // namespace rpc_internal
 
-void RPCServerInit(uint16_t port, RPCHandler &handler) {
-  RPCServerListener(port, handler);
-}
-
-void RPCServerInit(uint16_t port, RPCHandler &&handler) {
-  RPCServerListener(port, handler);
+void RPCServerInit(uint16_t port, RPCHandler &&handler, bool blocking) {
+  RPCServerListener(port, std::move(handler), blocking);
 }
 
 std::unique_ptr<RPCClient> RPCClient::Dial(netaddr raddr) {

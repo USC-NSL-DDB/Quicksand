@@ -120,50 +120,51 @@ inline void Migrator::handle_load(rt::TcpConn *c) {
   load(c);
 }
 
-void Migrator::run_loop() {
+void Migrator::run_background_loop() {
   netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = kPort};
-  auto tcp_queue =
-      rt::TcpQueue::Listen(addr, kTCPListenBackLog, kMigrationDSCP);
-  tcp_queue_.reset(tcp_queue);
-  rt::TcpConn *c;
+  tcp_queue_.reset(
+      rt::TcpQueue::Listen(addr, kTCPListenBackLog, kMigrationDSCP));
 
-  while ((c = tcp_queue_->Accept())) {
-    rt::Thread([&, c] {
-      std::unique_ptr<rt::TcpConn> gc(c);
+  rt::Thread([&] {
+    rt::TcpConn *c;
+    while ((c = tcp_queue_->Accept())) {
+      rt::Thread([&, c] {
+        std::unique_ptr<rt::TcpConn> gc(c);
 
-      bool poll = false;
-      while (true) {
-        uint8_t type;
-        if (unlikely(c->ReadFull(&type, sizeof(type), /* nt = */ false, poll) <=
-                     0)) {
-          break;
+        bool poll = false;
+        while (true) {
+          uint8_t type;
+          if (unlikely(c->ReadFull(&type, sizeof(type), /* nt = */ false,
+                                   poll) <= 0)) {
+            break;
+          }
+
+          switch (type) {
+          case kCopyHeap:
+            handle_copy_heap(c);
+            break;
+          case kMigrate:
+            handle_load(c);
+            break;
+          case kUnmap:
+            handle_unmap(c);
+            break;
+          case kEnablePoll:
+            poll = true;
+            preempt_disable();
+            break;
+          case kDisablePoll:
+            poll = false;
+            preempt_enable();
+            break;
+          default:
+            BUG();
+          }
         }
-
-        switch (type) {
-        case kCopyHeap:
-          handle_copy_heap(c);
-          break;
-        case kMigrate:
-          handle_load(c);
-          break;
-        case kUnmap:
-          handle_unmap(c);
-          break;
-        case kEnablePoll:
-          poll = true;
-          preempt_disable();
-          break;
-        case kDisablePoll:
-          poll = false;
-          preempt_enable();
-          break;
-        default:
-          BUG();
-        }
-      }
-      BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
-    }).Detach();
-  }
+        BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
+      }).Detach();
+    }
+  }).Detach();
 }
 
 void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {

@@ -28,7 +28,7 @@ class RPCServer {
 public:
   constexpr static uint32_t kPort = 12345;
 
-  void run_loop();
+  void run_background_loop();
 };
 
 } // namespace nu

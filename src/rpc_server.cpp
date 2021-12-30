@@ -8,8 +8,8 @@
 
 namespace nu {
 
-void RPCServer::run_loop() {
-  RPCServerInit(kPort, [](std::span<std::byte> args, RPCReturner *returner) {
+void RPCServer::run_background_loop() {
+  auto rpc_handler = [](std::span<std::byte> args, RPCReturner *returner) {
     auto &rpc_type = from_span<RPCReqType>(args);
 
     switch (rpc_type) {
@@ -84,7 +84,9 @@ void RPCServer::run_loop() {
     default:
       BUG();
     }
-  });
+  };
+
+  RPCServerInit(kPort, rpc_handler, /* blocking = */ false);
 }
 
 } // namespace nu

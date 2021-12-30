@@ -15,10 +15,8 @@ ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode)
     : rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
   switch (mode) {
   case Runtime::kServer:
-    Node node;
-    node.rpc_srv_addr = {.ip = get_cfg_ip(), .port = RPCServer::kPort};
-    node.migrator_addr = {.ip = get_cfg_ip(), .port = Migrator::kPort};
-    stack_cluster_ = register_node(node);
+    stack_cluster_ =
+        register_node(Node{get_cfg_ip(), RPCServer::kPort, Migrator::kPort});
     break;
   case Runtime::kClient:
     break;

@@ -44,19 +44,18 @@ VAddrRange Controller::register_node(Node &node) {
   free_stack_cluster_segments_.pop();
 
   for (auto old_node : nodes_) {
-    auto *client =
-        Runtime::rpc_client_mgr->get_by_ip(old_node.migrator_addr.ip);
+    auto *client = Runtime::rpc_client_mgr->get_by_ip(old_node.ip);
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
-    req.dest_server_addr = node.migrator_addr;
+    req.dest_server_addr = netaddr{node.ip, node.migrator_port};
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  auto *client = Runtime::rpc_client_mgr->get_by_ip(node.migrator_addr.ip);
+  auto *client = Runtime::rpc_client_mgr->get_by_ip(node.ip);
   for (auto old_node : nodes_) {
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
-    req.dest_server_addr = old_node.migrator_addr;
+    req.dest_server_addr = netaddr{old_node.ip, old_node.migrator_port};
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
@@ -78,8 +77,9 @@ Controller::allocate_obj(netaddr hint) {
   if (unlikely(!node_optional)) {
     return std::nullopt;
   }
+  auto &node = *node_optional;
   auto [iter, _] = objs_map_.try_emplace(id);
-  auto addr = node_optional->rpc_srv_addr;
+  netaddr addr{node.ip, node.rpc_srv_port};
   iter->second = addr;
   return std::make_pair(id, addr);
 }
@@ -113,8 +113,7 @@ std::optional<Node> Controller::select_node_for_obj(netaddr hint) {
   BUG_ON(nodes_.empty());
 
   if (hint.ip) {
-    Node n;
-    n.rpc_srv_addr = hint;
+    Node n{hint.ip, hint.port};
     auto iter = nodes_.find(n);
     if (unlikely(iter == nodes_.end())) {
       return std::nullopt;
@@ -134,8 +133,8 @@ std::optional<netaddr> Controller::get_migration_dest(uint32_t requestor_ip,
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
   // TODO: choose the dest node based on resource requirement.
   for (auto &node : nodes_) {
-    if (node.migrator_addr.ip != requestor_ip) {
-      return node.migrator_addr;
+    if (node.ip != requestor_ip) {
+      return netaddr{node.ip, node.migrator_port};
     }
   }
   return std::nullopt;
