@@ -19,10 +19,10 @@ cd ../..
 
 pushd ../../thrift
 ./bootstrap.sh
-./configure --enable-caladanthreads=yes --enable-caladantcp=yes \
-            --with-caladan=`pwd`/../../../caladan/  \
+./configure --enable-nuthreads=yes --enable-caladantcp=yes \
+            --with-nu=`pwd`/../../../  \
             --enable-shared=no --enable-tests=no --enable-tutorial=no \
-	    --with-libevent=no
+            --with-libevent=no
 make -j
 popd
 
