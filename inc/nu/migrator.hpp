@@ -91,7 +91,7 @@ class Migrator {
 public:
   constexpr static uint32_t kTransmitHeapNumThreads = 2;
   constexpr static uint32_t kDefaultNumReservedConns = 8;
-  constexpr static uint32_t kMigratorServerPort = 8002;
+  constexpr static uint32_t kPort = 8002;
 
   ~Migrator();
   void run_loop();

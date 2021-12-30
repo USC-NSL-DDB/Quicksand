@@ -14,14 +14,13 @@ namespace nu {
 ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode)
     : rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
   switch (mode) {
-  case Runtime::SERVER:
+  case Runtime::kServer:
     Node node;
-    node.obj_srv_addr = {.ip = get_cfg_ip(), .port = ObjServer::kObjServerPort};
-    node.migrator_addr = {.ip = get_cfg_ip(),
-                          .port = Migrator::kMigratorServerPort};
+    node.rpc_srv_addr = {.ip = get_cfg_ip(), .port = RPCServer::kPort};
+    node.migrator_addr = {.ip = get_cfg_ip(), .port = Migrator::kPort};
     stack_cluster_ = register_node(node);
     break;
-  case Runtime::CLIENT:
+  case Runtime::kClient:
     break;
   default:
     BUG();

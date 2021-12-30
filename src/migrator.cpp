@@ -121,7 +121,7 @@ inline void Migrator::handle_load(rt::TcpConn *c) {
 }
 
 void Migrator::run_loop() {
-  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = kMigratorServerPort};
+  netaddr addr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = kPort};
   auto tcp_queue =
       rt::TcpQueue::Listen(addr, kTCPListenBackLog, kMigrationDSCP);
   tcp_queue_.reset(tcp_queue);

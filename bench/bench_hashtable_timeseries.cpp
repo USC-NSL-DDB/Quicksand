@@ -98,7 +98,7 @@ void client_cleanup() {
 }
 
 void sigint_handler(int sig) {
-  if (mode != Runtime::Mode::CLIENT) {
+  if (mode != Runtime::Mode::kClient) {
     std::cout << "Force exiting..." << std::endl;
     exit(0);
   } else {

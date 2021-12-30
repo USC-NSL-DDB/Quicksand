@@ -18,8 +18,6 @@ namespace nu {
 
 class ObjServer {
 public:
-  constexpr static uint32_t kObjServerPort = 8001;
-
   ObjServer();
   ~ObjServer();
   netaddr get_addr() const;

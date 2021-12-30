@@ -19,8 +19,7 @@ extern "C" {
 using namespace nu;
 
 Runtime::Mode mode;
-netaddr addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 2),
-                .port = ObjServer::kObjServerPort};
+netaddr addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 2), .port = RPCServer::kPort};
 
 class CPUHeavyObj {
 public:

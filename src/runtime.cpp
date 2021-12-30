@@ -62,7 +62,7 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
   migrator.reset(new decltype(migrator)::element_type());
   auto migrator_thread = rt::Thread([&] { migrator->run_loop(); });
   controller_client.reset(
-      new decltype(controller_client)::element_type(remote_ctrl_ip, SERVER));
+      new decltype(controller_client)::element_type(remote_ctrl_ip, kServer));
   heap_manager.reset(new decltype(heap_manager)::element_type());
   pressure_handler.reset(new decltype(pressure_handler)::element_type());
   stack_manager.reset(new decltype(stack_manager)::element_type(
@@ -73,7 +73,7 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip) {
 
 void Runtime::init_as_client(uint32_t remote_ctrl_ip) {
   controller_client.reset(
-      new decltype(controller_client)::element_type(remote_ctrl_ip, CLIENT));
+      new decltype(controller_client)::element_type(remote_ctrl_ip, kClient));
   archive_pool.reset(new decltype(archive_pool)::element_type());
 }
 
@@ -88,13 +88,13 @@ Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode) {
   common_init();
 
   switch (mode) {
-  case CONTROLLER:
+  case kController:
     init_as_controller();
     break;
-  case SERVER:
+  case kServer:
     init_as_server(remote_ctrl_ip);
     break;
-  case CLIENT:
+  case kClient:
     init_as_client(remote_ctrl_ip);
     break;
   default:
@@ -164,11 +164,11 @@ int runtime_main_init(int argc, char **argv,
 
   mode_str = std::string(argv[2]);
   if (mode_str == "CLT") {
-    mode = nu::Runtime::Mode::CLIENT;
+    mode = nu::Runtime::Mode::kClient;
   } else if (mode_str == "SRV") {
-    mode = nu::Runtime::Mode::SERVER;
+    mode = nu::Runtime::Mode::kServer;
   } else if (mode_str == "CTL") {
-    mode = nu::Runtime::Mode::CONTROLLER;
+    mode = nu::Runtime::Mode::kController;
   } else {
     goto wrong_args;
   }

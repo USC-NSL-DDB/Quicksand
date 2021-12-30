@@ -10,7 +10,7 @@
 
 constexpr uint32_t kMagic = 0x12345678;
 constexpr netaddr addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 2),
-                          .port = nu::ObjServer::kObjServerPort};
+                          .port = nu::RPCServer::kPort};
 
 namespace nu {
 

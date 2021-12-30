@@ -79,7 +79,7 @@ Controller::allocate_obj(netaddr hint) {
     return std::nullopt;
   }
   auto [iter, _] = objs_map_.try_emplace(id);
-  auto addr = node_optional->obj_srv_addr;
+  auto addr = node_optional->rpc_srv_addr;
   iter->second = addr;
   return std::make_pair(id, addr);
 }
@@ -114,7 +114,7 @@ std::optional<Node> Controller::select_node_for_obj(netaddr hint) {
 
   if (hint.ip) {
     Node n;
-    n.obj_srv_addr = hint;
+    n.rpc_srv_addr = hint;
     auto iter = nodes_.find(n);
     if (unlikely(iter == nodes_.end())) {
       return std::nullopt;

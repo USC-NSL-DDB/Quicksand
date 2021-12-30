@@ -276,7 +276,7 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
 
   {
     MigrationDisabledGuard disabled_guard;
-    if (Runtime::obj_server && server_addr == Runtime::obj_server->get_addr()) {
+    if (Runtime::rpc_server && server_addr.ip == get_cfg_ip()) {
       // Fast path: the heap is actually local, use normal function call.
       ObjServer::construct_obj_locally<T, As...>(to_heap_base(id), pinned,
                                                  std::forward<As>(args)...);

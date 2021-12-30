@@ -24,10 +24,10 @@ namespace nu {
 
 struct Node {
   // TODO: add other informations, e.g., free mem size.
-  netaddr obj_srv_addr;
+  netaddr rpc_srv_addr;
   netaddr migrator_addr;
 
-  bool operator<(const Node &o) const { return obj_srv_addr < o.obj_srv_addr; }
+  bool operator<(const Node &o) const { return rpc_srv_addr < o.rpc_srv_addr; }
 };
 
 class Controller {

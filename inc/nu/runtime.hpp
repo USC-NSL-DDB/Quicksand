@@ -33,7 +33,7 @@ template <typename T> class RuntimeDeleter;
 
 class Runtime {
 public:
-  enum Mode { CLIENT, SERVER, CONTROLLER };
+  enum Mode { kClient, kServer, kController };
 
   static SlabAllocator runtime_slab;
 

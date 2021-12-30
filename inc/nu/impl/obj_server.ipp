@@ -18,11 +18,6 @@ extern "C" {
 
 namespace nu {
 
-inline netaddr ObjServer::get_addr() const {
-  netaddr addr = {.ip = get_cfg_ip(), .port = kObjServerPort};
-  return addr;
-}
-
 template <typename Cls, typename... As>
 void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
                               RPCReturner *returner) {
