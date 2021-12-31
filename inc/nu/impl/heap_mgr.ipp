@@ -11,7 +11,7 @@ inline HeapHeader::~HeapHeader() {}
 
 inline void HeapManager::wait_until_present(HeapHeader *heap_header) {
   heap_header->spin_lock.lock();
-  while (rt::access_once(heap_header->status) != kPresent) {
+  while (rt::access_once(heap_header->status) < kPresent) {
     heap_header->cond_var.wait(&heap_header->spin_lock);
   }
   heap_header->spin_lock.unlock();
@@ -24,12 +24,24 @@ inline void HeapManager::insert(void *heap_base) {
   present_heaps_.push_back(heap_base);
 }
 
-inline bool HeapManager::remove(void *heap_base) {
+inline bool HeapManager::remove_for_migration(void *heap_base) {
   rt::SpinGuard guard(&spin_);
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
   if (heap_header->status == kPresent) {
     num_present_heaps_--;
     heap_header->status = kAbsent;
+    return true;
+  } else {
+    return false;
+  }
+}
+
+inline bool HeapManager::remove_for_destruction(void *heap_base) {
+  rt::SpinGuard guard(&spin_);
+  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  if (heap_header->status == kPresent) {
+    num_present_heaps_--;
+    heap_header->status = kDestructed;
     return true;
   } else {
     return false;
@@ -42,7 +54,7 @@ inline void HeapManager::enable_migration(HeapHeader *heap_header) {
 
 inline bool HeapManager::try_disable_migration(HeapHeader *heap_header) {
   heap_header->rcu_lock.reader_lock();
-  if (unlikely(rt::access_once(heap_header->status) != kPresent)) {
+  if (unlikely(rt::access_once(heap_header->status) < kPresent)) {
     heap_header->rcu_lock.reader_unlock();
     return false;
   }
@@ -51,7 +63,7 @@ inline bool HeapManager::try_disable_migration(HeapHeader *heap_header) {
 
 inline void HeapManager::disable_migration(HeapHeader *heap_header) {
   heap_header->rcu_lock.reader_lock();
-  if (unlikely(rt::access_once(heap_header->status) != kPresent)) {
+  if (unlikely(rt::access_once(heap_header->status) < kPresent)) {
     heap_header->rcu_lock.reader_unlock();
     HeapManager::wait_until_present(heap_header);
     heap_header->rcu_lock.reader_lock();

@@ -385,7 +385,7 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header,
 }
 
 bool Migrator::try_mark_heap_migrating(HeapHeader *heap_header) {
-  if (unlikely(!Runtime::heap_manager->remove(heap_header))) {
+  if (unlikely(!Runtime::heap_manager->remove_for_migration(heap_header))) {
     return false;
   }
   heap_header->rcu_lock.writer_sync(/* poll = */ true);

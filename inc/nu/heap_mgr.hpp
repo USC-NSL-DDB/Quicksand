@@ -33,7 +33,7 @@ class CondVar;
 class Time;
 template <typename T> class RuntimeAllocator;
 
-enum HeapStatus { kAbsent = 0, kLoading, kMapped, kPresent };
+enum HeapStatus { kAbsent = 0, kLoading, kMapped, kPresent, kDestructed };
 
 struct HeapHeader {
   ~HeapHeader();
@@ -86,7 +86,8 @@ public:
   static void deallocate(void *heap_base);
   static void wait_until_present(HeapHeader *heap_header);
   void insert(void *heap_base);
-  bool remove(void *heap_base);
+  bool remove_for_migration(void *heap_base);
+  bool remove_for_destruction(void *heap_base);
   std::vector<void *> get_all_heaps();
   uint64_t get_mem_usage();
   uint32_t get_num_present_heaps();

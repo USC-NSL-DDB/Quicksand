@@ -483,8 +483,9 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
     auto *callee_heap_header = to_heap_header(id_);
     if (Runtime::obj_server && callee_heap_header->status == kPresent) {
       // Fast path: the heap is actually local, use function call.
-      ObjServer::update_ref_cnt_locally<T>(id_, delta);
-      return nullptr;
+      if (likely(ObjServer::update_ref_cnt_locally<T>(id_, delta))) {
+        return nullptr;
+      }
     }
   }
 

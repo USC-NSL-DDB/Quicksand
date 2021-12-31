@@ -75,8 +75,8 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
   heap_header->spin.Unlock();
 
   if (latest_cnt == 0) {
-    if (likely(Runtime::heap_manager->remove(heap_header))) {
-      // Will never be migrated at this point.
+    if (likely(Runtime::heap_manager->remove_for_destruction(heap_header))) {
+      // Won't be migrated at this point.
       *deallocate = true;
       obj.~Cls();
     } else {
@@ -86,7 +86,6 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
         MigrationEnabledGuard guard;
         HeapManager::wait_until_present(heap_header);
       }
-
       // Safe without acquiring the lock since the obj is dead now.
       heap_header->ref_cnt = -delta;
       RuntimeSlabGuard guard;
@@ -127,7 +126,7 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls>
-void ObjServer::update_ref_cnt_locally(RemObjID id, int delta) {
+bool ObjServer::update_ref_cnt_locally(RemObjID id, int delta) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(to_heap_base(id));
   heap_header->spin.Lock();
   auto latest_cnt = (heap_header->ref_cnt += delta);
@@ -135,14 +134,21 @@ void ObjServer::update_ref_cnt_locally(RemObjID id, int delta) {
   heap_header->spin.Unlock();
 
   if (latest_cnt == 0) {
-    auto *obj = Runtime::get_obj<Cls>(id);
-    ObjSlabGuard obj_slab_guard(&heap_header->slab);
-    obj->~Cls();
-    {
-      RuntimeSlabGuard runtime_slab_guard;
-      Runtime::heap_manager->deallocate(heap_header);
+    if (unlikely(!Runtime::heap_manager->remove_for_destruction(heap_header))) {
+      return false;
     }
+    // Won't be migrated at this point.
+    {
+      auto *obj = Runtime::get_obj<Cls>(id);
+      ObjSlabGuard obj_slab_guard(&heap_header->slab);
+      obj->~Cls();
+    }
+
+    RuntimeSlabGuard runtime_slab_guard;
+    Runtime::heap_manager->deallocate(heap_header);
   }
+
+  return true;
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>

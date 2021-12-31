@@ -25,7 +25,7 @@ public:
   static void update_ref_cnt(cereal::BinaryInputArchive &ia,
                              RPCReturner *returner);
   template <typename Cls>
-  static void update_ref_cnt_locally(RemObjID id, int delta);
+  static bool update_ref_cnt_locally(RemObjID id, int delta);
   template <typename Cls, typename... As>
   static void construct_obj(cereal::BinaryInputArchive &ia,
                             RPCReturner *returner);
