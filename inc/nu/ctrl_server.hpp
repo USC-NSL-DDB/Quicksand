@@ -18,12 +18,23 @@ namespace nu {
 struct RPCReqRegisterNode {
   RPCReqType rpc_type = kRegisterNode;
   Node node;
+  MD5Val md5;
 } __attribute__((packed));
 
 struct RPCRespRegisterNode {
   bool empty;
   lpid_t lpid;
   VAddrRange stack_cluster;
+} __attribute__((packed));
+
+struct RPCReqVerifyMD5 {
+  RPCReqType rpc_type = kVerifyMD5;
+  lpid_t lpid;
+  MD5Val md5;
+} __attribute__((packed));
+
+struct RPCRespVerifyMD5 {
+  bool passed;
 } __attribute__((packed));
 
 struct RPCReqAllocateObj {
@@ -87,6 +98,8 @@ private:
 
   std::unique_ptr<RPCRespRegisterNode>
   handle_register_node(const RPCReqRegisterNode &req);
+  std::unique_ptr<RPCRespVerifyMD5>
+  handle_verify_md5(const RPCReqVerifyMD5 &req);
   std::unique_ptr<RPCRespAllocateObj>
   handle_allocate_obj(const RPCReqAllocateObj &req);
   std::unique_ptr<RPCRespDestroyObj>

@@ -3,6 +3,7 @@
 ROOT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 CALADAN_PATH=$ROOT_PATH/caladan
 CTRL_IP="18.18.1.3"
+LPID=1
 
 function say_failed() {
     echo -e "----\e[31mFailed\e[0m"
@@ -45,11 +46,11 @@ function rerun_iokerneld {
 }
 
 function run_client {
-    sudo stdbuf -o0 sh -c "$1 $ROOT_PATH/conf/client1 CLT $CTRL_IP 0"
+    sudo stdbuf -o0 sh -c "$1 $ROOT_PATH/conf/client1 CLT $CTRL_IP $LPID"
 }
 
 function run_server {
-    sudo stdbuf -o0 sh -c "$2 $ROOT_PATH/conf/server$1 SRV $CTRL_IP 0"
+    sudo stdbuf -o0 sh -c "$2 $ROOT_PATH/conf/server$1 SRV $CTRL_IP $LPID"
 }
 
 function run_controller {

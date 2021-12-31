@@ -11,8 +11,6 @@ extern "C" {
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <openssl/md5.h>
-
 #include "nu/utils/md5.hpp"
 
 namespace nu {

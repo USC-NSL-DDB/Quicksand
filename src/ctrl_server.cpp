@@ -15,7 +15,8 @@ std::unique_ptr<RPCRespRegisterNode>
 ControllerServer::handle_register_node(const RPCReqRegisterNode &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespRegisterNode>();
   auto node = req.node;
-  auto optional = ctrl_.register_node(node);
+  auto md5 = req.md5;
+  auto optional = ctrl_.register_node(node, md5);
   if (optional) {
     resp->empty = false;
     resp->lpid = optional->first;
@@ -23,6 +24,13 @@ ControllerServer::handle_register_node(const RPCReqRegisterNode &req) {
   } else {
     resp->empty = true;
   }
+  return resp;
+}
+
+std::unique_ptr<RPCRespVerifyMD5>
+ControllerServer::handle_verify_md5(const RPCReqVerifyMD5 &req) {
+  auto resp = std::make_unique_for_overwrite<RPCRespVerifyMD5>();
+  resp->passed = ctrl_.verify_md5(req.lpid, req.md5);
   return resp;
 }
 

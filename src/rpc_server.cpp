@@ -41,6 +41,13 @@ void RPCServer::run_background_loop() {
       returner->Return(kOk, span, [resp = std::move(resp)] {});
       break;
     }
+    case kVerifyMD5: {
+      auto &req = from_span<RPCReqVerifyMD5>(args);
+      auto resp = Runtime::controller_server->handle_verify_md5(req);
+      auto span = to_span(*resp);
+      returner->Return(kOk, span, [resp = std::move(resp)] {});
+      break;
+    }
     case kAllocateObj: {
       auto &req = from_span<RPCReqAllocateObj>(args);
       auto resp = Runtime::controller_server->handle_allocate_obj(req);

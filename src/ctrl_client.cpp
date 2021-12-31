@@ -14,21 +14,28 @@ namespace nu {
 ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode,
                                    lpid_t lpid)
     : rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
+  auto md5 = get_self_md5();
+
   if (mode == Runtime::kServer) {
-    auto optional = register_node(
-        Node{get_cfg_ip(), RPCServer::kPort, Migrator::kPort, lpid});
+    Node node{get_cfg_ip(), RPCServer::kPort, Migrator::kPort, lpid};
+    auto optional = register_node(node, md5);
     BUG_ON(!optional);
+    BUG_ON(lpid && lpid != optional->first);
     std::tie(lpid_, stack_cluster_) = *optional;
-    std::cout << "running with lpid = " << lpid_ << std::endl;
+  } else if (mode == Runtime::kClient) {
+    BUG_ON(!verify_md5(lpid, md5));
+    lpid_ = lpid;
   } else {
-    BUG_ON(mode != Runtime::kClient);
+    BUG();
   }
+  std::cout << "running with lpid = " << lpid_ << std::endl;
 }
 
 std::optional<std::pair<lpid_t, VAddrRange>>
-ControllerClient::register_node(const Node &node) {
+ControllerClient::register_node(const Node &node, MD5Val md5) {
   RPCReqRegisterNode req;
   req.node = node;
+  req.md5 = md5;
   RPCReturnBuffer return_buf;
   auto rc = rpc_client_->Call(to_span(req), &return_buf);
   BUG_ON(rc != kOk);
@@ -40,6 +47,17 @@ ControllerClient::register_node(const Node &node) {
     auto stack_cluster = resp.stack_cluster;
     return std::make_pair(lpid, stack_cluster);
   }
+}
+
+bool ControllerClient::verify_md5(lpid_t lpid, MD5Val md5) {
+  RPCReqVerifyMD5 req;
+  req.lpid = lpid;
+  req.md5 = md5;
+  RPCReturnBuffer return_buf;
+  auto rc = rpc_client_->Call(to_span(req), &return_buf);
+  BUG_ON(rc != kOk);
+  auto &resp = from_span<RPCRespVerifyMD5>(return_buf.get_buf());
+  return resp.passed;
 }
 
 std::optional<std::pair<RemObjID, netaddr>>

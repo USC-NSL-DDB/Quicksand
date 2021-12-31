@@ -17,6 +17,7 @@ extern "C" {
 #include "nu/commons.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/rpc_client_mgr.hpp"
+#include "nu/utils/md5.hpp"
 #include "nu/utils/netaddr.hpp"
 
 namespace nu {
@@ -36,7 +37,9 @@ class Controller {
 public:
   Controller();
   ~Controller();
-  std::optional<std::pair<lpid_t, VAddrRange>> register_node(Node &node);
+  std::optional<std::pair<lpid_t, VAddrRange>> register_node(Node &node,
+                                                             MD5Val md5);
+  bool verify_md5(lpid_t lpid, MD5Val md5);
   std::optional<std::pair<RemObjID, netaddr>> allocate_obj(netaddr hint);
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);
@@ -48,6 +51,7 @@ private:
   std::stack<VAddrRange> free_heap_segments_;            // One segment per RemObj.
   std::stack<VAddrRange> free_stack_cluster_segments_;   // One segment per Node.
   std::set<lpid_t> free_lpids_;
+  std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;
   std::unordered_map<RemObjID, netaddr> objs_map_;
   std::set<Node> nodes_;
   std::set<Node>::iterator nodes_iter_;

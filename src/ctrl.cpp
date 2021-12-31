@@ -41,15 +41,21 @@ Controller::Controller() {
 Controller::~Controller() {}
 
 std::optional<std::pair<lpid_t, VAddrRange>>
-Controller::register_node(Node &node) {
+Controller::register_node(Node &node, MD5Val md5) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
+  // TODO: should GC the allocated lpid and stack somehow through heartbeat or an
+  // explicit deregister_node() call.
   if (node.lpid) {
     auto iter = free_lpids_.find(node.lpid);
-    if (unlikely(iter == free_lpids_.end())) {
-      return std::nullopt;
+    if (iter == free_lpids_.end()) {
+      if (unlikely(lpid_to_md5_[node.lpid] != md5)) {
+        return std::nullopt;
+      }
+    } else {
+      free_lpids_.erase(iter);
+      lpid_to_md5_[node.lpid] = md5;
     }
-    free_lpids_.erase(iter);
   } else {
     if (unlikely(free_lpids_.empty())) {
       return std::nullopt;
@@ -64,8 +70,6 @@ Controller::register_node(Node &node) {
     return std::nullopt;
   }
 
-  // TODO: should GC the allocated stack somehow through heartbeat or an
-  // explicit deregister_node() call.
   auto stack_cluster = free_stack_cluster_segments_.top();
   free_stack_cluster_segments_.pop();
 
@@ -87,6 +91,10 @@ Controller::register_node(Node &node) {
 
   nodes_.insert(node);
   return std::make_pair(node.lpid, stack_cluster);
+}
+
+bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
+  return lpid_to_md5_[lpid] == md5;
 }
 
 std::optional<std::pair<RemObjID, netaddr>>
