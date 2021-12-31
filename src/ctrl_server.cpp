@@ -15,8 +15,9 @@ std::unique_ptr<RPCRespRegisterNode>
 ControllerServer::handle_register_node(const RPCReqRegisterNode &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespRegisterNode>();
   auto node = req.node;
+  auto lpid = req.lpid;
   auto md5 = req.md5;
-  auto optional = ctrl_.register_node(node, md5);
+  auto optional = ctrl_.register_node(node, lpid, md5);
   if (optional) {
     resp->empty = false;
     resp->lpid = optional->first;
@@ -37,7 +38,7 @@ ControllerServer::handle_verify_md5(const RPCReqVerifyMD5 &req) {
 std::unique_ptr<RPCRespAllocateObj>
 ControllerServer::handle_allocate_obj(const RPCReqAllocateObj &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespAllocateObj>();
-  auto optional = ctrl_.allocate_obj(req.hint);
+  auto optional = ctrl_.allocate_obj(req.lpid, req.hint);
   if (optional) {
     resp->empty = false;
     resp->id = optional->first;
@@ -75,7 +76,7 @@ void ControllerServer::handle_update_location(const RPCReqUpdateLocation &req) {
 std::unique_ptr<RPCRespGetMigrationDest>
 ControllerServer::handle_get_migration_dest(const RPCReqGetMigrationDest &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespGetMigrationDest>();
-  auto addr = ctrl_.get_migration_dest(req.src_ip, req.resource);
+  auto addr = ctrl_.get_migration_dest(req.lpid, req.src_ip, req.resource);
   if (addr) {
     resp->empty = false;
     resp->addr = *addr;

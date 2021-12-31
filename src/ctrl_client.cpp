@@ -13,17 +13,18 @@ namespace nu {
 
 ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode,
                                    lpid_t lpid)
-    : rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
+    : lpid_(lpid),
+      rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
   auto md5 = get_self_md5();
 
   if (mode == Runtime::kServer) {
-    Node node{get_cfg_ip(), RPCServer::kPort, Migrator::kPort, lpid};
+    Node node{get_cfg_ip(), RPCServer::kPort, Migrator::kPort};
     auto optional = register_node(node, md5);
     BUG_ON(!optional);
-    BUG_ON(lpid && lpid != optional->first);
+    BUG_ON(lpid_ && lpid_ != optional->first);
     std::tie(lpid_, stack_cluster_) = *optional;
   } else if (mode == Runtime::kClient) {
-    BUG_ON(!verify_md5(lpid, md5));
+    BUG_ON(!verify_md5(md5));
     lpid_ = lpid;
   } else {
     BUG();
@@ -35,6 +36,7 @@ std::optional<std::pair<lpid_t, VAddrRange>>
 ControllerClient::register_node(const Node &node, MD5Val md5) {
   RPCReqRegisterNode req;
   req.node = node;
+  req.lpid = lpid_;
   req.md5 = md5;
   RPCReturnBuffer return_buf;
   auto rc = rpc_client_->Call(to_span(req), &return_buf);
@@ -49,9 +51,9 @@ ControllerClient::register_node(const Node &node, MD5Val md5) {
   }
 }
 
-bool ControllerClient::verify_md5(lpid_t lpid, MD5Val md5) {
+bool ControllerClient::verify_md5(MD5Val md5) {
   RPCReqVerifyMD5 req;
-  req.lpid = lpid;
+  req.lpid = lpid_;
   req.md5 = md5;
   RPCReturnBuffer return_buf;
   auto rc = rpc_client_->Call(to_span(req), &return_buf);
@@ -63,6 +65,7 @@ bool ControllerClient::verify_md5(lpid_t lpid, MD5Val md5) {
 std::optional<std::pair<RemObjID, netaddr>>
 ControllerClient::allocate_obj(std::optional<netaddr> hint) {
   RPCReqAllocateObj req;
+  req.lpid = lpid_;
   req.hint = hint ? *hint : netaddr(0, 0);
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
@@ -99,6 +102,7 @@ std::optional<netaddr> ControllerClient::resolve_obj(RemObjID id) {
 
 std::optional<netaddr> ControllerClient::get_migration_dest(Resource resource) {
   RPCReqGetMigrationDest req;
+  req.lpid = lpid_;
   req.src_ip = get_cfg_ip();
   req.resource = resource;
   RPCReturnBuffer return_buf;

@@ -34,46 +34,45 @@ Controller::Controller() {
                         .end = start_addr + kStackClusterSize};
     free_stack_cluster_segments_.push(range);
   }
-
-  nodes_iter_ = nodes_.end();
 }
 
 Controller::~Controller() {}
 
 std::optional<std::pair<lpid_t, VAddrRange>>
-Controller::register_node(Node &node, MD5Val md5) {
+Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   // TODO: should GC the allocated lpid and stack somehow through heartbeat or an
   // explicit deregister_node() call.
-  if (node.lpid) {
-    auto iter = free_lpids_.find(node.lpid);
+  if (lpid) {
+    auto iter = free_lpids_.find(lpid);
     if (iter == free_lpids_.end()) {
-      if (unlikely(lpid_to_md5_[node.lpid] != md5)) {
+      if (unlikely(lpid_to_md5_[lpid] != md5)) {
         return std::nullopt;
       }
     } else {
       free_lpids_.erase(iter);
-      lpid_to_md5_[node.lpid] = md5;
+      lpid_to_md5_[lpid] = md5;
     }
   } else {
     if (unlikely(free_lpids_.empty())) {
       return std::nullopt;
     }
     auto begin_iter = free_lpids_.begin();
-    node.lpid = *begin_iter;
+    lpid = *begin_iter;
     free_lpids_.erase(begin_iter);
   }
 
   if (unlikely(free_stack_cluster_segments_.empty())) {
-    free_lpids_.insert(node.lpid);
+    free_lpids_.insert(lpid);
     return std::nullopt;
   }
 
   auto stack_cluster = free_stack_cluster_segments_.top();
   free_stack_cluster_segments_.pop();
 
-  for (auto old_node : nodes_) {
+  auto &nodes = lpid_to_info_[lpid].nodes;
+  for (auto old_node : nodes) {
     auto *client = Runtime::rpc_client_mgr->get_by_ip(old_node.ip);
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
@@ -82,15 +81,15 @@ Controller::register_node(Node &node, MD5Val md5) {
   }
 
   auto *client = Runtime::rpc_client_mgr->get_by_ip(node.ip);
-  for (auto old_node : nodes_) {
+  for (auto old_node : nodes) {
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
     req.dest_server_addr = netaddr{old_node.ip, old_node.migrator_port};
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  nodes_.insert(node);
-  return std::make_pair(node.lpid, stack_cluster);
+  nodes.insert(node);
+  return std::make_pair(lpid, stack_cluster);
 }
 
 bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
@@ -98,7 +97,7 @@ bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
 }
 
 std::optional<std::pair<RemObjID, netaddr>>
-Controller::allocate_obj(netaddr hint) {
+Controller::allocate_obj(lpid_t lpid, netaddr hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   if (unlikely(free_heap_segments_.empty())) {
@@ -107,7 +106,7 @@ Controller::allocate_obj(netaddr hint) {
   auto start_addr = free_heap_segments_.top().start;
   auto id = start_addr;
   free_heap_segments_.pop();
-  auto node_optional = select_node_for_obj(hint);
+  auto node_optional = select_node_for_obj(lpid, hint);
   if (unlikely(!node_optional)) {
     return std::nullopt;
   }
@@ -142,30 +141,34 @@ std::optional<netaddr> Controller::resolve_obj(RemObjID id) {
   }
 }
 
-std::optional<Node> Controller::select_node_for_obj(netaddr hint) {
-  BUG_ON(nodes_.empty());
+std::optional<Node> Controller::select_node_for_obj(lpid_t lpid, netaddr hint) {
+  auto &[nodes, rr_iter] = lpid_to_info_[lpid];
+  BUG_ON(nodes.empty());
 
   if (hint.ip) {
     Node n{hint.ip, hint.port};
-    auto iter = nodes_.find(n);
-    if (unlikely(iter == nodes_.end())) {
+    auto iter = nodes.find(n);
+    if (unlikely(iter == nodes.end())) {
       return std::nullopt;
     }
     return *iter;
   }
 
   // TODO: adopt a more sophisticated mechanism once we've added more fields.
-  if (unlikely(nodes_iter_ == nodes_.end())) {
-    nodes_iter_ = nodes_.begin();
+  if (unlikely(rr_iter == nodes.end())) {
+    rr_iter = nodes.begin();
   }
-  return *nodes_iter_++;
+  return *rr_iter++;
 }
 
-std::optional<netaddr> Controller::get_migration_dest(uint32_t requestor_ip,
+std::optional<netaddr> Controller::get_migration_dest(lpid_t lpid,
+                                                      uint32_t requestor_ip,
                                                       Resource resource) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
+
+  auto &nodes = lpid_to_info_[lpid].nodes;
   // TODO: choose the dest node based on resource requirement.
-  for (auto &node : nodes_) {
+  for (auto &node : nodes) {
     if (node.ip != requestor_ip) {
       return netaddr{node.ip, node.migrator_port};
     }

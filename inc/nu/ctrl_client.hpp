@@ -26,7 +26,7 @@ public:
   ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode, lpid_t lpid);
   std::optional<std::pair<lpid_t, VAddrRange>> register_node(const Node &node,
                                                              MD5Val md5);
-  bool verify_md5(lpid_t lpid, MD5Val md5);
+  bool verify_md5(MD5Val md5);
   std::optional<std::pair<RemObjID, netaddr>>
   allocate_obj(std::optional<netaddr> hint);
   void destroy_obj(RemObjID id);

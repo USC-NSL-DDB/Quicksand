@@ -18,6 +18,7 @@ namespace nu {
 struct RPCReqRegisterNode {
   RPCReqType rpc_type = kRegisterNode;
   Node node;
+  lpid_t lpid;
   MD5Val md5;
 } __attribute__((packed));
 
@@ -39,6 +40,7 @@ struct RPCRespVerifyMD5 {
 
 struct RPCReqAllocateObj {
   RPCReqType rpc_type = kAllocateObj;
+  lpid_t lpid;
   netaddr hint;
 } __attribute__((packed));
 
@@ -75,6 +77,7 @@ struct RPCReqUpdateLocation {
 
 struct RPCReqGetMigrationDest {
   RPCReqType rpc_type = kGetMigrationDest;
+  lpid_t lpid;
   uint32_t src_ip;
   Resource resource;
 } __attribute__((packed));
