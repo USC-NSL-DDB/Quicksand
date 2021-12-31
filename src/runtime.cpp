@@ -86,7 +86,7 @@ void Runtime::common_init() {
 Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid) {
   common_init();
 
-  if (mode == kClient){
+  if (mode == kClient) {
     init_as_client(remote_ctrl_ip, lpid);
   } else {
     if (mode == kController) {
@@ -159,13 +159,18 @@ int runtime_main_init(int argc, char **argv,
     goto wrong_args;
   }
 
+  if (argc > 5 && std::string(argv[5]) != "--") {
+    goto wrong_args;
+  }
+
   remote_ctrl_ip = str_to_ip(std::string(argv[3]));
   lpid = stoi(std::string(argv[4]));
 
   ret = rt::RuntimeInit(std::string(argv[1]), [&] {
     auto runtime = nu::Runtime::init(remote_ctrl_ip, mode, lpid);
-    argv[4] = argv[0];
-    main_func(argc - 4, &argv[4]);
+    auto num_skipped_args = (argc > 5) ? 5 : 4;
+    argv[num_skipped_args] = argv[0];
+    main_func(argc - num_skipped_args, &argv[num_skipped_args]);
   });
 
   if (ret) {
@@ -176,7 +181,8 @@ int runtime_main_init(int argc, char **argv,
   return 0;
 
 wrong_args:
-  std::cerr << "usage: cfg_file CLT/SRV ctrl_ip lpid -- [app args] " << std::endl;
+  std::cerr << "usage: cfg_file CLT/SRV ctrl_ip lpid [--] [app args]"
+            << std::endl;
   return -EINVAL;
 }
 
@@ -220,4 +226,3 @@ void operator delete(void *ptr) noexcept {
     preempt_enable();
   }
 }
-
