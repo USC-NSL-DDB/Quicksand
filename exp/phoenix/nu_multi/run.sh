@@ -28,7 +28,7 @@ do
 	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply
 done
 
-for num_worker_servers in `seq 1 4`
+for num_worker_servers in `seq 1 7`
 do
     cd $NU_DIR/app/phoenix++-1.0/
     make clean
@@ -57,7 +57,7 @@ do
     for i in `seq 1 $num_worker_servers`
     do
 	ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
-	conf=conf/server`expr $i + 1`
+	conf=conf/server$i
 	ssh $ip "cd `pwd`; sudo ./main $conf SRV $CTRL_IP $LPID" &
     done
     sleep 5
