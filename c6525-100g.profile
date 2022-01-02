@@ -1,4 +1,4 @@
-"""Eight 100g nodes interconnected with a single switch."""
+"""100g servers for running Nu."""
 
 # Import the Portal object.
 import geni.portal as portal
@@ -7,104 +7,48 @@ import geni.rspec.pg as pg
 # Import the Emulab specific extensions.
 import geni.rspec.emulab as emulab
 
+# Describe the parameter(s) this profile script can accept.
+portal.context.defineParameter( "n", "Number of Machines", portal.ParameterType.INTEGER, 8 )
+
+# Retrieve the values the user specifies during instantiation.
+params = portal.context.bindParameters()
+
 # Create a portal object,
 pc = portal.Context()
 
 # Create a Request object to start building the RSpec.
 request = pc.makeRequestRSpec()
 
-# Node node-0
-node_0 = request.RawPC('node-0')
-node_0.routable_control_ip = True
-node_0.hardware_type = 'c6525-100g'
-node_0.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
-iface0 = node_0.addInterface('interface-0')
-iface1 = node_0.addInterface('interface-1')
+nodes = []
+ifaces_25 = []
+ifaces_100 = []
 
-# Node node-1
-node_1 = request.RawPC('node-1')
-node_1.routable_control_ip = True
-node_1.hardware_type = 'c6525-100g'
-node_1.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
-iface2 = node_1.addInterface('interface-2')
-iface3 = node_1.addInterface('interface-3')
+for i in range(0, params.n):
+    n = request.RawPC('node-%d' % i)
+    n.routable_control_ip = True
+    n.hardware_type = 'c6525-100g'
+    n.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
+    nodes.append(n)
+    iface_25 = n.addInterface('interface-%d' % (2 * i), pg.IPv4Address('10.10.1.%d' % (i + 1),'255.255.255.0'))
+    ifaces_25.append(iface_25)
+    iface_100 = n.addInterface('interface-%d' % (2 * i + 1), pg.IPv4Address('10.10.2.%d' % (i + 1),'255.255.255.0'))
+    ifaces_100.append(iface_100)
 
-# Node node-2
-node_2 = request.RawPC('node-2')
-node_2.routable_control_ip = True
-node_2.hardware_type = 'c6525-100g'
-node_2.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
-iface4 = node_2.addInterface('interface-4')
-iface5 = node_2.addInterface('interface-5')
+# Link link-25 for 25g WAN connection
+link_25 = request.Link('link-25')
+link_25.Site('undefined')
+link_25.best_effort = False
+link_25.bandwidth = 25000000
+for iface in ifaces_25:
+    link_25.addInterface(iface)
 
-# Node node-3
-node_3 = request.RawPC('node-3')
-node_3.routable_control_ip = True
-node_3.hardware_type = 'c6525-100g'
-node_3.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
-iface6 = node_3.addInterface('interface-6')
-iface7 = node_3.addInterface('interface-7')
-
-# Node node-4
-node_4 = request.RawPC('node-4')
-node_4.routable_control_ip = True
-node_4.hardware_type = 'c6525-100g'
-node_4.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
-iface8 = node_4.addInterface('interface-8')
-iface9 = node_4.addInterface('interface-9')
-
-# Node node-5
-node_5 = request.RawPC('node-5')
-node_5.routable_control_ip = True
-node_5.hardware_type = 'c6525-100g'
-node_5.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
-iface10 = node_5.addInterface('interface-10')
-iface11 = node_5.addInterface('interface-11')
-
-# Node node-6
-node_6 = request.RawPC('node-6')
-node_6.routable_control_ip = True
-node_6.hardware_type = 'c6525-100g'
-node_6.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
-iface12 = node_6.addInterface('interface-12')
-iface13 = node_6.addInterface('interface-13')
-
-# Node node-7
-node_7 = request.RawPC('node-7')
-node_7.routable_control_ip = True
-node_7.hardware_type = 'c6525-100g'
-node_7.disk_image = 'urn:publicid:IDN+utah.cloudlab.us+image+shenango-PG0//nu-100g'
-iface14 = node_7.addInterface('interface-14')
-iface15 = node_7.addInterface('interface-15')
-
-# Link link-0 for WAN connection
-link_0 = request.Link('link-0')
-link_0.Site('undefined')
-link_0.best_effort = False
-link_0.bandwidth = 25000000
-#link_0.setNoInterSwitchLinks()
-link_0.addInterface(iface0)
-link_0.addInterface(iface2)
-link_0.addInterface(iface4)
-link_0.addInterface(iface6)
-link_0.addInterface(iface8)
-link_0.addInterface(iface10)
-link_0.addInterface(iface12)
-link_0.addInterface(iface14)
-
-# Link link-1 for 100g LAN connection
-link_1 = request.Link('link-1')
-link_1.Site('undefined')
-link_1.best_effort = False
-link_1.bandwidth = 100000000
-#link_1.setNoInterSwitchLinks()
-link_1.addInterface(iface1)
-link_1.addInterface(iface3)
-link_1.addInterface(iface5)
-link_1.addInterface(iface7)
-link_1.addInterface(iface9)
-link_1.addInterface(iface11)
-link_1.addInterface(iface13)
-link_1.addInterface(iface15)
+# Link link-100 for 100g LAN connection
+link_100 = request.Link('link-100')
+link_100.Site('undefined')
+link_100.best_effort = False
+link_100.bandwidth = 100000000
+for iface in ifaces_100:
+    link_100.addInterface(iface)
 
 # Print the generated rspec
+pc.printRequestRSpec(request)
