@@ -17,6 +17,8 @@ set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
 DIR=`pwd`
+CTRL_IP=18.18.1.3
+LPID=1
 
 for ip in ${REMOTE_SERVER_IPS[*]}
 do
@@ -28,7 +30,7 @@ done
 
 for num_worker_servers in `seq 1 4`
 do
-    cd ../../../app/phoenix++-1.0/
+    cd $NU_DIR/app/phoenix++-1.0/
     make clean
     make -j
     cd tests/matrix_multiply/
@@ -50,16 +52,16 @@ do
 	ssh $ip "sudo $NU_DIR/caladan/iokerneld" &
     done
     sleep 5
-    sudo ./main conf/controller CTL 18.18.1.3 &
+    sudo $NU_DIR/bin/ctrl_main conf/controller $CTRL_IP &
     sleep 5
     for i in `seq 1 $num_worker_servers`
     do
 	ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
 	conf=conf/server`expr $i + 1`
-	ssh $ip "cd `pwd`; sudo ./main $conf SRV 18.18.1.3" &
+	ssh $ip "cd `pwd`; sudo ./main $conf SRV $CTRL_IP $LPID" &
     done
     sleep 5
-    sudo ./main conf/client1 CLT 18.18.1.3 4000 0 1>logs/$num_worker_servers 2>&1
+    sudo ./main conf/client1 CLT $CTRL_IP $LPID -- 4000 0 1>logs/$num_worker_servers 2>&1
     sudo pkill -9 iokerneld
     sudo pkill -9 main
     for i in `seq 1 $num_worker_servers`
