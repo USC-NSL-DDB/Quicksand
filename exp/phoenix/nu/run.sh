@@ -48,7 +48,7 @@ do
     sleep 5
     ssh $SERVER2_IP "cd `pwd`; sudo ./main conf/server1 SRV $CTRL_IP $LPID" &
     sleep 5
-    sudo ./main conf/client1 CLT $CTRL_IP $LPID -- 4000 0 1>logs/$num_threads 2>&1
+    sudo ./main conf/client1 CLT $CTRL_IP $LPID -- 10000 0 1>logs/$num_threads 2>&1
     sudo pkill -9 iokerneld
     sudo pkill -9 main
     sudo pkill -9 ctrl_main

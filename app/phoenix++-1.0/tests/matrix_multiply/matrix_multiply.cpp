@@ -35,12 +35,8 @@
 
 constexpr char fname_A[] = "matrix_file_A.txt";
 constexpr char fname_B[] = "matrix_file_B.txt";
-constexpr uint32_t kNumWorkerThreads = 46 * 4;
-constexpr uint32_t kNumWorkerNodes = 4;
-constexpr uint32_t kWorkerNodeIps[] = {
-    MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 5),
-    MAKE_IP_ADDR(18, 18, 1, 7), MAKE_IP_ADDR(18, 18, 1, 8),
-    MAKE_IP_ADDR(18, 18, 1, 9)};
+constexpr uint32_t kNumWorkerThreads = 46 * 14;
+constexpr uint32_t kNumWorkerNodes = 14;
 
 struct mm_data_t {
   uint64_t matrix_len;

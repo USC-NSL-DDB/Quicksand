@@ -9,10 +9,10 @@ make clean
 make -j
 cd tests/matrix_multiply
 
-./matrix_multiply 4000
+./matrix_multiply 10000
 
 for num_threads in `seq 1 46`
 do
     export MR_NUMTHREADS=$num_threads
-    ./matrix_multiply 4000 0 1>$DIR/logs/$num_threads 2>&1
+    ./matrix_multiply 10000 0 1>$DIR/logs/$num_threads 2>&1
 done

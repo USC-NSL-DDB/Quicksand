@@ -28,7 +28,7 @@ do
 	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply
 done
 
-for num_worker_servers in `seq 1 7`
+for num_worker_servers in `seq 1 14`
 do
     cd $NU_DIR/app/phoenix++-1.0/
     make clean
@@ -61,7 +61,7 @@ do
 	ssh $ip "cd `pwd`; sudo ./main $conf SRV $CTRL_IP $LPID" &
     done
     sleep 5
-    sudo ./main conf/client1 CLT $CTRL_IP $LPID -- 4000 0 1>logs/$num_worker_servers 2>&1
+    sudo ./main conf/client1 CLT $CTRL_IP $LPID -- 10000 0 1>logs/$num_worker_servers 2>&1
     sudo pkill -9 iokerneld
     sudo pkill -9 main
     for i in `seq 1 $num_worker_servers`

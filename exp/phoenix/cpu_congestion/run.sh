@@ -45,7 +45,7 @@ ssh $SRC_SERVER_IP "cd `pwd`; sudo ../../../bin/bench_real_cpu_pressure conf/cli
 sleep 5
 ssh $SRC_SERVER_IP "cd `pwd`; sudo stdbuf -o0 ./main conf/server1 SRV $CTRL_IP $LPID" &
 sleep 5
-sudo ./main conf/client1 CLT $CTRL_IP $LPID -- 4000 &
+sudo ./main conf/client1 CLT $CTRL_IP $LPID -- 10000 &
 
 pid_client=$!
 sleep 5
