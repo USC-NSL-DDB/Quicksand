@@ -2,6 +2,14 @@
 
 source ../../shared.sh
 
+if [ ! -f ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_A.txt ]; then
+    echo "Please run after executing the baseline script."
+fi
+
+if [ ! -f ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_B.txt ]; then
+    echo "Please run after executing the baseline script."
+fi
+
 set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
