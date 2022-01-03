@@ -13,7 +13,6 @@
 #include <runtime.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/monitor.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
@@ -25,12 +24,14 @@ constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr double kLoadFactor = 0.20;
 constexpr uint32_t kPrintIntervalUS = 1000 * 1000;
-constexpr uint32_t kNumProxies = 4;
+constexpr uint32_t kNumProxies = 7;
 constexpr uint32_t kProxyIps[] = {
-    MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 5),
-    MAKE_IP_ADDR(18, 18, 1, 7), MAKE_IP_ADDR(18, 18, 1, 8)};
+    MAKE_IP_ADDR(18, 18, 1, 2),  MAKE_IP_ADDR(18, 18, 1, 5),
+    MAKE_IP_ADDR(18, 18, 1, 7),  MAKE_IP_ADDR(18, 18, 1, 8),
+    MAKE_IP_ADDR(18, 18, 1, 13), MAKE_IP_ADDR(18, 18, 1, 15),
+    MAKE_IP_ADDR(18, 18, 1, 17)};
 constexpr uint32_t kProxyPort = 10086;
-constexpr uint32_t kNumThreads = 1000;
+constexpr uint32_t kNumThreads = 500;
 
 rt::TcpConn *conns[kNumProxies][kNumThreads];
 

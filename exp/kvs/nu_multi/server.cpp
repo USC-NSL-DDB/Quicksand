@@ -13,7 +13,6 @@
 #include <runtime.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/monitor.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
@@ -24,7 +23,7 @@ using namespace nu;
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr double kLoadFactor = 0.20;
-constexpr uint32_t kNumProxies = 4;
+constexpr uint32_t kNumProxies = 7;
 constexpr uint32_t kProxyPort = 10086;
 
 struct Key {

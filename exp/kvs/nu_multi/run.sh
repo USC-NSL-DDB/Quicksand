@@ -5,14 +5,17 @@ source ../../shared.sh
 mkdir logs
 rm -rf logs/*
 
+CTRL_IP=18.18.1.3
+LPID=1
+
 set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
-for num_worker_nodes in `seq 1 4`
+for num_worker_nodes in `seq 1 7`
 do
     sudo $NU_DIR/caladan/iokerneld &
     sleep 5
-    sudo ./server conf/controller CTL 18.18.1.3 &
+    sudo $NU_DIR/bin/ctrl_main conf/controller $CTRL_IP &
     sleep 5
     sed "s/constexpr uint32_t kNumProxies.*/constexpr uint32_t kNumProxies = $num_worker_nodes;/g" \
 	-i server.cpp
@@ -30,10 +33,10 @@ do
 	sleep 5
 
 	conf=conf/server$i
-	ssh $server_ip "cd `pwd`; sudo ./server $conf SRV 18.18.1.3" &
+	ssh $server_ip "cd `pwd`; sudo ./server $conf SRV $CTRL_IP $LPID" &
     done
     sleep 5
-    sudo ./server conf/client1 CLT 18.18.1.3 >logs/.tmp &
+    sudo ./server conf/client1 CLT $CTRL_IP $LPID >logs/.tmp &
     ( tail -f -n0 logs/.tmp & ) | grep -q "finish initing"
     for i in `seq 1 $num_worker_nodes`
     do
@@ -58,6 +61,7 @@ do
     done
     sudo pkill -9 iokerneld
     sudo pkill -9 server
+    sudo pkill -9 ctrl_main
     sleep 10
 done
 
