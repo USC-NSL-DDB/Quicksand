@@ -26,7 +26,6 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   ia >> base >> pinned;
 
   Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
-  Runtime::heap_manager->insert(base);
 
   auto *heap_header = reinterpret_cast<HeapHeader *>(base);
   heap_header->cpu_load.reset();
@@ -38,11 +37,14 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   std::apply(
       [&](auto &&... args) {
         ObjSlabGuard obj_slab_guard(&slab);
+        heap_header->status = kPresent;
+        thread_set_owner_heap(thread_self(), base);
         new (obj_space) Cls(std::forward<As>(args)...);
+        thread_unset_owner_heap();
       },
       args);
 
-  barrier();
+  Runtime::heap_manager->insert(base);
 
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   send_rpc_resp_ok(oa_sstream, returner);
@@ -52,7 +54,6 @@ template <typename Cls, typename... As>
 void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
   RuntimeSlabGuard runtime_slab_guard;
   Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
-  Runtime::heap_manager->insert(base);
 
   auto *heap_header = reinterpret_cast<HeapHeader *>(base);
   heap_header->cpu_load.reset();
@@ -61,8 +62,13 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
 
   {
     ObjSlabGuard obj_slab_guard(&slab);
+    heap_header->status = kPresent;
+    thread_set_owner_heap(thread_self(), base);
     new (obj_space) Cls(std::forward<As>(args)...);
+    thread_unset_owner_heap();
   }
+
+  Runtime::heap_manager->insert(base);
 }
 
 template <typename Cls>
