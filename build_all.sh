@@ -2,12 +2,16 @@
 
 if [[ ! -v NODE_TYPE ]]; then
     echo 'Please set env var $NODE_TYPE, 
-supported list: [c6525-100g, xl170, xl170-uswitch, other]'
+supported list: [c6525-100g, c6525-25g, xl170, xl170-uswitch, other]'
     exit 1
 fi
 
 if [ $NODE_TYPE == "c6525-100g" ]; then
-    patch -p1 -d caladan/ < caladan/build/cloudlab_c6525-100g.patch
+    patch -p1 -d caladan/ < caladan/build/cloudlab_c6525.patch
+fi
+
+if [ $NODE_TYPE == "c6525-25g" ]; then
+    patch -p1 -d caladan/ < caladan/build/cloudlab_c6525.patch
 fi
 
 if [ $NODE_TYPE == "xl170" ]; then

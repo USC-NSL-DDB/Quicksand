@@ -12,6 +12,7 @@ function prepare {
 	echo 'Please set env var $DPDK_NIC, e.g., export DPDK_NIC=enp5s0f0'
 	exit 1
     fi
+    sudo ifconfig $DPDK_NIC mtu 9000
     sudo bridge fdb add 1E:CF:16:43:AF:94 self dev $DPDK_NIC 2>/dev/null
     sudo bridge fdb add 1E:CF:16:43:AF:95 self dev $DPDK_NIC 2>/dev/null
     sudo bridge fdb add 1E:CF:16:43:AF:96 self dev $DPDK_NIC 2>/dev/null
@@ -38,7 +39,7 @@ function run_test {
 
     kill_controller
     kill_process test_
-    sleep 3
+    sleep 5
     return $ret
 }
 
