@@ -26,7 +26,7 @@ ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./install_docker.sh"
 ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./down_nginx.sh; ./up_nginx.sh"
 ssh $NGINX_SERVER_IP "sudo ip addr add $NGINX_SERVER_CALADAN_IP_AND_MASK dev $NGINX_SERVER_NIC"
 
-mops=( 1 1.4 1.9 2.3 2.6 2.6 3 3 3 3 3 3 3 )
+mops=( 2 3 3 4 4 5 6 6 7 7 8 8 9 )
 
 for num_worker_nodes in `seq 1 13`
 do    
