@@ -53,11 +53,13 @@ void Runtime::init_runtime_heap() {
 
 void Runtime::init_as_controller() {
   controller_server.reset(new decltype(controller_server)::element_type());
+  rpc_server.reset(new decltype(rpc_server)::element_type());
   rpc_server->run_background_loop();
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
   obj_server.reset(new decltype(obj_server)::element_type());
+  rpc_server.reset(new decltype(rpc_server)::element_type());
   rpc_server->run_background_loop();
   migrator.reset(new decltype(migrator)::element_type());
   migrator->run_background_loop();
