@@ -28,7 +28,10 @@ do
 	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply
 done
 
-for num_worker_servers in `seq 1 14`
+mv $NU_DIR/app/phoenix++-1.0/matrix_multiply.cpp $NU_DIR/app/phoenix++-1.0/matrix_multiply.cpp.bak
+cp matrix_multiply.cpp $NU_DIR/app/phoenix++-1.0/matrix_multiply.cpp
+
+for num_worker_servers in `seq 1 30`
 do
     cd $NU_DIR/app/phoenix++-1.0/
     make clean
@@ -72,6 +75,7 @@ do
     done
 done
 
+mv $NU_DIR/app/phoenix++-1.0/matrix_multiply.cpp.bak $NU_DIR/app/phoenix++-1.0/matrix_multiply.cpp
+
 unset_bridge $CONTROLLER_ETHER
 unset_bridge $CLIENT1_ETHER
-
