@@ -11,7 +11,7 @@ LPID=1
 set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
-for num_worker_nodes in `seq 1 7`
+for num_worker_nodes in `seq 1 19`
 do
     sudo $NU_DIR/caladan/iokerneld &
     sleep 5
