@@ -50,6 +50,8 @@ extern "C" {
 #include "combiner.h"
 #include "stddefines.h"
 
+uint64_t map_start_us, shuffle_start_ts, shuffle_end_ts;
+
 template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner =
               buffer_combiner,
@@ -174,16 +176,15 @@ template <typename Impl, typename D, typename K, typename V,
 int MapReduce<Impl, D, K, V, Combiner, Hash>::run(D *data, uint64_t count,
                                                   std::vector<keyval> &result,
                                                   uint64_t chunk_size) {
-  auto t0 = microtime();
+  map_start_us = microtime();
   run_map(data, count, chunk_size);
-  auto t1 = microtime();  
+  shuffle_start_ts = microtime();
   run_reduce();
-  auto t2 = microtime();
   run_merge();
   result.swap(this->final_vals[0]);
-  auto t3 = microtime();
 
-  std::cout << t1 - t0 << " " << t2 - t1 << " " << t3 - t2 << std::endl;
+  std::cout << shuffle_start_ts - map_start_us << " "
+            << shuffle_end_ts - shuffle_start_ts << " " << std::endl;
 
   return 0;
 }
@@ -315,6 +316,7 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::run_reduce() {
   for (auto &future : futures) {
     future.get();
   }
+  shuffle_end_ts = microtime();
 
   final_vals = hash_table->associative_reduce(
       std::vector<keyval>(),
