@@ -57,9 +57,9 @@ target_link_libraries(
     ${THRIFT_STATIC_LIB}
     ${CMAKE_THREAD_LIBS_INIT}
     nlohmann_json::nlohmann_json
-    crypto
     # Nu
     nu
+    crypto
     # Caladan
     rt++
     runtime
