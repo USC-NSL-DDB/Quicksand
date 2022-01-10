@@ -560,12 +560,18 @@ void tcp_qclose(tcpqueue_t *q)
 }
 
 /* FIXME: support the non-directpath code path. */
-static void check_net_softirq(void)
+static void __check_net_softirq(void)
 {
 	struct kthread *l, *k;
 	int i;
 
 	l = getk();
+
+	/* unblock ongoing prioritization */
+	prioritize_local_rcu_readers();
+
+	/* unblock ongoing migration */
+	pause_local_migrating_threads();
 
 	/* check local directpath softirq */
 	if (softirq_directpath_pending(l))
@@ -625,7 +631,7 @@ int __tcp_dial(struct netaddr laddr, struct netaddr raddr, tcpconn_t **c_out,
 	/* wait until the connection is established or there is a failure */
 	while (!c->tx_closed && c->pcb.state < TCP_STATE_ESTABLISHED) {
 		if (poll)
-			waitq_wait_poll(&c->tx_wq, &c->lock, check_net_softirq);
+			waitq_wait_poll(&c->tx_wq, &c->lock, __check_net_softirq);
 		else
 			waitq_wait(&c->tx_wq, &c->lock);
 	}
@@ -712,7 +718,7 @@ static ssize_t tcp_read_wait(tcpconn_t *c, size_t len,
 	/* block until there is an actionable event */
 	while (!c->rx_closed && (c->rx_exclusive || list_empty(&c->rxq))) {
 		if (poll)
-			waitq_wait_poll(&c->rx_wq, &c->lock, check_net_softirq);
+			waitq_wait_poll(&c->rx_wq, &c->lock, __check_net_softirq);
 		else
 			waitq_wait(&c->rx_wq, &c->lock);
 	}
@@ -931,7 +937,7 @@ static int tcp_write_wait(tcpconn_t *c, size_t *winlen, bool poll)
 			}
 		}
 		if (poll)
-			waitq_wait_poll(&c->tx_wq, &c->lock, check_net_softirq);
+			waitq_wait_poll(&c->tx_wq, &c->lock, __check_net_softirq);
 		else
 			waitq_wait(&c->tx_wq, &c->lock);
 	}
