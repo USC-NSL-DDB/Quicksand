@@ -18,7 +18,7 @@ ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode,
   auto md5 = get_self_md5();
 
   if (mode == Runtime::kServer) {
-    Node node{get_cfg_ip(), RPCServer::kPort, Migrator::kPort};
+    Node node{get_cfg_ip()};
     auto optional = register_node(node, md5);
     BUG_ON(!optional);
     BUG_ON(lpid_ && lpid_ != optional->first);
@@ -62,7 +62,7 @@ bool ControllerClient::verify_md5(MD5Val md5) {
   return resp.passed;
 }
 
-std::optional<std::pair<RemObjID, netaddr>>
+std::optional<std::pair<RemObjID, uint32_t>>
 ControllerClient::allocate_obj(uint32_t ip_hint) {
   RPCReqAllocateObj req;
   req.lpid = lpid_;
@@ -74,8 +74,8 @@ ControllerClient::allocate_obj(uint32_t ip_hint) {
     return std::nullopt;
   } else {
     auto id = resp.id;
-    auto server_addr = resp.server_addr;
-    return std::make_pair(id, server_addr);
+    auto server_ip = resp.server_ip;
+    return std::make_pair(id, server_ip);
   }
 }
 
@@ -86,21 +86,16 @@ void ControllerClient::destroy_obj(RemObjID id) {
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
 }
 
-std::optional<netaddr> ControllerClient::resolve_obj(RemObjID id) {
+uint32_t ControllerClient::resolve_obj(RemObjID id) {
   RPCReqResolveObj req;
   req.id = id;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
   auto &resp = from_span<RPCRespResolveObj>(return_buf.get_buf());
-  if (resp.empty) {
-    return std::nullopt;
-  } else {
-    auto addr = resp.addr;
-    return addr;
-  }
+  return resp.ip;
 }
 
-std::optional<netaddr> ControllerClient::get_migration_dest(Resource resource) {
+uint32_t ControllerClient::get_migration_dest(Resource resource) {
   RPCReqGetMigrationDest req;
   req.lpid = lpid_;
   req.src_ip = get_cfg_ip();
@@ -108,18 +103,13 @@ std::optional<netaddr> ControllerClient::get_migration_dest(Resource resource) {
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->CallPoll(to_span(req), &return_buf) != kOk);
   auto &resp = from_span<RPCRespGetMigrationDest>(return_buf.get_buf());
-  if (resp.empty) {
-    return std::nullopt;
-  } else {
-    auto addr = resp.addr;
-    return addr;
-  }
+  return resp.ip;
 }
 
-void ControllerClient::update_location(RemObjID id, netaddr obj_srv_addr) {
+void ControllerClient::update_location(RemObjID id, uint32_t obj_srv_ip) {
   RPCReqUpdateLocation req;
   req.id = id;
-  req.obj_srv_addr = obj_srv_addr;
+  req.obj_srv_ip = obj_srv_ip;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->CallPoll(to_span(req), &return_buf) != kOk);
 }

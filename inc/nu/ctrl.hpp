@@ -18,7 +18,6 @@ extern "C" {
 #include "nu/heap_mgr.hpp"
 #include "nu/rpc_client_mgr.hpp"
 #include "nu/utils/md5.hpp"
-#include "nu/utils/netaddr.hpp"
 
 namespace nu {
 
@@ -26,8 +25,6 @@ namespace nu {
 struct Node {
   // TODO: add other informations, e.g., free mem size.
   uint32_t ip;
-  uint16_t rpc_srv_port;
-  uint16_t migrator_port;
 
   bool operator<(const Node &o) const { return ip < o.ip; }
 };
@@ -46,13 +43,13 @@ public:
   std::optional<std::pair<lpid_t, VAddrRange>>
   register_node(Node &node, lpid_t lpid, MD5Val md5);
   bool verify_md5(lpid_t lpid, MD5Val md5);
-  std::optional<std::pair<RemObjID, netaddr>> allocate_obj(lpid_t lpid,
-                                                           uint32_t ip_hint);
+  std::optional<std::pair<RemObjID, uint32_t>> allocate_obj(lpid_t lpid,
+                                                            uint32_t ip_hint);
   void destroy_obj(RemObjID id);
-  std::optional<netaddr> resolve_obj(RemObjID id);
-  std::optional<netaddr> get_migration_dest(lpid_t lpid, uint32_t requestor_ip,
-                                            Resource resource);
-  void update_location(RemObjID id, netaddr obj_srv_addr);
+  uint32_t resolve_obj(RemObjID id);
+  uint32_t get_migration_dest(lpid_t lpid, uint32_t requestor_ip,
+                              Resource resource);
+  void update_location(RemObjID id, uint32_t obj_srv_ip);
 
 private:
   std::stack<VAddrRange> free_heap_segments_; // One segment per RemObj.
@@ -60,7 +57,7 @@ private:
   std::set<lpid_t> free_lpids_;
   std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;
   std::unordered_map<lpid_t, LPInfo> lpid_to_info_;
-  std::unordered_map<RemObjID, netaddr> objs_map_;
+  std::unordered_map<RemObjID, uint32_t> objs_map_;
   rt::Mutex mutex_;
 
   std::optional<Node> select_node_for_obj(lpid_t lpid, uint32_t ip_hint);

@@ -20,7 +20,6 @@ extern "C" {
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/future.hpp"
-#include "nu/utils/netaddr.hpp"
 #include "nu/utils/promise.hpp"
 #include "nu/utils/type_traits.hpp"
 
@@ -240,7 +239,7 @@ template <typename... As>
 RemObj<T> RemObj<T>::general_create(bool pinned, uint32_t ip_hint,
                                     As &&... args) {
   RemObjID id;
-  netaddr server_addr;
+  uint32_t server_ip;
   HeapHeader *heap_header;
 
   {
@@ -254,7 +253,7 @@ RemObj<T> RemObj<T>::general_create(bool pinned, uint32_t ip_hint,
     if (unlikely(!optional)) {
       throw OutOfMemory();
     }
-    std::tie(id, server_addr) = *optional;
+    std::tie(id, server_ip) = *optional;
 
     NonBlockingMigrationDisabledGuard disabled_guard(heap_header);
     if (heap_header && unlikely(!disabled_guard)) {
@@ -272,7 +271,7 @@ RemObj<T> RemObj<T>::general_create(bool pinned, uint32_t ip_hint,
 
   {
     MigrationDisabledGuard disabled_guard;
-    if (Runtime::rpc_server && server_addr.ip == get_cfg_ip()) {
+    if (Runtime::rpc_server && server_ip == get_cfg_ip()) {
       // Fast path: the heap is actually local, use normal function call.
       ObjServer::construct_obj_locally<T, As...>(to_heap_base(id), pinned,
                                                  std::forward<As>(args)...);

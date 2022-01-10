@@ -47,7 +47,7 @@ struct RPCReqAllocateObj {
 struct RPCRespAllocateObj {
   bool empty;
   RemObjID id;
-  netaddr server_addr;
+  uint32_t server_ip;
 } __attribute__((packed));
 
 struct RPCReqDestroyObj {
@@ -65,14 +65,13 @@ struct RPCReqResolveObj {
 } __attribute__((packed));
 
 struct RPCRespResolveObj {
-  bool empty;
-  netaddr addr;
+  uint32_t ip;
 } __attribute__((packed));
 
 struct RPCReqUpdateLocation {
   RPCReqType rpc_type = kUpdateLocation;
   RemObjID id;
-  netaddr obj_srv_addr;
+  uint32_t obj_srv_ip;
 } __attribute__((packed));
 
 struct RPCReqGetMigrationDest {
@@ -83,8 +82,7 @@ struct RPCReqGetMigrationDest {
 } __attribute__((packed));
 
 struct RPCRespGetMigrationDest {
-  bool empty;
-  netaddr addr;
+  uint32_t ip;
 } __attribute__((packed));
 
 class ControllerServer {

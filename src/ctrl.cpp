@@ -76,7 +76,7 @@ Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
     auto *client = Runtime::rpc_client_mgr->get_by_ip(old_node.ip);
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
-    req.dest_server_addr = netaddr{node.ip, node.migrator_port};
+    req.dest_server_ip = node.ip;
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
@@ -84,7 +84,7 @@ Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
   for (auto old_node : nodes) {
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
-    req.dest_server_addr = netaddr{old_node.ip, old_node.migrator_port};
+    req.dest_server_ip = old_node.ip;
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
@@ -96,7 +96,7 @@ bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
   return lpid_to_md5_[lpid] == md5;
 }
 
-std::optional<std::pair<RemObjID, netaddr>>
+std::optional<std::pair<RemObjID, uint32_t>>
 Controller::allocate_obj(lpid_t lpid, uint32_t ip_hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
@@ -112,9 +112,8 @@ Controller::allocate_obj(lpid_t lpid, uint32_t ip_hint) {
   }
   auto &node = *node_optional;
   auto [iter, _] = objs_map_.try_emplace(id);
-  netaddr addr{node.ip, node.rpc_srv_port};
-  iter->second = addr;
-  return std::make_pair(id, addr);
+  iter->second = node.ip;
+  return std::make_pair(id, node.ip);
 }
 
 void Controller::destroy_obj(RemObjID id) {
@@ -129,16 +128,11 @@ void Controller::destroy_obj(RemObjID id) {
   objs_map_.erase(iter);
 }
 
-std::optional<netaddr> Controller::resolve_obj(RemObjID id) {
+uint32_t Controller::resolve_obj(RemObjID id) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto iter = objs_map_.find(id);
-  if (unlikely(iter == objs_map_.end())) {
-    return std::nullopt;
-  } else {
-    auto addr = iter->second;
-    return addr;
-  }
+  return iter != objs_map_.end() ? iter->second : 0;
 }
 
 std::optional<Node> Controller::select_node_for_obj(lpid_t lpid,
@@ -147,7 +141,7 @@ std::optional<Node> Controller::select_node_for_obj(lpid_t lpid,
   BUG_ON(nodes.empty());
 
   if (ip_hint) {
-    Node n{ip_hint, 0};
+    Node n{ip_hint};
     auto iter = nodes.find(n);
     if (unlikely(iter == nodes.end())) {
       return std::nullopt;
@@ -162,27 +156,27 @@ std::optional<Node> Controller::select_node_for_obj(lpid_t lpid,
   return *rr_iter++;
 }
 
-std::optional<netaddr> Controller::get_migration_dest(lpid_t lpid,
-                                                      uint32_t requestor_ip,
-                                                      Resource resource) {
+uint32_t Controller::get_migration_dest(lpid_t lpid,
+                                                       uint32_t requestor_ip,
+                                                       Resource resource) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto &nodes = lpid_to_info_[lpid].nodes;
   // TODO: choose the dest node based on resource requirement.
   for (auto &node : nodes) {
     if (node.ip != requestor_ip) {
-      return netaddr{node.ip, node.migrator_port};
+      return node.ip;
     }
   }
-  return std::nullopt;
+  return 0;
 }
 
-void Controller::update_location(RemObjID id, netaddr obj_srv_addr) {
+void Controller::update_location(RemObjID id, uint32_t obj_srv_ip) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto iter = objs_map_.find(id);
   BUG_ON(iter == objs_map_.end());
-  iter->second = obj_srv_addr;
+  iter->second = obj_srv_ip;
 }
 
 } // namespace nu

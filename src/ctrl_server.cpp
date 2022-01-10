@@ -42,7 +42,7 @@ ControllerServer::handle_allocate_obj(const RPCReqAllocateObj &req) {
   if (optional) {
     resp->empty = false;
     resp->id = optional->first;
-    resp->server_addr = optional->second;
+    resp->server_ip = optional->second;
   } else {
     resp->empty = true;
   }
@@ -59,30 +59,18 @@ ControllerServer::handle_destroy_obj(const RPCReqDestroyObj &req) {
 std::unique_ptr<RPCRespResolveObj>
 ControllerServer::handle_resolve_obj(const RPCReqResolveObj &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespResolveObj>();
-  auto addr = ctrl_.resolve_obj(req.id);
-  if (addr) {
-    resp->empty = false;
-    resp->addr = *addr;
-  } else {
-    resp->empty = true;
-  }
+  resp->ip = ctrl_.resolve_obj(req.id);
   return resp;
 }
 
 void ControllerServer::handle_update_location(const RPCReqUpdateLocation &req) {
-  ctrl_.update_location(req.id, req.obj_srv_addr);
+  ctrl_.update_location(req.id, req.obj_srv_ip);
 }
 
 std::unique_ptr<RPCRespGetMigrationDest>
 ControllerServer::handle_get_migration_dest(const RPCReqGetMigrationDest &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespGetMigrationDest>();
-  auto addr = ctrl_.get_migration_dest(req.lpid, req.src_ip, req.resource);
-  if (addr) {
-    resp->empty = false;
-    resp->addr = *addr;
-  } else {
-    resp->empty = true;
-  }
+  resp->ip = ctrl_.get_migration_dest(req.lpid, req.src_ip, req.resource);
   return resp;
 }
 

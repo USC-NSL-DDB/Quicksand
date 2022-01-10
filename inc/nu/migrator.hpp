@@ -18,7 +18,6 @@ extern "C" {
 
 #include "nu/heap_mgr.hpp"
 #include "nu/rpc_server.hpp"
-#include "nu/utils/netaddr.hpp"
 #include "nu/utils/slab.hpp"
 
 namespace nu {
@@ -30,7 +29,7 @@ enum MigratorTCPOp_t { kCopyHeap, kMigrate, kUnmap, kEnablePoll, kDisablePoll };
 
 struct RPCReqReserveConns {
   RPCReqType rpc_type = kReserveConns;
-  netaddr dest_server_addr;
+  uint32_t dest_server_ip;
 } __attribute__((packed));
 
 struct RPCReqForward {
@@ -66,25 +65,25 @@ public:
 
 private:
   rt::TcpConn *tcp_conn_;
-  netaddr addr_;
+  uint32_t ip_;
   MigratorConnManager *manager_;
   friend class MigratorConnManager;
 
-  MigratorConn(rt::TcpConn *tcp_conn, netaddr addr,
+  MigratorConn(rt::TcpConn *tcp_conn, uint32_t ip,
                MigratorConnManager *manager);
 };
 
 class MigratorConnManager {
 public:
   ~MigratorConnManager();
-  MigratorConn get(netaddr addr);
+  MigratorConn get(uint32_t ip);
 
 private:
   rt::Spin spin_;
-  std::unordered_map<netaddr, std::stack<rt::TcpConn *>> pool_map_;
+  std::unordered_map<uint32_t, std::stack<rt::TcpConn *>> pool_map_;
   friend class MigratorConn;
 
-  void put(netaddr addr, rt::TcpConn *tcp_conn);
+  void put(uint32_t ip, rt::TcpConn *tcp_conn);
 };
 
 class Migrator {
@@ -96,7 +95,7 @@ public:
   ~Migrator();
   void run_background_loop();
   void migrate(Resource resource, std::vector<HeapRange> heaps);
-  void reserve_conns(netaddr dest_server_addr);
+  void reserve_conns(uint32_t dest_server_ip);
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,
                                   uint64_t payload_len, const void *payload);
   void forward_to_client(RPCReqForward &req);
@@ -142,7 +141,7 @@ private:
   void load_time(rt::TcpConn *c, HeapHeader *heap_header);
   void load_threads(rt::TcpConn *c, HeapHeader *heap_header);
   thread_t *load_one_thread(rt::TcpConn *c, HeapHeader *heap_header);
-  void init_aux_handlers(netaddr dest_addr);
+  void init_aux_handlers(uint32_t dest_ip);
   void finish_aux_handlers();
 };
 

@@ -32,29 +32,28 @@ namespace nu {
 
 constexpr static auto kMigrationDSCP = IPTOS_DSCP_CS0;
 
-MigratorConn::MigratorConn()
-    : tcp_conn_(nullptr), addr_{.ip = 0, .port = 0}, manager_(nullptr) {}
+MigratorConn::MigratorConn() : tcp_conn_(nullptr), ip_(0), manager_(nullptr) {}
 
-MigratorConn::MigratorConn(rt::TcpConn *tcp_conn, netaddr addr,
+MigratorConn::MigratorConn(rt::TcpConn *tcp_conn, uint32_t ip,
                            MigratorConnManager *manager)
-    : tcp_conn_(tcp_conn), addr_(addr), manager_(manager) {}
+    : tcp_conn_(tcp_conn), ip_(ip), manager_(manager) {}
 
 MigratorConn::~MigratorConn() { release(); }
 
 void MigratorConn::release() {
   if (tcp_conn_) {
-    manager_->put(addr_, tcp_conn_);
+    manager_->put(ip_, tcp_conn_);
   }
 }
 
 MigratorConn::MigratorConn(MigratorConn &&o)
-    : tcp_conn_(o.tcp_conn_), addr_(o.addr_), manager_(o.manager_) {
+    : tcp_conn_(o.tcp_conn_), ip_(o.ip_), manager_(o.manager_) {
   o.tcp_conn_ = nullptr;
 }
 
 MigratorConn &MigratorConn::operator=(MigratorConn &&o) {
   tcp_conn_ = o.tcp_conn_;
-  addr_ = o.addr_;
+  ip_ = o.ip_;
   manager_ = o.manager_;
   o.tcp_conn_ = nullptr;
   return *this;
@@ -73,24 +72,25 @@ MigratorConnManager::~MigratorConnManager() {
   }
 }
 
-MigratorConn MigratorConnManager::get(netaddr raddr) {
+MigratorConn MigratorConnManager::get(uint32_t ip) {
   rt::SpinGuard guard(&spin_);
-  auto &pool = pool_map_[raddr];
+  auto &pool = pool_map_[ip];
   if (likely(!pool.empty())) {
     auto *tcp_conn = pool.top();
     pool.pop();
-    return MigratorConn(tcp_conn, raddr, this);
+    return MigratorConn(tcp_conn, ip, this);
   }
   netaddr laddr = {.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
+  netaddr raddr = {.ip = ip, .port = Migrator::kPort};
   auto *tcp_conn =
       rt::TcpConn::Dial(laddr, raddr, kMigrationDSCP, /* poll = */ true);
   BUG_ON(!tcp_conn);
-  return MigratorConn(tcp_conn, raddr, this);
+  return MigratorConn(tcp_conn, ip, this);
 }
 
-void MigratorConnManager::put(netaddr addr, rt::TcpConn *tcp_conn) {
+void MigratorConnManager::put(uint32_t ip, rt::TcpConn *tcp_conn) {
   rt::SpinGuard guard(&spin_);
-  pool_map_[addr].push(tcp_conn);
+  pool_map_[ip].push(tcp_conn);
 }
 
 Migrator::~Migrator() { BUG(); }
@@ -425,12 +425,12 @@ void Migrator::handle_unmap(rt::TcpConn *c) {
   }
 }
 
-void Migrator::init_aux_handlers(netaddr dest_addr) {
+void Migrator::init_aux_handlers(uint32_t dest_ip) {
   uint8_t type = kEnablePoll;
   std::vector<iovec> task{{&type, sizeof(type)}};
 
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
-    auto aux_migration_conn = migrator_conn_mgr_.get(dest_addr);
+    auto aux_migration_conn = migrator_conn_mgr_.get(dest_ip);
     Runtime::pressure_handler->init_aux_handler(i,
                                                 std::move(aux_migration_conn));
     Runtime::pressure_handler->dispatch_aux_task(i, std::move(task));
@@ -449,13 +449,12 @@ void Migrator::finish_aux_handlers() {
 }
 
 void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
-  auto optional_dest_addr =
+  auto dest_ip =
       Runtime::controller_client->get_migration_dest(resource);
-  BUG_ON(!optional_dest_addr);
-  auto dest_addr = *optional_dest_addr;
-  auto migration_conn = migrator_conn_mgr_.get(dest_addr);
+  BUG_ON(!dest_ip);
+  auto migration_conn = migrator_conn_mgr_.get(dest_ip);
   auto *conn = migration_conn.get_tcp_conn();
-  init_aux_handlers(dest_addr);
+  init_aux_handlers(dest_ip);
 
   uint8_t type = kMigrate;
   BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
@@ -468,7 +467,7 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
   migrated_heaps.reserve(heaps.size());
   for (auto [heap_header, _] : heaps) {
     Runtime::controller_client->update_location(to_obj_id(heap_header),
-                                                dest_addr);
+                                                dest_ip);
     if (unlikely(!try_mark_heap_migrating(heap_header))) {
       destructed_heaps.push_back(heap_header);
       continue;
@@ -735,11 +734,11 @@ void Migrator::load(rt::TcpConn *c) {
   mmap_thread.Join();
 }
 
-void Migrator::reserve_conns(netaddr dest_server_addr) {
+void Migrator::reserve_conns(uint32_t dest_server_ip) {
   std::vector<MigratorConn> migrator_conns;
   migrator_conns.reserve(kDefaultNumReservedConns);
   for (uint32_t i = 0; i < kDefaultNumReservedConns; i++) {
-    migrator_conns.emplace_back(migrator_conn_mgr_.get(dest_server_addr));
+    migrator_conns.emplace_back(migrator_conn_mgr_.get(dest_server_ip));
   }
 }
 

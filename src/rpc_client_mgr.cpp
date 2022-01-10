@@ -49,11 +49,11 @@ retry:
     rt::MutexGuard g(&node_info_mutexes_[heap_num]);
     auto &info_ref = rem_id_to_node_info_[heap_num];
     if (!info_ref.raw) {
-      auto optional_addr = Runtime::controller_client->resolve_obj(rem_obj_id);
-      BUG_ON(!optional_addr);
+      auto ip = Runtime::controller_client->resolve_obj(rem_obj_id);
+      BUG_ON(!ip);
       NodeInfo info;
-      info.ip = optional_addr->ip;
-      info.id = get_node_id_by_node_ip(info.ip);
+      info.ip = ip;
+      info.id = get_node_id_by_node_ip(ip);
       info_ref = info;
     }
     goto retry;

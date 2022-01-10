@@ -27,11 +27,11 @@ public:
   std::optional<std::pair<lpid_t, VAddrRange>> register_node(const Node &node,
                                                              MD5Val md5);
   bool verify_md5(MD5Val md5);
-  std::optional<std::pair<RemObjID, netaddr>> allocate_obj(uint32_t ip_hint);
+  std::optional<std::pair<RemObjID, uint32_t>> allocate_obj(uint32_t ip_hint);
   void destroy_obj(RemObjID id);
-  std::optional<netaddr> resolve_obj(RemObjID id);
-  std::optional<netaddr> get_migration_dest(Resource resource);
-  void update_location(RemObjID id, netaddr obj_srv_addr);
+  uint32_t resolve_obj(RemObjID id);
+  uint32_t get_migration_dest(Resource resource);
+  void update_location(RemObjID id, uint32_t obj_srv_ip);
   VAddrRange get_stack_cluster() const;
 
 private:
