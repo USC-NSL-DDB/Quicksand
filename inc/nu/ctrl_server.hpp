@@ -41,7 +41,7 @@ struct RPCRespVerifyMD5 {
 struct RPCReqAllocateObj {
   RPCReqType rpc_type = kAllocateObj;
   lpid_t lpid;
-  netaddr hint;
+  uint32_t ip_hint;
 } __attribute__((packed));
 
 struct RPCRespAllocateObj {

@@ -30,16 +30,16 @@ public:
   template <typename... As> static RemObj create(As &&... args);
   template <typename... As> static Future<RemObj> create_async(As &&... args);
   template <typename... As>
-  static RemObj create_at(netaddr addr, As &&... args);
+  static RemObj create_at(uint32_t ip, As &&... args);
   template <typename... As>
-  static Future<RemObj> create_at_async(netaddr addr, As &&... args);
+  static Future<RemObj> create_at_async(uint32_t ip, As &&... args);
   template <typename... As> static RemObj create_pinned(As &&... args);
   template <typename... As>
   static Future<RemObj> create_pinned_async(As &&... args);
   template <typename... As>
-  static RemObj create_pinned_at(netaddr addr, As &&... args);
+  static RemObj create_pinned_at(uint32_t ip, As &&... args);
   template <typename... As>
-  static Future<RemObj> create_pinned_at_async(netaddr addr, As &&... args);
+  static Future<RemObj> create_pinned_at_async(uint32_t ip, As &&... args);
   Cap get_cap() const;
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
@@ -74,8 +74,7 @@ private:
   template <typename RetT, typename... S1s>
   static RetT invoke_remote_with_ret(RemObjID id, S1s &&... states);
   template <typename... As>
-  static RemObj general_create(bool pinned, std::optional<netaddr> hint,
-                               As &&... args);
+  static RemObj general_create(bool pinned, uint32_t ip_hint, As &&... args);
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>

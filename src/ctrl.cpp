@@ -97,7 +97,7 @@ bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
 }
 
 std::optional<std::pair<RemObjID, netaddr>>
-Controller::allocate_obj(lpid_t lpid, netaddr hint) {
+Controller::allocate_obj(lpid_t lpid, uint32_t ip_hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   if (unlikely(free_heap_segments_.empty())) {
@@ -106,7 +106,7 @@ Controller::allocate_obj(lpid_t lpid, netaddr hint) {
   auto start_addr = free_heap_segments_.top().start;
   auto id = start_addr;
   free_heap_segments_.pop();
-  auto node_optional = select_node_for_obj(lpid, hint);
+  auto node_optional = select_node_for_obj(lpid, ip_hint);
   if (unlikely(!node_optional)) {
     return std::nullopt;
   }
@@ -141,12 +141,13 @@ std::optional<netaddr> Controller::resolve_obj(RemObjID id) {
   }
 }
 
-std::optional<Node> Controller::select_node_for_obj(lpid_t lpid, netaddr hint) {
+std::optional<Node> Controller::select_node_for_obj(lpid_t lpid,
+                                                    uint32_t ip_hint) {
   auto &[nodes, rr_iter] = lpid_to_info_[lpid];
   BUG_ON(nodes.empty());
 
-  if (hint.ip) {
-    Node n{hint.ip, hint.port};
+  if (ip_hint) {
+    Node n{ip_hint, 0};
     auto iter = nodes.find(n);
     if (unlikely(iter == nodes.end())) {
       return std::nullopt;

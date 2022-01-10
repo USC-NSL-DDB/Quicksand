@@ -180,30 +180,28 @@ template <typename T> RemObj<T> &RemObj<T>::operator=(RemObj<T> &&o) {
 template <typename T>
 template <typename... As>
 RemObj<T> RemObj<T>::create(As &&... args) {
-  return general_create(/* pinned = */ false, std::nullopt,
-                        std::forward<As>(args)...);
+  return general_create(/* pinned = */ false, 0, std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_async(As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)]() {
-    return general_create(/* pinned = */ false, std::nullopt,
-                          std::forward<As>(args)...);
+    return general_create(/* pinned = */ false, 0, std::forward<As>(args)...);
   });
 }
 
 template <typename T>
 template <typename... As>
-RemObj<T> RemObj<T>::create_at(netaddr addr, As &&... args) {
-  return general_create(/* pinned = */ false, addr, std::forward<As>(args)...);
+RemObj<T> RemObj<T>::create_at(uint32_t ip_hint, As &&... args) {
+  return general_create(/* pinned = */ false, ip_hint, std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
-Future<RemObj<T>> RemObj<T>::create_at_async(netaddr addr, As &&... args) {
-  return nu::async([&, addr, ... args = std::forward<As>(args)]() {
-    return general_create(/* pinned = */ false, addr,
+Future<RemObj<T>> RemObj<T>::create_at_async(uint32_t ip_hint, As &&... args) {
+  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
+    return general_create(/* pinned = */ false, ip_hint,
                           std::forward<As>(args)...);
   });
 }
@@ -211,37 +209,35 @@ Future<RemObj<T>> RemObj<T>::create_at_async(netaddr addr, As &&... args) {
 template <typename T>
 template <typename... As>
 RemObj<T> RemObj<T>::create_pinned(As &&... args) {
-  return general_create(/* pinned = */ true, std::nullopt,
-                        std::forward<As>(args)...);
+  return general_create(/* pinned = */ true, 0, std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_pinned_async(As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)]() {
-    return general_create(/* pinned = */ true, std::nullopt,
-                          std::forward<As>(args)...);
+    return general_create(/* pinned = */ true, 0, std::forward<As>(args)...);
   });
 }
 
 template <typename T>
 template <typename... As>
-RemObj<T> RemObj<T>::create_pinned_at(netaddr addr, As &&... args) {
-  return general_create(/* pinned = */ true, addr, std::forward<As>(args)...);
+RemObj<T> RemObj<T>::create_pinned_at(uint32_t ip_hint, As &&... args) {
+  return general_create(/* pinned = */ true, ip_hint, std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
-Future<RemObj<T>> RemObj<T>::create_pinned_at_async(netaddr addr,
+Future<RemObj<T>> RemObj<T>::create_pinned_at_async(uint32_t ip_hint,
                                                     As &&... args) {
-  return nu::async([&, addr, ... args = std::forward<As>(args)]() {
-    return general_create(/* pinned = */ true, addr, std::forward<As>(args)...);
+  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
+    return general_create(/* pinned = */ true, ip_hint, std::forward<As>(args)...);
   });
 }
 
 template <typename T>
 template <typename... As>
-RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
+RemObj<T> RemObj<T>::general_create(bool pinned, uint32_t ip_hint,
                                     As &&... args) {
   RemObjID id;
   netaddr server_addr;
@@ -254,7 +250,7 @@ RemObj<T> RemObj<T>::general_create(bool pinned, std::optional<netaddr> hint,
 
   {
     RuntimeSlabGuard guard;
-    auto optional = Runtime::controller_client->allocate_obj(hint);
+    auto optional = Runtime::controller_client->allocate_obj(ip_hint);
     if (unlikely(!optional)) {
       throw OutOfMemory();
     }

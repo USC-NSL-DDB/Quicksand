@@ -63,10 +63,10 @@ bool ControllerClient::verify_md5(MD5Val md5) {
 }
 
 std::optional<std::pair<RemObjID, netaddr>>
-ControllerClient::allocate_obj(std::optional<netaddr> hint) {
+ControllerClient::allocate_obj(uint32_t ip_hint) {
   RPCReqAllocateObj req;
   req.lpid = lpid_;
-  req.hint = hint ? *hint : netaddr(0, 0);
+  req.ip_hint = ip_hint;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
   auto &resp = from_span<RPCRespAllocateObj>(return_buf.get_buf());

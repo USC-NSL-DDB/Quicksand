@@ -47,7 +47,7 @@ public:
   register_node(Node &node, lpid_t lpid, MD5Val md5);
   bool verify_md5(lpid_t lpid, MD5Val md5);
   std::optional<std::pair<RemObjID, netaddr>> allocate_obj(lpid_t lpid,
-                                                           netaddr hint);
+                                                           uint32_t ip_hint);
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);
   std::optional<netaddr> get_migration_dest(lpid_t lpid, uint32_t requestor_ip,
@@ -63,6 +63,6 @@ private:
   std::unordered_map<RemObjID, netaddr> objs_map_;
   rt::Mutex mutex_;
 
-  std::optional<Node> select_node_for_obj(lpid_t lpid, netaddr hint);
+  std::optional<Node> select_node_for_obj(lpid_t lpid, uint32_t ip_hint);
 };
 } // namespace nu

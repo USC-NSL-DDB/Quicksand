@@ -19,7 +19,7 @@ extern "C" {
 using namespace nu;
 
 Runtime::Mode mode;
-netaddr addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 2), .port = RPCServer::kPort};
+uint32_t ip = MAKE_IP_ADDR(18, 18, 1, 2);
 
 class CPUHeavyObj {
 public:
@@ -57,8 +57,8 @@ public:
   constexpr static uint32_t kTimeUs = kTime0Us + kTime1Us;
 
   CPUNestedObj()
-      : light_obj_(RemObj<CPULightObj>::create_at(addr)),
-        heavy_obj_(RemObj<CPUHeavyObj>::create_at(addr)) {}
+      : light_obj_(RemObj<CPULightObj>::create_at(ip)),
+        heavy_obj_(RemObj<CPUHeavyObj>::create_at(ip)) {}
 
   void compute() {
     delay_us(kTime0Us);
@@ -88,11 +88,11 @@ public:
   bool run() {
     bool passed = true;
 
-    auto light_obj = RemObj<CPULightObj>::create_at(addr);
-    auto heavy_obj = RemObj<CPUHeavyObj>::create_at(addr);
-    auto nested_obj = RemObj<CPUNestedObj>::create_at(addr);
-    auto spin_obj = RemObj<CPUSpinObj>::create_at(addr);
-    auto migration_obj = RemObj<Test>::create_at(addr);
+    auto light_obj = RemObj<CPULightObj>::create_at(ip);
+    auto heavy_obj = RemObj<CPUHeavyObj>::create_at(ip);
+    auto nested_obj = RemObj<CPUNestedObj>::create_at(ip);
+    auto spin_obj = RemObj<CPUSpinObj>::create_at(ip);
+    auto migration_obj = RemObj<Test>::create_at(ip);
 
     auto spin_future = spin_obj.run_async(&CPUSpinObj::compute);
     for (uint32_t i = 0; i < 100000; i++) {

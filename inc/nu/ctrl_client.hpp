@@ -27,8 +27,7 @@ public:
   std::optional<std::pair<lpid_t, VAddrRange>> register_node(const Node &node,
                                                              MD5Val md5);
   bool verify_md5(MD5Val md5);
-  std::optional<std::pair<RemObjID, netaddr>>
-  allocate_obj(std::optional<netaddr> hint);
+  std::optional<std::pair<RemObjID, netaddr>> allocate_obj(uint32_t ip_hint);
   void destroy_obj(RemObjID id);
   std::optional<netaddr> resolve_obj(RemObjID id);
   std::optional<netaddr> get_migration_dest(Resource resource);

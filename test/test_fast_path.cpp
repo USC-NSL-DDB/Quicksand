@@ -9,8 +9,7 @@
 #include "nu/utils/time.hpp"
 
 constexpr uint32_t kMagic = 0x12345678;
-constexpr netaddr addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 2),
-                          .port = nu::RPCServer::kPort};
+constexpr uint32_t ip = MAKE_IP_ADDR(18, 18, 1, 2);
 
 namespace nu {
 
@@ -34,8 +33,8 @@ public:
 class Test {
 public:
   bool run_callee_migrated_test() {
-    auto caller_obj = nu::RemObj<nu::CallerObj>::create_pinned_at(addr);
-    auto callee_obj = nu::RemObj<nu::CalleeObj>::create_at(addr);
+    auto caller_obj = nu::RemObj<nu::CallerObj>::create_pinned_at(ip);
+    auto callee_obj = nu::RemObj<nu::CalleeObj>::create_at(ip);
     auto future =
         caller_obj.run_async(&nu::CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);
@@ -44,8 +43,8 @@ public:
   }
 
   bool run_caller_migrated_test() {
-    auto caller_obj = nu::RemObj<nu::CallerObj>::create_at(addr);
-    auto callee_obj = nu::RemObj<nu::CalleeObj>::create_pinned_at(addr);
+    auto caller_obj = nu::RemObj<nu::CallerObj>::create_at(ip);
+    auto callee_obj = nu::RemObj<nu::CalleeObj>::create_pinned_at(ip);
     auto future =
         caller_obj.run_async(&nu::CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);
@@ -54,8 +53,8 @@ public:
   }
 
   bool run_both_migrated_test() {
-    auto caller_obj = nu::RemObj<nu::CallerObj>::create_at(addr);
-    auto callee_obj = nu::RemObj<nu::CalleeObj>::create_at(addr);
+    auto caller_obj = nu::RemObj<nu::CallerObj>::create_at(ip);
+    auto callee_obj = nu::RemObj<nu::CalleeObj>::create_at(ip);
     auto future =
         caller_obj.run_async(&nu::CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);

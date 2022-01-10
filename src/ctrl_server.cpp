@@ -38,7 +38,7 @@ ControllerServer::handle_verify_md5(const RPCReqVerifyMD5 &req) {
 std::unique_ptr<RPCRespAllocateObj>
 ControllerServer::handle_allocate_obj(const RPCReqAllocateObj &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespAllocateObj>();
-  auto optional = ctrl_.allocate_obj(req.lpid, req.hint);
+  auto optional = ctrl_.allocate_obj(req.lpid, req.ip_hint);
   if (optional) {
     resp->empty = false;
     resp->id = optional->first;
