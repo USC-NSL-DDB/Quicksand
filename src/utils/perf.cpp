@@ -1,9 +1,14 @@
-#include <algorithm>
-#include <cmath>
-#include <random>
 extern "C" {
 #include <runtime/timer.h>
 }
+
+#include <algorithm>
+#include <cmath>
+#include <optional>
+#include <random>
+#include <vector>
+
+#include <net.h>
 
 #include "nu/utils/perf.hpp"
 
@@ -116,6 +121,64 @@ void Perf::run(uint32_t num_threads, double target_mops, uint64_t duration_us,
   real_mops_ = static_cast<double>(traces_.size()) / duration_us;
 }
 
+void Perf::run_multi_clients(std::span<const netaddr> client_addrs,
+                             uint32_t num_threads, double target_mops,
+                             uint64_t duration_us, uint64_t warmup_us,
+                             uint64_t max_req_us) {
+  std::vector<std::unique_ptr<PerfThreadState>> thread_states;
+  create_thread_states(&thread_states, num_threads);
+  std::vector<PerfRequestWithTime> all_warmup_reqs[num_threads];
+  std::vector<PerfRequestWithTime> all_perf_reqs[num_threads];
+  gen_reqs(all_warmup_reqs, thread_states, num_threads, target_mops, warmup_us);
+  gen_reqs(all_perf_reqs, thread_states, num_threads, target_mops, duration_us);
+  benchmark(all_warmup_reqs, thread_states, num_threads, max_req_us);
+  tcp_barrier(client_addrs);
+  traces_ =
+      move(benchmark(all_perf_reqs, thread_states, num_threads, max_req_us));
+  real_mops_ = static_cast<double>(traces_.size()) / duration_us;
+}
+
+void Perf::tcp_barrier(std::span<const netaddr> participant_addrs) {
+  auto sink_addr = participant_addrs.front();
+  auto num_workers = participant_addrs.size() - 1;
+  bool dummy;
+
+  if (get_cfg_ip() == sink_addr.ip) {
+    if (num_workers) {
+      auto *q = rt::TcpQueue::Listen(sink_addr, num_workers);
+      BUG_ON(!q);
+      auto q_gc = std::unique_ptr<rt::TcpQueue>(q);
+
+      std::vector<rt::TcpConn *> conns;
+      while (num_workers) {
+        auto *c = q->Accept();
+	BUG_ON(!c);
+        conns.push_back(c);
+        num_workers--;
+      }
+
+      for (auto *c : conns) {
+        auto c_gc = std::unique_ptr<rt::TcpConn>(c);
+        BUG_ON(c->WriteFull(&dummy, sizeof(dummy)) != sizeof(dummy));
+        BUG_ON(c->Shutdown(SHUT_RDWR) != 0);
+      }
+      q->Shutdown();
+    }
+  } else {
+    std::optional<netaddr> matched_addr;
+    for (auto addr : participant_addrs) {
+      if (get_cfg_ip() == addr.ip) {
+	matched_addr = addr;
+      }
+    }
+    BUG_ON(!matched_addr);
+    auto *c = rt::TcpConn::Dial(*matched_addr, sink_addr);
+    auto c_gc = std::unique_ptr<rt::TcpConn>(c);
+    BUG_ON(!c);
+    BUG_ON(c->ReadFull(&dummy, sizeof(dummy)) != sizeof(dummy));
+  }
+}
+
 uint64_t Perf::get_average_lat() {
   if (trace_format_ != SORTED_BY_DURATION) {
     std::sort(traces_.begin(), traces_.end(),
@@ -173,3 +236,4 @@ Perf::get_timeseries_nth_lats(uint64_t interval_us, double nth) {
 double Perf::get_real_mops() const { return real_mops_; }
 
 } // namespace nu
+

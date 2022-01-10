@@ -1,7 +1,12 @@
 #pragma once
 
+extern "C" {
+#include <runtime/net.h>
+}
+
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <thread.h>
 #include <utility>
 #include <vector>
@@ -47,6 +52,10 @@ public:
            // To filter out abnormally long durations caused by OS-level
            // interruptions.
            uint64_t max_req_us = 5 * kOneMilliSecond);
+  void run_multi_clients(std::span<const netaddr> client_addrs,
+                         uint32_t num_threads, double target_mops,
+                         uint64_t duration_us, uint64_t warmup_us = 0,
+                         uint64_t max_req_us = 5 * kOneMilliSecond);
   uint64_t get_average_lat();
   uint64_t get_nth_lat(double nth);
   std::vector<std::pair<uint64_t, uint64_t>>
@@ -62,6 +71,7 @@ private:
   double real_mops_;
   friend class Test;
 
+  void tcp_barrier(std::span<const netaddr> participant_addrs);
   void create_thread_states(
       std::vector<std::unique_ptr<PerfThreadState>> *thread_states,
       uint32_t num_threads);
