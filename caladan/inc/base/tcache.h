@@ -99,5 +99,6 @@ extern struct tcache *tcache_create(const char *name,
 				    unsigned int mag_size, size_t item_size);
 extern void tcache_init_perthread(struct tcache *tc,
 				  struct tcache_perthread *ltc);
+extern void tcache_reserve(struct tcache *tc, unsigned int num_mags);
 extern void tcache_reclaim(struct tcache *tc);
 extern void tcache_print_usage(void);

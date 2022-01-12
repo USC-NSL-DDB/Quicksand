@@ -181,6 +181,25 @@ struct tcache *tcache_create(const char *name, const struct tcache_ops *ops,
 	return tc;
 }
 
+void tcache_reserve(struct tcache *tc, unsigned int num_mags)
+{
+	unsigned int i;
+	struct tcache_hdr *first_mag, *mag;
+
+	if (!num_mags)
+		return;
+
+	spin_lock(&tc->lock);
+	first_mag = mag = tcache_alloc_mag(tc);
+	for (i = 0; i < num_mags - 1; i++) {
+	        mag->next_mag = tcache_alloc_mag(tc);
+		mag = mag->next_mag;
+	}
+	mag->next_mag = tc->shared_mags;
+	tc->shared_mags = first_mag;
+	spin_unlock(&tc->lock);
+}
+
 /**
  * tcache_init_perthread - intializes a per-thread handle for a thread-local
  *                         cache
