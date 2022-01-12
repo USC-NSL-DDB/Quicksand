@@ -110,6 +110,7 @@ extern void thread_set_nu_thread(thread_t *th, void *nu_thread);
 extern void *thread_get_nu_thread(thread_t *th);
 extern uint32_t thread_get_creator_ip(void);
 extern void thread_wait_until_parked(thread_t *th);
+extern void prealloc_threads_and_stacks(uint32_t num_mags);
 
 static inline void *thread_unset_owner_heap(void)
 {
@@ -151,3 +152,5 @@ static inline void *thread_set_obj_slab(void *obj_slab)
 
        return old_obj_slab;
 }
+
+

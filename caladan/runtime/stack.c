@@ -15,7 +15,7 @@
 
 #define STACK_BASE_ADDR	0x200000000000UL
 
-static struct tcache *stack_tcache;
+struct tcache *stack_tcache;
 DEFINE_PERTHREAD(struct tcache_perthread, stack_pt);
 
 static struct stack *stack_create(void *base)

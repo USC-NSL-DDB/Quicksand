@@ -46,6 +46,8 @@ static struct slab thread_slab;
 static struct tcache *thread_tcache;
 static DEFINE_PERTHREAD(struct tcache_perthread, thread_pt);
 
+extern struct tcache *stack_tcache;
+
 /* used to track cycle usage in scheduler */
 static __thread uint64_t last_tsc;
 /* used to force timer and network processing after a timeout */
@@ -1224,13 +1226,12 @@ int sched_init_thread(void)
 	struct stack *s;
 
 	tcache_init_perthread(thread_tcache, &perthread_get(thread_pt));
-
 	s = stack_alloc();
 	if (!s)
 		return -ENOMEM;
 
 	runtime_stack_base = (void *)s;
-	runtime_stack = (void *)stack_init_to_rsp(s, runtime_top_of_stack); 
+	runtime_stack = (void *)stack_init_to_rsp(s, runtime_top_of_stack);
 
 	return 0;
 }
@@ -1443,3 +1444,10 @@ void thread_wait_until_parked(thread_t *th)
 	while (load_acquire(&th->thread_running))
 		cpu_relax();
 }
+
+void prealloc_threads_and_stacks(uint32_t num_mags)
+{
+	tcache_reserve(thread_tcache, num_mags);
+	tcache_reserve(stack_tcache, num_mags);
+}
+
