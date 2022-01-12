@@ -79,6 +79,7 @@ void Runtime::init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid) {
 }
 
 void Runtime::common_init() {
+  prealloc_threads_and_stacks(4 * kNumCores);
   init_runtime_heap();
   active_runtime = true;
   rpc_client_mgr.reset(
