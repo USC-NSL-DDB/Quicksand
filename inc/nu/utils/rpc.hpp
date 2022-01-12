@@ -111,6 +111,8 @@ public:
 
   RPCReturnCode get_return_code() const {
     while (rt::access_once(poll_)) {
+      prioritize_local_rcu_readers();
+      pause_local_migrating_threads();
       cpu_relax();
     }
     return rc_;
