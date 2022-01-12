@@ -291,32 +291,6 @@ public:
     server_->serve();
   }
 
-  void nop() {}
-
-  void warmup(nu::RemObj<ServiceEntry>::Cap cap) {
-    for (auto ip : kEntryObjIps) {
-      nu::Runtime::reserve_conn(ip);
-    }
-
-    nu::RemObj<social_network::ServiceEntry> rem_obj(cap);
-    std::vector<rt::Thread> threads;
-    bool done = false;
-    for (uint32_t i = 0; i < 1000; i++) {
-      threads.emplace_back([&] {
-        while (!rt::access_once(done)) {
-          rem_obj.run(&ServiceEntry::nop);
-        }
-      });
-    }
-
-    timer_sleep(1000 * 1000);
-    rt::access_once(done) = true;
-
-    for (auto &thread : threads) {
-      thread.Join();
-    }
-  }
-
 private:
   std::unique_ptr<TThreadedServer> server_;
 };
@@ -333,28 +307,20 @@ void wait_for_signal() {
 void do_work() {
   auto states = std::make_unique<social_network::States>();
 
-  netaddr raddr = {.ip = kEntryObjIps[0],
-                   .port = nu::ObjServer::kObjServerPort};
   auto service_entry_0 =
       nu::RemObj<social_network::ServiceEntry>::create_pinned_at(
-          raddr, states->get_caps());
+          kEntryObjIps[0], states->get_caps());
   auto future0 =
       service_entry_0.run_async(&social_network::ServiceEntry::start);
 
   std::cout << "waiting for signal..." << std::endl;
   wait_for_signal();
 
-  raddr.ip = kEntryObjIps[1];
   auto service_entry_1 =
       nu::RemObj<social_network::ServiceEntry>::create_pinned_at(
-          raddr, states->get_caps());
+          kEntryObjIps[1], states->get_caps());
   auto future1 =
       service_entry_1.run_async(&social_network::ServiceEntry::start);
-  service_entry_0.run(&social_network::ServiceEntry::warmup,
-                      service_entry_1.get_cap());
-  service_entry_1.run(&social_network::ServiceEntry::warmup,
-                      service_entry_0.get_cap());
-  std::cout << "done reserving conns..." << std::endl;
 }
 
 void signal_handler(int signum) { rt::access_once(signalled) = true; }

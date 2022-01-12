@@ -15,6 +15,8 @@ NGINX_IP=$SERVER5_IP
 NGINX_SERVER_CALADAN_IP_AND_MASK=18.18.1.254/24
 NGINX_SERVER_NIC=ens1f0
 SOCIAL_NET_DIR=`pwd`/../../../app/socialNetwork/multi_objs/
+CTRL_IP=18.18.1.3
+LPID=1
 
 ssh $NGINX_IP "sudo apt-get update; sudo apt-get install -y python3-pip; pip3 install aiohttp"
 
@@ -41,17 +43,17 @@ scp build/bench/client $CLIENT_IP:`pwd`/build/bench
 
 sudo $NU_DIR/caladan/iokerneld &
 sleep 5
-sudo build/src/BackEndService $DIR/conf/controller CTL 18.18.1.3 &
+sudo $NU_DIR/bin/ctrl_main $DIR/conf/controller $CTRL_IP &
 ssh $SRC_SERVER_IP "cd $DIR; source ../../shared.sh; set_bridge $SERVER1_ETHER"
 ssh $SRC_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
-ssh $SRC_SERVER_IP "cd `pwd`; sudo build/src/BackEndService $DIR/conf/server1 SRV 18.18.1.3" >$DIR/logs/src &
+ssh $SRC_SERVER_IP "cd `pwd`; sudo build/src/BackEndService $DIR/conf/server1 SRV $CTRL_IP $LPID" >$DIR/logs/src &
 sleep 5
-sudo build/src/BackEndService $DIR/conf/client1 CLT 18.18.1.3 &
+sudo build/src/BackEndService $DIR/conf/client1 CLT $CTRL_IP $LPID &
 ssh $DEST_SERVER_IP "cd $DIR; source ../../shared.sh; set_bridge $SERVER2_ETHER"
 ssh $DEST_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
-ssh $DEST_SERVER_IP "cd `pwd`; sudo build/src/BackEndService $DIR/conf/server2 SRV 18.18.1.3" >$DIR/logs/dest &
+ssh $DEST_SERVER_IP "cd `pwd`; sudo build/src/BackEndService $DIR/conf/server2 SRV $CTRL_IP $LPID" >$DIR/logs/dest &
 sleep 5
 sudo pkill -SIGHUP BackEndService
 sleep 5
@@ -70,7 +72,7 @@ scp $CLIENT_IP:$SOCIAL_NET_DIR/timeseries $DIR/logs/
 mv src/BackEndService.cpp.bak src/BackEndService.cpp
 mv bench/client.cpp.bak bench/client.cpp
 
-sudo pkill -9 iokerneld; sudo pkill -9 BackEndService
+sudo pkill -9 iokerneld; sudo pkill -9 BackEndService; sudo pkill -9 ctrl_main
 ssh $CLIENT_IP "sudo pkill -9 iokerneld;"
 ssh $SRC_SERVER_IP "sudo pkill -9 iokerneld; sudo pkill -9 BackEndService; sudo pkill -9 bench"
 ssh $DEST_SERVER_IP "sudo pkill -9 iokerneld; sudo pkill -9 BackEndService"
