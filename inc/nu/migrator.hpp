@@ -27,11 +27,6 @@ class CondVar;
 class Time;
 enum MigratorTCPOp_t { kCopyHeap, kMigrate, kUnmap, kEnablePoll, kDisablePoll };
 
-struct RPCReqReserveConns {
-  RPCReqType rpc_type = kReserveConns;
-  uint32_t dest_server_ip;
-} __attribute__((packed));
-
 struct RPCReqForward {
   RPCReqType rpc_type = kForward;
   RPCReturnCode rc;

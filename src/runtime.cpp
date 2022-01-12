@@ -136,8 +136,9 @@ uint32_t Runtime::get_ip_by_rem_obj_id(RemObjID id) {
   return ip;
 }
 
-void Runtime::reserve_conn(uint32_t ip) {
+void Runtime::reserve_conns(uint32_t ip) {
   RuntimeSlabGuard guard;
+  migrator->reserve_conns(ip);
   rpc_client_mgr->get_by_ip(ip);
 }
 

@@ -10,6 +10,7 @@ extern "C" {
 }
 
 #include "nu/commons.hpp"
+#include "nu/rpc_server.hpp"
 #include "nu/utils/archive_pool.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/rpc.hpp"
@@ -30,6 +31,11 @@ class PressureHandler;
 template <typename T> class RuntimeAllocator;
 template <typename T> class RuntimeDeleter;
 
+struct RPCReqReserveConns {
+  RPCReqType rpc_type = kReserveConns;
+  uint32_t dest_server_ip;
+} __attribute__((packed));
+
 class Runtime {
 public:
   enum Mode { kClient, kServer, kController };
@@ -40,7 +46,7 @@ public:
   static std::unique_ptr<Runtime> init(uint32_t remote_ctrl_ip, Mode mode,
                                        lpid_t lpid);
   static uint32_t get_ip_by_rem_obj_id(RemObjID id);
-  static void reserve_conn(uint32_t ip);
+  static void reserve_conns(uint32_t ip);
 
 private:
   static RCULock rcu_lock;

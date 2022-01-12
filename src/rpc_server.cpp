@@ -16,7 +16,7 @@ void RPCServer::run_background_loop() {
     // Migrator
     case kReserveConns: {
       auto &req = from_span<RPCReqReserveConns>(args);
-      Runtime::migrator->reserve_conns(req.dest_server_ip);
+      Runtime::reserve_conns(req.dest_server_ip);
       returner->Return(kOk);
       break;
     }
