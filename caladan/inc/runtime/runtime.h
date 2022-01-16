@@ -72,3 +72,13 @@ static inline int runtime_guaranteed_cores(void)
 {
 	return guaranteedks;
 }
+
+static inline int runtime_free_mem_mbs(void)
+{
+	return ACCESS_ONCE(runtime_congestion->free_mem_mbs);
+}
+
+static inline int runtime_global_idle_cores(void)
+{
+	return ACCESS_ONCE(runtime_congestion->idle_num_cores);
+}

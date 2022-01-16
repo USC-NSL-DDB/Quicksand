@@ -128,6 +128,7 @@ extern bool ias_ps_poll(void);
  * Counters
  */
 
+extern uint32_t ias_num_idle_cores;
 extern uint64_t ias_bw_punish_count;
 extern uint64_t ias_bw_relax_count;
 extern float    ias_bw_estimate;

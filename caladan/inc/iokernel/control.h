@@ -40,6 +40,8 @@ BUILD_ASSERT(sizeof(struct q_ptrs) <= CACHE_LINE_SIZE);
 struct congestion_info {
 	float			load;
 	uint64_t		delay_us;
+	uint32_t                free_mem_mbs;
+	uint8_t                 idle_num_cores;
 };
 
 enum {

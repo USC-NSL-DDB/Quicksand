@@ -39,6 +39,7 @@ bool ias_ps_poll(void)
 	bool success = true, has_pressure;
 	struct sysinfo info;
 	uint64_t free_ram_in_mbs, mem_mbs_to_release;
+	struct congestion_info *congestion;
 	struct resource_pressure_info *pressure;
 	struct ias_data *sd;
 	int num_cores_taken, pos;
@@ -52,6 +53,9 @@ bool ias_ps_poll(void)
 
 	ias_for_each_proc(sd) {
 		pressure = sd->p->resource_pressure_info;
+		congestion = sd->p->congestion_info;
+		congestion->free_mem_mbs = free_ram_in_mbs;
+		congestion->idle_num_cores = ias_num_idle_cores;
 
 		has_pressure = false;
 		if (pressure->status == HANDLED) {

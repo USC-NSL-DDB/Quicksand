@@ -30,6 +30,8 @@ struct ias_data *cores[NCPU];
 uint64_t ias_gen[NCPU];
 /* the current time in microseconds */
 uint64_t now_us;
+/* number of idle cores */
+uint32_t ias_num_idle_cores;
 
 #ifdef IAS_DEBUG
 static int owners[NCPU];
@@ -519,6 +521,8 @@ static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 		ias_cleanup_core(core);
 		ias_add_kthread_on_core(core);
 	}
+
+	ias_num_idle_cores = bitmap_popcount(ias_idle_cores, NCPU);
 
 	/* try to run the bandwidth controller */
 	if (!cfg.nobw && now - last_bw_us >= IAS_BW_INTERVAL_US) {
