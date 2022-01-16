@@ -33,8 +33,6 @@ public:
         std::make_shared<TBinaryProtocolFactory>());
   }
 
-  void reserve_conn(uint32_t ip) { nu::Runtime::reserve_conn(ip); }
-
   void start() {
     std::cout << "Starting the ThriftBackEndServer..." << std::endl;
     server_->serve();
@@ -55,22 +53,15 @@ void do_work() {
   auto states = std::make_unique<States>();
 
   std::cout << "creating proxy 0..." << std::endl;
-  netaddr raddr = {.ip = kEntryObjIps[0],
-                   .port = nu::ObjServer::kObjServerPort};
-  auto service_entry_0 =
-      nu::RemObj<ServiceEntry>::create_pinned_at(raddr, states->get_caps());
+  auto service_entry_0 = nu::RemObj<ServiceEntry>::create_pinned_at(
+      kEntryObjIps[0], states->get_caps());
 
   std::cout << "waiting for signal..." << std::endl;
   wait_for_signal();
 
   std::cout << "creating proxy 1..." << std::endl;
-  raddr.ip = kEntryObjIps[1];
-  auto service_entry_1 =
-      nu::RemObj<ServiceEntry>::create_pinned_at(raddr, states->get_caps());
-
-  service_entry_0.run(&ServiceEntry::reserve_conn, kEntryObjIps[0]);
-  service_entry_0.run(&ServiceEntry::reserve_conn, kEntryObjIps[1]);
-  service_entry_1.run(&ServiceEntry::reserve_conn, kEntryObjIps[1]);  
+  auto service_entry_1 = nu::RemObj<ServiceEntry>::create_pinned_at(
+      kEntryObjIps[1], states->get_caps());
 
   auto future_0 = service_entry_0.run_async(&ServiceEntry::start);
   auto future_1 = service_entry_1.run_async(&ServiceEntry::start);

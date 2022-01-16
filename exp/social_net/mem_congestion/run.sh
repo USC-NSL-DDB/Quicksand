@@ -2,6 +2,9 @@
 
 source ../../shared.sh
 
+CTRL_IP=18.18.1.3
+LPID=1
+
 mkdir logs
 rm -rf logs/*
 
@@ -11,7 +14,7 @@ set_bridge $CLIENT1_ETHER
 SRC_SERVER_IP=$SERVER3_IP
 DEST_SERVER_IP=$SERVER4_IP
 CLIENT_IP=$SERVER5_IP
-NGINX_IP=$SERVER7_IP
+NGINX_IP=$SERVER40_IP
 NGINX_SERVER_CALADAN_IP_AND_MASK=18.18.1.254/24
 NGINX_SERVER_NIC=ens1f0
 SOCIAL_NET_DIR=`pwd`/../../../app/socialNetwork/single_obj/
@@ -41,19 +44,19 @@ scp build/bench/client $CLIENT_IP:`pwd`/build/bench
 
 sudo $NU_DIR/caladan/iokerneld &
 sleep 5
-sudo build/src/main $DIR/conf/controller CTL 18.18.1.3 &
+sudo $NU_DIR/bin/ctrl_main $DIR/conf/controller &
 ssh $SRC_SERVER_IP "cd $DIR; source ../../shared.sh; set_bridge $SERVER1_ETHER"
 ssh $SRC_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
-ssh $SRC_SERVER_IP "cd `pwd`; sudo build/src/main $DIR/conf/server1 SRV 18.18.1.3" >$DIR/logs/src &
+ssh $SRC_SERVER_IP "cd `pwd`; sudo build/src/main $DIR/conf/server1 SRV $CTRL_IP $LPID" >$DIR/logs/src &
 sleep 5
-sudo build/src/main $DIR/conf/client1 CLT 18.18.1.3 &
+sudo build/src/main $DIR/conf/client1 CLT $CTRL_IP $LPID &
 ssh $DEST_SERVER_IP "cd $DIR; source ../../shared.sh; set_bridge $SERVER2_ETHER"
 ssh $DEST_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
-ssh $DEST_SERVER_IP "cd `pwd`; sudo build/src/main $DIR/conf/server2 SRV 18.18.1.3" >$DIR/logs/dest &
+ssh $DEST_SERVER_IP "cd `pwd`; sudo build/src/main $DIR/conf/server2 SRV $CTRL_IP $LPID" >$DIR/logs/dest &
 sleep 5
-sudo pkill -SIGHUP main
+sudo pkill -x -SIGHUP main
 sleep 5
 ssh $NGINX_IP "cd `pwd`; python3 scripts/init_social_graph.py"
 ssh $SRC_SERVER_IP "cd $DIR; sudo stdbuf -o0 ../../../bin/bench_real_mem_pressure conf/client3" >$DIR/logs/.pressure &
