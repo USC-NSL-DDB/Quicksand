@@ -18,7 +18,7 @@ for mop in ${mops[*]}
 do
     sudo $NU_DIR/caladan/iokerneld &
     sleep 5
-    sudo $NU_DIR/bin/ctrl_main conf/controller $CTRL_IP &
+    sudo $NU_DIR/bin/ctrl_main conf/controller &
     sleep 5
     sed "s/constexpr double kTargetMops =.*/constexpr double kTargetMops = $mop;/g" \
 	-i client.cpp

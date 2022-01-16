@@ -15,7 +15,7 @@ for num_worker_nodes in `seq 1 19`
 do
     sudo $NU_DIR/caladan/iokerneld &
     sleep 5
-    sudo $NU_DIR/bin/ctrl_main conf/controller $CTRL_IP &
+    sudo $NU_DIR/bin/ctrl_main conf/controller &
     sleep 5
     sed "s/constexpr uint32_t kNumProxies.*/constexpr uint32_t kNumProxies = $num_worker_nodes;/g" \
 	-i server.cpp

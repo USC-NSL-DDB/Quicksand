@@ -55,7 +55,7 @@ do
     sudo $NU_DIR/caladan/iokerneld &
     sleep 5
     cd ..
-    sudo $NU_DIR/bin/ctrl_main $DIR/conf/controller $CTRL_IP &
+    sudo $NU_DIR/bin/ctrl_main $DIR/conf/controller &
     sleep 5
     for i in `seq 1 $num_worker_nodes`
     do

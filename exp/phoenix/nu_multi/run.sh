@@ -56,7 +56,7 @@ do
 	ssh $ip "sudo $NU_DIR/caladan/iokerneld" &
     done
     sleep 5
-    sudo $NU_DIR/bin/ctrl_main conf/controller $CTRL_IP &
+    sudo $NU_DIR/bin/ctrl_main conf/controller &
     sleep 5
     for i in `seq 1 $num_worker_servers`
     do

@@ -42,7 +42,7 @@ make clean
 cd $DIR
 sudo $NU_DIR/caladan/iokerneld &
 sleep 5
-sudo $NU_DIR/bin/ctrl_main conf/controller $CTRL_IP &
+sudo $NU_DIR/bin/ctrl_main conf/controller &
 
 sleep 5
 scp main $SRC_SERVER_IP:`pwd`

@@ -1,3 +1,7 @@
+extern "C" {
+#include <runtime/net.h>
+}
+
 #include <runtime.h>
 
 #include "nu/commons.hpp"
@@ -6,16 +10,13 @@
 
 int main(int argc, char **argv) {
   int ret;
-  uint32_t ctrl_ip;
 
-  if (argc < 3) {
+  if (argc < 2) {
     goto wrong_args;
   }
 
-  ctrl_ip = nu::str_to_ip(std::string(argv[2]));
-
   ret = rt::RuntimeInit(std::string(argv[1]), [&] {
-    nu::Runtime::init(ctrl_ip, nu::Runtime::Mode::kController, 0);
+    nu::Runtime::init(get_cfg_ip(), nu::Runtime::Mode::kController, 0);
   });
 
   if (ret) {
@@ -26,6 +27,6 @@ int main(int argc, char **argv) {
   return 0;
 
 wrong_args:
-  std::cerr << "usage: cfg_file ctrl_ip" << std::endl;
+  std::cerr << "usage: cfg_file" << std::endl;
   return -EINVAL;
 }

@@ -43,7 +43,7 @@ scp build/bench/client $CLIENT_IP:`pwd`/build/bench
 
 sudo $NU_DIR/caladan/iokerneld &
 sleep 5
-sudo $NU_DIR/bin/ctrl_main $DIR/conf/controller $CTRL_IP &
+sudo $NU_DIR/bin/ctrl_main $DIR/conf/controller &
 ssh $SRC_SERVER_IP "cd $DIR; source ../../shared.sh; set_bridge $SERVER1_ETHER"
 ssh $SRC_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5

@@ -27,7 +27,7 @@ do
     sudo $NU_DIR/caladan/iokerneld &
     ssh $SERVER2_IP "sudo $NU_DIR/caladan/iokerneld" &
     sleep 5
-    sudo $NU_DIR/bin/ctrl_main conf/controller $CTRL_IP &
+    sudo $NU_DIR/bin/ctrl_main conf/controller &
     sleep 5
     ssh $SERVER2_IP "cd `pwd`; sudo ./server conf/server1 SRV $CTRL_IP $LPID" &
     sleep 5

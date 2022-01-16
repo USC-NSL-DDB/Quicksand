@@ -44,7 +44,7 @@ do
     sleep 5
     sed "s/runtime_kthreads.*/runtime_kthreads $num_threads/g" -i conf/server1
     scp conf/server1 $SERVER2_IP:`pwd`/conf
-    sudo $NU_DIR/bin/ctrl_main conf/controller $CTRL_IP &
+    sudo $NU_DIR/bin/ctrl_main conf/controller &
     sleep 5
     ssh $SERVER2_IP "cd `pwd`; sudo ./main conf/server1 SRV $CTRL_IP $LPID" &
     sleep 5
