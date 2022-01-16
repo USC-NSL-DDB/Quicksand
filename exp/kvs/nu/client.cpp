@@ -14,7 +14,6 @@
 #include <runtime.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/monitor.hpp"
 #include "nu/rem_obj.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
@@ -32,8 +31,8 @@ constexpr uint32_t kProxyIps[] = {
     MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 5),
     MAKE_IP_ADDR(18, 18, 1, 7), MAKE_IP_ADDR(18, 18, 1, 8)};
 constexpr uint32_t kProxyPort = 10086;
-constexpr uint32_t kNumThreads = 1000;
-constexpr double kTargetMops = 12.8;
+constexpr uint32_t kNumThreads = 250;
+constexpr double kTargetMops = 9;
 constexpr uint32_t kWarmupUs = 1 * kOneSecond;
 constexpr uint32_t kDurationUs = 15 * kOneSecond;
 
