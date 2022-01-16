@@ -25,6 +25,7 @@ namespace nu {
 struct Node {
   // TODO: add other informations, e.g., free mem size.
   uint32_t ip;
+  Resource free_resource;
 
   bool operator<(const Node &o) const { return ip < o.ip; }
 };
@@ -38,6 +39,8 @@ struct LPInfo {
 
 class Controller {
 public:
+  constexpr static uint32_t kProbingIntervalUs = kOneMilliSecond;
+
   Controller();
   ~Controller();
   std::optional<std::pair<lpid_t, VAddrRange>>
@@ -57,9 +60,14 @@ private:
   std::set<lpid_t> free_lpids_;
   std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;
   std::unordered_map<lpid_t, LPInfo> lpid_to_info_;
-  std::unordered_map<RemObjID, uint32_t> objs_map_;
+  std::unordered_map<RemObjID, uint32_t> obj_id_to_ip_;
+  std::vector<rt::Thread> probing_threads_;
+  bool done_;
   rt::Mutex mutex_;
 
   std::optional<Node> select_node_for_obj(lpid_t lpid, uint32_t ip_hint);
+  rt::Thread create_probing_thread(std::set<Node> &nodes,
+                                   std::set<Node>::iterator iter);
+  bool update_node(std::set<Node>::iterator iter);
 };
 } // namespace nu

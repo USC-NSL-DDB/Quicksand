@@ -85,6 +85,14 @@ struct RPCRespGetMigrationDest {
   uint32_t ip;
 } __attribute__((packed));
 
+struct RPCReqProbeFreeResource {
+  RPCReqType rpc_type = kProbeFreeResource;
+} __attribute__((packed));
+
+struct RPCRespProbeFreeResource {
+  Resource resource;
+} __attribute__((packed));
+
 class ControllerServer {
 public:
   constexpr static uint32_t kTCPListenBackLog = 64;
@@ -110,5 +118,7 @@ private:
   std::unique_ptr<RPCRespGetMigrationDest>
   handle_get_migration_dest(const RPCReqGetMigrationDest &req);
   void handle_update_location(const RPCReqUpdateLocation &req);
+  std::unique_ptr<RPCRespProbeFreeResource>
+  handle_probing(const RPCReqProbeFreeResource &req);
 };
 } // namespace nu

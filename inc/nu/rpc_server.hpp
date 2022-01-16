@@ -19,6 +19,7 @@ enum RPCReqEnum {
   kResolveObj,
   kGetMigrationDest,
   kUpdateLocation,
+  kProbeFreeResource,
   // Object server,
   kRemObjCall,
 };

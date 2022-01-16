@@ -6,11 +6,13 @@ extern "C" {
 #include <base/assert.h>
 #include <base/compiler.h>
 #include <net/ip.h>
+#include <runtime/timer.h>
 }
 #include <thread.h>
 
 #include "nu/commons.hpp"
 #include "nu/ctrl.hpp"
+#include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
 #include "nu/obj_server.hpp"
 
@@ -34,12 +36,20 @@ Controller::Controller() {
                         .end = start_addr + kStackClusterSize};
     free_stack_cluster_segments_.push(range);
   }
+
+  done_ = false;
 }
 
-Controller::~Controller() {}
+Controller::~Controller() {
+  done_ = true;
+  barrier();
+  for (auto &th : probing_threads_) {
+    th.Join();
+  }
+}
 
-std::optional<std::pair<lpid_t, VAddrRange>>
-Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
+std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
+    Node &node, lpid_t lpid, MD5Val md5) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   // TODO: should GC the allocated lpid and stack somehow through heartbeat or an
@@ -88,7 +98,9 @@ Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  nodes.insert(node);
+  auto [iter, success] = nodes.insert(node);
+  BUG_ON(!success);
+  probing_threads_.emplace_back(create_probing_thread(nodes, iter));
   return std::make_pair(lpid, stack_cluster);
 }
 
@@ -111,7 +123,7 @@ Controller::allocate_obj(lpid_t lpid, uint32_t ip_hint) {
     return std::nullopt;
   }
   auto &node = *node_optional;
-  auto [iter, _] = objs_map_.try_emplace(id);
+  auto [iter, _] = obj_id_to_ip_.try_emplace(id);
   iter->second = node.ip;
   return std::make_pair(id, node.ip);
 }
@@ -119,20 +131,20 @@ Controller::allocate_obj(lpid_t lpid, uint32_t ip_hint) {
 void Controller::destroy_obj(RemObjID id) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  auto iter = objs_map_.find(id);
-  if (unlikely(iter == objs_map_.end())) {
+  auto iter = obj_id_to_ip_.find(id);
+  if (unlikely(iter == obj_id_to_ip_.end())) {
     WARN();
     return;
   }
   free_heap_segments_.push(VAddrRange{id, id + kHeapSize});
-  objs_map_.erase(iter);
+  obj_id_to_ip_.erase(iter);
 }
 
 uint32_t Controller::resolve_obj(RemObjID id) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  auto iter = objs_map_.find(id);
-  return iter != objs_map_.end() ? iter->second : 0;
+  auto iter = obj_id_to_ip_.find(id);
+  return iter != obj_id_to_ip_.end() ? iter->second : 0;
 }
 
 std::optional<Node> Controller::select_node_for_obj(lpid_t lpid,
@@ -174,9 +186,37 @@ uint32_t Controller::get_migration_dest(lpid_t lpid,
 void Controller::update_location(RemObjID id, uint32_t obj_srv_ip) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  auto iter = objs_map_.find(id);
-  BUG_ON(iter == objs_map_.end());
+  auto iter = obj_id_to_ip_.find(id);
+  BUG_ON(iter == obj_id_to_ip_.end());
   iter->second = obj_srv_ip;
+}
+
+rt::Thread Controller::create_probing_thread(std::set<Node> &nodes,
+                                             std::set<Node>::iterator iter) {
+  return rt::Thread([&, iter] {
+    bool node_alive;
+    while (!rt::access_once(done_) && (node_alive = update_node(iter))) {
+      timer_sleep(kProbingIntervalUs);
+    }
+    if (!node_alive) {
+      rt::MutexGuard g(&mutex_);
+      nodes.erase(iter);
+    }
+  });
+}
+
+bool Controller::update_node(std::set<Node>::iterator iter) {
+  auto *client = Runtime::rpc_client_mgr->get_by_ip(iter->ip);
+  RPCReqProbeFreeResource req;
+  RPCReturnBuffer return_buf;
+  auto alive = (client->Call(to_span(req), &return_buf) == kOk);
+  if (alive) {
+    auto &resp = from_span<RPCRespProbeFreeResource>(return_buf.get_buf());
+    const_cast<Resource &>(iter->free_resource) = resp.resource;
+    return true;
+  } else {
+    return false;
+  }
 }
 
 } // namespace nu

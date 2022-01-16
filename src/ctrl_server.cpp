@@ -3,6 +3,9 @@ extern "C" {
 #include <net/ip.h>
 }
 
+#include <algorithm>
+
+#include <runtime.h>
 #include <thread.h>
 
 #include "nu/ctrl_server.hpp"
@@ -74,4 +77,15 @@ ControllerServer::handle_get_migration_dest(const RPCReqGetMigrationDest &req) {
   return resp;
 }
 
+std::unique_ptr<RPCRespProbeFreeResource>
+ControllerServer::handle_probing(const RPCReqProbeFreeResource &req) {
+  auto resp = std::make_unique_for_overwrite<RPCRespProbeFreeResource>();
+  resp->resource.cores =
+      std::min(rt::RuntimeGlobalIdleCores(),
+               rt::RuntimeMaxCores() - rt::RuntimeActiveCores());
+  resp->resource.mem_mbs = rt::RuntimeFreeMemMbs();
+  return resp;
+}
+
 } // namespace nu
+

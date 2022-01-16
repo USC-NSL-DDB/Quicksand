@@ -82,6 +82,13 @@ void RPCServer::run_background_loop() {
       returner->Return(kOk);
       break;
     }
+    case kProbeFreeResource: {
+      auto &req = from_span<RPCReqProbeFreeResource>(args);
+      auto resp = Runtime::controller_server->handle_probing(req);
+      auto span = to_span(*resp);
+      returner->Return(kOk, span, [resp = std::move(resp)] {});
+      break;
+    }
     // Object server
     case kRemObjCall: {
       args = args.subspan(sizeof(RPCReqType));
