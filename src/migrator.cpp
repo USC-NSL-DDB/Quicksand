@@ -194,7 +194,7 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
         {reinterpret_cast<std::byte *>(req_start_addrs[i]), req_lens[i]}};
     if (i < PressureHandler::kNumAuxHandlers) {
       // Dispatch to aux handler.
-      Runtime::pressure_handler->dispatch_aux_task(i, std::move(task));
+      Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
     } else {
       // Execute the task itself.
       BUG_ON(c->WritevFull(std::span<const iovec>(task), /* nt = */ false,
@@ -433,7 +433,7 @@ void Migrator::init_aux_handlers(uint32_t dest_ip) {
     auto aux_migration_conn = migrator_conn_mgr_.get(dest_ip);
     Runtime::pressure_handler->init_aux_handler(i,
                                                 std::move(aux_migration_conn));
-    Runtime::pressure_handler->dispatch_aux_task(i, std::move(task));
+    Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
   }
   Runtime::pressure_handler->wait_aux_tasks();
 }
@@ -443,7 +443,7 @@ void Migrator::finish_aux_handlers() {
   std::vector<iovec> task{{&type, sizeof(type)}};
 
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
-    Runtime::pressure_handler->dispatch_aux_task(i, std::move(task));
+    Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
   }
   Runtime::pressure_handler->wait_aux_tasks();
 }
@@ -476,11 +476,7 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
     auto *paused_ths_list = pause_all_migrating_threads(heap_header);
     transmit(conn, heap_header, paused_ths_list);
     gc_migrated_threads();
-  }
-
-  for (auto *heap_header : migrated_heaps) {
-    Runtime::heap_manager->deallocate(heap_header);
-    SlabAllocator::deregister_slab_by_id(to_slab_id(heap_header));
+    Runtime::pressure_handler->dispatch_aux_dealloc_task(0, heap_header);
   }
 
   unmap_destructed_heaps(conn, &destructed_heaps);

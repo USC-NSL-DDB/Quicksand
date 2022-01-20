@@ -135,10 +135,23 @@ void PressureHandler::init_aux_handler(uint32_t handler_id,
   aux_handler_states[handler_id].conn = std::move(conn);
 }
 
-void PressureHandler::dispatch_aux_task(uint32_t handler_id,
-                                        std::vector<iovec> &&write_task) {
+void PressureHandler::dispatch_aux_tcp_task(
+    uint32_t handler_id, std::vector<iovec> &&tcp_write_task) {
   auto &state = aux_handler_states[handler_id];
-  state.write_task = std::move(write_task);
+  while (rt::access_once(state.task_pending)) {
+    cpu_relax();
+  }
+  state.tcp_write_task = std::move(tcp_write_task);
+  store_release(&state.task_pending, true);
+}
+
+void PressureHandler::dispatch_aux_dealloc_task(uint32_t handler_id,
+                                                HeapHeader *dealloc_task) {
+  auto &state = aux_handler_states[handler_id];
+  while (rt::access_once(state.task_pending)) {
+    cpu_relax();
+  }
+  state.dealloc_task = dealloc_task;
   store_release(&state.task_pending, true);
 }
 
@@ -147,10 +160,16 @@ void PressureHandler::aux_handler(void *args) {
   // Service tasks.
   while (!rt::access_once(state->done)) {
     if (unlikely(load_acquire(&state->task_pending))) {
-      auto *c = state->conn.get_tcp_conn();
-      BUG_ON(c->WritevFull(std::span<const iovec>(state->write_task),
-                           /* nt = */ false,
-                           /* poll = */ true) < 0);
+      if (state->dealloc_task) {
+        Runtime::heap_manager->deallocate(state->dealloc_task);
+        SlabAllocator::deregister_slab_by_id(to_slab_id(state->dealloc_task));
+        state->dealloc_task = nullptr;
+      } else {
+        auto *c = state->conn.get_tcp_conn();
+        BUG_ON(c->WritevFull(std::span<const iovec>(state->tcp_write_task),
+                             /* nt = */ false,
+                             /* poll = */ true) < 0);
+      }
       rt::access_once(state->task_pending) = false;
     }
     pause_local_migrating_threads();
