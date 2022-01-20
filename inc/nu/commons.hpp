@@ -39,6 +39,7 @@ struct ErasedType {};
 
 using RemObjID = uint64_t;
 using lpid_t = uint16_t;
+using SlabId_t = uint64_t;
 
 constexpr static uint64_t kNumCores = NCORES;
 constexpr static uint64_t kCacheLineBytes = 64;
@@ -52,7 +53,7 @@ constexpr static RemObjID kNullRemObjID = 0;
 // TODO: double check.
 constexpr static uint64_t kMinHeapVAddr = 0x300000000000ULL;
 constexpr static uint64_t kMaxHeapVAddr = 0x400000000000ULL;
-constexpr static uint64_t kHeapSize = 0x40000000ULL;
+constexpr static uint64_t kHeapSize = 0x8000000ULL;
 constexpr static uint64_t kMaxNumHeaps =
     (kMaxHeapVAddr - kMinHeapVAddr) / kHeapSize;
 constexpr static uint64_t kMinStackClusterVAddr = kMaxHeapVAddr;
@@ -62,19 +63,20 @@ constexpr static uint64_t kMaxNumStacksPerCluster =
     kStackClusterSize / kStackSize;
 constexpr static uint64_t kMinRuntimeHeapVaddr = kMaxStackClusterVAddr;
 constexpr static uint64_t kRuntimeHeapSize = 128ULL << 30;
-constexpr static uint16_t kRuntimeSlabId = 1;
+constexpr static uint32_t kRuntimeSlabId = 1;
 
 constexpr static uint64_t kOneMB = 1ULL << 20;
 constexpr static uint64_t kOneSecond = 1000 * 1000;
 constexpr static uint64_t kOneMilliSecond = 1000;
 
 uint64_t bsr_64(uint64_t a);
-HeapHeader *to_heap_header(RemObjID id);
-void *to_heap_base(RemObjID id);
-RemObjID to_obj_id(void *heap_base);
+constexpr HeapHeader *to_heap_header(RemObjID id);
+constexpr void *to_heap_base(RemObjID id);
+constexpr RemObjID to_obj_id(void *heap_base);
+constexpr SlabId_t to_slab_id(void *heap_base);
+constexpr SlabId_t get_max_slab_id();
 void *switch_stack(void *new_rsp);
 VAddrRange get_obj_stack_range(thread_t *thread);
-uint16_t to_u16(void *heap_base);
 bool is_in_heap(void *ptr, void *heap_base);
 bool is_in_stack(void *ptr, VAddrRange stack);
 bool is_copied_on_migration(void *ptr, HeapHeader *heap_header);

@@ -480,7 +480,7 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
 
   for (auto *heap_header : migrated_heaps) {
     Runtime::heap_manager->deallocate(heap_header);
-    SlabAllocator::deregister_slab_by_id(to_u16(heap_header));
+    SlabAllocator::deregister_slab_by_id(to_slab_id(heap_header));
   }
 
   unmap_destructed_heaps(conn, &destructed_heaps);

@@ -8,14 +8,28 @@ inline uint64_t bsr_64(uint64_t a) {
   return ret;
 }
 
-inline HeapHeader *to_heap_header(RemObjID id) {
+inline constexpr HeapHeader *to_heap_header(RemObjID id) {
   return reinterpret_cast<HeapHeader *>(id);
 }
 
-inline void *to_heap_base(RemObjID id) { return reinterpret_cast<void *>(id); }
+inline constexpr void *to_heap_base(RemObjID id) {
+  return reinterpret_cast<void *>(id);
+}
 
-inline RemObjID to_obj_id(void *heap_base) {
+inline constexpr RemObjID to_obj_id(void *heap_base) {
   return reinterpret_cast<RemObjID>(heap_base);
+}
+
+inline constexpr SlabId_t to_slab_id(uint64_t heap_base_addr) {
+  return (heap_base_addr - kMinHeapVAddr) / kHeapSize + 2;
+}
+
+inline constexpr SlabId_t to_slab_id(void *heap_base) {
+  return to_slab_id(reinterpret_cast<uint64_t>(heap_base));
+}
+
+inline constexpr SlabId_t get_max_slab_id() {
+  return to_slab_id(kMaxHeapVAddr - kHeapSize);
 }
 
 inline __attribute__((always_inline)) void *switch_stack(void *new_rsp) {
@@ -34,20 +48,7 @@ inline VAddrRange get_obj_stack_range(thread_t *thread) {
   auto rsp = thread_get_rsp(thread);
   range.start = rsp - kStackRedZoneSize;
   range.end = ((rsp + kStackSize) & (~(kStackSize - 1)));
-  return range;  
-}
-
-inline constexpr uint64_t __to_u16(uint64_t heap_base_addr) {
-  return heap_base_addr / kHeapSize;
-}
-
-inline uint16_t to_u16(void *heap_base) {
-  constexpr auto kMaxHeapBaseAddr = kMaxHeapVAddr - kHeapSize;
-  constexpr auto kMinHeapBaseAddr = kMinHeapVAddr;
-  static_assert(__to_u16(kMaxHeapBaseAddr) <=
-                std::numeric_limits<uint16_t>::max());
-  static_assert(__to_u16(kMinHeapBaseAddr) > kRuntimeSlabId);
-  return __to_u16(reinterpret_cast<uint64_t>(heap_base));
+  return range;
 }
 
 inline bool is_in_heap(void *ptr, void *heap_base) {

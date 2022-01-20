@@ -90,7 +90,7 @@ void HeapManager::setup(void *heap_base, bool migratable, bool from_migration) {
     std::construct_at(&heap_header->spin);
     heap_header->ref_cnt = 1;
     auto heap_region_size = kHeapSize - sizeof(HeapHeader);
-    heap_header->slab.init(to_u16(heap_header), heap_header + 1,
+    heap_header->slab.init(to_slab_id(heap_header), heap_header + 1,
                            heap_region_size);
   }
 }

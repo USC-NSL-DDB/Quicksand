@@ -39,8 +39,8 @@ private:
   static_assert(sizeof(NodeInfo) == sizeof(uint64_t));
 
   uint16_t port_;
-  NodeInfo rem_id_to_node_info_[kMaxNumHeaps];
-  rt::Mutex node_info_mutexes_[kMaxNumHeaps];
+  NodeInfo rem_id_to_node_info_[get_max_slab_id() + 1];
+  rt::Mutex node_info_mutexes_[get_max_slab_id() + 1];
   std::unordered_map<NodeIP, NodeID> node_ip_to_node_id_map_;
   NodeID next_node_id_;
   std::unique_ptr<RPCClient>

@@ -18,15 +18,13 @@ extern "C" {
 
 namespace nu {
 
-constexpr static uint32_t kAlignment = 16;
-
 struct PtrHeader {
   uint64_t size;
-  uint64_t slab_id;
+  SlabId_t slab_id;
 };
-static_assert(sizeof(PtrHeader) % kAlignment == 0);
 
-using SlabId_t = uint16_t;
+constexpr static uint32_t kAlignment = 16;
+static_assert(sizeof(PtrHeader) % kAlignment == 0);
 
 class SlabAllocator {
 public:
@@ -75,7 +73,7 @@ private:
     FreePtrsLinkedList lists[kMaxSlabClassShift];
   };
 
-  static SlabAllocator *slabs_[std::numeric_limits<SlabId_t>::max() + 1];
+  static SlabAllocator *slabs_[get_max_slab_id() + 1];
   SlabId_t slab_id_;
   const uint8_t *start_;
   uint8_t *end_;

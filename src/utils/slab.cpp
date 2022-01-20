@@ -4,7 +4,7 @@
 
 namespace nu {
 
-SlabAllocator *SlabAllocator::slabs_[std::numeric_limits<SlabId_t>::max() + 1];
+SlabAllocator *SlabAllocator::slabs_[get_max_slab_id() + 1];
 
 void *SlabAllocator::FreePtrsLinkedList::pop() {
   size_--;
