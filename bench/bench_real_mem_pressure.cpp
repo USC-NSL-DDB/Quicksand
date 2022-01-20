@@ -74,10 +74,10 @@ void do_mmap_until(uint32_t free_mem_mbytes_target,
 }
 
 void wait_for_signal() {
-  rt::access_once(signalled) = false;
   while (!rt::access_once(signalled)) {
     timer_sleep(100);
   }
+  rt::access_once(signalled) = false;
 }
 
 void do_work() {

@@ -128,10 +128,10 @@ public:
 };
 
 void wait_for_signal() {
-  rt::access_once(signalled) = false;
   while (!rt::access_once(signalled)) {
     timer_sleep(100);
   }
+  rt::access_once(signalled) = false;
 }
 
 void real_main(int argc, char *argv[]) {

@@ -27,10 +27,10 @@ constexpr uint32_t kNumCPUCores = 46;
 bool signalled = false;
 
 void wait_for_signal() {
-  rt::access_once(signalled) = false;
   while (!rt::access_once(signalled)) {
     timer_sleep(100);
   }
+  rt::access_once(signalled) = false;
 }
 
 void do_work() {
