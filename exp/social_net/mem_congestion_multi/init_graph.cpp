@@ -1,7 +1,9 @@
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <nu/commons.hpp>
 #include <nu/utils/future.hpp>
+#include <random>
 #include <runtime.h>
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/transport/TSocket.h>
@@ -20,6 +22,14 @@ const std::string kFilePath =
 const std::string kProxyIp = "18.18.1.2";
 constexpr static uint32_t kEntryObjPort = 9091;
 constexpr static uint32_t kConcurrrency = 200;
+constexpr static uint32_t kTextLen = 64;
+constexpr static uint32_t kUrlLen = 64;
+constexpr static uint32_t kMinNumPostsPerUser = 1;
+constexpr static uint32_t kMaxNumPostsPerUser = 20;
+constexpr static uint32_t kMaxNumMentionsPerText = 2;
+constexpr static uint32_t kMaxNumUrlsPerText = 2;
+constexpr static uint32_t kMaxNumMediasPerText = 2;
+constexpr static bool kEnableCompose = false;
 
 class ClientPtr {
 public:
@@ -82,6 +92,62 @@ void do_work() {
       std::cout << "follow " << i << std::endl;
     }
   }
+  futures.clear();
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> dist_num_posts(kMinNumPostsPerUser,
+                                                 kMaxNumPostsPerUser);
+  std::uniform_int_distribution<> dist_num_mentions(0, kMaxNumMentionsPerText);
+  std::uniform_int_distribution<> dist_num_urls(0, kMaxNumUrlsPerText);
+  std::uniform_int_distribution<> dist_num_medias(0, kMaxNumMediasPerText);
+  std::uniform_int_distribution<> dist_user_id(1, num_nodes);
+  std::uniform_int_distribution<char> dist_chars('a', 'z');
+  std::uniform_int_distribution<uint64_t> dist_u64(
+      0, std::numeric_limits<uint64_t>::max());
+
+  if constexpr (kEnableCompose) {
+    for (uint32_t user_id = 1; user_id <= num_nodes; user_id++) {
+      auto num_posts = dist_num_posts(gen);
+      for (uint32_t pid = 0; pid < num_posts; pid++) {
+        auto username = "username_" + std::to_string(user_id);
+
+        std::string text = "";
+        for (uint32_t i = 0; i < kTextLen; i++) {
+          text += dist_chars(gen);
+        }
+
+        auto num_mentions = dist_num_mentions(gen);
+        for (uint32_t i = 0; i < num_mentions; i++) {
+          auto mentioned_id = dist_user_id(gen);
+          text += " @username_" + std::to_string(mentioned_id);
+        }
+
+        auto num_urls = dist_num_urls(gen);
+        for (uint32_t i = 0; i < num_urls; i++) {
+          text += " http://";
+          for (uint32_t j = 0; j < kUrlLen; j++) {
+            text += dist_chars(gen);
+          }
+        }
+
+        std::vector<int64_t> media_ids;
+        std::vector<std::string> media_types;
+        auto num_medias = dist_num_medias(gen);
+        for (uint32_t i = 0; i < num_medias; i++) {
+          media_ids.emplace_back(dist_u64(gen));
+          media_types.emplace_back("png");
+        }
+
+        auto post_type = social_network::PostType::POST;
+
+        clients[0]->ComposePost(username, user_id, text, media_ids, media_types,
+                                post_type);
+        std::cout << "compose " << user_id << " " << pid << std::endl;
+      }
+    }
+  }
+
   std::cout << "done" << std::endl;
 }
 
@@ -102,3 +168,4 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
