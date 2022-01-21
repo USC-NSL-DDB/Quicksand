@@ -16,9 +16,10 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 const std::string kFilePath =
-    "datasets/social-graph/socfb-Princeton12/socfb-Princeton12.mtx";
+    "datasets/social-graph/socfb-Indiana/socfb-Indiana.mtx";
 const std::string kProxyIp = "18.18.1.2";
 constexpr static uint32_t kEntryObjPort = 9091;
+constexpr static uint32_t kConcurrrency = 200;
 
 class ClientPtr {
 public:
@@ -47,23 +48,41 @@ void do_work() {
   std::cout << "num_nodes = " << num_nodes << std::endl;
   std::cout << "num_edges = " << num_edges << std::endl;
 
-  ClientPtr client(kProxyIp);
-  for (uint32_t i = 0; i < num_nodes; i++) {
-    int64_t user_id = i + 1;
-    std::string first_name = "first_name_" + std::to_string(user_id);
-    std::string last_name = "last_name_" + std::to_string(user_id);
-    std::string username = "username_" + std::to_string(user_id);
-    std::string password = "password_" + std::to_string(user_id);
-    client->RegisterUserWithId(first_name, last_name, username, password,
-                               user_id);
+  std::vector<ClientPtr> clients;
+  for (uint32_t i = 0; i < kConcurrrency; i++) {
+    clients.emplace_back(kProxyIp);
   }
+
+  std::vector<nu::Future<void>> futures;
+  for (uint32_t i = 0; i < num_nodes; i++) {
+    futures.emplace_back(nu::async([&, user_id = i + 1] {
+      std::string first_name = "first_name_" + std::to_string(user_id);
+      std::string last_name = "last_name_" + std::to_string(user_id);
+      std::string username = "username_" + std::to_string(user_id);
+      std::string password = "password_" + std::to_string(user_id);
+      clients[user_id % kConcurrrency]->RegisterUserWithId(
+          first_name, last_name, username, password, user_id);
+    }));
+    if (futures.size() == kConcurrrency) {
+      futures.clear();
+      std::cout << "register " << i << std::endl;
+    }
+  }
+  futures.clear();
 
   for (uint32_t i = 0; i < num_edges; i++) {
     int64_t user_id_x, user_id_y;
     ifs >> user_id_x >> user_id_y;
-    client->Follow(user_id_x, user_id_y);
-    client->Follow(user_id_y, user_id_x);
+    futures.emplace_back(nu::async([&, i, user_id_x, user_id_y] {
+      clients[i % kConcurrrency]->Follow(user_id_x, user_id_y);
+      clients[i % kConcurrrency]->Follow(user_id_y, user_id_x);
+    }));
+    if (futures.size() == kConcurrrency) {
+      futures.clear();
+      std::cout << "follow " << i << std::endl;
+    }
   }
+  std::cout << "done" << std::endl;
 }
 
 int main(int argc, char **argv) {
