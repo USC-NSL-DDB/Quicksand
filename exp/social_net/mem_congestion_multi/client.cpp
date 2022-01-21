@@ -45,7 +45,7 @@ constexpr static uint32_t kRemovePostsPercent = 5;
 constexpr static uint32_t kFollowPercent =
     100 - kUserTimelinePercent - kHomeTimelinePercent - kComposePostPercent -
     kRemovePostsPercent;
-constexpr static uint32_t kNumUsers = 962;
+constexpr static uint32_t kNumUsers = 29732;
 constexpr static char kCharSet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "abcdefghijklmnopqrstuvwxyz";
 constexpr static uint32_t kTextLen = 64;
