@@ -28,6 +28,11 @@ struct Node {
   Resource free_resource;
 
   bool operator<(const Node &o) const { return ip < o.ip; }
+
+  bool has_enough_resource(Resource resource) const {
+    return free_resource.cores >= resource.cores &&
+           free_resource.mem_mbs >= resource.mem_mbs;
+    }
 };
 
 struct LPInfo {

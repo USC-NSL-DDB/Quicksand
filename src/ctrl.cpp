@@ -48,12 +48,12 @@ Controller::~Controller() {
   }
 }
 
-std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
-    Node &node, lpid_t lpid, MD5Val md5) {
+std::optional<std::pair<lpid_t, VAddrRange>>
+Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  // TODO: should GC the allocated lpid and stack somehow through heartbeat or an
-  // explicit deregister_node() call.
+  // TODO: should GC the allocated lpid and stack somehow through heartbeat or
+  // an explicit deregister_node() call.
   if (lpid) {
     auto iter = free_lpids_.find(lpid);
     if (iter == free_lpids_.end()) {
@@ -168,19 +168,28 @@ std::optional<Node> Controller::select_node_for_obj(lpid_t lpid,
   return *rr_iter++;
 }
 
-uint32_t Controller::get_migration_dest(lpid_t lpid,
-                                                       uint32_t requestor_ip,
-                                                       Resource resource) {
+uint32_t Controller::get_migration_dest(lpid_t lpid, uint32_t requestor_ip,
+                                        Resource resource) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  auto &nodes = lpid_to_info_[lpid].nodes;
-  // TODO: choose the dest node based on resource requirement.
-  for (auto &node : nodes) {
-    if (node.ip != requestor_ip) {
-      return node.ip;
-    }
+  auto &[nodes, rr_iter] = lpid_to_info_[lpid];
+  auto initial_rr_iter = rr_iter;
+  BUG_ON(nodes.empty());
+
+again:
+  if (unlikely(rr_iter == nodes.end())) {
+    rr_iter = nodes.begin();
   }
-  return 0;
+
+  if (rr_iter->ip == requestor_ip || !rr_iter->has_enough_resource(resource)) {
+    rr_iter++;
+    if (unlikely(rr_iter == initial_rr_iter)) {
+      return 0;
+    }
+    goto again;
+  }
+
+  return rr_iter++->ip;
 }
 
 void Controller::update_location(RemObjID id, uint32_t obj_srv_ip) {
