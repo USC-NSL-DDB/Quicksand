@@ -43,8 +43,9 @@ std::unique_ptr<PressureHandler> Runtime::pressure_handler;
 void Runtime::init_runtime_heap() {
   auto addr = reinterpret_cast<void *>(kMinRuntimeHeapVaddr);
   preempt_disable();
-  auto mmap_addr = mmap(addr, kRuntimeHeapSize, PROT_READ | PROT_WRITE,
-                        MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED, -1, 0);
+  auto mmap_addr =
+      mmap(addr, kRuntimeHeapSize, PROT_READ | PROT_WRITE,
+           MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED | MAP_NORESERVE, -1, 0);
   preempt_enable();
   BUG_ON(mmap_addr != addr);
   BUG_ON(madvise(mmap_addr, kRuntimeHeapSize, MADV_HUGEPAGE) != 0);
