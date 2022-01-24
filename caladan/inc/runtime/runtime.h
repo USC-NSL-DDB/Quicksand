@@ -24,6 +24,8 @@ extern unsigned int maxks;
 extern unsigned int guaranteedks;
 extern atomic_t runningks;
 
+extern int runtime_spinning_cores(void);
+
 /**
  * runtime_queue_us - returns the us of packet queueing delay + runtime queueing
  * delay

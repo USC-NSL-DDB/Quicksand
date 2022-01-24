@@ -82,10 +82,11 @@ ControllerServer::handle_probing(const RPCReqProbeFreeResource &req) {
   auto resp = std::make_unique_for_overwrite<RPCRespProbeFreeResource>();
   resp->resource.cores =
       std::min(rt::RuntimeGlobalIdleCores(),
-               rt::RuntimeMaxCores() - rt::RuntimeActiveCores());
+               rt::RuntimeMaxCores() -
+                   (rt::RuntimeActiveCores() - rt::RuntimeSpinningCores())) +
+      rt::RuntimeSpinningCores();
   resp->resource.mem_mbs = rt::RuntimeFreeMemMbs();
   return resp;
 }
 
 } // namespace nu
-

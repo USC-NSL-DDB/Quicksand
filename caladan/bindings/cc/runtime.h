@@ -40,4 +40,6 @@ inline unsigned int RuntimeGlobalIdleCores() {
   return runtime_global_idle_cores();
 }
 
+inline unsigned int RuntimeSpinningCores() { return runtime_spinning_cores(); }
+
 };  // namespace rt
