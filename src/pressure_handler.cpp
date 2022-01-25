@@ -167,7 +167,7 @@ void PressureHandler::aux_handler(void *args) {
       } else {
         auto *c = state->conn.get_tcp_conn();
         BUG_ON(c->WritevFull(std::span<const iovec>(state->tcp_write_task),
-                             /* nt = */ false,
+                             /* nt = */ true,
                              /* poll = */ true) < 0);
       }
       rt::access_once(state->task_pending) = false;

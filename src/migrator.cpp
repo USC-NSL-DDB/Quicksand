@@ -197,7 +197,7 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
       Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
     } else {
       // Execute the task itself.
-      BUG_ON(c->WritevFull(std::span<const iovec>(task), /* nt = */ false,
+      BUG_ON(c->WritevFull(std::span<const iovec>(task), /* nt = */ true,
                            /* poll = */ true) < 0);
     }
   }
