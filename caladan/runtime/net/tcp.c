@@ -14,6 +14,8 @@
 #include <runtime/timer.h>
 #include <runtime/memcpy.h>
 
+#include <stdio.h>
+
 #include "tcp.h"
 
 /* protects @tcp_conns */
@@ -559,33 +561,32 @@ void tcp_qclose(tcpqueue_t *q)
 	kref_put(&q->ref, tcp_queue_release_ref);
 }
 
-/* FIXME: support the non-directpath code path. */
-static void __check_net_softirq(void)
+static void __check_net_softirq(struct kthread *k)
 {
-	struct kthread *l, *k;
-	int i;
+#ifndef DIRECTPATH
+	#error "Only supports directpath"
+#endif
 
-	l = getk();
+	BUG_ON(!cfg_directpath_enabled);
+
+	/* check softirq */
+	if (softirq_directpath_pending(k)) {
+		directpath_softirq_one(k);
+		return;
+	}
 
 	/* unblock ongoing prioritization */
 	prioritize_local_rcu_readers();
 
 	/* unblock ongoing migration */
 	pause_local_migrating_threads();
+}
 
-	/* check local directpath softirq */
-	if (softirq_directpath_pending(l))
-		directpath_softirq_one(l);
-
-	/* check remote directpath softirq */
-	for (i = 0; i < nrks; i++) {
-		k = ks[i];
-		if (k == l || !softirq_directpath_pending(k))
-			continue;
-		directpath_softirq_one(k);
-	}
-
-	putk();
+static inline void waitq_poll_softirq(waitq_t *q, tcpconn_t *c)
+{
+	uint32_t aff = net_ops.get_flow_affinity(CALADAN_IPPROTO_TCP,
+						 c->e.laddr.port, c->e.raddr);
+	waitq_wait_poll(q, &c->lock, ks[aff], __check_net_softirq);
 }
 
 /*
@@ -631,7 +632,7 @@ int __tcp_dial(struct netaddr laddr, struct netaddr raddr, tcpconn_t **c_out,
 	/* wait until the connection is established or there is a failure */
 	while (!c->tx_closed && c->pcb.state < TCP_STATE_ESTABLISHED) {
 		if (poll)
-			waitq_wait_poll(&c->tx_wq, &c->lock, __check_net_softirq);
+			waitq_poll_softirq(&c->tx_wq, c);
 		else
 			waitq_wait(&c->tx_wq, &c->lock);
 	}
@@ -718,7 +719,7 @@ static ssize_t tcp_read_wait(tcpconn_t *c, size_t len,
 	/* block until there is an actionable event */
 	while (!c->rx_closed && (c->rx_exclusive || list_empty(&c->rxq))) {
 		if (poll)
-			waitq_wait_poll(&c->rx_wq, &c->lock, __check_net_softirq);
+			waitq_poll_softirq(&c->rx_wq, c);
 		else
 			waitq_wait(&c->rx_wq, &c->lock);
 	}
@@ -937,7 +938,7 @@ static int tcp_write_wait(tcpconn_t *c, size_t *winlen, bool poll)
 			}
 		}
 		if (poll)
-			waitq_wait_poll(&c->tx_wq, &c->lock, __check_net_softirq);
+			waitq_poll_softirq(&c->tx_wq, c);
 		else
 			waitq_wait(&c->tx_wq, &c->lock);
 	}
