@@ -12,11 +12,10 @@ SOCIAL_NET_DIR=`pwd`/../../../app/socialNetwork/orig/
 cd $SOCIAL_NET_DIR
 ./build.sh
 
-mops=( 0.02 0.03 0.04 0.04 )
-
-for num_worker_nodes in `seq 1 4`
+for num_worker_nodes in `seq 1 30`
 do
     mop=${mops[`expr $num_worker_nodes - 1`]}
+    mop=0.04
 
     ssh $DOCKER_MASTER_IP "cd $SOCIAL_NET_DIR; ./install_docker.sh"
     join_cmd=`ssh $DOCKER_MASTER_IP "docker swarm init --advertise-addr $DOCKER_MASTER_IP" | grep token | head -n 1`
