@@ -168,9 +168,9 @@ void Migrator::run_background_loop() {
 }
 
 void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
-  [[maybe_unused]] uint64_t start_tsc, end_tsc;
+  [[maybe_unused]] uint64_t t0, t1;
   if constexpr (kEnableLogging) {
-    start_tsc = rdtsc();
+    t0 = microtime();
   }
 
   uint8_t type = kCopyHeap;
@@ -205,10 +205,10 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   Runtime::pressure_handler->wait_aux_tasks();
 
   if constexpr (kEnableLogging) {
-    end_tsc = rdtsc();
+    t1 = microtime();
     preempt_disable();
-    std::cout << "Transmit heap: size = " << len
-              << ", cycles = " << end_tsc - start_tsc << std::endl;
+    std::cout << "Transmit heap: addr = " << heap_header << ", size = " << len
+              << ", time_us = " << t1 - t0 << std::endl;
     preempt_enable();
   }
 }
@@ -484,15 +484,12 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
 }
 
 void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
-  [[maybe_unused]] uint64_t t0, t1, t2;
+  [[maybe_unused]] uint64_t t0, t1;
   if constexpr (kEnableLogging) {
-    t0 = rdtsc();
+    t0 = microtime();
   }
 
   heap_header->pending_load_cnt += kTransmitHeapNumThreads;
-  if constexpr (kEnableLogging) {
-    t1 = rdtsc();
-  }
 
   uint8_t type;
   BUG_ON(c->ReadFull(&type, sizeof(type), /* nt = */ false,
@@ -512,10 +509,10 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   nu::SlabAllocator::register_slab_by_id(slab, slab->get_id());
 
   if constexpr (kEnableLogging) {
-    t2 = rdtsc();
+    t1 = microtime();
     preempt_disable();
-    std::cout << "Load heap: mmap cycles = " << t1 - t0
-              << ", tcp cycles = " << t2 - t1 << std::endl;
+    std::cout << "Load heap: addr = " << heap_header
+              << ", time_us = " << t1 - t0 << std::endl;
     preempt_enable();
   }
 }
