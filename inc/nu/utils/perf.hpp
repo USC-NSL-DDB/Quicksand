@@ -40,22 +40,17 @@ public:
   virtual bool serve_req(PerfThreadState *state, const PerfRequest *req) = 0;
 };
 
-// Open-loop, possion arrival.
+// Closed-loop, possion arrival.
 class Perf {
 public:
-  constexpr static uint32_t kReqMissThreshUs = 500;
-
   Perf(PerfAdapter &adapter);
   void reset();
   void run(uint32_t num_threads, double target_mops, uint64_t duration_us,
-           uint64_t warmup_us = 0,
-           // To filter out abnormally long durations caused by OS-level
-           // interruptions.
-           uint64_t max_req_us = 5 * kOneMilliSecond);
+           uint64_t warmup_us = 0, uint64_t miss_ddl_thresh_us = 500);
   void run_multi_clients(std::span<const netaddr> client_addrs,
                          uint32_t num_threads, double target_mops,
                          uint64_t duration_us, uint64_t warmup_us = 0,
-                         uint64_t max_req_us = 5 * kOneMilliSecond);
+                         uint64_t miss_ddl_thresh_us = 500);
   uint64_t get_average_lat();
   uint64_t get_nth_lat(double nth);
   std::vector<std::pair<uint64_t, uint64_t>>
@@ -82,7 +77,7 @@ private:
   std::vector<Trace>
   benchmark(std::vector<PerfRequestWithTime> *all_reqs,
             const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
-            uint32_t num_threads, uint64_t max_req_us);
+            uint32_t num_threads, uint64_t miss_ddl_thresh_us);
 };
 
 } // namespace nu

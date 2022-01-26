@@ -56,7 +56,7 @@ void Perf::gen_reqs(
 std::vector<Trace> Perf::benchmark(
     std::vector<PerfRequestWithTime> *all_reqs,
     const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
-    uint32_t num_threads, uint64_t max_req_us) {
+    uint32_t num_threads, uint64_t miss_ddl_thresh_us) {
   std::vector<rt::Thread> threads;
   std::vector<Trace> all_traces[num_threads];
 
@@ -73,14 +73,14 @@ std::vector<Trace> Perf::benchmark(
         auto relative_us = microtime() - start_us;
         if (req.start_us > relative_us) {
           timer_sleep(req.start_us - relative_us);
-        } else if (req.start_us + kReqMissThreshUs < relative_us) {
+        } else if (req.start_us + miss_ddl_thresh_us < relative_us) {
           continue;
         }
         Trace trace;
         trace.start_us = microtime() - start_us;
         bool ok = adapter_.serve_req(thread_state, req.req.get());
         trace.duration_us = microtime() - start_us - trace.start_us;
-        if (ok && trace.duration_us <= max_req_us) {
+        if (ok) {
           traces.push_back(trace);
         }
       }
@@ -108,33 +108,33 @@ void Perf::create_thread_states(
 }
 
 void Perf::run(uint32_t num_threads, double target_mops, uint64_t duration_us,
-               uint64_t warmup_us, uint64_t max_req_us) {
+               uint64_t warmup_us, uint64_t miss_ddl_thresh_us) {
   std::vector<std::unique_ptr<PerfThreadState>> thread_states;
   create_thread_states(&thread_states, num_threads);
   std::vector<PerfRequestWithTime> all_warmup_reqs[num_threads];
   std::vector<PerfRequestWithTime> all_perf_reqs[num_threads];
   gen_reqs(all_warmup_reqs, thread_states, num_threads, target_mops, warmup_us);
   gen_reqs(all_perf_reqs, thread_states, num_threads, target_mops, duration_us);
-  benchmark(all_warmup_reqs, thread_states, num_threads, max_req_us);
-  traces_ =
-      move(benchmark(all_perf_reqs, thread_states, num_threads, max_req_us));
+  benchmark(all_warmup_reqs, thread_states, num_threads, miss_ddl_thresh_us);
+  traces_ = move(
+      benchmark(all_perf_reqs, thread_states, num_threads, miss_ddl_thresh_us));
   real_mops_ = static_cast<double>(traces_.size()) / duration_us;
 }
 
 void Perf::run_multi_clients(std::span<const netaddr> client_addrs,
                              uint32_t num_threads, double target_mops,
                              uint64_t duration_us, uint64_t warmup_us,
-                             uint64_t max_req_us) {
+                             uint64_t miss_ddl_thresh_us) {
   std::vector<std::unique_ptr<PerfThreadState>> thread_states;
   create_thread_states(&thread_states, num_threads);
   std::vector<PerfRequestWithTime> all_warmup_reqs[num_threads];
   std::vector<PerfRequestWithTime> all_perf_reqs[num_threads];
   gen_reqs(all_warmup_reqs, thread_states, num_threads, target_mops, warmup_us);
   gen_reqs(all_perf_reqs, thread_states, num_threads, target_mops, duration_us);
-  benchmark(all_warmup_reqs, thread_states, num_threads, max_req_us);
+  benchmark(all_warmup_reqs, thread_states, num_threads, miss_ddl_thresh_us);
   tcp_barrier(client_addrs);
-  traces_ =
-      move(benchmark(all_perf_reqs, thread_states, num_threads, max_req_us));
+  traces_ = move(
+      benchmark(all_perf_reqs, thread_states, num_threads, miss_ddl_thresh_us));
   real_mops_ = static_cast<double>(traces_.size()) / duration_us;
 }
 
