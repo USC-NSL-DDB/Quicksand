@@ -49,12 +49,13 @@ void HeapManager::mmap_populate(void *heap_base, uint64_t populate_len) {
       ::mmap(mmap_base, populate_len, PROT_READ | PROT_WRITE,
              MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_POPULATE, -1, 0);
   BUG_ON(mmap_addr != mmap_base);
+  heap_header->status = kMapped;
+
   auto *unpopulated_base = mmap_base + populate_len;
   mmap_addr = ::mmap(unpopulated_base, total_mmap_size - populate_len,
                      PROT_READ | PROT_WRITE,
                      MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
   BUG_ON(mmap_addr != unpopulated_base);
-  heap_header->status = kMapped;
 }
 
 void HeapManager::deallocate(void *heap_base) {
