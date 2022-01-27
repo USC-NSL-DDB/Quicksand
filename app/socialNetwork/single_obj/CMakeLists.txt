@@ -11,3 +11,4 @@ set(CMAKE_INSTALL_PREFIX /usr/local/bin)
 
 add_subdirectory(src)
 add_subdirectory(bench)
+add_subdirectory(init_graph)
