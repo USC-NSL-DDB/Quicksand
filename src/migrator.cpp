@@ -208,7 +208,8 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
     t1 = microtime();
     preempt_disable();
     std::cout << "Transmit heap: addr = " << heap_header << ", size = " << len
-              << ", time_us = " << t1 - t0 << std::endl;
+              << ", time_us = " << t1 - t0 << ", num heaps left = "
+              << Runtime::heap_manager->get_num_present_heaps() << std::endl;
     preempt_enable();
   }
 }
