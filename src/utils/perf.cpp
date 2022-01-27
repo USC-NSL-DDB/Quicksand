@@ -4,6 +4,7 @@ extern "C" {
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <optional>
 #include <random>
 #include <vector>
@@ -109,16 +110,8 @@ void Perf::create_thread_states(
 
 void Perf::run(uint32_t num_threads, double target_mops, uint64_t duration_us,
                uint64_t warmup_us, uint64_t miss_ddl_thresh_us) {
-  std::vector<std::unique_ptr<PerfThreadState>> thread_states;
-  create_thread_states(&thread_states, num_threads);
-  std::vector<PerfRequestWithTime> all_warmup_reqs[num_threads];
-  std::vector<PerfRequestWithTime> all_perf_reqs[num_threads];
-  gen_reqs(all_warmup_reqs, thread_states, num_threads, target_mops, warmup_us);
-  gen_reqs(all_perf_reqs, thread_states, num_threads, target_mops, duration_us);
-  benchmark(all_warmup_reqs, thread_states, num_threads, miss_ddl_thresh_us);
-  traces_ = move(
-      benchmark(all_perf_reqs, thread_states, num_threads, miss_ddl_thresh_us));
-  real_mops_ = static_cast<double>(traces_.size()) / duration_us;
+  run_multi_clients(std::span<const netaddr>(), num_threads, target_mops,
+                    duration_us, warmup_us, miss_ddl_thresh_us);
 }
 
 void Perf::run_multi_clients(std::span<const netaddr> client_addrs,
@@ -135,10 +128,19 @@ void Perf::run_multi_clients(std::span<const netaddr> client_addrs,
   tcp_barrier(client_addrs);
   traces_ = move(
       benchmark(all_perf_reqs, thread_states, num_threads, miss_ddl_thresh_us));
-  real_mops_ = static_cast<double>(traces_.size()) / duration_us;
+  auto real_duration_us =
+      std::accumulate(traces_.begin(), traces_.end(), static_cast<uint64_t>(0),
+                      [](uint64_t ret, Trace t) {
+                        return std::max(ret, t.start_us + t.duration_us);
+                      });
+  real_mops_ = static_cast<double>(traces_.size()) / real_duration_us;
 }
 
 void Perf::tcp_barrier(std::span<const netaddr> participant_addrs) {
+  if (participant_addrs.empty()) {
+    return;
+  }
+
   auto sink_addr = participant_addrs.front();
   auto num_workers = participant_addrs.size() - 1;
   bool dummy;
