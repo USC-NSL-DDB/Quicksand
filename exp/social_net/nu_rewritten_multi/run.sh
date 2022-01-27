@@ -12,11 +12,11 @@ rm -rf logs/*
 set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
-NGINX_SERVER_IP=$SERVER40_IP
+NGINX_SERVER_IP=$SERVER38_IP
 NGINX_SERVER_CALADAN_IP_AND_MASK=18.18.1.254/24
 NGINX_SERVER_NIC=ens1f0
 SOCIAL_NET_DIR=`pwd`/../../../app/socialNetwork/single_obj/
-CLIENT_IPS=( $SERVER35_IP $SERVER36_IP $SERVER37_IP $SERVER38_IP $SERVER39_IP )
+CLIENT_IPS=( $SERVER33_IP $SERVER34_IP $SERVER35_IP $SERVER36_IP $SERVER37_IP )
 
 cd $SOCIAL_NET_DIR
 ./build.sh
@@ -27,7 +27,7 @@ ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./install_docker.sh"
 ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./down_nginx.sh; ./up_nginx.sh"
 ssh $NGINX_SERVER_IP "sudo ip addr add $NGINX_SERVER_CALADAN_IP_AND_MASK dev $NGINX_SERVER_NIC"
 
-mops=( 2 2.5 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9 9.5 10 10.5 11 11.5 12 12.5 13 13.5 14 14.5 15 15.5 16 6 )
+mops=( 1 1.3 1.6 1.9 2.2 2.5 2.8 3.1 3.4 3.7 4 4.3 4.6 4.9 5.2 5.5 5.8 6.1 6.4 6.7 7 7.3 7.6 7.9 8.2 8.5 8.8 9.1 9.4 9.7 )
 
 cd $SOCIAL_NET_DIR
 mv bench/client.cpp bench/client.cpp.bak
@@ -62,13 +62,13 @@ do
         ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
 	ssh $ip "sudo $NU_DIR/caladan/iokerneld" &
 	conf=$DIR/conf/server$i
-	sleep 5
-	ssh $ip "cd $SOCIAL_NET_DIR; sudo build/src/main $conf SRV $CTRL_IP $LPID" &
+	ssh $ip "sleep 5; cd $SOCIAL_NET_DIR; sudo build/src/main $conf SRV $CTRL_IP $LPID" &
+	sleep 1
     done
-    sleep 5
+    sleep 10
     sudo build/src/main $DIR/conf/client1 CLT $CTRL_IP $LPID &
     sleep 5
-    ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; python3 scripts/init_social_graph.py"
+    sudo build/init_graph/init_graph $DIR/conf/client2
     client_pids=
     for client_idx in `seq 1 ${#CLIENT_IPS[@]}`
     do

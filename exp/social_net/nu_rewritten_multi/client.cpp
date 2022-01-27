@@ -21,7 +21,7 @@ using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 200;
 constexpr static double kTargetMops = 0.6;
-constexpr static double kTotalMops = 1;
+constexpr static double kTotalMops = 10;
 constexpr static uint32_t kNumEntryObjs = 30;
 const static std::string kEntryObjIps[] = {
     "18.18.1.2",  "18.18.1.5",  "18.18.1.7",  "18.18.1.8",  "18.18.1.9",
@@ -40,12 +40,12 @@ constexpr static netaddr kClientAddrs[] = {
 constexpr static uint32_t kEntryObjPort = 9091;
 constexpr static uint32_t kUserTimelinePercent = 60;
 constexpr static uint32_t kHomeTimelinePercent = 30;
-constexpr static uint32_t kComposePostPercent = 10;
-constexpr static uint32_t kRemovePostsPercent = 0;
+constexpr static uint32_t kComposePostPercent = 5;
+constexpr static uint32_t kRemovePostsPercent = 5;
 constexpr static uint32_t kFollowPercent =
     100 - kUserTimelinePercent - kHomeTimelinePercent - kComposePostPercent -
     kRemovePostsPercent;
-constexpr static uint32_t kNumUsers = 962;
+constexpr static uint32_t kNumUsers = 6596;
 constexpr static char kCharSet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "abcdefghijklmnopqrstuvwxyz";
 constexpr static uint32_t kTextLen = 64;
@@ -285,7 +285,7 @@ void do_work() {
   auto warmup_us = duration_us;
   perf.run_multi_clients(std::span(kClientAddrs), kNumThreads,
                          kTargetMops / std::size(kClientAddrs), duration_us,
-                         warmup_us, 50 * nu::kOneMilliSecond);
+                         warmup_us, 10 * nu::kOneMilliSecond);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
                "99.9th_lat"
             << std::endl;
