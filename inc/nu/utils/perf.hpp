@@ -56,9 +56,10 @@ public:
   std::vector<std::pair<uint64_t, uint64_t>>
   get_timeseries_nth_lats(uint64_t interval_us, double nth);
   double get_real_mops() const;
+  std::vector<Trace> get_traces() const;
 
 private:
-  enum TraceFormat { UNSORTED, SORTED_BY_DURATION, SORTED_BY_START };
+  enum TraceFormat { kUnsorted, kSortedByDuration, kSortedByStart };
 
   PerfAdapter &adapter_;
   std::vector<Trace> traces_;

@@ -16,11 +16,11 @@ extern "C" {
 namespace nu {
 
 Perf::Perf(PerfAdapter &adapter)
-    : adapter_(adapter), trace_format_(UNSORTED), real_mops_(0) {}
+    : adapter_(adapter), trace_format_(kUnsorted), real_mops_(0) {}
 
 void Perf::reset() {
   traces_.clear();
-  trace_format_ = UNSORTED;
+  trace_format_ = kUnsorted;
   real_mops_ = 0;
 }
 
@@ -154,7 +154,7 @@ void Perf::tcp_barrier(std::span<const netaddr> participant_addrs) {
       std::vector<rt::TcpConn *> conns;
       while (num_workers) {
         auto *c = q->Accept();
-	BUG_ON(!c);
+        BUG_ON(!c);
         conns.push_back(c);
         num_workers--;
       }
@@ -170,7 +170,7 @@ void Perf::tcp_barrier(std::span<const netaddr> participant_addrs) {
     std::optional<netaddr> matched_addr;
     for (auto addr : participant_addrs) {
       if (get_cfg_ip() == addr.ip) {
-	matched_addr = addr;
+        matched_addr = addr;
       }
     }
     BUG_ON(!matched_addr);
@@ -182,12 +182,12 @@ void Perf::tcp_barrier(std::span<const netaddr> participant_addrs) {
 }
 
 uint64_t Perf::get_average_lat() {
-  if (trace_format_ != SORTED_BY_DURATION) {
+  if (trace_format_ != kSortedByDuration) {
     std::sort(traces_.begin(), traces_.end(),
               [](const Trace &x, const Trace &y) {
                 return x.duration_us < y.duration_us;
               });
-    trace_format_ = SORTED_BY_DURATION;
+    trace_format_ = kSortedByDuration;
   }
 
   auto sum = std::accumulate(
@@ -197,12 +197,12 @@ uint64_t Perf::get_average_lat() {
 }
 
 uint64_t Perf::get_nth_lat(double nth) {
-  if (trace_format_ != SORTED_BY_DURATION) {
+  if (trace_format_ != kSortedByDuration) {
     std::sort(traces_.begin(), traces_.end(),
               [](const Trace &x, const Trace &y) {
                 return x.duration_us < y.duration_us;
               });
-    trace_format_ = SORTED_BY_DURATION;
+    trace_format_ = kSortedByDuration;
   }
 
   size_t idx = nth / 100.0 * traces_.size();
@@ -212,11 +212,11 @@ uint64_t Perf::get_nth_lat(double nth) {
 std::vector<std::pair<uint64_t, uint64_t>>
 Perf::get_timeseries_nth_lats(uint64_t interval_us, double nth) {
   std::vector<std::pair<uint64_t, uint64_t>> timeseries;
-  if (trace_format_ != SORTED_BY_START) {
+  if (trace_format_ != kSortedByStart) {
     std::sort(
         traces_.begin(), traces_.end(),
         [](const Trace &x, const Trace &y) { return x.start_us < y.start_us; });
-    trace_format_ = SORTED_BY_START;
+    trace_format_ = kSortedByStart;
   }
 
   auto cur_win_us = traces_.front().start_us;
@@ -224,8 +224,10 @@ Perf::get_timeseries_nth_lats(uint64_t interval_us, double nth) {
   for (auto &trace : traces_) {
     if (cur_win_us + interval_us < trace.start_us) {
       std::sort(win_durations.begin(), win_durations.end());
-      size_t idx = nth / 100.0 * win_durations.size();
-      timeseries.emplace_back(cur_win_us, win_durations[idx]);
+      if (win_durations.size() >= 100) {
+        size_t idx = nth / 100.0 * win_durations.size();
+        timeseries.emplace_back(cur_win_us, win_durations[idx]);
+      }
       cur_win_us += interval_us;
       win_durations.clear();
     }
@@ -237,5 +239,6 @@ Perf::get_timeseries_nth_lats(uint64_t interval_us, double nth) {
 
 double Perf::get_real_mops() const { return real_mops_; }
 
-} // namespace nu
+std::vector<Trace> Perf::get_traces() const { return traces_; }
 
+} // namespace nu
