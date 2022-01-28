@@ -5,13 +5,15 @@
 extern "C" {
 #include <runtime/tcp.h>
 }
+#include <atomic>
 #include <memory>
 #include <net.h>
+#include <thread.h>
 
 #include "nu/commons.hpp"
 #include "nu/ctrl.hpp"
-#include "nu/utils/rpc.hpp"
 #include "nu/rpc_server.hpp"
+#include "nu/utils/rpc.hpp"
 
 namespace nu {
 
@@ -95,14 +97,26 @@ struct RPCRespProbeFreeResource {
 
 class ControllerServer {
 public:
+  constexpr static bool kEnableLogging = true;
+  constexpr static uint64_t kPrintIntervalUs = kOneSecond;
   constexpr static uint32_t kTCPListenBackLog = 64;
   constexpr static uint32_t kPort = 8000;
 
   ControllerServer();
+  ~ControllerServer();
 
 private:
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   Controller ctrl_;
+  std::atomic<uint64_t> num_register_node_;
+  std::atomic<uint64_t> num_verify_md5_;
+  std::atomic<uint64_t> num_allocate_obj_;
+  std::atomic<uint64_t> num_destroy_obj_;
+  std::atomic<uint64_t> num_resolve_obj_;
+  std::atomic<uint64_t> num_get_migration_dest_;
+  std::atomic<uint64_t> num_update_location_;
+  rt::Thread logging_thread_;
+  bool done_;
   friend class RPCServer;
 
   std::unique_ptr<RPCRespRegisterNode>
