@@ -25,7 +25,6 @@ using namespace nu;
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr double kLoadFactor = 0.20;
-constexpr uint32_t kPrintIntervalUS = 1000 * 1000;
 constexpr uint32_t kNumProxies = 2;
 constexpr uint32_t kProxyIps[] = {MAKE_IP_ADDR(18, 18, 1, 2),
                                   MAKE_IP_ADDR(18, 18, 1, 5)};
@@ -34,6 +33,7 @@ constexpr uint32_t kNumThreads = 500;
 constexpr double kTargetMops = 8;
 constexpr uint32_t kWarmupUs = 1 * kOneSecond;
 constexpr uint32_t kDurationUs = 30 * kOneSecond;
+constexpr uint32_t kTimeSeriesInterval = 10 * 1000;
 
 struct MemcachedPerfThreadState : nu::PerfThreadState {
   MemcachedPerfThreadState(uint32_t _tid)
@@ -161,9 +161,8 @@ void do_work() {
 
   MemcachedPerfAdapter memcached_perf_adapter;
   nu::Perf perf(memcached_perf_adapter);
-  perf.run(kNumThreads, kTargetMops, kDurationUs, kWarmupUs,
-           50 * nu::kOneMilliSecond);
-  auto timeseries = perf.get_timeseries_nth_lats(20 * 1000, 99);
+  perf.run(kNumThreads, kTargetMops, kDurationUs, kWarmupUs);
+  auto timeseries = perf.get_timeseries_nth_lats(kTimeSeriesInterval, 99);
   for (auto [start, duration] : timeseries) {
     std::cout << start << " " << duration << std::endl;
   }

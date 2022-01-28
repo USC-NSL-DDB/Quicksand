@@ -1,6 +1,8 @@
 #!/bin/bash
 
 source ../../shared.sh
+CTRL_IP=18.18.1.3
+LPID=1
 
 mkdir logs
 rm -rf logs/*
@@ -21,18 +23,18 @@ scp client $CLIENT_IP:`pwd`
 
 sudo $NU_DIR/caladan/iokerneld &
 sleep 5
-sudo ./server conf/controller CTL 18.18.1.3 &
+sudo $NU_DIR/bin/ctrl_main conf/controller &
 ssh $SRC_SERVER_IP "cd `pwd`; source ../../shared.sh; set_bridge $SERVER1_ETHER"
 ssh $SRC_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
-ssh $SRC_SERVER_IP "cd `pwd`; sudo ./server conf/server1 SRV 18.18.1.3" >logs/.src &
+ssh $SRC_SERVER_IP "cd `pwd`; sudo ./server conf/server1 SRV $CTRL_IP $LPID" >logs/.src &
 sleep 5
-sudo ./server conf/client1 CLT 18.18.1.3 >logs/.server &
+sudo ./server conf/client1 CLT $CTRL_IP $LPID &
 ( tail -f -n0 logs/.server & ) | grep -q "finish initing"
 ssh $DEST_SERVER_IP "cd `pwd`; source ../../shared.sh; set_bridge $SERVER2_ETHER"
 ssh $DEST_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
-ssh $DEST_SERVER_IP "cd `pwd`; sudo ./server conf/server2 SRV 18.18.1.3" >logs/.dest &
+ssh $DEST_SERVER_IP "cd `pwd`; sudo ./server conf/server2 SRV $CTRL_IP $LPID" >logs/.dest &
 sleep 5
 sudo pkill -SIGHUP server
 ssh $SRC_SERVER_IP "cd `pwd`; sudo stdbuf -o0 ../../../bin/bench_real_mem_pressure conf/client3" >logs/.pressure &
@@ -52,6 +54,7 @@ scp $SRC_SERVER_IP:`pwd`/avail_mem_traces logs/
 
 sudo pkill -9 iokerneld
 sudo pkill -9 server
+sudo pkill -9 ctrl_main
 ssh $SRC_SERVER_IP "sudo pkill -9 iokerneld"
 ssh $SRC_SERVER_IP "sudo pkill -9 server"
 ssh $DEST_SERVER_IP "sudo pkill -9 iokerneld"

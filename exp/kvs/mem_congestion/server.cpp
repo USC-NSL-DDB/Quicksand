@@ -111,8 +111,6 @@ class Proxy {
 public:
   Proxy(Test::DSHashTable::Cap cap) : hash_table_(cap) {}
 
-  void reserve_conn(uint32_t ip) { Runtime::reserve_conn(ip); }
-
   void run_loop() {
     netaddr laddr = {.ip = 0, .port = kProxyPort};
     auto *queue = rt::TcpQueue::Listen(laddr, 128);
@@ -167,14 +165,10 @@ void do_work() {
   std::vector<nu::Future<void>> futures;
   RemObj<Proxy> proxies[kNumProxies];
   for (uint32_t i = 0; i < kNumProxies; i++) {
-    netaddr raddr = {.ip = kProxyIps[i], .port = ObjServer::kObjServerPort};
-    proxies[i] = RemObj<Proxy>::create_pinned_at(raddr, hash_table.get_cap());
+    proxies[i] =
+        RemObj<Proxy>::create_pinned_at(kProxyIps[i], hash_table.get_cap());
     futures.emplace_back(proxies[i].run_async(&Proxy::run_loop));
   }
-
-  proxies[0].run(&Proxy::reserve_conn, kProxyIps[0]);
-  proxies[0].run(&Proxy::reserve_conn, kProxyIps[1]);
-  proxies[1].run(&Proxy::reserve_conn, kProxyIps[1]);
 
   futures.front().get();
 }
