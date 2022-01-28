@@ -16,7 +16,7 @@ PROXY_IPS=( $SERVER2_IP $SERVER3_IP $SERVER4_IP $SERVER5_IP $SERVER6_IP $SERVER7
             $SERVER12_IP $SERVER13_IP $SERVER14_IP $SERVER15_IP $SERVER16_IP $SERVER17_IP $SERVER18_IP $SERVER19_IP $SERVER20_IP $SERVER21_IP \
             $SERVER22_IP $SERVER23_IP $SERVER24_IP $SERVER25_IP $SERVER26_IP $SERVER27_IP $SERVER28_IP $SERVER29_IP $SERVER30_IP $SERVER31_IP )
 CLIENT_IPS=( $SERVER32_IP $SERVER33_IP $SERVER34_IP $SERVER35_IP $SERVER36_IP )
-NGINX_IP=$SERVER40_IP
+NGINX_IP=$SERVER38_IP
 NGINX_SERVER_CALADAN_IP_AND_MASK=18.18.1.254/24
 NGINX_SERVER_NIC=ens1f0
 SOCIAL_NET_DIR=`pwd`/../../../app/socialNetwork/single_obj/
@@ -30,7 +30,8 @@ ssh $NGINX_IP "sudo ip addr add $NGINX_SERVER_CALADAN_IP_AND_MASK dev $NGINX_SER
 DIR=`pwd`
 cd $SOCIAL_NET_DIR
 mv src/main.cpp src/main.cpp.bak
-cp bench/client.cpp bench/client.cpp.bak
+mv bench/client.cpp bench/client.cpp.bak
+cp $DIR/client.cpp bench
 cp $DIR/main.cpp src/main.cpp 
 cd build
 make clean
@@ -61,20 +62,12 @@ sleep 10
 sudo stdbuf -o0 build/src/main $DIR/conf/client1 CLT $CTRL_IP $LPID >$DIR/logs/.client &
 ( tail -f -n0 $DIR/logs/.client & ) | grep -q "Done creating proclets"
 
-cp $DIR/init_graph.cpp bench/client.cpp
-cd build
-make
-cd ..
-sudo build/bench/client $DIR/conf/client3
+sudo build/init_graph/init_graph $DIR/conf/client3
 
 ssh $SRC_SERVER_IP "cd $DIR; sudo stdbuf -o0 ../../../bin/bench_real_mem_pressure conf/client2" >$DIR/logs/.pressure &
 pid_pressure=$!
 ( tail -f -n0 $DIR/logs/.pressure & ) | grep -q "waiting for signal"
 
-cp $DIR/client.cpp bench
-cd build
-make
-cd ..
 client_pids=
 for client_idx in `seq 1 ${#CLIENT_IPS[@]}`
 do

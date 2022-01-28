@@ -45,7 +45,7 @@ constexpr static uint32_t kRemovePostsPercent = 5;
 constexpr static uint32_t kFollowPercent =
     100 - kUserTimelinePercent - kHomeTimelinePercent - kComposePostPercent -
     kRemovePostsPercent;
-constexpr static uint32_t kNumUsers = 29732;
+constexpr static uint32_t kNumUsers = 6596;
 constexpr static char kCharSet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "abcdefghijklmnopqrstuvwxyz";
 constexpr static uint32_t kTextLen = 64;
@@ -282,10 +282,10 @@ void do_work() {
   SocialNetworkAdapter social_network_adapter;
   nu::Perf perf(social_network_adapter);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
-  auto warmup_us = 0;
+  auto warmup_us = 5 * nu::kOneSecond;
   perf.run_multi_clients(std::span(kClientAddrs), kNumThreads,
                          kTargetMops / std::size(kClientAddrs), duration_us,
-                         warmup_us, 50 * nu::kOneMilliSecond);
+                         warmup_us);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
                "99.9th_lat"
             << std::endl;
