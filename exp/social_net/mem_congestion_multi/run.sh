@@ -29,10 +29,12 @@ ssh $NGINX_IP "sudo ip addr add $NGINX_SERVER_CALADAN_IP_AND_MASK dev $NGINX_SER
 
 DIR=`pwd`
 cd $SOCIAL_NET_DIR
+cp src/states.hpp src/states.hpp.bak
 mv src/main.cpp src/main.cpp.bak
 mv bench/client.cpp bench/client.cpp.bak
 cp $DIR/client.cpp bench
-cp $DIR/main.cpp src/main.cpp 
+cp $DIR/main.cpp src/main.cpp
+sed "s/.*kHashTablePowerNumShards.*/constexpr static uint32_t kHashTablePowerNumShards = 13;/g" -i src/states.hpp
 cd build
 make clean
 make -j
@@ -96,6 +98,7 @@ scp $SRC_SERVER_IP:$DIR/avail_mem_traces $DIR/logs/
 
 mv src/main.cpp.bak src/main.cpp
 mv bench/client.cpp.bak bench/client.cpp
+mv src/states.hpp.bak src/states.hpp
 
 sudo pkill -9 iokerneld; sudo pkill -9 main
 for proxy_ip in ${PROXY_IPS[*]}
