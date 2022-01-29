@@ -19,15 +19,16 @@ ControllerServer::ControllerServer()
       num_update_location_(0), done_(false) {
   if constexpr (kEnableLogging) {
     logging_thread_ = rt::Thread([&] {
-      std::cout << "register_node verify_md5 allocate_obj destroy_obj "
+      std::cout << "time_us register_node verify_md5 allocate_obj destroy_obj "
                    "resolve_obj get_migration_dest update_location"
                 << std::endl;
       while (!rt::access_once(done_)) {
         timer_sleep(kPrintIntervalUs);
-        std::cout << num_register_node_ << " " << num_verify_md5_ << " "
-                  << num_allocate_obj_ << " " << num_destroy_obj_ << " "
-                  << num_resolve_obj_ << " " << num_get_migration_dest_ << " "
-                  << num_update_location_ << std::endl;
+        std::cout << microtime() << " " << num_register_node_ << " "
+                  << num_verify_md5_ << " " << num_allocate_obj_ << " "
+                  << num_destroy_obj_ << " " << num_resolve_obj_ << " "
+                  << num_get_migration_dest_ << " " << num_update_location_
+                  << std::endl;
       }
     });
   }
