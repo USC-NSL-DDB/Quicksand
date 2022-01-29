@@ -32,7 +32,7 @@ struct Node {
   bool has_enough_resource(Resource resource) const {
     return free_resource.cores >= resource.cores &&
            free_resource.mem_mbs >= resource.mem_mbs;
-    }
+  }
 };
 
 struct LPInfo {
@@ -45,6 +45,7 @@ struct LPInfo {
 class Controller {
 public:
   constexpr static uint32_t kProbingIntervalUs = kOneMilliSecond;
+  constexpr static bool kEnableBinaryVerification = true;
 
   Controller();
   ~Controller();

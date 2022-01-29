@@ -57,8 +57,10 @@ Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
   if (lpid) {
     auto iter = free_lpids_.find(lpid);
     if (iter == free_lpids_.end()) {
-      if (unlikely(lpid_to_md5_[lpid] != md5)) {
-        return std::nullopt;
+      if constexpr (kEnableBinaryVerification) {
+        if (unlikely(lpid_to_md5_[lpid] != md5)) {
+          return std::nullopt;
+        }
       }
     } else {
       free_lpids_.erase(iter);
@@ -105,7 +107,11 @@ Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
 }
 
 bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
-  return lpid_to_md5_[lpid] == md5;
+  if constexpr (kEnableBinaryVerification) {
+    return lpid_to_md5_[lpid] == md5;
+  } else {
+    return true;
+  }
 }
 
 std::optional<std::pair<RemObjID, uint32_t>>
