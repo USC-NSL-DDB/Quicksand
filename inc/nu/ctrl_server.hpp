@@ -97,7 +97,7 @@ struct RPCRespProbeFreeResource {
 
 class ControllerServer {
 public:
-  constexpr static bool kEnableLogging = true;
+  constexpr static bool kEnableLogging = false;
   constexpr static uint64_t kPrintIntervalUs = kOneSecond;
   constexpr static uint32_t kTCPListenBackLog = 64;
   constexpr static uint32_t kPort = 8000;
