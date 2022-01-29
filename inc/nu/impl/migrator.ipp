@@ -97,7 +97,7 @@ void Migrator::migrate_thread_and_ret_val(RPCReturnBuffer &&ret_val_buf,
 
       retry:
         auto *rpc_client = Runtime::rpc_client_mgr->get_by_rem_obj_id(dest_id);
-        auto rc = rpc_client->CallPoll(req_span, &unused_buf);
+        auto rc = rpc_client->Call(req_span, &unused_buf);
 
         if (unlikely(rc == kErrWrongClient)) {
           Runtime::rpc_client_mgr->update_cache(dest_id, rpc_client);

@@ -71,8 +71,12 @@ inline RPCReturnCode RPCClient::Call(std::span<const std::byte> args,
   RPCCompletion completion(std::move(callback));
   {
     rt::Preempt p;
-    rt::PreemptGuardAndPark guard(&p);
-    flows_[p.get_cpu()]->Call(args, &completion);
+    if (!p.IsHeld()) {
+      rt::PreemptGuardAndPark guard(&p);
+      flows_[p.get_cpu()]->Call(args, &completion);
+    } else {
+      flows_[p.get_cpu()]->Call(args, &completion);
+    }
   }
   return completion.get_return_code();
 }
@@ -82,16 +86,13 @@ inline RPCReturnCode RPCClient::Call(std::span<const std::byte> args,
   RPCCompletion completion(return_buf);
   {
     rt::Preempt p;
-    rt::PreemptGuardAndPark guard(&p);
-    flows_[p.get_cpu()]->Call(args, &completion);
+    if (!p.IsHeld()) {
+      rt::PreemptGuardAndPark guard(&p);
+      flows_[p.get_cpu()]->Call(args, &completion);
+    } else {
+      flows_[p.get_cpu()]->Call(args, &completion);
+    }
   }
-  return completion.get_return_code();
-}
-
-inline RPCReturnCode RPCClient::CallPoll(std::span<const std::byte> args,
-                                         RPCReturnBuffer *return_buf) {
-  RPCCompletion completion(return_buf, /* poll = */ true);
-  flows_[read_cpu()]->Call(args, &completion);
   return completion.get_return_code();
 }
 

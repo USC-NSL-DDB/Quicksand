@@ -93,14 +93,14 @@ namespace rpc_internal {
 // RPCCompletion manages the completion of an inflight request.
 class RPCCompletion {
 public:
-  RPCCompletion(RPCReturnBuffer *return_buf, bool poll = false)
-      : return_buf_(return_buf), poll_(poll) {
-    if (!poll) {
+  RPCCompletion(RPCReturnBuffer *return_buf)
+      : return_buf_(return_buf), poll_(!preempt_enabled()) {
+    if (!poll_) {
       w_.Arm();
     }
   }
   RPCCompletion(RPCCallback &&callback)
-      : callback_(std::move(callback)), poll_(false) {
+      : callback_(std::move(callback)), poll_(!preempt_enabled()) {
     w_.Arm();
   }
   ~RPCCompletion() {}
@@ -187,9 +187,6 @@ public:
   // Calls an RPC method, the RPC layer allocates a return buffer and stores
   // response into it.
   RPCReturnCode Call(std::span<const std::byte> args, RPCReturnBuffer *buf);
-
-  // Ditto, but busy polling for response.
-  RPCReturnCode CallPoll(std::span<const std::byte> args, RPCReturnBuffer *buf);
 
   // Calls an RPC method, the RPC layer invokes the callback when the response
   // is ready on the TCP connection.
