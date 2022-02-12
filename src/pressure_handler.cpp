@@ -214,6 +214,8 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
 
   if (unlikely(!done)) {
     picked_heaps.clear();
+    picked_num = 0;
+    picked_mem_mbs = 0;
     auto all_heaps = Runtime::heap_manager->get_all_heaps();
     auto iter = all_heaps.begin();
     while (iter != all_heaps.end() && !done) {
