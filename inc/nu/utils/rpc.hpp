@@ -11,6 +11,8 @@
 #include <sync.h>
 #include <thread.h>
 
+#include "nu/commons.hpp"
+
 namespace nu {
 
 // RPCReturnBuffer manages a return data buffer and its lifetime.
@@ -111,9 +113,7 @@ public:
 
   RPCReturnCode get_return_code() const {
     while (rt::access_once(poll_)) {
-      prioritize_local_rcu_readers();
-      pause_local_migrating_threads();
-      cpu_relax();
+      unblock_and_relax();
     }
     return rc_;
   }

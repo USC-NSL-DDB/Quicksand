@@ -1,3 +1,7 @@
+extern "C" {
+#include <asm/ops.h>
+}
+
 #include <limits>
 
 namespace nu {
@@ -71,6 +75,12 @@ template <typename T> T &from_span(std::span<std::byte> span) {
 
 template <typename T> const T &from_span(std::span<const std::byte> span) {
   return *reinterpret_cast<const T *>(span.data());
+}
+
+inline void unblock_and_relax() {
+  pause_local_migrating_threads();
+  prioritize_local_rcu_readers();
+  cpu_relax();
 }
 
 } // namespace nu

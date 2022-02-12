@@ -105,7 +105,7 @@ void Migrator::handle_copy_heap(rt::TcpConn *c) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base_addr);
 
   while (unlikely(rt::access_once(heap_header->status) != kMapped)) {
-    cpu_relax();
+    unblock_and_relax();
   }
 
   BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(start_addr), len,
@@ -503,7 +503,7 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
                                /* from_migration = */ true);
   heap_header->cpu_load.reset();
   while (heap_header->pending_load_cnt.load()) {
-    cpu_relax();
+    unblock_and_relax();
   }
 
   auto *slab = &heap_header->slab;

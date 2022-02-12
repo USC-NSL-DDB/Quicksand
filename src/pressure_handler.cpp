@@ -3,6 +3,7 @@
 #include <sync.h>
 #include <thread.h>
 
+#include "nu/commons.hpp"
 #include "nu/migrator.hpp"
 #include "nu/pressure_handler.hpp"
 #include "nu/runtime.hpp"
@@ -116,7 +117,7 @@ void PressureHandler::main_handler(void *unused) {
   // Wait for aux pressure handlers to exit.
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
     while (rt::access_once(handler->aux_handler_states[i].done)) {
-      cpu_relax();
+      unblock_and_relax();
     }
   }
   store_release(&pressure.status, HANDLED);
@@ -125,7 +126,7 @@ void PressureHandler::main_handler(void *unused) {
 void PressureHandler::wait_aux_tasks() {
   for (uint32_t i = 0; i < kNumAuxHandlers; i++) {
     while (rt::access_once(aux_handler_states[i].task_pending)) {
-      cpu_relax();
+      unblock_and_relax();
     }
   }
 }
@@ -139,7 +140,7 @@ void PressureHandler::dispatch_aux_tcp_task(
     uint32_t handler_id, std::vector<iovec> &&tcp_write_task) {
   auto &state = aux_handler_states[handler_id];
   while (rt::access_once(state.task_pending)) {
-    cpu_relax();
+    unblock_and_relax();
   }
   state.tcp_write_task = std::move(tcp_write_task);
   store_release(&state.task_pending, true);
@@ -149,7 +150,7 @@ void PressureHandler::dispatch_aux_dealloc_task(uint32_t handler_id,
                                                 HeapHeader *dealloc_task) {
   auto &state = aux_handler_states[handler_id];
   while (rt::access_once(state.task_pending)) {
-    cpu_relax();
+    unblock_and_relax();
   }
   state.dealloc_task = dealloc_task;
   store_release(&state.task_pending, true);
@@ -172,9 +173,7 @@ void PressureHandler::aux_handler(void *args) {
       }
       rt::access_once(state->task_pending) = false;
     }
-    pause_local_migrating_threads();
-    prioritize_local_rcu_readers();
-    cpu_relax();
+    unblock_and_relax();
   }
   state->conn.release();
   store_release(&state->done, false);
