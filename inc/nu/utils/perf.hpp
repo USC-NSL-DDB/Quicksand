@@ -25,6 +25,7 @@ struct PerfRequestWithTime {
 };
 
 struct Trace {
+  uint64_t absl_start_us;
   uint64_t start_us;
   uint64_t duration_us;
 };
@@ -53,8 +54,7 @@ public:
                          uint64_t miss_ddl_thresh_us = 500);
   uint64_t get_average_lat();
   uint64_t get_nth_lat(double nth);
-  std::vector<std::pair<uint64_t, uint64_t>>
-  get_timeseries_nth_lats(uint64_t interval_us, double nth);
+  std::vector<Trace> get_timeseries_nth_lats(uint64_t interval_us, double nth);
   double get_real_mops() const;
   std::vector<Trace> get_traces() const;
 

@@ -78,7 +78,8 @@ std::vector<Trace> Perf::benchmark(
           continue;
         }
         Trace trace;
-        trace.start_us = microtime() - start_us;
+        trace.absl_start_us = microtime();
+        trace.start_us = trace.absl_start_us - start_us;
         bool ok = adapter_.serve_req(thread_state, req.req.get());
         trace.duration_us = microtime() - start_us - trace.start_us;
         if (ok) {
@@ -209,9 +210,9 @@ uint64_t Perf::get_nth_lat(double nth) {
   return traces_[idx].duration_us;
 }
 
-std::vector<std::pair<uint64_t, uint64_t>>
-Perf::get_timeseries_nth_lats(uint64_t interval_us, double nth) {
-  std::vector<std::pair<uint64_t, uint64_t>> timeseries;
+std::vector<Trace> Perf::get_timeseries_nth_lats(uint64_t interval_us,
+                                                 double nth) {
+  std::vector<Trace> timeseries;
   if (trace_format_ != kSortedByStart) {
     std::sort(
         traces_.begin(), traces_.end(),
@@ -220,15 +221,18 @@ Perf::get_timeseries_nth_lats(uint64_t interval_us, double nth) {
   }
 
   auto cur_win_us = traces_.front().start_us;
+  auto absl_cur_win_us = traces_.front().absl_start_us;
   std::vector<uint64_t> win_durations;
   for (auto &trace : traces_) {
     if (cur_win_us + interval_us < trace.start_us) {
       std::sort(win_durations.begin(), win_durations.end());
       if (win_durations.size() >= 100) {
         size_t idx = nth / 100.0 * win_durations.size();
-        timeseries.emplace_back(cur_win_us, win_durations[idx]);
+        timeseries.emplace_back(absl_cur_win_us, cur_win_us,
+                                win_durations[idx]);
       }
       cur_win_us += interval_us;
+      absl_cur_win_us += interval_us;
       win_durations.clear();
     }
     win_durations.push_back(trace.duration_us);
