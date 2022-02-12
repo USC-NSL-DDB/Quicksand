@@ -42,7 +42,12 @@ private:
     HeapHeader *header;
     float val;
 
-    bool operator<(const HeapInfo &o) const { return val < o.val; }
+    bool operator<(const HeapInfo &o) const {
+      if (val == o.val) {
+        return header < o.header;
+      }
+      return val < o.val;
+    }
   };
 
   AuxHandlerState aux_handler_states[kNumAuxHandlers];
