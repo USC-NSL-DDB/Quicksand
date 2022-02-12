@@ -46,8 +46,10 @@ void Runtime::init_runtime_heap() {
   auto mmap_addr =
       mmap(addr, kRuntimeHeapSize, PROT_READ | PROT_WRITE,
            MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED | MAP_NORESERVE, -1, 0);
-  preempt_enable();
   BUG_ON(mmap_addr != addr);
+  auto rc = madvise(addr, kRuntimeHeapSize, MADV_DONTDUMP);
+  BUG_ON(rc == -1);
+  preempt_enable();
   runtime_slab.init(kRuntimeSlabId, mmap_addr, kRuntimeHeapSize);
 }
 
