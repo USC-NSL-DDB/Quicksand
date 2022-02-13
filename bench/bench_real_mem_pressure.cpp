@@ -121,6 +121,7 @@ void do_work() {
 void signal_handler(int signum) { rt::access_once(signalled) = true; }
 
 int main(int argc, char **argv) {
+  mlockall(MCL_CURRENT | MCL_FUTURE);
   signal(SIGHUP, signal_handler);
 
   int ret;
