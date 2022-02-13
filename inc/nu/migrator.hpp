@@ -4,6 +4,7 @@
 #include <folly/Function.h>
 #include <functional>
 #include <memory>
+#include <set>
 #include <span>
 #include <unordered_set>
 #include <vector>
@@ -25,7 +26,16 @@ namespace nu {
 class Mutex;
 class CondVar;
 class Time;
-enum MigratorTCPOp_t { kCopyHeap, kMigrate, kUnmap, kEnablePoll, kDisablePoll };
+
+enum MigratorTCPOp_t {
+  kCopyHeap,
+  kMigrate,
+  kUnmap,
+  kEnablePoll,
+  kDisablePoll,
+  kRegisterCallBack,
+  kDeregisterCallBack,
+};
 
 struct RPCReqForward {
   RPCReqType rpc_type = kForward;
@@ -88,6 +98,7 @@ public:
   constexpr static uint32_t kPort = 8002;
   constexpr static uint32_t kMaxNumHeapsPerMigration = 64;
 
+  Migrator();
   ~Migrator();
   void run_background_loop();
   void migrate(Resource resource, std::vector<HeapRange> heaps);
@@ -110,10 +121,14 @@ private:
   constexpr static uint32_t kTCPListenBackLog = 64;
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   MigratorConnManager migrator_conn_mgr_;
+  std::set<rt::TcpConn *> callback_conns_;
+  bool ever_migrated_;
 
   void handle_copy_heap(rt::TcpConn *c);
   void handle_load(rt::TcpConn *c);
   void handle_unmap(rt::TcpConn *c);
+  void handle_register_callback(rt::TcpConn *c);
+  void handle_deregister_callback(rt::TcpConn *c);
   VAddrRange load_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit(rt::TcpConn *c, HeapHeader *heap_header,
                 struct list_head *head);
@@ -139,6 +154,7 @@ private:
   thread_t *load_one_thread(rt::TcpConn *c, HeapHeader *heap_header);
   void init_aux_handlers(uint32_t dest_ip);
   void finish_aux_handlers();
+  void callback();
   void __migrate(Resource resource, std::vector<HeapRange> heaps);
 };
 

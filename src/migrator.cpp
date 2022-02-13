@@ -93,6 +93,8 @@ void MigratorConnManager::put(uint32_t ip, rt::TcpConn *tcp_conn) {
   pool_map_[ip].push(tcp_conn);
 }
 
+Migrator::Migrator() { ever_migrated_ = false; }
+
 Migrator::~Migrator() { BUG(); }
 
 void Migrator::handle_copy_heap(rt::TcpConn *c) {
@@ -118,6 +120,14 @@ inline void Migrator::handle_load(rt::TcpConn *c) {
   rt::PreemptGuard g(&p);
 
   load(c);
+}
+
+void Migrator::handle_register_callback(rt::TcpConn *c) {
+  callback_conns_.insert(c);
+}
+
+void Migrator::handle_deregister_callback(rt::TcpConn *c) {
+  BUG_ON(callback_conns_.erase(c) == 0);
 }
 
 void Migrator::run_background_loop() {
@@ -156,6 +166,12 @@ void Migrator::run_background_loop() {
           case kDisablePoll:
             poll = false;
             preempt_enable();
+            break;
+          case kRegisterCallBack:
+            handle_register_callback(c);
+            break;
+          case kDeregisterCallBack:
+            handle_deregister_callback(c);
             break;
           default:
             BUG();
@@ -449,7 +465,20 @@ void Migrator::finish_aux_handlers() {
   Runtime::pressure_handler->wait_aux_tasks();
 }
 
+void Migrator::callback() {
+  bool dummy;
+  for (auto *c : callback_conns_) {
+    BUG_ON(c->WriteFull(&dummy, sizeof(dummy), /* nt = */ false,
+                        /* poll = */ true) != sizeof(dummy));
+  }
+}
+
 void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
+  if (!ever_migrated_) {
+    ever_migrated_ = true;
+    callback();
+  }
+
   const uint32_t num_total_heaps = heaps.size();
   uint32_t num_migrated_heaps = 0;
   std::vector<HeapRange> choosen_heaps;
