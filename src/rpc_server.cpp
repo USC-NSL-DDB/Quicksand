@@ -69,19 +69,6 @@ void RPCServer::run_background_loop() {
       returner->Return(kOk, span, [resp = std::move(resp)] {});
       break;
     }
-    case kGetMigrationDest: {
-      auto &req = from_span<RPCReqGetMigrationDest>(args);
-      auto resp = Runtime::controller_server->handle_get_migration_dest(req);
-      auto span = to_span(*resp);
-      returner->Return(kOk, span, [resp = std::move(resp)] {});
-      break;
-    }
-    case kUpdateLocation: {
-      auto &req = from_span<RPCReqUpdateLocation>(args);
-      Runtime::controller_server->handle_update_location(req);
-      returner->Return(kOk);
-      break;
-    }
     case kProbeFreeResource: {
       auto &req = from_span<RPCReqProbeFreeResource>(args);
       auto resp = Runtime::controller_server->handle_probing(req);

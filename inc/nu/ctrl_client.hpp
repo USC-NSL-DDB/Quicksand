@@ -9,6 +9,7 @@ extern "C" {
 }
 #include <net.h>
 #include <sync.h>
+#include <memory>
 
 #include "nu/commons.hpp"
 #include "nu/ctrl_server.hpp"
@@ -38,5 +39,7 @@ private:
   lpid_t lpid_;
   VAddrRange stack_cluster_;
   RPCClient *rpc_client_;
+  std::unique_ptr<rt::TcpConn> tcp_conn_;
+  rt::Spin spin_;
 };
 } // namespace nu

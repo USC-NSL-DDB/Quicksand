@@ -32,12 +32,58 @@ ControllerServer::ControllerServer()
       }
     });
   }
+
+  netaddr laddr{.ip = 0, .port = kPort};
+  tcp_queue_.reset(rt::TcpQueue::Listen(laddr, kTCPListenBackLog));
+  BUG_ON(!tcp_queue_);
+  tcp_queue_thread_ = rt::Thread([&] {
+    rt::TcpConn *conn;
+    while ((conn = tcp_queue_->Accept())) {
+      tcp_conns_.emplace_back(conn);
+      tcp_conn_threads_.emplace_back([&, conn] { tcp_loop(conn); });
+    }
+  });
 }
 
 ControllerServer::~ControllerServer() {
   done_ = true;
   barrier();
   logging_thread_.Join();
+
+  tcp_queue_.reset();
+  barrier();
+  tcp_queue_thread_.Join();
+
+  tcp_conns_.clear();
+  barrier();
+  for (auto &th : tcp_conn_threads_) {
+    th.Join();
+  }
+}
+
+void ControllerServer::tcp_loop(rt::TcpConn *c) {
+  RPCReqType rpc_type;
+  while (c->ReadFull(&rpc_type, sizeof(rpc_type)) == sizeof(rpc_type)) {
+    switch (rpc_type) {
+    case kGetMigrationDest: {
+      RPCReqGetMigrationDest req;
+      ssize_t data_size = sizeof(req) - sizeof(rpc_type);
+      BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
+      auto resp = handle_get_migration_dest(req);
+      BUG_ON(c->WriteFull(resp.get(), sizeof(*resp)) != sizeof(*resp));
+      break;
+    }
+    case kUpdateLocation: {
+      RPCReqUpdateLocation req;
+      ssize_t data_size = sizeof(req) - sizeof(rpc_type);
+      BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
+      handle_update_location(req);
+      break;
+    }
+    default:
+      BUG();
+    }
+  }
 }
 
 std::unique_ptr<RPCRespRegisterNode>

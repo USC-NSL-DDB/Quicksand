@@ -15,6 +15,11 @@ ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode,
                                    lpid_t lpid)
     : lpid_(lpid),
       rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
+  netaddr laddr{.ip = 0, .port = 0};
+  netaddr raddr{.ip = ctrl_server_ip, .port = ControllerServer::kPort};
+  tcp_conn_.reset(rt::TcpConn::Dial(laddr, raddr));
+  BUG_ON(!tcp_conn_);
+
   auto md5 = get_self_md5();
 
   if (mode == Runtime::kServer) {
@@ -96,22 +101,29 @@ uint32_t ControllerClient::resolve_obj(RemObjID id) {
 }
 
 uint32_t ControllerClient::get_migration_dest(Resource resource) {
+  rt::SpinGuard g(&spin_);
+
   RPCReqGetMigrationDest req;
   req.lpid = lpid_;
   req.src_ip = get_cfg_ip();
   req.resource = resource;
-  RPCReturnBuffer return_buf;
-  BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
-  auto &resp = from_span<RPCRespGetMigrationDest>(return_buf.get_buf());
+  BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
+                              /* poll = */ true) != sizeof(req));
+
+  RPCRespGetMigrationDest resp;
+  BUG_ON(tcp_conn_->ReadFull(&resp, sizeof(resp), /* nt = */ false,
+                             /* poll = */ true) != sizeof(resp));
   return resp.ip;
 }
 
 void ControllerClient::update_location(RemObjID id, uint32_t obj_srv_ip) {
+  rt::SpinGuard g(&spin_);
+
   RPCReqUpdateLocation req;
   req.id = id;
   req.obj_srv_ip = obj_srv_ip;
-  RPCReturnBuffer return_buf;
-  BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
+  BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* poll = */ true) !=
+         sizeof(req));
 }
 
 VAddrRange ControllerClient::get_stack_cluster() const {

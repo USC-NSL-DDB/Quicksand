@@ -100,7 +100,7 @@ public:
   constexpr static bool kEnableLogging = false;
   constexpr static uint64_t kPrintIntervalUs = kOneSecond;
   constexpr static uint32_t kTCPListenBackLog = 64;
-  constexpr static uint32_t kPort = 8000;
+  constexpr static uint32_t kPort = 2828;
 
   ControllerServer();
   ~ControllerServer();
@@ -116,6 +116,9 @@ private:
   std::atomic<uint64_t> num_get_migration_dest_;
   std::atomic<uint64_t> num_update_location_;
   rt::Thread logging_thread_;
+  rt::Thread tcp_queue_thread_;
+  std::vector<std::unique_ptr<rt::TcpConn>> tcp_conns_;
+  std::vector<rt::Thread> tcp_conn_threads_;
   bool done_;
   friend class RPCServer;
 
@@ -134,5 +137,6 @@ private:
   void handle_update_location(const RPCReqUpdateLocation &req);
   std::unique_ptr<RPCRespProbeFreeResource>
   handle_probing(const RPCReqProbeFreeResource &req);
+  void tcp_loop(rt::TcpConn *c);
 };
 } // namespace nu
