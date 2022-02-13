@@ -187,7 +187,7 @@ void init_tcp() {
   }
 }
 
-void do_work() {
+void register_callback() {
   netaddr laddr{.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
   netaddr raddr{.ip = MAKE_IP_ADDR(18, 18, 1, 2), .port = nu::Migrator::kPort};
   auto *c = rt::TcpConn::Dial(laddr, raddr);
@@ -199,7 +199,10 @@ void do_work() {
     BUG_ON(c->ReadFull(&dummy, sizeof(dummy)) != sizeof(dummy));
     std::cout << "microtime() = " << microtime() << std::endl;
   });
-  
+}
+
+void do_work() {
+  register_callback();
   init_tcp();
 
   MemcachedPerfAdapter memcached_perf_adapter;

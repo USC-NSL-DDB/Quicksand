@@ -36,72 +36,82 @@
 
 constexpr char fname_A[] = "matrix_file_A.txt";
 constexpr char fname_B[] = "matrix_file_B.txt";
-constexpr uint32_t kNumWorkerThreads = 42;
-constexpr uint32_t kNumWorkerNodes = 2;
-constexpr uint32_t kWorkerNodeIps[] = {
-    MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 5),
-    MAKE_IP_ADDR(18, 18, 1, 7), MAKE_IP_ADDR(18, 18, 1, 8),
-    MAKE_IP_ADDR(18, 18, 1, 9)};
+constexpr uint32_t kNumWorkerNodes = 31;
+constexpr uint32_t kNumWorkerThreads = (kNumWorkerNodes - 1) * 28;
 
 struct mm_data_t {
-  uint64_t matrix_len;
-  uint64_t row_id;
+  uint32_t matrix_A_width;
+  uint32_t matrix_B_height;
+  uint32_t row_id;
 
   template <class Archive> void serialize(Archive &ar) {
-    ar(matrix_len, row_id);
+    ar(matrix_A_width, matrix_B_height, row_id);
   }
 };
 
 using Row = std::vector<int>;
 
-int fd_A, fd_B, file_size;
 int *matrix_A, *matrix_B;
-
 bool signalled = false;
+
+#define DONT_OPTIMIZE(var) __asm__ __volatile__("" ::"m"(var));
 
 class WorkerNodeInitializer {
 public:
-  WorkerNodeInitializer(void *matrix_A_addr = nullptr,
-                        void *matrix_B_addr = nullptr) {
-    struct stat finfo_A;
+  WorkerNodeInitializer() {
+    int fd_A, fd_B;
     CHECK_ERROR((fd_A = open(fname_A, O_RDONLY)) < 0);
     CHECK_ERROR((fd_B = open(fname_B, O_RDONLY)) < 0);
+
+    struct stat finfo_A;
+    struct stat finfo_B;
     CHECK_ERROR(fstat(fd_A, &finfo_A) < 0);
-    file_size = finfo_A.st_size;
-    int flags =  MAP_PRIVATE | MAP_POPULATE;
-    if (matrix_A_addr) {
-      flags |= MAP_FIXED_NOREPLACE;
-    }
-    CHECK_ERROR((matrix_A = (int *)mmap(matrix_A_addr, file_size + 1, PROT_READ,
-                                        flags, fd_A, 0)) == NULL);
-    CHECK_ERROR((matrix_B = (int *)mmap(matrix_B_addr, file_size + 1, PROT_READ,
-                                        flags, fd_B, 0)) == NULL);
-  }  
+    CHECK_ERROR(fstat(fd_B, &finfo_B) < 0);
+
+    uint64_t file_A_size = finfo_A.st_size;
+    uint64_t file_B_size = finfo_B.st_size;
+    int flags = MAP_PRIVATE | MAP_POPULATE | MAP_FIXED_NOREPLACE;
+    CHECK_ERROR((matrix_A = (int *)mmap(
+                     reinterpret_cast<void *>(0x600000000000), file_A_size + 1,
+                     PROT_READ, flags, fd_A, 0)) == (void *)-1);
+    CHECK_ERROR((matrix_B = (int *)mmap(
+                     reinterpret_cast<void *>(0x610000000000), file_B_size + 1,
+                     PROT_READ, flags, fd_B, 0)) == (void *)-1);
+  }
 };
 
-class MatrixMulMR : public MapReduce<MatrixMulMR, mm_data_t, uint64_t, Row> { 
-public:  
-  int matrix_size;
+class MatrixMulMR : public MapReduce<MatrixMulMR, mm_data_t, uint64_t, Row> {
+public:
+  int matrix_A_height;
+  int matrix_A_width;
+  int matrix_B_height;
+  int matrix_B_width;
   int row;
 
-  explicit MatrixMulMR(int size)
+  explicit MatrixMulMR(int A_height, int A_width, int B_height, int B_width)
       : MapReduce<MatrixMulMR, mm_data_t, uint64_t, Row>(kNumWorkerThreads),
-        matrix_size(size), row(0) {}
+        matrix_A_height(A_height), matrix_A_width(A_width),
+        matrix_B_height(B_height), matrix_B_width(B_width), row(0) {}
 
   /** matrixmul_map()
    * Multiplies the allocated regions of matrix to compute partial sums
    */
   void map(mm_data_t const &data, map_container &out) const {
+    BUG_ON(!preempt_enabled());
+
+    auto A_width = data.matrix_A_width;
+    auto B_height = data.matrix_B_height;
     auto *tmp_A = matrix_A;
     auto *tmp_B = matrix_B;
-    tmp_A += data.matrix_len * data.row_id;
+    tmp_A += A_width * data.row_id;
 
-    std::vector<int> output(data.matrix_len);
-    for (size_t i = 0; i < data.matrix_len; i++) {
-      for (size_t j = 0; j < data.matrix_len; j++) {
+    std::vector<int> output(B_height);
+    for (size_t i = 0; i < A_width; i++) {
+      for (size_t j = 0; j < B_height; j++) {
         output[j] += tmp_A[i] * tmp_B[j];
       }
-      tmp_B += data.matrix_len;
+
+      tmp_B += B_height;
     }
     emit_intermediate(out, data.row_id, output);
   }
@@ -112,12 +122,14 @@ public:
    */
   int split(mm_data_t &out) {
     /* End of data reached, return FALSE. */
-    if (row >= matrix_size) {
+    if (row >= matrix_A_height) {
       return 0;
     }
 
-    out.matrix_len = matrix_size;
+    out.matrix_A_width = matrix_A_width;
+    out.matrix_B_height = matrix_B_height;
     out.row_id = row++;
+    // std::cout << out.row_id << std::endl;
 
     /* Return true since the out data is valid. */
     return 1;
@@ -132,10 +144,10 @@ void wait_for_signal() {
 }
 
 void real_main(int argc, char *argv[]) {
-
   int i, j, create_files;
-  int fd_A, fd_B, file_size;
-  int matrix_len, row_block_len;
+  int fd_A, fd_B, file_A_size, file_B_size;
+  int matrix_A_height, matrix_A_width;
+  int matrix_B_height, matrix_B_width;
   int ret;
 
   struct timespec begin, end;
@@ -145,28 +157,33 @@ void real_main(int argc, char *argv[]) {
   srand((unsigned)time(NULL));
 
   // Make sure a filename is specified
-  if (argc < 2) {
-    dprintf("USAGE: %s [side of matrix] [size of Row block]\n", argv[0]);
+  if (argc < 5) {
+    dprintf("USAGE: %s [matrix A height] [matrix A width] [matrix B height] "
+            "[matrix B width]\n",
+            argv[0]);
     exit(1);
   }
 
-  CHECK_ERROR((matrix_len = atoi(argv[1])) < 0);
-  file_size = ((matrix_len * matrix_len)) * sizeof(int);
+  CHECK_ERROR((matrix_A_height = atoi(argv[1])) < 0);
+  CHECK_ERROR((matrix_A_width = atoi(argv[2])) < 0);
+  CHECK_ERROR((matrix_B_height = atoi(argv[3])) < 0);
+  CHECK_ERROR((matrix_B_width = atoi(argv[4])) < 0);
+  CHECK_ERROR(matrix_A_width != matrix_B_height);
+  file_A_size = ((matrix_A_height * matrix_A_width)) * sizeof(int);
+  file_B_size = ((matrix_B_height * matrix_B_width)) * sizeof(int);
 
-  fprintf(stderr, "***** file size is %d\n", file_size);
+  fprintf(stderr, "***** file A size is %d\n", file_A_size);
+  fprintf(stderr, "***** file B size is %d\n", file_B_size);
 
-  if (argc < 3)
-    row_block_len = 1;
-  else
-    CHECK_ERROR((row_block_len = atoi(argv[2])) < 0);
-
-  if (argc >= 4)
+  if (argc >= 6)
     create_files = 1;
   else
     create_files = 0;
 
-  printf("MatrixMult: Side of the matrix is %d\n", matrix_len);
-  printf("MatrixMult: Row Block Len is %d\n", row_block_len);
+  printf("MatrixMult: Matrix A height is %d\n", matrix_A_height);
+  printf("MatrixMult: Matrix A width is %d\n", matrix_A_width);
+  printf("MatrixMult: Matrix B height is %d\n", matrix_B_height);
+  printf("MatrixMult: Matrix B width is %d\n", matrix_B_width);
   printf("MatrixMult: Running...\n");
 
   /* If the matrix files do not exist, create them */
@@ -177,8 +194,8 @@ void real_main(int argc, char *argv[]) {
     CHECK_ERROR((fd_A = open(fname_A, O_CREAT | O_RDWR, S_IRWXU)) < 0);
     CHECK_ERROR((fd_B = open(fname_B, O_CREAT | O_RDWR, S_IRWXU)) < 0);
 
-    for (i = 0; i < matrix_len; i++) {
-      for (j = 0; j < matrix_len; j++) {
+    for (i = 0; i < matrix_A_height; i++) {
+      for (j = 0; j < matrix_A_width; j++) {
         value = (rand()) % 11;
         ret = write(fd_A, &value, sizeof(int));
         assert(ret == sizeof(int));
@@ -188,8 +205,8 @@ void real_main(int argc, char *argv[]) {
     }
     // dprintf("\n");
 
-    for (i = 0; i < matrix_len; i++) {
-      for (j = 0; j < matrix_len; j++) {
+    for (i = 0; i < matrix_B_height; i++) {
+      for (j = 0; j < matrix_B_width; j++) {
         value = (rand()) % 11;
         ret = write(fd_B, &value, sizeof(int));
         assert(ret == sizeof(int));
@@ -209,15 +226,15 @@ void real_main(int argc, char *argv[]) {
 
   get_time(begin);
   std::vector<MatrixMulMR::keyval> result;
-  MatrixMulMR mapReduce(matrix_len);
+  MatrixMulMR mapReduce(matrix_A_height, matrix_A_width, matrix_B_height,
+                        matrix_B_width);
 
+  std::cout << "waiting for signal" << std::endl;
   wait_for_signal();
-  
-  WorkerNodeInitializer initializer;
+
   nu::RemObj<WorkerNodeInitializer> rem_initializers[kNumWorkerNodes];
   for (uint32_t i = 0; i < kNumWorkerNodes; i++) {
-    rem_initializers[i] = nu::RemObj<WorkerNodeInitializer>::create(
-        reinterpret_cast<void *>(matrix_A), reinterpret_cast<void *>(matrix_B));
+    rem_initializers[i] = nu::RemObj<WorkerNodeInitializer>::create_pinned();
   }
 
   mapReduce.run(result);

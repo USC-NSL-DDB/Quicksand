@@ -2,7 +2,9 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <net.h>
 #include <nu/commons.hpp>
+#include <nu/migrator.hpp>
 #include <nu/utils/perf.hpp>
 #include <random>
 #include <runtime.h>
@@ -278,7 +280,22 @@ private:
   }
 };
 
+void register_callback() {
+  netaddr laddr{.ip = MAKE_IP_ADDR(0, 0, 0, 0), .port = 0};
+  netaddr raddr{.ip = MAKE_IP_ADDR(18, 18, 1, 2), .port = nu::Migrator::kPort};
+  auto *c = rt::TcpConn::Dial(laddr, raddr);
+  BUG_ON(!c);
+  uint8_t type = nu::kRegisterCallBack;
+  BUG_ON(c->WriteFull(&type, sizeof(type)) != sizeof(type));
+  rt::Thread t([c] {
+    bool dummy;
+    BUG_ON(c->ReadFull(&dummy, sizeof(dummy)) != sizeof(dummy));
+    std::cout << "microtime() = " << microtime() << std::endl;
+  });
+}
+
 void do_work() {
+  register_callback();
   SocialNetworkAdapter social_network_adapter;
   nu::Perf perf(social_network_adapter);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
@@ -293,10 +310,29 @@ void do_work() {
             << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
             << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
             << perf.get_nth_lat(99.9) << std::endl;
-  auto timeseries_vec = perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99);
-  std::ofstream ofs("timeseries");
-  for (auto [us, lat] : timeseries_vec) {
-    ofs << us << " " << lat << std::endl;
+  {
+    auto timeseries_vec =
+        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99);
+    std::ofstream ofs("timeseries");
+    for (auto [absl_us, us, lat] : timeseries_vec) {
+      ofs << absl_us << " " << us << " " << lat << std::endl;
+    }
+  }
+  {
+    auto timeseries_vec =
+        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.9);
+    std::ofstream ofs("timeseries-9");
+    for (auto [absl_us, us, lat] : timeseries_vec) {
+      ofs << absl_us << " " << us << " " << lat << std::endl;
+    }
+  }
+  {
+    auto timeseries_vec =
+        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.99);
+    std::ofstream ofs("timeseries-99");
+    for (auto [absl_us, us, lat] : timeseries_vec) {
+      ofs << absl_us << " " << us << " " << lat << std::endl;
+    }
   }
 }
 
