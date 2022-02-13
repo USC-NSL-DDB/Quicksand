@@ -86,6 +86,7 @@ public:
   constexpr static uint32_t kTransmitHeapNumThreads = 2;
   constexpr static uint32_t kDefaultNumReservedConns = 8;
   constexpr static uint32_t kPort = 8002;
+  constexpr static uint32_t kMaxNumHeapsPerMigration = 64;
 
   ~Migrator();
   void run_background_loop();
@@ -138,6 +139,7 @@ private:
   thread_t *load_one_thread(rt::TcpConn *c, HeapHeader *heap_header);
   void init_aux_handlers(uint32_t dest_ip);
   void finish_aux_handlers();
+  void __migrate(Resource resource, std::vector<HeapRange> heaps);
 };
 
 } // namespace nu

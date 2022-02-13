@@ -450,6 +450,27 @@ void Migrator::finish_aux_handlers() {
 }
 
 void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
+  const uint32_t num_total_heaps = heaps.size();
+  uint32_t num_migrated_heaps = 0;
+  std::vector<HeapRange> choosen_heaps;
+  while (num_total_heaps - num_migrated_heaps > 0) {
+    uint32_t num_choosen_heaps = std::min(kMaxNumHeapsPerMigration,
+                                          num_total_heaps - num_migrated_heaps);
+    auto ratio = static_cast<float>(num_choosen_heaps) / num_total_heaps;
+    Resource choosen_resource;
+    choosen_resource.cores =
+        static_cast<uint32_t>(ratio * resource.cores + 0.5);
+    choosen_resource.mem_mbs =
+        static_cast<uint32_t>(ratio * resource.mem_mbs + 0.5);
+    choosen_heaps.clear();
+    for (uint32_t i = 0; i < num_choosen_heaps; i++) {
+      choosen_heaps.push_back(heaps[num_migrated_heaps++]);
+    }
+    __migrate(choosen_resource, choosen_heaps);
+  }
+}
+
+void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
   auto dest_ip =
       Runtime::controller_client->get_migration_dest(resource);
   BUG_ON(!dest_ip);
