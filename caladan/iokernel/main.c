@@ -10,6 +10,7 @@
 #include <base/stddef.h>
 
 #include <unistd.h>
+#include <sys/mman.h>
 
 #include "defs.h"
 #include "sched.h"
@@ -142,7 +143,9 @@ int main(int argc, char *argv[])
 {
 	int i, ret;
 
-	if (getuid() != 0) {
+        mlockall(MCL_CURRENT | MCL_FUTURE);
+
+        if (getuid() != 0) {
 		fprintf(stderr, "Error: please run as root\n");
 		return -EPERM;
 	}
