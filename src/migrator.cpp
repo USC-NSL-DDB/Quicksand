@@ -738,6 +738,8 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
                                           RPCReturner *returner,
                                           uint64_t payload_len,
                                           const void *payload) {
+  RuntimeSlabGuard guard;
+
   auto req_buf_len = sizeof(RPCReqForward) + payload_len;
   auto req_buf = std::make_unique_for_overwrite<std::byte[]>(req_buf_len);
   auto *req = reinterpret_cast<RPCReqForward *>(req_buf.get());
@@ -749,11 +751,8 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
   memcpy(req->payload, payload, payload_len);
   auto req_span = std::span(req_buf.get(), req_buf_len);
   RPCReturnBuffer return_buf;
-  {
-    RuntimeSlabGuard guard;
-    auto *client = Runtime::rpc_client_mgr->get_by_ip(thread_get_creator_ip());
-    BUG_ON(client->Call(req_span, &return_buf) != kOk);
-  }
+  auto *client = Runtime::rpc_client_mgr->get_by_ip(thread_get_creator_ip());
+  BUG_ON(client->Call(req_span, &return_buf) != kOk);
 }
 
 void Migrator::forward_to_client(RPCReqForward &req) {

@@ -71,6 +71,7 @@ void ObjServer::send_rpc_resp_ok(
 
 void ObjServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
   if (likely(thread_is_at_creator())) {
+    RuntimeSlabGuard guard;
     returner->Return(kErrWrongClient);
   } else {
     Runtime::migrator->forward_to_original_server(kErrWrongClient, returner, 0,
