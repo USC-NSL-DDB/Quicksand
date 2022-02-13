@@ -690,11 +690,11 @@ void Migrator::load(rt::TcpConn *c) {
   for (auto &range : populate_ranges) {
     rt::access_once(range.heap_header->status) = kLoading;
   }
-  auto mmap_thread = rt::Thread([&] {
+  rt::Thread([&] {
     for (auto &range : populate_ranges) {
       Runtime::heap_manager->mmap_populate(range.heap_header, range.len);
     }
-  });
+  }).Detach();
 
   auto stack_cluster = load_stack_cluster_mmap_task(c);
   Runtime::stack_manager->add_ref_cnt(stack_cluster, populate_ranges.size());
@@ -724,8 +724,6 @@ void Migrator::load(rt::TcpConn *c) {
     //   Runtime::stack_manager->add_ref_cnt(stack_cluster, -1);
     // }).Detach();
   }
-
-  mmap_thread.Join();
 }
 
 void Migrator::reserve_conns(uint32_t dest_server_ip) {
