@@ -101,6 +101,8 @@ class Thread {
 
   static id GetCurrentId() { return get_current_thread_id(); }
 
+  thread_t *GetRawTh() { return th_; }
+
 private:
   thread_t *th_;
   thread_internal::join_data* join_data_;
