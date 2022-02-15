@@ -122,8 +122,8 @@ void ControllerClient::update_location(RemObjID id, uint32_t obj_srv_ip) {
   RPCReqUpdateLocation req;
   req.id = id;
   req.obj_srv_ip = obj_srv_ip;
-  BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* poll = */ true) !=
-         sizeof(req));
+  BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
+                              /* poll = */ true) != sizeof(req));
 }
 
 VAddrRange ControllerClient::get_stack_cluster() const {
@@ -137,8 +137,8 @@ void ControllerClient::report_free_resource(Resource resource) {
   req.lpid = lpid_;
   req.ip = get_cfg_ip();
   req.resource = resource;
-  BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* poll = */ true) !=
-         sizeof(req));
+  BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
+                              /* poll = */ true) != sizeof(req));
 }
 
 } // namespace nu
