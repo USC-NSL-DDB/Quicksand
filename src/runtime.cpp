@@ -17,6 +17,7 @@ extern "C" {
 #include "nu/migrator.hpp"
 #include "nu/obj_server.hpp"
 #include "nu/pressure_handler.hpp"
+#include "nu/resource_reporter.hpp"
 #include "nu/rpc_client_mgr.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
@@ -39,6 +40,7 @@ std::unique_ptr<Migrator> Runtime::migrator;
 std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
 std::unique_ptr<RPCServer> Runtime::rpc_server;
 std::unique_ptr<PressureHandler> Runtime::pressure_handler;
+std::unique_ptr<ResourceReporter> Runtime::resource_reporter;
 
 void Runtime::init_runtime_heap() {
   auto addr = reinterpret_cast<void *>(kMinRuntimeHeapVaddr);
@@ -69,6 +71,7 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
       remote_ctrl_ip, kServer, lpid));
   heap_manager.reset(new decltype(heap_manager)::element_type());
   pressure_handler.reset(new decltype(pressure_handler)::element_type());
+  resource_reporter.reset(new decltype(resource_reporter)::element_type());
   stack_manager.reset(new decltype(stack_manager)::element_type(
       controller_client->get_stack_cluster()));
   archive_pool.reset(new decltype(archive_pool)::element_type());

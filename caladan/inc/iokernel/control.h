@@ -45,9 +45,10 @@ struct congestion_info {
 };
 
 enum {
-	HANDLED = 0,
+	NONE = 0,
 	PENDING,
 	HANDLING,
+	HANDLED
 };
 
 struct resource_pressure_info {
@@ -114,6 +115,12 @@ struct sched_spec {
 
 #define CONTROL_HDR_MAGIC	0x696f6b3a /* "iok:" */
 
+struct resource_reporting {
+	void                    *handler;
+	uint64_t                last_tsc;
+	uint8_t                 status;
+};
+
 /* the main control header */
 struct control_hdr {
 	unsigned int		version_no;
@@ -127,6 +134,7 @@ struct control_hdr {
 	shmptr_t                resource_pressure_info;
 	shmptr_t                num_resource_pressure_handlers;
 	shmptr_t                resource_pressure_handlers;
+	shmptr_t                resource_reporting;
 };
 
 /* information shared from iokernel to all runtimes */

@@ -1,0 +1,79 @@
+#include <stdint.h>
+
+#include <base/hash.h>
+#include <base/log.h>
+#include <base/stddef.h>
+
+#include "defs.h"
+#include "ias.h"
+#include "ksched.h"
+
+#define MAX_INTERVAL_US 2000
+
+static bool ias_rp_preempt_core(struct ias_data *sd)
+{
+	unsigned int i, core;
+	bool has_eligible_core = false;
+
+	for (i = 0; i < sd->p->active_thread_count; i++)
+		if (!(*sd->p->active_threads[i]->preemptor)) {
+			has_eligible_core = true;
+			break;
+		}
+
+	if (!has_eligible_core && unlikely(ias_add_kthread(sd) != 0))
+		return false;
+
+	/* Preempt a core. */
+	i = sd->p->active_thread_count;
+	while (*sd->p->active_threads[--i]->preemptor)
+		;
+
+	core = sd->p->active_threads[i]->core;
+	/* Grant exclusive access by marking the core as reserved. */
+	if (!bitmap_test(sd->reserved_cores, core)) {
+		bitmap_set(sd->reserved_cores, core);
+		bitmap_set(sd->reserved_report_handler_cores, core);
+	}
+
+	*sd->p->active_threads[i]->preemptor =
+		sd->p->resource_reporting->handler;
+	ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
+
+	return true;
+}
+
+bool ias_rp_poll(void)
+{
+	struct ias_data *sd;
+	int pos;
+	bool success = true;
+	struct resource_reporting *report;
+
+	ias_for_each_proc(sd) {
+		report = sd->p->resource_reporting;
+		if (report->status == HANDLED) {
+		        /* Take away the exclusive access. */
+	                bitmap_for_each_set(sd->reserved_report_handler_cores,
+					    NCPU, pos) {
+				bitmap_clear(sd->reserved_report_handler_cores,
+					     pos);
+				bitmap_clear(sd->reserved_cores, pos);
+	                }
+			report->status = NONE;
+		}
+
+		if (report->status == NONE) {
+                        if (report->last_tsc <
+			    rdtsc() - MAX_INTERVAL_US * cycles_per_us) {
+			        if (report->handler &&
+			            likely(ias_rp_preempt_core(sd)))
+			                report->status = HANDLING;
+			        else
+				        success = false;
+			}
+		}
+        }
+
+	return success;
+}

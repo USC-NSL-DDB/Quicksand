@@ -28,6 +28,7 @@ struct iokernel_cfg {
 	bool	noht; /* disable hyperthreads */
 	bool	nobw; /* disable bandwidth controller */
 	bool    nops; /* disable resource pressure controller */
+	bool    norp; /* disable resource reporting controller */
 	bool	ias_prefer_selfpair; /* prefer self-pairings */
 	float	ias_bw_limit; /* IAS bw limit, (MB/s) */
 	bool	no_hw_qdel; /* Disable use of hardware timestamps for qdelay */
@@ -129,6 +130,7 @@ struct proc {
 	struct resource_pressure_info  *resource_pressure_info;
 	uint8_t                        *num_resource_pressure_handlers;
 	void                           **resource_pressure_handlers;
+	struct resource_reporting      *resource_reporting;
 	unsigned long		       policy_data;
 	float			       load;
 

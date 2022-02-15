@@ -6,7 +6,7 @@
 struct resource_pressure_info *resource_pressure_info;
 /* number of resource pressure handlers */
 uint8_t *num_resource_pressure_handlers;
-/* the handlers */
+/* the pressure handlers */
 struct thread **resource_pressure_handlers;
 
 struct handler_thread_args {

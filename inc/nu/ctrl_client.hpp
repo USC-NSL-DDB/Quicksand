@@ -34,6 +34,7 @@ public:
   uint32_t get_migration_dest(Resource resource);
   void update_location(RemObjID id, uint32_t obj_srv_ip);
   VAddrRange get_stack_cluster() const;
+  void report_free_resource(Resource resource);
 
 private:
   lpid_t lpid_;

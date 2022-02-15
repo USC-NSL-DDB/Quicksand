@@ -87,11 +87,10 @@ struct RPCRespGetMigrationDest {
   uint32_t ip;
 } __attribute__((packed));
 
-struct RPCReqProbeFreeResource {
-  RPCReqType rpc_type = kProbeFreeResource;
-} __attribute__((packed));
-
-struct RPCRespProbeFreeResource {
+struct RPCReqReportFreeResource {
+  RPCReqType rpc_type = kReportFreeResource;
+  lpid_t lpid;
+  uint32_t ip;
   Resource resource;
 } __attribute__((packed));
 
@@ -115,6 +114,7 @@ private:
   std::atomic<uint64_t> num_resolve_obj_;
   std::atomic<uint64_t> num_get_migration_dest_;
   std::atomic<uint64_t> num_update_location_;
+  std::atomic<uint64_t> num_report_free_resource_;
   rt::Thread logging_thread_;
   rt::Thread tcp_queue_thread_;
   std::vector<std::unique_ptr<rt::TcpConn>> tcp_conns_;
@@ -135,8 +135,7 @@ private:
   std::unique_ptr<RPCRespGetMigrationDest>
   handle_get_migration_dest(const RPCReqGetMigrationDest &req);
   void handle_update_location(const RPCReqUpdateLocation &req);
-  std::unique_ptr<RPCRespProbeFreeResource>
-  handle_probing(const RPCReqProbeFreeResource &req);
+  void handle_report_free_resource(const RPCReqReportFreeResource &req);
   void tcp_loop(rt::TcpConn *c);
 };
 } // namespace nu

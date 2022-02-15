@@ -16,7 +16,7 @@ namespace nu {
 ControllerServer::ControllerServer()
     : num_register_node_(0), num_verify_md5_(0), num_allocate_obj_(0),
       num_destroy_obj_(0), num_resolve_obj_(0), num_get_migration_dest_(0),
-      num_update_location_(0), done_(false) {
+      num_update_location_(0), num_report_free_resource_(0), done_(false) {
   if constexpr (kEnableLogging) {
     logging_thread_ = rt::Thread([&] {
       std::cout << "time_us register_node verify_md5 allocate_obj destroy_obj "
@@ -78,6 +78,13 @@ void ControllerServer::tcp_loop(rt::TcpConn *c) {
       ssize_t data_size = sizeof(req) - sizeof(rpc_type);
       BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
       handle_update_location(req);
+      break;
+    }
+    case kReportFreeResource: {
+      RPCReqReportFreeResource req;
+      ssize_t data_size = sizeof(req) - sizeof(rpc_type);
+      BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
+      handle_report_free_resource(req);
       break;
     }
     default:
@@ -177,16 +184,13 @@ ControllerServer::handle_get_migration_dest(const RPCReqGetMigrationDest &req) {
   return resp;
 }
 
-std::unique_ptr<RPCRespProbeFreeResource>
-ControllerServer::handle_probing(const RPCReqProbeFreeResource &req) {
-  auto resp = std::make_unique_for_overwrite<RPCRespProbeFreeResource>();
-  resp->resource.cores =
-      std::min(rt::RuntimeGlobalIdleCores(),
-               rt::RuntimeMaxCores() -
-                   (rt::RuntimeActiveCores() - rt::RuntimeSpinningCores())) +
-      rt::RuntimeSpinningCores();
-  resp->resource.mem_mbs = rt::RuntimeFreeMemMbs();
-  return resp;
+void ControllerServer::handle_report_free_resource(
+    const RPCReqReportFreeResource &req) {
+  if constexpr (kEnableLogging) {
+    num_report_free_resource_++;
+  }
+
+  ctrl_.report_free_resource(req.lpid, req.ip, req.resource);
 }
 
 } // namespace nu

@@ -153,11 +153,13 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 	if (eth_addr_is_multicast(&hdr.mac) || eth_addr_is_zero(&hdr.mac))
 		goto fail;
 	p->mac = hdr.mac;
+
 	p->congestion_info = shmptr_to_ptr(&reg, hdr.congestion_info,
 					   sizeof(*p->congestion_info));
 	if (!p->congestion_info)
 		goto fail;
 	memset(p->congestion_info, 0, sizeof(*p->congestion_info));
+
 	p->resource_pressure_info = shmptr_to_ptr(&reg, hdr.resource_pressure_info,
                                                   sizeof(*p->resource_pressure_info));
 	p->num_resource_pressure_handlers =
@@ -172,6 +174,15 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 		goto fail;
 	memset(p->resource_pressure_info, 0,
                sizeof(*p->resource_pressure_info));
+
+	p->resource_reporting =
+               shmptr_to_ptr(&reg, hdr.resource_reporting,
+			     sizeof(*p->resource_reporting));
+	if (!p->resource_reporting)
+		goto fail;
+	p->resource_reporting->handler = NULL;
+	p->resource_reporting->last_tsc = 0;
+	p->resource_reporting->status = NONE;
 
 	/* initialize the threads */
 	for (i = 0; i < hdr.thread_count; i++) {

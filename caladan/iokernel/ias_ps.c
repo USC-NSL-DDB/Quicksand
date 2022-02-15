@@ -11,23 +11,32 @@
 
 static bool ias_ps_preempt_core(struct ias_data *sd)
 {
-	unsigned int num_cores_needed, i, core;
+	unsigned int num_needed_cores, num_eligible_cores = 0, i, core;
+	void **preemptor_ptr;
 
-	num_cores_needed = *sd->p->num_resource_pressure_handlers;
-	while (sd->p->active_thread_count < num_cores_needed)
+	for (i = 0; i < sd->p->active_thread_count; i++)
+		num_eligible_cores += !(*sd->p->active_threads[i]->preemptor);
+
+	num_needed_cores = *sd->p->num_resource_pressure_handlers;
+	while (num_eligible_cores++ < num_needed_cores)
 		if (unlikely(ias_add_kthread(sd) != 0))
 			return false;
 
-	/* Preempt the first num_cores_needed cores. */
-	for (i = 0; i < num_cores_needed; i++) {
-		core = sd->p->active_threads[i]->core;
+	/* Preempt the first num_needed_cores cores. */
+	i = sd->p->active_thread_count;
+	while (num_needed_cores) {
+		core = sd->p->active_threads[--i]->core;
+		preemptor_ptr = sd->p->active_threads[i]->preemptor;
+
+		if (unlikely(*preemptor_ptr))
+                        continue;
+
 		/* Grant exclusive access by marking the core as reserved. */
 		if (!bitmap_test(sd->reserved_cores, core)) {
 			bitmap_set(sd->reserved_cores, core);
-			bitmap_set(sd->reserved_handler_cores, core);
+			bitmap_set(sd->reserved_pressure_handler_cores, core);
 		}
-		*sd->p->active_threads[i]->preemptor =
-			sd->p->resource_pressure_handlers[i];
+		*preemptor_ptr = sd->p->resource_pressure_handlers[--num_needed_cores];
 		ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
 	}
 
@@ -56,15 +65,20 @@ bool ias_ps_poll(void)
 		congestion = sd->p->congestion_info;
 		congestion->free_mem_mbs = free_ram_in_mbs;
 		congestion->idle_num_cores = ias_num_idle_cores;
-
 		has_pressure = false;
+
 		if (pressure->status == HANDLED) {
 		        /* Take away the exclusive access. */
-	                bitmap_for_each_set(sd->reserved_handler_cores, NCPU, pos) {
-				bitmap_clear(sd->reserved_handler_cores, pos);
+	                bitmap_for_each_set(sd->reserved_pressure_handler_cores,
+					    NCPU, pos) {
+				bitmap_clear(sd->reserved_pressure_handler_cores,
+					     pos);
 				bitmap_clear(sd->reserved_cores, pos);
 	                }
+			pressure->status = NONE;
+		}
 
+		if (pressure->status == NONE) {
 			/* Memory pressure. */
 	                if (sd->react_mem_pressure && mem_mbs_to_release) {
 				pressure->mem_mbs_to_release =

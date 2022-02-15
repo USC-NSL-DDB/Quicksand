@@ -33,6 +33,8 @@ struct Node {
     return free_resource.cores >= resource.cores &&
            free_resource.mem_mbs >= resource.mem_mbs;
   }
+
+  void update_free_resource(Resource resource);
 };
 
 struct LPInfo {
@@ -44,7 +46,6 @@ struct LPInfo {
 
 class Controller {
 public:
-  constexpr static uint32_t kProbingIntervalUs = kOneMilliSecond;
   constexpr static bool kEnableBinaryVerification = true;
 
   Controller();
@@ -59,6 +60,7 @@ public:
   uint32_t get_migration_dest(lpid_t lpid, uint32_t requestor_ip,
                               Resource resource);
   void update_location(RemObjID id, uint32_t obj_srv_ip);
+  void report_free_resource(lpid_t lpid, uint32_t ip, Resource free_resource);
 
 private:
   std::stack<VAddrRange> free_heap_segments_; // One segment per RemObj.
@@ -67,13 +69,10 @@ private:
   std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;
   std::unordered_map<lpid_t, LPInfo> lpid_to_info_;
   std::unordered_map<RemObjID, uint32_t> obj_id_to_ip_;
-  std::vector<rt::Thread> probing_threads_;
   bool done_;
   rt::Mutex mutex_;
 
   std::optional<Node> select_node_for_obj(lpid_t lpid, uint32_t ip_hint);
-  rt::Thread create_probing_thread(std::set<Node> &nodes,
-                                   std::set<Node>::iterator iter);
   bool update_node(std::set<Node>::iterator iter);
 };
 } // namespace nu

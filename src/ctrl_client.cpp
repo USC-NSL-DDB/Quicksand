@@ -130,4 +130,15 @@ VAddrRange ControllerClient::get_stack_cluster() const {
   return stack_cluster_;
 }
 
+void ControllerClient::report_free_resource(Resource resource) {
+  rt::SpinGuard g(&spin_);
+
+  RPCReqReportFreeResource req;
+  req.lpid = lpid_;
+  req.ip = get_cfg_ip();
+  req.resource = resource;
+  BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* poll = */ true) !=
+         sizeof(req));
+}
+
 } // namespace nu

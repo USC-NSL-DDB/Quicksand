@@ -12,10 +12,10 @@ constexpr static bool kEnableLogging = false;
 
 namespace nu {
 
-PressureHandler::PressureHandler() {
+PressureHandler::PressureHandler() : done_(false) {
   register_handlers();
+
   update_thread_ = rt::Thread([&] {
-    done_ = false;
     while (!rt::access_once(done_)) {
       timer_sleep(kSortedHeapsUpdateIntervalMs * kOneMilliSecond);
       update_sorted_heaps();
@@ -24,7 +24,8 @@ PressureHandler::PressureHandler() {
 }
 
 PressureHandler::~PressureHandler() {
-  rt::access_once(done_) = true;
+  done_ = true;
+  barrier();
   update_thread_.Join();
 }
 

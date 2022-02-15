@@ -99,17 +99,17 @@ ssh $BACKUP_SERVER_IP "cd `pwd`; sudo stdbuf -o0 ./main conf/server$NUM_WORKER_S
     1>logs/server.$NUM_WORKER_SERVERS 2>&1 &
 sleep 5
 
-ssh $SRC_SERVER_IP "sudo taskset -c 0 bash -c 'sleep 6.0; pkill -SIGHUP bench'" &
+ssh $SRC_SERVER_IP "sudo taskset -c 0 bash -c 'sleep 8.5; pkill -SIGHUP bench'" &
 sudo pkill -x -SIGHUP main
 wait $client_pid
 
-sudo pkill -9 iokerneld
-sudo pkill -9 main
 for i in `seq 1 $NUM_WORKER_SERVERS`
 do
     ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
     ssh $ip "sudo pkill -9 iokerneld; sudo pkill -9 main; sudo pkill -9 bench"
 done
+sudo pkill -9 iokerneld
+sudo pkill -9 main
 
 unset_bridge $CONTROLLER_ETHER
 unset_bridge $CLIENT1_ETHER

@@ -43,9 +43,6 @@ Controller::Controller() {
 Controller::~Controller() {
   done_ = true;
   barrier();
-  for (auto &th : probing_threads_) {
-    th.Join();
-  }
 }
 
 std::optional<std::pair<lpid_t, VAddrRange>>
@@ -102,7 +99,6 @@ Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
 
   auto [iter, success] = nodes.insert(node);
   BUG_ON(!success);
-  probing_threads_.emplace_back(create_probing_thread(nodes, iter));
   return std::make_pair(lpid, stack_cluster);
 }
 
@@ -206,32 +202,27 @@ void Controller::update_location(RemObjID id, uint32_t obj_srv_ip) {
   iter->second = obj_srv_ip;
 }
 
-rt::Thread Controller::create_probing_thread(std::set<Node> &nodes,
-                                             std::set<Node>::iterator iter) {
-  return rt::Thread([&, iter] {
-    bool node_alive;
-    while (!rt::access_once(done_) && (node_alive = update_node(iter))) {
-      timer_sleep(kProbingIntervalUs);
-    }
-    if (!node_alive) {
-      rt::MutexGuard g(&mutex_);
-      nodes.erase(iter);
-    }
-  });
+void Controller::report_free_resource(lpid_t lpid, uint32_t ip,
+                                      Resource free_resource) {
+  auto lp_info_iter = lpid_to_info_.find(lpid);
+  BUG_ON(lp_info_iter == lpid_to_info_.end());
+
+  auto &nodes = lp_info_iter->second.nodes;
+  Node node{.ip = ip};
+  auto node_iter = nodes.find(node);
+  BUG_ON(node_iter == nodes.end());
+
+  const_cast<Node &>(*node_iter).update_free_resource(free_resource);
 }
 
-bool Controller::update_node(std::set<Node>::iterator iter) {
-  auto *client = Runtime::rpc_client_mgr->get_by_ip(iter->ip);
-  RPCReqProbeFreeResource req;
-  RPCReturnBuffer return_buf;
-  auto alive = (client->Call(to_span(req), &return_buf) == kOk);
-  if (alive) {
-    auto &resp = from_span<RPCRespProbeFreeResource>(return_buf.get_buf());
-    const_cast<Resource &>(iter->free_resource) = resp.resource;
-    return true;
-  } else {
-    return false;
-  }
+template <typename T> void ewma(double weight, T *result, T new_data) {
+  *result = *result * weight + (1 - weight) * new_data;
+}
+
+void Node::update_free_resource(Resource resource) {
+  constexpr double kWeight = 0.8;
+  ewma(kWeight, &free_resource.cores, resource.cores);
+  ewma(kWeight, &free_resource.mem_mbs, resource.mem_mbs);
 }
 
 } // namespace nu

@@ -500,7 +500,7 @@ static void ias_print_debug_info(void)
 
 static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 {
-	static uint64_t last_bw_us, last_ht_us, last_ps_us;
+	static uint64_t last_bw_us, last_ht_us, last_ps_us, last_rp_us;
 #ifdef IAS_DEBUG
 	static uint64_t debug_ts = 0;
 #endif
@@ -539,6 +539,10 @@ static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 	if (!cfg.nops && now - last_ps_us >= IAS_PS_INTERVAL_US)
 		if (ias_ps_poll())
 			last_ps_us = now;
+
+	if (!cfg.norp && now - last_rp_us >= IAS_RP_INTERVAL_US)
+		if (ias_rp_poll())
+			last_rp_us = now;
 
 #ifdef IAS_DEBUG
 	if (now - debug_ts >= IAS_DEBUG_PRINT_US) {
