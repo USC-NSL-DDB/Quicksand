@@ -36,11 +36,6 @@ done
 wait $scp_pids
 
 cd $NU_DIR/app/phoenix++-1.0/
-cp Defines.mk Defines.mk.bak
-sed "s/CFLAGS = \(.*\)/CFLAGS = -DBSP -DBSP_PRINT_STAT \1/g" -i Defines.mk
-make clean
-make -j
-
 cd tests/matrix_multiply/
 mv matrix_multiply.cpp matrix_multiply.cpp.bak
 cp $DIR/matrix_multiply.cpp .
@@ -89,7 +84,7 @@ sleep 5
 ssh $SRC_SERVER_IP "cd `pwd`; sudo cset shield --exec -- ../../../bin/bench_real_cpu_pressure conf/client0" &
 sleep 5
 
-sudo stdbuf -o0 ./main conf/client1 CLT $CTRL_IP $LPID -- 200000 4000 4000 4000 1>logs/$NUM_WORKER_SERVERS 2>&1 &
+sudo stdbuf -o0 ./main conf/client1 CLT $CTRL_IP $LPID -- 4200 200000 200000 4200 1>logs/$NUM_WORKER_SERVERS 2>&1 &
 client_pid=$!
 ( tail -f -n0 logs/$NUM_WORKER_SERVERS & ) | grep -q "waiting for signal"
 
@@ -99,7 +94,7 @@ ssh $BACKUP_SERVER_IP "cd `pwd`; sudo stdbuf -o0 ./main conf/server$NUM_WORKER_S
     1>logs/server.$NUM_WORKER_SERVERS 2>&1 &
 sleep 5
 
-ssh $SRC_SERVER_IP "sudo taskset -c 0 bash -c 'sleep 8.5; pkill -SIGHUP bench'" &
+ssh $SRC_SERVER_IP "sudo taskset -c 16 bash -c 'sleep 9; pkill -SIGHUP bench'" &
 sudo pkill -x -SIGHUP main
 wait $client_pid
 
