@@ -41,11 +41,11 @@ constexpr uint32_t kNumWorkerThreads = (kNumWorkerNodes - 1) * 28;
 
 struct mm_data_t {
   uint32_t matrix_A_width;
-  uint32_t matrix_B_height;
+  uint32_t matrix_B_width;
   uint32_t row_id;
 
   template <class Archive> void serialize(Archive &ar) {
-    ar(matrix_A_width, matrix_B_height, row_id);
+    ar(matrix_A_width, matrix_B_width, row_id);
   }
 };
 
@@ -53,8 +53,6 @@ using Row = std::vector<int>;
 
 int *matrix_A, *matrix_B;
 bool signalled = false;
-
-#define DONT_OPTIMIZE(var) __asm__ __volatile__("" ::"m"(var));
 
 class WorkerNodeInitializer {
 public:
@@ -100,18 +98,17 @@ public:
     BUG_ON(!preempt_enabled());
 
     auto A_width = data.matrix_A_width;
-    auto B_height = data.matrix_B_height;
-    auto *tmp_A = matrix_A;
+    auto B_width = data.matrix_B_width;
+    auto *tmp_A = matrix_A + A_width * data.row_id;
     auto *tmp_B = matrix_B;
-    tmp_A += A_width * data.row_id;
 
-    std::vector<int> output(B_height);
+    std::vector<int> output(B_width);
     for (size_t i = 0; i < A_width; i++) {
-      for (size_t j = 0; j < B_height; j++) {
+      for (size_t j = 0; j < B_width; j++) {
         output[j] += tmp_A[i] * tmp_B[j];
       }
 
-      tmp_B += B_height;
+      tmp_B += B_width;
     }
     emit_intermediate(out, data.row_id, output);
   }
@@ -127,7 +124,7 @@ public:
     }
 
     out.matrix_A_width = matrix_A_width;
-    out.matrix_B_height = matrix_B_height;
+    out.matrix_B_width = matrix_B_width;
     out.row_id = row++;
     // std::cout << out.row_id << std::endl;
 
