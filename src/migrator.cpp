@@ -522,7 +522,10 @@ void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
     auto *paused_ths_list = pause_all_migrating_threads(heap_header);
     transmit(conn, heap_header, paused_ths_list);
     gc_migrated_threads();
-    Runtime::pressure_handler->dispatch_aux_dealloc_task(0, heap_header);
+    rt::Thread([heap_header] {
+      Runtime::heap_manager->deallocate(heap_header);
+      SlabAllocator::deregister_slab_by_id(to_slab_id(heap_header));
+    }).Detach();
   }
 
   unmap_destructed_heaps(conn, &destructed_heaps);
