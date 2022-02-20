@@ -40,7 +40,7 @@ struct HeapHeader {
 
   uint8_t status;
 
-  // For synchronization on migration.
+  // For synchronization.
   RCULock rcu_lock;
   SpinLock spin_lock;
   CondVar cond_var;
@@ -81,7 +81,8 @@ public:
   HeapManager();
 
   static void allocate(void *heap_base, bool migratable);
-  static void mmap_populate(void *heap_base, uint64_t populate_len);
+  static void mmap(void *heap_base);
+  static void madvise_populate(void *heap_base, uint64_t populate_len);
   static void setup(void *heap_base, bool migratable, bool from_migration);
   static void deallocate(void *heap_base);
   static void wait_until_present(HeapHeader *heap_header);

@@ -105,11 +105,7 @@ void Migrator::handle_copy_heap(rt::TcpConn *c) {
          0);
   auto heap_base_addr = (start_addr & (~(kHeapSize - 1)));
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base_addr);
-
-  while (unlikely(rt::access_once(heap_header->status) != kMapped)) {
-    unblock_and_relax();
-  }
-
+  HeapManager::mmap(heap_header);
   BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(start_addr), len,
                      /* nt = */ true, /* poll = */ true) <= 0);
   heap_header->pending_load_cnt--;
@@ -500,8 +496,7 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
 }
 
 void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
-  auto dest_ip =
-      Runtime::controller_client->get_migration_dest(resource);
+  auto dest_ip = Runtime::controller_client->get_migration_dest(resource);
   BUG_ON(!dest_ip);
   auto migration_conn = migrator_conn_mgr_.get(dest_ip);
   auto *conn = migration_conn.get_tcp_conn();
@@ -742,7 +737,8 @@ void Migrator::load(rt::TcpConn *c) {
   }
   rt::Thread([&] {
     for (auto &range : populate_ranges) {
-      Runtime::heap_manager->mmap_populate(range.heap_header, range.len);
+      Runtime::heap_manager->mmap(range.heap_header);
+      Runtime::heap_manager->madvise_populate(range.heap_header, range.len);
     }
   }).Detach();
 

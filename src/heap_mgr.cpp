@@ -1,6 +1,8 @@
+#include <asm/mman.h>
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <sys/mman.h>
 
 extern "C" {
 #include <base/assert.h>
@@ -38,24 +40,34 @@ void HeapManager::allocate(void *heap_base, bool migratable) {
   setup(heap_base, migratable, /* from_migration = */ false);
 }
 
-void HeapManager::mmap_populate(void *heap_base, uint64_t populate_len) {
+void HeapManager::mmap(void *heap_base) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  if (heap_header->status == kMapped) {
+    return;
+  }
+
+  heap_header->spin_lock.lock();
+  if (unlikely(heap_header->status == kMapped)) {
+    heap_header->spin_lock.unlock();
+    return;
+  }
   auto *mmap_base =
       reinterpret_cast<uint8_t *>(heap_base) + kNumAlwaysMmapedBytes;
-  auto total_mmap_size = kHeapSize - kNumAlwaysMmapedBytes;
+  auto *mmap_addr = ::mmap(mmap_base, kHeapSize - kNumAlwaysMmapedBytes,
+                           PROT_READ | PROT_WRITE,
+                           MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+  BUG_ON(mmap_addr != mmap_base);
+  barrier();
+  heap_header->status = kMapped;
+  heap_header->spin_lock.unlock();
+}
+
+void HeapManager::madvise_populate(void *heap_base, uint64_t populate_len) {
+  auto *mmap_base =
+      reinterpret_cast<uint8_t *>(heap_base) + kNumAlwaysMmapedBytes;
   populate_len -= kNumAlwaysMmapedBytes;
   populate_len = ((populate_len - 1) / kPageSize + 1) * kPageSize;
-  auto mmap_addr =
-      ::mmap(mmap_base, populate_len, PROT_READ | PROT_WRITE,
-             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_POPULATE, -1, 0);
-  BUG_ON(mmap_addr != mmap_base);
-  heap_header->status = kMapped;
-
-  auto *unpopulated_base = mmap_base + populate_len;
-  mmap_addr = ::mmap(unpopulated_base, total_mmap_size - populate_len,
-                     PROT_READ | PROT_WRITE,
-                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
-  BUG_ON(mmap_addr != unpopulated_base);
+  BUG_ON(madvise(mmap_base, populate_len, MADV_POPULATE_WRITE) != 0);
 }
 
 void HeapManager::deallocate(void *heap_base) {
