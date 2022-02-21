@@ -42,3 +42,16 @@ index 1ba9b1b99..c53d2974d 100644
  {
  	pr_debug("Transmit timeout at %ld, latency %ld\n", jiffies,
  			jiffies - dev_trans_start(dev));
+diff --git a/drivers/net/ifc/base/ifcvf.h b/drivers/net/ifc/base/ifcvf.h
+index 9be2770fea..7fd3f9a9f9 100644
+--- a/drivers/net/ifc/base/ifcvf.h
++++ b/drivers/net/ifc/base/ifcvf.h
+@@ -13,7 +13,7 @@
+ #define IFCVF_SUBSYS_DEVICE_ID	0x001A
+ 
+ #define IFCVF_MAX_QUEUES		1
+-#define VIRTIO_F_IOMMU_PLATFORM		33
++//#define VIRTIO_F_IOMMU_PLATFORM		33
+ 
+ /* Common configuration */
+ #define IFCVF_PCI_CAP_COMMON_CFG	1
