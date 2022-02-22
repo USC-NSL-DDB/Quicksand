@@ -347,12 +347,13 @@ static bool handle_pending_pause_req(struct kthread *k)
 		return true;
 	}
 
-	if (ACCESS_ONCE(k->parked)) {
+	if (k->curr_th &&
+	    k->curr_th->nu_state.owner_heap == pause_req_owner_heap)
+		handled = false;
+	else {
 		__pause_migrating_threads_locked(k);
 		handled = true;
 	}
-	else
-		handled = false;
 
 	spin_unlock(&k->lock);
 	return handled;
@@ -910,12 +911,12 @@ void thread_ready(thread_t *th)
 	uint32_t rq_tail;
 
 	k = getk();
+	spin_lock(&k->lock);
 	thread_ready_prepare(k, th);
 	rq_tail = load_acquire(&k->rq_tail);
 
 	if (unlikely(k->rq_head - rq_tail >= RUNTIME_RQ_SIZE)) {
 		assert(k->rq_head - rq_tail == RUNTIME_RQ_SIZE);
-		spin_lock(&k->lock);
 		list_add_tail(&k->rq_overflow, &th->link);
 		spin_unlock(&k->lock);
 		ACCESS_ONCE(k->q_ptrs->rq_head)++;
@@ -927,6 +928,7 @@ void thread_ready(thread_t *th)
 	store_release(&k->rq_head, k->rq_head + 1);
 	if (k->rq_head - load_acquire(&k->rq_tail) == 1)
 		ACCESS_ONCE(k->q_ptrs->oldest_tsc) = th->ready_tsc;
+	spin_unlock(&k->lock);
 	ACCESS_ONCE(k->q_ptrs->rq_head)++;
 	putk();
 }
@@ -1299,7 +1301,6 @@ struct list_head *pause_all_migrating_threads(void *owner_heap)
 	store_release(&global_pause_req_mask, true);
 	kthread_yield_all_cores();
 	pause_local_migrating_threads();
-
 retry:
 	for (i = 0; i < nrks; i++)
 		if (ACCESS_ONCE(ks[i]->pause_req) &&
