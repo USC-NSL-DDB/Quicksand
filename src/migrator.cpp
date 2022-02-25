@@ -500,6 +500,14 @@ void Migrator::pause_migrating_threads(HeapHeader *heap_header) {
   pause_migrating_ths_main(heap_header);
 }
 
+void Migrator::post_migration_cleanup(HeapHeader *heap_header) {
+  rt::Thread([heap_header] {
+    heap_header->counter.reset();
+    Runtime::heap_manager->deallocate(heap_header);
+    SlabAllocator::deregister_slab_by_id(to_slab_id(heap_header));
+  }).Detach();
+}
+
 void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
   auto dest_ip = Runtime::controller_client->get_migration_dest(resource);
   BUG_ON(!dest_ip);
@@ -527,10 +535,7 @@ void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
     pause_migrating_threads(heap_header);
     transmit(conn, heap_header, &all_migrating_ths);
     gc_migrated_threads();
-    rt::Thread([heap_header] {
-      Runtime::heap_manager->deallocate(heap_header);
-      SlabAllocator::deregister_slab_by_id(to_slab_id(heap_header));
-    }).Detach();
+    post_migration_cleanup(heap_header);
   }
 
   unmap_destructed_heaps(conn, &destructed_heaps);
@@ -572,6 +577,8 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
 }
 
 thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
+  heap_header->counter.inc_unsafe();
+
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto nu_state = std::make_unique<uint8_t[]>(nu_state_size);

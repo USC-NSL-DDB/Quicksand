@@ -159,6 +159,7 @@ private:
   void callback();
   void __migrate(Resource resource, std::vector<HeapRange> heaps);
   void pause_migrating_threads(HeapHeader *heap_header);
+  void post_migration_cleanup(HeapHeader *heap_header);
 };
 
 } // namespace nu

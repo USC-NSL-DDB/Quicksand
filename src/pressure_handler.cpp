@@ -37,14 +37,20 @@ uint64_t get_heap_size(HeapHeader *heap_header) {
   return size_in_bytes;
 }
 
-std::pair<float, float> utility(HeapHeader *heap_header) {
-  auto size = get_heap_size(heap_header);
+Utility::Utility(HeapHeader *heap_header) {
+  auto heap_size = get_heap_size(heap_header);
+  auto stack_size = heap_header->counter.get() * kStackSize;
+  auto size = heap_size + stack_size;
+  auto time = kFixedCostUs + (size / (kNetBwGbps / 8.0f) / 1000.0f);
+
   auto cpu_load = heap_header->cpu_load.get_load();
   heap_header->cpu_load.reset();
   cpu_load = std::max(cpu_load, static_cast<float>(1e-5));
-  auto cpu_pressure_utility = size / cpu_load;
-  auto mem_pressure_utility = size * cpu_load;
-  return std::make_pair(cpu_pressure_utility, mem_pressure_utility);
+  auto cpu_pressure_alleviated = cpu_load;
+  auto mem_pressure_alleviated = size;
+
+  cpu_pressure_util = cpu_pressure_alleviated / time;
+  mem_pressure_util = mem_pressure_alleviated / size;
 }
 
 void PressureHandler::update_sorted_heaps() {
@@ -60,7 +66,7 @@ void PressureHandler::update_sorted_heaps() {
       heap_header->spin_lock.unlock();
       continue;
     }
-    auto [cpu_pressure_utility, mem_pressure_utility] = utility(heap_header);
+    auto [cpu_pressure_utility, mem_pressure_utility] = Utility(heap_header);
     heap_header->spin_lock.unlock();
 
     HeapInfo cpu{heap_header, cpu_pressure_utility};

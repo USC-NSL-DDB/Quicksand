@@ -162,6 +162,7 @@ void ObjServer::__run_closure(Cls &obj, HeapHeader *heap_header,
                               cereal::BinaryInputArchive &ia,
                               RPCReturner returner) {
   auto state = heap_header->cpu_load.monitor_start();
+  heap_header->counter.inc_unsafe();
 
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
 
@@ -199,6 +200,7 @@ void ObjServer::__run_closure(Cls &obj, HeapHeader *heap_header,
   }
 
   send_rpc_resp_ok(oa_sstream, &returner);
+  heap_header->counter.dec_unsafe();
   heap_header->cpu_load.monitor_end(state);
 }
 
@@ -223,12 +225,14 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
   auto *callee_heap_header = to_heap_header(callee_id);
   auto *caller_heap_header = to_heap_header(caller_id);
   auto state = callee_heap_header->cpu_load.monitor_start();
+  callee_heap_header->counter.inc_unsafe();
 
   auto *obj = Runtime::get_obj<Cls>(callee_id);
   if constexpr (!std::is_same<RetT, void>::value) {
     auto *ret = reinterpret_cast<RetT *>(alloca(sizeof(RetT)));
     std::construct_at(ret);
     *ret = fn_ptr(*obj, std::forward<S1s>(states)...);
+    callee_heap_header->counter.dec_unsafe();
     callee_heap_header->cpu_load.monitor_end(state);
 
     {
@@ -275,6 +279,7 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
         });
   } else {
     fn_ptr(*obj, std::forward<S1s>(states)...);
+    callee_heap_header->counter.dec_unsafe();
     callee_heap_header->cpu_load.monitor_end(state);
 
     {

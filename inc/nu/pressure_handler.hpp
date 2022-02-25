@@ -22,6 +22,16 @@ struct AuxHandlerState {
   bool done = false;
 };
 
+struct Utility {
+  constexpr static uint32_t kFixedCostUs = 25;
+  constexpr static uint32_t kNetBwGbps = 100;
+
+  float cpu_pressure_util;
+  float mem_pressure_util;
+
+  Utility(HeapHeader *heap_header);
+};
+
 class PressureHandler {
 public:
   constexpr static uint32_t kNumAuxHandlers =

@@ -17,6 +17,7 @@ extern "C" {
 #include "nu/commons.hpp"
 #include "nu/utils/blocked_syncer.hpp"
 #include "nu/utils/cond_var.hpp"
+#include "nu/utils/counter.hpp"
 #include "nu/utils/cpu_load.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/rcu_lock.hpp"
@@ -47,6 +48,9 @@ struct HeapHeader {
 
   // Used for monitoring cpu load.
   CPULoad cpu_load;
+
+  // Used for monitoring active threads count.
+  Counter counter;
 
   //--- Fields above are always mmaped in all object servers. ---/
   uint8_t always_mmaped_end[0];
