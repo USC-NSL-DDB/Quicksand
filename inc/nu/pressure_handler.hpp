@@ -17,7 +17,7 @@ using ResourcePressureInfo = struct resource_pressure_info;
 struct AuxHandlerState {
   MigratorConn conn;
   std::vector<iovec> tcp_write_task;
-  HeapHeader *dealloc_task = nullptr;
+  bool pause = false;
   bool task_pending = false;
   bool done = false;
 };
@@ -35,7 +35,7 @@ public:
   void init_aux_handler(uint32_t handler_id, MigratorConn &&conn);
   void dispatch_aux_tcp_task(uint32_t handler_id,
                              std::vector<iovec> &&tcp_write_task);
-  void dispatch_aux_dealloc_task(uint32_t handler_id, HeapHeader *dealloc_task);
+  void dispatch_aux_pause_task(uint32_t handler_id);
 
 private:
   struct HeapInfo {

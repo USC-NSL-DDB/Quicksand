@@ -58,8 +58,6 @@ struct ksched_percpu {
 /* per-cpu data to coordinate context switching and signal delivery */
 static DEFINE_PER_CPU(struct ksched_percpu, kp);
 
-static cpumask_t all_cores_mask = CPU_MASK_ALL;
-
 enum {
 	PARKED = 0,
 	UNPARKED
@@ -399,7 +397,7 @@ static long ksched_intr(struct ksched_intr_req __user *ureq)
 	return 0;
 }
 
-static void do_yield_all(void *unused)
+static void do_yield(void *unused)
 {
 	struct ksched_percpu *p;
 	int cpu;
@@ -407,18 +405,33 @@ static void do_yield_all(void *unused)
 	cpu = get_cpu();
 	p = this_cpu_ptr(&kp);
 
-        if (local_read(&p->busy) && p->running_task)
+	if (local_read(&p->busy) && p->running_task)
 		send_sig(YIELD_SIGNAL, p->running_task, 0);
 
 	put_cpu();
 }
 
-static long ksched_yield_all(void)
+static long ksched_yield(struct ksched_intr_req __user *ureq)
 {
+	cpumask_var_t mask;
+	struct ksched_intr_req req;
+
 	if (unlikely(!capable(CAP_SYS_ADMIN)))
 		return -EACCES;
+
+	/* validate inputs */
+	if (unlikely(copy_from_user(&req, ureq, sizeof(req))))
+		return -EFAULT;
+	if (unlikely(!alloc_cpumask_var(&mask, GFP_KERNEL)))
+		return -ENOMEM;
+	if (unlikely(get_user_cpu_mask((const unsigned long __user *)req.mask,
+				       req.len, mask))) {
+		free_cpumask_var(mask);
+		return -EFAULT;
+	}
   
-	smp_call_function_many(&all_cores_mask, do_yield_all, NULL, false);
+	smp_call_function_many(mask, do_yield, NULL, false);
+	free_cpumask_var(mask);
 	return smp_processor_id();
 }
 
@@ -438,8 +451,8 @@ ksched_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return ksched_park();
 	case KSCHED_IOC_INTR:
 		return ksched_intr((void __user *)arg);
-	case KSCHED_IOC_YIELD_ALL:
-		return ksched_yield_all();
+	case KSCHED_IOC_YIELD:
+		return ksched_yield((void __user *)arg);
 	default:
 		break;
 	}

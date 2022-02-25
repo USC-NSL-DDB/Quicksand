@@ -495,6 +495,11 @@ void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
   }
 }
 
+void Migrator::pause_migrating_threads(HeapHeader *heap_header) {
+  Runtime::pressure_handler->dispatch_aux_pause_task(0);
+  pause_migrating_ths_main(heap_header);
+}
+
 void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
   auto dest_ip = Runtime::controller_client->get_migration_dest(resource);
   BUG_ON(!dest_ip);
@@ -519,8 +524,8 @@ void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
       continue;
     }
     migrated_heaps.push_back(heap_header);
-    auto *paused_ths_list = pause_all_migrating_threads(heap_header);
-    transmit(conn, heap_header, paused_ths_list);
+    pause_migrating_threads(heap_header);
+    transmit(conn, heap_header, &all_migrating_ths);
     gc_migrated_threads();
     rt::Thread([heap_header] {
       Runtime::heap_manager->deallocate(heap_header);

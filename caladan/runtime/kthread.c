@@ -269,16 +269,31 @@ int kthread_init(void)
 	return 0;
 }
 
-void kthread_yield_all_cores(void)
-{
+void kthread_yield_cores(cpu_set_t *mask) {
+	struct ksched_intr_req req;
 	struct kthread *k = myk();
 	uint64_t last_core = k->curr_cpu;
 	ssize_t s;
 
-	s = ioctl(ksched_fd, KSCHED_IOC_YIELD_ALL, 0);
+	req.len = sizeof(*mask);
+	req.mask = mask;
+
+	s = ioctl(ksched_fd, KSCHED_IOC_YIELD, &req);
 	BUG_ON(s < 0);
 	k->curr_cpu = s;
 	if (k->curr_cpu != last_core)
 		STAT(CORE_MIGRATIONS)++;
 	store_release(&cpu_map[s].recent_kthread, k);
 }
+
+void kthread_yield_all_cores(void)
+{
+	int i;
+	cpu_set_t mask;
+
+	CPU_ZERO(&mask);
+	for (i = 0; i < nrks; i++)
+		CPU_SET(i, &mask);
+	kthread_yield_cores(&mask);
+}
+

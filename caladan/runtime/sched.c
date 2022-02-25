@@ -91,7 +91,6 @@ static __noreturn void jmp_thread(thread_t *th)
 	assert(th->thread_ready);
 
 	__self = th;
-	myk()->curr_th = th;
 	th->thread_ready = false;
 	if (unlikely(load_acquire(&th->thread_running))) {
 		/* wait until the scheduler finishes switching stacks */
@@ -116,7 +115,6 @@ static void jmp_thread_direct(thread_t *oldth, thread_t *newth)
 	assert(newth->thread_ready);
 
 	__self = newth;
-	myk()->curr_th = newth;
 	newth->thread_ready = false;
 	if (unlikely(load_acquire(&newth->thread_running))) {
 		/* wait until the scheduler finishes switching stacks */
@@ -644,6 +642,7 @@ done:
 	assert(l->rq_head != l->rq_tail);
 	th = l->rq[l->rq_tail++ % RUNTIME_RQ_SIZE];
 	ACCESS_ONCE(l->q_ptrs->rq_tail)++;
+	l->curr_th = th;
 
 	/* move overflow tasks into the runqueue */
 	if (unlikely(!list_empty(&l->rq_overflow)))
@@ -714,6 +713,7 @@ static __always_inline void enter_schedule(thread_t *curth)
 	/* pop the next runnable thread from the queue */
 	th = k->rq[k->rq_tail++ % RUNTIME_RQ_SIZE];
 	ACCESS_ONCE(k->q_ptrs->rq_tail)++;
+	k->curr_th = th;
 
 	/* move overflow tasks into the runqueue */
 	if (unlikely(!list_empty(&k->rq_overflow)))
@@ -1290,27 +1290,66 @@ bool thread_is_at_creator(void)
 	return __self->nu_state.creator_ip == get_cfg_ip();
 }
 
-struct list_head *pause_all_migrating_threads(void *owner_heap)
+void pause_migrating_ths_aux(void)
+{
+	int i, last = 0;
+	bool done;
+
+	while (!ACCESS_ONCE(global_pause_req_mask))
+		;
+
+retry:
+	i = last;
+	done = true;
+	for (; i < nrks; i++) {
+		if (ACCESS_ONCE(ks[i]->pause_req) &&
+		    !handle_pending_pause_req(ks[i])) {
+			if (done) {
+				last = i;
+				done = false;
+			}
+		} else if (!list_empty(&ks[i]->migrating_ths)) {
+			list_append_list(&all_migrating_ths,
+					 &ks[i]->migrating_ths);
+		}
+	}
+	if (!done)
+		goto retry;
+
+	store_release(&global_pause_req_mask, false);
+}
+
+void pause_migrating_ths_main(void *owner_heap)
 {
 	int i;
+	bool intr = false;
+	cpu_set_t mask;
+	thread_t *th;
+	struct kthread *k;
 
-	for (i = 0; i < nrks; i++) {
+	for (i = 0; i < nrks; i++)
 		ks[i]->pause_req = true;
-	}
 	pause_req_owner_heap = owner_heap;
 	store_release(&global_pause_req_mask, true);
-	kthread_yield_all_cores();
-	pause_local_migrating_threads();
-retry:
-	for (i = 0; i < nrks; i++)
-		if (ACCESS_ONCE(ks[i]->pause_req) &&
-		    !handle_pending_pause_req(ks[i]))
-			goto retry;
-	store_release(&global_pause_req_mask, false);
+
+	CPU_ZERO(&mask);
 	for (i = 0; i < nrks; i++) {
-		list_append_list(&all_migrating_ths, &ks[i]->migrating_ths);
+		k = ks[i];
+		if (ACCESS_ONCE(k->pause_req)) {
+			spin_lock(&k->lock);
+			th = k->curr_th;
+			if (th && th->nu_state.owner_heap == pause_req_owner_heap) {
+				intr = true;
+				CPU_SET(k->curr_cpu, &mask);
+			}
+			spin_unlock(&k->lock);
+		}
 	}
-	return &all_migrating_ths;
+	if (intr)
+		kthread_yield_cores(&mask);
+
+	while (ACCESS_ONCE(global_pause_req_mask))
+		;
 }
 
 uint64_t thread_get_rsp(thread_t *th) { return th->nu_state.tf.rsp; }

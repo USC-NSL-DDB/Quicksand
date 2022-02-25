@@ -147,13 +147,12 @@ void PressureHandler::dispatch_aux_tcp_task(
   store_release(&state.task_pending, true);
 }
 
-void PressureHandler::dispatch_aux_dealloc_task(uint32_t handler_id,
-                                                HeapHeader *dealloc_task) {
+void PressureHandler::dispatch_aux_pause_task(uint32_t handler_id) {
   auto &state = aux_handler_states[handler_id];
   while (rt::access_once(state.task_pending)) {
     unblock_and_relax();
   }
-  state.dealloc_task = dealloc_task;
+  state.pause = true;
   store_release(&state.task_pending, true);
 }
 
@@ -162,17 +161,16 @@ void PressureHandler::aux_handler(void *args) {
   // Service tasks.
   while (!rt::access_once(state->done)) {
     if (unlikely(load_acquire(&state->task_pending))) {
-      if (state->dealloc_task) {
-        Runtime::heap_manager->deallocate(state->dealloc_task);
-        SlabAllocator::deregister_slab_by_id(to_slab_id(state->dealloc_task));
-        state->dealloc_task = nullptr;
+      if (state->pause) {
+        pause_migrating_ths_aux();
+        store_release(&state->pause, false);
       } else {
         auto *c = state->conn.get_tcp_conn();
         BUG_ON(c->WritevFull(std::span<const iovec>(state->tcp_write_task),
                              /* nt = */ true,
                              /* poll = */ true) < 0);
       }
-      rt::access_once(state->task_pending) = false;
+      store_release(&state->task_pending, false);
     }
     unblock_and_relax();
   }

@@ -93,10 +93,12 @@ private:
 
 class Migrator {
 public:
-  constexpr static uint32_t kTransmitHeapNumThreads = 2;
+  constexpr static uint32_t kTransmitHeapNumThreads = 3;
   constexpr static uint32_t kDefaultNumReservedConns = 8;
   constexpr static uint32_t kPort = 8002;
   constexpr static uint32_t kMaxNumHeapsPerMigration = 64;
+
+  static_assert(kTransmitHeapNumThreads > 1);
 
   Migrator();
   ~Migrator();
@@ -156,6 +158,7 @@ private:
   void finish_aux_handlers();
   void callback();
   void __migrate(Resource resource, std::vector<HeapRange> heaps);
+  void pause_migrating_threads(HeapHeader *heap_header);
 };
 
 } // namespace nu

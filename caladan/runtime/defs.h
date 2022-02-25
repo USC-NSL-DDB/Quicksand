@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <sched.h>
+
 #include <base/stddef.h>
 #include <base/list.h>
 #include <base/mem.h>
@@ -509,6 +511,7 @@ extern bool cfg_react_mem_pressure;
 
 extern void kthread_park(bool voluntary);
 extern void kthread_wait_to_attach(void);
+extern void kthread_yield_cores(cpu_set_t *mask);
 extern void kthread_yield_all_cores(void);
 
 struct cpu_record {
