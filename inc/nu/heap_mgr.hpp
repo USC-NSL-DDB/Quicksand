@@ -50,7 +50,7 @@ struct HeapHeader {
   CPULoad cpu_load;
 
   // Used for monitoring active threads count.
-  Counter counter;
+  Counter thread_cnt;
 
   //--- Fields above are always mmaped in all object servers. ---/
   uint8_t always_mmaped_end[0];

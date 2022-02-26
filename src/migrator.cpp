@@ -502,7 +502,7 @@ void Migrator::pause_migrating_threads(HeapHeader *heap_header) {
 
 void Migrator::post_migration_cleanup(HeapHeader *heap_header) {
   rt::Thread([heap_header] {
-    heap_header->counter.reset();
+    heap_header->thread_cnt.reset();
     Runtime::heap_manager->deallocate(heap_header);
     SlabAllocator::deregister_slab_by_id(to_slab_id(heap_header));
   }).Detach();
@@ -577,7 +577,7 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
 }
 
 thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
-  heap_header->counter.inc_unsafe();
+  heap_header->thread_cnt.inc_unsafe();
 
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);

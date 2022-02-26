@@ -39,18 +39,17 @@ uint64_t get_heap_size(HeapHeader *heap_header) {
 
 Utility::Utility(HeapHeader *heap_header) {
   auto heap_size = get_heap_size(heap_header);
-  auto stack_size = heap_header->counter.get() * kStackSize;
+  auto stack_size = heap_header->thread_cnt.get() * kStackSize;
   auto size = heap_size + stack_size;
   auto time = kFixedCostUs + (size / (kNetBwGbps / 8.0f) / 1000.0f);
 
   auto cpu_load = heap_header->cpu_load.get_load();
   heap_header->cpu_load.reset();
-  cpu_load = std::max(cpu_load, static_cast<float>(1e-5));
   auto cpu_pressure_alleviated = cpu_load;
   auto mem_pressure_alleviated = size;
 
   cpu_pressure_util = cpu_pressure_alleviated / time;
-  mem_pressure_util = mem_pressure_alleviated / size;
+  mem_pressure_util = mem_pressure_alleviated / time;
 }
 
 void PressureHandler::update_sorted_heaps() {
