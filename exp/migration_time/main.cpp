@@ -19,8 +19,8 @@ using namespace nu;
 
 Runtime::Mode mode;
 
-constexpr uint32_t kObjSize = 2097152;
-constexpr uint32_t kNumObjs = 128;
+constexpr uint32_t kObjSize = 16777216;
+constexpr uint32_t kNumObjs = 1024;
 
 class Obj {
 public:
@@ -43,21 +43,19 @@ public:
 
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {
-    netaddr laddr = {.ip = MAKE_IP_ADDR(18, 18, 1, 2),
-                     .port = ObjServer::kObjServerPort};
-    netaddr raddr = {.ip = MAKE_IP_ADDR(18, 18, 1, 5),
-                     .port = ObjServer::kObjServerPort};
+    auto l_ip = MAKE_IP_ADDR(18, 18, 1, 2);
+    auto r_ip = MAKE_IP_ADDR(18, 18, 1, 5);
     std::vector<RemObj<Obj>> objs;
     for (uint32_t i = 0; i < kNumObjs; i++) {
-      objs.emplace_back(RemObj<Obj>::create_at(laddr));
+      objs.emplace_back(RemObj<Obj>::create_at(l_ip));
     }
-    auto migrator = RemObj<Test>::create_pinned_at(laddr);
+    auto migrator = RemObj<Test>::create_pinned_at(l_ip);
     migrator.run(&Test::migrate);
 
   retry:
     for (auto &obj : objs) {
-      if (obj.run(&Obj::get_ip) != raddr.ip) {
-        std::cout << obj.run(&Obj::get_ip) << " " << raddr.ip << std::endl;
+      if (obj.run(&Obj::get_ip) != r_ip) {
+        std::cout << obj.run(&Obj::get_ip) << " " << r_ip << std::endl;
         timer_sleep(1000 * 1000);
         goto retry;
       }
