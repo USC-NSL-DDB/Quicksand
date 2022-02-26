@@ -295,7 +295,7 @@ void do_work() {
             << perf.get_nth_lat(99.9) << std::endl;
   auto timeseries_vec = perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99);
   std::ofstream ofs("timeseries");
-  for (auto [us, lat] : timeseries_vec) {
+  for (auto [_, us, lat] : timeseries_vec) {
     ofs << us << " " << lat << std::endl;
   }
 }
