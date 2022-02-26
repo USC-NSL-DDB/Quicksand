@@ -163,7 +163,7 @@ void do_work() {
   nu::Perf perf(memcached_perf_adapter);
   perf.run(kNumThreads, kTargetMops, kDurationUs, kWarmupUs);
   auto timeseries = perf.get_timeseries_nth_lats(kTimeSeriesInterval, 99);
-  for (auto [start, duration] : timeseries) {
+  for (auto [_, start, duration] : timeseries) {
     std::cout << start << " " << duration << std::endl;
   }
 }
