@@ -440,12 +440,12 @@ void Migrator::handle_unmap(rt::TcpConn *c) {
 
 void Migrator::init_aux_handlers(uint32_t dest_ip) {
   uint8_t type = kEnablePoll;
-  std::vector<iovec> task{{&type, sizeof(type)}};
 
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
     auto aux_migration_conn = migrator_conn_mgr_.get(dest_ip);
     Runtime::pressure_handler->init_aux_handler(i,
                                                 std::move(aux_migration_conn));
+    std::vector<iovec> task{{&type, sizeof(type)}};
     Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
   }
   Runtime::pressure_handler->wait_aux_tasks();
@@ -453,9 +453,9 @@ void Migrator::init_aux_handlers(uint32_t dest_ip) {
 
 void Migrator::finish_aux_handlers() {
   uint8_t type = kDisablePoll;
-  std::vector<iovec> task{{&type, sizeof(type)}};
 
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
+    std::vector<iovec> task{{&type, sizeof(type)}};
     Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
   }
   Runtime::pressure_handler->wait_aux_tasks();
@@ -525,12 +525,12 @@ void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
   std::vector<HeapHeader *> destructed_heaps;
   migrated_heaps.reserve(heaps.size());
   for (auto [heap_header, _] : heaps) {
-    Runtime::controller_client->update_location(to_obj_id(heap_header),
-                                                dest_ip);
     if (unlikely(!try_mark_heap_migrating(heap_header))) {
       destructed_heaps.push_back(heap_header);
       continue;
     }
+    Runtime::controller_client->update_location(to_obj_id(heap_header),
+                                                dest_ip);
     migrated_heaps.push_back(heap_header);
     pause_migrating_threads(heap_header);
     transmit(conn, heap_header, &all_migrating_ths);
@@ -747,9 +747,6 @@ Migrator::load_heap_mmap_populate_ranges(rt::TcpConn *c) {
 
 void Migrator::load(rt::TcpConn *c) {
   auto populate_ranges = load_heap_mmap_populate_ranges(c);
-  for (auto &range : populate_ranges) {
-    rt::access_once(range.heap_header->status) = kLoading;
-  }
   rt::Thread([&] {
     for (auto &range : populate_ranges) {
       Runtime::heap_manager->mmap(range.heap_header);

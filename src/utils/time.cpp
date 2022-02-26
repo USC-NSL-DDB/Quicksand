@@ -14,7 +14,8 @@ void Time::timer_callback(unsigned long arg_addr) {
   auto *arg = reinterpret_cast<TimerCallbackArg *>(arg_addr);
 
   auto *heap_header = arg->heap_header;
-  if (unlikely(rt::access_once(heap_header->status) != kPresent)) {
+  NonBlockingMigrationDisabledGuard guard(heap_header);
+  if (unlikely(!guard)) {
     return;
   }
 

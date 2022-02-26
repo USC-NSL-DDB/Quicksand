@@ -34,7 +34,7 @@ class CondVar;
 class Time;
 template <typename T> class RuntimeAllocator;
 
-enum HeapStatus { kAbsent = 0, kLoading, kMapped, kPresent, kDestructed };
+enum HeapStatus { kAbsent = 0, kMapped, kPresent, kDestructed };
 
 struct HeapHeader {
   ~HeapHeader();
@@ -56,7 +56,7 @@ struct HeapHeader {
   uint8_t always_mmaped_end[0];
 
   // Migration related.
-  std::atomic<uint8_t> pending_load_cnt;
+  std::atomic<int8_t> pending_load_cnt;
   BlockedSyncer blocked_syncer;
   Time time;
   bool migratable;

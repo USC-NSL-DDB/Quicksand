@@ -80,7 +80,7 @@ Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
 retry:
   NonBlockingMigrationDisabledGuard guard(heap_header);
   if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(heap_header->status) >= kLoading)) {
+    if (unlikely(rt::access_once(heap_header->status) >= kMapped)) {
       HeapManager::wait_until_present(heap_header);
       goto retry;
     } else {

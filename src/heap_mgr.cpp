@@ -42,12 +42,12 @@ void HeapManager::allocate(void *heap_base, bool migratable) {
 
 void HeapManager::mmap(void *heap_base) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-  if (heap_header->status == kMapped) {
+  if (heap_header->status >= kMapped) {
     return;
   }
 
   heap_header->spin_lock.lock();
-  if (unlikely(heap_header->status == kMapped)) {
+  if (unlikely(heap_header->status >= kMapped)) {
     heap_header->spin_lock.unlock();
     return;
   }

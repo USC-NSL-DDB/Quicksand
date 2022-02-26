@@ -12,7 +12,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(HeapHeader *dest_heap_header,
 retry:
   NonBlockingMigrationDisabledGuard guard(dest_heap_header);
   if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(dest_heap_header->status) >= kLoading)) {
+    if (unlikely(rt::access_once(dest_heap_header->status) >= kMapped)) {
       HeapManager::wait_until_present(dest_heap_header);
       goto retry;
     } else {
