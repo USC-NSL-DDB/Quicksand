@@ -1326,6 +1326,8 @@ void pause_migrating_ths_main(void *owner_heap)
 	cpu_set_t mask;
 	thread_t *th;
 	struct kthread *k;
+	uint64_t wait_start_us;
+	bool intr_all_cores = false;
 
 	for (i = 0; i < nrks; i++)
 		ks[i]->pause_req = true;
@@ -1336,20 +1338,34 @@ void pause_migrating_ths_main(void *owner_heap)
 	for (i = 0; i < nrks; i++) {
 		k = ks[i];
 		if (ACCESS_ONCE(k->pause_req)) {
-			spin_lock(&k->lock);
+		        /*
+		         * Intentionally don't grab the lock for performance.
+		         * The (ultra rare) race condition will be handled
+		         * by the fallback path below.
+		         */
 			th = k->curr_th;
-			if (th && th->nu_state.owner_heap == pause_req_owner_heap) {
+			if (th &&
+			    th->nu_state.owner_heap == pause_req_owner_heap) {
 				intr = true;
 				CPU_SET(k->curr_cpu, &mask);
 			}
-			spin_unlock(&k->lock);
 		}
 	}
 	if (intr)
 		kthread_yield_cores(&mask);
 
-	while (ACCESS_ONCE(global_pause_req_mask))
-		;
+	wait_start_us = microtime();
+	while (ACCESS_ONCE(global_pause_req_mask)) {
+		/* The fallback path. */
+		if (!intr_all_cores) {
+			if (microtime() - wait_start_us >=
+			    RUNTIME_PAUSE_THS_MAX_WAIT_US) {
+				kthread_yield_all_cores();
+				intr_all_cores = true;
+			}
+		}
+		cpu_relax();
+	}
 }
 
 uint64_t thread_get_rsp(thread_t *th) { return th->nu_state.tf.rsp; }

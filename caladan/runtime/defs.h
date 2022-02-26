@@ -39,7 +39,7 @@
 #define RUNTIME_SCHED_MIN_POLL_US	10
 #define RUNTIME_WATCHDOG_US		50
 #define RUNTIME_RX_BATCH_SIZE           32
-
+#define RUNTIME_PAUSE_THS_MAX_WAIT_US   100
 
 /*
  * Trap frame support
