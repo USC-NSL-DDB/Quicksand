@@ -38,8 +38,7 @@ do
     ssh $SRC_SERVER "cd `pwd`; sudo cset shield --exec -- ./main conf/server1 SRV $CTRL_IP $LPID" 1>logs/$heap_size.src 2>&1 &
     ssh $DEST_SERVER "cd `pwd`; sudo cset shield --exec -- ./main conf/server2 SRV $CTRL_IP $LPID" 1>logs/$heap_size.dest 2>&1 &
     sleep 5
-    ssh $SRC_SERVER "cd `pwd`; sudo cset shield --exec -- ./main conf/client1 CLT $CTRL_IP $LPID" &
-    sleep 10
+    ssh $SRC_SERVER "cd `pwd`; sudo cset shield --exec -- ./main conf/client1 CLT $CTRL_IP $LPID"
     ssh $SRC_SERVER "sudo pkill -9 iokerneld"
     ssh $SRC_SERVER "sudo pkill -9 main"
     ssh $DEST_SERVER "sudo pkill -9 iokerneld"
