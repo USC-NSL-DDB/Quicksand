@@ -54,9 +54,9 @@ private:
 
     bool operator<(const HeapInfo &o) const {
       if (val == o.val) {
-        return header < o.header;
+        return header > o.header;
       }
-      return val < o.val;
+      return val > o.val;
     }
   };
 
