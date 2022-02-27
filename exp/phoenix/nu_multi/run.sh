@@ -20,19 +20,23 @@ DIR=`pwd`
 CTRL_IP=18.18.1.3
 LPID=1
 
+scp_pids=
 for ip in ${REMOTE_SERVER_IPS[*]}
 do
     scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_A.txt \
-	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply
+	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
+    scp_pids+=" $!"
     scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_B.txt \
-	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply
+	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
+    scp_pids+=" $!"
 done
+wait $scp_pids
 
 MAT_MUL_SRC_DIR=$NU_DIR/app/phoenix++-1.0/tests/matrix_multiply
 mv $MAT_MUL_SRC_DIR/matrix_multiply.cpp $MAT_MUL_SRC_DIR/matrix_multiply.cpp.bak
 cp matrix_multiply.cpp $MAT_MUL_SRC_DIR/matrix_multiply.cpp
 
-for num_worker_servers in `seq 1 30`
+for num_worker_servers in `seq 30 30`
 do
     cd $NU_DIR/app/phoenix++-1.0/
     make clean
@@ -65,7 +69,7 @@ do
 	ssh $ip "cd `pwd`; sudo ./main $conf SRV $CTRL_IP $LPID" &
     done
     sleep 5
-    sudo ./main conf/client1 CLT $CTRL_IP $LPID -- 10000 0 1>logs/$num_worker_servers 2>&1
+    sudo ./main conf/client1 CLT $CTRL_IP $LPID -- 4200 200000 200000 4200 1>logs/$num_worker_servers 2>&1
     sudo pkill -9 iokerneld
     sudo pkill -9 main
     for i in `seq 1 $num_worker_servers`
