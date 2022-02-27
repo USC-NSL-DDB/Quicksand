@@ -11,7 +11,7 @@ LPID=1
 set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
-for num_worker_nodes in `seq 1 19`
+for num_worker_nodes in `seq 1 15`
 do
     sudo $NU_DIR/caladan/iokerneld &
     sleep 5
@@ -48,7 +48,7 @@ do
 	conf=conf/client`expr $i + 1`
 	ssh $client_ip "cd `pwd`; sudo ./client $conf" >logs/$num_worker_nodes.$i &
     done
-    sleep 15
+    sleep 45
     for i in `seq 1 $num_worker_nodes`
     do
 	client_ip=${SERVER_IPS[`expr $i - 1`]}
