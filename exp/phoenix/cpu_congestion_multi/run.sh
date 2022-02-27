@@ -36,6 +36,7 @@ done
 wait $scp_pids
 
 cd $NU_DIR/app/phoenix++-1.0/
+make -j
 cd tests/matrix_multiply/
 mv matrix_multiply.cpp matrix_multiply.cpp.bak
 cp $DIR/matrix_multiply.cpp .
@@ -46,9 +47,6 @@ make -j
 cp matrix_multiply $DIR/main
 
 mv matrix_multiply.cpp.bak matrix_multiply.cpp
-make clean
-cd ../../
-mv Defines.mk.bak Defines.mk
 make clean
 
 cd $DIR
@@ -61,7 +59,12 @@ sudo $NU_DIR/caladan/iokerneld &
 for i in `seq 1 $((NUM_WORKER_SERVERS-1))`
 do
     ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
-    ssh $ip "sudo $NU_DIR/caladan/iokerneld" &
+    if [[ $i -eq 1 ]]
+    then
+	ssh $ip "sudo cset shield --exec -- $NU_DIR/caladan/iokerneld" &
+    else
+	ssh $ip "sudo $NU_DIR/caladan/iokerneld" &
+    fi
 done
 sleep 5
 
@@ -94,7 +97,7 @@ ssh $BACKUP_SERVER_IP "cd `pwd`; sudo stdbuf -o0 ./main conf/server$NUM_WORKER_S
     1>logs/server.$NUM_WORKER_SERVERS 2>&1 &
 sleep 5
 
-ssh $SRC_SERVER_IP "sudo taskset -c 16 bash -c 'sleep 9; pkill -SIGHUP bench'" &
+ssh $SRC_SERVER_IP "sleep 9; sudo pkill -SIGHUP bench" &
 sudo pkill -x -SIGHUP main
 wait $client_pid
 
