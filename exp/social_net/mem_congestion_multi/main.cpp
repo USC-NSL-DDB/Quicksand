@@ -20,9 +20,9 @@ const static uint32_t kEntryObjIps[] = {
     MAKE_IP_ADDR(18, 18, 1, 23), MAKE_IP_ADDR(18, 18, 1, 24),
     MAKE_IP_ADDR(18, 18, 1, 25), MAKE_IP_ADDR(18, 18, 1, 26),
     MAKE_IP_ADDR(18, 18, 1, 27), MAKE_IP_ADDR(18, 18, 1, 28),
-    MAKE_IP_ADDR(18, 18, 1, 29), MAKE_IP_ADDR(18, 18, 1, 30),
-    MAKE_IP_ADDR(18, 18, 1, 31), MAKE_IP_ADDR(18, 18, 1, 32),
-    MAKE_IP_ADDR(18, 18, 1, 33), MAKE_IP_ADDR(18, 18, 1, 34),    
+    MAKE_IP_ADDR(18, 18, 1, 29), // MAKE_IP_ADDR(18, 18, 1, 30),
+    // MAKE_IP_ADDR(18, 18, 1, 31), MAKE_IP_ADDR(18, 18, 1, 32),
+    // MAKE_IP_ADDR(18, 18, 1, 33), MAKE_IP_ADDR(18, 18, 1, 34),
 };
 
 class ServiceEntry {

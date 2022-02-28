@@ -21,15 +21,15 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 constexpr static uint32_t kNumThreads = 200;
-constexpr static double kTargetMops = 5;
-constexpr static double kTotalMops = 125;
+constexpr static double kTargetMops = 4.167;
+constexpr static double kTotalMops = 104.167;
 const static std::string kEntryObjIps[] = {
     "18.18.1.2",  "18.18.1.5",  "18.18.1.7",  "18.18.1.8",  "18.18.1.9",
     "18.18.1.10", "18.18.1.11", "18.18.1.12", "18.18.1.13", "18.18.1.14",
     "18.18.1.15", "18.18.1.16", "18.18.1.17", "18.18.1.18", "18.18.1.19",
     "18.18.1.20", "18.18.1.21", "18.18.1.22", "18.18.1.23", "18.18.1.24",
     "18.18.1.25", "18.18.1.26", "18.18.1.27", "18.18.1.28", "18.18.1.29",
-    "18.18.1.30", "18.18.1.31", "18.18.1.32", "18.18.1.33", "18.18.1.34",
+    // "18.18.1.30", "18.18.1.31", "18.18.1.32", "18.18.1.33", "18.18.1.34",
 };
 constexpr static uint32_t kNumEntryObjs = std::size(kEntryObjIps);
 constexpr static netaddr kClientAddrs[] = {
@@ -161,7 +161,8 @@ public:
     return gen_follow_req(state);
   }
 
-  bool serve_req(nu::PerfThreadState *perf_state, const nu::PerfRequest *perf_req) {
+  bool serve_req(nu::PerfThreadState *perf_state,
+                 const nu::PerfRequest *perf_req) {
     try {
       auto *state = reinterpret_cast<socialNetworkThreadState *>(perf_state);
       auto *user_timeline_req =
@@ -287,11 +288,11 @@ void register_callback() {
   BUG_ON(!c);
   uint8_t type = nu::kRegisterCallBack;
   BUG_ON(c->WriteFull(&type, sizeof(type)) != sizeof(type));
-  rt::Thread t([c] {
+  rt::Thread([c] {
     bool dummy;
     BUG_ON(c->ReadFull(&dummy, sizeof(dummy)) != sizeof(dummy));
     std::cout << "microtime() = " << microtime() << std::endl;
-  });
+  }).Detach();
 }
 
 void do_work() {
@@ -310,28 +311,22 @@ void do_work() {
             << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
             << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
             << perf.get_nth_lat(99.9) << std::endl;
+
   {
     auto timeseries_vec =
-        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99);
+        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.9);
     std::ofstream ofs("timeseries");
     for (auto [absl_us, us, lat] : timeseries_vec) {
       ofs << absl_us << " " << us << " " << lat << std::endl;
     }
   }
+
   {
-    auto timeseries_vec =
-        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.9);
-    std::ofstream ofs("timeseries-9");
-    for (auto [absl_us, us, lat] : timeseries_vec) {
-      ofs << absl_us << " " << us << " " << lat << std::endl;
-    }
-  }
-  {
-    auto timeseries_vec =
-        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.99);
-    std::ofstream ofs("timeseries-99");
-    for (auto [absl_us, us, lat] : timeseries_vec) {
-      ofs << absl_us << " " << us << " " << lat << std::endl;
+    std::ofstream ofs("traces");
+    auto &traces = perf.get_traces();
+    for (auto &[absl_start_us, start_us, duration_us] : traces) {
+      ofs << absl_start_us << " " << start_us << " " << duration_us
+          << std::endl;
     }
   }
 }
