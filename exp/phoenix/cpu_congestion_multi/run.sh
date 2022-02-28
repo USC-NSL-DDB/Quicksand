@@ -23,17 +23,17 @@ NUM_WORKER_SERVERS=31
 SRC_SERVER_IP=$SERVER2_IP
 BACKUP_SERVER_IP=$SERVER32_IP
 
-scp_pids=
-for ip in ${REMOTE_SERVER_IPS[*]}
-do
-    scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_A.txt \
- 	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
-    scp_pids+=" $!"
-    scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_B.txt \
- 	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
-    scp_pids+=" $!"
-done
-wait $scp_pids
+# scp_pids=
+# for ip in ${REMOTE_SERVER_IPS[*]}
+# do
+#     scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_A.txt \
+#  	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
+#     scp_pids+=" $!"
+#     scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_B.txt \
+#  	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
+#     scp_pids+=" $!"
+# done
+# wait $scp_pids
 
 cd $NU_DIR/app/phoenix++-1.0/
 make -j
@@ -68,7 +68,7 @@ do
 done
 sleep 5
 
-sudo stdbuf -o0 $NU_DIR/bin/ctrl_main conf/controller &
+sudo stdbuf -o0 $NU_DIR/bin/ctrl_main conf/controller >logs/controller &
 sleep 5
 
 for i in `seq 1 $((NUM_WORKER_SERVERS-1))`
