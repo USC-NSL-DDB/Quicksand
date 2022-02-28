@@ -26,7 +26,7 @@ constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr double kLoadFactor = 0.30;
 constexpr uint32_t kPrintIntervalUS = 1000 * 1000;
-constexpr uint32_t kNumProxies = 17;
+constexpr uint32_t kNumProxies = 15;
 constexpr uint32_t kProxyIps[] = {
     MAKE_IP_ADDR(18, 18, 1, 2),  MAKE_IP_ADDR(18, 18, 1, 5),
     MAKE_IP_ADDR(18, 18, 1, 7),  MAKE_IP_ADDR(18, 18, 1, 8),
@@ -35,8 +35,9 @@ constexpr uint32_t kProxyIps[] = {
     MAKE_IP_ADDR(18, 18, 1, 21), MAKE_IP_ADDR(18, 18, 1, 23),
     MAKE_IP_ADDR(18, 18, 1, 25), MAKE_IP_ADDR(18, 18, 1, 27),
     MAKE_IP_ADDR(18, 18, 1, 29), MAKE_IP_ADDR(18, 18, 1, 31),
-    MAKE_IP_ADDR(18, 18, 1, 33), MAKE_IP_ADDR(18, 18, 1, 35),
-    MAKE_IP_ADDR(18, 18, 1, 37)};
+    MAKE_IP_ADDR(18, 18, 1, 33), // MAKE_IP_ADDR(18, 18, 1, 35),
+    // MAKE_IP_ADDR(18, 18, 1, 37)
+};
 constexpr static netaddr kClientAddrs[] = {
     {.ip = MAKE_IP_ADDR(18, 18, 1, 6), .port = 9000},
     {.ip = MAKE_IP_ADDR(18, 18, 1, 10), .port = 9000},
@@ -53,12 +54,12 @@ constexpr static netaddr kClientAddrs[] = {
     {.ip = MAKE_IP_ADDR(18, 18, 1, 30), .port = 9000},
     {.ip = MAKE_IP_ADDR(18, 18, 1, 32), .port = 9000},
     {.ip = MAKE_IP_ADDR(18, 18, 1, 34), .port = 9000},
-    {.ip = MAKE_IP_ADDR(18, 18, 1, 36), .port = 9000},
-    {.ip = MAKE_IP_ADDR(18, 18, 1, 38), .port = 9000},
+    // {.ip = MAKE_IP_ADDR(18, 18, 1, 36), .port = 9000},
+    // {.ip = MAKE_IP_ADDR(18, 18, 1, 38), .port = 9000},
 };
 constexpr uint32_t kProxyPort = 10086;
 constexpr uint32_t kNumThreads = 250;
-constexpr double kTargetMops = 170;
+constexpr double kTargetMops = 140;
 constexpr uint32_t kWarmupUs = 1 * kOneSecond;
 constexpr uint32_t kDurationUs = 60 * kOneSecond;
 constexpr static uint64_t kTimeSeriesIntervalUs = 10 * 1000;
@@ -194,11 +195,13 @@ void register_callback() {
   BUG_ON(!c);
   uint8_t type = nu::kRegisterCallBack;
   BUG_ON(c->WriteFull(&type, sizeof(type)) != sizeof(type));
-  rt::Thread t([c] {
-    bool dummy;
-    BUG_ON(c->ReadFull(&dummy, sizeof(dummy)) != sizeof(dummy));
-    std::cout << "microtime() = " << microtime() << std::endl;
-  });
+  rt::Thread([c] {
+    while (1) {
+      bool dummy;
+      BUG_ON(c->ReadFull(&dummy, sizeof(dummy)) != sizeof(dummy));
+      std::cout << "microtime() = " << microtime() << std::endl;
+    }
+  }).Detach();
 }
 
 void do_work() {
@@ -219,28 +222,21 @@ void do_work() {
             << perf.get_nth_lat(99.9) << std::endl;
   {
     auto timeseries_vec =
-        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99);
+        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.9);
     std::ofstream ofs("timeseries");
     for (auto [absl_us, us, lat] : timeseries_vec) {
       ofs << absl_us << " " << us << " " << lat << std::endl;
     }
   }
+
   {
-    auto timeseries_vec =
-        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.9);
-    std::ofstream ofs("timeseries-9");
-    for (auto [absl_us, us, lat] : timeseries_vec) {
-      ofs << absl_us << " " << us << " " << lat << std::endl;
+    std::ofstream ofs("traces");
+    auto &traces = perf.get_traces();
+    for (auto &[absl_start_us, start_us, duration_us] : traces) {
+      ofs << absl_start_us << " " << start_us << " " << duration_us
+          << std::endl;
     }
   }
-  {
-    auto timeseries_vec =
-        perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.99);
-    std::ofstream ofs("timeseries-99");
-    for (auto [absl_us, us, lat] : timeseries_vec) {
-      ofs << absl_us << " " << us << " " << lat << std::endl;
-    }
-  }  
 }
 
 int main(int argc, char **argv) {

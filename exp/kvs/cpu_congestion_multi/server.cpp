@@ -23,7 +23,7 @@ using namespace nu;
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr double kLoadFactor = 0.30;
-constexpr uint32_t kNumProxys = 17;
+constexpr uint32_t kNumProxys = 15;
 constexpr uint32_t kProxyPort = 10086;
 constexpr uint32_t kPowerNumShards = 16;
 constexpr uint32_t kNumBucketsPerShard = 32768;

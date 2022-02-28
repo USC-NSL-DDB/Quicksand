@@ -11,17 +11,18 @@ LPID=1
 set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
-SRC_SERVER_IP=$SERVER18_IP
+SRC_SERVER_IP=$SERVER16_IP
 
-num_worker_nodes=17
-mop=170
+num_worker_nodes=15
+mop=140
 
 sudo $NU_DIR/caladan/iokerneld &
 sleep 5
-sudo $NU_DIR/bin/ctrl_main conf/controller &
+sudo $NU_DIR/bin/ctrl_main conf/controller >logs/controller &
 sleep 5
 sed "s/constexpr double kTargetMops =.*/constexpr double kTargetMops = $mop;/g" \
     -i client.cpp
+make clean
 make -j
 
 for i in `seq 1 $num_worker_nodes`
@@ -39,7 +40,7 @@ do
     sleep 1
 done
 
-sleep 5
+sleep 10
 sudo ./server conf/client1 CLT $CTRL_IP $LPID >logs/.tmp &
 ( tail -f -n0 logs/.tmp & ) | grep -q "finish initing"
 
@@ -59,7 +60,7 @@ do
     sleep 1
 done
 
-sleep 40
+sleep 60
 ssh $SRC_SERVER_IP "sudo pkill -SIGHUP bench_real_cpu"
 wait $client_pids
 ssh $SRC_SERVER_IP "sudo pkill -9 bench_real_cpu"
