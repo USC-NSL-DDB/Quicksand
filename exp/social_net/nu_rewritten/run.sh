@@ -2,6 +2,9 @@
 
 source ../../shared.sh
 
+CTRL_IP=18.18.1.3
+LPID=1
+
 DIR=`pwd`
 mkdir logs
 rm -rf logs/*
@@ -9,7 +12,7 @@ rm -rf logs/*
 set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
-NGINX_SERVER_IP=$SERVER7_IP
+NGINX_SERVER_IP=$SERVER32_IP
 NGINX_SERVER_CALADAN_IP_AND_MASK=18.18.1.254/24
 NGINX_SERVER_NIC=ens1f0
 BACKEND_SERVER_IP=$SERVER2_IP
@@ -41,15 +44,15 @@ do
     ssh $BACKEND_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
     sleep 5
     cd ..    
-    sudo build/src/main $DIR/conf/controller CTL 18.18.1.3 &    
+    sudo $NU_DIR/bin/ctrl_main $DIR/conf/controller CTL 18.18.1.3 >$DIR/logs/controller &
     sleep 5    
-    ssh $BACKEND_SERVER_IP "cd $SOCIAL_NET_DIR; sudo build/src/main $DIR/conf/server1 SRV 18.18.1.3" &    
-    sleep 5    
-    sudo build/src/main $DIR/conf/client1 CLT 18.18.1.3 &    
-    sleep 5    
+    ssh $BACKEND_SERVER_IP "cd $SOCIAL_NET_DIR; sudo bash -c \"ulimit -c unlimited; build/src/main $DIR/conf/server1 SRV $CTRL_IP $LPID\"" >$DIR/logs/src &
+    sleep 5
+    sudo stdbuf -o0 build/src/main $DIR/conf/client1 CLT $CTRL_IP $LPID >$DIR/logs/client &
+    ( tail -f -n0 $DIR/logs/client & ) | grep -q "Done creating proclets"
     ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; python3 scripts/init_social_graph.py"    
     sleep 5    
-    sudo build/bench/client $DIR/conf/client2 CLT 18.18.1.3 1>$DIR/logs/$mop 2>&1
+    sudo build/bench/client $DIR/conf/client2 1>$DIR/logs/$mop 2>&1
     ssh $BACKEND_SERVER_IP "sudo pkill -9 iokerneld"    
     ssh $BACKEND_SERVER_IP "sudo pkill -9 main"    
     sudo pkill -9 iokerneld    
