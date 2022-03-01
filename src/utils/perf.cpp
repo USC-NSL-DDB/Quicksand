@@ -243,6 +243,6 @@ std::vector<Trace> Perf::get_timeseries_nth_lats(uint64_t interval_us,
 
 double Perf::get_real_mops() const { return real_mops_; }
 
-std::vector<Trace> Perf::get_traces() const { return traces_; }
+const std::vector<Trace> &Perf::get_traces() const { return traces_; }
 
 } // namespace nu

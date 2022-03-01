@@ -56,7 +56,7 @@ public:
   uint64_t get_nth_lat(double nth);
   std::vector<Trace> get_timeseries_nth_lats(uint64_t interval_us, double nth);
   double get_real_mops() const;
-  std::vector<Trace> get_traces() const;
+  const std::vector<Trace> &get_traces() const;
 
 private:
   enum TraceFormat { kUnsorted, kSortedByDuration, kSortedByStart };
