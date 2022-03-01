@@ -93,7 +93,7 @@ void MigratorConnManager::put(uint32_t ip, rt::TcpConn *tcp_conn) {
   pool_map_[ip].push(tcp_conn);
 }
 
-Migrator::Migrator() { ever_migrated_ = false; }
+Migrator::Migrator() { callback_triggered_ = true; }
 
 Migrator::~Migrator() { BUG(); }
 
@@ -179,9 +179,19 @@ void Migrator::run_background_loop() {
   }).Detach();
 }
 
+inline void throttle(uint64_t len, uint64_t real_us) {
+  uint64_t expected_us = len / Migrator::kMigrationThrottleGBs / 1000;
+  if (expected_us > real_us) {
+    delay_us(expected_us - real_us);
+  }
+}
+
 void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
+  constexpr bool kMonitorTime =
+      (kEnableLogging || kMigrationThrottleGBs > 0 || kMigrationDelayUs);
   [[maybe_unused]] uint64_t t0, t1;
-  if constexpr (kEnableLogging) {
+
+  if constexpr (kMonitorTime) {
     t0 = microtime();
   }
 
@@ -216,8 +226,21 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
 
   Runtime::pressure_handler->wait_aux_tasks();
 
-  if constexpr (kEnableLogging) {
+  if constexpr (kMonitorTime) {
     t1 = microtime();
+  }
+
+  if constexpr (kMigrationThrottleGBs > 0) {
+    throttle(len, t1 - t0);
+    t1 = microtime();
+  }
+
+  if constexpr (kMigrationDelayUs) {
+    delay_us(kMigrationDelayUs);
+    t1 = microtime();
+  }
+
+  if constexpr (kEnableLogging) {
     preempt_disable();
     std::cout << "Transmit heap: addr = " << heap_header << ", size = " << len
               << ", time_us = " << t1 - t0 << ", num heaps left = "
@@ -470,8 +493,8 @@ void Migrator::callback() {
 }
 
 void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
-  if (!ever_migrated_) {
-    ever_migrated_ = true;
+  if (!callback_triggered_) {
+    callback_triggered_ = true;
     callback();
   }
 
@@ -543,7 +566,10 @@ void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
 }
 
 void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
+  constexpr bool kMonitorTime =
+      (kEnableLogging || kMigrationThrottleGBs > 0 || kMigrationDelayUs);
   [[maybe_unused]] uint64_t t0, t1;
+
   if constexpr (kEnableLogging) {
     t0 = microtime();
   }
@@ -567,8 +593,21 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   auto *slab = &heap_header->slab;
   nu::SlabAllocator::register_slab_by_id(slab, slab->get_id());
 
-  if constexpr (kEnableLogging) {
+  if constexpr (kMonitorTime) {
     t1 = microtime();
+  }
+
+  if constexpr (kMigrationThrottleGBs > 0) {
+    throttle(heap_header->slab.get_usage(), t1 - t0);
+    t1 = microtime();
+  }
+
+  if constexpr (kMigrationDelayUs) {
+    delay_us(kMigrationDelayUs);
+    t1 = microtime();
+  }
+
+  if constexpr (kEnableLogging) {
     preempt_disable();
     std::cout << "Load heap: addr = " << heap_header
               << ", time_us = " << t1 - t0 << std::endl;

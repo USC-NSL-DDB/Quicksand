@@ -97,6 +97,8 @@ public:
   constexpr static uint32_t kDefaultNumReservedConns = 8;
   constexpr static uint32_t kPort = 8002;
   constexpr static uint32_t kMaxNumHeapsPerMigration = 64;
+  constexpr static float kMigrationThrottleGBs = 0;
+  constexpr static uint32_t kMigrationDelayUs = 0;
 
   static_assert(kTransmitHeapNumThreads > 1);
 
@@ -124,7 +126,7 @@ private:
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   MigratorConnManager migrator_conn_mgr_;
   std::set<rt::TcpConn *> callback_conns_;
-  bool ever_migrated_;
+  bool callback_triggered_;
 
   void handle_copy_heap(rt::TcpConn *c);
   void handle_load(rt::TcpConn *c);
