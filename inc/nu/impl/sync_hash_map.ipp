@@ -208,6 +208,7 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
   auto bucket_idx = key_hash % NBuckets;
   auto *bucket_node = &buckets_[bucket_idx];
   BucketNode **prev_next = nullptr;
+  BucketNodeAllocator bucket_node_allocator;
   auto &lock = locks_[bucket_idx];
   lock.lock();
 
@@ -219,7 +220,9 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
           if (!bucket_node->next) {
             bucket_node->pair = nullptr;
           } else {
-            *bucket_node = *bucket_node->next;
+            auto *next = bucket_node->next;
+            *bucket_node = *next;
+            bucket_node_allocator.deallocate(next, 1);
           }
         } else {
           *prev_next = bucket_node->next;
@@ -229,7 +232,6 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
         std::destroy_at(pair);
         allocator.deallocate(pair, 1);
         if (prev_next) {
-          BucketNodeAllocator bucket_node_allocator;
           bucket_node_allocator.deallocate(bucket_node, 1);
         }
         return true;
