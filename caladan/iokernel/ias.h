@@ -21,8 +21,10 @@
 #define IAS_PS_INTERVAL_US		500
 /* the resource reporting controller's polling interval */
 #define IAS_RP_INTERVAL_US		50
-/* the low watermark used to detect memory pressure*/
+/* the low watermark used to detect memory pressure */
 #define IAS_PS_MEM_LOW_MB 		1024
+/* the threshold of swap usage to detect memory pressure */
+#define IAS_PS_SWAP_THRESH_MB           1000
 /* the time before the core-local cache is assumed to be evicted */
 #define IAS_LOC_EVICTED_US		100
 /* the debug info printing interval */

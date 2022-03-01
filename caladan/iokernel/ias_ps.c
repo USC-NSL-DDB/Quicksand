@@ -47,7 +47,7 @@ bool ias_ps_poll(void)
 {
 	bool success = true, has_pressure;
 	struct sysinfo info;
-	uint64_t free_ram_in_mbs, mem_mbs_to_release;
+	uint64_t free_ram_in_mbs, used_swap_in_mbs, mem_mbs_to_release;
 	struct congestion_info *congestion;
 	struct resource_pressure_info *pressure;
 	struct ias_data *sd;
@@ -55,8 +55,11 @@ bool ias_ps_poll(void)
 
 	BUG_ON(sysinfo(&info) != 0);
 	free_ram_in_mbs = info.freeram / SIZE_MB;
+	used_swap_in_mbs = (info.totalswap - info.freeswap) / SIZE_MB;
 	if (free_ram_in_mbs < IAS_PS_MEM_LOW_MB)
 		mem_mbs_to_release = IAS_PS_MEM_LOW_MB - free_ram_in_mbs;
+	else if (used_swap_in_mbs >= IAS_PS_SWAP_THRESH_MB)
+		mem_mbs_to_release = used_swap_in_mbs;
 	else
 		mem_mbs_to_release = 0;
 
