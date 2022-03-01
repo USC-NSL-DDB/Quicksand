@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <csignal>
 #include <cstdlib>
-#include <vector>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -11,6 +10,7 @@
 #include <thread>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 extern "C" {
 #include <base/time.h>
@@ -29,16 +29,22 @@ constexpr uint32_t kFreeMemMBTarget1 = 900;
 
 bool signalled = false;
 
-struct Trace {
+struct AllocMemTrace {
   uint64_t time_us;
   uint64_t ram;
+};
+
+struct AvailMemTrace {
+  uint64_t time_us;
+  uint64_t ram;
+  uint64_t swap;
 };
 
 void clear_linux_cache() {
   BUG_ON(system("sync; echo 3 > /proc/sys/vm/drop_caches") != 0);
 }
 
-void logging(const bool &done, std::vector<Trace> *avail_mem_traces) {
+void logging(const bool &done, std::vector<AvailMemTrace> *avail_mem_traces) {
   auto last_poll_us = microtime();
   while (!rt::access_once(done)) {
     int32_t next_poll_us = last_poll_us + kLoggingIntervalUs;
@@ -50,13 +56,13 @@ void logging(const bool &done, std::vector<Trace> *avail_mem_traces) {
 
     struct sysinfo info;
     sysinfo(&info);
-    avail_mem_traces->emplace_back(last_poll_us, info.freeram);
+    avail_mem_traces->emplace_back(last_poll_us, info.freeram, info.freeswap);
   }
 }
 
-void do_mmap_until(uint32_t free_mem_mbytes_target,
-                   std::vector<Trace> *alloc_mem_traces) {
-  auto mmap_times = 0;
+void do_mmap_until(uint32_t mmap_times_target, uint32_t free_mem_mbytes_target,
+                   std::vector<AllocMemTrace> *alloc_mem_traces) {
+  uint32_t mmap_times = 0;
   while (true) {
     mmap(nullptr, kAllocateGranularity, PROT_READ | PROT_WRITE,
          MAP_ANONYMOUS | MAP_SHARED | MAP_POPULATE, -1, 0);
@@ -65,10 +71,12 @@ void do_mmap_until(uint32_t free_mem_mbytes_target,
       alloc_mem_traces->emplace_back(microtime(),
                                      mmap_times * kAllocateGranularity);
     }
-    struct sysinfo info;
-    sysinfo(&info);
-    if (info.freeram < free_mem_mbytes_target * nu::kOneMB) {
-      break;
+    if (mmap_times >= mmap_times_target) {
+      struct sysinfo info;
+      sysinfo(&info);
+      if (info.freeram < free_mem_mbytes_target * nu::kOneMB) {
+        break;
+      }
     }
   }
 }
@@ -84,19 +92,19 @@ void do_work() {
   std::cout << "clearing linux cache..." << std::endl;
   clear_linux_cache();
   std::cout << "working towards target 0..." << std::endl;
-  do_mmap_until(kFreeMemMBTarget0, nullptr);
+  do_mmap_until(0, kFreeMemMBTarget0, nullptr);
   std::cout << "waiting for signal..." << std::endl;
 
   wait_for_signal();
 
   std::cout << "working towards target 1..." << std::endl;
   bool done = false;
-  std::vector<Trace> avail_mem_traces;
-  std::vector<Trace> alloc_mem_traces;
+  std::vector<AvailMemTrace> avail_mem_traces;
+  std::vector<AllocMemTrace> alloc_mem_traces;
   auto logging_thread = rt::Thread(
       [&avail_mem_traces, &done] { logging(done, &avail_mem_traces); });
 
-  do_mmap_until(kFreeMemMBTarget1, &alloc_mem_traces);
+  do_mmap_until(0, kFreeMemMBTarget1, &alloc_mem_traces);
 
   rt::access_once(done) = true;
   logging_thread.Join();
@@ -107,8 +115,8 @@ void do_work() {
   std::cout << "writing traces..." << std::endl;
   {
     std::ofstream avail_ofs("avail_mem_traces", std::ofstream::trunc);
-    for (auto [time_us, ram] : avail_mem_traces) {
-      avail_ofs << time_us << " " << ram << std::endl;
+    for (auto [time_us, ram, swap] : avail_mem_traces) {
+      avail_ofs << time_us << " " << ram << " " << swap << std::endl;
     }
     std::ofstream alloc_ofs("alloc_mem_traces", std::ofstream::trunc);
     for (auto [time_us, ram] : alloc_mem_traces) {
