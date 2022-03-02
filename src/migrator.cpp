@@ -120,6 +120,7 @@ inline void Migrator::handle_load(rt::TcpConn *c) {
 
 void Migrator::handle_register_callback(rt::TcpConn *c) {
   callback_conns_.insert(c);
+  callback_triggered_ = false;
 }
 
 void Migrator::handle_deregister_callback(rt::TcpConn *c) {
