@@ -215,11 +215,8 @@ inline void *__new(size_t size) {
 
 void *operator new(size_t size) throw() {
   auto *ptr = __new(size);
-  if (ptr) {
-    return ptr;
-  } else {
-    throw std::bad_alloc();
-  }
+  BUG_ON(!ptr);
+  return ptr;
 }
 
 void *operator new(size_t size, const std::nothrow_t &nothrow_value) noexcept {

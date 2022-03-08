@@ -85,11 +85,11 @@ template <typename T> void RemUniquePtr<T>::reset_bg() {
 
 template <typename T, typename... Args>
 RemUniquePtr<T> make_rem_unique(Args &&... args) {
-  try {
-    return RemUniquePtr<T>(std::make_unique<T>(std::forward<Args>(args)...));
-  } catch (std::bad_alloc &) {
+  auto *raw_ptr = new (std::nothrow) T(std::forward<Args>(args)...);
+  if (unlikely(!raw_ptr)) {
     return RemUniquePtr<T>();
   }
+  return RemUniquePtr<T>(std::unique_ptr<T>(raw_ptr));
 }
 
 } // namespace nu
