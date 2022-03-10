@@ -42,6 +42,7 @@ link_0 = request.Link('link-0')
 link_0.Site('undefined')
 link_0.best_effort = False
 link_0.bandwidth = params.link_0_bw * 1000000
+link_0.setNoInterSwitchLinks()
 for iface in ifaces_0:
     link_0.addInterface(iface)
 
@@ -50,6 +51,7 @@ link_1 = request.Link('link-1')
 link_1.Site('undefined')
 link_1.best_effort = False
 link_1.bandwidth = params.link_1_bw * 1000000
+link_1.setNoInterSwitchLinks()
 for iface in ifaces_1:
     link_1.addInterface(iface)
 
