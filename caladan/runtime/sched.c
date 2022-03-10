@@ -513,7 +513,7 @@ static __noreturn __noinline void schedule(void)
 	if (likely(__self != NULL)) {
 		store_release(&__self->thread_running, false);
 		__self = NULL;
-		myk()->curr_th = NULL;
+		l->curr_th = NULL;
 	}
 
 	/* clear thread run start time */
@@ -942,7 +942,6 @@ static void thread_finish_cede(void)
 	myth->thread_ready = true;
 	myth->last_cpu = k->curr_cpu;
 	__self = NULL;
-	myk()->curr_th = NULL;
 
 	/* clear thread run start time */
 	ACCESS_ONCE(k->q_ptrs->run_start_tsc) = UINT64_MAX;
@@ -954,6 +953,7 @@ static void thread_finish_cede(void)
 	 * into the overflow queue
 	 */
 	spin_lock(&k->lock);
+	k->curr_th = NULL;
 	ACCESS_ONCE(k->q_ptrs->oldest_tsc) = myth->ready_tsc;
 	ACCESS_ONCE(k->q_ptrs->rq_head)++;
 	th = k->rq[--k->rq_tail % RUNTIME_RQ_SIZE];

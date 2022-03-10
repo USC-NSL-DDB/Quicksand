@@ -4,9 +4,6 @@
 #include <utility>
 #include <alloca.h>
 
-extern "C" {
-#include <runtime/preempt.h>
-}
 #include <net.h>
 #include <sync.h>
 #include <thread.h>
@@ -84,7 +81,10 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
     if (likely(Runtime::heap_manager->remove_for_destruction(heap_header))) {
       // Won't be migrated at this point.
       *deallocate = true;
-      obj.~Cls();
+      {
+        MigrationEnabledGuard guard;
+        obj.~Cls();
+      }
     } else {
       // Will be migrated at this point, so we wait for migration to be
       // finished.
@@ -236,10 +236,9 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
     callee_heap_header->cpu_load.monitor_end(state);
 
     {
-      rt::Preempt p;
-      rt::PreemptGuard g(&p);
+      NonBlockingMigrationDisabledGuard caller_guard(caller_heap_header);
 
-      if (likely(caller_heap_header->status == kPresent)) {
+      if (likely(caller_guard)) {
         {
           ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
           if constexpr (std::is_copy_constructible<RetT>::value) {
@@ -283,10 +282,9 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
     callee_heap_header->cpu_load.monitor_end(state);
 
     {
-      rt::Preempt p;
-      rt::PreemptGuard g(&p);
+      NonBlockingMigrationDisabledGuard caller_guard(caller_heap_header);
 
-      if (likely(caller_heap_header->status == kPresent)) {
+      if (likely(caller_guard)) {
         thread_set_owner_heap(thread_self(), caller_heap_header);
         return;
       }

@@ -193,7 +193,8 @@ Future<RemObj<T>> RemObj<T>::create_async(As &&... args) {
 template <typename T>
 template <typename... As>
 RemObj<T> RemObj<T>::create_at(uint32_t ip_hint, As &&... args) {
-  return general_create(/* pinned = */ false, ip_hint, std::forward<As>(args)...);
+  return general_create(/* pinned = */ false, ip_hint,
+                        std::forward<As>(args)...);
 }
 
 template <typename T>
@@ -222,7 +223,8 @@ Future<RemObj<T>> RemObj<T>::create_pinned_async(As &&... args) {
 template <typename T>
 template <typename... As>
 RemObj<T> RemObj<T>::create_pinned_at(uint32_t ip_hint, As &&... args) {
-  return general_create(/* pinned = */ true, ip_hint, std::forward<As>(args)...);
+  return general_create(/* pinned = */ true, ip_hint,
+                        std::forward<As>(args)...);
 }
 
 template <typename T>
@@ -230,7 +232,8 @@ template <typename... As>
 Future<RemObj<T>> RemObj<T>::create_pinned_at_async(uint32_t ip_hint,
                                                     As &&... args) {
   return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
-    return general_create(/* pinned = */ true, ip_hint, std::forward<As>(args)...);
+    return general_create(/* pinned = */ true, ip_hint,
+                          std::forward<As>(args)...);
   });
 }
 
@@ -329,10 +332,9 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
     auto callee_heap_header = to_heap_header(id_);
     void *caller_slab = nullptr;
     {
-      rt::Preempt p;
-      rt::PreemptGuard g(&p);
+      NonBlockingMigrationDisabledGuard callee_guard(callee_heap_header);
 
-      if (callee_heap_header->status == kPresent) {
+      if (callee_guard) {
         caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
         thread_set_owner_heap(thread_self(), callee_heap_header);
       }
@@ -471,12 +473,9 @@ RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
 }
 
 template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
-  {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
-
-    auto *callee_heap_header = to_heap_header(id_);
-    if (Runtime::obj_server && callee_heap_header->status == kPresent) {
+  if (Runtime::obj_server) {
+    NonBlockingMigrationDisabledGuard callee_guard(to_heap_header(id_));
+    if (callee_guard) {
       // Fast path: the heap is actually local, use function call.
       if (likely(ObjServer::update_ref_cnt_locally<T>(id_, delta))) {
         return nullptr;
