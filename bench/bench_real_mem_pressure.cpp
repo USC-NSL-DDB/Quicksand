@@ -1,37 +1,33 @@
 #include <algorithm>
-#include <csignal>
-#include <cstdlib>
+#include <atomic>
+#include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <iostream>
-#include <memory>
+#include <signal.h>
 #include <sys/mman.h>
 #include <sys/sysinfo.h>
-#include <sys/time.h>
 #include <thread>
-#include <type_traits>
-#include <utility>
+#include <unistd.h>
 #include <vector>
 
-extern "C" {
-#include <base/time.h>
-#include <runtime/timer.h>
-}
 #include <runtime.h>
 #include <sync.h>
 #include <thread.h>
+#include <timer.h>
 
 #include "nu/commons.hpp"
 
-constexpr uint64_t kAllocateGranularity = 1ULL << 23;
+using namespace std;
+
+constexpr uint32_t kMallocGranularityMB = 32;
+constexpr uint32_t kNumCores = 3;
 constexpr uint32_t kLoggingIntervalUs = 1000;
 constexpr uint32_t kFreeMemMBTarget0 = 10000;
 constexpr uint32_t kFreeMemMBTarget1 = 900;
 
-bool signalled = false;
-
 struct AllocMemTrace {
   uint64_t time_us;
-  uint64_t ram;
 };
 
 struct AvailMemTrace {
@@ -40,17 +36,39 @@ struct AvailMemTrace {
   uint64_t swap;
 };
 
-void clear_linux_cache() {
-  BUG_ON(system("sync; echo 3 > /proc/sys/vm/drop_caches") != 0);
+bool done = false;
+bool signalled = false;
+
+void alloc_thread_fn(std::atomic<uint32_t> *alloc_times,
+                     std::vector<AllocMemTrace> *traces, uint32_t times_target,
+                     uint32_t mbs_target) {
+  auto size = kMallocGranularityMB * nu::kOneMB;
+  while (1) {
+    void *ptr;
+    {
+      rt::Preempt p;
+      rt::PreemptGuard pg(&p);
+      ACCESS_ONCE(ptr) = malloc(size);
+    }
+    traces->emplace_back(microtime());
+
+    if (++(*alloc_times) >= times_target) {
+      struct sysinfo info;
+      sysinfo(&info);
+      if (info.freeram < mbs_target * nu::kOneMB) {
+        break;
+      }
+    }
+  }
 }
 
-void logging(const bool &done, std::vector<AvailMemTrace> *avail_mem_traces) {
+void logging(std::vector<AvailMemTrace> *avail_mem_traces) {
   auto last_poll_us = microtime();
   while (!rt::access_once(done)) {
     int32_t next_poll_us = last_poll_us + kLoggingIntervalUs;
-    auto headroom = next_poll_us - microtime();
-    if (headroom > 0) {
-      timer_sleep(headroom);
+    auto time_headroom = next_poll_us - microtime();
+    if (time_headroom > 0) {
+      timer_sleep(time_headroom);
     }
     last_poll_us = microtime();
 
@@ -60,25 +78,37 @@ void logging(const bool &done, std::vector<AvailMemTrace> *avail_mem_traces) {
   }
 }
 
-void do_mmap_until(uint32_t mmap_times_target, uint32_t free_mem_mbytes_target,
-                   std::vector<AllocMemTrace> *alloc_mem_traces) {
-  uint32_t mmap_times = 0;
-  while (true) {
-    mmap(nullptr, kAllocateGranularity, PROT_READ | PROT_WRITE,
-         MAP_ANONYMOUS | MAP_SHARED | MAP_POPULATE, -1, 0);
-    mmap_times++;
-    if (alloc_mem_traces) {
-      alloc_mem_traces->emplace_back(microtime(),
-                                     mmap_times * kAllocateGranularity);
-    }
-    if (mmap_times >= mmap_times_target) {
-      struct sysinfo info;
-      sysinfo(&info);
-      if (info.freeram < free_mem_mbytes_target * nu::kOneMB) {
-        break;
-      }
-    }
+void clear_linux_cache() {
+  BUG_ON(system("sync; echo 3 > /proc/sys/vm/drop_caches") != 0);
+}
+
+std::vector<AllocMemTrace> alloc_until(uint32_t times_target,
+                                       uint32_t mbs_target) {
+  std::atomic<uint32_t> alloc_times{0};
+  std::vector<AllocMemTrace> alloc_mem_traces[kNumCores];
+  std::vector<rt::Thread> threads;
+
+  for (uint32_t i = 0; i < kNumCores; i++) {
+    threads.emplace_back([=, &alloc_times, &alloc_mem_traces] {
+      alloc_thread_fn(&alloc_times, &alloc_mem_traces[i], times_target,
+                      mbs_target);
+    });
   }
+
+  for (auto &thread : threads) {
+    thread.Join();
+  }
+
+  std::vector<AllocMemTrace> all_traces;
+  for (auto &traces : alloc_mem_traces) {
+    all_traces.insert(all_traces.end(), traces.begin(), traces.end());
+  }
+  std::sort(all_traces.begin(), all_traces.end(),
+            [](const AllocMemTrace &x, const AllocMemTrace &y) {
+              return x.time_us < y.time_us;
+            });
+
+  return all_traces;
 }
 
 void wait_for_signal() {
@@ -92,21 +122,20 @@ void do_work() {
   std::cout << "clearing linux cache..." << std::endl;
   clear_linux_cache();
   std::cout << "working towards target 0..." << std::endl;
-  do_mmap_until(0, kFreeMemMBTarget0, nullptr);
+  alloc_until(0, kFreeMemMBTarget0);
   std::cout << "waiting for signal..." << std::endl;
 
   wait_for_signal();
 
   std::cout << "working towards target 1..." << std::endl;
-  bool done = false;
+
   std::vector<AvailMemTrace> avail_mem_traces;
-  std::vector<AllocMemTrace> alloc_mem_traces;
-  auto logging_thread = rt::Thread(
-      [&avail_mem_traces, &done] { logging(done, &avail_mem_traces); });
+  auto logging_thread =
+      rt::Thread([&avail_mem_traces] { logging(&avail_mem_traces); });
 
-  do_mmap_until(0, kFreeMemMBTarget1, &alloc_mem_traces);
-
-  rt::access_once(done) = true;
+  auto alloc_mem_traces = alloc_until(0, kFreeMemMBTarget1);
+  done = true;
+  barrier();
   logging_thread.Join();
 
   std::cout << "waiting for signal..." << std::endl;
@@ -118,9 +147,10 @@ void do_work() {
     for (auto [time_us, ram, swap] : avail_mem_traces) {
       avail_ofs << time_us << " " << ram << " " << swap << std::endl;
     }
+
     std::ofstream alloc_ofs("alloc_mem_traces", std::ofstream::trunc);
-    for (auto [time_us, ram] : alloc_mem_traces) {
-      alloc_ofs << time_us << " " << ram << std::endl;
+    for (auto [time_us] : alloc_mem_traces) {
+      alloc_ofs << time_us << std::endl;
     }
   }
   std::cout << "done..." << std::endl;
@@ -132,19 +162,5 @@ int main(int argc, char **argv) {
   mlockall(MCL_CURRENT | MCL_FUTURE);
   signal(SIGHUP, signal_handler);
 
-  int ret;
-
-  if (argc < 2) {
-    std::cerr << "usage: [cfg_file]" << std::endl;
-    return -EINVAL;
-  }
-
-  ret = rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
-
-  if (ret) {
-    std::cerr << "failed to start runtime" << std::endl;
-    return ret;
-  }
-
-  return 0;
+  rt::RuntimeInit(std::string(argv[1]), [] { do_work(); });
 }
