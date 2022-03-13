@@ -121,6 +121,11 @@ void wait_for_signal() {
 void do_work() {
   std::cout << "clearing linux cache..." << std::endl;
   clear_linux_cache();
+
+  std::vector<AvailMemTrace> avail_mem_traces;
+  auto logging_thread =
+      rt::Thread([&avail_mem_traces] { logging(&avail_mem_traces); });
+
   std::cout << "working towards target 0..." << std::endl;
   alloc_until(0, kFreeMemMBTarget0);
   std::cout << "waiting for signal..." << std::endl;
@@ -129,17 +134,14 @@ void do_work() {
 
   std::cout << "working towards target 1..." << std::endl;
 
-  std::vector<AvailMemTrace> avail_mem_traces;
-  auto logging_thread =
-      rt::Thread([&avail_mem_traces] { logging(&avail_mem_traces); });
-
   auto alloc_mem_traces = alloc_until(0, kFreeMemMBTarget1);
-  done = true;
-  barrier();
-  logging_thread.Join();
 
   std::cout << "waiting for signal..." << std::endl;
   wait_for_signal();
+
+  done = true;
+  barrier();
+  logging_thread.Join();
 
   std::cout << "writing traces..." << std::endl;
   {
