@@ -127,6 +127,7 @@ private:
   MigratorConnManager migrator_conn_mgr_;
   std::set<rt::TcpConn *> callback_conns_;
   bool callback_triggered_;
+  std::unordered_set<uint32_t> delayed_srv_ips_;
 
   void handle_copy_heap(rt::TcpConn *c);
   void handle_load(rt::TcpConn *c);

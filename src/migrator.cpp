@@ -26,10 +26,9 @@ extern "C" {
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/thread.hpp"
 
-constexpr static bool kEnableLogging = false;
-
 namespace nu {
 
+constexpr static bool kEnableLogging = false;
 constexpr static auto kMigrationDSCP = IPTOS_DSCP_CS0;
 
 MigratorConn::MigratorConn() : tcp_conn_(nullptr), ip_(0), manager_(nullptr) {}
@@ -237,8 +236,13 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   }
 
   if constexpr (kMigrationDelayUs) {
-    delay_us(kMigrationDelayUs);
-    t1 = microtime();
+    auto remote_ip = c->RemoteAddr().ip;
+    auto delayed = delayed_srv_ips_.contains(remote_ip);
+    if (!delayed) {
+      delayed_srv_ips_.insert(remote_ip);
+      delay_us(kMigrationDelayUs);
+      t1 = microtime();
+    }
   }
 
   if constexpr (kEnableLogging) {
@@ -571,7 +575,7 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
       (kEnableLogging || kMigrationThrottleGBs > 0 || kMigrationDelayUs);
   [[maybe_unused]] uint64_t t0, t1;
 
-  if constexpr (kEnableLogging) {
+  if constexpr (kMonitorTime) {
     t0 = microtime();
   }
 
@@ -604,8 +608,13 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   }
 
   if constexpr (kMigrationDelayUs) {
-    delay_us(kMigrationDelayUs);
-    t1 = microtime();
+    auto remote_ip = c->RemoteAddr().ip;
+    auto delayed = delayed_srv_ips_.contains(remote_ip);
+    if (!delayed) {
+      delayed_srv_ips_.insert(remote_ip);
+      delay_us(kMigrationDelayUs);
+      t1 = microtime();
+    }
   }
 
   if constexpr (kEnableLogging) {
