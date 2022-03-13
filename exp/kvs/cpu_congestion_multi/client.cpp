@@ -26,7 +26,7 @@ constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr double kLoadFactor = 0.30;
 constexpr uint32_t kPrintIntervalUS = 1000 * 1000;
-constexpr uint32_t kNumProxies = 15;
+constexpr uint32_t kNumProxies = 16;
 constexpr uint32_t kProxyIps[] = {
     MAKE_IP_ADDR(18, 18, 1, 2),  MAKE_IP_ADDR(18, 18, 1, 5),
     MAKE_IP_ADDR(18, 18, 1, 7),  MAKE_IP_ADDR(18, 18, 1, 8),
@@ -35,7 +35,7 @@ constexpr uint32_t kProxyIps[] = {
     MAKE_IP_ADDR(18, 18, 1, 21), MAKE_IP_ADDR(18, 18, 1, 23),
     MAKE_IP_ADDR(18, 18, 1, 25), MAKE_IP_ADDR(18, 18, 1, 27),
     MAKE_IP_ADDR(18, 18, 1, 29), MAKE_IP_ADDR(18, 18, 1, 31),
-    MAKE_IP_ADDR(18, 18, 1, 33), // MAKE_IP_ADDR(18, 18, 1, 35),
+    MAKE_IP_ADDR(18, 18, 1, 33), MAKE_IP_ADDR(18, 18, 1, 35),
     // MAKE_IP_ADDR(18, 18, 1, 37)
 };
 constexpr static netaddr kClientAddrs[] = {
@@ -59,7 +59,7 @@ constexpr static netaddr kClientAddrs[] = {
 };
 constexpr uint32_t kProxyPort = 10086;
 constexpr uint32_t kNumThreads = 250;
-constexpr double kTargetMops = 140;
+constexpr double kTargetMops = 150;
 constexpr uint32_t kWarmupUs = 1 * kOneSecond;
 constexpr uint32_t kDurationUs = 60 * kOneSecond;
 constexpr static uint64_t kTimeSeriesIntervalUs = 10 * 1000;

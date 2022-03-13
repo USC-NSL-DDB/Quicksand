@@ -12,9 +12,10 @@ set_bridge $CONTROLLER_ETHER
 set_bridge $CLIENT1_ETHER
 
 SRC_SERVER_IP=$SERVER16_IP
+BACKUP_SERVER_IP=$SERVER31_IP
 
 num_worker_nodes=15
-mop=140
+mop=150
 
 sudo $NU_DIR/caladan/iokerneld &
 sleep 5
@@ -41,8 +42,20 @@ do
 done
 
 sleep 10
-sudo ./server conf/client1 CLT $CTRL_IP $LPID >logs/.tmp &
+sudo stdbuf -o0 ./server conf/client1 CLT $CTRL_IP $LPID >logs/.tmp &
 ( tail -f -n0 logs/.tmp & ) | grep -q "finish initing"
+
+ssh $BACKUP_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
+sleep 5
+scp server $BACKUP_SERVER_IP:`pwd`/
+conf=conf/server16
+ether=`cat $conf | grep host_mac | awk '{print $2}'`
+ssh $BACKUP_SERVER_IP "cd $NU_DIR/exp; source shared.sh; set_bridge $ether"
+ssh $BACKUP_SERVER_IP "sleep 5; cd `pwd`; sudo stdbuf -o0 ./server $conf SRV $CTRL_IP $LPID" >logs/server.16 &
+sleep 10
+
+sudo pkill -SIGHUP server
+( tail -f -n0 logs/.tmp & ) | grep -q "finish creating proxies"
 
 ssh $SRC_SERVER_IP "cd `pwd`; sudo stdbuf -o0 ../../../bin/bench_real_cpu_pressure conf/client0" >logs/.pressure &
 ( tail -f -n0 logs/.pressure & ) | grep -q "waiting for signal"
@@ -71,14 +84,14 @@ do
     ssh $client_ip "sudo pkill -9 iokerneld;"
 done
 
-for i in `seq 1 $num_worker_nodes`
+for i in `seq 1 $(($num_worker_nodes+1))`
 do
     server_ip=${SERVER_IPS[`expr $i - 1 + $num_worker_nodes`]}
     conf=conf/server$i
     ether=`cat $conf | grep host_mac | awk '{print $2}'`
     ssh $server_ip "cd $NU_DIR/exp; source shared.sh; unset_bridge $ether"
     ssh $server_ip "sudo pkill -9 iokerneld; sudo pkill -9 server;"
-done 
+done
 sudo pkill -9 iokerneld
 sudo pkill -9 server
 sudo pkill -9 ctrl_main

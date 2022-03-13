@@ -26,19 +26,19 @@ make clean
 for heap_size in ${heap_sizes[@]}
 do
     sleep 5
-    ssh $SRC_SERVER "sudo cset shield --exec -- $NU_DIR/caladan/iokerneld" &
-    ssh $DEST_SERVER "sudo cset shield --exec -- $NU_DIR/caladan/iokerneld" &
+    ssh $SRC_SERVER "sudo $NU_DIR/caladan/iokerneld" &
+    ssh $DEST_SERVER "sudo $NU_DIR/caladan/iokerneld" &
     sleep 5
     sed "s/constexpr uint32_t kObjSize = .*/constexpr uint32_t kObjSize = $heap_size;/g" -i main.cpp
     make
     scp main $SRC_SERVER:`pwd`
     scp main $DEST_SERVER:`pwd`    
-    ssh $SRC_SERVER "sudo cset shield --exec -- $NU_DIR/bin/ctrl_main `pwd`/conf/controller CTL" &
+    ssh $SRC_SERVER "sudo $NU_DIR/bin/ctrl_main `pwd`/conf/controller CTL" &
     sleep 5
-    ssh $SRC_SERVER "cd `pwd`; sudo cset shield --exec -- ./main conf/server1 SRV $CTRL_IP $LPID" 1>logs/$heap_size.src 2>&1 &
-    ssh $DEST_SERVER "cd `pwd`; sudo cset shield --exec -- ./main conf/server2 SRV $CTRL_IP $LPID" 1>logs/$heap_size.dest 2>&1 &
+    ssh $SRC_SERVER "cd `pwd`; sudo ./main conf/server1 SRV $CTRL_IP $LPID" 1>logs/$heap_size.src 2>&1 &
+    ssh $DEST_SERVER "cd `pwd`; sudo ./main conf/server2 SRV $CTRL_IP $LPID" 1>logs/$heap_size.dest 2>&1 &
     sleep 5
-    ssh $SRC_SERVER "cd `pwd`; sudo cset shield --exec -- ./main conf/client1 CLT $CTRL_IP $LPID"
+    ssh $SRC_SERVER "cd `pwd`; sudo ./main conf/client1 CLT $CTRL_IP $LPID"
     ssh $SRC_SERVER "sudo pkill -9 iokerneld"
     ssh $SRC_SERVER "sudo pkill -9 main"
     ssh $DEST_SERVER "sudo pkill -9 iokerneld"

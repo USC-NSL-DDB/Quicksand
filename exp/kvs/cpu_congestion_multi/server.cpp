@@ -7,6 +7,7 @@
 #include <memory>
 #include <numeric>
 #include <random>
+#include <signal.h>
 #include <utility>
 #include <vector>
 
@@ -23,7 +24,7 @@ using namespace nu;
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
 constexpr double kLoadFactor = 0.30;
-constexpr uint32_t kNumProxys = 15;
+constexpr uint32_t kNumProxys = 16;
 constexpr uint32_t kProxyPort = 10086;
 constexpr uint32_t kPowerNumShards = 16;
 constexpr uint32_t kNumBucketsPerShard = 32768;
@@ -142,11 +143,24 @@ private:
   Test::DSHashTable hash_table_;
 };
 
+bool signalled = false;
+
+void wait_for_signal() {
+  while (!rt::access_once(signalled)) {
+    timer_sleep(100);
+  }
+  rt::access_once(signalled) = false;
+}
+
+void signal_handler(int signum) { rt::access_once(signalled) = true; }
+
 void do_work() {
   Test::DSHashTable hash_table(kPowerNumShards);
   std::cout << "start initing..." << std::endl;
   init(&hash_table);
   std::cout << "finish initing..." << std::endl;
+
+  wait_for_signal();
 
   std::vector<nu::Future<void>> futures;
   RemObj<Proxy> proxies[kNumProxys];
@@ -154,9 +168,11 @@ void do_work() {
     proxies[i] = RemObj<Proxy>::create_pinned(hash_table.get_cap());
     futures.emplace_back(proxies[i].run_async(&Proxy::run_loop));
   }
+  std::cout << "finish creating proxies..." << std::endl;
   futures.front().get();
 }
 
 int main(int argc, char **argv) {
+  signal(SIGHUP, signal_handler);
   return runtime_main_init(argc, argv, [](int, char **) { do_work(); });
 }

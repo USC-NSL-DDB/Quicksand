@@ -163,6 +163,13 @@ void do_work() {
   nu::Perf perf(memcached_perf_adapter);
   perf.run(kNumThreads, kTargetMops, kDurationUs, kWarmupUs);
   auto timeseries = perf.get_timeseries_nth_lats(kTimeSeriesInterval, 99);
+  std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
+               "99.9th_lat"
+            << std::endl;
+  std::cout << perf.get_real_mops() << " " << perf.get_average_lat() << " "
+            << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
+            << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
+            << perf.get_nth_lat(99.9) << std::endl;
   for (auto [_, start, duration] : timeseries) {
     std::cout << start << " " << duration << std::endl;
   }

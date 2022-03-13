@@ -23,17 +23,17 @@ NUM_WORKER_SERVERS=31
 SRC_SERVER_IP=$SERVER2_IP
 BACKUP_SERVER_IP=$SERVER32_IP
 
-# scp_pids=
-# for ip in ${REMOTE_SERVER_IPS[*]}
-# do
-#     scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_A.txt \
-#  	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
-#     scp_pids+=" $!"
-#     scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_B.txt \
-#  	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
-#     scp_pids+=" $!"
-# done
-# wait $scp_pids
+scp_pids=
+for ip in ${REMOTE_SERVER_IPS[*]}
+do
+    scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_A.txt \
+	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
+    scp_pids+=" $!"
+    scp ../baseline/phoenix++-1.0/tests/matrix_multiply/matrix_file_B.txt \
+	$ip:`pwd`/../baseline/phoenix++-1.0/tests/matrix_multiply &
+    scp_pids+=" $!"
+done
+wait $scp_pids
 
 cd $NU_DIR/app/phoenix++-1.0/
 make -j
@@ -59,12 +59,7 @@ sudo $NU_DIR/caladan/iokerneld &
 for i in `seq 1 $((NUM_WORKER_SERVERS-1))`
 do
     ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
-    if [[ $i -eq 1 ]]
-    then
-	ssh $ip "sudo cset shield --exec -- $NU_DIR/caladan/iokerneld" &
-    else
-	ssh $ip "sudo $NU_DIR/caladan/iokerneld" &
-    fi
+    ssh $ip "sudo $NU_DIR/caladan/iokerneld" &
 done
 sleep 5
 
@@ -75,16 +70,11 @@ for i in `seq 1 $((NUM_WORKER_SERVERS-1))`
 do
     ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
     conf=conf/server$i
-    if [[ $i -eq 1 ]]
-    then
-	ssh $ip "cd `pwd`; sudo cset shield --exec -- stdbuf -o0 ./main $conf SRV $CTRL_IP $LPID" 1>logs/server.$i 2>&1 &
-    else
-	ssh $ip "cd `pwd`; sudo stdbuf -o0 ./main $conf SRV $CTRL_IP $LPID" 1>logs/server.$i 2>&1 &
-    fi
+    ssh $ip "cd `pwd`; sudo stdbuf -o0 ./main $conf SRV $CTRL_IP $LPID" 1>logs/server.$i 2>&1 &
 done
 sleep 5
 
-ssh $SRC_SERVER_IP "cd `pwd`; sudo cset shield --exec -- ../../../bin/bench_real_cpu_pressure conf/client0" &
+ssh $SRC_SERVER_IP "cd `pwd`; sudo ../../../bin/bench_real_cpu_pressure conf/client0" &
 sleep 5
 
 sudo stdbuf -o0 ./main conf/client1 CLT $CTRL_IP $LPID -- 4200 200000 200000 4200 1>logs/$NUM_WORKER_SERVERS 2>&1 &

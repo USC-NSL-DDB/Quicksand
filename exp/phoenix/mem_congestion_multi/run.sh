@@ -90,7 +90,6 @@ sleep 5
 sudo pkill -x -SIGHUP main
 ( tail -f -n0 logs/$NUM_WORKER_SERVERS & ) | grep -q "waiting for signal 2"
 
-# set kFreeMemMBTarget0 1200
 ssh $SRC_SERVER_IP "cd `pwd`; sudo ../../../bin/bench_real_mem_pressure conf/client0" >logs/.pressure &
 pressure_pid=$!
 ( tail -f -n0 logs/.pressure & ) | grep -q "waiting for signal"
