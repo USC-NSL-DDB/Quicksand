@@ -27,21 +27,27 @@
 
 # This Makefile requires GNU make.
 
-HOME = ..
+HOME = ../..
 
 include $(HOME)/Defines.mk
 
-.PHONY: default all clean
+LIBS := -L$(HOME)/$(LIB_DIR) -l$(PHOENIX) $(LIBS)
 
-APPS := matrix_multiply \
-        kmeans
+KMEANS_OBJS = kmeans.o
+
+PROGS = kmeans
+
+.PHONY: default all clean
 
 default: all
 
-all: 
-	@$(foreach APP, $(APPS), \
-            $(MAKE) -C $(APP) --no-print-directory;)
+all: $(PROGS)
+
+kmeans: $(KMEANS_OBJS) $(LIB_DEP)
+	$(CXX) $(CFLAGS) -o $@ $(KMEANS_OBJS) $(LIBS)
+
+%.o: %.cpp
+	$(CXX) $(CFLAGS) -c $< -o $@ $(INC)
 
 clean:
-	@$(foreach APP, $(APPS), \
-            $(MAKE) -C $(APP) clean --no-print-directory;)
+	rm -f $(PROGS) $(KMEANS_OBJS)
