@@ -39,6 +39,8 @@ extern "C" {
 #include <limits>
 #include <memory>
 #include <nu/dis_hash_table.hpp>
+#include <nu/runtime.hpp>
+#include <nu/commons.hpp>
 #include <nu/utils/robin_hood.h>
 #include <queue>
 #include <span>
@@ -73,7 +75,6 @@ public:
     template <class Archive> void serialize(Archive &ar) { ar(key, val); }
   };
 
-  constexpr static uint32_t kDefaultNumWorkers = 46 * 4;
   constexpr static uint32_t kDefaultChunkSize = 1;
   constexpr static uint32_t kDefaultNumBucketsPerHashTableShard = 64;
 
@@ -101,17 +102,32 @@ protected:
   }
 
 public:
-  MapReduce(uint64_t num_workers = kDefaultNumWorkers)
-      : hash_table(new HashTable(nu::bsr_64(num_workers - 1) + 1)) {
-    for (uint64_t i = 0; i < num_workers; i++) {
-      workers.emplace_back(
-          nu::RemObj<MapReduce>::create(hash_table->get_cap()));
+  MapReduce() {}
+
+  MapReduce(uint64_t num_worker_nodes, uint64_t num_worker_threads)
+      : hash_table(new HashTable(nu::bsr_64(num_worker_threads - 1) + 1)) {
+    for (uint64_t i = 0; i < num_worker_threads; i++) {
+      worker_threads.emplace_back(nu::RemObj<Impl>::create());
+      worker_threads.back().run(
+          +[](Impl &impl, HashTable::Cap cap) { impl.init(cap); },
+          hash_table->get_cap());
+    }
+    for (uint64_t i = 0; i < num_worker_nodes; i++) {
+      worker_nodes.emplace_back(nu::RemObj<nu::ErasedType>::create());
     }
   }
 
-  MapReduce(HashTable::Cap cap)
-      : hash_table(new HashTable(cap)), map_container_ptr(new map_container()) {
+  void init(HashTable::Cap cap) {
+    hash_table.reset(new HashTable(cap));
+    map_container_ptr.reset(new map_container());
   }
+
+  template <typename... S0s, typename... S1s>
+  void for_all_worker_nodes(void (*fn)(S0s...), S1s &&... states);
+
+  template <typename... S0s, typename... S1s>
+  void for_all_worker_threads(void (*fn)(Impl &, S0s...),
+                              S1s &&... states);
 
   /* The main MapReduce engine. This is the function called by the
    * application. It is responsible for creating and scheduling all map
@@ -140,7 +156,8 @@ public:
 
 private:
   std::unique_ptr<HashTable> hash_table;
-  std::vector<nu::RemObj<MapReduce>> workers;
+  std::vector<nu::RemObj<nu::ErasedType>> worker_nodes;
+  std::vector<nu::RemObj<Impl>> worker_threads;
   std::unique_ptr<map_container> map_container_ptr;
 
   void map_chunk(std::vector<data_type> data_chunk);
@@ -212,7 +229,7 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::__run_map(data_type *data,
                                                          uint64_t count,
                                                          uint64_t chunk_size) {
   std::vector<nu::Future<void>> futures;
-  futures.resize(workers.size());
+  futures.resize(worker_threads.size());
 
   uint32_t dispatch_id = 0;
   std::vector<data_type> data_chunk;
@@ -228,13 +245,15 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::__run_map(data_type *data,
 
     while (futures[dispatch_id] && !futures[dispatch_id].is_ready()) {
       dispatch_id++;
-      if (unlikely(dispatch_id == workers.size())) {
+      if (unlikely(dispatch_id == worker_threads.size())) {
         dispatch_id = 0;
       }
     }
 
-    futures[dispatch_id] = workers[dispatch_id].run_async(
-        &MapReduce::map_chunk, data_chunk);
+    auto *general_worker_thread =
+        reinterpret_cast<nu::RemObj<MapReduce> *>(&worker_threads[dispatch_id]);
+    futures[dispatch_id] =
+        general_worker_thread->run_async(&MapReduce::map_chunk, data_chunk);
   }
 }
 
@@ -244,22 +263,22 @@ template <typename Impl, typename D, typename K, typename V,
 void MapReduce<Impl, D, K, V, Combiner, Hash>::__run_map_bsp(
     data_type *data, uint64_t count, uint64_t chunk_size) {
   std::vector<nu::Future<void>> futures;
-  futures.resize(workers.size());
+  futures.resize(worker_threads.size());
 
 #ifdef BSP_PRINT_STAT
   std::ofstream bsp_stat_ofs("bsp_stat");
   std::vector<uint64_t> timestamps;
-  timestamps.reserve((count - 1) / workers.size() + 1);
+  timestamps.reserve((count - 1) / worker_threads.size() + 1);
 #endif
 
-  for (uint64_t start_id = 0; start_id < count; start_id += workers.size()) {
+  for (uint64_t start_id = 0; start_id < count; start_id += worker_threads.size()) {
 #ifdef BSP_PRINT_STAT
     timestamps.push_back(microtime());
 #endif
-    auto batch_size = std::min(workers.size(), count - start_id);
+    auto batch_size = std::min(worker_threads.size(), count - start_id);
     for (uint32_t i = 0; i < batch_size; i++) {
       std::vector<data_type> data_chunk(1, data[start_id + i]);
-      futures[i] = workers[i].run_async(&MapReduce::map_chunk, data_chunk);
+      futures[i] = worker_threads[i].run_async(&MapReduce::map_chunk, data_chunk);
     }
 
     for (auto &future : futures) {
@@ -279,7 +298,9 @@ template <typename Impl, typename D, typename K, typename V,
           class Hash>
 void MapReduce<Impl, D, K, V, Combiner, Hash>::shuffle() {
   std::vector<nu::Future<void>> futures;
-  for (auto &[k, combiner] : *map_container_ptr) {
+  auto iter = map_container_ptr->begin();
+  while (iter != map_container_ptr->end()) {
+    auto &[k, combiner] = *iter;
     futures.emplace_back(hash_table->apply_async(
         k,
         +[](std::pair<const K, typename Combiner<V, std::allocator>::combined>
@@ -288,6 +309,7 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::shuffle() {
           combiner.combineinto(p.second);
         },
         std::move(combiner)));
+    iter = map_container_ptr->erase(iter);
   }
 }
 
@@ -309,9 +331,11 @@ template <typename Impl, typename D, typename K, typename V,
           class Hash>
 void MapReduce<Impl, D, K, V, Combiner, Hash>::run_reduce() {
   std::vector<nu::Future<void>> futures;
-  futures.reserve(workers.size());
-  for (auto &worker : workers) {
-    futures.emplace_back(worker.run_async(&MapReduce::shuffle));
+  futures.reserve(worker_threads.size());
+  for (auto &worker_thread : worker_threads) {
+    auto *general_worker_thread =
+        reinterpret_cast<nu::RemObj<MapReduce> *>(&worker_thread);
+    futures.emplace_back(general_worker_thread->run_async(&MapReduce::shuffle));
   }
   for (auto &future : futures) {
     future.get();
@@ -319,7 +343,8 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::run_reduce() {
   shuffle_end_ts = microtime();
 
   final_vals = hash_table->associative_reduce(
-      std::vector<keyval>(),
+      /* clear = */ true, /* init_val = */ std::vector<keyval>(),
+      /* reduce_fn =  */
       +[](std::vector<keyval> &pairs,
           std::pair<const K, typename Combiner<V, std::allocator>::combined>
               &p) {
@@ -359,6 +384,44 @@ void MapReduce<Impl, D, K, V, Combiner, Hash>::run_merge() {
   }
 
   this->final_vals = std::move(final);
+}
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+template <typename... S0s, typename... S1s>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::for_all_worker_nodes(
+    void (*fn)(S0s...), S1s &&... states) {
+  std::vector<nu::Future<void>> futures;
+  auto fn_addr = reinterpret_cast<uintptr_t>(fn);
+
+  for (auto &worker_node : worker_nodes) {
+    futures.emplace_back(worker_node.run_async(
+        +[](nu::ErasedType &_, uintptr_t fn_addr, S0s... states) {
+          auto *fn = reinterpret_cast<void (*)(S0s...)>(fn_addr);
+          fn(states...);
+        },
+        fn_addr, std::forward<S1s>(states)...));
+  }
+}
+
+template <typename Impl, typename D, typename K, typename V,
+          template <typename, template <class> class> class Combiner,
+          class Hash>
+template <typename... S0s, typename... S1s>
+void MapReduce<Impl, D, K, V, Combiner, Hash>::for_all_worker_threads(
+    void (*fn)(Impl &, S0s...), S1s &&... states) {
+  std::vector<nu::Future<void>> futures;
+  auto fn_addr = reinterpret_cast<uintptr_t>(fn);
+
+  for (auto &worker_thread : worker_threads) {
+    futures.emplace_back(worker_thread.run_async(
+        +[](Impl &impl, uintptr_t fn_addr, S0s... states) {
+          auto *fn = reinterpret_cast<void (*)(Impl &, S0s...)>(fn_addr);
+          fn(impl, states...);
+        },
+        fn_addr, std::forward<S1s>(states)...));
+  }
 }
 
 template <typename Impl, typename D, typename K, typename V,
