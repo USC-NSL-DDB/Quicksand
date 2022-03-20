@@ -113,11 +113,13 @@ bool run_test() {
 
   our_set.clear();
   our_set = hash_table->associative_reduce(
-      our_set,
+      /* clear = */ false, /* init_val = */ our_set,
+      /* reduce_fn = */
       +[](std::set<std::pair<std::string, std::string>> &set,
           std::pair<const K, V> &pair) {
         set.emplace(pair.first, pair.second);
       },
+      /* merge_fn = */
       +[](std::set<std::pair<std::string, std::string>> &set,
           std::set<std::pair<std::string, std::string>> &pairs) {
         set.insert(pairs.begin(), pairs.end());

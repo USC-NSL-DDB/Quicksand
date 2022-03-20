@@ -41,7 +41,7 @@ public:
                        RetT (*fn)(std::pair<const K, V> &, A0s...),
                        A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
-  RetT associative_reduce(RetT init_val,
+  RetT associative_reduce(bool clear, RetT init_val,
                           void (*reduce_fn)(RetT &, std::pair<const K, V> &,
                                             A0s...),
                           A1s &&... args);

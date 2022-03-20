@@ -226,14 +226,12 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
           }
         } else {
           *prev_next = bucket_node->next;
+          bucket_node_allocator.deallocate(bucket_node, 1);
         }
         lock.unlock();
         auto allocator = Allocator();
         std::destroy_at(pair);
         allocator.deallocate(pair, 1);
-        if (prev_next) {
-          bucket_node_allocator.deallocate(bucket_node, 1);
-        }
         return true;
       }
     }
@@ -316,20 +314,37 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
-                 Lock>::associative_reduce(RetT init_val,
+                 Lock>::associative_reduce(bool clear, RetT init_val,
                                            void (*reduce_fn)(
                                                RetT &, std::pair<const K, V> &,
                                                A0s...),
                                            A1s &&... args) {
+  Allocator allocator;
+  BucketNodeAllocator bucket_node_allocator;
+
   RetT reduced_val(std::move(init_val));
   for (size_t i = 0; i < NBuckets; i++) {
     if (buckets_[i].pair) {
       locks_[i].lock();
       auto *bucket_node = &buckets_[i];
+      bool head = true;
       while (bucket_node && bucket_node->pair) {
         auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
         reduce_fn(reduced_val, *pair, std::forward<A1s>(args)...);
-        bucket_node = bucket_node->next;
+        auto *next = bucket_node->next;
+
+        if (clear) {
+          std::destroy_at(pair);
+          allocator.deallocate(pair, 1);
+	  if (head) {
+	    head = false;
+	    bucket_node->pair = bucket_node->next = nullptr;
+          } else {
+            bucket_node_allocator.deallocate(bucket_node, 1);
+          }
+        }
+
+        bucket_node = next;
       }
       locks_[i].unlock();
     }
@@ -342,7 +357,8 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
 std::vector<std::pair<K, V>>
 SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
   return associative_reduce(
-      std::vector<std::pair<K, V>>(),
+      /* clear = */ false, /* init_val = */ std::vector<std::pair<K, V>>(),
+      /* reduce_fn = */
       +[](std::vector<std::pair<K, V>> &reduced_val,
           std::pair<const K, V> &pair) { reduced_val.push_back(pair); });
 }
