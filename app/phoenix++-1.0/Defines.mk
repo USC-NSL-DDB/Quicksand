@@ -42,7 +42,7 @@ DEBUG = -g
 NCORES = $(shell nproc)
 NU = ../../../../
 CALADAN = $(NU)/caladan
-CFLAGS = $(DEBUG) -Wall -O3 $(OS) $(NUMA) -DMMAP_POPULATE -fstrict-aliasing -Wstrict-aliasing -std=c++20 \
+CFLAGS = $(DEBUG) -Wall -O3 $(OS) $(NUMA) -DMMAP_POPULATE -fstrict-aliasing -Wstrict-aliasing -march=native -std=c++20 \
          -DNCORES=$(NCORES) -T ${CALADAN}/base/base.ld -static -static-libstdc++ -static-libgcc
 LIBS = -L${NU}/glibc/build/install/lib -L${CALADAN} -L${CALADAN}/bindings/cc -L${CALADAN}/rdma-core/build/lib/statics/ \
        -L${NU} -lnu -lrt++ -lruntime -lnet -lbase -lmlx5 -libverbs -lnl-3 -lnl-route-3 -lcrypto -lpthread -ldl -lpthread -lrt
