@@ -57,8 +57,8 @@ constexpr static uint64_t kHeapSize = 0x8000000ULL;
 constexpr static uint64_t kMaxNumHeaps =
     (kMaxHeapVAddr - kMinHeapVAddr) / kHeapSize;
 constexpr static uint64_t kMinStackClusterVAddr = kMaxHeapVAddr;
-constexpr static uint64_t kMaxStackClusterVAddr = 0x500000000000ULL;
-constexpr static uint64_t kStackClusterSize = 1ULL << 30;
+constexpr static uint64_t kMaxStackClusterVAddr = 0x600000000000ULL;
+constexpr static uint64_t kStackClusterSize = 1ULL << 31;
 constexpr static uint64_t kMaxNumStacksPerCluster =
     kStackClusterSize / kStackSize;
 constexpr static uint64_t kMinRuntimeHeapVaddr = kMaxStackClusterVAddr;
