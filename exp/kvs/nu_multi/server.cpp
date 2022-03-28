@@ -129,7 +129,6 @@ public:
       if (is_local) {
 	resp.latest_shard_ip = 0;
       } else {
-	RuntimeSlabGuard g;
         resp.latest_shard_ip = Runtime::get_ip_by_rem_obj_id(id);
       }
       BUG_ON(c->WriteFull(&resp, sizeof(resp)) < 0);
