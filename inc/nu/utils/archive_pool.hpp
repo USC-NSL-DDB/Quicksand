@@ -12,7 +12,8 @@ namespace nu {
 
 template <typename Allocator> class ArchivePool {
 public:
-  constexpr static uint32_t kOAStreamBufSize = 128 - 1;
+  constexpr static uint32_t kOAStreamPreallocBufSize = 128 - 1;
+  constexpr static uint32_t kOAStreamMaxBufSize = 8192 - 1;
 
   using CharAllocator =
       std::allocator_traits<Allocator>::template rebind_alloc<char>;
@@ -29,7 +30,7 @@ public:
   struct OASStream {
     StringStream ss;
     cereal::BinaryOutputArchive oa;
-    OASStream() : ss(String(kOAStreamBufSize, '\0')), oa(ss) {}
+    OASStream() : ss(String(kOAStreamPreallocBufSize, '\0')), oa(ss) {}
   };
 
   ArchivePool(uint32_t per_core_cache_size = 64);

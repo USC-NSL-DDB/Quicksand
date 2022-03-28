@@ -45,6 +45,7 @@ ArchivePool<Allocator>::OASStream *ArchivePool<Allocator>::get_oa_sstream() {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#pragma GCC diagnostic ignored "-Wstringop-overread"
 
 template <typename Allocator>
 void ArchivePool<Allocator>::put_ia_sstream(IASStream *ia_sstream) {
@@ -54,6 +55,9 @@ void ArchivePool<Allocator>::put_ia_sstream(IASStream *ia_sstream) {
 
 template <typename Allocator>
 void ArchivePool<Allocator>::put_oa_sstream(OASStream *oa_sstream) {
+  if (unlikely(oa_sstream->ss.tellp() >= kOAStreamMaxBufSize)) {
+    oa_sstream->ss.str(String(kOAStreamPreallocBufSize, '\0'));
+  }
   oa_sstream->ss.seekp(0);
   return oa_pool_.put(oa_sstream);
 }
