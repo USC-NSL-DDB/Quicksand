@@ -135,6 +135,7 @@ Runtime::~Runtime() {
 
 // FIXME
 uint32_t Runtime::get_ip_by_rem_obj_id(RemObjID id) {
+  RuntimeSlabGuard g;
   auto *owner_heap = thread_unset_owner_heap();
   auto ip = rpc_client_mgr->get_ip_by_rem_obj_id(id);
   thread_set_owner_heap(thread_self(), owner_heap);
