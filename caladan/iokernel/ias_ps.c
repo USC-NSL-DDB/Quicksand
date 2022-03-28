@@ -43,7 +43,7 @@ static bool ias_ps_preempt_core(struct ias_data *sd)
 	return true;
 }
 
-bool ias_ps_poll(void)
+bool ias_ps_poll(uint64_t now_us)
 {
 	bool success = true, has_pressure;
 	struct sysinfo info;
@@ -51,7 +51,7 @@ bool ias_ps_poll(void)
 	struct congestion_info *congestion;
 	struct resource_pressure_info *pressure;
 	struct ias_data *sd;
-	int num_cores_taken, pos;
+	int pos, num_cores_taken = 0;
 
 	BUG_ON(sysinfo(&info) != 0);
 	free_ram_in_mbs = info.freeram / SIZE_MB;
@@ -91,17 +91,23 @@ bool ias_ps_poll(void)
 			}
 
 			/* CPU pressure. */
-	                if (sd->react_cpu_pressure && sd->is_congested) {
+	                if (sd->react_cpu_pressure && sd->is_congested)
 				num_cores_taken = pressure->num_cores_granted -
                                                   sd->threads_active;
-				if (num_cores_taken > 0) {
+			if (num_cores_taken > 0) {
+				if (!sd->cpu_pressure_start_us)
+					sd->cpu_pressure_start_us = now_us;
+				else if (now_us - sd->cpu_pressure_start_us >=
+					 IAS_PS_CPU_THRESH_US) {
+					sd->cpu_pressure_start_us = 0;
 					pressure->num_cores_to_release =
                                                 num_cores_taken;
 					pressure->num_cores_granted =
 						sd->threads_active;
 					has_pressure = true;
 				}
-	                }
+	                } else
+				sd->cpu_pressure_start_us = 0;
 
 			if (has_pressure)
 				store_release(&pressure->status, PENDING);

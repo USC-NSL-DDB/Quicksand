@@ -537,7 +537,7 @@ static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 	}
 
 	if (!cfg.nops && now - last_ps_us >= IAS_PS_INTERVAL_US)
-		if (ias_ps_poll())
+		if (ias_ps_poll(now))
 			last_ps_us = now;
 
 	if (!cfg.norp && now - last_rp_us >= IAS_RP_INTERVAL_US)
