@@ -58,8 +58,12 @@ inline uint32_t get_num_cache_entries(uint32_t slab_shift) {
     return 8;
   case 10: // 2048 B
     return 4;
-  default:
+  case 11: // 4096 B
+    return 2;
+  case 12: // 8192 B
     return 1;
+  default:
+    return 0;
   }
 }
 
@@ -76,7 +80,8 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
     if (unlikely(!ret)) {
       rt::ScopedLock<rt::Spin> lock(&spin_);
       auto &slab_list = slab_lists_[slab_shift];
-      auto num_cache_entries = get_num_cache_entries(slab_shift);
+      auto num_cache_entries =
+          std::max(static_cast<uint32_t>(1), get_num_cache_entries(slab_shift));
       while (slab_list.size() && cache_list.size() < num_cache_entries) {
         cache_list.push(slab_list.pop());
       }
@@ -136,9 +141,8 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
     if (unlikely(cache_list.size() > num_cache_entries)) {
       rt::ScopedLock<rt::Spin> lock(&slab->spin_);
       auto &slab_list = slab->slab_lists_[slab_shift];
-      while (cache_list.size() > num_cache_entries / 2 &&
-             cache_list.size() > 1) {
-	slab_list.push(cache_list.pop());
+      while (cache_list.size() > num_cache_entries / 2) {
+        slab_list.push(cache_list.pop());
       }
     }
     put_cpu();
