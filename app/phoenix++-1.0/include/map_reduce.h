@@ -291,18 +291,23 @@ template <typename Impl, typename D, typename K, typename V,
           template <typename, template <class> class> class Combiner,
           class Hash>
 void MapReduce<Impl, D, K, V, Combiner, Hash>::shuffle() {
-  std::vector<nu::Future<void>> futures;
+  constexpr uint32_t kMaxConcurrency = 8;
+
+  std::queue<nu::Future<void>> futures;
   auto iter = map_container_ptr->begin();
   while (iter != map_container_ptr->end()) {
     auto &[k, combiner] = *iter;
-    futures.emplace_back(hash_table->apply_async(
-        k,
+    futures.emplace(hash_table->apply_async(
+        std::move(k),
         +[](std::pair<const K, typename Combiner<V, std::allocator>::combined>
                 &p,
             Combiner<V, std::allocator> &&combiner) {
           combiner.combineinto(p.second);
         },
         std::move(combiner)));
+    if (futures.size() > kMaxConcurrency) {
+      futures.pop();
+    }
     iter = map_container_ptr->erase(iter);
   }
 }
