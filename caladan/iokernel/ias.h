@@ -18,7 +18,7 @@
 /* the HT controller's adjustment interval */
 #define IAS_HT_INTERVAL_US		10
 /* the resource pressure controller's polling interval */
-#define IAS_PS_INTERVAL_US		500
+#define IAS_PS_INTERVAL_US		100
 /* the resource reporting controller's polling interval */
 #define IAS_RP_INTERVAL_US		50
 /* the low watermark used to detect memory pressure */
