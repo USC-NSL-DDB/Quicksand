@@ -40,7 +40,7 @@
 using Data_t = int64_t;
 
 // Number of vectors
-constexpr int kNumPoints = 40000;
+constexpr int kNumPoints = 20000;
 // Dimension of each vector
 constexpr int kDim = 1000;
 // Number of clusters
@@ -100,7 +100,7 @@ struct point {
 };
 
 std::array<point, kNumPoints> points;
-std::array<point, kNumMeans> means;
+std::vector<point> means;
 
 template <class V, template <class> class Allocator>
 class point_combiner
@@ -153,8 +153,12 @@ void real_main(int argc, char **argv) {
     tasks.push_back(i);
   }
 
+  auto rem_obj = nu::RemObj<nu::ErasedType>::create();
+
   bool modified;
+  int iter = 0;
   do {
+    std::cout << "iter = " << iter++ << std::endl;
     auto t0 = microtime();
 
     std::vector<KmeansMR::keyval> result;
@@ -173,7 +177,16 @@ void real_main(int argc, char **argv) {
     }
 
     auto t2 = microtime();
-    std::cout << t1 - t0 << " " << t2 - t1 << std::endl;
+
+    rem_obj.run(
+        +[](nu::ErasedType &_, std::vector<point> new_means) {
+          means = std::move(new_means);
+        },
+        means);
+
+    auto t3 = microtime();
+
+    std::cout << t1 - t0 << " " << t2 - t1 << " " << t3 - t2 << std::endl;
   } while (modified);
 
   printf("KMeans: MapReduce Completed\n");
@@ -191,6 +204,7 @@ int main(int argc, char **argv) {
     points[i].generate();
   }
   for (int i = 0; i < kNumMeans; i++) {
+    means.emplace_back(0);
     means[i].generate();
   }
   nu::runtime_main_init(argc, argv,

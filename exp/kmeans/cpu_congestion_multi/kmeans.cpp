@@ -41,7 +41,7 @@
 using Data_t = int64_t;
 
 // Number of vectors
-constexpr int kNumPoints = 40000;
+constexpr int kNumPoints = 60000;
 // Dimension of each vector
 constexpr int kDim = 1000;
 // Number of clusters
@@ -50,9 +50,9 @@ constexpr int kNumMeans = 1000;
 constexpr Data_t kGridSize = 8ULL << 32;
 constexpr bool kDumpResult = false;
 
-constexpr int kNumWorkerNodes = 30;
+constexpr int kNumWorkerNodes = 31;
 constexpr int kNumThreadsPerWorker = 28;
-constexpr int kNumWorkerThreads = kNumWorkerNodes * kNumThreadsPerWorker;
+constexpr int kNumWorkerThreads = (kNumWorkerNodes - 1) * kNumThreadsPerWorker;
 constexpr int kChunkSize = 6;
 
 struct point {

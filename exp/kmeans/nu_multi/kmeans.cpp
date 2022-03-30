@@ -49,7 +49,7 @@ constexpr int kNumMeans = 1000;
 constexpr Data_t kGridSize = 8ULL << 32;
 constexpr bool kDumpResult = false;
 
-constexpr int kNumWorkerThreads = 30;
+constexpr int kNumWorkerNodes = 30;
 constexpr int kNumThreadsPerWorker = 28;
 constexpr int kNumWorkerThreads = kNumWorkerNodes * kNumThreadsPerWorker;
 constexpr int kChunkSize = 6;
@@ -163,7 +163,10 @@ void real_main(int argc, char **argv) {
   }
 
   bool modified;
+  int iter = 0;
   do {
+    std::cout << "iter = " << iter++ << std::endl;
+
     auto t0 = microtime();
 
     mapReduce.for_all_worker_threads(

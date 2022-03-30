@@ -40,7 +40,7 @@
 using Data_t = int64_t;
 
 // Number of vectors
-constexpr int kNumPoints = 40000;
+constexpr int kNumPoints = 20000;
 // Dimension of each vector
 constexpr int kDim = 1000;
 // Number of clusters
@@ -161,7 +161,10 @@ void real_main(int argc, char **argv) {
   }
 
   bool modified;
+  int iter = 0;
   do {
+    std::cout << "iter = " << iter++ << std::endl;
+
     auto t0 = microtime();
 
     mapReduce.for_all_worker_threads(

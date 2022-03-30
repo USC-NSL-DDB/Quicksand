@@ -64,4 +64,3 @@ cp $KMEANS_DIR/kmeans.cpp.bak $KMEANS_DIR/kmeans.cpp
 
 unset_bridge $CONTROLLER_ETHER
 unset_bridge $CLIENT1_ETHER
-
