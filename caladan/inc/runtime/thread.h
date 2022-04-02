@@ -124,11 +124,14 @@ static inline void *thread_unset_owner_heap(void)
 	return old_owner_heap;
 }
 
-static inline void thread_set_owner_heap(thread_t *th, void *owner_heap)
+static inline void *thread_set_owner_heap(thread_t *th, void *owner_heap)
 {
 	void **owner_heap_p =
 		(void **)((uint64_t)th + thread_owner_heap_offset);
+	void *old_owner_heap = *owner_heap_p;
 	*owner_heap_p = owner_heap;
+
+	return old_owner_heap;
 }
 
 static inline void *thread_get_owner_heap(void)

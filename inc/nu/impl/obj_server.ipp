@@ -2,7 +2,6 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
-#include <alloca.h>
 
 extern "C" {
 #include <runtime/preempt.h>
@@ -38,9 +37,10 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
       [&](auto &&... args) {
         ObjSlabGuard obj_slab_guard(&slab);
         heap_header->status = kPresent;
-        thread_set_owner_heap(thread_self(), base);
+        auto *self = thread_self();
+        auto *old_owner = thread_set_owner_heap(self, base);
         new (obj_space) Cls(std::forward<As>(args)...);
-        thread_unset_owner_heap();
+        thread_set_owner_heap(self, old_owner);
       },
       args);
 
@@ -63,9 +63,10 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
   {
     ObjSlabGuard obj_slab_guard(&slab);
     heap_header->status = kPresent;
-    thread_set_owner_heap(thread_self(), base);
+    auto *self = thread_self();
+    auto *old_owner = thread_set_owner_heap(self, base);
     new (obj_space) Cls(std::forward<As>(args)...);
-    thread_unset_owner_heap();
+    thread_set_owner_heap(self, old_owner);
   }
 
   Runtime::heap_manager->insert(base);
