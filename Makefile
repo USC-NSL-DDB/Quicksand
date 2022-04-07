@@ -23,8 +23,6 @@ dep = $(obj:.o=.d)
 
 test_rem_obj_src = test/test_rem_obj.cpp
 test_rem_obj_obj = $(test_rem_obj_src:.cpp=.o)
-test_multi_objs_src = test/test_multi_objs.cpp
-test_multi_objs_obj = $(test_multi_objs_src:.cpp=.o)
 test_slab_src = test/test_slab.cpp
 test_slab_obj = $(test_slab_src:.cpp=.o)
 test_pass_obj_src = test/test_pass_obj.cpp
@@ -96,9 +94,9 @@ bench_controller_obj = $(bench_controller_src:.cpp=.o)
 ctrl_main_src = src/ctrl_main.cpp
 ctrl_main_obj = $(ctrl_main_src:.cpp=.o)
 
-all: libnu.a bin/test_slab bin/test_rem_obj bin/test_multi_objs \
-bin/test_pass_obj bin/test_migrate bin/test_lock bin/test_condvar bin/test_time \
-bin/bench_rpc_tput bin/bench_rem_obj_call_tput bin/bench_rem_obj_call_lat bin/bench_thread \
+all: libnu.a bin/test_slab bin/test_rem_obj bin/test_pass_obj bin/test_migrate \
+bin/test_lock bin/test_condvar bin/test_time bin/bench_rpc_tput \
+bin/bench_rem_obj_call_tput bin/bench_rem_obj_call_lat bin/bench_thread \
 bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
 bin/bench_hashtable_timeseries bin/bench_fake_migration bin/test_nested_rem_obj \
 bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
@@ -115,8 +113,6 @@ bin/bench_controller
 
 bin/test_rem_obj: $(test_rem_obj_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_rem_obj_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/test_multi_objs: $(test_multi_objs_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(test_multi_objs_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_slab: $(test_slab_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_slab_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_pass_obj: $(test_pass_obj_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
