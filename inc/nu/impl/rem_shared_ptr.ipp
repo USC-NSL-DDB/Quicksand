@@ -112,13 +112,15 @@ template <typename T> void RemSharedPtr<T>::reset_bg() {
 
 template <typename T, typename... Args>
 RemSharedPtr<T> make_rem_shared(Args &&... args) {
-  try {
-    auto *shared_ptr = new std::shared_ptr<T>(
-        std::make_shared<T>(std::forward<Args>(args)...));
-    return RemSharedPtr<T>(shared_ptr);
-  } catch (std::bad_alloc &) {
+  auto *raw_ptr = new (std::nothrow) T(std::forward<Args>(args)...);
+  if (unlikely(!raw_ptr)) {
     return RemSharedPtr<T>();
   }
+  auto *shared_ptr = new (std::nothrow) std::shared_ptr<T>(raw_ptr);
+  if (unlikely(!shared_ptr)) {
+    return RemSharedPtr<T>();
+  }
+  return RemSharedPtr<T>(shared_ptr);
 }
 
 } // namespace nu
