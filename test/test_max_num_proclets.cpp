@@ -30,7 +30,7 @@ void do_work() {
 
   std::vector<Proclet<Obj>> objs;
   for (uint32_t i = 0; i < kMaxNumHeaps; i++) {
-    objs.emplace_back(Proclet<Obj>::create(i));
+    objs.emplace_back(make_proclet<Obj>(i));
   }
   for (uint32_t i = 0; i < kMaxNumHeaps; i++) {
     auto &obj = objs[i];

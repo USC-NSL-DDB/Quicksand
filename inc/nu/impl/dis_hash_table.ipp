@@ -58,9 +58,9 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
   shards_ = std::make_unique<Proclet<HashTableShard>[]>(num_shards_);
   for (uint32_t i = 0; i < num_shards_; i++) {
     if (pinned) {
-      shards_[i] = std::move(Proclet<HashTableShard>::create_pinned());
+      shards_[i] = std::move(make_proclet_pinned<HashTableShard>());
     } else {
-      shards_[i] = std::move(Proclet<HashTableShard>::create());
+      shards_[i] = std::move(make_proclet<HashTableShard>());
     }
   }
 }
@@ -73,9 +73,9 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
   shards_ = std::make_unique<Proclet<HashTableShard>[]>(num_shards_);
   for (uint32_t i = 0; i < num_shards_; i++) {
     if (pinned) {
-      shards_[i] = std::move(Proclet<HashTableShard>::create_pinned_at(addr));
+      shards_[i] = std::move(make_proclet_pinned_at<HashTableShard>(addr));
     } else {
-      shards_[i] = std::move(Proclet<HashTableShard>::create_at(addr));
+      shards_[i] = std::move(make_proclet_at<HashTableShard>(addr));
     }
   }
 }

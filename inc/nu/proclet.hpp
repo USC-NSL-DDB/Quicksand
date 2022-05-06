@@ -27,19 +27,6 @@ public:
   Proclet &operator=(Proclet &&);
   Proclet();
   ~Proclet();
-  template <typename... As> static Proclet create(As &&... args);
-  template <typename... As> static Future<Proclet> create_async(As &&... args);
-  template <typename... As>
-  static Proclet create_at(uint32_t ip, As &&... args);
-  template <typename... As>
-  static Future<Proclet> create_at_async(uint32_t ip, As &&... args);
-  template <typename... As> static Proclet create_pinned(As &&... args);
-  template <typename... As>
-  static Future<Proclet> create_pinned_async(As &&... args);
-  template <typename... As>
-  static Proclet create_pinned_at(uint32_t ip, As &&... args);
-  template <typename... As>
-  static Future<Proclet> create_pinned_at_async(uint32_t ip, As &&... args);
   Cap get_cap() const;
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
@@ -73,7 +60,7 @@ private:
   template <typename RetT, typename... S1s>
   static RetT invoke_remote_with_ret(ProcletID id, S1s &&... states);
   template <typename... As>
-  static Proclet general_create(bool pinned, uint32_t ip_hint, As &&... args);
+  static Proclet __create(bool pinned, uint32_t ip_hint, As &&... args);
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>
@@ -87,13 +74,24 @@ private:
   RetT __run(RetT (T::*md)(A0s...), A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
   RetT __run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...), A1s &&... args);
-};
 
-template <typename T> union MethodPtr {
-  T ptr;
-  uint8_t raw[sizeof(T)];
-
-  template <class Archive> void serialize(Archive &ar) { ar(raw); }
+  template <typename U, typename... As>
+  friend Proclet<U> make_proclet(As &&... args);
+  template <typename U, typename... As>
+  friend Future<Proclet<U>> make_proclet_async(As &&... args);
+  template <typename U, typename... As>
+  friend Proclet<U> make_proclet_at(uint32_t ip, As &&... args);
+  template <typename U, typename... As>
+  friend Future<Proclet<U>> make_proclet_async_at(uint32_t ip, As &&... args);
+  template <typename U, typename... As>
+  friend Proclet<U> make_proclet_pinned(As &&... args);
+  template <typename U, typename... As>
+  friend Future<Proclet<U>> make_proclet_pinned_async(As &&... args);
+  template <typename U, typename... As>
+  friend Proclet<U> make_proclet_pinned_at(uint32_t ip, As &&... args);
+  template <typename U, typename... As>
+  friend Future<Proclet<U>> make_proclet_pinned_async_at(uint32_t ip,
+                                                         As &&... args);
 };
 
 } // namespace nu

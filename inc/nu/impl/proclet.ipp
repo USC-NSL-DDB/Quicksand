@@ -178,68 +178,7 @@ template <typename T> Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) {
 
 template <typename T>
 template <typename... As>
-Proclet<T> Proclet<T>::create(As &&... args) {
-  return general_create(/* pinned = */ false, 0, std::forward<As>(args)...);
-}
-
-template <typename T>
-template <typename... As>
-Future<Proclet<T>> Proclet<T>::create_async(As &&... args) {
-  return nu::async([&, ... args = std::forward<As>(args)]() {
-    return general_create(/* pinned = */ false, 0, std::forward<As>(args)...);
-  });
-}
-
-template <typename T>
-template <typename... As>
-Proclet<T> Proclet<T>::create_at(uint32_t ip_hint, As &&... args) {
-  return general_create(/* pinned = */ false, ip_hint,
-                        std::forward<As>(args)...);
-}
-
-template <typename T>
-template <typename... As>
-Future<Proclet<T>> Proclet<T>::create_at_async(uint32_t ip_hint, As &&... args) {
-  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
-    return general_create(/* pinned = */ false, ip_hint,
-                          std::forward<As>(args)...);
-  });
-}
-
-template <typename T>
-template <typename... As>
-Proclet<T> Proclet<T>::create_pinned(As &&... args) {
-  return general_create(/* pinned = */ true, 0, std::forward<As>(args)...);
-}
-
-template <typename T>
-template <typename... As>
-Future<Proclet<T>> Proclet<T>::create_pinned_async(As &&... args) {
-  return nu::async([&, ... args = std::forward<As>(args)]() {
-    return general_create(/* pinned = */ true, 0, std::forward<As>(args)...);
-  });
-}
-
-template <typename T>
-template <typename... As>
-Proclet<T> Proclet<T>::create_pinned_at(uint32_t ip_hint, As &&... args) {
-  return general_create(/* pinned = */ true, ip_hint,
-                        std::forward<As>(args)...);
-}
-
-template <typename T>
-template <typename... As>
-Future<Proclet<T>> Proclet<T>::create_pinned_at_async(uint32_t ip_hint,
-                                                    As &&... args) {
-  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
-    return general_create(/* pinned = */ true, ip_hint,
-                          std::forward<As>(args)...);
-  });
-}
-
-template <typename T>
-template <typename... As>
-Proclet<T> Proclet<T>::general_create(bool pinned, uint32_t ip_hint,
+Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint,
                                     As &&... args) {
   ProcletID id;
   uint32_t server_ip;
@@ -533,6 +472,62 @@ template <class Archive>
 void Proclet<T>::load(Archive &ar) {
   ar(id_);
   ref_cnted_ = true;
+}
+
+template <typename T, typename... As> Proclet<T> make_proclet(As &&... args) {
+  return Proclet<T>::__create(/* pinned = */ false, 0,
+                              std::forward<As>(args)...);
+}
+
+template <typename T, typename... As>
+Future<Proclet<T>> make_proclet_async(As &&... args) {
+  return nu::async([&, ... args = std::forward<As>(args)]() {
+    return Proclet<T>::__create(/* pinned = */ false, 0,
+                                std::forward<As>(args)...);
+  });
+}
+
+template <typename T, typename... As>
+Proclet<T> make_proclet_at(uint32_t ip_hint, As &&... args) {
+  return Proclet<T>::__create(/* pinned = */ false, ip_hint,
+                              std::forward<As>(args)...);
+}
+
+template <typename T, typename... As>
+Future<Proclet<T>> make_proclet_async_at(uint32_t ip_hint, As &&... args) {
+  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
+    return Proclet<T>::__create(/* pinned = */ false, ip_hint,
+                                std::forward<As>(args)...);
+  });
+}
+
+template <typename T, typename... As>
+Proclet<T> make_proclet_pinned(As &&... args) {
+  return Proclet<T>::__create(/* pinned = */ true, 0,
+                              std::forward<As>(args)...);
+}
+
+template <typename T, typename... As>
+Future<Proclet<T>> make_proclet_pinned_async(As &&... args) {
+  return nu::async([&, ... args = std::forward<As>(args)]() {
+    return Proclet<T>::__create(/* pinned = */ true, 0,
+                                std::forward<As>(args)...);
+  });
+}
+
+template <typename T, typename... As>
+Proclet<T> make_proclet_pinned_at(uint32_t ip_hint, As &&... args) {
+  return Proclet<T>::__create(/* pinned = */ true, ip_hint,
+                              std::forward<As>(args)...);
+}
+
+template <typename T, typename... As>
+Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip_hint,
+                                                As &&... args) {
+  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
+    return Proclet<T>::__create(/* pinned = */ true, ip_hint,
+                                std::forward<As>(args)...);
+  });
 }
 
 } // namespace nu

@@ -26,7 +26,7 @@ void do_work() {
   std::vector<int> a{1, 2, 3, 4};
   std::vector<int> b{5, 6, 7, 8};
 
-  auto proclet = Proclet<Obj>::create();
+  auto proclet = make_proclet<Obj>();
 
   auto rem_unique_ptr_a_future = proclet.run_async(
       +[](Obj &_, std::vector<int> vec_a) {

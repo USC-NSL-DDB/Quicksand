@@ -39,7 +39,7 @@ void do_work() {
   std::vector<int> ids[kNumThreads];
   Proclet<Obj> proclets[8192];
   for (uint32_t i = 0; i < 8192; i++) {
-    proclets[i] = Proclet<Obj>::create();
+    proclets[i] = make_proclet<Obj>();
   }
 
   std::vector<rt::Thread> threads;

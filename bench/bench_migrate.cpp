@@ -40,7 +40,7 @@ private:
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {
     for (uint32_t k = 0; k < kNumRuns; k++) {
-      auto proclet = Proclet<Test>::create();
+      auto proclet = make_proclet<Test>();
       proclet.run(&Test::run);
       delay_ms(100);
     }

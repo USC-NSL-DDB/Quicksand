@@ -57,8 +57,8 @@ public:
   constexpr static uint32_t kTimeUs = kTime0Us + kTime1Us;
 
   CPUNestedObj()
-      : light_obj_(Proclet<CPULightObj>::create_at(ip)),
-        heavy_obj_(Proclet<CPUHeavyObj>::create_at(ip)) {}
+      : light_obj_(make_proclet_at<CPULightObj>(ip)),
+        heavy_obj_(make_proclet_at<CPUHeavyObj>(ip)) {}
 
   void compute() {
     delay_us(kTime0Us);
@@ -88,11 +88,11 @@ public:
   bool run() {
     bool passed = true;
 
-    auto light_obj = Proclet<CPULightObj>::create_at(ip);
-    auto heavy_obj = Proclet<CPUHeavyObj>::create_at(ip);
-    auto nested_obj = Proclet<CPUNestedObj>::create_at(ip);
-    auto spin_obj = Proclet<CPUSpinObj>::create_at(ip);
-    auto migration_obj = Proclet<Test>::create_at(ip);
+    auto light_obj = make_proclet_at<CPULightObj>(ip);
+    auto heavy_obj = make_proclet_at<CPUHeavyObj>(ip);
+    auto nested_obj = make_proclet_at<CPUNestedObj>(ip);
+    auto spin_obj = make_proclet_at<CPUSpinObj>(ip);
+    auto migration_obj = make_proclet_at<Test>(ip);
 
     auto spin_future = spin_obj.run_async(&CPUSpinObj::compute);
     for (uint32_t i = 0; i < 100000; i++) {

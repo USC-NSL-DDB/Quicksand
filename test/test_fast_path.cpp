@@ -16,7 +16,7 @@ namespace nu {
 class CalleeObj {
 public:
   uint32_t foo() {
-    nu::Time::delay(1000 * 1000);
+    Time::delay(1000 * 1000);
     return kMagic;
   }
 };
@@ -33,30 +33,27 @@ public:
 class Test {
 public:
   bool run_callee_migrated_test() {
-    auto caller_obj = nu::Proclet<nu::CallerObj>::create_pinned_at(ip);
-    auto callee_obj = nu::Proclet<nu::CalleeObj>::create_at(ip);
-    auto future =
-        caller_obj.run_async(&nu::CallerObj::foo, std::move(callee_obj));
+    auto caller_obj = make_proclet_pinned_at<CallerObj>(ip);
+    auto callee_obj = make_proclet_at<CalleeObj>(ip);
+    auto future = caller_obj.run_async(&CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);
     callee_obj.run(+[](CalleeObj &_) { Test::migrate(); });
     return future.get() == kMagic;
   }
 
   bool run_caller_migrated_test() {
-    auto caller_obj = nu::Proclet<nu::CallerObj>::create_at(ip);
-    auto callee_obj = nu::Proclet<nu::CalleeObj>::create_pinned_at(ip);
-    auto future =
-        caller_obj.run_async(&nu::CallerObj::foo, std::move(callee_obj));
+    auto caller_obj = make_proclet_at<CallerObj>(ip);
+    auto callee_obj = make_proclet_pinned_at<CalleeObj>(ip);
+    auto future = caller_obj.run_async(&CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);
     caller_obj.run(+[](CallerObj &_) { Test::migrate(); });
     return future.get() == kMagic;
   }
 
   bool run_both_migrated_test() {
-    auto caller_obj = nu::Proclet<nu::CallerObj>::create_at(ip);
-    auto callee_obj = nu::Proclet<nu::CalleeObj>::create_at(ip);
-    auto future =
-        caller_obj.run_async(&nu::CallerObj::foo, std::move(callee_obj));
+    auto caller_obj = make_proclet_at<CallerObj>(ip);
+    auto callee_obj = make_proclet_at<CalleeObj>(ip);
+    auto future = caller_obj.run_async(&CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);
     caller_obj.run(+[](CallerObj &_) { Test::migrate(); });
     callee_obj.run(+[](CalleeObj &_) { Test::migrate(); });

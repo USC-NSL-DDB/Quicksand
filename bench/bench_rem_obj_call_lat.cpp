@@ -28,7 +28,7 @@ private:
 };
 
 void do_work() {
-  auto proclet = Proclet<Obj>::create();
+  auto proclet = make_proclet<Obj>();
 
   std::vector<uint64_t> tscs;
   for (uint32_t i = 0; i < kNumRuns; i++) {

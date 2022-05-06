@@ -24,15 +24,15 @@ void do_work() {
   bool passed = true;
 
   constexpr auto kMagic = 0xDEADBEEF;
-  auto proclet_0 = Proclet<Obj>::create();
+  auto proclet_0 = make_proclet<Obj>();
   auto magic = proclet_0.run(+[](Obj &) {
-    auto proclet_1 = Proclet<Obj>::create();
+    auto proclet_1 = make_proclet<Obj>();
     return proclet_1.run(+[](Obj &) {
-      auto proclet_2 = Proclet<Obj>::create();
+      auto proclet_2 = make_proclet<Obj>();
       return proclet_2.run(+[](Obj &) {
-        auto proclet_3 = Proclet<Obj>::create();
+        auto proclet_3 = make_proclet<Obj>();
         return proclet_3.run(+[](Obj &) {
-          auto proclet_4 = Proclet<Obj>::create();
+          auto proclet_4 = make_proclet<Obj>();
           return proclet_4.run(+[](Obj &) { return kMagic; });
         });
       });

@@ -45,7 +45,7 @@ void do_work() {
   bool passed = true;
   uint64_t us[5];
 
-  auto proclet = Proclet<Test>::create();
+  auto proclet = make_proclet<Test>();
   us[0] = proclet.run(&Test::microtime);
   proclet.run(&Test::delay, 1000 * 1000);
   us[1] = proclet.run(&Test::microtime);

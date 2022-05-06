@@ -41,7 +41,7 @@ public:
 
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {
-    auto proclet = Proclet<Test>::create();
+    auto proclet = make_proclet<Test>();
     bool passed = (proclet.run(&Test::run) == kMagic);
 
     if (passed) {

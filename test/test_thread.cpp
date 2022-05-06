@@ -41,7 +41,7 @@ private:
 } // namespace nu
 
 bool run_in_obj_env() {
-  auto proclet = nu::Proclet<nu::Test>::create();
+  auto proclet = nu::make_proclet<nu::Test>();
   std::vector<nu::Future<void>> futures;
   for (uint32_t i = 0; i < kNumInvocations; i++) {
     futures.emplace_back(proclet.run_async(&nu::Test::inc));

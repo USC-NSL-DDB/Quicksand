@@ -188,7 +188,7 @@ uint64_t run_on_local_hashtable(std::vector<Command> *commands) {
 
 uint64_t run_on_dis_hashtable(std::vector<Command> *commands) {
   // To make the mem usage counting work, we must only use one remote server.
-  auto test = Proclet<nu::Test>::create();
+  auto test = make_proclet<nu::Test>();
   auto mem_usage_start = test.run(&nu::Test::get_mem_usage);
   auto *dis_hashtable = new DSHashTable();
 

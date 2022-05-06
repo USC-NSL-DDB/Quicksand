@@ -24,7 +24,7 @@ constexpr static uint32_t kNumAllocationsPerThread = 100000;
 bool run_single_thread() {
   std::vector<int> a{1, 2, 3, 4, 5, 6};
 
-  auto proclet = Proclet<ErasedType>::create();
+  auto proclet = make_proclet<ErasedType>();
   auto [dis_mem_pool, rem_raw_ptr] = proclet.run(
       +[](ErasedType &, std::vector<int> a) {
         DistributedMemPool dis_mem_pool;

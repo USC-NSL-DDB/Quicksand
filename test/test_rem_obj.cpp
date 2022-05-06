@@ -42,7 +42,7 @@ void do_work() {
   std::vector<int> b{5, 6, 7, 8};
 
   // Intentionally test the async method.
-  auto proclet_future = Proclet<Obj>::create_async();
+  auto proclet_future = make_proclet_async<Obj>();
   auto proclet = std::move(proclet_future.get());
 
   auto future_0 = proclet.run_async(&Obj::set_vec_a, a);
@@ -50,7 +50,7 @@ void do_work() {
   future_0.get();
   future_1.get();
 
-  auto tmp_obj = Proclet<ErasedType>::create();
+  auto tmp_obj = make_proclet<ErasedType>();
   bool match;
   // We can move a Procle into/out of closure without updating the ref cnt.
   std::tie(proclet, match) = tmp_obj.run(

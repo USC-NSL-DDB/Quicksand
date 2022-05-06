@@ -14,7 +14,18 @@ namespace nu {
 #error Must indicate number of CPU cores
 #endif
 
+using ProcletID = uint64_t;
+using lpid_t = uint16_t;
+using SlabId_t = uint64_t;
+
+struct ErasedType {};
+
 struct HeapHeader;
+
+struct HeapRange {
+  HeapHeader *heap_header;
+  uint64_t len;
+};
 
 struct Resource {
   uint32_t cores;
@@ -30,16 +41,12 @@ struct VAddrRange {
   }
 };
 
-struct HeapRange {
-  HeapHeader *heap_header;
-  uint64_t len;
+template <typename T> union MethodPtr {
+  T ptr;
+  uint8_t raw[sizeof(T)];
+
+  template <class Archive> void serialize(Archive &ar) { ar(raw); }
 };
-
-struct ErasedType {};
-
-using ProcletID = uint64_t;
-using lpid_t = uint16_t;
-using SlabId_t = uint64_t;
 
 constexpr static uint64_t kNumCores = NCORES;
 constexpr static uint64_t kCacheLineBytes = 64;

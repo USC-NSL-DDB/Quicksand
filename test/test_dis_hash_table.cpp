@@ -71,7 +71,7 @@ bool run_test() {
     }
   }
 
-  auto proclet = Proclet<ErasedType>::create();
+  auto proclet = make_proclet<ErasedType>();
   if (!proclet.run(
           +[](ErasedType &,
               std::unordered_map<std::string, std::string> std_map,

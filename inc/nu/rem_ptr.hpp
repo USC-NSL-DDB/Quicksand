@@ -39,7 +39,7 @@ private:
   friend class DistributedMemPool;
 };
 
-
 } // namespace nu
 
 #include "nu/impl/rem_ptr.ipp"
+

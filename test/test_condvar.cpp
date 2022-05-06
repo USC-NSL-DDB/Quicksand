@@ -58,7 +58,7 @@ private:
 } // namespace nu
 
 void do_work() {
-  auto proclet = Proclet<Test>::create();
+  auto proclet = make_proclet<Test>();
 
   std::vector<Future<void>> futures;
   for (size_t i = 0; i < kConcurrency; i++) {
