@@ -9,7 +9,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 
 using namespace nu;
@@ -46,11 +46,11 @@ void do_work() {
   std::vector<int> a{1, 2, 3, 4};
   std::vector<int> b{5, 6, 7, 8};
 
-  auto rem_vec = RemObj<VecStore>::create(a, b);
-  auto rem_adder = RemObj<Adder>::create();
+  auto rem_vec = Proclet<VecStore>::create(a, b);
+  auto rem_adder = Proclet<Adder>::create();
   auto c = rem_adder.run(
-      +[](Adder &adder, RemObj<VecStore>::Cap cap) {
-        RemObj<VecStore> rem_obj(cap);
+      +[](Adder &adder, Proclet<VecStore>::Cap cap) {
+        Proclet<VecStore> rem_obj(cap);
         auto vec_a = rem_obj.run(&VecStore::get_vec_a);
         auto vec_b = rem_obj.run(&VecStore::get_vec_b);
         return adder.add(vec_a, vec_b);

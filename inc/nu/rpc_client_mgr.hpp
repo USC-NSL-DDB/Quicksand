@@ -18,10 +18,10 @@ using NodeID = uint16_t;
 class RPCClientMgr {
 public:
   RPCClientMgr(uint16_t port);
-  RPCClient *get_by_rem_obj_id(RemObjID rem_obj_id);
+  RPCClient *get_by_proclet_id(ProcletID proclet_id);
   RPCClient *get_by_ip(NodeIP ip);
-  uint32_t get_ip_by_rem_obj_id(RemObjID rem_obj_id);
-  void update_cache(RemObjID rem_obj_id, RPCClient *old_client);
+  uint32_t get_ip_by_proclet_id(ProcletID proclet_id);
+  void update_cache(ProcletID proclet_id, RPCClient *old_client);
 
 private:
   union NodeInfo { // Supports atomic assignment.
@@ -49,6 +49,6 @@ private:
 
   NodeID get_node_id_by_node_ip(NodeIP ip);
   RPCClient *get_client(NodeInfo info);
-  NodeInfo get_info(RemObjID rem_obj_id);
+  NodeInfo get_info(ProcletID proclet_id);
 };
 } // namespace nu

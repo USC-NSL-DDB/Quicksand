@@ -16,7 +16,7 @@ extern "C" {
 #include <thread.h>
 
 #include "nu/commons.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/utils/future.hpp"
 
 namespace nu {
@@ -71,15 +71,15 @@ private:
 
   struct Shard {
     uint32_t failed_alloc_size = 0;
-    RemObj<Heap> rem_obj;
+    Proclet<Heap> proclet;
 
     Shard();
-    Shard(RemObj<Heap> &&obj);
+    Shard(Proclet<Heap> &&obj);
     Shard(Shard &&o);
     Shard &operator=(Shard &&o);
 
     template <class Archive> void serialize(Archive &ar) {
-      ar(failed_alloc_size, rem_obj);
+      ar(failed_alloc_size, proclet);
     }
   };
 

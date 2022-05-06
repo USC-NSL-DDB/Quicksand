@@ -18,7 +18,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
 #include "nu/utils/trace_logger.hpp"
@@ -188,7 +188,7 @@ uint64_t run_on_local_hashtable(std::vector<Command> *commands) {
 
 uint64_t run_on_dis_hashtable(std::vector<Command> *commands) {
   // To make the mem usage counting work, we must only use one remote server.
-  auto test = RemObj<nu::Test>::create();
+  auto test = Proclet<nu::Test>::create();
   auto mem_usage_start = test.run(&nu::Test::get_mem_usage);
   auto *dis_hashtable = new DSHashTable();
 

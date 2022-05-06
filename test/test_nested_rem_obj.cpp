@@ -10,7 +10,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/rem_raw_ptr.hpp"
 #include "nu/runtime.hpp"
 
@@ -24,16 +24,16 @@ void do_work() {
   bool passed = true;
 
   constexpr auto kMagic = 0xDEADBEEF;
-  auto rem_obj_0 = RemObj<Obj>::create();
-  auto magic = rem_obj_0.run(+[](Obj &) {
-    auto rem_obj_1 = RemObj<Obj>::create();
-    return rem_obj_1.run(+[](Obj &) {
-      auto rem_obj_2 = RemObj<Obj>::create();
-      return rem_obj_2.run(+[](Obj &) {
-        auto rem_obj_3 = RemObj<Obj>::create();
-        return rem_obj_3.run(+[](Obj &) {
-          auto rem_obj_4 = RemObj<Obj>::create();
-          return rem_obj_4.run(+[](Obj &) { return kMagic; });
+  auto proclet_0 = Proclet<Obj>::create();
+  auto magic = proclet_0.run(+[](Obj &) {
+    auto proclet_1 = Proclet<Obj>::create();
+    return proclet_1.run(+[](Obj &) {
+      auto proclet_2 = Proclet<Obj>::create();
+      return proclet_2.run(+[](Obj &) {
+        auto proclet_3 = Proclet<Obj>::create();
+        return proclet_3.run(+[](Obj &) {
+          auto proclet_4 = Proclet<Obj>::create();
+          return proclet_4.run(+[](Obj &) { return kMagic; });
         });
       });
     });

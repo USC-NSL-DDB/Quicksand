@@ -10,7 +10,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/rem_raw_ptr.hpp"
 #include "nu/runtime.hpp"
 
@@ -26,15 +26,15 @@ void do_work() {
   std::vector<int> a{1, 2, 3, 4};
   std::vector<int> b{5, 6, 7, 8};
 
-  auto rem_obj = RemObj<Obj>::create();
+  auto proclet = Proclet<Obj>::create();
 
-  auto rem_raw_ptr_a_future = rem_obj.run_async(
+  auto rem_raw_ptr_a_future = proclet.run_async(
       +[](Obj &_, std::vector<int> vec_a) {
         auto *raw_ptr_a = new std::vector<int>(std::move(vec_a));
         return RemRawPtr(raw_ptr_a);
       },
       a);
-  auto rem_raw_ptr_b_future = rem_obj.run_async(
+  auto rem_raw_ptr_b_future = proclet.run_async(
       +[](Obj &_, std::vector<int> vec_b) {
         auto *raw_ptr_b = new std::vector<int>(std::move(vec_b));
         return RemRawPtr(raw_ptr_b);
@@ -43,7 +43,7 @@ void do_work() {
 
   auto rem_raw_ptr_a = rem_raw_ptr_a_future.get();
   auto rem_raw_ptr_b = rem_raw_ptr_b_future.get();
-  auto c = rem_obj.run(
+  auto c = proclet.run(
       +[](Obj &_, RemRawPtr<std::vector<int>> rem_raw_ptr_a,
           RemRawPtr<std::vector<int>> rem_raw_ptr_b) {
         auto *raw_ptr_a = rem_raw_ptr_a.get();

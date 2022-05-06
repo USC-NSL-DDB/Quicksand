@@ -12,7 +12,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/pressure_handler.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 
 using namespace nu;
@@ -40,8 +40,8 @@ private:
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {
     for (uint32_t k = 0; k < kNumRuns; k++) {
-      auto rem_obj = RemObj<Test>::create();
-      rem_obj.run(&Test::run);
+      auto proclet = Proclet<Test>::create();
+      proclet.run(&Test::run);
       delay_ms(100);
     }
   });

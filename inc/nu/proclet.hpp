@@ -11,35 +11,35 @@
 
 namespace nu {
 
-template <typename T> class RemObj {
+template <typename T> class Proclet {
 public:
   struct Cap {
-    RemObjID id;
+    ProcletID id;
 
     bool operator==(const Cap &o) const { return id == o.id; }
     template <class Archive> void serialize(Archive &ar) { ar(id); }
   };
 
-  RemObj(const Cap &cap, bool ref_cnted = true);
-  RemObj(const RemObj &) = delete;
-  RemObj &operator=(const RemObj &) = delete;
-  RemObj(RemObj &&);
-  RemObj &operator=(RemObj &&);
-  RemObj();
-  ~RemObj();
-  template <typename... As> static RemObj create(As &&... args);
-  template <typename... As> static Future<RemObj> create_async(As &&... args);
+  Proclet(const Cap &cap, bool ref_cnted = true);
+  Proclet(const Proclet &) = delete;
+  Proclet &operator=(const Proclet &) = delete;
+  Proclet(Proclet &&);
+  Proclet &operator=(Proclet &&);
+  Proclet();
+  ~Proclet();
+  template <typename... As> static Proclet create(As &&... args);
+  template <typename... As> static Future<Proclet> create_async(As &&... args);
   template <typename... As>
-  static RemObj create_at(uint32_t ip, As &&... args);
+  static Proclet create_at(uint32_t ip, As &&... args);
   template <typename... As>
-  static Future<RemObj> create_at_async(uint32_t ip, As &&... args);
-  template <typename... As> static RemObj create_pinned(As &&... args);
+  static Future<Proclet> create_at_async(uint32_t ip, As &&... args);
+  template <typename... As> static Proclet create_pinned(As &&... args);
   template <typename... As>
-  static Future<RemObj> create_pinned_async(As &&... args);
+  static Future<Proclet> create_pinned_async(As &&... args);
   template <typename... As>
-  static RemObj create_pinned_at(uint32_t ip, As &&... args);
+  static Proclet create_pinned_at(uint32_t ip, As &&... args);
   template <typename... As>
-  static Future<RemObj> create_pinned_at_async(uint32_t ip, As &&... args);
+  static Future<Proclet> create_pinned_at_async(uint32_t ip, As &&... args);
   Cap get_cap() const;
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
@@ -57,7 +57,7 @@ public:
   template <class Archive> void load(Archive &ar);
 
 private:
-  RemObjID id_;
+  ProcletID id_;
   Future<void> inc_ref_;
   bool ref_cnted_;
 
@@ -67,14 +67,14 @@ private:
   friend class DistributedHashTable;
   friend class DistributedMemPool;
 
-  RemObj(RemObjID id, bool ref_cnted);
+  Proclet(ProcletID id, bool ref_cnted);
   Promise<void> *update_ref_cnt(int delta);
   template <typename... S1s>
-  static void invoke_remote(RemObjID id, S1s &&... states);
+  static void invoke_remote(ProcletID id, S1s &&... states);
   template <typename RetT, typename... S1s>
-  static RetT invoke_remote_with_ret(RemObjID id, S1s &&... states);
+  static RetT invoke_remote_with_ret(ProcletID id, S1s &&... states);
   template <typename... As>
-  static RemObj general_create(bool pinned, uint32_t ip_hint, As &&... args);
+  static Proclet general_create(bool pinned, uint32_t ip_hint, As &&... args);
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>
@@ -99,4 +99,4 @@ template <typename T> union MethodPtr {
 
 } // namespace nu
 
-#include "nu/impl/rem_obj.ipp"
+#include "nu/impl/proclet.ipp"

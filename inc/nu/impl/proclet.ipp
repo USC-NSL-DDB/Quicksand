@@ -31,7 +31,7 @@ template <typename... S1s> void serialize(auto *oa_sstream, S1s &&... states) {
   auto &ss = oa_sstream->ss;
   auto *rpc_type = const_cast<RPCReqType *>(
       reinterpret_cast<const RPCReqType *>(ss.view().data()));
-  *rpc_type = kRemObjCall;
+  *rpc_type = kProcletCall;
   ss.seekp(sizeof(RPCReqType));
 
   auto &oa = oa_sstream->oa;
@@ -40,7 +40,7 @@ template <typename... S1s> void serialize(auto *oa_sstream, S1s &&... states) {
 
 template <typename T>
 template <typename... S1s>
-void RemObj<T>::invoke_remote(RemObjID id, S1s &&... states) {
+void Proclet<T>::invoke_remote(ProcletID id, S1s &&... states) {
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
   HeapHeader *heap_header;
 
@@ -62,7 +62,7 @@ retry:
   auto args_span = std::span(states_data, states_size);
   {
     RuntimeSlabGuard slab_guard;
-    auto *client = Runtime::rpc_client_mgr->get_by_rem_obj_id(id);
+    auto *client = Runtime::rpc_client_mgr->get_by_proclet_id(id);
     rc = client->Call(args_span, &return_buf);
     if (unlikely(rc == kErrWrongClient)) {
       Runtime::rpc_client_mgr->update_cache(id, client);
@@ -86,7 +86,7 @@ retry:
 
 template <typename T>
 template <typename RetT, typename... S1s>
-RetT RemObj<T>::invoke_remote_with_ret(RemObjID id, S1s &&... states) {
+RetT Proclet<T>::invoke_remote_with_ret(ProcletID id, S1s &&... states) {
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
   HeapHeader *heap_header;
   RetT ret;
@@ -109,7 +109,7 @@ retry:
   auto args_span = std::span(states_data, states_size);
   {
     RuntimeSlabGuard slab_guard;
-    auto *client = Runtime::rpc_client_mgr->get_by_rem_obj_id(id);
+    auto *client = Runtime::rpc_client_mgr->get_by_proclet_id(id);
     rc = client->Call(args_span, &return_buf);
     if (unlikely(rc == kErrWrongClient)) {
       Runtime::rpc_client_mgr->update_cache(id, client);
@@ -143,7 +143,7 @@ retry:
 }
 
 template <typename T>
-RemObj<T>::RemObj(RemObjID id, bool ref_cnted)
+Proclet<T>::Proclet(ProcletID id, bool ref_cnted)
     : id_(id), ref_cnted_(ref_cnted) {
   if (ref_cnted) {
     auto *inc_ref_promise = update_ref_cnt(1);
@@ -154,20 +154,20 @@ RemObj<T>::RemObj(RemObjID id, bool ref_cnted)
 }
 
 template <typename T>
-RemObj<T>::RemObj(const Cap &cap, bool ref_cnted) : RemObj(cap.id, ref_cnted) {}
+Proclet<T>::Proclet(const Cap &cap, bool ref_cnted) : Proclet(cap.id, ref_cnted) {}
 
 template <typename T>
-RemObj<T>::RemObj() : id_(kNullRemObjID), ref_cnted_(false) {}
+Proclet<T>::Proclet() : id_(kNullProcletID), ref_cnted_(false) {}
 
-template <typename T> RemObj<T>::~RemObj() { reset(); }
+template <typename T> Proclet<T>::~Proclet() { reset(); }
 
 template <typename T>
-RemObj<T>::RemObj(RemObj<T> &&o)
+Proclet<T>::Proclet(Proclet<T> &&o)
     : id_(o.id_), inc_ref_(std::move(o.inc_ref_)), ref_cnted_(o.ref_cnted_) {
   o.ref_cnted_ = false;
 }
 
-template <typename T> RemObj<T> &RemObj<T>::operator=(RemObj<T> &&o) {
+template <typename T> Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) {
   reset();
   id_ = o.id_;
   inc_ref_ = std::move(o.inc_ref_);
@@ -178,13 +178,13 @@ template <typename T> RemObj<T> &RemObj<T>::operator=(RemObj<T> &&o) {
 
 template <typename T>
 template <typename... As>
-RemObj<T> RemObj<T>::create(As &&... args) {
+Proclet<T> Proclet<T>::create(As &&... args) {
   return general_create(/* pinned = */ false, 0, std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
-Future<RemObj<T>> RemObj<T>::create_async(As &&... args) {
+Future<Proclet<T>> Proclet<T>::create_async(As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)]() {
     return general_create(/* pinned = */ false, 0, std::forward<As>(args)...);
   });
@@ -192,14 +192,14 @@ Future<RemObj<T>> RemObj<T>::create_async(As &&... args) {
 
 template <typename T>
 template <typename... As>
-RemObj<T> RemObj<T>::create_at(uint32_t ip_hint, As &&... args) {
+Proclet<T> Proclet<T>::create_at(uint32_t ip_hint, As &&... args) {
   return general_create(/* pinned = */ false, ip_hint,
                         std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
-Future<RemObj<T>> RemObj<T>::create_at_async(uint32_t ip_hint, As &&... args) {
+Future<Proclet<T>> Proclet<T>::create_at_async(uint32_t ip_hint, As &&... args) {
   return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
     return general_create(/* pinned = */ false, ip_hint,
                           std::forward<As>(args)...);
@@ -208,13 +208,13 @@ Future<RemObj<T>> RemObj<T>::create_at_async(uint32_t ip_hint, As &&... args) {
 
 template <typename T>
 template <typename... As>
-RemObj<T> RemObj<T>::create_pinned(As &&... args) {
+Proclet<T> Proclet<T>::create_pinned(As &&... args) {
   return general_create(/* pinned = */ true, 0, std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
-Future<RemObj<T>> RemObj<T>::create_pinned_async(As &&... args) {
+Future<Proclet<T>> Proclet<T>::create_pinned_async(As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)]() {
     return general_create(/* pinned = */ true, 0, std::forward<As>(args)...);
   });
@@ -222,14 +222,14 @@ Future<RemObj<T>> RemObj<T>::create_pinned_async(As &&... args) {
 
 template <typename T>
 template <typename... As>
-RemObj<T> RemObj<T>::create_pinned_at(uint32_t ip_hint, As &&... args) {
+Proclet<T> Proclet<T>::create_pinned_at(uint32_t ip_hint, As &&... args) {
   return general_create(/* pinned = */ true, ip_hint,
                         std::forward<As>(args)...);
 }
 
 template <typename T>
 template <typename... As>
-Future<RemObj<T>> RemObj<T>::create_pinned_at_async(uint32_t ip_hint,
+Future<Proclet<T>> Proclet<T>::create_pinned_at_async(uint32_t ip_hint,
                                                     As &&... args) {
   return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
     return general_create(/* pinned = */ true, ip_hint,
@@ -239,9 +239,9 @@ Future<RemObj<T>> RemObj<T>::create_pinned_at_async(uint32_t ip_hint,
 
 template <typename T>
 template <typename... As>
-RemObj<T> RemObj<T>::general_create(bool pinned, uint32_t ip_hint,
+Proclet<T> Proclet<T>::general_create(bool pinned, uint32_t ip_hint,
                                     As &&... args) {
-  RemObjID id;
+  ProcletID id;
   uint32_t server_ip;
   HeapHeader *heap_header;
 
@@ -268,9 +268,9 @@ RemObj<T> RemObj<T>::general_create(bool pinned, uint32_t ip_hint,
     }
   }
 
-  RemObj<T> rem_obj;
-  rem_obj.id_ = id;
-  rem_obj.ref_cnted_ = true;
+  Proclet<T> proclet;
+  proclet.id_ = id;
+  proclet.ref_cnted_ = true;
 
   {
     MigrationDisabledGuard disabled_guard;
@@ -278,7 +278,7 @@ RemObj<T> RemObj<T>::general_create(bool pinned, uint32_t ip_hint,
       // Fast path: the heap is actually local, use normal function call.
       ObjServer::construct_obj_locally<T, As...>(to_heap_base(id), pinned,
                                                  std::forward<As>(args)...);
-      return rem_obj;
+      return proclet;
     }
   }
 
@@ -286,10 +286,10 @@ RemObj<T> RemObj<T>::general_create(bool pinned, uint32_t ip_hint,
   auto *handler = ObjServer::construct_obj<T, As...>;
   invoke_remote(id, handler, to_heap_base(id), pinned,
                 std::forward<As>(args)...);
-  return rem_obj;
+  return proclet;
 }
 
-template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() const {
+template <typename T> Proclet<T>::Cap Proclet<T>::get_cap() const {
   Cap cap;
   cap.id = id_;
   return cap;
@@ -297,7 +297,7 @@ template <typename T> RemObj<T>::Cap RemObj<T>::get_cap() const {
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
+Future<RetT> Proclet<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
   assert_no_pointer_or_lval_ref<RetT, S0s...>();
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
@@ -307,7 +307,7 @@ Future<RetT> RemObj<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-Future<RetT> RemObj<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
+Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
   return nu::async([&, fn, ... states = std::forward<S1s>(states)]() mutable {
     return __run(fn, std::forward<S1s>(states)...);
   });
@@ -315,7 +315,7 @@ Future<RetT> RemObj<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
+RetT Proclet<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   assert_no_pointer_or_lval_ref<RetT, S0s...>();
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
@@ -325,7 +325,7 @@ RetT RemObj<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
+RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   auto *caller_heap_header = Runtime::get_current_obj_heap_header();
 
   if (caller_heap_header) {
@@ -371,7 +371,7 @@ RetT RemObj<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-RetT RemObj<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
+RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
                                   S1s &&... states) {
   auto *caller_heap_header = Runtime::get_current_obj_heap_header();
 
@@ -420,7 +420,7 @@ RetT RemObj<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
+Future<RetT> Proclet<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_no_pointer_or_lval_ref<RetT, A0s...>();
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
@@ -430,7 +430,7 @@ Future<RetT> RemObj<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-Future<RetT> RemObj<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
+Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   return nu::async([&, md, ... args = std::forward<A1s>(args)]() mutable {
     return __run(md, std::forward<A1s>(args)...);
   });
@@ -438,7 +438,7 @@ Future<RetT> RemObj<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-RetT RemObj<T>::__run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...),
+RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...),
                                   A1s &&... args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
@@ -452,7 +452,7 @@ RetT RemObj<T>::__run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...),
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
+RetT Proclet<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_no_pointer_or_lval_ref<RetT, A0s...>();
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
@@ -462,7 +462,7 @@ RetT RemObj<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
+RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
   return __run(
@@ -472,7 +472,7 @@ RetT RemObj<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
       method_ptr, std::forward<A1s>(args)...);
 }
 
-template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
+template <typename T> Promise<void> *Proclet<T>::update_ref_cnt(int delta) {
   if (Runtime::obj_server) {
     NonBlockingMigrationDisabledGuard callee_guard(to_heap_header(id_));
     if (callee_guard) {
@@ -491,7 +491,7 @@ template <typename T> Promise<void> *RemObj<T>::update_ref_cnt(int delta) {
   return promise;
 }
 
-template <typename T> void RemObj<T>::reset() {
+template <typename T> void Proclet<T>::reset() {
   if (ref_cnted_) {
     ref_cnted_ = false;
     if (inc_ref_) {
@@ -505,7 +505,7 @@ template <typename T> void RemObj<T>::reset() {
   }
 }
 
-template <typename T> Future<void> RemObj<T>::reset_async() {
+template <typename T> Future<void> Proclet<T>::reset_async() {
   if (ref_cnted_) {
     ref_cnted_ = false;
     if (inc_ref_) {
@@ -521,7 +521,7 @@ template <typename T> Future<void> RemObj<T>::reset_async() {
   }
 }
 
-template <typename T> void RemObj<T>::reset_bg() {
+template <typename T> void Proclet<T>::reset_bg() {
   if (ref_cnted_) {
     ref_cnted_ = false;
     if (inc_ref_) {
@@ -544,14 +544,14 @@ template <typename T> void RemObj<T>::reset_bg() {
 
 template <typename T>
 template <class Archive>
-void RemObj<T>::save(Archive &ar) const {
-  const_cast<RemObj<T> *>(this)->ref_cnted_ = false;
+void Proclet<T>::save(Archive &ar) const {
+  const_cast<Proclet<T> *>(this)->ref_cnted_ = false;
   ar(id_);
 }
 
 template <typename T>
 template <class Archive>
-void RemObj<T>::load(Archive &ar) {
+void Proclet<T>::load(Archive &ar) {
   ar(id_);
   ref_cnted_ = true;
 }

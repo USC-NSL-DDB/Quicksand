@@ -2,7 +2,7 @@
 #include <iostream>
 
 #include "nu/pressure_handler.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/thread.hpp"
 #include "nu/utils/time.hpp"
@@ -41,16 +41,16 @@ private:
 } // namespace nu
 
 bool run_in_obj_env() {
-  auto rem_obj = nu::RemObj<nu::Test>::create();
+  auto proclet = nu::Proclet<nu::Test>::create();
   std::vector<nu::Future<void>> futures;
   for (uint32_t i = 0; i < kNumInvocations; i++) {
-    futures.emplace_back(rem_obj.run_async(&nu::Test::inc));
+    futures.emplace_back(proclet.run_async(&nu::Test::inc));
   }
-  rem_obj.run(&nu::Test::migrate);
+  proclet.run(&nu::Test::migrate);
   for (auto &future : futures) {
     future.get();
   }
-  return rem_obj.run(&nu::Test::read) ==
+  return proclet.run(&nu::Test::read) ==
          kNumInvocations * kNumThreadsPerInvocation;
 }
 

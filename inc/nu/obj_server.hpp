@@ -25,7 +25,7 @@ public:
   static void update_ref_cnt(cereal::BinaryInputArchive &ia,
                              RPCReturner *returner);
   template <typename Cls>
-  static bool update_ref_cnt_locally(RemObjID id, int delta);
+  static bool update_ref_cnt_locally(ProcletID id, int delta);
   template <typename Cls, typename... As>
   static void construct_obj(cereal::BinaryInputArchive &ia,
                             RPCReturner *returner);
@@ -35,8 +35,8 @@ public:
   static void run_closure(cereal::BinaryInputArchive &ia,
                           RPCReturner *returner);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-  static void run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
-                                  RemObjID callee_id, FnPtr fn_ptr,
+  static void run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
+                                  ProcletID callee_id, FnPtr fn_ptr,
                                   S1s &&... states);
 
 private:

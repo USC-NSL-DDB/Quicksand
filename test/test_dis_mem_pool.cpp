@@ -11,7 +11,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/dis_mem_pool.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 
 using namespace nu;
@@ -24,8 +24,8 @@ constexpr static uint32_t kNumAllocationsPerThread = 100000;
 bool run_single_thread() {
   std::vector<int> a{1, 2, 3, 4, 5, 6};
 
-  auto rem_obj = RemObj<ErasedType>::create();
-  auto [dis_mem_pool, rem_raw_ptr] = rem_obj.run(
+  auto proclet = Proclet<ErasedType>::create();
+  auto [dis_mem_pool, rem_raw_ptr] = proclet.run(
       +[](ErasedType &, std::vector<int> a) {
         DistributedMemPool dis_mem_pool;
         return std::make_pair(std::move(dis_mem_pool),

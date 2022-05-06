@@ -11,7 +11,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 
 using namespace nu;
@@ -28,9 +28,9 @@ private:
 void do_work() {
   bool passed = true;
 
-  std::vector<RemObj<Obj>> objs;
+  std::vector<Proclet<Obj>> objs;
   for (uint32_t i = 0; i < kMaxNumHeaps; i++) {
-    objs.emplace_back(RemObj<Obj>::create(i));
+    objs.emplace_back(Proclet<Obj>::create(i));
   }
   for (uint32_t i = 0; i < kMaxNumHeaps; i++) {
     auto &obj = objs[i];

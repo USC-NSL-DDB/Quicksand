@@ -67,7 +67,7 @@ bool ControllerClient::verify_md5(MD5Val md5) {
   return resp.passed;
 }
 
-std::optional<std::pair<RemObjID, uint32_t>>
+std::optional<std::pair<ProcletID, uint32_t>>
 ControllerClient::allocate_obj(uint32_t ip_hint) {
   RPCReqAllocateObj req;
   req.lpid = lpid_;
@@ -84,14 +84,14 @@ ControllerClient::allocate_obj(uint32_t ip_hint) {
   }
 }
 
-void ControllerClient::destroy_obj(RemObjID id) {
+void ControllerClient::destroy_obj(ProcletID id) {
   RPCReqDestroyObj req;
   req.id = id;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
 }
 
-uint32_t ControllerClient::resolve_obj(RemObjID id) {
+uint32_t ControllerClient::resolve_obj(ProcletID id) {
   RPCReqResolveObj req;
   req.id = id;
   RPCReturnBuffer return_buf;
@@ -116,7 +116,7 @@ uint32_t ControllerClient::get_migration_dest(Resource resource) {
   return resp.ip;
 }
 
-void ControllerClient::update_location(RemObjID id, uint32_t obj_srv_ip) {
+void ControllerClient::update_location(ProcletID id, uint32_t obj_srv_ip) {
   rt::SpinGuard g(&spin_);
 
   RPCReqUpdateLocation req;

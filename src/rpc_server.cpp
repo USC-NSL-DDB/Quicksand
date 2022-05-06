@@ -69,8 +69,8 @@ void RPCServer::run_background_loop() {
       returner->Return(kOk, span, [resp = std::move(resp)] {});
       break;
     }
-    // Object server
-    case kRemObjCall: {
+    // Proclet server
+    case kProcletCall: {
       args = args.subspan(sizeof(RPCReqType));
       Runtime::obj_server->parse_and_run_handler(args, returner);
       break;

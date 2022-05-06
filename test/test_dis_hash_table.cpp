@@ -19,7 +19,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
 
@@ -71,8 +71,8 @@ bool run_test() {
     }
   }
 
-  auto rem_obj = RemObj<ErasedType>::create();
-  if (!rem_obj.run(
+  auto proclet = Proclet<ErasedType>::create();
+  if (!proclet.run(
           +[](ErasedType &,
               std::unordered_map<std::string, std::string> std_map,
               DistributedHashTable<std::string, std::string>::Cap cap) {

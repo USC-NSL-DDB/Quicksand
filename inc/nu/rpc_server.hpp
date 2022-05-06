@@ -20,8 +20,8 @@ enum RPCReqEnum {
   kGetMigrationDest,
   kUpdateLocation,
   kReportFreeResource,
-  // Object server,
-  kRemObjCall,
+  // Proclet server,
+  kProcletCall,
 };
 
 using RPCReqType = uint8_t;

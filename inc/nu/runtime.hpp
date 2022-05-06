@@ -46,7 +46,7 @@ public:
   ~Runtime();
   static std::unique_ptr<Runtime> init(uint32_t remote_ctrl_ip, Mode mode,
                                        lpid_t lpid);
-  static uint32_t get_ip_by_rem_obj_id(RemObjID id);
+  static uint32_t get_ip_by_proclet_id(ProcletID id);
   static void reserve_conns(uint32_t ip);
 
 private:
@@ -84,7 +84,7 @@ private:
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
   friend class NonBlockingMigrationDisabledGuard;
-  template <typename T> friend class RemObj;
+  template <typename T> friend class Proclet;
   template <typename T> friend class RemRawPtr;
   template <typename T> friend class RemUniquePtr;
   template <typename T> friend class RemSharedPtr;
@@ -105,9 +105,9 @@ private:
   template <typename T> static void delete_on_runtime_heap(T *ptr);
   static SlabAllocator *get_current_obj_slab();
   static HeapHeader *get_current_obj_heap_header();
-  static RemObjID get_current_obj_id();
+  static ProcletID get_current_obj_id();
   template <typename T> static T *get_current_obj();
-  template <typename T> static T *get_obj(RemObjID id);
+  template <typename T> static T *get_obj(ProcletID id);
 };
 
 class RuntimeSlabGuard {

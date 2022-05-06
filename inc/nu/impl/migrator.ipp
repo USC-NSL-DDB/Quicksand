@@ -55,7 +55,7 @@ retry:
 
 template <typename RetT>
 void Migrator::migrate_thread_and_ret_val(RPCReturnBuffer &&ret_val_buf,
-                                          RemObjID dest_id,
+                                          ProcletID dest_id,
                                           RetT *dest_ret_val_ptr,
                                           folly::Function<void()> cleanup_fn) {
   rt::Thread(
@@ -96,7 +96,7 @@ void Migrator::migrate_thread_and_ret_val(RPCReturnBuffer &&ret_val_buf,
         RPCReturnBuffer unused_buf;
 
       retry:
-        auto *rpc_client = Runtime::rpc_client_mgr->get_by_rem_obj_id(dest_id);
+        auto *rpc_client = Runtime::rpc_client_mgr->get_by_proclet_id(dest_id);
         auto rc = rpc_client->Call(req_span, &unused_buf);
 
         if (unlikely(rc == kErrWrongClient)) {

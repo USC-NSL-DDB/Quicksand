@@ -10,7 +10,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/bench.hpp"
 
@@ -28,12 +28,12 @@ private:
 };
 
 void do_work() {
-  auto rem_obj = RemObj<Obj>::create();
+  auto proclet = Proclet<Obj>::create();
 
   std::vector<uint64_t> tscs;
   for (uint32_t i = 0; i < kNumRuns; i++) {
     auto start_tsc = rdtsc();
-    auto ret = rem_obj.run(&Obj::foo);
+    auto ret = proclet.run(&Obj::foo);
     auto end_tsc = rdtsc();
     tscs.push_back(end_tsc - start_tsc);
     BUG_ON(ret != 0x88);

@@ -12,7 +12,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/pressure_handler.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/spinlock.hpp"
@@ -52,19 +52,19 @@ private:
 void do_work() {
   bool passed = true;
 
-  auto rem_obj = RemObj<Test>::create();
+  auto proclet = Proclet<Test>::create();
 
   std::vector<Future<void>> futures;
   for (size_t i = 0; i < kConcurrency; i++) {
-    futures.push_back(std::move(rem_obj.run_async(&Test::mutex)));
+    futures.push_back(std::move(proclet.run_async(&Test::mutex)));
   }
-  futures.push_back(std::move(rem_obj.run_async(&Test::migrate)));
+  futures.push_back(std::move(proclet.run_async(&Test::migrate)));
 
   for (auto &future : futures) {
     future.get();
   }
 
-  passed &= (rem_obj.run(&Test::get_cnt) == kConcurrency);
+  passed &= (proclet.run(&Test::get_cnt) == kConcurrency);
 
   if (passed) {
     std::cout << "Passed" << std::endl;

@@ -36,16 +36,16 @@ RPCClient *RPCClientMgr::get_by_ip(NodeIP ip) {
   return get_client(info);
 }
 
-RPCClientMgr::NodeInfo RPCClientMgr::get_info(RemObjID rem_obj_id) {
+RPCClientMgr::NodeInfo RPCClientMgr::get_info(ProcletID proclet_id) {
 retry:
-  auto slab_id = to_slab_id(rem_obj_id);
+  auto slab_id = to_slab_id(proclet_id);
   auto info = rem_id_to_node_info_[slab_id];
 
   if (unlikely(!info.raw)) {
     rt::MutexGuard g(&node_info_mutexes_[slab_id]);
     auto &info_ref = rem_id_to_node_info_[slab_id];
     if (!info_ref.raw) {
-      auto ip = Runtime::controller_client->resolve_obj(rem_obj_id);
+      auto ip = Runtime::controller_client->resolve_obj(proclet_id);
       BUG_ON(!ip);
       NodeInfo info;
       info.ip = ip;
@@ -58,16 +58,16 @@ retry:
   return info;
 }
 
-RPCClient *RPCClientMgr::get_by_rem_obj_id(RemObjID rem_obj_id) {
-  return get_client(get_info(rem_obj_id));
+RPCClient *RPCClientMgr::get_by_proclet_id(ProcletID proclet_id) {
+  return get_client(get_info(proclet_id));
 }
 
-uint32_t RPCClientMgr::get_ip_by_rem_obj_id(RemObjID rem_obj_id) {
-  return get_info(rem_obj_id).ip;
+uint32_t RPCClientMgr::get_ip_by_proclet_id(ProcletID proclet_id) {
+  return get_info(proclet_id).ip;
 }
 
-void RPCClientMgr::update_cache(RemObjID rem_obj_id, RPCClient *old_client) {
-  auto slab_id = to_slab_id(rem_obj_id);
+void RPCClientMgr::update_cache(ProcletID proclet_id, RPCClient *old_client) {
+  auto slab_id = to_slab_id(proclet_id);
   auto &info_ref = rem_id_to_node_info_[slab_id];
   if (info_ref.raw) {
     if (info_ref.ip != old_client->GetAddr().ip) {

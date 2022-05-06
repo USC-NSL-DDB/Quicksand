@@ -10,7 +10,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/pressure_handler.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/time.hpp"
 
@@ -45,21 +45,21 @@ void do_work() {
   bool passed = true;
   uint64_t us[5];
 
-  auto rem_obj = RemObj<Test>::create();
-  us[0] = rem_obj.run(&Test::microtime);
-  rem_obj.run(&Test::delay, 1000 * 1000);
-  us[1] = rem_obj.run(&Test::microtime);
-  rem_obj.run(&Test::sleep, 1000 * 1000);
-  us[2] = rem_obj.run(&Test::microtime);
-  rem_obj.run(+[](Test &t) {
+  auto proclet = Proclet<Test>::create();
+  us[0] = proclet.run(&Test::microtime);
+  proclet.run(&Test::delay, 1000 * 1000);
+  us[1] = proclet.run(&Test::microtime);
+  proclet.run(&Test::sleep, 1000 * 1000);
+  us[2] = proclet.run(&Test::microtime);
+  proclet.run(+[](Test &t) {
     auto us = t.microtime();
     t.sleep_until(us + 1000 * 1000);
   });
-  us[3] = rem_obj.run(&Test::microtime);
-  auto future = rem_obj.run_async(&Test::sleep, 1000 * 1000);
-  rem_obj.run(&Test::migrate);
+  us[3] = proclet.run(&Test::microtime);
+  auto future = proclet.run_async(&Test::sleep, 1000 * 1000);
+  proclet.run(&Test::migrate);
   future.get();
-  us[4] = rem_obj.run(&Test::microtime);
+  us[4] = proclet.run(&Test::microtime);
 
   for (uint64_t i = 0; i < 4; i++) {
     passed &= around_one_second(us[i + 1] - us[i]);

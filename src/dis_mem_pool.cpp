@@ -21,10 +21,10 @@ void DistributedMemPool::probing_fn() {
     auto full_shard = std::move(global_full_shards_.front());
     global_full_shards_.pop_front();
     global_mutex_.Unlock();
-    if (full_shard.rem_obj.run(&Heap::has_space_for,
+    if (full_shard.proclet.run(&Heap::has_space_for,
                                full_shard.failed_alloc_size)) {
       rt::ScopedLock<rt::Mutex> scope(&global_mutex_);
-      global_free_shards_.emplace_back(std::move(full_shard.rem_obj));
+      global_free_shards_.emplace_back(std::move(full_shard.proclet));
     }
   }
   probing_active_ = false;
@@ -46,7 +46,7 @@ void DistributedMemPool::__handle_no_local_free_shard() {
   global_mutex_.Lock();
   if (unlikely(global_free_shards_.empty())) {
     global_free_shards_.emplace_back(
-        std::move(RemObj<Heap>::create(kShardSize)));
+        std::move(Proclet<Heap>::create(kShardSize)));
   }
   auto free_shard = std::move(global_free_shards_.front());
   global_free_shards_.pop_front();

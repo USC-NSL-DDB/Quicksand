@@ -11,7 +11,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/pressure_handler.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 
 using namespace nu;
@@ -41,8 +41,8 @@ public:
 
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {
-    auto rem_obj = RemObj<Test>::create();
-    bool passed = (rem_obj.run(&Test::run) == kMagic);
+    auto proclet = Proclet<Test>::create();
+    bool passed = (proclet.run(&Test::run) == kMagic);
 
     if (passed) {
       std::cout << "Passed" << std::endl;

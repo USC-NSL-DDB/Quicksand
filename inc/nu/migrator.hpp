@@ -112,7 +112,7 @@ public:
   void forward_to_client(RPCReqForward &req);
   template <typename RetT>
   static void migrate_thread_and_ret_val(RPCReturnBuffer &&return_buf,
-                                         RemObjID dest_id,
+                                         ProcletID dest_id,
                                          RetT *dest_ret_val_ptr,
                                          folly::Function<void()> cleanup_fn);
   template <typename RetT>

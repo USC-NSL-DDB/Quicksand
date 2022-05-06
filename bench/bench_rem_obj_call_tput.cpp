@@ -11,7 +11,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/bench.hpp"
 
@@ -37,9 +37,9 @@ private:
 
 void do_work() {
   std::vector<int> ids[kNumThreads];
-  RemObj<Obj> rem_objs[8192];
+  Proclet<Obj> proclets[8192];
   for (uint32_t i = 0; i < 8192; i++) {
-    rem_objs[i] = RemObj<Obj>::create();
+    proclets[i] = Proclet<Obj>::create();
   }
 
   std::vector<rt::Thread> threads;
@@ -61,8 +61,8 @@ void do_work() {
     rt::Thread([&, tid = i] {
       while (true) {
         for (auto id : ids[tid]) {
-          auto ret = rem_objs[id].run(&Obj::foo);
-          ACCESS_ONCE(ret);
+          auto ret = proclets[id].run(&Obj::foo);
+	  ACCESS_ONCE(ret);
           cnts[tid].cnt++;
         }
       }
@@ -76,7 +76,7 @@ void do_work() {
     auto us = microtime();
     uint64_t sum = 0;
     for (uint32_t i = 0; i < kNumThreads; i++) {
-      sum += ACCESS_ONCE(cnts[i].cnt);
+      sum += rt::access_once(cnts[i].cnt);
     }
     std::cout << us - old_us << " " << sum - old_sum << std::endl;
     old_sum = sum;

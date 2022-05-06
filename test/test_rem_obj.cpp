@@ -11,7 +11,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 
 using namespace nu;
@@ -42,29 +42,29 @@ void do_work() {
   std::vector<int> b{5, 6, 7, 8};
 
   // Intentionally test the async method.
-  auto rem_obj_future = RemObj<Obj>::create_async();
-  auto rem_obj = std::move(rem_obj_future.get());
+  auto proclet_future = Proclet<Obj>::create_async();
+  auto proclet = std::move(proclet_future.get());
 
-  auto future_0 = rem_obj.run_async(&Obj::set_vec_a, a);
-  auto future_1 = rem_obj.run_async(&Obj::set_vec_b, b);
+  auto future_0 = proclet.run_async(&Obj::set_vec_a, a);
+  auto future_1 = proclet.run_async(&Obj::set_vec_b, b);
   future_0.get();
   future_1.get();
 
-  auto tmp_obj = RemObj<ErasedType>::create();
+  auto tmp_obj = Proclet<ErasedType>::create();
   bool match;
-  // We can move a RemObj into/out of closure without updating the ref cnt.
-  std::tie(rem_obj, match) = tmp_obj.run(
-      +[](ErasedType &, RemObj<Obj> &&rem_obj, std::vector<int> &&a,
+  // We can move a Procle into/out of closure without updating the ref cnt.
+  std::tie(proclet, match) = tmp_obj.run(
+      +[](ErasedType &, Proclet<Obj> &&proclet, std::vector<int> &&a,
           std::vector<int> &&b) {
-        auto c = rem_obj.run(&Obj::plus);
+        auto c = proclet.run(&Obj::plus);
         for (size_t i = 0; i < a.size(); i++) {
           if (c[i] != a[i] + b[i]) {
-            return std::make_pair(std::move(rem_obj), false);
+            return std::make_pair(std::move(proclet), false);
           }
         }
-        return std::make_pair(std::move(rem_obj), true);
+        return std::make_pair(std::move(proclet), true);
       },
-      std::move(rem_obj), std::move(a), std::move(b));
+      std::move(proclet), std::move(a), std::move(b));
   passed &= match;
 
   if (passed) {

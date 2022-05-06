@@ -48,13 +48,13 @@ struct RPCReqAllocateObj {
 
 struct RPCRespAllocateObj {
   bool empty;
-  RemObjID id;
+  ProcletID id;
   uint32_t server_ip;
 } __attribute__((packed));
 
 struct RPCReqDestroyObj {
   RPCReqType rpc_type = kDestroyObj;
-  RemObjID id;
+  ProcletID id;
 } __attribute__((packed));
 
 struct RPCRespDestroyObj {
@@ -63,7 +63,7 @@ struct RPCRespDestroyObj {
 
 struct RPCReqResolveObj {
   RPCReqType rpc_type = kResolveObj;
-  RemObjID id;
+  ProcletID id;
 } __attribute__((packed));
 
 struct RPCRespResolveObj {
@@ -72,7 +72,7 @@ struct RPCRespResolveObj {
 
 struct RPCReqUpdateLocation {
   RPCReqType rpc_type = kUpdateLocation;
-  RemObjID id;
+  ProcletID id;
   uint32_t obj_srv_ip;
 } __attribute__((packed));
 

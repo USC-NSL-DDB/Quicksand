@@ -12,16 +12,16 @@ inline uint64_t bsr_64(uint64_t a) {
   return ret;
 }
 
-inline constexpr HeapHeader *to_heap_header(RemObjID id) {
+inline constexpr HeapHeader *to_heap_header(ProcletID id) {
   return reinterpret_cast<HeapHeader *>(id);
 }
 
-inline constexpr void *to_heap_base(RemObjID id) {
+inline constexpr void *to_heap_base(ProcletID id) {
   return reinterpret_cast<void *>(id);
 }
 
-inline constexpr RemObjID to_obj_id(void *heap_base) {
-  return reinterpret_cast<RemObjID>(heap_base);
+inline constexpr ProcletID to_obj_id(void *heap_base) {
+  return reinterpret_cast<ProcletID>(heap_base);
 }
 
 inline constexpr SlabId_t to_slab_id(uint64_t heap_base_addr) {

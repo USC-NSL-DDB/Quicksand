@@ -110,7 +110,7 @@ bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
   }
 }
 
-std::optional<std::pair<RemObjID, uint32_t>>
+std::optional<std::pair<ProcletID, uint32_t>>
 Controller::allocate_obj(lpid_t lpid, uint32_t ip_hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
@@ -130,7 +130,7 @@ Controller::allocate_obj(lpid_t lpid, uint32_t ip_hint) {
   return std::make_pair(id, node.ip);
 }
 
-void Controller::destroy_obj(RemObjID id) {
+void Controller::destroy_obj(ProcletID id) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto iter = obj_id_to_ip_.find(id);
@@ -142,7 +142,7 @@ void Controller::destroy_obj(RemObjID id) {
   obj_id_to_ip_.erase(iter);
 }
 
-uint32_t Controller::resolve_obj(RemObjID id) {
+uint32_t Controller::resolve_obj(ProcletID id) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto iter = obj_id_to_ip_.find(id);
@@ -194,7 +194,7 @@ again:
   return rr_iter++->ip;
 }
 
-void Controller::update_location(RemObjID id, uint32_t obj_srv_ip) {
+void Controller::update_location(ProcletID id, uint32_t obj_srv_ip) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto iter = obj_id_to_ip_.find(id);

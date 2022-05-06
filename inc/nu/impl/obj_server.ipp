@@ -108,7 +108,7 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
 template <typename Cls>
 void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
                                RPCReturner *returner) {
-  RemObjID id;
+  ProcletID id;
   ia >> id;
   int delta;
   ia >> delta;
@@ -133,7 +133,7 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls>
-bool ObjServer::update_ref_cnt_locally(RemObjID id, int delta) {
+bool ObjServer::update_ref_cnt_locally(ProcletID id, int delta) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(to_heap_base(id));
   heap_header->spin.Lock();
   auto latest_cnt = (heap_header->ref_cnt += delta);
@@ -208,7 +208,7 @@ void ObjServer::__run_closure(Cls &obj, HeapHeader *heap_header,
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 void ObjServer::run_closure(cereal::BinaryInputArchive &ia,
                             RPCReturner *returner) {
-  RemObjID id;
+  ProcletID id;
   ia >> id;
   auto *heap_header = to_heap_header(id);
   bool heap_not_found = !Runtime::run_within_obj_env<Cls>(
@@ -220,8 +220,8 @@ void ObjServer::run_closure(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-void ObjServer::run_closure_locally(RetT *caller_ptr, RemObjID caller_id,
-                                    RemObjID callee_id, FnPtr fn_ptr,
+void ObjServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
+                                    ProcletID callee_id, FnPtr fn_ptr,
                                     S1s &&... states) {
   auto *callee_heap_header = to_heap_header(callee_id);
   auto *caller_heap_header = to_heap_header(caller_id);

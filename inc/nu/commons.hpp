@@ -37,7 +37,7 @@ struct HeapRange {
 
 struct ErasedType {};
 
-using RemObjID = uint64_t;
+using ProcletID = uint64_t;
 using lpid_t = uint16_t;
 using SlabId_t = uint64_t;
 
@@ -48,7 +48,7 @@ constexpr static uint64_t kStackRedZoneSize = 128;
 constexpr static uint64_t kStackSize = 64ULL << 10;
 constexpr static uint64_t kPageSize = 4096;
 
-constexpr static RemObjID kNullRemObjID = 0;
+constexpr static ProcletID kNullProcletID = 0;
 
 // TODO: double check.
 constexpr static uint64_t kMinHeapVAddr = 0x300000000000ULL;
@@ -70,9 +70,9 @@ constexpr static uint64_t kOneSecond = 1000 * 1000;
 constexpr static uint64_t kOneMilliSecond = 1000;
 
 uint64_t bsr_64(uint64_t a);
-constexpr HeapHeader *to_heap_header(RemObjID id);
-constexpr void *to_heap_base(RemObjID id);
-constexpr RemObjID to_obj_id(void *heap_base);
+constexpr HeapHeader *to_heap_header(ProcletID id);
+constexpr void *to_heap_base(ProcletID id);
+constexpr ProcletID to_obj_id(void *heap_base);
 constexpr SlabId_t to_slab_id(void *heap_base);
 constexpr SlabId_t get_max_slab_id();
 void *switch_stack(void *new_rsp);

@@ -31,7 +31,7 @@ inline HeapHeader *Runtime::get_current_obj_heap_header() {
   return reinterpret_cast<HeapHeader *>(thread_get_owner_heap());
 }
 
-inline RemObjID Runtime::get_current_obj_id() {
+inline ProcletID Runtime::get_current_obj_id() {
   auto *heap_base = Runtime::get_current_obj_heap_header();
   BUG_ON(!heap_base);
   return to_obj_id(heap_base);
@@ -46,7 +46,7 @@ template <typename T> T *Runtime::get_current_obj() {
       reinterpret_cast<uintptr_t>(heap_header->slab.get_base()));
 }
 
-template <typename T> T *Runtime::get_obj(RemObjID id) {
+template <typename T> T *Runtime::get_obj(ProcletID id) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(to_heap_base(id));
   return reinterpret_cast<T *>(
       reinterpret_cast<uintptr_t>(heap_header->slab.get_base()));

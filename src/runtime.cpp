@@ -134,10 +134,10 @@ Runtime::~Runtime() {
 }
 
 // FIXME
-uint32_t Runtime::get_ip_by_rem_obj_id(RemObjID id) {
+uint32_t Runtime::get_ip_by_proclet_id(ProcletID id) {
   RuntimeSlabGuard g;
   auto *owner_heap = thread_unset_owner_heap();
-  auto ip = rpc_client_mgr->get_ip_by_rem_obj_id(id);
+  auto ip = rpc_client_mgr->get_ip_by_proclet_id(id);
   thread_set_owner_heap(thread_self(), owner_heap);
   return ip;
 }

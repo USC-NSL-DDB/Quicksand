@@ -10,7 +10,7 @@ extern "C" {
 #include <runtime/net.h>
 }
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/spinlock.hpp"
 #include "nu/utils/sync_hash_map.hpp"
@@ -30,7 +30,7 @@ public:
       SyncHashMap<NumBuckets, K, V, Hash, std::equal_to<K>,
                   std::allocator<std::pair<const K, V>>, Mutex>;
   struct Cap {
-    std::vector<typename RemObj<HashTableShard>::Cap> shard_caps;
+    std::vector<typename Proclet<HashTableShard>::Cap> shard_caps;
 
     template <class Archive> void serialize(Archive &ar) { ar(shard_caps); }
   };
@@ -73,7 +73,7 @@ public:
   std::vector<std::pair<K, V>> get_all_pairs();
   template <typename K1>
   static uint32_t get_shard_idx(K1 &&k, uint32_t power_num_shards);
-  RemObjID get_shard_obj_id(uint32_t shard_id);
+  ProcletID get_shard_obj_id(uint32_t shard_id);
 
   // For debugging and performance analysis.
   template <typename K1>
@@ -86,7 +86,7 @@ private:
 
   uint32_t power_num_shards_;
   uint32_t num_shards_;
-  std::unique_ptr<RemObj<HashTableShard>[]> shards_;
+  std::unique_ptr<Proclet<HashTableShard>[]> shards_;
 };
 
 } // namespace nu

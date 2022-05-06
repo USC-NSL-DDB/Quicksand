@@ -12,7 +12,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/pressure_handler.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
@@ -58,24 +58,24 @@ private:
 } // namespace nu
 
 void do_work() {
-  auto rem_obj = RemObj<Test>::create();
+  auto proclet = Proclet<Test>::create();
 
   std::vector<Future<void>> futures;
   for (size_t i = 0; i < kConcurrency; i++) {
-    futures.push_back(std::move(rem_obj.run_async(&Test::consume)));
+    futures.push_back(std::move(proclet.run_async(&Test::consume)));
   }
 
-  futures.push_back(std::move(rem_obj.run_async(&Test::migrate)));
+  futures.push_back(std::move(proclet.run_async(&Test::migrate)));
 
   for (size_t i = 0; i < kConcurrency; i++) {
-    futures.push_back(std::move(rem_obj.run_async(&Test::produce)));
+    futures.push_back(std::move(proclet.run_async(&Test::produce)));
   }
 
   for (auto &future : futures) {
     future.get();
   }
 
-  bool passed = (rem_obj.run(&Test::get_credits) == 0);
+  bool passed = (proclet.run(&Test::get_credits) == 0);
 
   if (passed) {
     std::cout << "Passed" << std::endl;

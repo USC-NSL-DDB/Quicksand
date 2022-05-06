@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/utils/future.hpp"
 
 namespace nu {
@@ -26,10 +26,10 @@ public:
   template <class Archive> void load(Archive &ar);
 
 protected:
-  RemObjID rem_obj_id_;
+  ProcletID proclet_id_;
   T *raw_ptr_ = nullptr;
 
-  RemPtr(RemObjID id, T *raw_ptr);
+  RemPtr(ProcletID id, T *raw_ptr);
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>

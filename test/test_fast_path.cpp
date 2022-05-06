@@ -3,7 +3,7 @@
 
 #include "nu/obj_server.hpp"
 #include "nu/pressure_handler.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/thread.hpp"
 #include "nu/utils/time.hpp"
@@ -25,7 +25,7 @@ class CallerObj {
 public:
   CallerObj() {}
 
-  uint32_t foo(RemObj<CalleeObj> &&callee_obj) {
+  uint32_t foo(Proclet<CalleeObj> &&callee_obj) {
     return callee_obj.run(&CalleeObj::foo);
   }
 };
@@ -33,8 +33,8 @@ public:
 class Test {
 public:
   bool run_callee_migrated_test() {
-    auto caller_obj = nu::RemObj<nu::CallerObj>::create_pinned_at(ip);
-    auto callee_obj = nu::RemObj<nu::CalleeObj>::create_at(ip);
+    auto caller_obj = nu::Proclet<nu::CallerObj>::create_pinned_at(ip);
+    auto callee_obj = nu::Proclet<nu::CalleeObj>::create_at(ip);
     auto future =
         caller_obj.run_async(&nu::CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);
@@ -43,8 +43,8 @@ public:
   }
 
   bool run_caller_migrated_test() {
-    auto caller_obj = nu::RemObj<nu::CallerObj>::create_at(ip);
-    auto callee_obj = nu::RemObj<nu::CalleeObj>::create_pinned_at(ip);
+    auto caller_obj = nu::Proclet<nu::CallerObj>::create_at(ip);
+    auto callee_obj = nu::Proclet<nu::CalleeObj>::create_pinned_at(ip);
     auto future =
         caller_obj.run_async(&nu::CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);
@@ -53,8 +53,8 @@ public:
   }
 
   bool run_both_migrated_test() {
-    auto caller_obj = nu::RemObj<nu::CallerObj>::create_at(ip);
-    auto callee_obj = nu::RemObj<nu::CalleeObj>::create_at(ip);
+    auto caller_obj = nu::Proclet<nu::CallerObj>::create_at(ip);
+    auto callee_obj = nu::Proclet<nu::CalleeObj>::create_at(ip);
     auto future =
         caller_obj.run_async(&nu::CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);

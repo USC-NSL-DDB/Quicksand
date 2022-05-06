@@ -10,7 +10,7 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/rem_shared_ptr.hpp"
 #include "nu/runtime.hpp"
 
@@ -26,16 +26,16 @@ void do_work() {
   std::vector<int> a{1, 2, 3, 4};
   std::vector<int> b{5, 6, 7, 8};
 
-  auto rem_obj = RemObj<Obj>::create();
+  auto proclet = Proclet<Obj>::create();
 
-  auto rem_shared_ptr_a_future = rem_obj.run_async(
+  auto rem_shared_ptr_a_future = proclet.run_async(
       +[](Obj &_, std::vector<int> vec_a) {
         auto shared_ptr_a =
             std::make_shared<std::vector<int>>(std::move(vec_a));
         return RemSharedPtr(std::move(shared_ptr_a));
       },
       a);
-  auto rem_shared_ptr_b_future = rem_obj.run_async(
+  auto rem_shared_ptr_b_future = proclet.run_async(
       +[](Obj &_, std::vector<int> vec_b) {
         auto shared_ptr_b =
             std::make_shared<std::vector<int>>(std::move(vec_b));
@@ -47,7 +47,7 @@ void do_work() {
   auto rem_shared_ptr_a_copy = rem_shared_ptr_a;
   auto rem_shared_ptr_b = std::move(rem_shared_ptr_b_future.get());
   auto rem_shared_ptr_b_copy = rem_shared_ptr_b;
-  auto c = rem_obj.run(
+  auto c = proclet.run(
       +[](Obj &_, RemSharedPtr<std::vector<int>> &&rem_shared_ptr_a,
           RemSharedPtr<std::vector<int>> &&rem_shared_ptr_b) {
         auto *raw_ptr_a = rem_shared_ptr_a.get();

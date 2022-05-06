@@ -19,7 +19,7 @@ extern "C" {
 
 #include "nu/dis_hash_table.hpp"
 #include "nu/pressure_handler.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
 #include "nu/utils/trace_logger.hpp"
@@ -138,7 +138,7 @@ void init(Test::DSHashTable *hash_table, std::vector<Key> *keys) {
 }
 
 void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
-               RemObj<nu::Test> *test) {
+               Proclet<nu::Test> *test) {
   std::vector<std::pair<uint64_t, uint64_t>> records[2][kNumCores];
   for (uint32_t i = 0; i < 2; i++) {
     for (uint32_t j = 0; j < kNumCores; j++) {
@@ -229,7 +229,7 @@ void do_work() {
   std::vector<Key> keys[kNumThreads];
 
   std::cout << "start initing..." << std::endl;
-  auto test = RemObj<nu::Test>::create_pinned(32 * 1024);
+  auto test = Proclet<nu::Test>::create_pinned(32 * 1024);
   init(&hash_table, keys);
   std::cout << "start benchmarking..." << std::endl;
   benchmark(&hash_table, keys, &test);

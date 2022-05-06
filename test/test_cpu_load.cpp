@@ -12,7 +12,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/pressure_handler.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/time.hpp"
 
@@ -57,8 +57,8 @@ public:
   constexpr static uint32_t kTimeUs = kTime0Us + kTime1Us;
 
   CPUNestedObj()
-      : light_obj_(RemObj<CPULightObj>::create_at(ip)),
-        heavy_obj_(RemObj<CPUHeavyObj>::create_at(ip)) {}
+      : light_obj_(Proclet<CPULightObj>::create_at(ip)),
+        heavy_obj_(Proclet<CPUHeavyObj>::create_at(ip)) {}
 
   void compute() {
     delay_us(kTime0Us);
@@ -67,8 +67,8 @@ public:
     heavy_obj_.run(&CPUHeavyObj::compute);
   }
 
-  RemObj<CPULightObj> light_obj_;
-  RemObj<CPUHeavyObj> heavy_obj_;
+  Proclet<CPULightObj> light_obj_;
+  Proclet<CPUHeavyObj> heavy_obj_;
 };
 
 namespace nu {
@@ -88,11 +88,11 @@ public:
   bool run() {
     bool passed = true;
 
-    auto light_obj = RemObj<CPULightObj>::create_at(ip);
-    auto heavy_obj = RemObj<CPUHeavyObj>::create_at(ip);
-    auto nested_obj = RemObj<CPUNestedObj>::create_at(ip);
-    auto spin_obj = RemObj<CPUSpinObj>::create_at(ip);
-    auto migration_obj = RemObj<Test>::create_at(ip);
+    auto light_obj = Proclet<CPULightObj>::create_at(ip);
+    auto heavy_obj = Proclet<CPUHeavyObj>::create_at(ip);
+    auto nested_obj = Proclet<CPUNestedObj>::create_at(ip);
+    auto spin_obj = Proclet<CPUSpinObj>::create_at(ip);
+    auto migration_obj = Proclet<Test>::create_at(ip);
 
     auto spin_future = spin_obj.run_async(&CPUSpinObj::compute);
     for (uint32_t i = 0; i < 100000; i++) {

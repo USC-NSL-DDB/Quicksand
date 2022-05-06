@@ -46,16 +46,16 @@ inline bool DistributedMemPool::Heap::has_space_for(uint32_t size) {
 
 inline DistributedMemPool::Shard::Shard() {}
 
-inline DistributedMemPool::Shard::Shard(RemObj<Heap> &&obj)
-    : rem_obj(std::move(obj)) {}
+inline DistributedMemPool::Shard::Shard(Proclet<Heap> &&obj)
+    : proclet(std::move(obj)) {}
 
 inline DistributedMemPool::Shard::Shard(Shard &&o)
-    : failed_alloc_size(o.failed_alloc_size), rem_obj(std::move(o.rem_obj)) {}
+    : failed_alloc_size(o.failed_alloc_size), proclet(std::move(o.proclet)) {}
 
 inline DistributedMemPool::Shard &
 DistributedMemPool::Shard::operator=(Shard &&o) {
   failed_alloc_size = o.failed_alloc_size;
-  rem_obj = std::move(o.rem_obj);
+  proclet = std::move(o.proclet);
   return *this;
 }
 
@@ -106,7 +106,7 @@ Future<RemRawPtr<T>> DistributedMemPool::allocate_raw_async(As &&... args) {
 
 template <typename T>
 void DistributedMemPool::free_raw(const RemRawPtr<T> &ptr) {
-  RemObj<Heap> shard(ptr.rem_obj_id_, false);
+  Proclet<Heap> shard(ptr.proclet_id_, false);
   shard.__run(&Heap::free_raw<T>, const_cast<RemRawPtr<T> &>(ptr).get());
   check_probing();
 }
@@ -184,17 +184,17 @@ retry:
       goto retry;
     }
 
-    auto cap = free_shard.rem_obj.get_cap();
+    auto cap = free_shard.proclet.get_cap();
     put_cpu();
     // Try to allocate.
-    auto ptr = free_shard.rem_obj.__run(alloc_fn, std::forward<As>(args)...);
+    auto ptr = free_shard.proclet.__run(alloc_fn, std::forward<As>(args)...);
     // The shard turns out to be full, add a mark.
     if (unlikely(!ptr)) {
       // For the performance consideration, here we intentionally allow race
       // conditions which may cause the free shard to be marked as full. It's
       // fine since the mis-classification will soon be rectified by the probing
       // thread.
-      if (free_shard.rem_obj.get_cap() == cap) {
+      if (free_shard.proclet.get_cap() == cap) {
         ACCESS_ONCE(free_shard.failed_alloc_size) = sizeof(T);
       }
       goto retry;
