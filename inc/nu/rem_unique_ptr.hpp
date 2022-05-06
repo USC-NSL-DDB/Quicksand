@@ -18,7 +18,6 @@ public:
   void release();
   void reset();
   Future<void> reset_async();
-  void reset_bg();
 
   template <class Archive> void save(Archive &ar) const;
   template <class Archive> void save(Archive &ar);

@@ -521,27 +521,6 @@ template <typename T> Future<void> Proclet<T>::reset_async() {
   }
 }
 
-template <typename T> void Proclet<T>::reset_bg() {
-  if (ref_cnted_) {
-    ref_cnted_ = false;
-    if (inc_ref_) {
-      inc_ref_.get();
-    }
-
-    // Should allocate from the runtime slab, since the root object might be
-    // destructed earlier than this background thread.
-    RuntimeSlabGuard guard;
-    auto *dec_promise = update_ref_cnt(-1);
-    if (dec_promise) {
-      Runtime::rcu_lock.reader_lock();
-      rt::Thread([=]() {
-        dec_promise->get_future().get();
-        Runtime::rcu_lock.reader_unlock();
-      }).Detach();
-    }
-  }
-}
-
 template <typename T>
 template <class Archive>
 void Proclet<T>::save(Archive &ar) const {

@@ -51,7 +51,6 @@ public:
   RetT run(RetT (T::*md)(A0s...), A1s &&... args);
   void reset();
   Future<void> reset_async();
-  void reset_bg();
 
   template <class Archive> void save(Archive &ar) const;
   template <class Archive> void load(Archive &ar);

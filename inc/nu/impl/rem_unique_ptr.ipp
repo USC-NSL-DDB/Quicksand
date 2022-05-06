@@ -69,20 +69,6 @@ template <typename T> Future<void> RemUniquePtr<T>::reset_async() {
   }
 }
 
-template <typename T> void RemUniquePtr<T>::reset_bg() {
-  if (RemPtr<T>::get()) {
-    // Should allocate from the runtime slab, since the root object might be
-    // destructed earlier than this background thread.
-    RuntimeSlabGuard guard;
-    Runtime::rcu_lock.reader_lock();
-    rt::Thread([rem_ptr = *static_cast<RemPtr<T> *>(this)]() {
-      rem_ptr.run(get_free_fn<T>());
-      Runtime::rcu_lock.reader_unlock();
-    }).Detach();
-    release();
-  }
-}
-
 template <typename T, typename... Args>
 RemUniquePtr<T> make_rem_unique(Args &&... args) {
   auto *raw_ptr = new (std::nothrow) T(std::forward<Args>(args)...);
