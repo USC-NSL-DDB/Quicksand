@@ -1,15 +1,15 @@
 #include <algorithm>
+#include <cereal/types/optional.hpp>
+#include <cereal/types/string.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <numeric>
 #include <optional>
 #include <random>
+#include <set>
 #include <utility>
 #include <vector>
-#include <set>
-#include <cereal/types/optional.hpp>
-#include <cereal/types/string.hpp>
 
 extern "C" {
 #include <net/ip.h>
@@ -84,7 +84,7 @@ using LocalHashTable =
                 std::equal_to<Key>, std::allocator<std::pair<const Key, Val>>,
                 SpinLock>;
 
-enum Op { PUT, DELETE };
+enum Op { kPut, kDelete };
 
 struct Command {
   Op op;
@@ -98,9 +98,9 @@ struct Command {
 Op random_op(auto &dist, auto &mt) {
   uint32_t n = dist(mt) % 100;
   if (n < kDeletePercentage) {
-    return DELETE;
+    return kDelete;
   }
-  return PUT;
+  return kPut;
 }
 
 void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
@@ -125,25 +125,25 @@ void gen_commands(std::vector<Command> *commands) {
         std::set<Key>::iterator iter;
 
         switch (op) {
-	case PUT:
+        case kPut:
           random_str(dist, mt, kKeyLen, key.data);
           random_str(dist, mt, kValLen, val.data);
-          commands_pt->emplace_back(PUT, key, val);
+          commands_pt->emplace_back(kPut, key, val);
           set_pt.emplace(key);
           break;
-        case DELETE:
+        case kDelete:
           random_str(dist, mt, kKeyLen, key.data);
           iter = set_pt.lower_bound(key);
           if (unlikely(iter == set_pt.end())) {
             break;
           }
           key = *iter;
-          commands_pt->emplace_back(DELETE, key);
+          commands_pt->emplace_back(kDelete, key);
           set_pt.erase(iter);
           break;
-	default:
-	  BUG();
-	}
+        default:
+          BUG();
+        }
       }
     });
   }
@@ -153,22 +153,22 @@ void gen_commands(std::vector<Command> *commands) {
   }
 }
 
-uint64_t run_on_local_hashtable(std::vector<Command> *commands) {
+uint64_t run_on_local_hash_table(std::vector<Command> *commands) {
   auto padding =
       (2ULL << bsr_64(sizeof(LocalHashTable))) - sizeof(LocalHashTable);
   auto mem_usage_start = Runtime::runtime_slab.get_usage();
-  auto *local_hashtable = new LocalHashTable();
+  LocalHashTable local_hash_table;
 
   std::vector<rt::Thread> threads;
   for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back([&, tid = i, commands_pt = &commands[i]] {
       for (auto &cmd : *commands_pt) {
         switch (cmd.op) {
-        case PUT:
-          local_hashtable->put(cmd.key, *cmd.val);
+        case kPut:
+          local_hash_table.put(cmd.key, *cmd.val);
           break;
-        case DELETE:
-          BUG_ON(!local_hashtable->remove(cmd.key));
+        case kDelete:
+          BUG_ON(!local_hash_table.remove(cmd.key));
           break;
         default:
           BUG();
@@ -186,22 +186,23 @@ uint64_t run_on_local_hashtable(std::vector<Command> *commands) {
   return mem_usage_end - mem_usage_start - padding;
 }
 
-uint64_t run_on_dis_hashtable(std::vector<Command> *commands) {
+uint64_t run_on_dis_hash_table(std::vector<Command> *commands) {
   // To make the mem usage counting work, we must only use one remote server.
   auto test = make_proclet<nu::Test>();
   auto mem_usage_start = test.run(&nu::Test::get_mem_usage);
-  auto *dis_hashtable = new DSHashTable();
+  auto dis_hash_table =
+      make_dis_hash_table<Key, Val, decltype(kFarmHashKeytoU64)>();
 
   std::vector<rt::Thread> threads;
   for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back([&, tid = i, commands_pt = &commands[i]] {
       for (auto &cmd : *commands_pt) {
         switch (cmd.op) {
-        case PUT:
-          dis_hashtable->put(cmd.key, *cmd.val);
+        case kPut:
+          dis_hash_table.put(cmd.key, *cmd.val);
           break;
-	case DELETE:
-          BUG_ON(!dis_hashtable->remove(cmd.key));
+        case kDelete:
+          BUG_ON(!dis_hash_table.remove(cmd.key));
           break;
         default:
           BUG();
@@ -223,13 +224,13 @@ void do_work() {
   std::vector<Command> commands[kNumThreads];
   gen_commands(commands);
   if (use_local) {
-    std::cout << "run_on_local_hashtable..." << std::endl;
-    auto local_hashtable_mem_usage = run_on_local_hashtable(commands);
+    std::cout << "run_on_local_hash_table..." << std::endl;
+    auto local_hashtable_mem_usage = run_on_local_hash_table(commands);
     std::cout << local_hashtable_mem_usage << std::endl;
   } else {
-    std::cout << "run_on_dis_hashtable..." << std::endl;
-    auto dis_hashtable_mem_usage = run_on_dis_hashtable(commands);
-    std::cout << dis_hashtable_mem_usage << std::endl;
+    std::cout << "run_on_dis_hash_table..." << std::endl;
+    auto dis_hash_table_mem_usage = run_on_dis_hash_table(commands);
+    std::cout << dis_hash_table_mem_usage << std::endl;
   }
 }
 

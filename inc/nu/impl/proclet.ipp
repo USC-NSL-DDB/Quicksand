@@ -20,7 +20,6 @@ extern "C" {
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/future.hpp"
-#include "nu/utils/promise.hpp"
 #include "nu/utils/type_traits.hpp"
 
 namespace nu {
@@ -146,28 +145,44 @@ template <typename T>
 Proclet<T>::Proclet(ProcletID id, bool ref_cnted)
     : id_(id), ref_cnted_(ref_cnted) {
   if (ref_cnted) {
-    auto *inc_ref_promise = update_ref_cnt(1);
-    if (inc_ref_promise) {
-      inc_ref_ = std::move(inc_ref_promise->get_future());
+    auto inc_ref_optional = update_ref_cnt(1);
+    if (inc_ref_optional) {
+      inc_ref_ = std::move(*inc_ref_optional);
     }
   }
 }
-
-template <typename T>
-Proclet<T>::Proclet(const Cap &cap, bool ref_cnted) : Proclet(cap.id, ref_cnted) {}
 
 template <typename T>
 Proclet<T>::Proclet() : id_(kNullProcletID), ref_cnted_(false) {}
 
 template <typename T> Proclet<T>::~Proclet() { reset(); }
 
+template <typename T> Proclet<T>::Proclet(const Proclet<T> &o) : id_(o.id_) {
+  auto inc_ref_optional = update_ref_cnt(1);
+  if (inc_ref_optional) {
+    inc_ref_optional->get();
+  }
+  ref_cnted_ = true;
+}
+
+template <typename T> Proclet<T> &Proclet<T>::operator=(const Proclet<T> &o) {
+  reset();  
+  id_ = o.id_;
+  auto inc_ref_optional = update_ref_cnt(1);
+  if (inc_ref_optional) {
+    inc_ref_optional->get();
+  }
+  ref_cnted_ = true;
+  return *this;
+}
+
 template <typename T>
-Proclet<T>::Proclet(Proclet<T> &&o)
+Proclet<T>::Proclet(Proclet<T> &&o) noexcept
     : id_(o.id_), inc_ref_(std::move(o.inc_ref_)), ref_cnted_(o.ref_cnted_) {
   o.ref_cnted_ = false;
 }
 
-template <typename T> Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) {
+template <typename T> Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) noexcept {
   reset();
   id_ = o.id_;
   inc_ref_ = std::move(o.inc_ref_);
@@ -228,18 +243,14 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint,
   return proclet;
 }
 
-template <typename T> Proclet<T>::Cap Proclet<T>::get_cap() const {
-  Cap cap;
-  cap.id = id_;
-  return cap;
-}
+template <typename T> ProcletID Proclet<T>::get_id() const { return id_; }
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> Proclet<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
   assert_no_pointer_or_lval_ref<RetT, S0s...>();
   using fn_states_checker [[maybe_unused]] =
-      decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
+      decltype(fn(std::declval<T &>(), std::move(states)...));
 
   return __run_async(fn, std::forward<S1s>(states)...);
 }
@@ -257,7 +268,7 @@ template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   assert_no_pointer_or_lval_ref<RetT, S0s...>();
   using fn_states_checker [[maybe_unused]] =
-      decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
+      decltype(fn(std::declval<T &>(), std::move(states)...));
 
   return __run(fn, std::forward<S1s>(states)...);
 }
@@ -362,7 +373,7 @@ template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> Proclet<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_no_pointer_or_lval_ref<RetT, A0s...>();
   using md_args_checker [[maybe_unused]] =
-      decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
+      decltype((std::declval<T>().*(md))(std::move(args)...));
 
   return __run_async(md, std::forward<A1s>(args)...);
 }
@@ -383,8 +394,8 @@ RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...),
   method_ptr.ptr = md;
   return __run_and_get_loc(
       is_local,
-      +[](T &t, decltype(method_ptr) method_ptr, A1s &&... args) {
-        return (t.*(method_ptr.ptr))(std::forward<A1s>(args)...);
+      +[](T &t, decltype(method_ptr) method_ptr, A0s... args) {
+        return (t.*(method_ptr.ptr))(std::move(args)...);
       },
       method_ptr, std::forward<A1s>(args)...);
 }
@@ -394,7 +405,7 @@ template <typename RetT, typename... A0s, typename... A1s>
 RetT Proclet<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_no_pointer_or_lval_ref<RetT, A0s...>();
   using md_args_checker [[maybe_unused]] =
-      decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
+      decltype((std::declval<T>().*(md))(std::move(args)...));
 
   return __run(md, std::forward<A1s>(args)...);
 }
@@ -405,29 +416,29 @@ RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
   return __run(
-      +[](T &t, decltype(method_ptr) method_ptr, A1s &&... args) {
-        return (t.*(method_ptr.ptr))(std::forward<A1s>(args)...);
+      +[](T &t, decltype(method_ptr) method_ptr, A0s... args) {
+        return (t.*(method_ptr.ptr))(std::move(args)...);
       },
       method_ptr, std::forward<A1s>(args)...);
 }
 
-template <typename T> Promise<void> *Proclet<T>::update_ref_cnt(int delta) {
+template <typename T>
+std::optional<Future<void>> Proclet<T>::update_ref_cnt(int delta) {
   if (Runtime::obj_server) {
     NonBlockingMigrationDisabledGuard callee_guard(to_heap_header(id_));
     if (callee_guard) {
       // Fast path: the heap is actually local, use function call.
       if (likely(ObjServer::update_ref_cnt_locally<T>(id_, delta))) {
-        return nullptr;
+        return std::nullopt;
       }
     }
   }
 
   // Slow path: the heap is actually remote, use RPC.
-  auto *promise = Promise<void>::create([&, id = id_, delta]() {
+  return nu::async([&, id = id_, delta]() {
     auto *handler = ObjServer::update_ref_cnt<T>;
     invoke_remote(id, handler, id, delta);
   });
-  return promise;
 }
 
 template <typename T> void Proclet<T>::reset() {
@@ -437,26 +448,21 @@ template <typename T> void Proclet<T>::reset() {
       inc_ref_.get();
     }
 
-    auto *dec_promise = update_ref_cnt(-1);
-    if (dec_promise) {
-      dec_promise->get_future().get();
+    auto dec_ref = update_ref_cnt(-1);
+    if (dec_ref) {
+      dec_ref->get();
     }
   }
 }
 
-template <typename T> Future<void> Proclet<T>::reset_async() {
+template <typename T> std::optional<Future<void>> Proclet<T>::reset_async() {
   if (ref_cnted_) {
     ref_cnted_ = false;
     if (inc_ref_) {
       inc_ref_.get();
     }
 
-    auto *dec_promise = update_ref_cnt(-1);
-    if (dec_promise) {
-      return dec_promise->get_future();
-    } else {
-      return nu::async([] {});
-    }
+    return update_ref_cnt(-1);
   }
 }
 

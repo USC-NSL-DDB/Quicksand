@@ -36,7 +36,7 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
         heap_header->status = kPresent;
         auto *self = thread_self();
         auto *old_owner = thread_set_owner_heap(self, base);
-        new (obj_space) Cls(std::forward<As>(args)...);
+        new (obj_space) Cls(std::move(args)...);
         thread_set_owner_heap(self, old_owner);
       },
       args);
@@ -180,18 +180,15 @@ void ObjServer::__run_closure(Cls &obj, HeapHeader *heap_header,
   if constexpr (std::is_same<RetT, void>::value) {
     {
       MigrationEnabledGuard guard;
-      std::apply(
-          [&](auto &&... states) { fn(obj, std::forward<S1s>(states)...); },
-          *states);
+      std::apply([&](auto &&... states) { fn(obj, std::move(states)...); },
+                 *states);
       std::destroy_at(states);
     }
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
   } else {
     MigrationEnabledGuard guard;
     auto ret = std::apply(
-        [&](auto &&... states) {
-          return fn(obj, std::forward<S1s>(states)...);
-        },
+        [&](auto &&... states) { return fn(obj, std::move(states)...); },
         *states);
     std::destroy_at(states);
     guard.reset();

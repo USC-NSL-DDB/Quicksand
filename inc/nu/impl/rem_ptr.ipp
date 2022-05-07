@@ -90,8 +90,8 @@ template <typename RetT, typename... S0s, typename... S1s>
 RetT RemPtr<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   Proclet<ErasedType> proclet(proclet_id_, false);
   return proclet.__run(
-      +[](ErasedType &, T *raw_ptr, RetT (*fn)(T &, S0s...), S1s &&... states) {
-        return fn(*raw_ptr, std::forward<S1s>(states)...);
+      +[](ErasedType &, T *raw_ptr, RetT (*fn)(T &, S0s...), S0s... states) {
+        return fn(*raw_ptr, std::move(states)...);
       },
       raw_ptr_, fn, std::forward<S1s>(states)...);
 }

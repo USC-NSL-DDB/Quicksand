@@ -51,21 +51,18 @@ std::string random_str(uint32_t len) {
 
 bool run_test() {
   std::unordered_map<std::string, std::string> std_map;
-  auto hash_table =
-      std::make_unique<DistributedHashTable<std::string, std::string>>(5);
+  auto hash_table = make_dis_hash_table<std::string, std::string>(5);
   for (uint32_t i = 0; i < kNumPairs; i++) {
     std::string k = random_str(kKeyLen);
     std::string v = random_str(kValLen);
     std_map[k] = v;
-    hash_table->put(k, v);
+    hash_table.put(k, v);
   }
 
-  auto attached_hash_table =
-      std::make_unique<DistributedHashTable<std::string, std::string>>(
-          hash_table->get_cap());
+  auto hash_table2 = hash_table;
 
   for (auto &[k, v] : std_map) {
-    auto optional = attached_hash_table->get(k);
+    auto optional = hash_table2.get(k);
     if (!optional || v != *optional) {
       return false;
     }
@@ -75,26 +72,22 @@ bool run_test() {
   if (!proclet.run(
           +[](ErasedType &,
               std::unordered_map<std::string, std::string> std_map,
-              DistributedHashTable<std::string, std::string>::Cap cap) {
-            auto rem_attached_hash_table = std::make_unique<
-                DistributedHashTable<std::string, std::string>>(cap);
+              DistributedHashTable<std::string, std::string> hash_table) {
             for (auto &[k, v] : std_map) {
-              auto optional = rem_attached_hash_table->get(k);
+              auto optional = hash_table.get(k);
               if (!optional || v != *optional) {
                 return false;
               }
             }
             return true;
           },
-          std_map, attached_hash_table->get_cap())) {
+          std_map, hash_table2)) {
     return false;
   }
 
-  auto moved_hash_table =
-      std::make_unique<DistributedHashTable<std::string, std::string>>(
-          std::move(*attached_hash_table));
+  auto hash_table_3 = std::move(hash_table2);
   for (auto &[k, v] : std_map) {
-    auto optional = moved_hash_table->get(k);
+    auto optional = hash_table_3.get(k);
     if (!optional || v != *optional) {
       return false;
     }
@@ -104,7 +97,7 @@ bool run_test() {
   for (auto &[k, v] : std_map) {
     std_set.emplace(k, v);
   }
-  auto all_pairs = hash_table->get_all_pairs();
+  auto all_pairs = hash_table.get_all_pairs();
   std::set<std::pair<std::string, std::string>> our_set(all_pairs.begin(),
                                                         all_pairs.end());
   if (std_set != our_set) {
@@ -112,7 +105,7 @@ bool run_test() {
   }
 
   our_set.clear();
-  our_set = hash_table->associative_reduce(
+  our_set = hash_table.associative_reduce(
       /* clear = */ false, /* init_val = */ our_set,
       /* reduce_fn = */
       +[](std::set<std::pair<std::string, std::string>> &set,
@@ -129,7 +122,7 @@ bool run_test() {
   }
 
   for (auto &[k, _] : std_map) {
-    if (!moved_hash_table->remove(k)) {
+    if (!hash_table_3.remove(k)) {
       return false;
     }
   }

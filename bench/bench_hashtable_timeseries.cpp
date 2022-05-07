@@ -225,7 +225,8 @@ void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
 }
 
 void do_work() {
-  Test::DSHashTable hash_table;
+  auto hash_table =
+      make_dis_hash_table<Key, Val, decltype(Test::kFarmHashKeytoU64)>();
   std::vector<Key> keys[kNumThreads];
 
   std::cout << "start initing..." << std::endl;

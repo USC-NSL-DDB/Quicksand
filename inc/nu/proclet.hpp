@@ -7,27 +7,18 @@
 #include "nu/commons.hpp"
 #include "nu/runtime_deleter.hpp"
 #include "nu/utils/future.hpp"
-#include "nu/utils/promise.hpp"
 
 namespace nu {
 
 template <typename T> class Proclet {
 public:
-  struct Cap {
-    ProcletID id;
-
-    bool operator==(const Cap &o) const { return id == o.id; }
-    template <class Archive> void serialize(Archive &ar) { ar(id); }
-  };
-
-  Proclet(const Cap &cap, bool ref_cnted = true);
-  Proclet(const Proclet &) = delete;
-  Proclet &operator=(const Proclet &) = delete;
-  Proclet(Proclet &&);
-  Proclet &operator=(Proclet &&);
+  Proclet(const Proclet &);
+  Proclet &operator=(const Proclet &);
+  Proclet(Proclet &&) noexcept;
+  Proclet &operator=(Proclet &&) noexcept;
   Proclet();
   ~Proclet();
-  Cap get_cap() const;
+  ProcletID get_id() const;
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>
@@ -37,7 +28,7 @@ public:
   template <typename RetT, typename... A0s, typename... A1s>
   RetT run(RetT (T::*md)(A0s...), A1s &&... args);
   void reset();
-  Future<void> reset_async();
+  std::optional<Future<void>> reset_async();
 
   template <class Archive> void save(Archive &ar) const;
   template <class Archive> void load(Archive &ar);
@@ -54,7 +45,7 @@ private:
   friend class DistributedMemPool;
 
   Proclet(ProcletID id, bool ref_cnted);
-  Promise<void> *update_ref_cnt(int delta);
+  std::optional<Future<void>> update_ref_cnt(int delta);
   template <typename... S1s>
   static void invoke_remote(ProcletID id, S1s &&... states);
   template <typename RetT, typename... S1s>
@@ -93,6 +84,22 @@ private:
   friend Future<Proclet<U>> make_proclet_pinned_async_at(uint32_t ip,
                                                          As &&... args);
 };
+
+template <typename U, typename... As> Proclet<U> make_proclet(As &&... args);
+template <typename U, typename... As>
+Future<Proclet<U>> make_proclet_async(As &&... args);
+template <typename U, typename... As>
+Proclet<U> make_proclet_at(uint32_t ip, As &&... args);
+template <typename U, typename... As>
+Future<Proclet<U>> make_proclet_async_at(uint32_t ip, As &&... args);
+template <typename U, typename... As>
+Proclet<U> make_proclet_pinned(As &&... args);
+template <typename U, typename... As>
+Future<Proclet<U>> make_proclet_pinned_async(As &&... args);
+template <typename U, typename... As>
+Proclet<U> make_proclet_pinned_at(uint32_t ip, As &&... args);
+template <typename U, typename... As>
+Future<Proclet<U>> make_proclet_pinned_async_at(uint32_t ip, As &&... args);
 
 } // namespace nu
 

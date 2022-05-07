@@ -17,18 +17,18 @@ inline DistributedMemPool::Heap::Heap(uint32_t shard_size) {
 }
 
 template <typename T, typename... As>
-RemRawPtr<T> DistributedMemPool::Heap::allocate_raw(As &&... args) {
-  return RemRawPtr(new T(std::forward<As>(args)...));
+RemRawPtr<T> DistributedMemPool::Heap::allocate_raw(As... args) {
+  return RemRawPtr(new T(std::move(args)...));
 }
 
 template <typename T, typename... As>
-RemUniquePtr<T> DistributedMemPool::Heap::allocate_unique(As &&... args) {
-  return make_rem_unique<T>(std::forward<As>(args)...);
+RemUniquePtr<T> DistributedMemPool::Heap::allocate_unique(As... args) {
+  return make_rem_unique<T>(std::move(args)...);
 }
 
 template <typename T, typename... As>
-RemSharedPtr<T> DistributedMemPool::Heap::allocate_shared(As &&... args) {
-  return make_rem_shared<T>(std::forward<As>(args)...);
+RemSharedPtr<T> DistributedMemPool::Heap::allocate_shared(As... args) {
+  return make_rem_shared<T>(std::move(args)...);
 }
 
 template <typename T> void DistributedMemPool::Heap::free_raw(T *raw_ptr) {
@@ -93,8 +93,8 @@ inline void DistributedMemPool::halt_probing() {
 
 template <typename T, typename... As>
 RemRawPtr<T> DistributedMemPool::allocate_raw(As &&... args) {
-  return general_allocate<T>(&Heap::allocate_raw<T, As...>,
-                             std::forward<As>(args)...);
+  return __allocate<T>(&Heap::allocate_raw<T, std::decay_t<As>...>,
+                       std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
@@ -143,8 +143,8 @@ template <class Archive> void DistributedMemPool::load(Archive &ar) {
 
 template <typename T, typename... As>
 RemUniquePtr<T> DistributedMemPool::allocate_unique(As &&... args) {
-  return general_allocate<T>(&Heap::allocate_unique<T, As...>,
-                             std::forward<As>(args)...);
+  return __allocate<T>(&Heap::allocate_unique<T, std::decay_t<As>...>,
+                       std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
@@ -157,8 +157,8 @@ DistributedMemPool::allocate_unique_async(As &&... args) {
 
 template <typename T, typename... As>
 RemSharedPtr<T> DistributedMemPool::allocate_shared(As &&... args) {
-  return general_allocate<T>(&Heap::allocate_shared<T, As...>,
-                             std::forward<As>(args)...);
+  return __allocate<T>(&Heap::allocate_shared<T, std::decay_t<As>...>,
+                       std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
@@ -170,7 +170,7 @@ DistributedMemPool::allocate_shared_async(As &&... args) {
 }
 
 template <typename T, typename AllocFn, typename... As>
-auto DistributedMemPool::general_allocate(AllocFn &&alloc_fn, As &&... args) {
+auto DistributedMemPool::__allocate(AllocFn &&alloc_fn, As &&... args) {
 retry:
   auto cpu = get_cpu();
   auto &free_shard_optional = local_free_shards_[cpu].shard;
@@ -184,7 +184,7 @@ retry:
       goto retry;
     }
 
-    auto cap = free_shard.proclet.get_cap();
+    auto id = free_shard.proclet.get_id();
     put_cpu();
     // Try to allocate.
     auto ptr = free_shard.proclet.__run(alloc_fn, std::forward<As>(args)...);
@@ -194,7 +194,7 @@ retry:
       // conditions which may cause the free shard to be marked as full. It's
       // fine since the mis-classification will soon be rectified by the probing
       // thread.
-      if (free_shard.proclet.get_cap() == cap) {
+      if (free_shard.proclet.get_id() == id) {
         ACCESS_ONCE(free_shard.failed_alloc_size) = sizeof(T);
       }
       goto retry;

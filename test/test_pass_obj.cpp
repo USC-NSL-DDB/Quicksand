@@ -49,13 +49,12 @@ void do_work() {
   auto rem_vec = make_proclet<VecStore>(a, b);
   auto rem_adder = make_proclet<Adder>();
   auto c = rem_adder.run(
-      +[](Adder &adder, Proclet<VecStore>::Cap cap) {
-        Proclet<VecStore> rem_obj(cap);
-        auto vec_a = rem_obj.run(&VecStore::get_vec_a);
-        auto vec_b = rem_obj.run(&VecStore::get_vec_b);
+      +[](Adder &adder, Proclet<VecStore> rem_vec) {
+        auto vec_a = rem_vec.run(&VecStore::get_vec_a);
+        auto vec_b = rem_vec.run(&VecStore::get_vec_b);
         return adder.add(vec_a, vec_b);
       },
-      rem_vec.get_cap());
+      rem_vec);
 
   for (size_t i = 0; i < a.size(); i++) {
     if (c[i] != a[i] + b[i]) {

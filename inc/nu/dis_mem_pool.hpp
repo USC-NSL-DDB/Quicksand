@@ -59,12 +59,11 @@ public:
 private:
   struct Heap {
     Heap(uint32_t shard_size);
+    template <typename T, typename... As> RemRawPtr<T> allocate_raw(As... args);
     template <typename T, typename... As>
-    RemRawPtr<T> allocate_raw(As &&... args);
+    RemUniquePtr<T> allocate_unique(As... args);
     template <typename T, typename... As>
-    RemUniquePtr<T> allocate_unique(As &&... args);
-    template <typename T, typename... As>
-    RemSharedPtr<T> allocate_shared(As &&... args);
+    RemSharedPtr<T> allocate_shared(As... args);
     template <typename T> void free_raw(T *raw_ptr);
     bool has_space_for(uint32_t size);
   };
@@ -102,7 +101,7 @@ private:
   template <typename T> friend class RemUniquePtr;
 
   template <typename T, typename AllocFn, typename... As>
-  auto general_allocate(AllocFn &&alloc_fn, As &&... args);
+  auto __allocate(AllocFn &&alloc_fn, As &&... args);
   void __handle_local_free_shard_full();
   void __handle_no_local_free_shard();
   void check_probing();

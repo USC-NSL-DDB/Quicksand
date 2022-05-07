@@ -8,6 +8,24 @@ namespace nu {
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
+    const DistributedHashTable &o) {
+  *this = o;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets> &
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
+    const DistributedHashTable &o) {
+  power_num_shards_ = o.power_num_shards_;
+  num_shards_ = o.num_shards_;
+  shards_ = o.shards_;
+  return *this;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
     DistributedHashTable &&o) {
   *this = std::move(o);
 }
@@ -19,66 +37,16 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
     DistributedHashTable &&o) {
   power_num_shards_ = o.power_num_shards_;
   num_shards_ = o.num_shards_;
-  shards_ = std::make_unique<Proclet<HashTableShard>[]>(num_shards_);
   for (uint32_t i = 0; i < num_shards_; i++) {
-    shards_[i] = std::move(o.shards_[i]);
+    shards_.emplace_back(std::move(o.shards_[i]));
   }
   return *this;
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
-    const Cap &cap)
-    : power_num_shards_(bsr_64(cap.shard_caps.size())),
-      num_shards_(cap.shard_caps.size()) {
-  shards_ = std::make_unique<Proclet<HashTableShard>[]>(num_shards_);
-  for (uint32_t i = 0; i < num_shards_; i++) {
-    std::construct_at(&shards_[i], cap.shard_caps[i]);
-  }
-}
-
-template <typename K, typename V, typename Hash, typename KeyEqual,
-          uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
-    Cap &&cap)
-    : power_num_shards_(bsr_64(cap.shard_caps.size())),
-      num_shards_(cap.shard_caps.size()) {
-  shards_ = std::make_unique<Proclet<HashTableShard>[]>(num_shards_);
-  for (uint32_t i = 0; i < num_shards_; i++) {
-    std::construct_at(&shards_[i], cap.shard_caps[i]);
-  }
-}
-
-template <typename K, typename V, typename Hash, typename KeyEqual,
-          uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
-    uint32_t power_num_shards, bool pinned)
-    : power_num_shards_(power_num_shards), num_shards_(1 << power_num_shards_) {
-  shards_ = std::make_unique<Proclet<HashTableShard>[]>(num_shards_);
-  for (uint32_t i = 0; i < num_shards_; i++) {
-    if (pinned) {
-      shards_[i] = std::move(make_proclet_pinned<HashTableShard>());
-    } else {
-      shards_[i] = std::move(make_proclet<HashTableShard>());
-    }
-  }
-}
-
-template <typename K, typename V, typename Hash, typename KeyEqual,
-          uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
-    netaddr addr, uint32_t power_num_shards, bool pinned)
-    : power_num_shards_(power_num_shards), num_shards_(1 << power_num_shards_) {
-  shards_ = std::make_unique<Proclet<HashTableShard>[]>(num_shards_);
-  for (uint32_t i = 0; i < num_shards_; i++) {
-    if (pinned) {
-      shards_[i] = std::move(make_proclet_pinned_at<HashTableShard>(addr));
-    } else {
-      shards_[i] = std::move(make_proclet_at<HashTableShard>(addr));
-    }
-  }
-}
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable()
+    : power_num_shards_(0), num_shards_(0) {}
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
@@ -114,8 +82,12 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
-  return shard.__run(&HashTableShard::template get_copy_with_hash<K1>,
-                     std::forward<K1>(k), key_hash);
+  return shard.__run(
+      +[](HashTableShard &shard, K k, uint64_t key_hash) {
+        auto *v_ptr = shard.get_with_hash(std::move(k), key_hash);
+	return v_ptr ? std::make_optional(*v_ptr) : std::nullopt;
+      },
+      std::forward<K1>(k), key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
@@ -129,7 +101,11 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k,
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
   return shard.__run_and_get_loc(
-      is_local, &HashTableShard::template get_copy_with_hash<K1>,
+      is_local,
+      +[](HashTableShard &shard, K k, uint64_t key_hash) {
+        auto *v_ptr = shard.get_with_hash(std::move(k), key_hash);
+        return v_ptr ? std::make_optional(*v_ptr) : std::nullopt;
+      },
       std::forward<K1>(k), key_hash);
 }
 
@@ -143,10 +119,10 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_with_ip(K1 &&k) {
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
   return shard.__run(
-      +[](HashTableShard &shard, K1 &&k, uint64_t key_hash) {
-        return std::make_pair(
-            shard.get_copy_with_hash(std::forward<K1>(k), key_hash),
-            get_cfg_ip());
+      +[](HashTableShard &shard, K k, uint64_t key_hash) {
+        auto *v_ptr = shard.get_with_hash(std::move(k), key_hash);
+        auto v_optional = v_ptr ? std::make_optional(*v_ptr) : std::nullopt;
+        return std::make_pair(v_optional, get_cfg_ip());
       },
       std::forward<K1>(k), key_hash);
 }
@@ -160,7 +136,7 @@ void DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::put(K1 &&k,
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
-  shard.__run(&HashTableShard::template put_with_hash<K1, V1>,
+  shard.__run(&HashTableShard::template put_with_hash<K, V>,
               std::forward<K1>(k), std::forward<V1>(v), key_hash);
 }
 
@@ -172,8 +148,11 @@ bool DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::remove(K1 &&k) {
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
-  return shard.__run(&HashTableShard::template remove_with_hash<K1>,
-                     std::forward<K1>(k), key_hash);
+  return shard.__run(
+      +[](HashTableShard &shard, K k, uint64_t key_hash) {
+        return shard.remove_with_hash(std::move(k), key_hash);
+      },
+      std::forward<K1>(k), key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
@@ -186,7 +165,7 @@ RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::apply(
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
   return shard.__run(
-      +[](HashTableShard &shard, K1 &&k, uint64_t key_hash,
+      +[](HashTableShard &shard, K k, uint64_t key_hash,
           RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
         return shard.apply_with_hash(std::forward<K1>(k), key_hash, fn,
                                      std::forward<A1s>(args)...);
@@ -249,17 +228,6 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_all_pairs() {
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::Cap
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_cap() const {
-  Cap cap;
-  for (uint32_t i = 0; i < num_shards_; i++) {
-    cap.shard_caps.push_back(shards_[i].get_cap());
-  }
-  return cap;
-}
-
-template <typename K, typename V, typename Hash, typename KeyEqual,
-          uint64_t NumBuckets>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::associative_reduce(
     bool clear, RetT init_val,
@@ -305,6 +273,46 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::associative_reduce(
   }
 
   return all_reduced_vals;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
+template <class Archive>
+void DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::serialize(
+    Archive &ar) {
+  ar(power_num_shards_);
+  ar(num_shards_);
+  ar(shards_);
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
+make_dis_hash_table(uint32_t power_num_shards) {
+  using TableType = DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>;
+  TableType table;
+  table.power_num_shards_ = power_num_shards;
+  table.num_shards_ = (1 << power_num_shards);
+  for (uint32_t i = 0; i < table.num_shards_; i++) {
+    table.shards_.emplace_back(
+        make_proclet<typename TableType::HashTableShard>());
+  }
+  return table;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual,
+          uint64_t NumBuckets>
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
+make_dis_hash_table_pinned(uint32_t power_num_shards) {
+  using TableType = DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>;
+  TableType table;
+  table.power_num_shards_ = power_num_shards;
+  table.num_shards_ = (1 << power_num_shards);
+  for (uint32_t i = 0; i < table.num_shards_; i++) {
+    table.shards_.emplace_back(
+        make_proclet_pinned<typename TableType::HashTableShard>());
+  }
+  return table;
 }
 
 } // namespace nu
