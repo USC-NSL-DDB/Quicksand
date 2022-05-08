@@ -14,7 +14,7 @@ extern "C" {
 #include "nu/ctrl.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
-#include "nu/obj_server.hpp"
+#include "nu/proclet_server.hpp"
 
 namespace nu {
 
@@ -111,7 +111,7 @@ bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
 }
 
 std::optional<std::pair<ProcletID, uint32_t>>
-Controller::allocate_obj(lpid_t lpid, uint32_t ip_hint) {
+Controller::allocate_proclet(lpid_t lpid, uint32_t ip_hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   if (unlikely(free_heap_segments_.empty())) {
@@ -120,37 +120,37 @@ Controller::allocate_obj(lpid_t lpid, uint32_t ip_hint) {
   auto start_addr = free_heap_segments_.top().start;
   auto id = start_addr;
   free_heap_segments_.pop();
-  auto node_optional = select_node_for_obj(lpid, ip_hint);
+  auto node_optional = select_node_for_proclet(lpid, ip_hint);
   if (unlikely(!node_optional)) {
     return std::nullopt;
   }
   auto &node = *node_optional;
-  auto [iter, _] = obj_id_to_ip_.try_emplace(id);
+  auto [iter, _] = proclet_id_to_ip_.try_emplace(id);
   iter->second = node.ip;
   return std::make_pair(id, node.ip);
 }
 
-void Controller::destroy_obj(ProcletID id) {
+void Controller::destroy_proclet(ProcletID id) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  auto iter = obj_id_to_ip_.find(id);
-  if (unlikely(iter == obj_id_to_ip_.end())) {
+  auto iter = proclet_id_to_ip_.find(id);
+  if (unlikely(iter == proclet_id_to_ip_.end())) {
     WARN();
     return;
   }
   free_heap_segments_.push(VAddrRange{id, id + kHeapSize});
-  obj_id_to_ip_.erase(iter);
+  proclet_id_to_ip_.erase(iter);
 }
 
-uint32_t Controller::resolve_obj(ProcletID id) {
+uint32_t Controller::resolve_proclet(ProcletID id) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  auto iter = obj_id_to_ip_.find(id);
-  return iter != obj_id_to_ip_.end() ? iter->second : 0;
+  auto iter = proclet_id_to_ip_.find(id);
+  return iter != proclet_id_to_ip_.end() ? iter->second : 0;
 }
 
-std::optional<Node> Controller::select_node_for_obj(lpid_t lpid,
-                                                    uint32_t ip_hint) {
+std::optional<Node> Controller::select_node_for_proclet(lpid_t lpid,
+                                                        uint32_t ip_hint) {
   auto &[nodes, rr_iter] = lpid_to_info_[lpid];
   BUG_ON(nodes.empty());
 
@@ -194,12 +194,12 @@ again:
   return rr_iter++->ip;
 }
 
-void Controller::update_location(ProcletID id, uint32_t obj_srv_ip) {
+void Controller::update_location(ProcletID id, uint32_t proclet_srv_ip) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  auto iter = obj_id_to_ip_.find(id);
-  BUG_ON(iter == obj_id_to_ip_.end());
-  iter->second = obj_srv_ip;
+  auto iter = proclet_id_to_ip_.find(id);
+  BUG_ON(iter == proclet_id_to_ip_.end());
+  iter->second = proclet_srv_ip;
 }
 
 void Controller::report_free_resource(lpid_t lpid, uint32_t ip,

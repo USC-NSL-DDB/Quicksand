@@ -79,11 +79,11 @@ constexpr static uint64_t kOneMilliSecond = 1000;
 uint64_t bsr_64(uint64_t a);
 constexpr HeapHeader *to_heap_header(ProcletID id);
 constexpr void *to_heap_base(ProcletID id);
-constexpr ProcletID to_obj_id(void *heap_base);
+constexpr ProcletID to_proclet_id(void *heap_base);
 constexpr SlabId_t to_slab_id(void *heap_base);
 constexpr SlabId_t get_max_slab_id();
 void *switch_stack(void *new_rsp);
-VAddrRange get_obj_stack_range(thread_t *thread);
+VAddrRange get_proclet_stack_range(thread_t *thread);
 bool is_in_heap(void *ptr, void *heap_base);
 bool is_in_stack(void *ptr, VAddrRange stack);
 bool is_copied_on_migration(void *ptr, HeapHeader *heap_header);
@@ -92,6 +92,7 @@ template <typename T> T &from_span(std::span<std::byte> span);
 template <typename T> const T &from_span(std::span<const std::byte> span);
 uint32_t str_to_ip(std::string ip_str);
 void unblock_and_relax();
+
 } // namespace nu
 
 #include "nu/impl/commons.ipp"

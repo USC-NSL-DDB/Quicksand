@@ -16,29 +16,29 @@ extern "C" {
 namespace nu {
 
 inline void *Runtime::switch_slab(void *slab) {
-  return thread_set_obj_slab(slab);
+  return thread_set_proclet_slab(slab);
 }
 
 inline void *Runtime::switch_to_runtime_slab() {
-  return thread_set_obj_slab(nullptr);
+  return thread_set_proclet_slab(nullptr);
 }
 
-inline SlabAllocator *Runtime::get_current_obj_slab() {
-  return reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_slab());
+inline SlabAllocator *Runtime::get_current_proclet_slab() {
+  return reinterpret_cast<nu::SlabAllocator *>(thread_get_proclet_slab());
 }
 
-inline HeapHeader *Runtime::get_current_obj_heap_header() {
+inline HeapHeader *Runtime::get_current_proclet_heap_header() {
   return reinterpret_cast<HeapHeader *>(thread_get_owner_heap());
 }
 
-inline ProcletID Runtime::get_current_obj_id() {
-  auto *heap_base = Runtime::get_current_obj_heap_header();
+inline ProcletID Runtime::get_current_proclet_id() {
+  auto *heap_base = Runtime::get_current_proclet_heap_header();
   BUG_ON(!heap_base);
-  return to_obj_id(heap_base);
+  return to_proclet_id(heap_base);
 }
 
-template <typename T> T *Runtime::get_current_obj() {
-  auto *heap_header = get_current_obj_heap_header();
+template <typename T> T *Runtime::get_current_root_obj() {
+  auto *heap_header = get_current_proclet_heap_header();
   if (!heap_header) {
     return nullptr;
   }
@@ -46,7 +46,7 @@ template <typename T> T *Runtime::get_current_obj() {
       reinterpret_cast<uintptr_t>(heap_header->slab.get_base()));
 }
 
-template <typename T> T *Runtime::get_obj(ProcletID id) {
+template <typename T> T *Runtime::get_root_obj(ProcletID id) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(to_heap_base(id));
   return reinterpret_cast<T *>(
       reinterpret_cast<uintptr_t>(heap_header->slab.get_base()));
@@ -55,10 +55,10 @@ template <typename T> T *Runtime::get_obj(ProcletID id) {
 template <typename Cls, typename... A0s, typename... A1s>
 __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer"))) void
-__run_within_obj_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
-                     void (*fn)(A0s...), A1s &&... args) {
-  NonBlockingMigrationDisabledGuard guard_on_obj_stack(std::move(*guard));
-  // auto *heap_header = guard_on_obj_stack.get_heap_header();
+__run_within_proclet_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
+                         void (*fn)(A0s...), A1s &&... args) {
+  NonBlockingMigrationDisabledGuard guard_on_proclet_stack(std::move(*guard));
+  // auto *heap_header = guard_on_proclet_stack.get_heap_header();
 
   fn(*obj_ptr, std::forward<A1s>(args)...);
 
@@ -74,8 +74,8 @@ __run_within_obj_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
 // By default, fn will be invoked with migration disabled.
 template <typename Cls, typename... A0s, typename... A1s>
 __attribute__((optimize("no-omit-frame-pointer"))) bool
-Runtime::run_within_obj_env(void *heap_base, void (*fn)(A0s...),
-                            A1s &&... args) {
+Runtime::run_within_proclet_env(void *heap_base, void (*fn)(A0s...),
+                                A1s &&... args) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
 retry:
   NonBlockingMigrationDisabledGuard guard(heap_header);
@@ -91,18 +91,19 @@ retry:
   auto *slab = &heap_header->slab;
   auto *obj_ptr =
       reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab->get_base()));
-  auto *obj_stack = Runtime::stack_manager->get();
-  assert(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment == 0);
+  auto *proclet_stack = Runtime::stack_manager->get();
+  assert(reinterpret_cast<uintptr_t>(proclet_stack) % kStackAlignment == 0);
 
   switch_slab(slab);
   thread_set_owner_heap(thread_self(), heap_base);
-  auto *old_rsp = switch_stack(obj_stack);
+  auto *old_rsp = switch_stack(proclet_stack);
 
-  __run_within_obj_env<Cls>(&guard, obj_ptr, fn, std::forward<A1s>(args)...);
+  __run_within_proclet_env<Cls>(&guard, obj_ptr, fn,
+                                std::forward<A1s>(args)...);
 
   switch_stack(old_rsp);
   switch_to_runtime_slab();
-  Runtime::stack_manager->put(obj_stack);
+  Runtime::stack_manager->put(proclet_stack);
   return true;
 }
 
@@ -123,13 +124,15 @@ inline RuntimeSlabGuard::RuntimeSlabGuard() {
 }
 
 inline RuntimeSlabGuard::~RuntimeSlabGuard() {
-  thread_set_obj_slab(original_slab_);
+  thread_set_proclet_slab(original_slab_);
 }
 
-inline ObjSlabGuard::ObjSlabGuard(void *slab) {
+inline ProcletSlabGuard::ProcletSlabGuard(void *slab) {
   original_slab_ = Runtime::switch_slab(slab);
 }
 
-inline ObjSlabGuard::~ObjSlabGuard() { thread_set_obj_slab(original_slab_); }
+inline ProcletSlabGuard::~ProcletSlabGuard() {
+  thread_set_proclet_slab(original_slab_);
+}
 
 } // namespace nu

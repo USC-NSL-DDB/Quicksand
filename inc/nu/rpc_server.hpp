@@ -14,9 +14,9 @@ enum RPCReqEnum {
   // Controller
   kRegisterNode,
   kVerifyMD5,
-  kAllocateObj,
-  kDestroyObj,
-  kResolveObj,
+  kAllocateProclet,
+  kDestroyProclet,
+  kResolveProclet,
   kGetMigrationDest,
   kUpdateLocation,
   kReportFreeResource,

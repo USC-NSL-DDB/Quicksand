@@ -24,14 +24,14 @@ inline uint64_t Time::to_physical_us(uint64_t logical_us) {
   return logical_us - offset_tsc_ / cycles_per_us;
 }
 
-inline uint64_t Time::obj_env_microtime() {
+inline uint64_t Time::proclet_env_microtime() {
   return to_logical_us(::microtime());
 }
 
-inline uint64_t Time::obj_env_rdtsc() { return to_logical_tsc(::rdtsc()); }
+inline uint64_t Time::proclet_env_rdtsc() { return to_logical_tsc(::rdtsc()); }
 
-inline void Time::obj_env_sleep(uint64_t duration_us) {
-  obj_env_sleep_until(obj_env_microtime() + duration_us);
+inline void Time::proclet_env_sleep(uint64_t duration_us) {
+  proclet_env_sleep_until(proclet_env_microtime() + duration_us);
 }
 
 } // namespace nu

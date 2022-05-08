@@ -13,7 +13,7 @@ extern "C" {
 #include "nu/commons.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/migrator.hpp"
-#include "nu/obj_server.hpp"
+#include "nu/proclet_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"
 
@@ -22,16 +22,16 @@ constexpr static uint32_t kPrintLoggingIntervalUs = 200 * 1000;
 
 namespace nu {
 
-ObjServer::ObjServer() {
+ProcletServer::ProcletServer() {
   if constexpr (kEnableLogging) {
     trace_logger_.enable_print(kPrintLoggingIntervalUs);
   }
 }
 
-ObjServer::~ObjServer() {}
+ProcletServer::~ProcletServer() {}
 
-void ObjServer::parse_and_run_handler(std::span<std::byte> args,
-                                      RPCReturner *returner) {
+void ProcletServer::parse_and_run_handler(std::span<std::byte> args,
+                                          RPCReturner *returner) {
   // TODO: gc them when the thread gets migrated.
   auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
   auto &[args_ss, ia] = *ia_sstream;
@@ -49,7 +49,7 @@ void ObjServer::parse_and_run_handler(std::span<std::byte> args,
   Runtime::archive_pool->put_ia_sstream(ia_sstream);
 }
 
-void ObjServer::send_rpc_resp_ok(
+void ProcletServer::send_rpc_resp_ok(
     ArchivePool<RuntimeAllocator<uint8_t>>::OASStream *oa_sstream,
     RPCReturner *returner) {
   auto view = oa_sstream->ss.view();
@@ -69,7 +69,7 @@ void ObjServer::send_rpc_resp_ok(
   }
 }
 
-void ObjServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
+void ProcletServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
   if (likely(thread_is_at_creator())) {
     RuntimeSlabGuard guard;
     returner->Return(kErrWrongClient);

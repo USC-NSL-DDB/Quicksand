@@ -14,7 +14,7 @@ void CondVar::wait(Mutex *mutex) {
   myth = thread_self();
   mutex->unlock();
   if (list_empty(&cv_.waiters)) {
-    auto *heap_header = Runtime::get_current_obj_heap_header();
+    auto *heap_header = Runtime::get_current_proclet_heap_header();
     if (heap_header) {
       heap_header->blocked_syncer.add(this, BlockedSyncer::Type::kCondVar);
     }
@@ -40,7 +40,7 @@ void CondVar::wait_and_unlock(SpinLock *spin) {
   myth = thread_self();
   spin->unlock();
   if (list_empty(&cv_.waiters)) {
-    auto *heap_header = Runtime::get_current_obj_heap_header();
+    auto *heap_header = Runtime::get_current_proclet_heap_header();
     if (heap_header) {
       heap_header->blocked_syncer.add(this, BlockedSyncer::Type::kCondVar);
     }
@@ -61,7 +61,7 @@ void CondVar::signal() {
   waketh = reinterpret_cast<thread_t *>(
       const_cast<void *>(list_pop_(&cv_.waiters, thread_link_offset)));
   if (waketh && unlikely(list_empty(&cv_.waiters))) {
-    auto *heap_header = Runtime::get_current_obj_heap_header();
+    auto *heap_header = Runtime::get_current_proclet_heap_header();
     if (heap_header) {
       heap_header->blocked_syncer.remove(this);
     }
@@ -83,7 +83,7 @@ void CondVar::signal_all() {
 
   spin_lock_np(&cv_.waiter_lock);
   if (!list_empty(&cv_.waiters)) {
-    auto *heap_header = Runtime::get_current_obj_heap_header();
+    auto *heap_header = Runtime::get_current_proclet_heap_header();
     if (heap_header) {
       heap_header->blocked_syncer.remove(this);
     }

@@ -12,7 +12,7 @@ extern "C" {
 namespace nu {
 
 inline DistributedMemPool::Heap::Heap(uint32_t shard_size) {
-  auto *slab = Runtime::get_current_obj_slab();
+  auto *slab = Runtime::get_current_proclet_slab();
   BUG_ON(!slab->try_shrink(shard_size));
 }
 
@@ -46,8 +46,8 @@ inline bool DistributedMemPool::Heap::has_space_for(uint32_t size) {
 
 inline DistributedMemPool::Shard::Shard() {}
 
-inline DistributedMemPool::Shard::Shard(Proclet<Heap> &&obj)
-    : proclet(std::move(obj)) {}
+inline DistributedMemPool::Shard::Shard(Proclet<Heap> &&proclet)
+    : proclet(std::move(proclet)) {}
 
 inline DistributedMemPool::Shard::Shard(Shard &&o)
     : failed_alloc_size(o.failed_alloc_size), proclet(std::move(o.proclet)) {}

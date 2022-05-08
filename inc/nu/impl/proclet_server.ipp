@@ -16,8 +16,8 @@
 namespace nu {
 
 template <typename Cls, typename... As>
-void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
-                              RPCReturner *returner) {
+void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
+                                      RPCReturner *returner) {
   void *base;
   bool pinned;
   ia >> base >> pinned;
@@ -33,7 +33,7 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
   std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
   std::apply(
       [&](auto &&... args) {
-        ObjSlabGuard obj_slab_guard(&slab);
+        ProcletSlabGuard proclet_slab_guard(&slab);
         heap_header->status = kPresent;
         auto *self = thread_self();
         auto *old_owner = thread_set_owner_heap(self, base);
@@ -49,7 +49,8 @@ void ObjServer::construct_obj(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls, typename... As>
-void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
+void ProcletServer::construct_proclet_locally(void *base, bool pinned,
+                                              As &&... args) {
   RuntimeSlabGuard runtime_slab_guard;
   Runtime::heap_manager->allocate(base, /* migratable = */ !pinned);
 
@@ -59,7 +60,7 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
   auto obj_space = slab.yield(sizeof(Cls));
 
   {
-    ObjSlabGuard obj_slab_guard(&slab);
+    ProcletSlabGuard proclet_slab_guard(&slab);
     heap_header->status = kPresent;
     auto *self = thread_self();
     auto *old_owner = thread_set_owner_heap(self, base);
@@ -71,9 +72,9 @@ void ObjServer::construct_obj_locally(void *base, bool pinned, As &&... args) {
 }
 
 template <typename Cls>
-void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
-                                 HeapHeader *heap_header, int delta,
-                                 bool *deallocate) {
+void ProcletServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
+                                     HeapHeader *heap_header, int delta,
+                                     bool *deallocate) {
   heap_header->spin.Lock();
   auto latest_cnt = (heap_header->ref_cnt += delta);
   BUG_ON(latest_cnt < 0);
@@ -94,7 +95,7 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
         MigrationEnabledGuard guard;
         HeapManager::wait_until_present(heap_header);
       }
-      // Safe without acquiring the lock since the obj is dead now.
+      // Safe without acquiring the lock since the proclet is dead now.
       heap_header->ref_cnt = -delta;
       RuntimeSlabGuard guard;
       send_rpc_resp_wrong_client(&returner);
@@ -107,8 +108,8 @@ void ObjServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
 }
 
 template <typename Cls>
-void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
-                               RPCReturner *returner) {
+void ProcletServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
+                                   RPCReturner *returner) {
   ProcletID id;
   ia >> id;
   int delta;
@@ -118,7 +119,7 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
   auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
 
   bool deallocate = false;
-  bool heap_not_found = !Runtime::run_within_obj_env<Cls>(
+  bool heap_not_found = !Runtime::run_within_proclet_env<Cls>(
       heap_base, __update_ref_cnt<Cls>, *returner, heap_header, delta,
       &deallocate);
 
@@ -134,7 +135,7 @@ void ObjServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls>
-bool ObjServer::update_ref_cnt_locally(ProcletID id, int delta) {
+bool ProcletServer::update_ref_cnt_locally(ProcletID id, int delta) {
   auto *heap_header = reinterpret_cast<HeapHeader *>(to_heap_base(id));
   heap_header->spin.Lock();
   auto latest_cnt = (heap_header->ref_cnt += delta);
@@ -147,8 +148,8 @@ bool ObjServer::update_ref_cnt_locally(ProcletID id, int delta) {
     }
     // Won't be migrated at this point.
     {
-      auto *obj = Runtime::get_obj<Cls>(id);
-      ObjSlabGuard obj_slab_guard(&heap_header->slab);
+      auto *obj = Runtime::get_root_obj<Cls>(id);
+      ProcletSlabGuard proclet_slab_guard(&heap_header->slab);
       obj->~Cls();
     }
 
@@ -160,9 +161,9 @@ bool ObjServer::update_ref_cnt_locally(ProcletID id, int delta) {
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-void ObjServer::__run_closure(Cls &obj, HeapHeader *heap_header,
-                              cereal::BinaryInputArchive &ia,
-                              RPCReturner returner) {
+void ProcletServer::__run_closure(Cls &obj, HeapHeader *heap_header,
+                                  cereal::BinaryInputArchive &ia,
+                                  RPCReturner returner) {
   auto state = heap_header->cpu_load.monitor_start();
   heap_header->thread_cnt.inc_unsafe();
 
@@ -204,12 +205,12 @@ void ObjServer::__run_closure(Cls &obj, HeapHeader *heap_header,
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-void ObjServer::run_closure(cereal::BinaryInputArchive &ia,
-                            RPCReturner *returner) {
+void ProcletServer::run_closure(cereal::BinaryInputArchive &ia,
+                                RPCReturner *returner) {
   ProcletID id;
   ia >> id;
   auto *heap_header = to_heap_header(id);
-  bool heap_not_found = !Runtime::run_within_obj_env<Cls>(
+  bool heap_not_found = !Runtime::run_within_proclet_env<Cls>(
       heap_header, __run_closure<Cls, RetT, FnPtr, S1s...>, heap_header, ia,
       *returner);
   if (heap_not_found) {
@@ -218,15 +219,15 @@ void ObjServer::run_closure(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-void ObjServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
-                                    ProcletID callee_id, FnPtr fn_ptr,
-                                    S1s &&... states) {
+void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
+                                        ProcletID callee_id, FnPtr fn_ptr,
+                                        S1s &&... states) {
   auto *callee_heap_header = to_heap_header(callee_id);
   auto *caller_heap_header = to_heap_header(caller_id);
   auto state = callee_heap_header->cpu_load.monitor_start();
   callee_heap_header->thread_cnt.inc_unsafe();
 
-  auto *obj = Runtime::get_obj<Cls>(callee_id);
+  auto *obj = Runtime::get_root_obj<Cls>(callee_id);
   if constexpr (!std::is_same<RetT, void>::value) {
     auto *ret = reinterpret_cast<RetT *>(alloca(sizeof(RetT)));
     std::construct_at(ret);
@@ -239,7 +240,7 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
 
       if (likely(caller_guard)) {
         {
-          ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
+          ProcletSlabGuard caller_slab_guard(&caller_heap_header->slab);
           *caller_ptr = move_if_safe(*ret);
         }
         thread_set_owner_heap(thread_self(), caller_heap_header);

@@ -40,40 +40,40 @@ struct RPCRespVerifyMD5 {
   bool passed;
 } __attribute__((packed));
 
-struct RPCReqAllocateObj {
-  RPCReqType rpc_type = kAllocateObj;
+struct RPCReqAllocateProclet {
+  RPCReqType rpc_type = kAllocateProclet;
   lpid_t lpid;
   uint32_t ip_hint;
 } __attribute__((packed));
 
-struct RPCRespAllocateObj {
+struct RPCRespAllocateProclet {
   bool empty;
   ProcletID id;
   uint32_t server_ip;
 } __attribute__((packed));
 
-struct RPCReqDestroyObj {
-  RPCReqType rpc_type = kDestroyObj;
+struct RPCReqDestroyProclet {
+  RPCReqType rpc_type = kDestroyProclet;
   ProcletID id;
 } __attribute__((packed));
 
-struct RPCRespDestroyObj {
+struct RPCRespDestroyProclet {
   bool ok;
 } __attribute__((packed));
 
-struct RPCReqResolveObj {
-  RPCReqType rpc_type = kResolveObj;
+struct RPCReqResolveProclet {
+  RPCReqType rpc_type = kResolveProclet;
   ProcletID id;
 } __attribute__((packed));
 
-struct RPCRespResolveObj {
+struct RPCRespResolveProclet {
   uint32_t ip;
 } __attribute__((packed));
 
 struct RPCReqUpdateLocation {
   RPCReqType rpc_type = kUpdateLocation;
   ProcletID id;
-  uint32_t obj_srv_ip;
+  uint32_t proclet_srv_ip;
 } __attribute__((packed));
 
 struct RPCReqGetMigrationDest {
@@ -109,9 +109,9 @@ private:
   Controller ctrl_;
   std::atomic<uint64_t> num_register_node_;
   std::atomic<uint64_t> num_verify_md5_;
-  std::atomic<uint64_t> num_allocate_obj_;
-  std::atomic<uint64_t> num_destroy_obj_;
-  std::atomic<uint64_t> num_resolve_obj_;
+  std::atomic<uint64_t> num_allocate_proclet_;
+  std::atomic<uint64_t> num_destroy_proclet_;
+  std::atomic<uint64_t> num_resolve_proclet_;
   std::atomic<uint64_t> num_get_migration_dest_;
   std::atomic<uint64_t> num_update_location_;
   std::atomic<uint64_t> num_report_free_resource_;
@@ -126,12 +126,12 @@ private:
   handle_register_node(const RPCReqRegisterNode &req);
   std::unique_ptr<RPCRespVerifyMD5>
   handle_verify_md5(const RPCReqVerifyMD5 &req);
-  std::unique_ptr<RPCRespAllocateObj>
-  handle_allocate_obj(const RPCReqAllocateObj &req);
-  std::unique_ptr<RPCRespDestroyObj>
-  handle_destroy_obj(const RPCReqDestroyObj &req);
-  std::unique_ptr<RPCRespResolveObj>
-  handle_resolve_obj(const RPCReqResolveObj &req);
+  std::unique_ptr<RPCRespAllocateProclet>
+  handle_allocate_proclet(const RPCReqAllocateProclet &req);
+  std::unique_ptr<RPCRespDestroyProclet>
+  handle_destroy_proclet(const RPCReqDestroyProclet &req);
+  std::unique_ptr<RPCRespResolveProclet>
+  handle_resolve_proclet(const RPCReqResolveProclet &req);
   std::unique_ptr<RPCRespGetMigrationDest>
   handle_get_migration_dest(const RPCReqGetMigrationDest &req);
   void handle_update_location(const RPCReqUpdateLocation &req);

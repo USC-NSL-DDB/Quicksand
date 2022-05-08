@@ -18,8 +18,8 @@ extern "C" {
 #include "nu/ctrl_client.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/migrator.hpp"
-#include "nu/obj_server.hpp"
 #include "nu/pressure_handler.hpp"
+#include "nu/proclet_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"
 #include "nu/utils/cond_var.hpp"
@@ -354,7 +354,7 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
   BUG_ON(c->WriteFull(nu_state, nu_state_size, /* nt = */ false,
                       /* poll = */ true) < 0);
 
-  auto stack_range = get_obj_stack_range(thread);
+  auto stack_range = get_proclet_stack_range(thread);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->WriteFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                       /* nt = */ false,
@@ -557,7 +557,7 @@ void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
       destructed_heaps.push_back(heap_header);
       continue;
     }
-    Runtime::controller_client->update_location(to_obj_id(heap_header),
+    Runtime::controller_client->update_location(to_proclet_id(heap_header),
                                                 dest_ip);
     migrated_heaps.push_back(heap_header);
     pause_migrating_threads(heap_header);
@@ -635,7 +635,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
                      /* poll = */ true) <= 0);
   auto *th = create_migrated_thread(nu_state.get());
 
-  auto stack_range = get_obj_stack_range(th);
+  auto stack_range = get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                      /* nt = */ false,
@@ -853,7 +853,7 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
   std::construct_at(req);
   req->rc = rc;
   req->returner = *returner;
-  req->stack_top = get_obj_stack_range(thread_self()).end;
+  req->stack_top = get_proclet_stack_range(thread_self()).end;
   req->payload_len = payload_len;
   memcpy(req->payload, payload, payload_len);
   auto req_span = std::span(req_buf.get(), req_buf_len);

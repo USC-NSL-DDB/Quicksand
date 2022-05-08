@@ -4,7 +4,7 @@
 
 namespace nu {
 
-extern void trampoline_in_obj_env(void *arg);
+extern void trampoline_in_proclet_env(void *arg);
 extern void trampoline_in_runtime_env(void *arg);
 
 inline Thread::Thread() : th_(nullptr), join_data_(nullptr) {}
@@ -25,23 +25,23 @@ inline Thread &Thread::operator=(Thread &&t) {
 }
 
 template <typename F> Thread::Thread(F &&f) {
-  auto *heap_header = Runtime::get_current_obj_heap_header();
+  auto *heap_header = Runtime::get_current_proclet_heap_header();
 
   if (heap_header) {
-    create_in_obj_env(f, heap_header);
+    create_in_proclet_env(f, heap_header);
   } else {
     create_in_runtime_env(f);
   }
 }
 
 template <typename F>
-void Thread::create_in_obj_env(F &&f, HeapHeader *header) {
+void Thread::create_in_proclet_env(F &&f, HeapHeader *header) {
   rt::Preempt p;
   rt::PreemptGuard g(&p);
-  auto *obj_stack = Runtime::stack_manager->get();
-  assert(reinterpret_cast<uintptr_t>(obj_stack) % kStackAlignment == 0);
+  auto *proclet_stack = Runtime::stack_manager->get();
+  assert(reinterpret_cast<uintptr_t>(proclet_stack) % kStackAlignment == 0);
   th_ = thread_nu_create_with_buf(
-      this, obj_stack, kStackSize, trampoline_in_obj_env,
+      this, proclet_stack, kStackSize, trampoline_in_proclet_env,
       reinterpret_cast<void **>(&join_data_), sizeof(*join_data_));
   BUG_ON(!th_);
   new (join_data_) join_data(std::forward<F>(f), header);

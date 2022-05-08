@@ -51,7 +51,7 @@ public:
   bool serve_req(PerfThreadState *perf_state, const PerfRequest *perf_req) {
     auto *req = reinterpret_cast<const PerfResolveObjReq *>(perf_req);
     ProcletID proclet_id = kMaxHeapVAddr - req->proclet_num * kHeapSize;
-    auto ip = client_->resolve_obj(proclet_id);
+    auto ip = client_->resolve_proclet(proclet_id);
     BUG_ON(!ip);
     return true;
   }

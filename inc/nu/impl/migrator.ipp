@@ -25,7 +25,7 @@ retry:
   auto *th = create_migrated_thread(payload);
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
 
-  auto stack_range = get_obj_stack_range(th);
+  auto stack_range = get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
 
   // Only rewrite the pointer if the nu_thread locates at the dest heap.
@@ -43,7 +43,7 @@ retry:
   ret_ss.span({reinterpret_cast<char *>(payload + nu_state_size + stack_len),
                payload_len - nu_state_size - stack_len});
   if constexpr (!std::is_same<RetT, void>::value) {
-    ObjSlabGuard g(&dest_heap_header->slab);
+    ProcletSlabGuard g(&dest_heap_header->slab);
     ia >> *dest_ret_val_ptr;
   }
   Runtime::archive_pool->put_ia_sstream(ia_sstream);
@@ -67,7 +67,7 @@ void Migrator::migrate_thread_and_ret_val(RPCReturnBuffer &&ret_val_buf,
         size_t nu_state_size;
         auto *nu_state = thread_get_nu_state(th, &nu_state_size);
 
-        auto stack_range = get_obj_stack_range(th);
+        auto stack_range = get_proclet_stack_range(th);
         auto stack_len = stack_range.end - stack_range.start;
 
         auto ret_val_span = ret_val_buf.get_buf();

@@ -19,7 +19,7 @@ extern "C" {
 namespace nu {
 
 struct HeapHeader;
-class ObjServer;
+class ProcletServer;
 class HeapManager;
 class StackManager;
 class ControllerClient;
@@ -51,7 +51,7 @@ public:
 
 private:
   static RCULock rcu_lock;
-  static std::unique_ptr<ObjServer> obj_server;
+  static std::unique_ptr<ProcletServer> proclet_server;
   static std::unique_ptr<ControllerClient> controller_client;
   static std::unique_ptr<ControllerServer> controller_server;
   static std::unique_ptr<HeapManager> heap_manager;
@@ -64,7 +64,7 @@ private:
   static std::unique_ptr<ResourceReporter> resource_reporter;
 
   friend class Test;
-  friend class ObjServer;
+  friend class ProcletServer;
   friend class RPCClientMgr;
   friend class Migrator;
   friend class Mutex;
@@ -80,7 +80,7 @@ private:
   friend class ResourceReporter;
   friend class DistributedMemPool;
   friend class RuntimeSlabGuard;
-  friend class ObjSlabGuard;
+  friend class ProcletSlabGuard;
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
   friend class NonBlockingMigrationDisabledGuard;
@@ -96,18 +96,18 @@ private:
   static void init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid);
   static void init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid);
   template <typename Cls, typename... A0s, typename... A1s>
-  static bool run_within_obj_env(void *heap_base, void (*fn)(A0s...),
-                                 A1s &&... args);
+  static bool run_within_proclet_env(void *heap_base, void (*fn)(A0s...),
+                                     A1s &&... args);
   static void *switch_slab(void *slab);
   static void *switch_to_runtime_slab();
   template <typename T, typename... Args>
   static T *new_on_runtime_heap(Args &&... args);
   template <typename T> static void delete_on_runtime_heap(T *ptr);
-  static SlabAllocator *get_current_obj_slab();
-  static HeapHeader *get_current_obj_heap_header();
-  static ProcletID get_current_obj_id();
-  template <typename T> static T *get_current_obj();
-  template <typename T> static T *get_obj(ProcletID id);
+  static SlabAllocator *get_current_proclet_slab();
+  static HeapHeader *get_current_proclet_heap_header();
+  static ProcletID get_current_proclet_id();
+  template <typename T> static T *get_current_root_obj();
+  template <typename T> static T *get_root_obj(ProcletID id);
 };
 
 class RuntimeSlabGuard {
@@ -119,10 +119,10 @@ private:
   void *original_slab_;
 };
 
-class ObjSlabGuard {
+class ProcletSlabGuard {
 public:
-  ObjSlabGuard(void *slab);
-  ~ObjSlabGuard();
+  ProcletSlabGuard(void *slab);
+  ~ProcletSlabGuard();
 
 private:
   void *original_slab_;

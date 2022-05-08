@@ -62,7 +62,7 @@ public:
   std::vector<std::pair<K, V>> get_all_pairs();
   template <typename K1>
   static uint32_t get_shard_idx(K1 &&k, uint32_t power_num_shards);
-  ProcletID get_shard_obj_id(uint32_t shard_id);
+  ProcletID get_shard_proclet_id(uint32_t shard_id);
 
   template <class Archive> void serialize(Archive &ar);
 

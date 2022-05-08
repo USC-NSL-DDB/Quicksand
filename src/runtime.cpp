@@ -15,7 +15,7 @@ extern "C" {
 #include "nu/ctrl_client.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
-#include "nu/obj_server.hpp"
+#include "nu/proclet_server.hpp"
 #include "nu/pressure_handler.hpp"
 #include "nu/resource_reporter.hpp"
 #include "nu/rpc_client_mgr.hpp"
@@ -30,7 +30,7 @@ bool active_runtime = false;
 
 SlabAllocator Runtime::runtime_slab;
 RCULock Runtime::rcu_lock;
-std::unique_ptr<ObjServer> Runtime::obj_server;
+std::unique_ptr<ProcletServer> Runtime::proclet_server;
 std::unique_ptr<HeapManager> Runtime::heap_manager;
 std::unique_ptr<StackManager> Runtime::stack_manager;
 std::unique_ptr<ControllerClient> Runtime::controller_client;
@@ -62,7 +62,7 @@ void Runtime::init_as_controller() {
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
-  obj_server.reset(new decltype(obj_server)::element_type());
+  proclet_server.reset(new decltype(proclet_server)::element_type());
   rpc_server.reset(new decltype(rpc_server)::element_type());
   rpc_server->run_background_loop();
   migrator.reset(new decltype(migrator)::element_type());
@@ -119,7 +119,7 @@ std::unique_ptr<Runtime> Runtime::init(uint32_t remote_ctrl_ip, Mode mode,
 
 Runtime::~Runtime() {
   rcu_lock.writer_sync();
-  obj_server.reset();
+  proclet_server.reset();
   controller_client.reset();
   heap_manager.reset();
   stack_manager.reset();
@@ -200,7 +200,7 @@ wrong_args:
 
 inline void *__new(size_t size) {
   void *ptr;
-  auto *slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_obj_slab());
+  auto *slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_proclet_slab());
 
   if (slab) {
     ptr = slab->allocate(size);

@@ -3,7 +3,7 @@
 namespace nu {
 
 __attribute__((optimize("no-omit-frame-pointer"))) void
-Thread::trampoline_in_obj_env(void *args) {
+Thread::trampoline_in_proclet_env(void *args) {
   auto *d = reinterpret_cast<join_data *>(args);
 
   d->func();
@@ -31,10 +31,11 @@ Thread::trampoline_in_obj_env(void *args) {
 
   // auto *heap_header = d->header;
   if (likely(thread_is_at_creator())) {
-    auto obj_stack_addr =
+    auto proclet_stack_addr =
         ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &
          (~(kStackSize - 1)));
-    Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(obj_stack_addr));
+    Runtime::stack_manager->put(
+        reinterpret_cast<uint8_t *>(proclet_stack_addr));
   } else {
     // FIXME
     // heap_header->migrated_wg.Done();

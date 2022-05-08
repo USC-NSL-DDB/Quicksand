@@ -94,7 +94,7 @@ struct thread_nu_state {
 	uint32_t                creator_ip;
 	void                    *owner_heap;
 	struct aligned_cycles	*run_cycles;
-	void                    *obj_slab;
+	void                    *proclet_slab;
 	void                    *nu_thread;
 	struct thread_tf	tf;
 };

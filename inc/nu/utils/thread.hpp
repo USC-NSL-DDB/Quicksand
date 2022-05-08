@@ -48,10 +48,10 @@ private:
   join_data *join_data_;
   friend class Migrator;
 
-  template <typename F> void create_in_obj_env(F &&f, HeapHeader *header);
+  template <typename F> void create_in_proclet_env(F &&f, HeapHeader *header);
   template <typename F> void create_in_runtime_env(F &&f);
   static void trampoline_in_runtime_env(void *args);
-  static void trampoline_in_obj_env(void *args);
+  static void trampoline_in_proclet_env(void *args);
 };
 
 } // namespace nu

@@ -20,7 +20,7 @@ inline constexpr void *to_heap_base(ProcletID id) {
   return reinterpret_cast<void *>(id);
 }
 
-inline constexpr ProcletID to_obj_id(void *heap_base) {
+inline constexpr ProcletID to_proclet_id(void *heap_base) {
   return reinterpret_cast<ProcletID>(heap_base);
 }
 
@@ -47,7 +47,7 @@ inline __attribute__((always_inline)) void *switch_stack(void *new_rsp) {
   return old_rsp;
 }
 
-inline VAddrRange get_obj_stack_range(thread_t *thread) {
+inline VAddrRange get_proclet_stack_range(thread_t *thread) {
   VAddrRange range;
   auto rsp = thread_get_rsp(thread);
   range.start = rsp - kStackRedZoneSize;

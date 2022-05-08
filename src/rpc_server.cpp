@@ -2,7 +2,7 @@
 #include "nu/commons.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
-#include "nu/obj_server.hpp"
+#include "nu/proclet_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/rpc.hpp"
 
@@ -48,23 +48,23 @@ void RPCServer::run_background_loop() {
       returner->Return(kOk, span, [resp = std::move(resp)] {});
       break;
     }
-    case kAllocateObj: {
-      auto &req = from_span<RPCReqAllocateObj>(args);
-      auto resp = Runtime::controller_server->handle_allocate_obj(req);
+    case kAllocateProclet: {
+      auto &req = from_span<RPCReqAllocateProclet>(args);
+      auto resp = Runtime::controller_server->handle_allocate_proclet(req);
       auto span = to_span(*resp);
       returner->Return(kOk, span, [resp = std::move(resp)] {});
       break;
     }
-    case kDestroyObj: {
-      auto &req = from_span<RPCReqDestroyObj>(args);
-      auto resp = Runtime::controller_server->handle_destroy_obj(req);
+    case kDestroyProclet: {
+      auto &req = from_span<RPCReqDestroyProclet>(args);
+      auto resp = Runtime::controller_server->handle_destroy_proclet(req);
       auto span = to_span(*resp);
       returner->Return(kOk, span, [resp = std::move(resp)] {});
       break;
     }
-    case kResolveObj: {
-      auto &req = from_span<RPCReqResolveObj>(args);
-      auto resp = Runtime::controller_server->handle_resolve_obj(req);
+    case kResolveProclet: {
+      auto &req = from_span<RPCReqResolveProclet>(args);
+      auto resp = Runtime::controller_server->handle_resolve_proclet(req);
       auto span = to_span(*resp);
       returner->Return(kOk, span, [resp = std::move(resp)] {});
       break;
@@ -72,7 +72,7 @@ void RPCServer::run_background_loop() {
     // Proclet server
     case kProcletCall: {
       args = args.subspan(sizeof(RPCReqType));
-      Runtime::obj_server->parse_and_run_handler(args, returner);
+      Runtime::proclet_server->parse_and_run_handler(args, returner);
       break;
     }
     default:

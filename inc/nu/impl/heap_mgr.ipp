@@ -71,7 +71,7 @@ inline void HeapManager::disable_migration(HeapHeader *heap_header) {
 }
 
 inline MigrationEnabledGuard::MigrationEnabledGuard()
-    : MigrationEnabledGuard(Runtime::get_current_obj_heap_header()) {}
+    : MigrationEnabledGuard(Runtime::get_current_proclet_heap_header()) {}
 
 inline MigrationEnabledGuard::MigrationEnabledGuard(HeapHeader *heap_header)
     : heap_header_(heap_header) {
@@ -107,7 +107,7 @@ inline void MigrationEnabledGuard::reset(HeapHeader *heap_header) {
 }
 
 inline MigrationDisabledGuard::MigrationDisabledGuard()
-    : MigrationDisabledGuard(Runtime::get_current_obj_heap_header()) {}
+    : MigrationDisabledGuard(Runtime::get_current_proclet_heap_header()) {}
 
 inline MigrationDisabledGuard::MigrationDisabledGuard(HeapHeader *heap_header)
     : heap_header_(heap_header) {
@@ -150,7 +150,7 @@ inline HeapHeader *MigrationDisabledGuard::get_heap_header() {
 }
 
 inline NonBlockingMigrationDisabledGuard::NonBlockingMigrationDisabledGuard()
-    : heap_header_(Runtime::get_current_obj_heap_header()) {}
+    : heap_header_(Runtime::get_current_proclet_heap_header()) {}
 
 inline NonBlockingMigrationDisabledGuard::NonBlockingMigrationDisabledGuard(
     HeapHeader *heap_header)

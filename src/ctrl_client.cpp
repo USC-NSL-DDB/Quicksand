@@ -6,7 +6,7 @@ extern "C" {
 #include "nu/ctrl_client.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
-#include "nu/obj_server.hpp"
+#include "nu/proclet_server.hpp"
 #include "nu/runtime.hpp"
 
 namespace nu {
@@ -68,13 +68,13 @@ bool ControllerClient::verify_md5(MD5Val md5) {
 }
 
 std::optional<std::pair<ProcletID, uint32_t>>
-ControllerClient::allocate_obj(uint32_t ip_hint) {
-  RPCReqAllocateObj req;
+ControllerClient::allocate_proclet(uint32_t ip_hint) {
+  RPCReqAllocateProclet req;
   req.lpid = lpid_;
   req.ip_hint = ip_hint;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
-  auto &resp = from_span<RPCRespAllocateObj>(return_buf.get_buf());
+  auto &resp = from_span<RPCRespAllocateProclet>(return_buf.get_buf());
   if (resp.empty) {
     return std::nullopt;
   } else {
@@ -84,19 +84,19 @@ ControllerClient::allocate_obj(uint32_t ip_hint) {
   }
 }
 
-void ControllerClient::destroy_obj(ProcletID id) {
-  RPCReqDestroyObj req;
+void ControllerClient::destroy_proclet(ProcletID id) {
+  RPCReqDestroyProclet req;
   req.id = id;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
 }
 
-uint32_t ControllerClient::resolve_obj(ProcletID id) {
-  RPCReqResolveObj req;
+uint32_t ControllerClient::resolve_proclet(ProcletID id) {
+  RPCReqResolveProclet req;
   req.id = id;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
-  auto &resp = from_span<RPCRespResolveObj>(return_buf.get_buf());
+  auto &resp = from_span<RPCRespResolveProclet>(return_buf.get_buf());
   return resp.ip;
 }
 
@@ -116,12 +116,12 @@ uint32_t ControllerClient::get_migration_dest(Resource resource) {
   return resp.ip;
 }
 
-void ControllerClient::update_location(ProcletID id, uint32_t obj_srv_ip) {
+void ControllerClient::update_location(ProcletID id, uint32_t proclet_srv_ip) {
   rt::SpinGuard g(&spin_);
 
   RPCReqUpdateLocation req;
   req.id = id;
-  req.obj_srv_ip = obj_srv_ip;
+  req.proclet_srv_ip = proclet_srv_ip;
   BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
                               /* poll = */ true) != sizeof(req));
 }

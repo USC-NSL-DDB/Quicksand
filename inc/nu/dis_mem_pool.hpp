@@ -73,7 +73,7 @@ private:
     Proclet<Heap> proclet;
 
     Shard();
-    Shard(Proclet<Heap> &&obj);
+    Shard(Proclet<Heap> &&proclet);
     Shard(Shard &&o);
     Shard &operator=(Shard &&o);
 

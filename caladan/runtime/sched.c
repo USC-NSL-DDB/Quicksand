@@ -24,9 +24,9 @@ const int thread_run_cycles_offset =
 const int thread_owner_heap_offset =
        offsetof(struct thread, nu_state) +
        offsetof(struct thread_nu_state, owner_heap);
-const int thread_obj_slab_offset =
+const int thread_proclet_slab_offset =
        offsetof(struct thread, nu_state) +
-       offsetof(struct thread_nu_state, obj_slab);
+       offsetof(struct thread_nu_state, proclet_slab);
 
 /* the current running thread, or NULL if there isn't one */
 __thread thread_t *__self;
@@ -1034,7 +1034,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
 	th->nu_state.creator_ip = get_cfg_ip();
-	th->nu_state.obj_slab = NULL;
+	th->nu_state.proclet_slab = NULL;
 	th->nu_state.owner_heap = NULL;
 
 	return th;
@@ -1089,8 +1089,8 @@ thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t buf_len)
 	return th;
 }
 
-thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_stack,
-				    uint32_t obj_stack_size, thread_fn_t fn,
+thread_t *thread_nu_create_with_buf(void *nu_thread, void *proclet_stack,
+				    uint32_t proclet_stack_size, thread_fn_t fn,
 				    void **buf, size_t buf_len)
 {
 	void *ptr;
@@ -1098,12 +1098,12 @@ thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_stack,
 	if (unlikely(!th))
 		return NULL;
 
-	th->nu_state.obj_slab = __self->nu_state.obj_slab;
+	th->nu_state.proclet_slab = __self->nu_state.proclet_slab;
 	th->nu_state.owner_heap = __self->nu_state.owner_heap;
 	th->nu_state.nu_thread = nu_thread;
 	th->nu_state.tf.rsp =
-		nu_stack_init_to_rsp_with_buf(obj_stack, obj_stack_size, &ptr,
-					      buf_len);
+		nu_stack_init_to_rsp_with_buf(proclet_stack, proclet_stack_size,
+					      &ptr, buf_len);
 	th->nu_state.tf.rdi = (uint64_t)ptr;
 	/* just in case base pointers are enabled */
 	th->nu_state.tf.rbp = (uint64_t)0;

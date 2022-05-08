@@ -7,7 +7,7 @@ template <typename T> RemRawPtr<T>::RemRawPtr() {}
 
 template <typename T>
 RemRawPtr<T>::RemRawPtr(T *raw_ptr)
-    : RemPtr<T>(Runtime::get_current_obj_id(), raw_ptr) {}
+    : RemPtr<T>(Runtime::get_current_proclet_id(), raw_ptr) {}
 
 template <typename T>
 RemRawPtr<T>::RemRawPtr(const RemRawPtr<T> &o) : RemPtr<T>(o) {}

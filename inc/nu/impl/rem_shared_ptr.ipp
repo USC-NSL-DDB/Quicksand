@@ -37,12 +37,12 @@ template <typename T> RemSharedPtr<T>::RemSharedPtr() noexcept {}
 
 template <typename T>
 RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> &&shared_ptr) noexcept
-    : RemPtr<T>(Runtime::get_current_obj_id(), shared_ptr.get()),
+    : RemPtr<T>(Runtime::get_current_proclet_id(), shared_ptr.get()),
       shared_ptr_(new std::shared_ptr<T>(std::move(shared_ptr))) {}
 
 template <typename T>
 RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> *shared_ptr)
-    : RemPtr<T>(Runtime::get_current_obj_id(),
+    : RemPtr<T>(Runtime::get_current_proclet_id(),
                 shared_ptr ? shared_ptr->get() : nullptr),
       shared_ptr_(shared_ptr) {}
 

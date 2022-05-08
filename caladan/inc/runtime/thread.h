@@ -23,7 +23,7 @@ struct aligned_cycles {
 extern const int thread_link_offset;
 extern const int thread_run_cycles_offset;
 extern const int thread_owner_heap_offset;
-extern const int thread_obj_slab_offset;
+extern const int thread_proclet_slab_offset;
 
 /*
  * Low-level routines, these are helpful for bindings and synchronization
@@ -36,8 +36,8 @@ extern void thread_ready(thread_t *thread);
 extern void thread_ready_head(thread_t *thread);
 extern thread_t *thread_create(thread_fn_t fn, void *arg);
 extern thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
-extern thread_t *thread_nu_create_with_buf(void *nu_thread, void *obj_stack,
-                                           uint32_t obj_stack_size,
+extern thread_t *thread_nu_create_with_buf(void *nu_thread, void *proclet_stack,
+                                           uint32_t proclet_stack_size,
                                            thread_fn_t fn, void **buf,
                                            size_t buf_len);
 
@@ -141,21 +141,21 @@ static inline void *thread_get_owner_heap(void)
 	return *owner_heap_p;
 }
 
-static inline void *thread_get_obj_slab(void)
+static inline void *thread_get_proclet_slab(void)
 {
        if (!__self)
 		return 0;
 
-       return *(void **)((uint64_t)__self + thread_obj_slab_offset);
+       return *(void **)((uint64_t)__self + thread_proclet_slab_offset);
 }
 
-static inline void *thread_set_obj_slab(void *obj_slab)
+static inline void *thread_set_proclet_slab(void *proclet_slab)
 {
-       void **obj_slab_p = (void **)((uint64_t)__self + thread_obj_slab_offset);
-       void *old_obj_slab = *obj_slab_p;
-       *obj_slab_p = obj_slab;
+       void **proclet_slab_p = (void **)((uint64_t)__self + thread_proclet_slab_offset);
+       void *old_proclet_slab = *proclet_slab_p;
+       *proclet_slab_p = proclet_slab;
 
-       return old_obj_slab;
+       return old_proclet_slab;
 }
 
 

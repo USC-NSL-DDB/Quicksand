@@ -30,10 +30,10 @@ private:
   friend class Migrator;
 
   static void timer_callback(unsigned long arg_addr);
-  uint64_t obj_env_microtime();
-  uint64_t obj_env_rdtsc();
-  void obj_env_sleep(uint64_t duration_us);
-  void obj_env_sleep_until(uint64_t deadline_us);
+  uint64_t proclet_env_microtime();
+  uint64_t proclet_env_rdtsc();
+  void proclet_env_sleep(uint64_t duration_us);
+  void proclet_env_sleep_until(uint64_t deadline_us);
   uint64_t to_logical_tsc(uint64_t physical_tsc);
   uint64_t to_logical_us(uint64_t physical_us);
   uint64_t to_physical_tsc(uint64_t logical_tsc);

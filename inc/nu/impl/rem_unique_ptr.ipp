@@ -23,7 +23,7 @@ template <typename T> RemUniquePtr<T>::RemUniquePtr() noexcept {}
 
 template <typename T>
 RemUniquePtr<T>::RemUniquePtr(T *raw_ptr)
-    : RemPtr<T>(Runtime::get_current_obj_id(), raw_ptr) {}
+    : RemPtr<T>(Runtime::get_current_proclet_id(), raw_ptr) {}
 
 template <typename T>
 RemUniquePtr<T>::RemUniquePtr(std::unique_ptr<T> &&unique_ptr) noexcept

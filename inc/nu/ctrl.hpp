@@ -53,13 +53,13 @@ public:
   std::optional<std::pair<lpid_t, VAddrRange>>
   register_node(Node &node, lpid_t lpid, MD5Val md5);
   bool verify_md5(lpid_t lpid, MD5Val md5);
-  std::optional<std::pair<ProcletID, uint32_t>> allocate_obj(lpid_t lpid,
-                                                            uint32_t ip_hint);
-  void destroy_obj(ProcletID id);
-  uint32_t resolve_obj(ProcletID id);
+  std::optional<std::pair<ProcletID, uint32_t>>
+  allocate_proclet(lpid_t lpid, uint32_t ip_hint);
+  void destroy_proclet(ProcletID id);
+  uint32_t resolve_proclet(ProcletID id);
   uint32_t get_migration_dest(lpid_t lpid, uint32_t requestor_ip,
                               Resource resource);
-  void update_location(ProcletID id, uint32_t obj_srv_ip);
+  void update_location(ProcletID id, uint32_t proclet_srv_ip);
   void report_free_resource(lpid_t lpid, uint32_t ip, Resource free_resource);
 
 private:
@@ -68,11 +68,11 @@ private:
   std::set<lpid_t> free_lpids_;
   std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;
   std::unordered_map<lpid_t, LPInfo> lpid_to_info_;
-  std::unordered_map<ProcletID, uint32_t> obj_id_to_ip_;
+  std::unordered_map<ProcletID, uint32_t> proclet_id_to_ip_;
   bool done_;
   rt::Mutex mutex_;
 
-  std::optional<Node> select_node_for_obj(lpid_t lpid, uint32_t ip_hint);
+  std::optional<Node> select_node_for_proclet(lpid_t lpid, uint32_t ip_hint);
   bool update_node(std::set<Node>::iterator iter);
 };
 } // namespace nu

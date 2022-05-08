@@ -1,7 +1,7 @@
 #include <atomic>
 #include <iostream>
 
-#include "nu/obj_server.hpp"
+#include "nu/proclet_server.hpp"
 #include "nu/pressure_handler.hpp"
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"

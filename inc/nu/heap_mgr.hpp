@@ -52,7 +52,7 @@ struct HeapHeader {
   // Used for monitoring active threads count.
   Counter thread_cnt;
 
-  //--- Fields above are always mmaped in all object servers. ---/
+  //--- Fields above are always mmaped in all proclet servers. ---/
   uint8_t always_mmaped_end[0];
 
   // Migration related.
@@ -118,7 +118,7 @@ private:
 
 class MigrationEnabledGuard {
 public:
-  // By default guards the current object header.
+  // By default guards the current proclet header.
   MigrationEnabledGuard();
   MigrationEnabledGuard(HeapHeader *heap_header);
   MigrationEnabledGuard(MigrationEnabledGuard &&o);
@@ -132,7 +132,7 @@ private:
 
 class MigrationDisabledGuard {
 public:
-  // By default guards the current object header.
+  // By default guards the current proclet header.
   MigrationDisabledGuard();
   MigrationDisabledGuard(HeapHeader *heap_header);
   MigrationDisabledGuard(MigrationDisabledGuard &&o);
@@ -148,7 +148,7 @@ private:
 
 class NonBlockingMigrationDisabledGuard {
 public:
-  // By default guards the current object header.
+  // By default guards the current proclet header.
   NonBlockingMigrationDisabledGuard();
   NonBlockingMigrationDisabledGuard(HeapHeader *heap_header);
   NonBlockingMigrationDisabledGuard(NonBlockingMigrationDisabledGuard &&o);

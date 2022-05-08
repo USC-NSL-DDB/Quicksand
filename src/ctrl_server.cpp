@@ -14,19 +14,21 @@ extern "C" {
 namespace nu {
 
 ControllerServer::ControllerServer()
-    : num_register_node_(0), num_verify_md5_(0), num_allocate_obj_(0),
-      num_destroy_obj_(0), num_resolve_obj_(0), num_get_migration_dest_(0),
-      num_update_location_(0), num_report_free_resource_(0), done_(false) {
+    : num_register_node_(0), num_verify_md5_(0), num_allocate_proclet_(0),
+      num_destroy_proclet_(0), num_resolve_proclet_(0),
+      num_get_migration_dest_(0), num_update_location_(0),
+      num_report_free_resource_(0), done_(false) {
   if constexpr (kEnableLogging) {
     logging_thread_ = rt::Thread([&] {
-      std::cout << "time_us register_node verify_md5 allocate_obj destroy_obj "
-                   "resolve_obj get_migration_dest update_location"
+      std::cout << "time_us register_node verify_md5 allocate_proclet "
+                   "destroy_proclet "
+                   "resolve_proclet get_migration_dest update_location"
                 << std::endl;
       while (!rt::access_once(done_)) {
         timer_sleep(kPrintIntervalUs);
         std::cout << microtime() << " " << num_register_node_ << " "
-                  << num_verify_md5_ << " " << num_allocate_obj_ << " "
-                  << num_destroy_obj_ << " " << num_resolve_obj_ << " "
+                  << num_verify_md5_ << " " << num_allocate_proclet_ << " "
+                  << num_destroy_proclet_ << " " << num_resolve_proclet_ << " "
                   << num_get_migration_dest_ << " " << num_update_location_
                   << std::endl;
       }
@@ -125,14 +127,14 @@ ControllerServer::handle_verify_md5(const RPCReqVerifyMD5 &req) {
   return resp;
 }
 
-std::unique_ptr<RPCRespAllocateObj>
-ControllerServer::handle_allocate_obj(const RPCReqAllocateObj &req) {
+std::unique_ptr<RPCRespAllocateProclet>
+ControllerServer::handle_allocate_proclet(const RPCReqAllocateProclet &req) {
   if constexpr (kEnableLogging) {
-    num_allocate_obj_++;
+    num_allocate_proclet_++;
   }
 
-  auto resp = std::make_unique_for_overwrite<RPCRespAllocateObj>();
-  auto optional = ctrl_.allocate_obj(req.lpid, req.ip_hint);
+  auto resp = std::make_unique_for_overwrite<RPCRespAllocateProclet>();
+  auto optional = ctrl_.allocate_proclet(req.lpid, req.ip_hint);
   if (optional) {
     resp->empty = false;
     resp->id = optional->first;
@@ -143,25 +145,25 @@ ControllerServer::handle_allocate_obj(const RPCReqAllocateObj &req) {
   return resp;
 }
 
-std::unique_ptr<RPCRespDestroyObj>
-ControllerServer::handle_destroy_obj(const RPCReqDestroyObj &req) {
+std::unique_ptr<RPCRespDestroyProclet>
+ControllerServer::handle_destroy_proclet(const RPCReqDestroyProclet &req) {
   if constexpr (kEnableLogging) {
-    num_destroy_obj_++;
+    num_destroy_proclet_++;
   }
 
-  auto resp = std::make_unique_for_overwrite<RPCRespDestroyObj>();
-  ctrl_.destroy_obj(req.id);
+  auto resp = std::make_unique_for_overwrite<RPCRespDestroyProclet>();
+  ctrl_.destroy_proclet(req.id);
   return resp;
 }
 
-std::unique_ptr<RPCRespResolveObj>
-ControllerServer::handle_resolve_obj(const RPCReqResolveObj &req) {
+std::unique_ptr<RPCRespResolveProclet>
+ControllerServer::handle_resolve_proclet(const RPCReqResolveProclet &req) {
   if constexpr (kEnableLogging) {
-    num_resolve_obj_++;
+    num_resolve_proclet_++;
   }
 
-  auto resp = std::make_unique_for_overwrite<RPCRespResolveObj>();
-  resp->ip = ctrl_.resolve_obj(req.id);
+  auto resp = std::make_unique_for_overwrite<RPCRespResolveProclet>();
+  resp->ip = ctrl_.resolve_proclet(req.id);
   return resp;
 }
 
@@ -170,7 +172,7 @@ void ControllerServer::handle_update_location(const RPCReqUpdateLocation &req) {
     num_update_location_++;
   }
 
-  ctrl_.update_location(req.id, req.obj_srv_ip);
+  ctrl_.update_location(req.id, req.proclet_srv_ip);
 }
 
 std::unique_ptr<RPCRespGetMigrationDest>

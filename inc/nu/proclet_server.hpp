@@ -16,10 +16,10 @@ extern "C" {
 
 namespace nu {
 
-class ObjServer {
+class ProcletServer {
 public:
-  ObjServer();
-  ~ObjServer();
+  ProcletServer();
+  ~ProcletServer();
   netaddr get_addr() const;
   template <typename Cls>
   static void update_ref_cnt(cereal::BinaryInputArchive &ia,
@@ -27,10 +27,10 @@ public:
   template <typename Cls>
   static bool update_ref_cnt_locally(ProcletID id, int delta);
   template <typename Cls, typename... As>
-  static void construct_obj(cereal::BinaryInputArchive &ia,
-                            RPCReturner *returner);
+  static void construct_proclet(cereal::BinaryInputArchive &ia,
+                                RPCReturner *returner);
   template <typename Cls, typename... As>
-  static void construct_obj_locally(void *base, bool pinned, As &&... args);
+  static void construct_proclet_locally(void *base, bool pinned, As &&... args);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
   static void run_closure(cereal::BinaryInputArchive &ia,
                           RPCReturner *returner);
@@ -64,4 +64,4 @@ private:
 };
 } // namespace nu
 
-#include "nu/impl/obj_server.ipp"
+#include "nu/impl/proclet_server.ipp"

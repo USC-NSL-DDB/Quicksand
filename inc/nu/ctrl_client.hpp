@@ -7,9 +7,9 @@ extern "C" {
 #include <net/ip.h>
 #include <runtime/net.h>
 }
+#include <memory>
 #include <net.h>
 #include <sync.h>
-#include <memory>
 
 #include "nu/commons.hpp"
 #include "nu/ctrl_server.hpp"
@@ -28,11 +28,12 @@ public:
   std::optional<std::pair<lpid_t, VAddrRange>> register_node(const Node &node,
                                                              MD5Val md5);
   bool verify_md5(MD5Val md5);
-  std::optional<std::pair<ProcletID, uint32_t>> allocate_obj(uint32_t ip_hint);
-  void destroy_obj(ProcletID id);
-  uint32_t resolve_obj(ProcletID id);
+  std::optional<std::pair<ProcletID, uint32_t>>
+  allocate_proclet(uint32_t ip_hint);
+  void destroy_proclet(ProcletID id);
+  uint32_t resolve_proclet(ProcletID id);
   uint32_t get_migration_dest(Resource resource);
-  void update_location(ProcletID id, uint32_t obj_srv_ip);
+  void update_location(ProcletID id, uint32_t proclet_srv_ip);
   VAddrRange get_stack_cluster() const;
   void report_free_resource(Resource resource);
 

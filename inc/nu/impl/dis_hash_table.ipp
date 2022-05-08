@@ -68,7 +68,7 @@ uint32_t DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 ProcletID
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_obj_id(
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_proclet_id(
     uint32_t shard_id) {
   return shards_[shard_id].id_;
 }
