@@ -51,14 +51,14 @@ template <typename T> RemSharedPtr<T>::~RemSharedPtr() noexcept { reset(); }
 template <typename T>
 RemSharedPtr<T>::RemSharedPtr(const RemSharedPtr<T> &o) noexcept
     : RemPtr<T>(o) {
-  shared_ptr_ = RemPtr<T>::__run(get_copy_shared_ptr_fn<T>(), o.shared_ptr_);
+  shared_ptr_ = RemPtr<T>::run(get_copy_shared_ptr_fn<T>(), o.shared_ptr_);
 }
 
 template <typename T>
 RemSharedPtr<T> &RemSharedPtr<T>::operator=(const RemSharedPtr<T> &o) noexcept {
   reset();
   RemPtr<T>::operator=(o);
-  shared_ptr_ = RemPtr<T>::__run(get_copy_shared_ptr_fn<T>(), o.shared_ptr_);
+  shared_ptr_ = RemPtr<T>::run(get_copy_shared_ptr_fn<T>(), o.shared_ptr_);
   return *this;
 }
 
@@ -79,14 +79,14 @@ RemSharedPtr<T> &RemSharedPtr<T>::operator=(RemSharedPtr<T> &&o) noexcept {
 
 template <typename T> void RemSharedPtr<T>::reset() {
   if (RemPtr<T>::get()) {
-    RemPtr<T>::__run(get_reset_fn<T>(), shared_ptr_);
+    RemPtr<T>::run(get_reset_fn<T>(), shared_ptr_);
     RemPtr<T>::raw_ptr_ = nullptr;
   }
 }
 
 template <typename T> Future<void> RemSharedPtr<T>::reset_async() {
   if (RemPtr<T>::get()) {
-    auto future = RemPtr<T>::__run_async(get_reset_fn<T>(), shared_ptr_);
+    auto future = RemPtr<T>::run_async(get_reset_fn<T>(), shared_ptr_);
     RemPtr<T>::raw_ptr_ = nullptr;
     return future;
   } else {

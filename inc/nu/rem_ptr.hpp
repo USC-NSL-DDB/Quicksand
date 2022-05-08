@@ -30,10 +30,6 @@ protected:
   T *raw_ptr_ = nullptr;
 
   RemPtr(ProcletID id, T *raw_ptr);
-  template <typename RetT, typename... S0s, typename... S1s>
-  Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
-  template <typename RetT, typename... S0s, typename... S1s>
-  RetT __run(RetT (*fn)(T &, S0s...), S1s &&... states);
 
 private:
   friend class DistributedMemPool;

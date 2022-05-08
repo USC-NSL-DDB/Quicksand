@@ -48,8 +48,8 @@ void do_work() {
   auto rem_shared_ptr_b = std::move(rem_shared_ptr_b_future.get());
   auto rem_shared_ptr_b_copy = rem_shared_ptr_b;
   auto c = proclet.run(
-      +[](Obj &_, RemSharedPtr<std::vector<int>> &&rem_shared_ptr_a,
-          RemSharedPtr<std::vector<int>> &&rem_shared_ptr_b) {
+      +[](Obj &_, RemSharedPtr<std::vector<int>> rem_shared_ptr_a,
+          RemSharedPtr<std::vector<int>> rem_shared_ptr_b) {
         auto *raw_ptr_a = rem_shared_ptr_a.get();
         auto *raw_ptr_b = rem_shared_ptr_b.get();
         std::vector<int> rem_c;

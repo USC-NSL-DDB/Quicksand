@@ -25,7 +25,7 @@ class CallerObj {
 public:
   CallerObj() {}
 
-  uint32_t foo(Proclet<CalleeObj> &&callee_obj) {
+  uint32_t foo(Proclet<CalleeObj> callee_obj) {
     return callee_obj.run(&CalleeObj::foo);
   }
 };

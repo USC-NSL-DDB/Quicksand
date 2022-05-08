@@ -52,10 +52,10 @@ void do_work() {
 
   auto tmp_obj = make_proclet<ErasedType>();
   bool match;
-  // We can move a Procle into/out of closure without updating the ref cnt.
+  // We can move a Proclet into/out of closure without updating the ref cnt.
   std::tie(proclet, match) = tmp_obj.run(
-      +[](ErasedType &, Proclet<Obj> &&proclet, std::vector<int> &&a,
-          std::vector<int> &&b) {
+      +[](ErasedType &, Proclet<Obj> proclet, std::vector<int> a,
+          std::vector<int> b) {
         auto c = proclet.run(&Obj::plus);
         for (size_t i = 0; i < a.size(); i++) {
           if (c[i] != a[i] + b[i]) {
@@ -64,7 +64,7 @@ void do_work() {
         }
         return std::make_pair(std::move(proclet), true);
       },
-      std::move(proclet), std::move(a), std::move(b));
+      std::move(proclet), a, b);
   passed &= match;
 
   if (passed) {

@@ -17,6 +17,8 @@ extern "C" {
 #include "nu/exception.hpp"
 #include "nu/heap_mgr.hpp"
 #include "nu/obj_server.hpp"
+#include "nu/rem_shared_ptr.hpp"
+#include "nu/rem_unique_ptr.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/future.hpp"
@@ -166,7 +168,7 @@ template <typename T> Proclet<T>::Proclet(const Proclet<T> &o) : id_(o.id_) {
 }
 
 template <typename T> Proclet<T> &Proclet<T>::operator=(const Proclet<T> &o) {
-  reset();  
+  reset();
   id_ = o.id_;
   auto inc_ref_optional = update_ref_cnt(1);
   if (inc_ref_optional) {
@@ -182,7 +184,8 @@ Proclet<T>::Proclet(Proclet<T> &&o) noexcept
   o.ref_cnted_ = false;
 }
 
-template <typename T> Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) noexcept {
+template <typename T>
+Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) noexcept {
   reset();
   id_ = o.id_;
   inc_ref_ = std::move(o.inc_ref_);
@@ -193,8 +196,7 @@ template <typename T> Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) noexcept
 
 template <typename T>
 template <typename... As>
-Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint,
-                                    As &&... args) {
+Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint, As &&... args) {
   ProcletID id;
   uint32_t server_ip;
   HeapHeader *heap_header;
@@ -245,10 +247,15 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint,
 
 template <typename T> ProcletID Proclet<T>::get_id() const { return id_; }
 
+template <typename... T> void assert_valid_arg_types() {
+  static_assert((!std::is_pointer_v<T> && ... && true));
+  static_assert((!std::is_reference_v<T> && ... && true));
+}
+
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> Proclet<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  assert_no_pointer_or_lval_ref<RetT, S0s...>();
+  assert_valid_arg_types<RetT, S0s...>();
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::move(states)...));
 
@@ -257,7 +264,8 @@ Future<RetT> Proclet<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
+Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...),
+                                     S1s &&... states) {
   return nu::async([&, fn, ... states = std::forward<S1s>(states)]() mutable {
     return __run(fn, std::forward<S1s>(states)...);
   });
@@ -266,12 +274,22 @@ Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...), S1s &&... states) 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  assert_no_pointer_or_lval_ref<RetT, S0s...>();
+  assert_valid_arg_types<RetT, S0s...>();
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::move(states)...));
 
   return __run(fn, std::forward<S1s>(states)...);
 }
+
+constexpr static auto kMoveWhenSafe = []<typename U>(U &&u) {
+  if constexpr (is_specialization_of_v<std::decay_t<U>, Proclet> ||
+                is_specialization_of_v<std::decay_t<U>, RemUniquePtr> ||
+                is_specialization_of_v<std::decay_t<U>, RemSharedPtr>) {
+    return std::move(u);
+  } else {
+    return u;
+  }
+};
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
@@ -281,27 +299,38 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   if (caller_heap_header) {
     auto callee_heap_header = to_heap_header(id_);
     void *caller_slab = nullptr;
-    {
-      NonBlockingMigrationDisabledGuard callee_guard(callee_heap_header);
+    using StatesTuple = std::tuple<std::decay_t<S1s>...>;
+    std::optional<StatesTuple> copied_states;
 
-      if (callee_guard) {
-        caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
-        thread_set_owner_heap(thread_self(), callee_heap_header);
-      }
+    NonBlockingMigrationDisabledGuard callee_guard(callee_heap_header);
+    if (callee_guard) {
+      caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
+      thread_set_owner_heap(thread_self(), callee_heap_header);
+      copied_states = StatesTuple(kMoveWhenSafe(states)...);
     }
+    callee_guard.reset();
+
     if (caller_slab) {
       // Fast path: the callee heap is actually local, use function call.
       if constexpr (!std::is_same<RetT, void>::value) {
         RetT ret;
-        ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-            &ret, to_obj_id(caller_heap_header), id_, fn,
-            std::forward<S1s>(states)...);
+        std::apply(
+            [&](auto &&... states) {
+              ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
+                  &ret, to_obj_id(caller_heap_header), id_, fn,
+                  std::forward<S1s>(states)...);
+            },
+            *copied_states);
         Runtime::switch_slab(caller_slab);
         return ret;
       } else {
-        ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-            nullptr, to_obj_id(caller_heap_header), id_, fn,
-            std::forward<S1s>(states)...);
+        std::apply(
+            [&](auto &&... states) {
+              ObjServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
+                  nullptr, to_obj_id(caller_heap_header), id_, fn,
+                  std::forward<S1s>(states)...);
+            },
+            *copied_states);
         Runtime::switch_slab(caller_slab);
         return;
       }
@@ -322,7 +351,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
-                                  S1s &&... states) {
+                                   S1s &&... states) {
   auto *caller_heap_header = Runtime::get_current_obj_heap_header();
 
   if (caller_heap_header) {
@@ -371,7 +400,7 @@ RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> Proclet<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
-  assert_no_pointer_or_lval_ref<RetT, A0s...>();
+  assert_valid_arg_types<RetT, A0s...>();
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::move(args)...));
 
@@ -389,7 +418,7 @@ Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...),
-                                  A1s &&... args) {
+                                   A1s &&... args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
   return __run_and_get_loc(
@@ -403,7 +432,7 @@ RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...),
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT Proclet<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
-  assert_no_pointer_or_lval_ref<RetT, A0s...>();
+  assert_valid_arg_types<RetT, A0s...>();
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::move(args)...));
 

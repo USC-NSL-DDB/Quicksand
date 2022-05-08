@@ -1,6 +1,13 @@
 #pragma once
 
-template <typename... T> void assert_no_pointer_or_lval_ref() {
-  static_assert((!std::is_lvalue_reference<T>::value && ... && true));
-  static_assert((!std::is_pointer<T>::value && ... && true));
-}
+#include <type_traits>
+
+template <typename T, template <typename...> class Template>
+struct is_specialization_of : std::false_type {};
+
+template <template <typename...> class Template, typename... Args>
+struct is_specialization_of<Template<Args...>, Template> : std::true_type {};
+
+template <class T, template <class...> class Template>
+constexpr bool is_specialization_of_v =
+    is_specialization_of<T, Template>::value;

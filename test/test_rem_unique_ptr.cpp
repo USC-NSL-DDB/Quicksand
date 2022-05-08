@@ -46,8 +46,8 @@ void do_work() {
   auto rem_unique_ptr_a = std::move(rem_unique_ptr_a_future.get());
   auto rem_unique_ptr_b = std::move(rem_unique_ptr_b_future.get());
   auto c = proclet.run(
-      +[](Obj &_, RemUniquePtr<std::vector<int>> &&rem_unique_ptr_a,
-          RemUniquePtr<std::vector<int>> &&rem_unique_ptr_b) {
+      +[](Obj &_, RemUniquePtr<std::vector<int>> rem_unique_ptr_a,
+          RemUniquePtr<std::vector<int>> rem_unique_ptr_b) {
         auto *raw_ptr_a = rem_unique_ptr_a.get();
         auto *raw_ptr_b = rem_unique_ptr_b.get();
         std::vector<int> rem_c;
