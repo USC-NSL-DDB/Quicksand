@@ -11,6 +11,7 @@
 #include "nu/heap_mgr.hpp"
 #include "nu/migrator.hpp"
 #include "nu/runtime.hpp"
+#include "nu/type_traits.hpp"
 
 namespace nu {
 
@@ -239,15 +240,7 @@ void ObjServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
       if (likely(caller_guard)) {
         {
           ObjSlabGuard caller_slab_guard(&caller_heap_header->slab);
-          if constexpr (std::is_copy_constructible<RetT>::value) {
-            // Perform a copy to ensure that the return value is allocated from
-            // the caller heap. It must be a "deep copy", but for now we just assume
-            // it is.
-            *caller_ptr = *ret;
-          } else {
-            // Actually we should use ser/deser here.
-            *caller_ptr = std::move(*ret);
-          }
+          *caller_ptr = move_if_safe(*ret);
         }
         thread_set_owner_heap(thread_self(), caller_heap_header);
         std::destroy_at(ret);

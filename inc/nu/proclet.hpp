@@ -85,21 +85,21 @@ private:
                                                          As &&... args);
 };
 
-template <typename U, typename... As> Proclet<U> make_proclet(As &&... args);
-template <typename U, typename... As>
-Future<Proclet<U>> make_proclet_async(As &&... args);
-template <typename U, typename... As>
-Proclet<U> make_proclet_at(uint32_t ip, As &&... args);
-template <typename U, typename... As>
-Future<Proclet<U>> make_proclet_async_at(uint32_t ip, As &&... args);
-template <typename U, typename... As>
-Proclet<U> make_proclet_pinned(As &&... args);
-template <typename U, typename... As>
-Future<Proclet<U>> make_proclet_pinned_async(As &&... args);
-template <typename U, typename... As>
-Proclet<U> make_proclet_pinned_at(uint32_t ip, As &&... args);
-template <typename U, typename... As>
-Future<Proclet<U>> make_proclet_pinned_async_at(uint32_t ip, As &&... args);
+template <typename T, typename... As> Proclet<T> make_proclet(As &&... args);
+template <typename T, typename... As>
+Future<Proclet<T>> make_proclet_async(As &&... args);
+template <typename T, typename... As>
+Proclet<T> make_proclet_at(uint32_t ip, As &&... args);
+template <typename T, typename... As>
+Future<Proclet<T>> make_proclet_async_at(uint32_t ip, As &&... args);
+template <typename T, typename... As>
+Proclet<T> make_proclet_pinned(As &&... args);
+template <typename T, typename... As>
+Future<Proclet<T>> make_proclet_pinned_async(As &&... args);
+template <typename T, typename... As>
+Proclet<T> make_proclet_pinned_at(uint32_t ip, As &&... args);
+template <typename T, typename... As>
+Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip, As &&... args);
 
 } // namespace nu
 

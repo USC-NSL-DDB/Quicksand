@@ -21,8 +21,8 @@ extern "C" {
 #include "nu/rem_unique_ptr.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
+#include "nu/type_traits.hpp"
 #include "nu/utils/future.hpp"
-#include "nu/utils/type_traits.hpp"
 
 namespace nu {
 
@@ -247,15 +247,18 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint, As &&... args) {
 
 template <typename T> ProcletID Proclet<T>::get_id() const { return id_; }
 
-template <typename... T> void assert_valid_arg_types() {
-  static_assert((!std::is_pointer_v<T> && ... && true));
+template <typename... T> void assert_valid_invocation_types() {
   static_assert((!std::is_reference_v<T> && ... && true));
+  static_assert((!std::is_pointer_v<T> && ... && true));
+  static_assert((!is_specialization_of_v<T, std::unique_ptr> && ... && true));
+  static_assert((!is_specialization_of_v<T, std::shared_ptr> && ... && true));
+  static_assert((!is_specialization_of_v<T, std::weak_ptr> && ... && true));
 }
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> Proclet<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  assert_valid_arg_types<RetT, S0s...>();
+  assert_valid_invocation_types<RetT, S0s...>();
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::move(states)...));
 
@@ -274,22 +277,12 @@ Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...),
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  assert_valid_arg_types<RetT, S0s...>();
+  assert_valid_invocation_types<RetT, S0s...>();
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::move(states)...));
 
   return __run(fn, std::forward<S1s>(states)...);
 }
-
-constexpr static auto kMoveWhenSafe = []<typename U>(U &&u) {
-  if constexpr (is_specialization_of_v<std::decay_t<U>, Proclet> ||
-                is_specialization_of_v<std::decay_t<U>, RemUniquePtr> ||
-                is_specialization_of_v<std::decay_t<U>, RemSharedPtr>) {
-    return std::move(u);
-  } else {
-    return u;
-  }
-};
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
@@ -306,7 +299,9 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
     if (callee_guard) {
       caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
       thread_set_owner_heap(thread_self(), callee_heap_header);
-      copied_states = StatesTuple(kMoveWhenSafe(states)...);
+      // Do copy for the most cases and only do move when we are sure it's safe.
+      // For copy, we assume the type implements "deep copy".
+      copied_states = StatesTuple(move_if_safe(states)...);
     }
     callee_guard.reset();
 
@@ -400,7 +395,7 @@ RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> Proclet<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
-  assert_valid_arg_types<RetT, A0s...>();
+  assert_valid_invocation_types<RetT, A0s...>();
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::move(args)...));
 
@@ -432,7 +427,7 @@ RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...),
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT Proclet<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
-  assert_valid_arg_types<RetT, A0s...>();
+  assert_valid_invocation_types<RetT, A0s...>();
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::move(args)...));
 

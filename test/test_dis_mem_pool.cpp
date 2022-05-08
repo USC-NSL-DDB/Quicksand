@@ -24,15 +24,8 @@ constexpr static uint32_t kNumAllocationsPerThread = 100000;
 bool run_single_thread() {
   std::vector<int> a{1, 2, 3, 4, 5, 6};
 
-  auto proclet = make_proclet<ErasedType>();
-  auto [dis_mem_pool, rem_raw_ptr] = proclet.run(
-      +[](ErasedType &, std::vector<int> a) {
-        DistributedMemPool dis_mem_pool;
-        return std::make_pair(std::move(dis_mem_pool),
-                              dis_mem_pool.allocate_raw<std::vector<int>>(a));
-      },
-      a);
-
+  DistributedMemPool dis_mem_pool;
+  auto rem_raw_ptr = dis_mem_pool.allocate_raw<std::vector<int>>(a);
   auto rem_unique_ptr = dis_mem_pool.allocate_unique<std::vector<int>>(a);
   auto rem_shared_ptr = dis_mem_pool.allocate_shared<std::vector<int>>(a);
 
