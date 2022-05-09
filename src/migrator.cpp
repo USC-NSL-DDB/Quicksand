@@ -152,9 +152,6 @@ void Migrator::run_background_loop() {
           case kMigrate:
             handle_load(c);
             break;
-          case kUnmap:
-            handle_unmap(c);
-            break;
           case kEnablePoll:
             poll = true;
             preempt_disable();
@@ -437,39 +434,6 @@ bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
   return true;
 }
 
-void Migrator::unmap_destructed_proclets(
-    rt::TcpConn *c, std::vector<ProcletHeader *> *proclets) {
-  if (!proclets->empty()) {
-    uint8_t type = kUnmap;
-    uint64_t num_proclets = proclets->size();
-    VAddrRange stack_cluster = Runtime::stack_manager->get_range();
-    const iovec iovecs[] = {
-        {&type, sizeof(type)},
-        {&num_proclets, sizeof(num_proclets)},
-        {&stack_cluster, sizeof(stack_cluster)},
-        {proclets->data(), num_proclets * sizeof(ProcletHeader *)}};
-    BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ false,
-                         /* poll = */ true) < 0);
-  }
-}
-
-void Migrator::handle_unmap(rt::TcpConn *c) {
-  uint64_t num_proclets;
-  VAddrRange stack_cluster;
-  const iovec iovecs[] = {{&num_proclets, sizeof(num_proclets)},
-                          {&stack_cluster, sizeof(stack_cluster)}};
-  BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false,
-                      /* poll = */ true) <= 0);
-  ProcletHeader *proclets[num_proclets];
-  BUG_ON(c->ReadFull(proclets, sizeof(proclets), /* nt = */ false,
-                     /* poll = */ true) <= 0);
-
-  Runtime::stack_manager->add_ref_cnt(stack_cluster, -num_proclets);
-  for (uint64_t i = 0; i < num_proclets; i++) {
-    Runtime::proclet_manager->deallocate(proclets[i]);
-  }
-}
-
 void Migrator::init_aux_handlers(uint32_t dest_ip) {
   uint8_t type = kEnablePoll;
 
@@ -541,6 +505,12 @@ void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
   }).Detach();
 }
 
+void skip_proclet(rt::TcpConn *conn, ProcletHeader *proclet_header) {
+  uint8_t type = kSkipProclet;
+  BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
+                         /* poll = */ true) < 0);
+}
+
 void Migrator::__migrate(Resource resource,
                          std::vector<ProcletRange> proclets) {
   auto dest_ip = Runtime::controller_client->get_migration_dest(resource);
@@ -555,28 +525,23 @@ void Migrator::__migrate(Resource resource,
   transmit_proclet_mmap_populate_ranges(conn, proclets);
   transmit_stack_cluster_mmap_task(conn);
 
-  std::vector<ProcletHeader *> migrated_proclets;
-  std::vector<ProcletHeader *> destructed_proclets;
-  migrated_proclets.reserve(proclets.size());
   for (auto [proclet_header, _] : proclets) {
     if (unlikely(!try_mark_proclet_migrating(proclet_header))) {
-      destructed_proclets.push_back(proclet_header);
+      skip_proclet(conn, proclet_header);
       continue;
     }
     Runtime::controller_client->update_location(to_proclet_id(proclet_header),
                                                 dest_ip);
-    migrated_proclets.push_back(proclet_header);
     pause_migrating_threads(proclet_header);
     transmit(conn, proclet_header, &all_migrating_ths);
     gc_migrated_threads();
     post_migration_cleanup(proclet_header);
   }
 
-  unmap_destructed_proclets(conn, &destructed_proclets);
   finish_aux_handlers();
 }
 
-void Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
+bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
   constexpr bool kMonitorTime =
       (kEnableLogging || kMigrationThrottleGBs > 0 || kMigrationDelayUs);
   [[maybe_unused]] uint64_t t0, t1;
@@ -590,6 +555,9 @@ void Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
   uint8_t type;
   BUG_ON(c->ReadFull(&type, sizeof(type), /* nt = */ false,
                      /* poll = */ true) <= 0);
+  if (unlikely(type == kSkipProclet)) {
+    return false;
+  }
   BUG_ON(type != kCopyProclet);
   handle_copy_proclet(c);
 
@@ -629,6 +597,7 @@ void Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
               << ", time_us = " << t1 - t0 << std::endl;
     preempt_enable();
   }
+  return true;
 }
 
 thread_t *Migrator::load_one_thread(rt::TcpConn *c,
@@ -649,7 +618,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c,
                      /* poll = */ true) <= 0);
 
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
-  auto nu_thread_addr=  reinterpret_cast<uint64_t>(nu_thread);
+  auto nu_thread_addr = reinterpret_cast<uint64_t>(nu_thread);
   bool in_proclet_heap = is_in_proclet_heap(nu_thread, proclet_header);
   bool in_proclet_stack =
       nu_thread_addr >= stack_range.start && nu_thread_addr < stack_range.end;
@@ -806,21 +775,25 @@ Migrator::load_proclet_mmap_populate_ranges(rt::TcpConn *c) {
 
 void Migrator::load(rt::TcpConn *c) {
   auto populate_ranges = load_proclet_mmap_populate_ranges(c);
-  rt::Thread([&] {
+  rt::Thread mmap_th([populate_ranges] {
     for (auto &range : populate_ranges) {
       Runtime::proclet_manager->mmap(range.proclet_header);
       Runtime::proclet_manager->madvise_populate(range.proclet_header,
                                                  range.len);
     }
-  }).Detach();
+  });
 
   auto stack_cluster = load_stack_cluster_mmap_task(c);
   Runtime::stack_manager->add_ref_cnt(stack_cluster, populate_ranges.size());
 
+  std::vector<ProcletHeader *> skipped_proclets;
   for (auto &range : populate_ranges) {
     auto *proclet_header = range.proclet_header;
 
-    load_proclet(c, proclet_header);
+    if (unlikely(!load_proclet(c, proclet_header))) {
+      skipped_proclets.push_back(proclet_header);
+      continue;
+    }
 
     load_mutexes(c, proclet_header);
     load_condvars(c, proclet_header);
@@ -841,6 +814,19 @@ void Migrator::load(rt::TcpConn *c) {
     //   rt::access_once(proclet_header->migratable) = true;
     //   Runtime::stack_manager->add_ref_cnt(stack_cluster, -1);
     // }).Detach();
+  }
+
+  if (unlikely(!skipped_proclets.empty())) {
+    preempt_enable();
+    mmap_th.Join();
+    preempt_disable();
+    for (auto *proclet : skipped_proclets) {
+      Runtime::proclet_manager->munmap(proclet);
+    }
+    Runtime::stack_manager->add_ref_cnt(stack_cluster,
+                                        -skipped_proclets.size());
+  } else {
+    mmap_th.Detach();
   }
 }
 

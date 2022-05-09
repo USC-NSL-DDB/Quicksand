@@ -29,8 +29,8 @@ class Time;
 
 enum MigratorTCPOp_t {
   kCopyProclet,
+  kSkipProclet,
   kMigrate,
-  kUnmap,
   kEnablePoll,
   kDisablePoll,
   kRegisterCallBack,
@@ -131,7 +131,6 @@ private:
 
   void handle_copy_proclet(rt::TcpConn *c);
   void handle_load(rt::TcpConn *c);
-  void handle_unmap(rt::TcpConn *c);
   void handle_register_callback(rt::TcpConn *c);
   void handle_deregister_callback(rt::TcpConn *c);
   VAddrRange load_stack_cluster_mmap_task(rt::TcpConn *c);
@@ -147,10 +146,8 @@ private:
   void transmit_threads(rt::TcpConn *c, const std::vector<thread_t *> &threads);
   void transmit_one_thread(rt::TcpConn *c, thread_t *thread);
   bool try_mark_proclet_migrating(ProcletHeader *proclet_header);
-  void unmap_destructed_proclets(rt::TcpConn *c,
-                                 std::vector<ProcletHeader *> *proclets);
   void load(rt::TcpConn *c);
-  void load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header);
+  bool load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header);
   std::vector<ProcletRange> load_proclet_mmap_populate_ranges(rt::TcpConn *c);
   void load_mutexes(rt::TcpConn *c, ProcletHeader *proclet_header);
   void load_condvars(rt::TcpConn *c, ProcletHeader *proclet_header);

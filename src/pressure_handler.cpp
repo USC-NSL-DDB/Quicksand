@@ -166,7 +166,7 @@ void PressureHandler::dispatch_aux_pause_task(uint32_t handler_id) {
 
 void PressureHandler::aux_handler(void *args) {
   auto *state = reinterpret_cast<AuxHandlerState *>(args);
-  // Service tasks.
+  // Serve tasks.
   while (!rt::access_once(state->done)) {
     if (unlikely(load_acquire(&state->task_pending))) {
       if (state->pause) {

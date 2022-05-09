@@ -84,11 +84,12 @@ class ProcletManager {
 public:
   ProcletManager();
 
-  static void allocate(void *proclet_base, bool migratable);
   static void mmap(void *proclet_base);
   static void madvise_populate(void *proclet_base, uint64_t populate_len);
-  static void setup(void *proclet_base, bool migratable, bool from_migration);
+  static void munmap(void *proclet_base);
+  static void allocate(void *proclet_base, bool migratable);
   static void deallocate(void *proclet_base);
+  static void setup(void *proclet_base, bool migratable, bool from_migration);
   static void wait_until_present(ProcletHeader *proclet_header);
   void insert(void *proclet_base);
   bool remove_for_migration(void *proclet_base);

@@ -72,14 +72,18 @@ void ProcletManager::madvise_populate(void *proclet_base,
   BUG_ON(madvise(mmap_base, populate_len, MADV_POPULATE_WRITE) != 0);
 }
 
+void ProcletManager::munmap(void *proclet_base) {
+  auto *munmap_base =
+      reinterpret_cast<uint8_t *>(proclet_base) + kNumAlwaysMmapedBytes;
+  auto total_munmap_size = kProcletHeapSize - kNumAlwaysMmapedBytes;
+  BUG_ON(::munmap(munmap_base, total_munmap_size) == -1);
+}
+
 void ProcletManager::deallocate(void *proclet_base) {
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
   proclet_header->spin_lock.lock(); // Sync with PressureHandler.
 
   proclet_header->status = kAbsent;
-  auto *munmap_base =
-      reinterpret_cast<uint8_t *>(proclet_base) + kNumAlwaysMmapedBytes;
-  auto total_munmap_size = kProcletHeapSize - kNumAlwaysMmapedBytes;
   RuntimeSlabGuard guard;
   std::destroy_at(&proclet_header->blocked_syncer);
   std::destroy_at(&proclet_header->time);
@@ -87,8 +91,8 @@ void ProcletManager::deallocate(void *proclet_base) {
   // std::destroy_at(&proclet_header->migrated_wg);
   std::destroy_at(&proclet_header->spin);
   std::destroy_at(&proclet_header->slab);
-  BUG_ON(munmap(munmap_base, total_munmap_size) == -1);
   proclet_header->spin_lock.unlock();
+  munmap(proclet_base);
 }
 
 void ProcletManager::setup(void *proclet_base, bool migratable,
