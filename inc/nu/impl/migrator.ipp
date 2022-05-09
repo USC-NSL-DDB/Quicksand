@@ -5,15 +5,15 @@
 namespace nu {
 
 template <typename RetT>
-RPCReturnCode Migrator::load_thread_and_ret_val(HeapHeader *dest_heap_header,
-                                                void *raw_dest_ret_val_ptr,
-                                                uint64_t payload_len,
-                                                uint8_t *payload) {
+RPCReturnCode
+Migrator::load_thread_and_ret_val(ProcletHeader *dest_proclet_header,
+                                  void *raw_dest_ret_val_ptr,
+                                  uint64_t payload_len, uint8_t *payload) {
 retry:
-  NonBlockingMigrationDisabledGuard guard(dest_heap_header);
+  NonBlockingMigrationDisabledGuard guard(dest_proclet_header);
   if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(dest_heap_header->status) >= kMapped)) {
-      HeapManager::wait_until_present(dest_heap_header);
+    if (unlikely(rt::access_once(dest_proclet_header->status) >= kMapped)) {
+      ProcletManager::wait_until_present(dest_proclet_header);
       goto retry;
     } else {
       return kErrWrongClient;
@@ -24,13 +24,16 @@ retry:
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto *th = create_migrated_thread(payload);
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
+  auto nu_thread_addr = reinterpret_cast<uint64_t>(nu_thread);
 
   auto stack_range = get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
 
-  // Only rewrite the pointer if the nu_thread locates at the dest heap.
-  if (is_in_heap(nu_thread, dest_heap_header) ||
-      is_in_stack(nu_thread, stack_range)) {
+  // Only rewrite the pointer if the nu_thread locates at the dest proclet.
+  bool in_proclet_heap = is_in_proclet_heap(nu_thread, dest_proclet_header);
+  bool in_proclet_stack =
+      nu_thread_addr >= stack_range.start && nu_thread_addr < stack_range.end;
+  if (in_proclet_heap || in_proclet_stack) {
     BUG_ON(!nu_thread->th_);
     nu_thread->th_ = th;
   }
@@ -43,7 +46,7 @@ retry:
   ret_ss.span({reinterpret_cast<char *>(payload + nu_state_size + stack_len),
                payload_len - nu_state_size - stack_len});
   if constexpr (!std::is_same<RetT, void>::value) {
-    ProcletSlabGuard g(&dest_heap_header->slab);
+    ProcletSlabGuard g(&dest_proclet_header->slab);
     ia >> *dest_ret_val_ptr;
   }
   Runtime::archive_pool->put_ia_sstream(ia_sstream);
@@ -61,8 +64,8 @@ void Migrator::migrate_thread_and_ret_val(RPCReturnBuffer &&ret_val_buf,
   rt::Thread(
       [&, th = thread_self(), ret_val_buf = std::move(ret_val_buf)] {
         thread_wait_until_parked(th);
-        auto *dest_heap_header = to_heap_header(dest_id);
-        thread_set_owner_heap(th, dest_heap_header);
+        auto *dest_proclet_header = to_proclet_header(dest_id);
+        thread_set_owner_proclet(th, dest_proclet_header);
 
         size_t nu_state_size;
         auto *nu_state = thread_get_nu_state(th, &nu_state_size);
@@ -79,7 +82,7 @@ void Migrator::migrate_thread_and_ret_val(RPCReturnBuffer &&ret_val_buf,
             reinterpret_cast<RPCReqMigrateThreadAndRetVal *>(req_buf.get());
         std::construct_at(req);
         req->handler = load_thread_and_ret_val<RetT>;
-        req->dest_heap_header = dest_heap_header;
+        req->dest_proclet_header = dest_proclet_header;
         req->dest_ret_val_ptr = dest_ret_val_ptr;
         req->payload_len = payload_len;
         memcpy(req->payload, nu_state, nu_state_size);

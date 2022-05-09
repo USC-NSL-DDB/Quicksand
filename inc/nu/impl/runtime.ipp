@@ -9,7 +9,7 @@ extern "C" {
 }
 
 #include "nu/commons.hpp"
-#include "nu/heap_mgr.hpp"
+#include "nu/proclet_mgr.hpp"
 #include "nu/runtime_alloc.hpp"
 #include "nu/stack_manager.hpp"
 
@@ -27,29 +27,29 @@ inline SlabAllocator *Runtime::get_current_proclet_slab() {
   return reinterpret_cast<nu::SlabAllocator *>(thread_get_proclet_slab());
 }
 
-inline HeapHeader *Runtime::get_current_proclet_heap_header() {
-  return reinterpret_cast<HeapHeader *>(thread_get_owner_heap());
+inline ProcletHeader *Runtime::get_current_proclet_header() {
+  return reinterpret_cast<ProcletHeader *>(thread_get_owner_proclet());
 }
 
 inline ProcletID Runtime::get_current_proclet_id() {
-  auto *heap_base = Runtime::get_current_proclet_heap_header();
-  BUG_ON(!heap_base);
-  return to_proclet_id(heap_base);
+  auto *proclet_base = Runtime::get_current_proclet_header();
+  BUG_ON(!proclet_base);
+  return to_proclet_id(proclet_base);
 }
 
 template <typename T> T *Runtime::get_current_root_obj() {
-  auto *heap_header = get_current_proclet_heap_header();
-  if (!heap_header) {
+  auto *proclet_header = get_current_proclet_header();
+  if (!proclet_header) {
     return nullptr;
   }
   return reinterpret_cast<T *>(
-      reinterpret_cast<uintptr_t>(heap_header->slab.get_base()));
+      reinterpret_cast<uintptr_t>(proclet_header->slab.get_base()));
 }
 
 template <typename T> T *Runtime::get_root_obj(ProcletID id) {
-  auto *heap_header = reinterpret_cast<HeapHeader *>(to_heap_base(id));
+  auto *proclet_header = reinterpret_cast<ProcletHeader *>(to_proclet_base(id));
   return reinterpret_cast<T *>(
-      reinterpret_cast<uintptr_t>(heap_header->slab.get_base()));
+      reinterpret_cast<uintptr_t>(proclet_header->slab.get_base()));
 }
 
 template <typename Cls, typename... A0s, typename... A1s>
@@ -58,14 +58,14 @@ __attribute__((optimize("no-omit-frame-pointer"))) void
 __run_within_proclet_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
                          void (*fn)(A0s...), A1s &&... args) {
   NonBlockingMigrationDisabledGuard guard_on_proclet_stack(std::move(*guard));
-  // auto *heap_header = guard_on_proclet_stack.get_heap_header();
+  // auto *proclet_header = guard_on_proclet_stack.get_proclet_header();
 
   fn(*obj_ptr, std::forward<A1s>(args)...);
 
-  thread_unset_owner_heap();
+  thread_unset_owner_proclet();
   if (unlikely(thread_has_been_migrated())) {
     // FIXME
-    // heap_header->migrated_wg.Done();
+    // proclet_header->migrated_wg.Done();
     switch_stack(thread_get_runtime_stack_base());
     rt::Exit();
   }
@@ -74,28 +74,28 @@ __run_within_proclet_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
 // By default, fn will be invoked with migration disabled.
 template <typename Cls, typename... A0s, typename... A1s>
 __attribute__((optimize("no-omit-frame-pointer"))) bool
-Runtime::run_within_proclet_env(void *heap_base, void (*fn)(A0s...),
+Runtime::run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                                 A1s &&... args) {
-  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
+  auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
 retry:
-  NonBlockingMigrationDisabledGuard guard(heap_header);
+  NonBlockingMigrationDisabledGuard guard(proclet_header);
   if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(heap_header->status) >= kMapped)) {
-      HeapManager::wait_until_present(heap_header);
+    if (unlikely(rt::access_once(proclet_header->status) >= kMapped)) {
+      ProcletManager::wait_until_present(proclet_header);
       goto retry;
     } else {
       return false;
     }
   }
 
-  auto *slab = &heap_header->slab;
+  auto *slab = &proclet_header->slab;
   auto *obj_ptr =
       reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab->get_base()));
   auto *proclet_stack = Runtime::stack_manager->get();
   assert(reinterpret_cast<uintptr_t>(proclet_stack) % kStackAlignment == 0);
 
   switch_slab(slab);
-  thread_set_owner_heap(thread_self(), heap_base);
+  thread_set_owner_proclet(thread_self(), proclet_base);
   auto *old_rsp = switch_stack(proclet_stack);
 
   __run_within_proclet_env<Cls>(&guard, obj_ptr, fn,

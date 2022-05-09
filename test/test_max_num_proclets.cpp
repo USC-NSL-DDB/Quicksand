@@ -29,10 +29,10 @@ void do_work() {
   bool passed = true;
 
   std::vector<Proclet<Obj>> objs;
-  for (uint32_t i = 0; i < kMaxNumHeaps; i++) {
+  for (uint32_t i = 0; i < kMaxNumProclets; i++) {
     objs.emplace_back(make_proclet<Obj>(i));
   }
-  for (uint32_t i = 0; i < kMaxNumHeaps; i++) {
+  for (uint32_t i = 0; i < kMaxNumProclets; i++) {
     auto &obj = objs[i];
     if (obj.run(&Obj::get) != i) {
       passed = false;

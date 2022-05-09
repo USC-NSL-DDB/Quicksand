@@ -42,7 +42,7 @@ private:
 
 struct TimerCallbackArg {
   thread_t *th;
-  HeapHeader *heap_header;
+  ProcletHeader *proclet_header;
   uint64_t logical_deadline_us;
   std::list<timer_entry *>::iterator iter;
 };

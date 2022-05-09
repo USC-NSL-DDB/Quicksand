@@ -31,7 +31,7 @@ bool active_runtime = false;
 SlabAllocator Runtime::runtime_slab;
 RCULock Runtime::rcu_lock;
 std::unique_ptr<ProcletServer> Runtime::proclet_server;
-std::unique_ptr<HeapManager> Runtime::heap_manager;
+std::unique_ptr<ProcletManager> Runtime::proclet_manager;
 std::unique_ptr<StackManager> Runtime::stack_manager;
 std::unique_ptr<ControllerClient> Runtime::controller_client;
 std::unique_ptr<ControllerServer> Runtime::controller_server;
@@ -69,7 +69,7 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
   migrator->run_background_loop();
   controller_client.reset(new decltype(controller_client)::element_type(
       remote_ctrl_ip, kServer, lpid));
-  heap_manager.reset(new decltype(heap_manager)::element_type());
+  proclet_manager.reset(new decltype(proclet_manager)::element_type());
   pressure_handler.reset(new decltype(pressure_handler)::element_type());
   resource_reporter.reset(new decltype(resource_reporter)::element_type());
   stack_manager.reset(new decltype(stack_manager)::element_type(
@@ -121,7 +121,7 @@ Runtime::~Runtime() {
   rcu_lock.writer_sync();
   proclet_server.reset();
   controller_client.reset();
-  heap_manager.reset();
+  proclet_manager.reset();
   stack_manager.reset();
   rpc_client_mgr.reset();
   migrator.reset();
@@ -136,9 +136,9 @@ Runtime::~Runtime() {
 // FIXME
 uint32_t Runtime::get_ip_by_proclet_id(ProcletID id) {
   RuntimeSlabGuard g;
-  auto *owner_heap = thread_unset_owner_heap();
+  auto *owner_proclet = thread_unset_owner_proclet();
   auto ip = rpc_client_mgr->get_ip_by_proclet_id(id);
-  thread_set_owner_heap(thread_self(), owner_heap);
+  thread_set_owner_proclet(thread_self(), owner_proclet);
   return ip;
 }
 

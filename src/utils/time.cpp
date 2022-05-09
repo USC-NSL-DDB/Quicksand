@@ -13,13 +13,13 @@ namespace nu {
 void Time::timer_callback(unsigned long arg_addr) {
   auto *arg = reinterpret_cast<TimerCallbackArg *>(arg_addr);
 
-  auto *heap_header = arg->heap_header;
-  NonBlockingMigrationDisabledGuard guard(heap_header);
+  auto *proclet_header = arg->proclet_header;
+  NonBlockingMigrationDisabledGuard guard(proclet_header);
   if (unlikely(!guard)) {
     return;
   }
 
-  auto &time = heap_header->time;
+  auto &time = proclet_header->time;
   time.spin_.Lock();
   {
     RuntimeSlabGuard g;
@@ -30,36 +30,36 @@ void Time::timer_callback(unsigned long arg_addr) {
 }
 
 uint64_t Time::rdtsc() {
-  auto *heap_header = Runtime::get_current_proclet_heap_header();
-  if (heap_header) {
-    return heap_header->time.proclet_env_rdtsc();
+  auto *proclet_header = Runtime::get_current_proclet_header();
+  if (proclet_header) {
+    return proclet_header->time.proclet_env_rdtsc();
   } else {
     return ::rdtsc();
   }
 }
 
 uint64_t Time::microtime() {
-  auto *heap_header = Runtime::get_current_proclet_heap_header();
-  if (heap_header) {
-    return heap_header->time.proclet_env_microtime();
+  auto *proclet_header = Runtime::get_current_proclet_header();
+  if (proclet_header) {
+    return proclet_header->time.proclet_env_microtime();
   } else {
     return ::microtime();
   }
 }
 
 void Time::sleep_until(uint64_t deadline_us) {
-  auto *heap_header = Runtime::get_current_proclet_heap_header();
-  if (heap_header) {
-    heap_header->time.proclet_env_sleep_until(deadline_us);
+  auto *proclet_header = Runtime::get_current_proclet_header();
+  if (proclet_header) {
+    proclet_header->time.proclet_env_sleep_until(deadline_us);
   } else {
     timer_sleep_until(deadline_us);
   };
 }
 
 void Time::sleep(uint64_t duration_us) {
-  auto *heap_header = Runtime::get_current_proclet_heap_header();
-  if (heap_header) {
-    heap_header->time.proclet_env_sleep(duration_us);
+  auto *proclet_header = Runtime::get_current_proclet_header();
+  if (proclet_header) {
+    proclet_header->time.proclet_env_sleep(duration_us);
   } else {
     timer_sleep(duration_us);
   };
@@ -73,9 +73,9 @@ void Time::proclet_env_sleep_until(uint64_t deadline_us) {
   std::unique_ptr<TimerCallbackArg> arg_gc(arg);
 
   arg->th = thread_self();
-  arg->heap_header = Runtime::get_current_proclet_heap_header();
+  arg->proclet_header = Runtime::get_current_proclet_header();
   arg->logical_deadline_us = deadline_us;
-  BUG_ON(!arg->heap_header);
+  BUG_ON(!arg->proclet_header);
   timer_init(e, Time::timer_callback, reinterpret_cast<unsigned long>(arg));
 
   spin_.Lock();

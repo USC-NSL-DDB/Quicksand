@@ -22,7 +22,7 @@ struct aligned_cycles {
 
 extern const int thread_link_offset;
 extern const int thread_run_cycles_offset;
-extern const int thread_owner_heap_offset;
+extern const int thread_owner_proclet_offset;
 extern const int thread_proclet_slab_offset;
 
 /*
@@ -98,7 +98,7 @@ extern void thread_exit(void) __noreturn;
 extern bool thread_has_been_migrated(void);
 extern bool thread_is_at_creator(void);
 extern uint64_t thread_get_rsp(thread_t *th);
-extern void pause_migrating_ths_main(void *owner_heap);
+extern void pause_migrating_ths_main(void *owner_proclet);
 extern void pause_migrating_ths_aux(void);
 extern struct list_head all_migrating_ths;
 extern void pause_local_migrating_threads(void);
@@ -114,31 +114,31 @@ extern uint32_t thread_get_creator_ip(void);
 extern void thread_wait_until_parked(thread_t *th);
 extern void prealloc_threads_and_stacks(uint32_t num_mags);
 
-static inline void *thread_unset_owner_heap(void)
+static inline void *thread_unset_owner_proclet(void)
 {
-	void **owner_heap_p =
-		(void **)((uint64_t)__self + thread_owner_heap_offset);
-	void *old_owner_heap = *owner_heap_p;
-	*owner_heap_p = NULL;
+	void **owner_proclet_p =
+		(void **)((uint64_t)__self + thread_owner_proclet_offset);
+	void *old_owner_proclet = *owner_proclet_p;
+	*owner_proclet_p = NULL;
 
-	return old_owner_heap;
+	return old_owner_proclet;
 }
 
-static inline void *thread_set_owner_heap(thread_t *th, void *owner_heap)
+static inline void *thread_set_owner_proclet(thread_t *th, void *owner_proclet)
 {
-	void **owner_heap_p =
-		(void **)((uint64_t)th + thread_owner_heap_offset);
-	void *old_owner_heap = *owner_heap_p;
-	*owner_heap_p = owner_heap;
+	void **owner_proclet_p =
+		(void **)((uint64_t)th + thread_owner_proclet_offset);
+	void *old_owner_proclet = *owner_proclet_p;
+	*owner_proclet_p = owner_proclet;
 
-	return old_owner_heap;
+	return old_owner_proclet;
 }
 
-static inline void *thread_get_owner_heap(void)
+static inline void *thread_get_owner_proclet(void)
 {
-	void **owner_heap_p =
-		(void **)((uint64_t)__self + thread_owner_heap_offset);
-	return *owner_heap_p;
+	void **owner_proclet_p =
+		(void **)((uint64_t)__self + thread_owner_proclet_offset);
+	return *owner_proclet_p;
 }
 
 static inline void *thread_get_proclet_slab(void)

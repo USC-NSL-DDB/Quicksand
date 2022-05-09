@@ -11,8 +11,8 @@ extern "C" {
 #include <thread.h>
 
 #include "nu/commons.hpp"
-#include "nu/heap_mgr.hpp"
 #include "nu/migrator.hpp"
+#include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"

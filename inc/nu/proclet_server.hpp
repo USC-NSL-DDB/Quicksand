@@ -55,10 +55,10 @@ private:
   void parse_and_run_handler(std::span<std::byte> args, RPCReturner *returner);
   template <typename Cls>
   static void __update_ref_cnt(Cls &obj, RPCReturner returner,
-                               HeapHeader *heap_header, int delta,
+                               ProcletHeader *proclet_header, int delta,
                                bool *destructed);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-  static void __run_closure(Cls &obj, HeapHeader *heap_header,
+  static void __run_closure(Cls &obj, ProcletHeader *proclet_header,
                             cereal::BinaryInputArchive &ia,
                             RPCReturner returner);
 };

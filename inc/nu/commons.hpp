@@ -19,11 +19,10 @@ using lpid_t = uint16_t;
 using SlabId_t = uint64_t;
 
 struct ErasedType {};
+struct ProcletHeader;
 
-struct HeapHeader;
-
-struct HeapRange {
-  HeapHeader *heap_header;
+struct ProcletRange {
+  ProcletHeader *proclet_header;
   uint64_t len;
 };
 
@@ -58,12 +57,12 @@ constexpr static uint64_t kPageSize = 4096;
 constexpr static ProcletID kNullProcletID = 0;
 
 // TODO: double check.
-constexpr static uint64_t kMinHeapVAddr = 0x300000000000ULL;
-constexpr static uint64_t kMaxHeapVAddr = 0x400000000000ULL;
-constexpr static uint64_t kHeapSize = 0x8000000ULL;
-constexpr static uint64_t kMaxNumHeaps =
-    (kMaxHeapVAddr - kMinHeapVAddr) / kHeapSize;
-constexpr static uint64_t kMinStackClusterVAddr = kMaxHeapVAddr;
+constexpr static uint64_t kMinProcletHeapVAddr = 0x300000000000ULL;
+constexpr static uint64_t kMaxProcletHeapVAddr = 0x400000000000ULL;
+constexpr static uint64_t kProcletHeapSize = 0x8000000ULL;
+constexpr static uint64_t kMaxNumProclets =
+    (kMaxProcletHeapVAddr - kMinProcletHeapVAddr) / kProcletHeapSize;
+constexpr static uint64_t kMinStackClusterVAddr = kMaxProcletHeapVAddr;
 constexpr static uint64_t kMaxStackClusterVAddr = 0x600000000000ULL;
 constexpr static uint64_t kStackClusterSize = 1ULL << 31;
 constexpr static uint64_t kMaxNumStacksPerCluster =
@@ -77,16 +76,15 @@ constexpr static uint64_t kOneSecond = 1000 * 1000;
 constexpr static uint64_t kOneMilliSecond = 1000;
 
 uint64_t bsr_64(uint64_t a);
-constexpr HeapHeader *to_heap_header(ProcletID id);
-constexpr void *to_heap_base(ProcletID id);
-constexpr ProcletID to_proclet_id(void *heap_base);
-constexpr SlabId_t to_slab_id(void *heap_base);
+constexpr ProcletHeader *to_proclet_header(ProcletID id);
+constexpr void *to_proclet_base(ProcletID id);
+constexpr ProcletID to_proclet_id(void *proclet_base);
+constexpr SlabId_t to_slab_id(void *proclet_base);
 constexpr SlabId_t get_max_slab_id();
 void *switch_stack(void *new_rsp);
 VAddrRange get_proclet_stack_range(thread_t *thread);
-bool is_in_heap(void *ptr, void *heap_base);
-bool is_in_stack(void *ptr, VAddrRange stack);
-bool is_copied_on_migration(void *ptr, HeapHeader *heap_header);
+bool is_in_proclet_heap(void *ptr, void *proclet_base);
+bool is_copied_on_migration(void *ptr, ProcletHeader *proclet_header);
 template <typename T> std::span<std::byte> to_span(T &t);
 template <typename T> T &from_span(std::span<std::byte> span);
 template <typename T> const T &from_span(std::span<const std::byte> span);

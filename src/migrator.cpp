@@ -16,9 +16,9 @@ extern "C" {
 
 #include "nu/commons.hpp"
 #include "nu/ctrl_client.hpp"
-#include "nu/heap_mgr.hpp"
 #include "nu/migrator.hpp"
 #include "nu/pressure_handler.hpp"
+#include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/runtime_alloc.hpp"
@@ -96,18 +96,18 @@ Migrator::Migrator() { callback_triggered_ = true; }
 
 Migrator::~Migrator() { BUG(); }
 
-void Migrator::handle_copy_heap(rt::TcpConn *c) {
+void Migrator::handle_copy_proclet(rt::TcpConn *c) {
   uint64_t start_addr, len;
   const iovec iovecs[] = {{&start_addr, sizeof(start_addr)},
                           {&len, sizeof(len)}};
   BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false, /* poll = */ true) <=
          0);
-  auto heap_base_addr = (start_addr & (~(kHeapSize - 1)));
-  auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base_addr);
-  HeapManager::mmap(heap_header);
+  auto proclet_base_addr = (start_addr & (~(kProcletHeapSize - 1)));
+  auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base_addr);
+  ProcletManager::mmap(proclet_header);
   BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(start_addr), len,
                      /* nt = */ true, /* poll = */ true) <= 0);
-  heap_header->pending_load_cnt--;
+  proclet_header->pending_load_cnt--;
 }
 
 inline void Migrator::handle_load(rt::TcpConn *c) {
@@ -146,8 +146,8 @@ void Migrator::run_background_loop() {
           }
 
           switch (type) {
-          case kCopyHeap:
-            handle_copy_heap(c);
+          case kCopyProclet:
+            handle_copy_proclet(c);
             break;
           case kMigrate:
             handle_load(c);
@@ -186,7 +186,7 @@ inline void throttle(uint64_t len, uint64_t real_us) {
   }
 }
 
-void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
+void Migrator::transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
   constexpr bool kMonitorTime =
       (kEnableLogging || kMigrationThrottleGBs > 0 || kMigrationDelayUs);
   [[maybe_unused]] uint64_t t0, t1;
@@ -195,18 +195,18 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
     t0 = microtime();
   }
 
-  uint8_t type = kCopyHeap;
-  auto start_addr = reinterpret_cast<uint64_t>(heap_header->copy_start);
-  auto len =
-      (reinterpret_cast<uint64_t>(heap_header->slab.get_base()) - start_addr) +
-      heap_header->slab.get_usage();
-  auto per_thread_len = (len - 1) / kTransmitHeapNumThreads + 1;
-  uint64_t req_start_addrs[kTransmitHeapNumThreads];
-  uint64_t req_lens[kTransmitHeapNumThreads];
+  uint8_t type = kCopyProclet;
+  auto start_addr = reinterpret_cast<uint64_t>(proclet_header->copy_start);
+  auto len = (reinterpret_cast<uint64_t>(proclet_header->slab.get_base()) -
+              start_addr) +
+             proclet_header->slab.get_usage();
+  auto per_thread_len = (len - 1) / kTransmitProcletNumThreads + 1;
+  uint64_t req_start_addrs[kTransmitProcletNumThreads];
+  uint64_t req_lens[kTransmitProcletNumThreads];
 
-  for (uint32_t i = 0; i < kTransmitHeapNumThreads; i++) {
+  for (uint32_t i = 0; i < kTransmitProcletNumThreads; i++) {
     req_start_addrs[i] = start_addr + i * per_thread_len;
-    req_lens[i] = (i != kTransmitHeapNumThreads - 1)
+    req_lens[i] = (i != kTransmitProcletNumThreads - 1)
                       ? per_thread_len
                       : start_addr + len - req_start_addrs[i];
     std::vector<iovec> task{
@@ -247,9 +247,11 @@ void Migrator::transmit_heap(rt::TcpConn *c, HeapHeader *heap_header) {
 
   if constexpr (kEnableLogging) {
     preempt_disable();
-    std::cout << "Transmit heap: addr = " << heap_header << ", size = " << len
-              << ", time_us = " << t1 - t0 << ", num heaps left = "
-              << Runtime::heap_manager->get_num_present_heaps() << std::endl;
+    std::cout << "Transmit proclet: addr = " << proclet_header
+              << ", size = " << len << ", time_us = " << t1 - t0
+              << ", num proclets left = "
+              << Runtime::proclet_manager->get_num_present_proclets()
+              << std::endl;
     preempt_enable();
   }
 }
@@ -377,12 +379,13 @@ void Migrator::transmit_stack_cluster_mmap_task(rt::TcpConn *c) {
                       /* poll = */ true) < 0);
 }
 
-void Migrator::transmit_heap_mmap_populate_ranges(
-    rt::TcpConn *c, const std::vector<HeapRange> &heaps) {
-  uint64_t size = heaps.size() * sizeof(HeapRange);
+void Migrator::transmit_proclet_mmap_populate_ranges(
+    rt::TcpConn *c, const std::vector<ProcletRange> &proclets) {
+  uint64_t size = proclets.size() * sizeof(ProcletRange);
   if (size) {
-    const iovec iovecs[] = {{&size, sizeof(size)},
-                            {const_cast<HeapRange *>(heaps.data()), size}};
+    const iovec iovecs[] = {
+        {&size, sizeof(size)},
+        {const_cast<ProcletRange *>(proclets.data()), size}};
     BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ false,
                          /* poll = */ true) < 0);
   } else {
@@ -391,9 +394,9 @@ void Migrator::transmit_heap_mmap_populate_ranges(
   }
 }
 
-void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header,
+void Migrator::transmit(rt::TcpConn *c, ProcletHeader *proclet_header,
                         struct list_head *paused_ths_list) {
-  transmit_heap(c, heap_header);
+  transmit_proclet(c, proclet_header);
 
   std::vector<thread_t *> ready_threads;
   std::vector<Mutex *> mutexes;
@@ -405,7 +408,7 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header,
     ready_threads.push_back(th);
   }
 
-  auto all_blocked_syncers = heap_header->blocked_syncer.get_all();
+  auto all_blocked_syncers = proclet_header->blocked_syncer.get_all();
   for (auto [raw_ptr, type] : all_blocked_syncers) {
     switch (type) {
     case BlockedSyncer::kMutex:
@@ -421,48 +424,49 @@ void Migrator::transmit(rt::TcpConn *c, HeapHeader *heap_header,
 
   transmit_mutexes(c, mutexes);
   transmit_condvars(c, condvars);
-  transmit_time(c, &heap_header->time);
+  transmit_time(c, &proclet_header->time);
   transmit_threads(c, ready_threads);
 }
 
-bool Migrator::try_mark_heap_migrating(HeapHeader *heap_header) {
-  if (unlikely(!Runtime::heap_manager->remove_for_migration(heap_header))) {
+bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
+  if (unlikely(
+          !Runtime::proclet_manager->remove_for_migration(proclet_header))) {
     return false;
   }
-  heap_header->rcu_lock.writer_sync(/* poll = */ true);
+  proclet_header->rcu_lock.writer_sync(/* poll = */ true);
   return true;
 }
 
-void Migrator::unmap_destructed_heaps(
-    rt::TcpConn *c, std::vector<HeapHeader *> *destructed_heaps) {
-  if (!destructed_heaps->empty()) {
+void Migrator::unmap_destructed_proclets(
+    rt::TcpConn *c, std::vector<ProcletHeader *> *proclets) {
+  if (!proclets->empty()) {
     uint8_t type = kUnmap;
-    uint64_t num_heaps = destructed_heaps->size();
+    uint64_t num_proclets = proclets->size();
     VAddrRange stack_cluster = Runtime::stack_manager->get_range();
     const iovec iovecs[] = {
         {&type, sizeof(type)},
-        {&num_heaps, sizeof(num_heaps)},
+        {&num_proclets, sizeof(num_proclets)},
         {&stack_cluster, sizeof(stack_cluster)},
-        {destructed_heaps->data(), num_heaps * sizeof(HeapHeader *)}};
+        {proclets->data(), num_proclets * sizeof(ProcletHeader *)}};
     BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ false,
                          /* poll = */ true) < 0);
   }
 }
 
 void Migrator::handle_unmap(rt::TcpConn *c) {
-  uint64_t num_heaps;
+  uint64_t num_proclets;
   VAddrRange stack_cluster;
-  const iovec iovecs[] = {{&num_heaps, sizeof(num_heaps)},
+  const iovec iovecs[] = {{&num_proclets, sizeof(num_proclets)},
                           {&stack_cluster, sizeof(stack_cluster)}};
   BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false,
                       /* poll = */ true) <= 0);
-  HeapHeader *heaps[num_heaps];
-  BUG_ON(c->ReadFull(heaps, sizeof(heaps), /* nt = */ false,
+  ProcletHeader *proclets[num_proclets];
+  BUG_ON(c->ReadFull(proclets, sizeof(proclets), /* nt = */ false,
                      /* poll = */ true) <= 0);
 
-  Runtime::stack_manager->add_ref_cnt(stack_cluster, -num_heaps);
-  for (uint64_t i = 0; i < num_heaps; i++) {
-    Runtime::heap_manager->deallocate(heaps[i]);
+  Runtime::stack_manager->add_ref_cnt(stack_cluster, -num_proclets);
+  for (uint64_t i = 0; i < num_proclets; i++) {
+    Runtime::proclet_manager->deallocate(proclets[i]);
   }
 }
 
@@ -497,46 +501,48 @@ void Migrator::callback() {
   }
 }
 
-void Migrator::migrate(Resource resource, std::vector<HeapRange> heaps) {
+void Migrator::migrate(Resource resource, std::vector<ProcletRange> proclets) {
   if (!callback_triggered_) {
     callback_triggered_ = true;
     callback();
   }
 
-  const uint32_t num_total_heaps = heaps.size();
-  uint32_t num_migrated_heaps = 0;
-  std::vector<HeapRange> choosen_heaps;
-  while (num_total_heaps - num_migrated_heaps > 0) {
-    uint32_t num_choosen_heaps = std::min(kMaxNumHeapsPerMigration,
-                                          num_total_heaps - num_migrated_heaps);
-    auto ratio = static_cast<float>(num_choosen_heaps) / num_total_heaps;
+  const uint32_t num_total_proclets = proclets.size();
+  uint32_t num_migrated_proclets = 0;
+  std::vector<ProcletRange> choosen_proclets;
+  while (num_total_proclets - num_migrated_proclets > 0) {
+    uint32_t num_choosen_proclets =
+        std::min(kMaxNumProcletsPerMigration,
+                 num_total_proclets - num_migrated_proclets);
+    auto ratio = static_cast<float>(num_choosen_proclets) / num_total_proclets;
     Resource choosen_resource;
     choosen_resource.cores =
         static_cast<uint32_t>(ratio * resource.cores + 0.5);
     choosen_resource.mem_mbs =
         static_cast<uint32_t>(ratio * resource.mem_mbs + 0.5);
-    choosen_heaps.clear();
-    for (uint32_t i = 0; i < num_choosen_heaps; i++) {
-      choosen_heaps.push_back(heaps[num_migrated_heaps++]);
+    choosen_proclets.clear();
+    for (uint32_t i = 0; i < num_choosen_proclets; i++) {
+      choosen_proclets.push_back(proclets[num_migrated_proclets++]);
     }
-    __migrate(choosen_resource, choosen_heaps);
+    __migrate(choosen_resource, choosen_proclets);
   }
 }
 
-void Migrator::pause_migrating_threads(HeapHeader *heap_header) {
+void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
   Runtime::pressure_handler->dispatch_aux_pause_task(0);
-  pause_migrating_ths_main(heap_header);
+  pause_migrating_ths_main(proclet_header);
 }
 
-void Migrator::post_migration_cleanup(HeapHeader *heap_header) {
-  rt::Thread([heap_header] {
-    heap_header->thread_cnt.reset();
-    Runtime::heap_manager->deallocate(heap_header);
-    SlabAllocator::deregister_slab_by_id(to_slab_id(heap_header));
+void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
+  rt::Thread([proclet_header] {
+    proclet_header->thread_cnt.reset();
+    Runtime::proclet_manager->deallocate(proclet_header);
+    SlabAllocator::deregister_slab_by_id(to_slab_id(proclet_header));
   }).Detach();
 }
 
-void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
+void Migrator::__migrate(Resource resource,
+                         std::vector<ProcletRange> proclets) {
   auto dest_ip = Runtime::controller_client->get_migration_dest(resource);
   BUG_ON(!dest_ip);
   auto migration_conn = migrator_conn_mgr_.get(dest_ip);
@@ -546,31 +552,31 @@ void Migrator::__migrate(Resource resource, std::vector<HeapRange> heaps) {
   uint8_t type = kMigrate;
   BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
                          /* poll = */ true) < 0);
-  transmit_heap_mmap_populate_ranges(conn, heaps);
+  transmit_proclet_mmap_populate_ranges(conn, proclets);
   transmit_stack_cluster_mmap_task(conn);
 
-  std::vector<HeapHeader *> migrated_heaps;
-  std::vector<HeapHeader *> destructed_heaps;
-  migrated_heaps.reserve(heaps.size());
-  for (auto [heap_header, _] : heaps) {
-    if (unlikely(!try_mark_heap_migrating(heap_header))) {
-      destructed_heaps.push_back(heap_header);
+  std::vector<ProcletHeader *> migrated_proclets;
+  std::vector<ProcletHeader *> destructed_proclets;
+  migrated_proclets.reserve(proclets.size());
+  for (auto [proclet_header, _] : proclets) {
+    if (unlikely(!try_mark_proclet_migrating(proclet_header))) {
+      destructed_proclets.push_back(proclet_header);
       continue;
     }
-    Runtime::controller_client->update_location(to_proclet_id(heap_header),
+    Runtime::controller_client->update_location(to_proclet_id(proclet_header),
                                                 dest_ip);
-    migrated_heaps.push_back(heap_header);
-    pause_migrating_threads(heap_header);
-    transmit(conn, heap_header, &all_migrating_ths);
+    migrated_proclets.push_back(proclet_header);
+    pause_migrating_threads(proclet_header);
+    transmit(conn, proclet_header, &all_migrating_ths);
     gc_migrated_threads();
-    post_migration_cleanup(heap_header);
+    post_migration_cleanup(proclet_header);
   }
 
-  unmap_destructed_heaps(conn, &destructed_heaps);
+  unmap_destructed_proclets(conn, &destructed_proclets);
   finish_aux_handlers();
 }
 
-void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
+void Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
   constexpr bool kMonitorTime =
       (kEnableLogging || kMigrationThrottleGBs > 0 || kMigrationDelayUs);
   [[maybe_unused]] uint64_t t0, t1;
@@ -579,23 +585,23 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
     t0 = microtime();
   }
 
-  heap_header->pending_load_cnt += kTransmitHeapNumThreads;
+  proclet_header->pending_load_cnt += kTransmitProcletNumThreads;
 
   uint8_t type;
   BUG_ON(c->ReadFull(&type, sizeof(type), /* nt = */ false,
                      /* poll = */ true) <= 0);
-  BUG_ON(type != kCopyHeap);
-  handle_copy_heap(c);
+  BUG_ON(type != kCopyProclet);
+  handle_copy_proclet(c);
 
-  Runtime::heap_manager->setup(heap_header,
-                               /* migratable = */ false,
-                               /* from_migration = */ true);
-  heap_header->cpu_load.reset();
-  while (heap_header->pending_load_cnt.load()) {
+  Runtime::proclet_manager->setup(proclet_header,
+                                  /* migratable = */ false,
+                                  /* from_migration = */ true);
+  proclet_header->cpu_load.reset();
+  while (proclet_header->pending_load_cnt.load()) {
     unblock_and_relax();
   }
 
-  auto *slab = &heap_header->slab;
+  auto *slab = &proclet_header->slab;
   nu::SlabAllocator::register_slab_by_id(slab, slab->get_id());
 
   if constexpr (kMonitorTime) {
@@ -603,7 +609,7 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
   }
 
   if constexpr (kMigrationThrottleGBs > 0) {
-    throttle(heap_header->slab.get_usage(), t1 - t0);
+    throttle(proclet_header->slab.get_usage(), t1 - t0);
     t1 = microtime();
   }
 
@@ -619,14 +625,15 @@ void Migrator::load_heap(rt::TcpConn *c, HeapHeader *heap_header) {
 
   if constexpr (kEnableLogging) {
     preempt_disable();
-    std::cout << "Load heap: addr = " << heap_header
+    std::cout << "Load proclet: addr = " << proclet_header
               << ", time_us = " << t1 - t0 << std::endl;
     preempt_enable();
   }
 }
 
-thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
-  heap_header->thread_cnt.inc_unsafe();
+thread_t *Migrator::load_one_thread(rt::TcpConn *c,
+                                    ProcletHeader *proclet_header) {
+  proclet_header->thread_cnt.inc_unsafe();
 
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);
@@ -642,15 +649,18 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c, HeapHeader *heap_header) {
                      /* poll = */ true) <= 0);
 
   auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
-  if (is_in_heap(nu_thread, heap_header) ||
-      is_in_stack(nu_thread, stack_range)) {
+  auto nu_thread_addr=  reinterpret_cast<uint64_t>(nu_thread);
+  bool in_proclet_heap = is_in_proclet_heap(nu_thread, proclet_header);
+  bool in_proclet_stack =
+      nu_thread_addr >= stack_range.start && nu_thread_addr < stack_range.end;
+  if (in_proclet_heap || in_proclet_stack) {
     BUG_ON(!nu_thread->th_);
     nu_thread->th_ = th;
   }
   return th;
 }
 
-void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
+void Migrator::load_mutexes(rt::TcpConn *c, ProcletHeader *proclet_header) {
   size_t num_mutexes;
   BUG_ON(c->ReadFull(&num_mutexes, sizeof(num_mutexes), /* nt = */ false,
                      /* poll = */ true) <= 0);
@@ -663,20 +673,20 @@ void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
 
     for (size_t i = 0; i < num_mutexes; i++) {
       auto *mutex = mutexes[i];
-      heap_header->blocked_syncer.add(mutex, BlockedSyncer::kMutex);
+      proclet_header->blocked_syncer.add(mutex, BlockedSyncer::kMutex);
 
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
                          /* poll = */ true) <= 0);
       // FIXME
-      // heap_header->migrated_wg.Add(num_threads);
+      // proclet_header->migrated_wg.Add(num_threads);
 
       auto *waiters = mutex->get_waiters();
-      if (heap_header->will_be_copied_on_migration(mutex)) {
+      if (proclet_header->will_be_copied_on_migration(mutex)) {
         list_head_init(waiters);
       }
       for (size_t j = 0; j < num_threads; j++) {
-        auto *th = load_one_thread(c, heap_header);
+        auto *th = load_one_thread(c, proclet_header);
         auto *th_link = reinterpret_cast<list_node *>(
             reinterpret_cast<uintptr_t>(th) + thread_link_offset);
         list_add_tail(waiters, th_link);
@@ -685,7 +695,7 @@ void Migrator::load_mutexes(rt::TcpConn *c, HeapHeader *heap_header) {
   }
 }
 
-void Migrator::load_condvars(rt::TcpConn *c, HeapHeader *heap_header) {
+void Migrator::load_condvars(rt::TcpConn *c, ProcletHeader *proclet_header) {
   size_t num_condvars;
   BUG_ON(c->ReadFull(&num_condvars, sizeof(num_condvars), /* nt = */ false,
                      /* poll = */ true) <= 0);
@@ -698,20 +708,20 @@ void Migrator::load_condvars(rt::TcpConn *c, HeapHeader *heap_header) {
 
     for (size_t i = 0; i < num_condvars; i++) {
       auto *condvar = condvars[i];
-      heap_header->blocked_syncer.add(condvar, BlockedSyncer::kCondVar);
+      proclet_header->blocked_syncer.add(condvar, BlockedSyncer::kCondVar);
 
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
                          /* poll = */ true) <= 0);
       // FIXME
-      // heap_header->migrated_wg.Add(num_threads);
+      // proclet_header->migrated_wg.Add(num_threads);
 
       auto *waiters = condvar->get_waiters();
-      if (heap_header->will_be_copied_on_migration(condvar)) {
+      if (proclet_header->will_be_copied_on_migration(condvar)) {
         list_head_init(waiters);
       }
       for (size_t j = 0; j < num_threads; j++) {
-        auto *th = load_one_thread(c, heap_header);
+        auto *th = load_one_thread(c, proclet_header);
         auto *th_link = reinterpret_cast<list_node *>(
             reinterpret_cast<uintptr_t>(th) + thread_link_offset);
         list_add_tail(waiters, th_link);
@@ -720,8 +730,8 @@ void Migrator::load_condvars(rt::TcpConn *c, HeapHeader *heap_header) {
   }
 }
 
-void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
-  auto &time = heap_header->time;
+void Migrator::load_time(rt::TcpConn *c, ProcletHeader *proclet_header) {
+  auto &time = proclet_header->time;
 
   int64_t sum_tsc;
   size_t num_entries;
@@ -730,7 +740,7 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
   BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false,
                       /* poll = */ true) <= 0);
   // FIXME
-  // heap_header->migrated_wg.Add(num_entries);
+  // proclet_header->migrated_wg.Add(num_entries);
 
   auto loader_tsc = rdtscp(nullptr) - start_tsc;
   time.offset_tsc_ = sum_tsc - loader_tsc;
@@ -744,7 +754,7 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
     for (size_t i = 0; i < num_entries; i++) {
       auto *entry = timer_entries[i];
       auto *arg = reinterpret_cast<TimerCallbackArg *>(entry->arg);
-      auto *th = load_one_thread(c, heap_header);
+      auto *th = load_one_thread(c, proclet_header);
       arg->th = th;
       {
         rt::SpinGuard guard(&time.spin_);
@@ -757,15 +767,15 @@ void Migrator::load_time(rt::TcpConn *c, HeapHeader *heap_header) {
   }
 }
 
-void Migrator::load_threads(rt::TcpConn *c, HeapHeader *heap_header) {
+void Migrator::load_threads(rt::TcpConn *c, ProcletHeader *proclet_header) {
   uint64_t num_threads;
   BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
                      /* poll = */ true) <= 0);
   // FIXME
-  // heap_header->migrated_wg.Add(num_threads);
+  // proclet_header->migrated_wg.Add(num_threads);
 
   for (uint64_t i = 0; i < num_threads; i++) {
-    auto *th = load_one_thread(c, heap_header);
+    auto *th = load_one_thread(c, proclet_header);
     thread_ready(th);
   }
 }
@@ -777,16 +787,16 @@ VAddrRange Migrator::load_stack_cluster_mmap_task(rt::TcpConn *c) {
   return stack_cluster;
 }
 
-std::vector<HeapRange>
-Migrator::load_heap_mmap_populate_ranges(rt::TcpConn *c) {
-  std::vector<HeapRange> populate_ranges;
+std::vector<ProcletRange>
+Migrator::load_proclet_mmap_populate_ranges(rt::TcpConn *c) {
+  std::vector<ProcletRange> populate_ranges;
   uint64_t size;
 
   BUG_ON(c->ReadFull(&size, sizeof(size), /* nt = */ false,
                      /* poll = */ true) <= 0);
 
   if (size) {
-    populate_ranges.resize(size / sizeof(HeapRange));
+    populate_ranges.resize(size / sizeof(ProcletRange));
     BUG_ON(c->ReadFull(&populate_ranges[0], size, /* nt = */ false,
                        /* poll = */ true) <= 0);
   }
@@ -795,11 +805,12 @@ Migrator::load_heap_mmap_populate_ranges(rt::TcpConn *c) {
 }
 
 void Migrator::load(rt::TcpConn *c) {
-  auto populate_ranges = load_heap_mmap_populate_ranges(c);
+  auto populate_ranges = load_proclet_mmap_populate_ranges(c);
   rt::Thread([&] {
     for (auto &range : populate_ranges) {
-      Runtime::heap_manager->mmap(range.heap_header);
-      Runtime::heap_manager->madvise_populate(range.heap_header, range.len);
+      Runtime::proclet_manager->mmap(range.proclet_header);
+      Runtime::proclet_manager->madvise_populate(range.proclet_header,
+                                                 range.len);
     }
   }).Detach();
 
@@ -807,27 +818,27 @@ void Migrator::load(rt::TcpConn *c) {
   Runtime::stack_manager->add_ref_cnt(stack_cluster, populate_ranges.size());
 
   for (auto &range : populate_ranges) {
-    auto *heap_header = range.heap_header;
+    auto *proclet_header = range.proclet_header;
 
-    load_heap(c, heap_header);
+    load_proclet(c, proclet_header);
 
-    load_mutexes(c, heap_header);
-    load_condvars(c, heap_header);
-    load_time(c, heap_header);
+    load_mutexes(c, proclet_header);
+    load_condvars(c, proclet_header);
+    load_time(c, proclet_header);
 
-    Runtime::heap_manager->insert(heap_header);
+    Runtime::proclet_manager->insert(proclet_header);
 
-    load_threads(c, heap_header);
+    load_threads(c, proclet_header);
 
     // Wakeup the blocked threads.
-    heap_header->spin_lock.lock();
-    heap_header->cond_var.signal_all();
-    heap_header->spin_lock.unlock();
+    proclet_header->spin_lock.lock();
+    proclet_header->cond_var.signal_all();
+    proclet_header->spin_lock.unlock();
 
     // FIXME
-    // rt::Thread([heap_header, stack_cluster] {
-    //   heap_header->migrated_wg.Wait();
-    //   rt::access_once(heap_header->migratable) = true;
+    // rt::Thread([proclet_header, stack_cluster] {
+    //   proclet_header->migrated_wg.Wait();
+    //   rt::access_once(proclet_header->migratable) = true;
     //   Runtime::stack_manager->add_ref_cnt(stack_cluster, -1);
     // }).Detach();
   }

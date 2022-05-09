@@ -29,14 +29,14 @@ struct Utility {
   float cpu_pressure_util;
   float mem_pressure_util;
 
-  Utility(HeapHeader *heap_header);
+  Utility(ProcletHeader *proclet_header);
 };
 
 class PressureHandler {
 public:
   constexpr static uint32_t kNumAuxHandlers =
-      Migrator::kTransmitHeapNumThreads - 1;
-  constexpr static uint32_t kSortedHeapsUpdateIntervalMs = 50;
+      Migrator::kTransmitProcletNumThreads - 1;
+  constexpr static uint32_t kSortedProcletsUpdateIntervalMs = 50;
 
   PressureHandler();
   ~PressureHandler();
@@ -48,11 +48,11 @@ public:
   void dispatch_aux_pause_task(uint32_t handler_id);
 
 private:
-  struct HeapInfo {
-    HeapHeader *header;
+  struct ProcletInfo {
+    ProcletHeader *header;
     float val;
 
-    bool operator<(const HeapInfo &o) const {
+    bool operator<(const ProcletInfo &o) const {
       if (val == o.val) {
         return header > o.header;
       }
@@ -61,15 +61,15 @@ private:
   };
 
   AuxHandlerState aux_handler_states[kNumAuxHandlers];
-  std::shared_ptr<std::set<HeapInfo>> mem_pressure_sorted_heaps_;
-  std::shared_ptr<std::set<HeapInfo>> cpu_pressure_sorted_heaps_;
+  std::shared_ptr<std::set<ProcletInfo>> mem_pressure_sorted_proclets_;
+  std::shared_ptr<std::set<ProcletInfo>> cpu_pressure_sorted_proclets_;
   rt::Thread update_thread_;
   bool done_;
 
   void register_handlers();
-  std::vector<HeapRange> pick_heaps(uint32_t min_num_heaps,
-                                    uint32_t min_mem_mbs);
-  void update_sorted_heaps();
+  std::vector<ProcletRange> pick_proclets(uint32_t min_num_proclets,
+                                          uint32_t min_mem_mbs);
+  void update_sorted_proclets();
   static void main_handler(void *unsed);
   static void aux_handler(void *args);
 };

@@ -18,9 +18,9 @@ extern "C" {
 
 namespace nu {
 
-struct HeapHeader;
+struct ProcletHeader;
 class ProcletServer;
-class HeapManager;
+class ProcletManager;
 class StackManager;
 class ControllerClient;
 class ControllerServer;
@@ -54,7 +54,7 @@ private:
   static std::unique_ptr<ProcletServer> proclet_server;
   static std::unique_ptr<ControllerClient> controller_client;
   static std::unique_ptr<ControllerServer> controller_server;
-  static std::unique_ptr<HeapManager> heap_manager;
+  static std::unique_ptr<ProcletManager> proclet_manager;
   static std::unique_ptr<StackManager> stack_manager;
   static std::unique_ptr<RPCClientMgr> rpc_client_mgr;
   static std::unique_ptr<Migrator> migrator;
@@ -72,7 +72,7 @@ private:
   friend class Time;
   friend class Thread;
   friend class CPULoad;
-  friend class HeapManager;
+  friend class ProcletManager;
   friend class RPCServer;
   friend class Controller;
   friend class ControllerClient;
@@ -96,7 +96,7 @@ private:
   static void init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid);
   static void init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid);
   template <typename Cls, typename... A0s, typename... A1s>
-  static bool run_within_proclet_env(void *heap_base, void (*fn)(A0s...),
+  static bool run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                                      A1s &&... args);
   static void *switch_slab(void *slab);
   static void *switch_to_runtime_slab();
@@ -104,7 +104,7 @@ private:
   static T *new_on_runtime_heap(Args &&... args);
   template <typename T> static void delete_on_runtime_heap(T *ptr);
   static SlabAllocator *get_current_proclet_slab();
-  static HeapHeader *get_current_proclet_heap_header();
+  static ProcletHeader *get_current_proclet_header();
   static ProcletID get_current_proclet_id();
   template <typename T> static T *get_current_root_obj();
   template <typename T> static T *get_root_obj(ProcletID id);

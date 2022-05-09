@@ -21,9 +21,9 @@ const int thread_link_offset = offsetof(struct thread, link);
 const int thread_run_cycles_offset =
        offsetof(struct thread, nu_state) +
        offsetof(struct thread_nu_state, run_cycles);
-const int thread_owner_heap_offset =
+const int thread_owner_proclet_offset =
        offsetof(struct thread, nu_state) +
-       offsetof(struct thread_nu_state, owner_heap);
+       offsetof(struct thread_nu_state, owner_proclet);
 const int thread_proclet_slab_offset =
        offsetof(struct thread, nu_state) +
        offsetof(struct thread_nu_state, proclet_slab);
@@ -55,7 +55,7 @@ static __thread uint64_t last_tsc;
 /* used to force timer and network processing after a timeout */
 static __thread uint64_t last_watchdog_tsc;
 
-static void *pause_req_owner_heap = NULL;
+static void *pause_req_owner_proclet = NULL;
 static bool global_pause_req_mask = false;
 static void *global_prioritized_rcu = NULL;
 LIST_HEAD(all_migrating_ths);
@@ -208,7 +208,7 @@ static void __pause_migrating_threads_locked(struct kthread *k)
 	avail = load_acquire(&k->rq_head) - k->rq_tail;
 	for (i = 0; i < avail; i++) {
 		th = k->rq[k->rq_tail++ % RUNTIME_RQ_SIZE];
-		if (th->nu_state.owner_heap == pause_req_owner_heap) {
+		if (th->nu_state.owner_proclet == pause_req_owner_proclet) {
 			num_paused++;
 			list_add_tail(&k->migrating_ths, &th->link);
 		} else {
@@ -221,7 +221,7 @@ static void __pause_migrating_threads_locked(struct kthread *k)
 	        list_add_tail(&k->rq_overflow, &sentinel.link);
 		while ((th = list_pop(&k->rq_overflow, thread_t, link)) !=
 		       &sentinel) {
-			if (th->nu_state.owner_heap == pause_req_owner_heap) {
+			if (th->nu_state.owner_proclet == pause_req_owner_proclet) {
 				num_paused++;
 				list_add_tail(&k->migrating_ths, &th->link);
 			} else {
@@ -346,7 +346,7 @@ static bool handle_pending_pause_req(struct kthread *k)
 	}
 
 	if (k->curr_th &&
-	    k->curr_th->nu_state.owner_heap == pause_req_owner_heap)
+	    k->curr_th->nu_state.owner_proclet == pause_req_owner_proclet)
 		handled = false;
 	else {
 		__pause_migrating_threads_locked(k);
@@ -1035,7 +1035,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->nu_state.nu_thread = NULL;
 	th->nu_state.creator_ip = get_cfg_ip();
 	th->nu_state.proclet_slab = NULL;
-	th->nu_state.owner_heap = NULL;
+	th->nu_state.owner_proclet = NULL;
 
 	return th;
 }
@@ -1099,7 +1099,7 @@ thread_t *thread_nu_create_with_buf(void *nu_thread, void *proclet_stack,
 		return NULL;
 
 	th->nu_state.proclet_slab = __self->nu_state.proclet_slab;
-	th->nu_state.owner_heap = __self->nu_state.owner_heap;
+	th->nu_state.owner_proclet = __self->nu_state.owner_proclet;
 	th->nu_state.nu_thread = nu_thread;
 	th->nu_state.tf.rsp =
 		nu_stack_init_to_rsp_with_buf(proclet_stack, proclet_stack_size,
@@ -1319,7 +1319,7 @@ retry:
 	store_release(&global_pause_req_mask, false);
 }
 
-void pause_migrating_ths_main(void *owner_heap)
+void pause_migrating_ths_main(void *owner_proclet)
 {
 	int i;
 	bool intr = false;
@@ -1331,7 +1331,7 @@ void pause_migrating_ths_main(void *owner_heap)
 
 	for (i = 0; i < nrks; i++)
 		ks[i]->pause_req = true;
-	pause_req_owner_heap = owner_heap;
+	pause_req_owner_proclet = owner_proclet;
 	store_release(&global_pause_req_mask, true);
 
 	CPU_ZERO(&mask);
@@ -1345,7 +1345,7 @@ void pause_migrating_ths_main(void *owner_heap)
 		         */
 			th = k->curr_th;
 			if (th &&
-			    th->nu_state.owner_heap == pause_req_owner_heap) {
+			    th->nu_state.owner_proclet == pause_req_owner_proclet) {
 				intr = true;
 				CPU_SET(k->curr_cpu, &mask);
 			}

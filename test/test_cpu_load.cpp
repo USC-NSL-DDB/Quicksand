@@ -105,22 +105,22 @@ public:
     }
 
     auto light_cpu_load = light_obj.run(+[](CPULightObj &_) {
-      auto *heap_header = Runtime::get_current_proclet_heap_header();
+      auto *heap_header = Runtime::get_current_proclet_header();
       return heap_header->cpu_load.get_load();
     });
 
     auto heavy_cpu_load = heavy_obj.run(+[](CPUHeavyObj &_) {
-      auto *heap_header = Runtime::get_current_proclet_heap_header();
+      auto *heap_header = Runtime::get_current_proclet_header();
       return heap_header->cpu_load.get_load();
     });
 
     auto nested_cpu_load = nested_obj.run(+[](CPUNestedObj &_) {
-      auto *heap_header = Runtime::get_current_proclet_heap_header();
+      auto *heap_header = Runtime::get_current_proclet_header();
       return heap_header->cpu_load.get_load();
     });
 
     auto spin_cpu_load = spin_obj.run(+[](CPUSpinObj &_) {
-      auto *heap_header = Runtime::get_current_proclet_heap_header();
+      auto *heap_header = Runtime::get_current_proclet_header();
       CPULoad::flush_all();
       return heap_header->cpu_load.get_load();
     });

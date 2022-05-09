@@ -25,17 +25,17 @@ inline Thread &Thread::operator=(Thread &&t) {
 }
 
 template <typename F> Thread::Thread(F &&f) {
-  auto *heap_header = Runtime::get_current_proclet_heap_header();
+  auto *proclet_header = Runtime::get_current_proclet_header();
 
-  if (heap_header) {
-    create_in_proclet_env(f, heap_header);
+  if (proclet_header) {
+    create_in_proclet_env(f, proclet_header);
   } else {
     create_in_runtime_env(f);
   }
 }
 
 template <typename F>
-void Thread::create_in_proclet_env(F &&f, HeapHeader *header) {
+void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
   rt::Preempt p;
   rt::PreemptGuard g(&p);
   auto *proclet_stack = Runtime::stack_manager->get();

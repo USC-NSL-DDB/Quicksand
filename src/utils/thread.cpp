@@ -22,14 +22,14 @@ Thread::trampoline_in_proclet_env(void *args) {
     rt::Preempt p;
     rt::PreemptGuard g(&p);
 
-    thread_unset_owner_heap();
+    thread_unset_owner_proclet();
   }
 
   auto runtime_stack_base = thread_get_runtime_stack_base();
   auto old_rsp = switch_stack(runtime_stack_base);
   Runtime::switch_to_runtime_slab();
 
-  // auto *heap_header = d->header;
+  // auto *proclet_header = d->header;
   if (likely(thread_is_at_creator())) {
     auto proclet_stack_addr =
         ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &
@@ -38,7 +38,7 @@ Thread::trampoline_in_proclet_env(void *args) {
         reinterpret_cast<uint8_t *>(proclet_stack_addr));
   } else {
     // FIXME
-    // heap_header->migrated_wg.Done();
+    // proclet_header->migrated_wg.Done();
   }
   rt::Exit();
 }

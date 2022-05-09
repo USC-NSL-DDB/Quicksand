@@ -15,7 +15,7 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/commons.hpp"
-#include "nu/heap_mgr.hpp"
+#include "nu/proclet_mgr.hpp"
 #include "nu/rpc_client_mgr.hpp"
 #include "nu/utils/md5.hpp"
 
@@ -63,7 +63,7 @@ public:
   void report_free_resource(lpid_t lpid, uint32_t ip, Resource free_resource);
 
 private:
-  std::stack<VAddrRange> free_heap_segments_; // One segment per Proclet.
+  std::stack<VAddrRange> free_proclet_heap_segments_; // One segment per Proclet.
   std::stack<VAddrRange> free_stack_cluster_segments_; // One segment per Node.
   std::set<lpid_t> free_lpids_;
   std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;

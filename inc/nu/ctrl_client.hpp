@@ -20,8 +20,6 @@ extern "C" {
 
 namespace nu {
 
-// TODO: return heap back.
-
 class ControllerClient {
 public:
   ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode, lpid_t lpid);

@@ -5,7 +5,7 @@
 
 #include <sync.h>
 
-#include "nu/heap_mgr.hpp"
+#include "nu/proclet_mgr.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/spinlock.hpp"
 
@@ -15,14 +15,14 @@ struct join_data {
   template <typename F>
   join_data(F &&f) : done(false), func(std::move(f)), header(nullptr) {}
   template <typename F>
-  join_data(F &&f, HeapHeader *hdr)
+  join_data(F &&f, ProcletHeader *hdr)
       : done(false), func(std::move(f)), header(hdr) {}
 
   bool done;
   SpinLock lock;
   CondVar cv;
   folly::Function<void()> func;
-  HeapHeader *header;
+  ProcletHeader *header;
 };
 
 class Thread {
@@ -48,7 +48,8 @@ private:
   join_data *join_data_;
   friend class Migrator;
 
-  template <typename F> void create_in_proclet_env(F &&f, HeapHeader *header);
+  template <typename F>
+  void create_in_proclet_env(F &&f, ProcletHeader *header);
   template <typename F> void create_in_runtime_env(F &&f);
   static void trampoline_in_runtime_env(void *args);
   static void trampoline_in_proclet_env(void *args);

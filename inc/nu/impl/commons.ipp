@@ -12,28 +12,28 @@ inline uint64_t bsr_64(uint64_t a) {
   return ret;
 }
 
-inline constexpr HeapHeader *to_heap_header(ProcletID id) {
-  return reinterpret_cast<HeapHeader *>(id);
+inline constexpr ProcletHeader *to_proclet_header(ProcletID id) {
+  return reinterpret_cast<ProcletHeader *>(id);
 }
 
-inline constexpr void *to_heap_base(ProcletID id) {
+inline constexpr void *to_proclet_base(ProcletID id) {
   return reinterpret_cast<void *>(id);
 }
 
-inline constexpr ProcletID to_proclet_id(void *heap_base) {
-  return reinterpret_cast<ProcletID>(heap_base);
+inline constexpr ProcletID to_proclet_id(void *proclet_base) {
+  return reinterpret_cast<ProcletID>(proclet_base);
 }
 
-inline constexpr SlabId_t to_slab_id(uint64_t heap_base_addr) {
-  return (heap_base_addr - kMinHeapVAddr) / kHeapSize + 2;
+inline constexpr SlabId_t to_slab_id(uint64_t proclet_base_addr) {
+  return (proclet_base_addr - kMinProcletHeapVAddr) / kProcletHeapSize + 2;
 }
 
-inline constexpr SlabId_t to_slab_id(void *heap_base) {
-  return to_slab_id(reinterpret_cast<uint64_t>(heap_base));
+inline constexpr SlabId_t to_slab_id(void *proclet_base) {
+  return to_slab_id(reinterpret_cast<uint64_t>(proclet_base));
 }
 
 inline constexpr SlabId_t get_max_slab_id() {
-  return to_slab_id(kMaxHeapVAddr - kHeapSize);
+  return to_slab_id(kMaxProcletHeapVAddr - kProcletHeapSize);
 }
 
 inline __attribute__((always_inline)) void *switch_stack(void *new_rsp) {
@@ -55,14 +55,9 @@ inline VAddrRange get_proclet_stack_range(thread_t *thread) {
   return range;
 }
 
-inline bool is_in_heap(void *ptr, void *heap_base) {
-  return (reinterpret_cast<uint64_t>(ptr) & (~(kHeapSize - 1))) ==
-         reinterpret_cast<uint64_t>(heap_base);
-}
-
-inline bool is_in_stack(void *ptr, VAddrRange stack) {
-  auto ptr_addr = reinterpret_cast<uint64_t>(ptr);
-  return ptr_addr >= stack.start && ptr_addr < stack.end;
+inline bool is_in_proclet_heap(void *ptr, void *proclet_base) {
+  return (reinterpret_cast<uint64_t>(ptr) & (~(kProcletHeapSize - 1))) ==
+         reinterpret_cast<uint64_t>(proclet_base);
 }
 
 template <typename T> std::span<std::byte> to_span(T &t) {

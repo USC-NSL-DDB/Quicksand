@@ -17,8 +17,8 @@ PressureHandler::PressureHandler() : done_(false) {
 
   update_thread_ = rt::Thread([&] {
     while (!rt::access_once(done_)) {
-      timer_sleep(kSortedHeapsUpdateIntervalMs * kOneMilliSecond);
-      update_sorted_heaps();
+      timer_sleep(kSortedProcletsUpdateIntervalMs * kOneMilliSecond);
+      update_sorted_proclets();
     }
   });
 }
@@ -29,22 +29,22 @@ PressureHandler::~PressureHandler() {
   update_thread_.Join();
 }
 
-uint64_t get_heap_size(HeapHeader *heap_header) {
-  auto &slab = heap_header->slab;
+uint64_t get_proclet_size(ProcletHeader *proclet_header) {
+  auto &slab = proclet_header->slab;
   auto size_in_bytes = reinterpret_cast<uint64_t>(slab.get_base()) +
                        slab.get_usage() -
-                       reinterpret_cast<uint64_t>(heap_header);
+                       reinterpret_cast<uint64_t>(proclet_header);
   return size_in_bytes;
 }
 
-Utility::Utility(HeapHeader *heap_header) {
-  auto heap_size = get_heap_size(heap_header);
-  auto stack_size = heap_header->thread_cnt.get() * kStackSize;
-  auto size = heap_size + stack_size;
+Utility::Utility(ProcletHeader *proclet_header) {
+  auto proclet_size = get_proclet_size(proclet_header);
+  auto stack_size = proclet_header->thread_cnt.get() * kStackSize;
+  auto size = proclet_size + stack_size;
   auto time = kFixedCostUs + (size / (kNetBwGbps / 8.0f) / 1000.0f);
 
-  auto cpu_load = heap_header->cpu_load.get_load();
-  heap_header->cpu_load.reset();
+  auto cpu_load = proclet_header->cpu_load.get_load();
+  proclet_header->cpu_load.reset();
   auto cpu_pressure_alleviated = cpu_load;
   auto mem_pressure_alleviated = size;
 
@@ -52,32 +52,35 @@ Utility::Utility(HeapHeader *heap_header) {
   mem_pressure_util = mem_pressure_alleviated / time;
 }
 
-void PressureHandler::update_sorted_heaps() {
+void PressureHandler::update_sorted_proclets() {
   CPULoad::flush_all();
 
-  auto new_mem_pressure_sorted_heaps = std::make_shared<std::set<HeapInfo>>();
-  auto new_cpu_pressure_sorted_heaps = std::make_shared<std::set<HeapInfo>>();
-  auto all_heaps = Runtime::heap_manager->get_all_heaps();
-  for (auto *heap_base : all_heaps) {
-    auto *heap_header = reinterpret_cast<HeapHeader *>(heap_base);
-    heap_header->spin_lock.lock();
-    if (unlikely(heap_header->status != kPresent || !heap_header->migratable)) {
-      heap_header->spin_lock.unlock();
+  auto new_mem_pressure_sorted_proclets =
+      std::make_shared<std::set<ProcletInfo>>();
+  auto new_cpu_pressure_sorted_proclets =
+      std::make_shared<std::set<ProcletInfo>>();
+  auto all_proclets = Runtime::proclet_manager->get_all_proclets();
+  for (auto *proclet_base : all_proclets) {
+    auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
+    proclet_header->spin_lock.lock();
+    if (unlikely(proclet_header->status != kPresent ||
+                 !proclet_header->migratable)) {
+      proclet_header->spin_lock.unlock();
       continue;
     }
-    auto [cpu_pressure_utility, mem_pressure_utility] = Utility(heap_header);
-    heap_header->spin_lock.unlock();
+    auto [cpu_pressure_utility, mem_pressure_utility] = Utility(proclet_header);
+    proclet_header->spin_lock.unlock();
 
-    HeapInfo cpu{heap_header, cpu_pressure_utility};
-    new_cpu_pressure_sorted_heaps->insert(cpu);
-    HeapInfo mem{heap_header, mem_pressure_utility};
-    new_mem_pressure_sorted_heaps->insert(mem);
+    ProcletInfo cpu{proclet_header, cpu_pressure_utility};
+    new_cpu_pressure_sorted_proclets->insert(cpu);
+    ProcletInfo mem{proclet_header, mem_pressure_utility};
+    new_mem_pressure_sorted_proclets->insert(mem);
   }
 
-  std::atomic_exchange(&cpu_pressure_sorted_heaps_,
-                       new_cpu_pressure_sorted_heaps);
-  std::atomic_exchange(&mem_pressure_sorted_heaps_,
-                       new_mem_pressure_sorted_heaps);
+  std::atomic_exchange(&cpu_pressure_sorted_proclets_,
+                       new_cpu_pressure_sorted_proclets);
+  std::atomic_exchange(&mem_pressure_sorted_proclets_,
+                       new_mem_pressure_sorted_proclets);
 }
 
 void PressureHandler::register_handlers() {
@@ -101,19 +104,19 @@ void PressureHandler::main_handler(void *unused) {
   auto core_ratio =
       static_cast<double>(pressure.num_cores_to_release) /
       (pressure.num_cores_to_release + pressure.num_cores_granted);
-  auto min_num_heaps =
-      Runtime::heap_manager->get_num_present_heaps() * core_ratio;
+  auto min_num_proclets =
+      Runtime::proclet_manager->get_num_present_proclets() * core_ratio;
   auto min_mem_mbs = pressure.mem_mbs_to_release;
-  auto heaps = handler->pick_heaps(min_num_heaps, min_mem_mbs);
-  if (!heaps.empty()) {
+  auto proclets = handler->pick_proclets(min_num_proclets, min_mem_mbs);
+  if (!proclets.empty()) {
     Resource resource;
     resource.cores = pressure.num_cores_to_release;
     resource.mem_mbs = pressure.mem_mbs_to_release;
-    Runtime::migrator->migrate(resource, heaps);
+    Runtime::migrator->migrate(resource, proclets);
   }
 
   if constexpr (kEnableLogging) {
-    std::cout << "Migrate " << heaps.size() << " heaps." << std::endl;
+    std::cout << "Migrate " << proclets.size() << " proclets." << std::endl;
   }
 
   // Pause aux pressure handlers.
@@ -183,31 +186,33 @@ void PressureHandler::aux_handler(void *args) {
   store_release(&state->done, false);
 }
 
-std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
-                                                   uint32_t min_mem_mbs) {
+std::vector<ProcletRange>
+PressureHandler::pick_proclets(uint32_t min_num_proclets,
+                               uint32_t min_mem_mbs) {
   float picked_mem_mbs = 0;
   uint32_t picked_num = 0;
   bool done = false;
-  std::vector<HeapRange> picked_heaps;
+  std::vector<ProcletRange> picked_proclets;
 
-  auto pick_fn = [&](HeapHeader *header) {
-    auto size = get_heap_size(header);
-    HeapRange range{header, size};
-    picked_heaps.push_back(range);
+  auto pick_fn = [&](ProcletHeader *header) {
+    auto size = get_proclet_size(header);
+    ProcletRange range{header, size};
+    picked_proclets.push_back(range);
     picked_mem_mbs += size / static_cast<float>(kOneMB);
     picked_num++;
-    done = ((picked_mem_mbs >= min_mem_mbs) && (picked_num >= min_num_heaps));
+    done =
+        ((picked_mem_mbs >= min_mem_mbs) && (picked_num >= min_num_proclets));
   };
 
-  bool cpu_pressure = min_num_heaps;
-  auto sorted_heaps = cpu_pressure
-                          ? std::atomic_load(&cpu_pressure_sorted_heaps_)
-                          : std::atomic_load(&mem_pressure_sorted_heaps_);
-  if (sorted_heaps) {
-    auto iter = sorted_heaps->begin();
-    while (iter != sorted_heaps->end() && !done) {
+  bool cpu_pressure = min_num_proclets;
+  auto sorted_proclets = cpu_pressure
+                             ? std::atomic_load(&cpu_pressure_sorted_proclets_)
+                             : std::atomic_load(&mem_pressure_sorted_proclets_);
+  if (sorted_proclets) {
+    auto iter = sorted_proclets->begin();
+    while (iter != sorted_proclets->end() && !done) {
       auto *header = iter->header;
-      iter = sorted_heaps->erase(iter);
+      iter = sorted_proclets->erase(iter);
       if (unlikely(header->status != kPresent)) {
         continue;
       }
@@ -216,14 +221,14 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
   }
 
   if (unlikely(!done)) {
-    auto all_heaps = Runtime::heap_manager->get_all_heaps();
-    if (likely(picked_heaps.size() < all_heaps.size())) {
-      picked_heaps.clear();
+    auto all_proclets = Runtime::proclet_manager->get_all_proclets();
+    if (likely(picked_proclets.size() < all_proclets.size())) {
+      picked_proclets.clear();
       picked_num = 0;
       picked_mem_mbs = 0;
-      auto iter = all_heaps.begin();
-      while (iter != all_heaps.end() && !done) {
-        auto *header = reinterpret_cast<HeapHeader *>(*iter);
+      auto iter = all_proclets.begin();
+      while (iter != all_proclets.end() && !done) {
+        auto *header = reinterpret_cast<ProcletHeader *>(*iter);
         iter++;
         if (unlikely(header->status != kPresent || !header->migratable)) {
           continue;
@@ -233,7 +238,7 @@ std::vector<HeapRange> PressureHandler::pick_heaps(uint32_t min_num_heaps,
     }
   }
 
-  return picked_heaps;
+  return picked_proclets;
 }
 
 void PressureHandler::mock_set_pressure(ResourcePressureInfo pressure) {

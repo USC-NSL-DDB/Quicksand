@@ -34,10 +34,10 @@ class CondVar;
 class Time;
 template <typename T> class RuntimeAllocator;
 
-enum HeapStatus { kAbsent = 0, kMapped, kPresent, kDestructed };
+enum ProcletStatus { kAbsent = 0, kMapped, kPresent, kDestructed };
 
-struct HeapHeader {
-  ~HeapHeader();
+struct ProcletHeader {
+  ~ProcletHeader();
 
   uint8_t status;
 
@@ -80,89 +80,89 @@ struct HeapHeader {
   }
 };
 
-class HeapManager {
+class ProcletManager {
 public:
-  HeapManager();
+  ProcletManager();
 
-  static void allocate(void *heap_base, bool migratable);
-  static void mmap(void *heap_base);
-  static void madvise_populate(void *heap_base, uint64_t populate_len);
-  static void setup(void *heap_base, bool migratable, bool from_migration);
-  static void deallocate(void *heap_base);
-  static void wait_until_present(HeapHeader *heap_header);
-  void insert(void *heap_base);
-  bool remove_for_migration(void *heap_base);
-  bool remove_for_destruction(void *heap_base);
-  std::vector<void *> get_all_heaps();
+  static void allocate(void *proclet_base, bool migratable);
+  static void mmap(void *proclet_base);
+  static void madvise_populate(void *proclet_base, uint64_t populate_len);
+  static void setup(void *proclet_base, bool migratable, bool from_migration);
+  static void deallocate(void *proclet_base);
+  static void wait_until_present(ProcletHeader *proclet_header);
+  void insert(void *proclet_base);
+  bool remove_for_migration(void *proclet_base);
+  bool remove_for_destruction(void *proclet_base);
+  std::vector<void *> get_all_proclets();
   uint64_t get_mem_usage();
-  uint32_t get_num_present_heaps();
+  uint32_t get_num_present_proclets();
 
 private:
   constexpr static uint32_t kNumAlwaysMmapedPages =
-      (offsetof(HeapHeader, always_mmaped_end) - 1) / kPageSize + 1;
+      (offsetof(ProcletHeader, always_mmaped_end) - 1) / kPageSize + 1;
   constexpr static uint32_t kNumAlwaysMmapedBytes =
       kNumAlwaysMmapedPages * kPageSize;
 
-  std::vector<void *> present_heaps_;
-  uint32_t num_present_heaps_;
+  std::vector<void *> present_proclets_;
+  uint32_t num_present_proclets_;
   rt::Spin spin_;
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
   friend class NonBlockingMigrationDisabledGuard;
   friend class Test;
 
-  bool try_disable_migration(HeapHeader *heap_header);
-  void disable_migration(HeapHeader *heap_header);
-  static void enable_migration(HeapHeader *heap_header);
+  bool try_disable_migration(ProcletHeader *proclet_header);
+  void disable_migration(ProcletHeader *proclet_header);
+  static void enable_migration(ProcletHeader *proclet_header);
 };
 
 class MigrationEnabledGuard {
 public:
   // By default guards the current proclet header.
   MigrationEnabledGuard();
-  MigrationEnabledGuard(HeapHeader *heap_header);
+  MigrationEnabledGuard(ProcletHeader *proclet_header);
   MigrationEnabledGuard(MigrationEnabledGuard &&o);
   MigrationEnabledGuard &operator=(MigrationEnabledGuard &&o);
-  void reset(HeapHeader *heap_header = nullptr);
+  void reset(ProcletHeader *proclet_header = nullptr);
   ~MigrationEnabledGuard();
 
 private:
-  HeapHeader *heap_header_;
+  ProcletHeader *proclet_header_;
 };
 
 class MigrationDisabledGuard {
 public:
   // By default guards the current proclet header.
   MigrationDisabledGuard();
-  MigrationDisabledGuard(HeapHeader *heap_header);
+  MigrationDisabledGuard(ProcletHeader *proclet_header);
   MigrationDisabledGuard(MigrationDisabledGuard &&o);
   MigrationDisabledGuard &operator=(MigrationDisabledGuard &&o);
-  void reset(HeapHeader *heap_header = nullptr);
+  void reset(ProcletHeader *proclet_header = nullptr);
   ~MigrationDisabledGuard();
   operator bool() const;
-  HeapHeader *get_heap_header();
+  ProcletHeader *get_proclet_header();
 
 private:
-  HeapHeader *heap_header_;
+  ProcletHeader *proclet_header_;
 };
 
 class NonBlockingMigrationDisabledGuard {
 public:
   // By default guards the current proclet header.
   NonBlockingMigrationDisabledGuard();
-  NonBlockingMigrationDisabledGuard(HeapHeader *heap_header);
+  NonBlockingMigrationDisabledGuard(ProcletHeader *proclet_header);
   NonBlockingMigrationDisabledGuard(NonBlockingMigrationDisabledGuard &&o);
   NonBlockingMigrationDisabledGuard &
   operator=(NonBlockingMigrationDisabledGuard &&o);
   ~NonBlockingMigrationDisabledGuard();
-  void reset(HeapHeader *heap_header = nullptr);
+  void reset(ProcletHeader *proclet_header = nullptr);
   operator bool() const;
-  HeapHeader *get_heap_header();
+  ProcletHeader *get_proclet_header();
 
 private:
-  HeapHeader *heap_header_;
+  ProcletHeader *proclet_header_;
 };
 
 } // namespace nu
 
-#include "nu/impl/heap_mgr.ipp"
+#include "nu/impl/proclet_mgr.ipp"

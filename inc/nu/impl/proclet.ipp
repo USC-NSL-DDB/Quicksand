@@ -15,7 +15,7 @@ extern "C" {
 
 #include "nu/ctrl_client.hpp"
 #include "nu/exception.hpp"
-#include "nu/heap_mgr.hpp"
+#include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
 #include "nu/rem_shared_ptr.hpp"
 #include "nu/rem_unique_ptr.hpp"
@@ -43,13 +43,14 @@ template <typename T>
 template <typename... S1s>
 void Proclet<T>::invoke_remote(ProcletID id, S1s &&... states) {
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
-  HeapHeader *heap_header;
+  ProcletHeader *proclet_header;
 
   {
     MigrationDisabledGuard disabled_guard;
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
     serialize(oa_sstream, std::forward<S1s>(states)...);
-    heap_header = reinterpret_cast<HeapHeader *>(thread_unset_owner_heap());
+    proclet_header =
+        reinterpret_cast<ProcletHeader *>(thread_unset_owner_proclet());
   }
 
 retry:
@@ -71,32 +72,33 @@ retry:
     }
   }
 
-  disabled_guard.reset(heap_header);
-  if (heap_header && unlikely(!disabled_guard)) {
+  disabled_guard.reset(proclet_header);
+  if (proclet_header && unlikely(!disabled_guard)) {
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
 
     RuntimeSlabGuard slab_guard;
     Migrator::migrate_thread_and_ret_val<void>(
-        std::move(return_buf), to_proclet_id(heap_header), nullptr, nullptr);
+        std::move(return_buf), to_proclet_id(proclet_header), nullptr, nullptr);
     return;
   }
 
   Runtime::archive_pool->put_oa_sstream(oa_sstream);
-  thread_set_owner_heap(thread_self(), heap_header);
+  thread_set_owner_proclet(thread_self(), proclet_header);
 }
 
 template <typename T>
 template <typename RetT, typename... S1s>
 RetT Proclet<T>::invoke_remote_with_ret(ProcletID id, S1s &&... states) {
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
-  HeapHeader *heap_header;
+  ProcletHeader *proclet_header;
   RetT ret;
 
   {
     MigrationDisabledGuard disabled_guard;
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
     serialize(oa_sstream, std::forward<S1s>(states)...);
-    heap_header = reinterpret_cast<HeapHeader *>(thread_unset_owner_heap());
+    proclet_header =
+        reinterpret_cast<ProcletHeader *>(thread_unset_owner_proclet());
   }
 
 retry:
@@ -118,13 +120,13 @@ retry:
     }
   }
 
-  disabled_guard.reset(heap_header);
-  if (heap_header && unlikely(!disabled_guard)) {
+  disabled_guard.reset(proclet_header);
+  if (proclet_header && unlikely(!disabled_guard)) {
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
 
     RuntimeSlabGuard slab_guard;
     Migrator::migrate_thread_and_ret_val<RetT>(
-        std::move(return_buf), to_proclet_id(heap_header), &ret, nullptr);
+        std::move(return_buf), to_proclet_id(proclet_header), &ret, nullptr);
     return ret;
   }
 
@@ -138,7 +140,7 @@ retry:
   Runtime::archive_pool->put_ia_sstream(ia_sstream);
 
   Runtime::archive_pool->put_oa_sstream(oa_sstream);
-  thread_set_owner_heap(thread_self(), heap_header);
+  thread_set_owner_proclet(thread_self(), proclet_header);
 
   return ret;
 }
@@ -199,11 +201,12 @@ template <typename... As>
 Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint, As &&... args) {
   ProcletID id;
   uint32_t server_ip;
-  HeapHeader *heap_header;
+  ProcletHeader *proclet_header;
 
   {
     MigrationDisabledGuard disabled_guard;
-    heap_header = reinterpret_cast<HeapHeader *>(thread_unset_owner_heap());
+    proclet_header =
+        reinterpret_cast<ProcletHeader *>(thread_unset_owner_proclet());
   }
 
   {
@@ -214,13 +217,14 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint, As &&... args) {
     }
     std::tie(id, server_ip) = *optional;
 
-    NonBlockingMigrationDisabledGuard disabled_guard(heap_header);
-    if (heap_header && unlikely(!disabled_guard)) {
+    NonBlockingMigrationDisabledGuard disabled_guard(proclet_header);
+    if (proclet_header && unlikely(!disabled_guard)) {
       RPCReturnBuffer return_buf;
-      Migrator::migrate_thread_and_ret_val<void>(
-          std::move(return_buf), to_proclet_id(heap_header), nullptr, nullptr);
+      Migrator::migrate_thread_and_ret_val<void>(std::move(return_buf),
+                                                 to_proclet_id(proclet_header),
+                                                 nullptr, nullptr);
     } else {
-      thread_set_owner_heap(thread_self(), heap_header);
+      thread_set_owner_proclet(thread_self(), proclet_header);
     }
   }
 
@@ -231,16 +235,16 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint, As &&... args) {
   {
     MigrationDisabledGuard disabled_guard;
     if (Runtime::rpc_server && server_ip == get_cfg_ip()) {
-      // Fast path: the heap is actually local, use normal function call.
+      // Fast path: the proclet is actually local, use normal function call.
       ProcletServer::construct_proclet_locally<T, As...>(
-          to_heap_base(id), pinned, std::forward<As>(args)...);
+          to_proclet_base(id), pinned, std::forward<As>(args)...);
       return proclet;
     }
   }
 
   // Cold path: use RPC.
   auto *handler = ProcletServer::construct_proclet<T, As...>;
-  invoke_remote(id, handler, to_heap_base(id), pinned,
+  invoke_remote(id, handler, to_proclet_base(id), pinned,
                 std::forward<As>(args)...);
   return proclet;
 }
@@ -287,18 +291,18 @@ RetT Proclet<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  auto *caller_heap_header = Runtime::get_current_proclet_heap_header();
+  auto *caller_proclet_header = Runtime::get_current_proclet_header();
 
-  if (caller_heap_header) {
-    auto callee_heap_header = to_heap_header(id_);
+  if (caller_proclet_header) {
+    auto callee_proclet_header = to_proclet_header(id_);
     void *caller_slab = nullptr;
     using StatesTuple = std::tuple<std::decay_t<S1s>...>;
     std::optional<StatesTuple> copied_states;
 
-    NonBlockingMigrationDisabledGuard callee_guard(callee_heap_header);
+    NonBlockingMigrationDisabledGuard callee_guard(callee_proclet_header);
     if (callee_guard) {
-      caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
-      thread_set_owner_heap(thread_self(), callee_heap_header);
+      caller_slab = Runtime::switch_slab(&callee_proclet_header->slab);
+      thread_set_owner_proclet(thread_self(), callee_proclet_header);
       // Do copy for the most cases and only do move when we are sure it's safe.
       // For copy, we assume the type implements "deep copy".
       copied_states = StatesTuple(move_if_safe(states)...);
@@ -306,13 +310,13 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
     callee_guard.reset();
 
     if (caller_slab) {
-      // Fast path: the callee heap is actually local, use function call.
+      // Fast path: the callee proclet is actually local, use function call.
       if constexpr (!std::is_same<RetT, void>::value) {
         RetT ret;
         std::apply(
             [&](auto &&... states) {
               ProcletServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-                  &ret, to_proclet_id(caller_heap_header), id_, fn,
+                  &ret, to_proclet_id(caller_proclet_header), id_, fn,
                   std::forward<S1s>(states)...);
             },
             *copied_states);
@@ -322,7 +326,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
         std::apply(
             [&](auto &&... states) {
               ProcletServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-                  nullptr, to_proclet_id(caller_heap_header), id_, fn,
+                  nullptr, to_proclet_id(caller_proclet_header), id_, fn,
                   std::forward<S1s>(states)...);
             },
             *copied_states);
@@ -332,7 +336,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
     }
   }
 
-  // Slow path: the callee heap is actually remote, use RPC.
+  // Slow path: the callee proclet is actually remote, use RPC.
   auto *handler = ProcletServer::run_closure<T, RetT, decltype(fn), S1s...>;
   if constexpr (!std::is_same<RetT, void>::value) {
     auto ret = invoke_remote_with_ret<RetT>(id_, handler, id_, fn,
@@ -347,32 +351,32 @@ template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
                                    S1s &&... states) {
-  auto *caller_heap_header = Runtime::get_current_proclet_heap_header();
+  auto *caller_proclet_header = Runtime::get_current_proclet_header();
 
-  if (caller_heap_header) {
-    auto callee_heap_header = to_heap_header(id_);
+  if (caller_proclet_header) {
+    auto callee_proclet_header = to_proclet_header(id_);
     void *caller_slab = nullptr;
     {
       NonBlockingMigrationDisabledGuard callee_disabled_guard(
-          callee_heap_header);
+          callee_proclet_header);
       if (callee_disabled_guard) {
-        caller_slab = Runtime::switch_slab(&callee_heap_header->slab);
-        thread_set_owner_heap(thread_self(), callee_heap_header);
+        caller_slab = Runtime::switch_slab(&callee_proclet_header->slab);
+        thread_set_owner_proclet(thread_self(), callee_proclet_header);
       }
     }
     if (caller_slab) {
       *is_local = true;
-      // Fast path: the callee heap is actually local, use function call.
+      // Fast path: the callee proclet is actually local, use function call.
       if constexpr (!std::is_same<RetT, void>::value) {
         RetT ret;
         ProcletServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-            &ret, to_proclet_id(caller_heap_header), id_, fn,
+            &ret, to_proclet_id(caller_proclet_header), id_, fn,
             std::forward<S1s>(states)...);
         Runtime::switch_slab(caller_slab);
         return ret;
       } else {
         ProcletServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-            nullptr, to_proclet_id(caller_heap_header), id_, fn,
+            nullptr, to_proclet_id(caller_proclet_header), id_, fn,
             std::forward<S1s>(states)...);
         Runtime::switch_slab(caller_slab);
         return;
@@ -381,7 +385,7 @@ RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
   }
 
   *is_local = false;
-  // Slow path: the callee heap is actually remote, use RPC.
+  // Slow path: the callee proclet is actually remote, use RPC.
   auto *handler = ProcletServer::run_closure<T, RetT, decltype(fn), S1s...>;
   if constexpr (!std::is_same<RetT, void>::value) {
     auto ret = invoke_remote_with_ret<RetT>(id_, handler, id_, fn,
@@ -449,16 +453,16 @@ RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
 template <typename T>
 std::optional<Future<void>> Proclet<T>::update_ref_cnt(int delta) {
   if (Runtime::proclet_server) {
-    NonBlockingMigrationDisabledGuard callee_guard(to_heap_header(id_));
+    NonBlockingMigrationDisabledGuard callee_guard(to_proclet_header(id_));
     if (callee_guard) {
-      // Fast path: the heap is actually local, use function call.
+      // Fast path: the proclet is actually local, use function call.
       if (likely(ProcletServer::update_ref_cnt_locally<T>(id_, delta))) {
         return std::nullopt;
       }
     }
   }
 
-  // Slow path: the heap is actually remote, use RPC.
+  // Slow path: the proclet is actually remote, use RPC.
   return nu::async([&, id = id_, delta]() {
     auto *handler = ProcletServer::update_ref_cnt<T>;
     invoke_remote(id, handler, id, delta);

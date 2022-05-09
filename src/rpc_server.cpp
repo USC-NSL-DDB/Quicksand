@@ -28,7 +28,7 @@ void RPCServer::run_background_loop() {
     }
     case kMigrateThreadAndRetVal: {
       auto &req = from_span<RPCReqMigrateThreadAndRetVal>(args);
-      auto rc = req.handler(req.dest_heap_header, req.dest_ret_val_ptr,
+      auto rc = req.handler(req.dest_proclet_header, req.dest_ret_val_ptr,
                             req.payload_len, req.payload);
       returner->Return(rc);
       break;

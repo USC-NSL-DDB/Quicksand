@@ -23,10 +23,12 @@ Controller::Controller() {
     free_lpids_.insert(lpid);
   }
 
-  for (uint64_t start_addr = kMinHeapVAddr;
-       start_addr + kHeapSize <= kMaxHeapVAddr; start_addr += kHeapSize) {
-    VAddrRange range = {.start = start_addr, .end = start_addr + kHeapSize};
-    free_heap_segments_.push(range);
+  for (uint64_t start_addr = kMinProcletHeapVAddr;
+       start_addr + kProcletHeapSize <= kMaxProcletHeapVAddr;
+       start_addr += kProcletHeapSize) {
+    VAddrRange range = {.start = start_addr,
+                        .end = start_addr + kProcletHeapSize};
+    free_proclet_heap_segments_.push(range);
   }
 
   for (uint64_t start_addr = kMinStackClusterVAddr;
@@ -114,12 +116,12 @@ std::optional<std::pair<ProcletID, uint32_t>>
 Controller::allocate_proclet(lpid_t lpid, uint32_t ip_hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  if (unlikely(free_heap_segments_.empty())) {
+  if (unlikely(free_proclet_heap_segments_.empty())) {
     return std::nullopt;
   }
-  auto start_addr = free_heap_segments_.top().start;
+  auto start_addr = free_proclet_heap_segments_.top().start;
   auto id = start_addr;
-  free_heap_segments_.pop();
+  free_proclet_heap_segments_.pop();
   auto node_optional = select_node_for_proclet(lpid, ip_hint);
   if (unlikely(!node_optional)) {
     return std::nullopt;
@@ -138,7 +140,7 @@ void Controller::destroy_proclet(ProcletID id) {
     WARN();
     return;
   }
-  free_heap_segments_.push(VAddrRange{id, id + kHeapSize});
+  free_proclet_heap_segments_.push(VAddrRange{id, id + kProcletHeapSize});
   proclet_id_to_ip_.erase(iter);
 }
 

@@ -75,7 +75,7 @@ struct Test {
   constexpr static size_t kNumPairs = kTotalNumBuckets * kLoadFactor;
 
   Test() {}
-  uint64_t get_mem_usage() { return Runtime::heap_manager->get_mem_usage(); }
+  uint64_t get_mem_usage() { return Runtime::proclet_manager->get_mem_usage(); }
 };
 } // namespace nu
 
