@@ -13,21 +13,17 @@
 static bool ias_rp_preempt_core(struct ias_data *sd)
 {
 	unsigned int i, core;
-	bool has_eligible_core = false;
 
 	for (i = 0; i < sd->p->active_thread_count; i++)
-		if (!(*sd->p->active_threads[i]->preemptor)) {
-			has_eligible_core = true;
+		if (!(*sd->p->active_threads[i]->preemptor))
 			break;
-		}
 
-	if (!has_eligible_core && unlikely(ias_add_kthread(sd) != 0))
-		return false;
-
-	/* Preempt a core. */
-	i = sd->p->active_thread_count;
-	while (*sd->p->active_threads[--i]->preemptor)
-		;
+	if (unlikely(i == sd->p->active_thread_count)) {
+		if (likely(ias_add_kthread(sd) == 0))
+			i = 0;
+		else
+			return false;
+	}
 
 	core = sd->p->active_threads[i]->core;
 	/* Grant exclusive access by marking the core as reserved. */

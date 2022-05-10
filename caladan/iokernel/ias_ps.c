@@ -13,20 +13,24 @@ static bool ias_ps_preempt_core(struct ias_data *sd)
 {
 	unsigned int num_needed_cores, num_eligible_cores = 0, i, core;
 	void **preemptor_ptr;
+	struct thread *last_th;
 
 	for (i = 0; i < sd->p->active_thread_count; i++)
 		num_eligible_cores += !(*sd->p->active_threads[i]->preemptor);
 
 	num_needed_cores = *sd->p->num_resource_pressure_handlers;
-	while (num_eligible_cores++ < num_needed_cores)
+	while (num_eligible_cores < num_needed_cores) {
 		if (unlikely(ias_add_kthread(sd) != 0))
 			return false;
+		last_th = sd->p->active_threads[sd->p->active_thread_count - 1];
+		num_eligible_cores += !(*last_th->preemptor);
+	}
 
 	/* Preempt the first num_needed_cores cores. */
-	i = sd->p->active_thread_count;
+	i = 0;
 	while (num_needed_cores) {
-		core = sd->p->active_threads[--i]->core;
-		preemptor_ptr = sd->p->active_threads[i]->preemptor;
+		core = sd->p->active_threads[i]->core;
+		preemptor_ptr = sd->p->active_threads[i++]->preemptor;
 
 		if (unlikely(*preemptor_ptr))
                         continue;
