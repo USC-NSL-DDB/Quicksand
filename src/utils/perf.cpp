@@ -2,14 +2,14 @@ extern "C" {
 #include <runtime/timer.h>
 }
 
+#include <net.h>
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <optional>
 #include <random>
 #include <vector>
-
-#include <net.h>
 
 #include "nu/utils/perf.hpp"
 
@@ -245,4 +245,4 @@ double Perf::get_real_mops() const { return real_mops_; }
 
 const std::vector<Trace> &Perf::get_traces() const { return traces_; }
 
-} // namespace nu
+}  // namespace nu

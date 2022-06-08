@@ -52,8 +52,8 @@ inline void ProcletManager::enable_migration(ProcletHeader *proclet_header) {
   proclet_header->rcu_lock.reader_unlock();
 }
 
-inline bool
-ProcletManager::try_disable_migration(ProcletHeader *proclet_header) {
+inline bool ProcletManager::try_disable_migration(
+    ProcletHeader *proclet_header) {
   proclet_header->rcu_lock.reader_lock();
   if (unlikely(rt::access_once(proclet_header->status) < kPresent)) {
     proclet_header->rcu_lock.reader_unlock();
@@ -87,8 +87,8 @@ inline MigrationEnabledGuard::MigrationEnabledGuard(MigrationEnabledGuard &&o)
   o.proclet_header_ = nullptr;
 }
 
-inline MigrationEnabledGuard &
-MigrationEnabledGuard::operator=(MigrationEnabledGuard &&o) {
+inline MigrationEnabledGuard &MigrationEnabledGuard::operator=(
+    MigrationEnabledGuard &&o) {
   proclet_header_ = o.proclet_header_;
   o.proclet_header_ = nullptr;
   return *this;
@@ -125,8 +125,8 @@ inline MigrationDisabledGuard::MigrationDisabledGuard(
   o.proclet_header_ = nullptr;
 }
 
-inline MigrationDisabledGuard &
-MigrationDisabledGuard::operator=(MigrationDisabledGuard &&o) {
+inline MigrationDisabledGuard &MigrationDisabledGuard::operator=(
+    MigrationDisabledGuard &&o) {
   proclet_header_ = o.proclet_header_;
   o.proclet_header_ = nullptr;
   return *this;
@@ -190,8 +190,8 @@ inline NonBlockingMigrationDisabledGuard::operator bool() const {
   return proclet_header_;
 }
 
-inline void
-NonBlockingMigrationDisabledGuard::reset(ProcletHeader *proclet_header) {
+inline void NonBlockingMigrationDisabledGuard::reset(
+    ProcletHeader *proclet_header) {
   this->~NonBlockingMigrationDisabledGuard();
   proclet_header_ = proclet_header;
   if (proclet_header) {
@@ -210,4 +210,4 @@ inline uint32_t ProcletManager::get_num_present_proclets() {
   return num_present_proclets_;
 }
 
-} // namespace nu
+}  // namespace nu

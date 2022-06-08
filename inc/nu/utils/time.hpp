@@ -12,7 +12,7 @@ extern "C" {
 namespace nu {
 
 class Time {
-public:
+ public:
   constexpr static uint64_t kMilliseconds = 1000;
   constexpr static uint64_t kSeconds = 1000000;
 
@@ -23,7 +23,7 @@ public:
   static void sleep_until(uint64_t deadline_us);
   static void sleep(uint64_t duration_us);
 
-private:
+ private:
   int64_t offset_tsc_;
   std::list<timer_entry *> entries_;
   rt::Spin spin_;
@@ -47,6 +47,6 @@ struct TimerCallbackArg {
   std::list<timer_entry *>::iterator iter;
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/time.ipp"

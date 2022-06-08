@@ -83,4 +83,4 @@ void TraceLogger::enable_print(uint32_t interval_us) {
 
 void TraceLogger::disable_print() { ACCESS_ONCE(disabled_) = true; }
 
-} // namespace nu
+}  // namespace nu

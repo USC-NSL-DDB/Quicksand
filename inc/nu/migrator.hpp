@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cstdint>
 #include <folly/Function.h>
+
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <set>
@@ -58,7 +59,7 @@ struct RPCReqMigrateThreadAndRetVal {
 class MigratorConnManager;
 
 class MigratorConn {
-public:
+ public:
   MigratorConn();
   ~MigratorConn();
   MigratorConn(const MigratorConn &) = delete;
@@ -68,7 +69,7 @@ public:
   rt::TcpConn *get_tcp_conn();
   void release();
 
-private:
+ private:
   rt::TcpConn *tcp_conn_;
   uint32_t ip_;
   MigratorConnManager *manager_;
@@ -79,11 +80,11 @@ private:
 };
 
 class MigratorConnManager {
-public:
+ public:
   ~MigratorConnManager();
   MigratorConn get(uint32_t ip);
 
-private:
+ private:
   rt::Spin spin_;
   std::unordered_map<uint32_t, std::stack<rt::TcpConn *>> pool_map_;
   friend class MigratorConn;
@@ -92,7 +93,7 @@ private:
 };
 
 class Migrator {
-public:
+ public:
   constexpr static uint32_t kTransmitProcletNumThreads = 3;
   constexpr static uint32_t kDefaultNumReservedConns = 8;
   constexpr static uint32_t kPort = 8002;
@@ -116,12 +117,11 @@ public:
                                          RetT *dest_ret_val_ptr,
                                          folly::Function<void()> cleanup_fn);
   template <typename RetT>
-  static RPCReturnCode
-  load_thread_and_ret_val(ProcletHeader *dest_proclet_header,
-                          void *raw_dest_ret_val_ptr, uint64_t payload_len,
-                          uint8_t *payload);
+  static RPCReturnCode load_thread_and_ret_val(
+      ProcletHeader *dest_proclet_header, void *raw_dest_ret_val_ptr,
+      uint64_t payload_len, uint8_t *payload);
 
-private:
+ private:
   constexpr static uint32_t kTCPListenBackLog = 64;
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   MigratorConnManager migrator_conn_mgr_;
@@ -162,6 +162,6 @@ private:
   void post_migration_cleanup(ProcletHeader *proclet_header);
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/migrator.ipp"

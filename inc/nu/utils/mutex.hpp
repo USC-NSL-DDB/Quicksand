@@ -8,7 +8,7 @@ extern "C" {
 
 namespace nu {
 class Mutex {
-public:
+ public:
   Mutex();
   Mutex(const Mutex &) = delete;
   Mutex &operator=(const Mutex &) = delete;
@@ -17,7 +17,7 @@ public:
   void unlock();
   bool try_lock();
 
-private:
+ private:
   mutex_t m_;
   friend class CondVar;
   friend class Migrator;
@@ -26,6 +26,6 @@ private:
   void __lock();
   void __unlock();
 };
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/mutex.ipp"

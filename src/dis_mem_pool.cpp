@@ -63,4 +63,4 @@ void DistributedMemPool::__handle_no_local_free_shard() {
   }
 }
 
-} // namespace nu
+}  // namespace nu

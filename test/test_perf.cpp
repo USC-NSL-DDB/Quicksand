@@ -18,7 +18,7 @@ constexpr static double kTargetMops = 10;
 constexpr static uint32_t kNumSeconds = 5;
 
 class FakeWorkAdapter : public PerfAdapter {
-public:
+ public:
   std::unique_ptr<PerfThreadState> create_thread_state() override {
     return std::make_unique<PerfThreadState>();
   }
@@ -35,7 +35,7 @@ public:
 namespace nu {
 
 class Test {
-public:
+ public:
   bool run() {
     FakeWorkAdapter fake_work_adapter;
     Perf perf(fake_work_adapter);
@@ -54,7 +54,7 @@ public:
   }
 };
 
-} // namespace nu
+}  // namespace nu
 
 int main(int argc, char **argv) {
   int ret;

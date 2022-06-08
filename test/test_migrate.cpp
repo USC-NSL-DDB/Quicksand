@@ -22,7 +22,7 @@ Runtime::Mode mode;
 
 namespace nu {
 class Test {
-public:
+ public:
   int run() {
     // Should be printed at the initial server node.
     std::cout << "I am here" << std::endl;
@@ -37,7 +37,7 @@ public:
     return kMagic;
   }
 };
-} // namespace nu
+}  // namespace nu
 
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {

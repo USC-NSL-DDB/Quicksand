@@ -17,7 +17,7 @@ extern "C" {
 namespace nu {
 
 class ProcletServer {
-public:
+ public:
   ProcletServer();
   ~ProcletServer();
   netaddr get_addr() const;
@@ -39,7 +39,7 @@ public:
                                   ProcletID callee_id, FnPtr fn_ptr,
                                   S1s &&... states);
 
-private:
+ private:
   using GenericHandler = void (*)(cereal::BinaryInputArchive &ia,
                                   RPCReturner *returner);
 
@@ -62,6 +62,6 @@ private:
                             cereal::BinaryInputArchive &ia,
                             RPCReturner returner);
 };
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/proclet_server.ipp"

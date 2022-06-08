@@ -1,7 +1,8 @@
+#include "nu/utils/cpu_load.hpp"
+
 #include <sync.h>
 
 #include "nu/runtime.hpp"
-#include "nu/utils/cpu_load.hpp"
 
 namespace nu {
 
@@ -24,4 +25,4 @@ float CPULoad::get_load() const {
   return sample_ratio_inverse * cycles_ratio;
 }
 
-} // namespace nu
+}  // namespace nu

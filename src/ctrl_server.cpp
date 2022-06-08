@@ -3,21 +3,26 @@ extern "C" {
 #include <net/ip.h>
 }
 
-#include <algorithm>
-
 #include <runtime.h>
 #include <sync.h>
 #include <timer.h>
+
+#include <algorithm>
 
 #include "nu/ctrl_server.hpp"
 
 namespace nu {
 
 ControllerServer::ControllerServer()
-    : num_register_node_(0), num_verify_md5_(0), num_allocate_proclet_(0),
-      num_destroy_proclet_(0), num_resolve_proclet_(0),
-      num_get_migration_dest_(0), num_update_location_(0),
-      num_report_free_resource_(0), done_(false) {
+    : num_register_node_(0),
+      num_verify_md5_(0),
+      num_allocate_proclet_(0),
+      num_destroy_proclet_(0),
+      num_resolve_proclet_(0),
+      num_get_migration_dest_(0),
+      num_update_location_(0),
+      num_report_free_resource_(0),
+      done_(false) {
   if constexpr (kEnableLogging) {
     logging_thread_ = rt::Thread([&] {
       std::cout << "time_us register_node verify_md5 allocate_proclet "
@@ -67,36 +72,36 @@ void ControllerServer::tcp_loop(rt::TcpConn *c) {
   RPCReqType rpc_type;
   while (c->ReadFull(&rpc_type, sizeof(rpc_type)) == sizeof(rpc_type)) {
     switch (rpc_type) {
-    case kGetMigrationDest: {
-      RPCReqGetMigrationDest req;
-      ssize_t data_size = sizeof(req) - sizeof(rpc_type);
-      BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
-      auto resp = handle_get_migration_dest(req);
-      BUG_ON(c->WriteFull(resp.get(), sizeof(*resp)) != sizeof(*resp));
-      break;
-    }
-    case kUpdateLocation: {
-      RPCReqUpdateLocation req;
-      ssize_t data_size = sizeof(req) - sizeof(rpc_type);
-      BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
-      handle_update_location(req);
-      break;
-    }
-    case kReportFreeResource: {
-      RPCReqReportFreeResource req;
-      ssize_t data_size = sizeof(req) - sizeof(rpc_type);
-      BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
-      handle_report_free_resource(req);
-      break;
-    }
-    default:
-      BUG();
+      case kGetMigrationDest: {
+        RPCReqGetMigrationDest req;
+        ssize_t data_size = sizeof(req) - sizeof(rpc_type);
+        BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
+        auto resp = handle_get_migration_dest(req);
+        BUG_ON(c->WriteFull(resp.get(), sizeof(*resp)) != sizeof(*resp));
+        break;
+      }
+      case kUpdateLocation: {
+        RPCReqUpdateLocation req;
+        ssize_t data_size = sizeof(req) - sizeof(rpc_type);
+        BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
+        handle_update_location(req);
+        break;
+      }
+      case kReportFreeResource: {
+        RPCReqReportFreeResource req;
+        ssize_t data_size = sizeof(req) - sizeof(rpc_type);
+        BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
+        handle_report_free_resource(req);
+        break;
+      }
+      default:
+        BUG();
     }
   }
 }
 
-std::unique_ptr<RPCRespRegisterNode>
-ControllerServer::handle_register_node(const RPCReqRegisterNode &req) {
+std::unique_ptr<RPCRespRegisterNode> ControllerServer::handle_register_node(
+    const RPCReqRegisterNode &req) {
   if constexpr (kEnableLogging) {
     num_register_node_++;
   }
@@ -116,8 +121,8 @@ ControllerServer::handle_register_node(const RPCReqRegisterNode &req) {
   return resp;
 }
 
-std::unique_ptr<RPCRespVerifyMD5>
-ControllerServer::handle_verify_md5(const RPCReqVerifyMD5 &req) {
+std::unique_ptr<RPCRespVerifyMD5> ControllerServer::handle_verify_md5(
+    const RPCReqVerifyMD5 &req) {
   if constexpr (kEnableLogging) {
     num_verify_md5_++;
   }
@@ -145,8 +150,8 @@ ControllerServer::handle_allocate_proclet(const RPCReqAllocateProclet &req) {
   return resp;
 }
 
-std::unique_ptr<RPCRespDestroyProclet>
-ControllerServer::handle_destroy_proclet(const RPCReqDestroyProclet &req) {
+std::unique_ptr<RPCRespDestroyProclet> ControllerServer::handle_destroy_proclet(
+    const RPCReqDestroyProclet &req) {
   if constexpr (kEnableLogging) {
     num_destroy_proclet_++;
   }
@@ -156,8 +161,8 @@ ControllerServer::handle_destroy_proclet(const RPCReqDestroyProclet &req) {
   return resp;
 }
 
-std::unique_ptr<RPCRespResolveProclet>
-ControllerServer::handle_resolve_proclet(const RPCReqResolveProclet &req) {
+std::unique_ptr<RPCRespResolveProclet> ControllerServer::handle_resolve_proclet(
+    const RPCReqResolveProclet &req) {
   if constexpr (kEnableLogging) {
     num_resolve_proclet_++;
   }
@@ -195,4 +200,4 @@ void ControllerServer::handle_report_free_resource(
   ctrl_.report_free_resource(req.lpid, req.ip, req.resource);
 }
 
-} // namespace nu
+}  // namespace nu

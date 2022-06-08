@@ -26,4 +26,4 @@ inline void TraceLogger::add_trace(uint64_t duration_tsc) {
   put_cpu();
 }
 
-} // namespace nu
+}  // namespace nu

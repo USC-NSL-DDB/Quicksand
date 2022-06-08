@@ -110,4 +110,4 @@ void RCULock::reader_unlock() {
   put_cpu();
 }
 
-} // namespace nu
+}  // namespace nu

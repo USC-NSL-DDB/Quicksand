@@ -1,11 +1,11 @@
 #include <alloca.h>
-#include <memory>
-#include <type_traits>
-#include <utility>
-
 #include <net.h>
 #include <sync.h>
 #include <thread.h>
+
+#include <memory>
+#include <type_traits>
+#include <utility>
 
 #include "nu/ctrl.hpp"
 #include "nu/migrator.hpp"
@@ -297,4 +297,4 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
   }
 }
 
-} // namespace nu
+}  // namespace nu

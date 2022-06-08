@@ -60,4 +60,4 @@ void ResourceReporter::report_resource(bool forced) {
   finish_resource_reporting(forced);
 }
 
-} // namespace nu
+}  // namespace nu

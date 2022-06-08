@@ -64,4 +64,4 @@ void ArchivePool<Allocator>::put_oa_sstream(OASStream *oa_sstream) {
 
 #pragma GCC diagnostic pop
 
-} // namespace nu
+}  // namespace nu

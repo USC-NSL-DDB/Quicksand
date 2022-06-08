@@ -45,16 +45,17 @@ struct LPInfo {
 };
 
 class Controller {
-public:
+ public:
   constexpr static bool kEnableBinaryVerification = true;
 
   Controller();
   ~Controller();
-  std::optional<std::pair<lpid_t, VAddrRange>>
-  register_node(Node &node, lpid_t lpid, MD5Val md5);
+  std::optional<std::pair<lpid_t, VAddrRange>> register_node(Node &node,
+                                                             lpid_t lpid,
+                                                             MD5Val md5);
   bool verify_md5(lpid_t lpid, MD5Val md5);
-  std::optional<std::pair<ProcletID, uint32_t>>
-  allocate_proclet(lpid_t lpid, uint32_t ip_hint);
+  std::optional<std::pair<ProcletID, uint32_t>> allocate_proclet(
+      lpid_t lpid, uint32_t ip_hint);
   void destroy_proclet(ProcletID id);
   uint32_t resolve_proclet(ProcletID id);
   uint32_t get_migration_dest(lpid_t lpid, uint32_t requestor_ip,
@@ -62,9 +63,10 @@ public:
   void update_location(ProcletID id, uint32_t proclet_srv_ip);
   void report_free_resource(lpid_t lpid, uint32_t ip, Resource free_resource);
 
-private:
-  std::stack<VAddrRange> free_proclet_heap_segments_; // One segment per Proclet.
-  std::stack<VAddrRange> free_stack_cluster_segments_; // One segment per Node.
+ private:
+  std::stack<VAddrRange>
+      free_proclet_heap_segments_;  // One segment per Proclet.
+  std::stack<VAddrRange> free_stack_cluster_segments_;  // One segment per Node.
   std::set<lpid_t> free_lpids_;
   std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;
   std::unordered_map<lpid_t, LPInfo> lpid_to_info_;
@@ -75,4 +77,4 @@ private:
   std::optional<Node> select_node_for_proclet(lpid_t lpid, uint32_t ip_hint);
   bool update_node(std::set<Node>::iterator iter);
 };
-} // namespace nu
+}  // namespace nu

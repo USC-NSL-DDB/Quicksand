@@ -25,7 +25,7 @@ Runtime::Mode mode;
 
 namespace nu {
 class Test {
-public:
+ public:
   int get_credits() { return credits_; }
 
   void consume() {
@@ -50,12 +50,12 @@ public:
     Runtime::pressure_handler->mock_set_pressure(pressure);
   }
 
-private:
+ private:
   CondVar condvar_;
   Mutex mutex_;
   int credits_ = 0;
 };
-} // namespace nu
+}  // namespace nu
 
 void do_work() {
   auto proclet = make_proclet<Test>();

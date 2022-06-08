@@ -8,4 +8,4 @@ inline CondVar::~CondVar() {}
 
 inline list_head *CondVar::get_waiters() { return &cv_.waiters; }
 
-} // namespace nu
+}  // namespace nu

@@ -26,7 +26,8 @@ extern "C" {
 
 namespace nu {
 
-template <typename... S1s> void serialize(auto *oa_sstream, S1s &&... states) {
+template <typename... S1s>
+void serialize(auto *oa_sstream, S1s &&... states) {
   RuntimeSlabGuard slab_guard;
 
   auto &ss = oa_sstream->ss;
@@ -159,9 +160,13 @@ Proclet<T>::Proclet(ProcletID id, bool ref_cnted)
 template <typename T>
 Proclet<T>::Proclet() : id_(kNullProcletID), ref_cnted_(false) {}
 
-template <typename T> Proclet<T>::~Proclet() { reset(); }
+template <typename T>
+Proclet<T>::~Proclet() {
+  reset();
+}
 
-template <typename T> Proclet<T>::Proclet(const Proclet<T> &o) : id_(o.id_) {
+template <typename T>
+Proclet<T>::Proclet(const Proclet<T> &o) : id_(o.id_) {
   auto inc_ref_optional = update_ref_cnt(1);
   if (inc_ref_optional) {
     inc_ref_optional->get();
@@ -169,7 +174,8 @@ template <typename T> Proclet<T>::Proclet(const Proclet<T> &o) : id_(o.id_) {
   ref_cnted_ = true;
 }
 
-template <typename T> Proclet<T> &Proclet<T>::operator=(const Proclet<T> &o) {
+template <typename T>
+Proclet<T> &Proclet<T>::operator=(const Proclet<T> &o) {
   reset();
   id_ = o.id_;
   auto inc_ref_optional = update_ref_cnt(1);
@@ -249,9 +255,13 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint, As &&... args) {
   return proclet;
 }
 
-template <typename T> ProcletID Proclet<T>::get_id() const { return id_; }
+template <typename T>
+ProcletID Proclet<T>::get_id() const {
+  return id_;
+}
 
-template <typename... T> void assert_valid_invocation_types() {
+template <typename... T>
+void assert_valid_invocation_types() {
   static_assert((!std::is_reference_v<T> && ... && true));
   static_assert((!std::is_pointer_v<T> && ... && true));
   static_assert((!is_specialization_of_v<T, std::unique_ptr> && ... && true));
@@ -469,7 +479,8 @@ std::optional<Future<void>> Proclet<T>::update_ref_cnt(int delta) {
   });
 }
 
-template <typename T> void Proclet<T>::reset() {
+template <typename T>
+void Proclet<T>::reset() {
   if (ref_cnted_) {
     ref_cnted_ = false;
     if (inc_ref_) {
@@ -483,7 +494,8 @@ template <typename T> void Proclet<T>::reset() {
   }
 }
 
-template <typename T> std::optional<Future<void>> Proclet<T>::reset_async() {
+template <typename T>
+std::optional<Future<void>> Proclet<T>::reset_async() {
   if (ref_cnted_) {
     ref_cnted_ = false;
     if (inc_ref_) {
@@ -508,7 +520,8 @@ void Proclet<T>::load(Archive &ar) {
   ref_cnted_ = true;
 }
 
-template <typename T, typename... As> Proclet<T> make_proclet(As &&... args) {
+template <typename T, typename... As>
+Proclet<T> make_proclet(As &&... args) {
   return Proclet<T>::__create(/* pinned = */ false, 0,
                               std::forward<As>(args)...);
 }
@@ -564,4 +577,4 @@ Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip_hint,
   });
 }
 
-} // namespace nu
+}  // namespace nu

@@ -25,7 +25,7 @@ Runtime::Mode mode;
 
 namespace nu {
 class Test {
-public:
+ public:
   void do_work() { delay_us(100 * 1000); }
 
   void mutex() {
@@ -43,11 +43,11 @@ public:
 
   int get_cnt() { return cnt_; }
 
-private:
+ private:
   Mutex mutex_;
   int cnt_ = 0;
 };
-} // namespace nu
+}  // namespace nu
 
 void do_work() {
   bool passed = true;

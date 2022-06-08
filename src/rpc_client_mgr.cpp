@@ -1,4 +1,5 @@
 #include "nu/rpc_client_mgr.hpp"
+
 #include "nu/ctrl_client.hpp"
 
 namespace nu {
@@ -8,7 +9,7 @@ NodeID RPCClientMgr::get_node_id_by_node_ip(NodeIP ip) {
   rt::ScopedLock<rt::Mutex> guard(&mutex_);
   if (node_ip_to_node_id_map_.find(ip) == node_ip_to_node_id_map_.end()) {
     id = node_ip_to_node_id_map_[ip] = next_node_id_++;
-    BUG_ON(!next_node_id_); // Overflow.
+    BUG_ON(!next_node_id_);  // Overflow.
   } else {
     id = node_ip_to_node_id_map_[ip];
   }
@@ -78,4 +79,4 @@ void RPCClientMgr::update_cache(ProcletID proclet_id, RPCClient *old_client) {
   }
 }
 
-} // namespace nu
+}  // namespace nu

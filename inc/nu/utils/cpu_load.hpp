@@ -5,8 +5,8 @@
 namespace nu {
 
 class CPULoad {
-public:
-  constexpr static uint32_t kSampleInterval = 32; // Be power of 2 for speed.
+ public:
+  constexpr static uint32_t kSampleInterval = 32;  // Be power of 2 for speed.
 
   struct State {
     bool sampled;
@@ -20,7 +20,7 @@ public:
   float get_load() const;
   static void flush_all();
 
-private:
+ private:
   uint64_t last_refresh_tsc_;
   aligned_cycles cycles_[kNumCores];
   struct alignas(kCacheLineBytes) {
@@ -29,6 +29,6 @@ private:
   } cnts_[kNumCores];
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/cpu_load.ipp"

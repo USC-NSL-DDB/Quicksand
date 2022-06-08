@@ -15,11 +15,13 @@ void RemUniquePtr<T>::save(Archive &ar) {
   release();
 }
 
-template <typename T> consteval auto get_free_fn() {
+template <typename T>
+consteval auto get_free_fn() {
   return +[](T &t) { delete &t; };
 }
 
-template <typename T> RemUniquePtr<T>::RemUniquePtr() noexcept {}
+template <typename T>
+RemUniquePtr<T>::RemUniquePtr() noexcept {}
 
 template <typename T>
 RemUniquePtr<T>::RemUniquePtr(T *raw_ptr)
@@ -31,7 +33,10 @@ RemUniquePtr<T>::RemUniquePtr(std::unique_ptr<T> &&unique_ptr) noexcept
   unique_ptr.release();
 }
 
-template <typename T> RemUniquePtr<T>::~RemUniquePtr() noexcept { reset(); }
+template <typename T>
+RemUniquePtr<T>::~RemUniquePtr() noexcept {
+  reset();
+}
 
 template <typename T>
 RemUniquePtr<T>::RemUniquePtr(RemUniquePtr<T> &&o) noexcept
@@ -47,18 +52,21 @@ RemUniquePtr<T> &RemUniquePtr<T>::operator=(RemUniquePtr<T> &&o) noexcept {
   return *this;
 }
 
-template <typename T> void RemUniquePtr<T>::release() {
+template <typename T>
+void RemUniquePtr<T>::release() {
   RemPtr<T>::raw_ptr_ = nullptr;
 }
 
-template <typename T> void RemUniquePtr<T>::reset() {
+template <typename T>
+void RemUniquePtr<T>::reset() {
   if (RemPtr<T>::get()) {
     RemPtr<T>::run(get_free_fn<T>());
     release();
   }
 }
 
-template <typename T> Future<void> RemUniquePtr<T>::reset_async() {
+template <typename T>
+Future<void> RemUniquePtr<T>::reset_async() {
   if (RemPtr<T>::get()) {
     auto future = RemPtr<T>::run_async(get_free_fn<T>());
     release();
@@ -78,4 +86,4 @@ RemUniquePtr<T> make_rem_unique(Args &&... args) {
   return RemUniquePtr<T>(std::unique_ptr<T>(raw_ptr));
 }
 
-} // namespace nu
+}  // namespace nu

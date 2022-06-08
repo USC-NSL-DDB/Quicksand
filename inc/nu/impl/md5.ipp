@@ -14,4 +14,4 @@ inline bool MD5Val::operator!=(const MD5Val &o) const {
 
 inline MD5Val get_self_md5() { return get_md5("/proc/self/exe"); }
 
-} // namespace nu
+}  // namespace nu

@@ -24,7 +24,7 @@ constexpr uint32_t kNumRuns = 5;
 
 namespace nu {
 class Test {
-public:
+ public:
   void run() {
     ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
                                      .num_cores_to_release = 0};
@@ -32,10 +32,10 @@ public:
     delay_ms(1000);
   }
 
-private:
+ private:
   uint8_t heap[kObjSize];
 };
-} // namespace nu
+}  // namespace nu
 
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {

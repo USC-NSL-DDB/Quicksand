@@ -5,7 +5,7 @@
 namespace nu {
 
 class SpinLock {
-public:
+ public:
   SpinLock();
   SpinLock(const SpinLock &) = delete;
   SpinLock &operator=(const SpinLock &) = delete;
@@ -14,10 +14,10 @@ public:
   void unlock();
   bool try_lock();
 
-private:
+ private:
   spinlock_t spinlock_;
   friend class CondVar;
 };
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/spinlock.ipp"

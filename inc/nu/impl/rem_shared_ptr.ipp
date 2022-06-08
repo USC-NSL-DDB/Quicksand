@@ -23,17 +23,20 @@ void RemSharedPtr<T>::load(Archive &ar) {
   ar(shared_ptr_);
 }
 
-template <typename T> consteval auto get_reset_fn() {
+template <typename T>
+consteval auto get_reset_fn() {
   return +[](T &t, std::shared_ptr<T> *shared_ptr) { delete shared_ptr; };
 }
 
-template <typename T> consteval auto get_copy_shared_ptr_fn() {
+template <typename T>
+consteval auto get_copy_shared_ptr_fn() {
   return +[](T &t, std::shared_ptr<T> *shared_ptr) {
     return new std::shared_ptr<T>(*shared_ptr);
   };
 }
 
-template <typename T> RemSharedPtr<T>::RemSharedPtr() noexcept {}
+template <typename T>
+RemSharedPtr<T>::RemSharedPtr() noexcept {}
 
 template <typename T>
 RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> &&shared_ptr) noexcept
@@ -46,7 +49,10 @@ RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> *shared_ptr)
                 shared_ptr ? shared_ptr->get() : nullptr),
       shared_ptr_(shared_ptr) {}
 
-template <typename T> RemSharedPtr<T>::~RemSharedPtr() noexcept { reset(); }
+template <typename T>
+RemSharedPtr<T>::~RemSharedPtr() noexcept {
+  reset();
+}
 
 template <typename T>
 RemSharedPtr<T>::RemSharedPtr(const RemSharedPtr<T> &o) noexcept
@@ -77,14 +83,16 @@ RemSharedPtr<T> &RemSharedPtr<T>::operator=(RemSharedPtr<T> &&o) noexcept {
   return *this;
 }
 
-template <typename T> void RemSharedPtr<T>::reset() {
+template <typename T>
+void RemSharedPtr<T>::reset() {
   if (RemPtr<T>::get()) {
     RemPtr<T>::run(get_reset_fn<T>(), shared_ptr_);
     RemPtr<T>::raw_ptr_ = nullptr;
   }
 }
 
-template <typename T> Future<void> RemSharedPtr<T>::reset_async() {
+template <typename T>
+Future<void> RemSharedPtr<T>::reset_async() {
   if (RemPtr<T>::get()) {
     auto future = RemPtr<T>::run_async(get_reset_fn<T>(), shared_ptr_);
     RemPtr<T>::raw_ptr_ = nullptr;
@@ -108,4 +116,4 @@ RemSharedPtr<T> make_rem_shared(Args &&... args) {
   return RemSharedPtr<T>(shared_ptr);
 }
 
-} // namespace nu
+}  // namespace nu

@@ -163,4 +163,4 @@ RetT RCUHashMap<K, V, Allocator>::apply(
   }
 }
 
-} // namespace nu
+}  // namespace nu

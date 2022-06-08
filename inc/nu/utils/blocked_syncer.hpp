@@ -11,14 +11,14 @@
 namespace nu {
 
 class BlockedSyncer {
-public:
+ public:
   enum Type { kMutex = 0, kCondVar };
 
   void add(void *syncer, Type type);
   void remove(void *syncer);
   std::vector<std::pair<void *, Type>> get_all();
 
-private:
+ private:
   constexpr static uint32_t kNumBuckets = kNumCores;
   using Key = void *;
   using Val = Type;
@@ -32,6 +32,6 @@ private:
   SyncHashMap<kNumBuckets, Key, Val, Hash, KeyEqual, Allocator> sync_map_;
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/blocked_syncer.ipp"

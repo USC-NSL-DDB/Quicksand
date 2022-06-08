@@ -1,10 +1,10 @@
+#include <thread.h>
+
 #include <atomic>
 #include <functional>
 #include <iostream>
 #include <random>
 #include <vector>
-
-#include <thread.h>
 
 #include "nu/ctrl_client.hpp"
 #include "nu/runtime.hpp"
@@ -35,7 +35,7 @@ struct PerfResolveObjReq : PerfRequest {
 };
 
 class PerfResolveObjAdapter : public PerfAdapter {
-public:
+ public:
   PerfResolveObjAdapter(ControllerClient *client) : client_(client) {}
 
   std::unique_ptr<PerfThreadState> create_thread_state() {
@@ -57,12 +57,12 @@ public:
     return true;
   }
 
-private:
+ private:
   ControllerClient *client_;
 };
 
 class PerfGetMigrationDestAdapter : public PerfAdapter {
-public:
+ public:
   PerfGetMigrationDestAdapter(ControllerClient *client) : client_(client) {}
 
   std::unique_ptr<PerfThreadState> create_thread_state() {
@@ -80,7 +80,7 @@ public:
     return true;
   }
 
-private:
+ private:
   ControllerClient *client_;
 };
 
@@ -100,7 +100,7 @@ struct PerfUpdateLocationReq : PerfRequest {
 };
 
 class PerfUpdateLocationAdapter : public PerfAdapter {
-public:
+ public:
   PerfUpdateLocationAdapter(ControllerClient *client) : client_(client) {}
 
   std::unique_ptr<PerfThreadState> create_thread_state() {
@@ -121,12 +121,12 @@ public:
     return true;
   }
 
-private:
+ private:
   ControllerClient *client_;
 };
-  
+
 class Test {
-public:
+ public:
   void run() {
     {
       PerfResolveObjAdapter perf_resolve_obj_adapter(
@@ -155,10 +155,10 @@ public:
     }
   }
 
-private:
+ private:
 };
 
-} // namespace nu
+}  // namespace nu
 
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {

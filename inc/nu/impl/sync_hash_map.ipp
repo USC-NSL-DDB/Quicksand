@@ -299,9 +299,9 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
         if (clear) {
           std::destroy_at(pair);
           allocator.deallocate(pair, 1);
-	  if (head) {
-	    head = false;
-	    bucket_node->pair = bucket_node->next = nullptr;
+          if (head) {
+            head = false;
+            bucket_node->pair = bucket_node->next = nullptr;
           } else {
             bucket_node_allocator.deallocate(bucket_node, 1);
           }
@@ -326,4 +326,4 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
           std::pair<const K, V> &pair) { reduced_val.push_back(pair); });
 }
 
-} // namespace nu
+}  // namespace nu

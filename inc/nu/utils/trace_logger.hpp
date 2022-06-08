@@ -1,19 +1,19 @@
 #pragma once
 
+#include <sync.h>
+#include <thread.h>
+
 #include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <sync.h>
-#include <thread.h>
 
 #include "nu/commons.hpp"
 
 namespace nu {
 
 class TraceLogger {
-public:
+ public:
   constexpr static uint32_t kNumBuckets = 11;
   constexpr static uint32_t kBucketIntervalUs = 50;
 
@@ -22,10 +22,11 @@ public:
   ~TraceLogger();
   void enable_print(uint32_t interval_us);
   void disable_print();
-  template <typename Fn> std::pair<uint64_t, uint64_t> add_trace(Fn &&fn);
+  template <typename Fn>
+  std::pair<uint64_t, uint64_t> add_trace(Fn &&fn);
   void add_trace(uint64_t duration_tsc);
 
-private:
+ private:
   struct alignas(kCacheLineBytes) AlignedCnt {
     uint64_t cnt;
   };
@@ -42,6 +43,6 @@ private:
   void check_disabled();
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/trace_logger.ipp"

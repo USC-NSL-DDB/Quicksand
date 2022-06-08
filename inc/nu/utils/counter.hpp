@@ -5,7 +5,7 @@
 namespace nu {
 
 class Counter {
-public:
+ public:
   Counter();
   void inc();
   void dec();
@@ -14,12 +14,12 @@ public:
   int64_t get();
   void reset();
 
-private:
+ private:
   struct alignas(kCacheLineBytes) {
     int64_t c;
   } cnts_[kNumCores];
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/counter.ipp"

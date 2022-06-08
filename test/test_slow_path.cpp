@@ -1,9 +1,9 @@
 #include <atomic>
 #include <iostream>
 
-#include "nu/proclet_server.hpp"
 #include "nu/pressure_handler.hpp"
 #include "nu/proclet.hpp"
+#include "nu/proclet_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/thread.hpp"
 #include "nu/utils/time.hpp"
@@ -15,7 +15,7 @@ constexpr uint32_t ip1 = MAKE_IP_ADDR(18, 18, 1, 5);
 namespace nu {
 
 class CalleeObj {
-public:
+ public:
   uint32_t foo() {
     Time::delay(1000 * 1000);
     return kMagic;
@@ -23,7 +23,7 @@ public:
 };
 
 class CallerObj {
-public:
+ public:
   CallerObj() {}
 
   uint32_t foo(Proclet<CalleeObj> callee_obj) {
@@ -32,12 +32,11 @@ public:
 };
 
 class Test {
-public:
+ public:
   bool run_callee_migrated_test() {
     auto caller_obj = make_proclet_pinned_at<CallerObj>(ip0);
     auto callee_obj = make_proclet_at<CalleeObj>(ip1);
-    auto future =
-        caller_obj.run_async(&CallerObj::foo, std::move(callee_obj));
+    auto future = caller_obj.run_async(&CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);
     callee_obj.run(+[](CalleeObj &_) { Test::migrate(); });
     return future.get() == kMagic;
@@ -74,7 +73,7 @@ public:
   }
 };
 
-} // namespace nu
+}  // namespace nu
 
 int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv, [](int, char **) {

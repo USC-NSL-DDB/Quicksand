@@ -17,19 +17,19 @@ using namespace nu;
 Runtime::Mode mode;
 
 class VecStore {
-public:
+ public:
   VecStore(const std::vector<int> &a, const std::vector<int> &b)
       : a_(a), b_(b) {}
   std::vector<int> get_vec_a() { return a_; }
   std::vector<int> get_vec_b() { return b_; }
 
-private:
+ private:
   std::vector<int> a_;
   std::vector<int> b_;
 };
 
 class Adder {
-public:
+ public:
   std::vector<int> add(const std::vector<int> &vec_a,
                        const std::vector<int> &vec_b) {
     std::vector<int> vec_c;

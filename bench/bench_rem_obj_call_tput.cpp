@@ -29,10 +29,10 @@ struct AlignedCnt {
 AlignedCnt cnts[kNumThreads];
 
 class Obj {
-public:
+ public:
   int foo() { return 0x88; }
 
-private:
+ private:
 };
 
 void do_work() {
@@ -62,7 +62,7 @@ void do_work() {
       while (true) {
         for (auto id : ids[tid]) {
           auto ret = proclets[id].run(&Obj::foo);
-	  ACCESS_ONCE(ret);
+          ACCESS_ONCE(ret);
           cnts[tid].cnt++;
         }
       }

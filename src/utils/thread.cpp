@@ -95,4 +95,4 @@ void Thread::detach() {
   thread_set_nu_thread(th_, nullptr);
 }
 
-} // namespace nu
+}  // namespace nu

@@ -39,4 +39,4 @@ inline void CPULoad::monitor_end(const State &state) {
 
 inline void CPULoad::flush_all() { thread_flush_all_monitor_cycles(); }
 
-} // namespace nu
+}  // namespace nu

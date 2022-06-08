@@ -59,4 +59,4 @@ void Mutex::__unlock() {
   thread_ready(waketh);
 }
 
-} // namespace nu
+}  // namespace nu

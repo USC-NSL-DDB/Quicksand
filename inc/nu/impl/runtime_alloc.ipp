@@ -5,7 +5,8 @@
 
 namespace nu {
 
-template <typename T> RuntimeAllocator<T>::RuntimeAllocator() noexcept {}
+template <typename T>
+RuntimeAllocator<T>::RuntimeAllocator() noexcept {}
 
 template <typename T>
 template <typename U>
@@ -13,8 +14,8 @@ RuntimeAllocator<T>::RuntimeAllocator(const RuntimeAllocator<U> &o) noexcept {}
 
 template <typename T>
 template <typename U>
-RuntimeAllocator<T> &RuntimeAllocator<T>::
-operator=(const RuntimeAllocator<U> &o) noexcept {
+RuntimeAllocator<T> &RuntimeAllocator<T>::operator=(
+    const RuntimeAllocator<U> &o) noexcept {
   return *this;
 }
 
@@ -24,12 +25,13 @@ RuntimeAllocator<T>::RuntimeAllocator(RuntimeAllocator<U> &&o) noexcept {}
 
 template <typename T>
 template <typename U>
-RuntimeAllocator<T> &RuntimeAllocator<T>::
-operator=(RuntimeAllocator<U> &&o) noexcept {
+RuntimeAllocator<T> &RuntimeAllocator<T>::operator=(
+    RuntimeAllocator<U> &&o) noexcept {
   return *this;
 }
 
-template <typename T> T *RuntimeAllocator<T>::allocate(std::size_t n) {
+template <typename T>
+T *RuntimeAllocator<T>::allocate(std::size_t n) {
   return reinterpret_cast<T *>(Runtime::runtime_slab.allocate(n * sizeof(T)));
 }
 
@@ -72,4 +74,4 @@ bool operator!=(const RuntimeAllocator<T> &x,
   return !(x == y);
 }
 
-} // namespace nu
+}  // namespace nu

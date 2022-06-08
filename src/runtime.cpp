@@ -1,6 +1,7 @@
+#include <sys/mman.h>
+
 #include <new>
 #include <string>
-#include <sys/mman.h>
 
 extern "C" {
 #include <base/assert.h>
@@ -15,8 +16,8 @@ extern "C" {
 #include "nu/ctrl_client.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
-#include "nu/proclet_server.hpp"
 #include "nu/pressure_handler.hpp"
+#include "nu/proclet_server.hpp"
 #include "nu/resource_reporter.hpp"
 #include "nu/rpc_client_mgr.hpp"
 #include "nu/rpc_server.hpp"
@@ -196,7 +197,7 @@ wrong_args:
   return -EINVAL;
 }
 
-} // namespace nu
+}  // namespace nu
 
 inline void *__new(size_t size) {
   void *ptr;

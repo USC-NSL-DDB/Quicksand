@@ -1,6 +1,6 @@
-#include <algorithm>
-
 #include "nu/utils/slab.hpp"
+
+#include <algorithm>
 
 namespace nu {
 
@@ -44,26 +44,26 @@ void SlabAllocator::FreePtrsLinkedList::push(void *ptr) {
 // TODO: should be dynamic.
 inline uint32_t get_num_cache_entries(uint32_t slab_shift) {
   switch (slab_shift) {
-  case 4: // 32 B
-    return 64;
-  case 5: // 64 B
-    return 64;
-  case 6: // 128 B
-    return 32;
-  case 7: // 256 B
-    return 32;
-  case 8: // 512 B
-    return 16;
-  case 9: // 1024 B
-    return 8;
-  case 10: // 2048 B
-    return 4;
-  case 11: // 4096 B
-    return 2;
-  case 12: // 8192 B
-    return 1;
-  default:
-    return 0;
+    case 4:  // 32 B
+      return 64;
+    case 5:  // 64 B
+      return 64;
+    case 6:  // 128 B
+      return 32;
+    case 7:  // 256 B
+      return 32;
+    case 8:  // 512 B
+      return 16;
+    case 9:  // 1024 B
+      return 8;
+    case 10:  // 2048 B
+      return 4;
+    case 11:  // 4096 B
+      return 2;
+    case 12:  // 8192 B
+      return 1;
+    default:
+      return 0;
   }
 }
 
@@ -96,7 +96,7 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
           if (unlikely(tmp + slab_size > end_)) {
             continue;
           }
-	  cache_list.push(tmp);
+          cache_list.push(tmp);
         }
       }
 
@@ -116,7 +116,7 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
     assert(addr % kAlignment == 0);
     ret = reinterpret_cast<uint8_t *>(addr);
   }
-  
+
   return ret;
 }
 
@@ -131,7 +131,7 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
   auto size = hdr->size;
   ptr = hdr;
   auto slab_shift = slab->get_slab_shift(size);
-  
+
   if (likely(slab_shift < slab->kMaxSlabClassShift)) {
     int cpu = get_cpu();
     auto &cache_list = slab->cache_lists_[cpu].lists[slab_shift];
@@ -160,4 +160,4 @@ void *SlabAllocator::yield(size_t size) noexcept {
   return ret;
 }
 
-} // namespace nu
+}  // namespace nu

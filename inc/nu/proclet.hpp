@@ -10,8 +10,9 @@
 
 namespace nu {
 
-template <typename T> class Proclet {
-public:
+template <typename T>
+class Proclet {
+ public:
   Proclet(const Proclet &);
   Proclet &operator=(const Proclet &);
   Proclet(Proclet &&) noexcept;
@@ -30,15 +31,18 @@ public:
   void reset();
   std::optional<Future<void>> reset_async();
 
-  template <class Archive> void save(Archive &ar) const;
-  template <class Archive> void load(Archive &ar);
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
 
-private:
+ private:
   ProcletID id_;
   Future<void> inc_ref_;
   bool ref_cnted_;
 
-  template <typename U> friend class RemPtr;
+  template <typename U>
+  friend class RemPtr;
   template <typename K, typename V, typename Hash, typename KeyEqual,
             uint64_t NumBuckets>
   friend class DistributedHashTable;
@@ -85,7 +89,8 @@ private:
                                                          As &&... args);
 };
 
-template <typename T, typename... As> Proclet<T> make_proclet(As &&... args);
+template <typename T, typename... As>
+Proclet<T> make_proclet(As &&... args);
 template <typename T, typename... As>
 Future<Proclet<T>> make_proclet_async(As &&... args);
 template <typename T, typename... As>
@@ -101,6 +106,6 @@ Proclet<T> make_proclet_pinned_at(uint32_t ip, As &&... args);
 template <typename T, typename... As>
 Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip, As &&... args);
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/proclet.ipp"

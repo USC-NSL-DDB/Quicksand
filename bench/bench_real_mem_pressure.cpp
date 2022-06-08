@@ -1,20 +1,20 @@
+#include <runtime.h>
+#include <signal.h>
+#include <sync.h>
+#include <sys/mman.h>
+#include <sys/sysinfo.h>
+#include <thread.h>
+#include <timer.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <signal.h>
-#include <sys/mman.h>
-#include <sys/sysinfo.h>
 #include <thread>
-#include <unistd.h>
 #include <vector>
-
-#include <runtime.h>
-#include <sync.h>
-#include <thread.h>
-#include <timer.h>
 
 #include "nu/commons.hpp"
 

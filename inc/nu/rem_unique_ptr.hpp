@@ -6,8 +6,9 @@
 
 namespace nu {
 
-template <typename T> class RemUniquePtr : public RemPtr<T> {
-public:
+template <typename T>
+class RemUniquePtr : public RemPtr<T> {
+ public:
   RemUniquePtr() noexcept;
   RemUniquePtr(std::unique_ptr<T> &&unique_ptr) noexcept;
   ~RemUniquePtr() noexcept;
@@ -19,10 +20,12 @@ public:
   void reset();
   Future<void> reset_async();
 
-  template <class Archive> void save(Archive &ar) const;
-  template <class Archive> void save(Archive &ar);
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void save(Archive &ar);
 
-private:
+ private:
   RemUniquePtr(T *raw_ptr);
 
   template <typename U, typename... Args>
@@ -32,6 +35,6 @@ private:
 template <typename T, typename... Args>
 RemUniquePtr<T> make_rem_unique(Args &&... args);
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/rem_unique_ptr.ipp"

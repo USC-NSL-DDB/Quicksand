@@ -27,9 +27,9 @@ constexpr static uint32_t kAlignment = 16;
 static_assert(sizeof(PtrHeader) % kAlignment == 0);
 
 class SlabAllocator {
-public:
-  constexpr static uint64_t kMaxSlabClassShift = 35; // 32 GB.
-  constexpr static uint64_t kMinSlabClassShift = 5;  // 32 B.
+ public:
+  constexpr static uint64_t kMaxSlabClassShift = 35;  // 32 GB.
+  constexpr static uint64_t kMinSlabClassShift = 5;   // 32 B.
   constexpr static uint64_t kMaxNumCacheEntries = 32;
   constexpr static uint64_t kCacheSizeCutoff = 1024;
   static_assert((1 << kMinSlabClassShift) % kAlignment == 0);
@@ -51,14 +51,14 @@ public:
                                   SlabId_t slab_id) noexcept;
   static void deregister_slab_by_id(SlabId_t slab_id) noexcept;
 
-private:
+ private:
   class FreePtrsLinkedList {
-  public:
+   public:
     void push(void *ptr);
     void *pop();
     uint64_t size();
 
-  private:
+   private:
     constexpr static uint32_t kBatchSize =
         ((1 << kMinSlabClassShift) + sizeof(PtrHeader)) / sizeof(void *);
     struct Batch {
@@ -86,6 +86,6 @@ private:
   static void _free(const void *ptr) noexcept;
   uint32_t get_slab_shift(uint64_t size) noexcept;
 };
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/slab.ipp"

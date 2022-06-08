@@ -74,4 +74,4 @@ inline void SlabAllocator::deregister_slab_by_id(SlabId_t slab_id) noexcept {
 
 inline uint64_t SlabAllocator::FreePtrsLinkedList::size() { return size_; }
 
-} // namespace nu
+}  // namespace nu

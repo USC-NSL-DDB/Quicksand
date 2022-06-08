@@ -93,4 +93,4 @@ void RCUHashSet<K, Allocator>::for_each(
   reader_unlock();
 }
 
-} // namespace nu
+}  // namespace nu

@@ -5,10 +5,11 @@
 extern "C" {
 #include <runtime/tcp.h>
 }
-#include <atomic>
-#include <memory>
 #include <net.h>
 #include <thread.h>
+
+#include <atomic>
+#include <memory>
 
 #include "nu/commons.hpp"
 #include "nu/ctrl.hpp"
@@ -95,7 +96,7 @@ struct RPCReqReportFreeResource {
 } __attribute__((packed));
 
 class ControllerServer {
-public:
+ public:
   constexpr static bool kEnableLogging = false;
   constexpr static uint64_t kPrintIntervalUs = kOneSecond;
   constexpr static uint32_t kTCPListenBackLog = 64;
@@ -104,7 +105,7 @@ public:
   ControllerServer();
   ~ControllerServer();
 
-private:
+ private:
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   Controller ctrl_;
   std::atomic<uint64_t> num_register_node_;
@@ -122,20 +123,20 @@ private:
   bool done_;
   friend class RPCServer;
 
-  std::unique_ptr<RPCRespRegisterNode>
-  handle_register_node(const RPCReqRegisterNode &req);
-  std::unique_ptr<RPCRespVerifyMD5>
-  handle_verify_md5(const RPCReqVerifyMD5 &req);
-  std::unique_ptr<RPCRespAllocateProclet>
-  handle_allocate_proclet(const RPCReqAllocateProclet &req);
-  std::unique_ptr<RPCRespDestroyProclet>
-  handle_destroy_proclet(const RPCReqDestroyProclet &req);
-  std::unique_ptr<RPCRespResolveProclet>
-  handle_resolve_proclet(const RPCReqResolveProclet &req);
-  std::unique_ptr<RPCRespGetMigrationDest>
-  handle_get_migration_dest(const RPCReqGetMigrationDest &req);
+  std::unique_ptr<RPCRespRegisterNode> handle_register_node(
+      const RPCReqRegisterNode &req);
+  std::unique_ptr<RPCRespVerifyMD5> handle_verify_md5(
+      const RPCReqVerifyMD5 &req);
+  std::unique_ptr<RPCRespAllocateProclet> handle_allocate_proclet(
+      const RPCReqAllocateProclet &req);
+  std::unique_ptr<RPCRespDestroyProclet> handle_destroy_proclet(
+      const RPCReqDestroyProclet &req);
+  std::unique_ptr<RPCRespResolveProclet> handle_resolve_proclet(
+      const RPCReqResolveProclet &req);
+  std::unique_ptr<RPCRespGetMigrationDest> handle_get_migration_dest(
+      const RPCReqGetMigrationDest &req);
   void handle_update_location(const RPCReqUpdateLocation &req);
   void handle_report_free_resource(const RPCReqReportFreeResource &req);
   void tcp_loop(rt::TcpConn *c);
 };
-} // namespace nu
+}  // namespace nu

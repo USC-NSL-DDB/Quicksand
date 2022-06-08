@@ -10,7 +10,7 @@ class Mutex;
 class SpinLock;
 
 class CondVar {
-public:
+ public:
   CondVar();
   CondVar(const CondVar &) = delete;
   CondVar &operator=(const CondVar &) = delete;
@@ -21,13 +21,13 @@ public:
   void signal();
   void signal_all();
 
-private:
+ private:
   condvar_t cv_;
   friend class Migrator;
 
   list_head *get_waiters();
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/cond_var.ipp"

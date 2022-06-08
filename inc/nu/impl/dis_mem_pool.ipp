@@ -31,7 +31,8 @@ RemSharedPtr<T> DistributedMemPool::Heap::allocate_shared(As... args) {
   return make_rem_shared<T>(std::move(args)...);
 }
 
-template <typename T> void DistributedMemPool::Heap::free_raw(T *raw_ptr) {
+template <typename T>
+void DistributedMemPool::Heap::free_raw(T *raw_ptr) {
   delete raw_ptr;
 }
 
@@ -52,8 +53,8 @@ inline DistributedMemPool::Shard::Shard(Proclet<Heap> &&proclet)
 inline DistributedMemPool::Shard::Shard(Shard &&o)
     : failed_alloc_size(o.failed_alloc_size), proclet(std::move(o.proclet)) {}
 
-inline DistributedMemPool::Shard &
-DistributedMemPool::Shard::operator=(Shard &&o) {
+inline DistributedMemPool::Shard &DistributedMemPool::Shard::operator=(
+    Shard &&o) {
   failed_alloc_size = o.failed_alloc_size;
   proclet = std::move(o.proclet);
   return *this;
@@ -67,8 +68,8 @@ inline DistributedMemPool::DistributedMemPool(DistributedMemPool &&o)
   *this = std::move(o);
 }
 
-inline DistributedMemPool &
-DistributedMemPool::operator=(DistributedMemPool &&o) {
+inline DistributedMemPool &DistributedMemPool::operator=(
+    DistributedMemPool &&o) {
   o.halt_probing();
   for (uint32_t i = 0; i < kNumCores; i++) {
     local_free_shards_[i] = std::move(o.local_free_shards_[i]);
@@ -124,16 +125,19 @@ inline void DistributedMemPool::check_probing() {
   }
 }
 
-template <class Archive> void DistributedMemPool::save(Archive &ar) const {
+template <class Archive>
+void DistributedMemPool::save(Archive &ar) const {
   const_cast<DistributedMemPool *>(this)->save(ar);
 }
 
-template <class Archive> void DistributedMemPool::save(Archive &ar) {
+template <class Archive>
+void DistributedMemPool::save(Archive &ar) {
   halt_probing();
   ar(local_free_shards_, global_free_shards_, global_full_shards_);
 }
 
-template <class Archive> void DistributedMemPool::load(Archive &ar) {
+template <class Archive>
+void DistributedMemPool::load(Archive &ar) {
   ar(local_free_shards_, global_free_shards_, global_full_shards_);
 
   last_probing_us_ = microtime();
@@ -148,8 +152,8 @@ RemUniquePtr<T> DistributedMemPool::allocate_unique(As &&... args) {
 }
 
 template <typename T, typename... As>
-Future<RemUniquePtr<T>>
-DistributedMemPool::allocate_unique_async(As &&... args) {
+Future<RemUniquePtr<T>> DistributedMemPool::allocate_unique_async(
+    As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_unique(std::forward<As>(args)...);
   });
@@ -162,8 +166,8 @@ RemSharedPtr<T> DistributedMemPool::allocate_shared(As &&... args) {
 }
 
 template <typename T, typename... As>
-Future<RemSharedPtr<T>>
-DistributedMemPool::allocate_shared_async(As &&... args) {
+Future<RemSharedPtr<T>> DistributedMemPool::allocate_shared_async(
+    As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_shared(std::forward<As>(args)...);
   });
@@ -209,4 +213,4 @@ retry:
   }
 }
 
-} // namespace nu
+}  // namespace nu

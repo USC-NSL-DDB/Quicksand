@@ -1,3 +1,5 @@
+#include <signal.h>
+
 #include <algorithm>
 #include <cereal/types/optional.hpp>
 #include <cereal/types/string.hpp>
@@ -7,7 +9,6 @@
 #include <memory>
 #include <numeric>
 #include <random>
-#include <signal.h>
 #include <utility>
 #include <vector>
 
@@ -37,8 +38,9 @@ constexpr bool kEnablePrinting = true;
 constexpr uint32_t kPrintIntervalUS = 200 * 1000;
 constexpr uint32_t kMigrationTriggeredUs = 10 * kPrintIntervalUS;
 
-constexpr auto kIPServer0 = MAKE_IP_ADDR(18, 18, 1, 2); // The migration source.
-constexpr auto kIPServer1 = MAKE_IP_ADDR(18, 18, 1, 5); // The migration dest.
+constexpr auto kIPServer0 =
+    MAKE_IP_ADDR(18, 18, 1, 2);  // The migration source.
+constexpr auto kIPServer1 = MAKE_IP_ADDR(18, 18, 1, 5);  // The migration dest.
 
 Runtime::Mode mode;
 std::unique_ptr<TraceLogger> trace_loggers[2];
@@ -51,7 +53,8 @@ struct Key {
     return __builtin_memcmp(data, o.data, kKeyLen) == 0;
   }
 
-  template <class Archive> void serialize(Archive &ar) {
+  template <class Archive>
+  void serialize(Archive &ar) {
     ar(cereal::binary_data(data, sizeof(data)));
   }
 };
@@ -59,7 +62,8 @@ struct Key {
 struct Val {
   char data[kValLen];
 
-  template <class Archive> void serialize(Archive &ar) {
+  template <class Archive>
+  void serialize(Archive &ar) {
     ar(cereal::binary_data(data, sizeof(data)));
   }
 };
@@ -67,7 +71,7 @@ struct Val {
 namespace nu {
 
 class Test {
-public:
+ public:
   constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
     return util::Hash64(key.data, kKeyLen);
   };
@@ -86,10 +90,10 @@ public:
     return 0;
   }
 
-private:
+ private:
   uint32_t pressure_mem_mbs_;
 };
-} // namespace nu
+}  // namespace nu
 
 void client_cleanup() {
   ACCESS_ONCE(done) = true;
@@ -200,7 +204,7 @@ void benchmark(Test::DSHashTable *hash_table, std::vector<Key> *keys,
 
   if constexpr (kEnablePrinting) {
     trace_loggers[0]->enable_print(kPrintIntervalUS);
-    timer_sleep(500 * 1000); // Wait 0.5 seconds to avoid overlapped print.
+    timer_sleep(500 * 1000);  // Wait 0.5 seconds to avoid overlapped print.
     trace_loggers[1]->enable_print(kPrintIntervalUS);
   }
   timer_sleep(kMigrationTriggeredUs);

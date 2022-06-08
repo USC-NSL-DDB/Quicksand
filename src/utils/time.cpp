@@ -88,4 +88,4 @@ void Time::proclet_env_sleep_until(uint64_t deadline_us) {
   thread_park_and_unlock_np(reinterpret_cast<spinlock_t *>(&spin_));
 }
 
-} // namespace nu
+}  // namespace nu

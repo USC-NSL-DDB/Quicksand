@@ -21,7 +21,7 @@ Runtime::Mode mode;
 namespace nu {
 
 class Test {
-public:
+ public:
   uint64_t microtime() { return Time::microtime(); }
   void delay(uint64_t us) { Time::delay(us); }
   void sleep_until(uint64_t deadline_us) {
@@ -34,7 +34,7 @@ public:
     Runtime::pressure_handler->mock_set_pressure(pressure);
   }
 };
-} // namespace nu
+}  // namespace nu
 
 bool around_one_second(uint64_t us) {
   std::cout << us << std::endl;

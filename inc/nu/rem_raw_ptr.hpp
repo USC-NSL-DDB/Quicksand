@@ -4,8 +4,9 @@
 
 namespace nu {
 
-template <typename T> class RemRawPtr : public RemPtr<T> {
-public:
+template <typename T>
+class RemRawPtr : public RemPtr<T> {
+ public:
   RemRawPtr();
   RemRawPtr(T *raw_ptr);
   RemRawPtr(const RemRawPtr &);
@@ -13,7 +14,7 @@ public:
   RemRawPtr(RemRawPtr &&);
   RemRawPtr &operator=(RemRawPtr &&);
 
-private:
+ private:
   template <typename U, typename... Args>
   friend RemRawPtr<U> make_rem_raw(Args &&... args);
 };
@@ -21,6 +22,6 @@ private:
 template <typename T, typename... Args>
 RemRawPtr<T> make_rem_raw(Args &&... args);
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/rem_raw_ptr.ipp"

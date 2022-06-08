@@ -1,11 +1,12 @@
-#include <iostream>
+#include "nu/pressure_handler.hpp"
 
 #include <sync.h>
 #include <thread.h>
 
+#include <iostream>
+
 #include "nu/commons.hpp"
 #include "nu/migrator.hpp"
-#include "nu/pressure_handler.hpp"
 #include "nu/runtime.hpp"
 
 constexpr static bool kEnableLogging = false;
@@ -186,9 +187,8 @@ void PressureHandler::aux_handler(void *args) {
   store_release(&state->done, false);
 }
 
-std::vector<ProcletRange>
-PressureHandler::pick_proclets(uint32_t min_num_proclets,
-                               uint32_t min_mem_mbs) {
+std::vector<ProcletRange> PressureHandler::pick_proclets(
+    uint32_t min_num_proclets, uint32_t min_mem_mbs) {
   float picked_mem_mbs = 0;
   uint32_t picked_num = 0;
   bool done = false;
@@ -246,4 +246,4 @@ void PressureHandler::mock_set_pressure(ResourcePressureInfo pressure) {
   *resource_pressure_info = pressure;
 }
 
-} // namespace nu
+}  // namespace nu

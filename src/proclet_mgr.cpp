@@ -1,8 +1,9 @@
 #include <asm/mman.h>
+#include <sys/mman.h>
+
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <sys/mman.h>
 
 extern "C" {
 #include <base/assert.h>
@@ -81,7 +82,7 @@ void ProcletManager::munmap(void *proclet_base) {
 
 void ProcletManager::deallocate(void *proclet_base) {
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-  proclet_header->spin_lock.lock(); // Sync with PressureHandler.
+  proclet_header->spin_lock.lock();  // Sync with PressureHandler.
 
   proclet_header->status = kAbsent;
   RuntimeSlabGuard guard;
@@ -145,4 +146,4 @@ uint64_t ProcletManager::get_mem_usage() {
   return total_mem_usage;
 }
 
-} // namespace nu
+}  // namespace nu

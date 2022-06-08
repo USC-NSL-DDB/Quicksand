@@ -9,7 +9,8 @@ extern "C" {
 
 namespace nu {
 
-template <typename T, typename Deleter> Future<T, Deleter>::Future() {}
+template <typename T, typename Deleter>
+Future<T, Deleter>::Future() {}
 
 template <typename T, typename Deleter>
 Future<T, Deleter>::Future(Promise<T> *promise)
@@ -25,7 +26,8 @@ Future<T, Deleter> &Future<T, Deleter>::operator=(Future<T, Deleter> &&o) {
   return *this;
 }
 
-template <typename Deleter> Future<void, Deleter>::Future() {}
+template <typename Deleter>
+Future<void, Deleter>::Future() {}
 
 template <typename Deleter>
 Future<void, Deleter>::Future(Promise<void> *promise)
@@ -36,19 +38,21 @@ Future<void, Deleter>::Future(Future<void, Deleter> &&o)
     : promise_(std::move(o.promise_)) {}
 
 template <typename Deleter>
-Future<void, Deleter> &Future<void, Deleter>::
-operator=(Future<void, Deleter> &&o) {
+Future<void, Deleter> &Future<void, Deleter>::operator=(
+    Future<void, Deleter> &&o) {
   promise_ = std::move(o.promise_);
   return *this;
 }
 
-template <typename T, typename Deleter> Future<T, Deleter>::~Future() {
+template <typename T, typename Deleter>
+Future<T, Deleter>::~Future() {
   if (promise_) {
     get();
   }
 }
 
-template <typename Deleter> Future<void, Deleter>::~Future() {
+template <typename Deleter>
+Future<void, Deleter>::~Future() {
   if (promise_) {
     get();
   }
@@ -59,19 +63,23 @@ Future<T, Deleter>::operator bool() const {
   return promise_.get();
 }
 
-template <typename Deleter> Future<void, Deleter>::operator bool() const {
+template <typename Deleter>
+Future<void, Deleter>::operator bool() const {
   return promise_.get();
 }
 
-template <typename T, typename Deleter> bool Future<T, Deleter>::is_ready() {
+template <typename T, typename Deleter>
+bool Future<T, Deleter>::is_ready() {
   return rt::access_once(promise_->ready_);
 }
 
-template <typename Deleter> bool Future<void, Deleter>::is_ready() {
+template <typename Deleter>
+bool Future<void, Deleter>::is_ready() {
   return rt::access_once(promise_->ready_);
 }
 
-template <typename T, typename Deleter> T &Future<T, Deleter>::get() {
+template <typename T, typename Deleter>
+T &Future<T, Deleter>::get() {
   if (is_ready()) {
     return promise_->t_;
   }
@@ -84,7 +92,8 @@ template <typename T, typename Deleter> T &Future<T, Deleter>::get() {
   return promise_->t_;
 }
 
-template <typename Deleter> void Future<void, Deleter>::get() {
+template <typename Deleter>
+void Future<void, Deleter>::get() {
   if (is_ready()) {
     return;
   }
@@ -103,4 +112,4 @@ Future<std::invoke_result_t<std::decay_t<F>>> async(F &&f) {
       ->get_future();
 }
 
-} // namespace nu
+}  // namespace nu

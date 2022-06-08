@@ -33,7 +33,7 @@ struct Utility {
 };
 
 class PressureHandler {
-public:
+ public:
   constexpr static uint32_t kNumAuxHandlers =
       Migrator::kTransmitProcletNumThreads - 1;
   constexpr static uint32_t kSortedProcletsUpdateIntervalMs = 50;
@@ -47,7 +47,7 @@ public:
                              std::vector<iovec> &&tcp_write_task);
   void dispatch_aux_pause_task(uint32_t handler_id);
 
-private:
+ private:
   struct ProcletInfo {
     ProcletHeader *header;
     float val;
@@ -74,4 +74,4 @@ private:
   static void aux_handler(void *args);
 };
 
-} // namespace nu
+}  // namespace nu

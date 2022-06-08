@@ -12,7 +12,7 @@ constexpr uint32_t kNumThreadsPerInvocation = 4;
 
 namespace nu {
 class Test {
-public:
+ public:
   void inc() {
     std::vector<nu::Thread> threads;
     for (uint32_t i = 0; i < kNumThreadsPerInvocation; i++) {
@@ -35,10 +35,10 @@ public:
     Runtime::pressure_handler->mock_set_pressure(pressure);
   }
 
-private:
+ private:
   std::atomic<int> s_;
 };
-} // namespace nu
+}  // namespace nu
 
 bool run_in_obj_env() {
   auto proclet = nu::make_proclet<nu::Test>();
@@ -68,7 +68,7 @@ bool run_in_runtime_env() {
         thread.join();
       }
     });
-  }  
+  }
   for (auto &invocation : invocations) {
     invocation.join();
   }

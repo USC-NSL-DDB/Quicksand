@@ -14,8 +14,9 @@ template <class T, template <class...> class Template>
 constexpr bool is_specialization_of_v =
     is_specialization_of<T, Template>::value;
 
-template <typename T> auto move_if_safe(T &&t);
+template <typename T>
+auto move_if_safe(T &&t);
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/type_traits.ipp"

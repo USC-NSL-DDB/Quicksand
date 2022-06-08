@@ -5,10 +5,9 @@
 namespace nu {
 
 template <typename RetT>
-RPCReturnCode
-Migrator::load_thread_and_ret_val(ProcletHeader *dest_proclet_header,
-                                  void *raw_dest_ret_val_ptr,
-                                  uint64_t payload_len, uint8_t *payload) {
+RPCReturnCode Migrator::load_thread_and_ret_val(
+    ProcletHeader *dest_proclet_header, void *raw_dest_ret_val_ptr,
+    uint64_t payload_len, uint8_t *payload) {
 retry:
   NonBlockingMigrationDisabledGuard guard(dest_proclet_header);
   if (unlikely(!guard)) {
@@ -114,4 +113,4 @@ void Migrator::migrate_thread_and_ret_val(RPCReturnBuffer &&ret_val_buf,
   rt::PreemptGuardAndPark gp(&p);
 }
 
-} // namespace nu
+}  // namespace nu

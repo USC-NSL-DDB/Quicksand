@@ -4,10 +4,11 @@ extern "C" {
 #include <runtime/net.h>
 }
 
+#include <thread.h>
+
 #include <cstdint>
 #include <memory>
 #include <span>
-#include <thread.h>
 #include <utility>
 #include <vector>
 
@@ -35,7 +36,7 @@ struct PerfThreadState {
 };
 
 class PerfAdapter {
-public:
+ public:
   virtual std::unique_ptr<PerfThreadState> create_thread_state() = 0;
   virtual std::unique_ptr<PerfRequest> gen_req(PerfThreadState *state) = 0;
   virtual bool serve_req(PerfThreadState *state, const PerfRequest *req) = 0;
@@ -43,7 +44,7 @@ public:
 
 // Closed-loop, possion arrival.
 class Perf {
-public:
+ public:
   Perf(PerfAdapter &adapter);
   void reset();
   void run(uint32_t num_threads, double target_mops, uint64_t duration_us,
@@ -58,7 +59,7 @@ public:
   double get_real_mops() const;
   const std::vector<Trace> &get_traces() const;
 
-private:
+ private:
   enum TraceFormat { kUnsorted, kSortedByDuration, kSortedByStart };
 
   PerfAdapter &adapter_;
@@ -71,14 +72,14 @@ private:
   void create_thread_states(
       std::vector<std::unique_ptr<PerfThreadState>> *thread_states,
       uint32_t num_threads);
-  void
-  gen_reqs(std::vector<PerfRequestWithTime> *all_reqs,
-           const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
-           uint32_t num_threads, double target_mops, uint64_t duration_us);
-  std::vector<Trace>
-  benchmark(std::vector<PerfRequestWithTime> *all_reqs,
-            const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
-            uint32_t num_threads, uint64_t miss_ddl_thresh_us);
+  void gen_reqs(
+      std::vector<PerfRequestWithTime> *all_reqs,
+      const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
+      uint32_t num_threads, double target_mops, uint64_t duration_us);
+  std::vector<Trace> benchmark(
+      std::vector<PerfRequestWithTime> *all_reqs,
+      const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
+      uint32_t num_threads, uint64_t miss_ddl_thresh_us);
 };
 
-} // namespace nu
+}  // namespace nu

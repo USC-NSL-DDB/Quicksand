@@ -47,8 +47,8 @@ Controller::~Controller() {
   barrier();
 }
 
-std::optional<std::pair<lpid_t, VAddrRange>>
-Controller::register_node(Node &node, lpid_t lpid, MD5Val md5) {
+std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
+    Node &node, lpid_t lpid, MD5Val md5) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   // TODO: should GC the allocated lpid and stack somehow through heartbeat or
@@ -112,8 +112,8 @@ bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
   }
 }
 
-std::optional<std::pair<ProcletID, uint32_t>>
-Controller::allocate_proclet(lpid_t lpid, uint32_t ip_hint) {
+std::optional<std::pair<ProcletID, uint32_t>> Controller::allocate_proclet(
+    lpid_t lpid, uint32_t ip_hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   if (unlikely(free_proclet_heap_segments_.empty())) {
@@ -217,7 +217,8 @@ void Controller::report_free_resource(lpid_t lpid, uint32_t ip,
   const_cast<Node &>(*node_iter).update_free_resource(free_resource);
 }
 
-template <typename T> void ewma(double weight, T *result, T new_data) {
+template <typename T>
+void ewma(double weight, T *result, T new_data) {
   *result = *result * weight + (1 - weight) * new_data;
 }
 
@@ -227,4 +228,4 @@ void Node::update_free_resource(Resource resource) {
   ewma(kWeight, &free_resource.mem_mbs, resource.mem_mbs);
 }
 
-} // namespace nu
+}  // namespace nu

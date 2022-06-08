@@ -1,15 +1,16 @@
 #pragma once
 
+#include <sync.h>
+
 #include <memory>
 #include <stack>
-
-#include <sync.h>
 
 #include "nu/commons.hpp"
 
 namespace nu {
-template <typename T, typename Allocator = std::allocator<T>> class CachedPool {
-public:
+template <typename T, typename Allocator = std::allocator<T>>
+class CachedPool {
+ public:
   CachedPool(const std::function<T *(void)> &new_fn,
              const std::function<void(T *)> &delete_fn,
              uint32_t per_core_cache_size);
@@ -21,7 +22,7 @@ public:
   void put(T *item);
   void reserve(uint32_t num);
 
-private:
+ private:
   using RebindAlloc =
       std::allocator_traits<Allocator>::template rebind_alloc<T *>;
   using ItemStack = std::stack<T *, std::vector<T *, RebindAlloc>>;
@@ -40,6 +41,6 @@ private:
 
   void init(uint32_t per_core_cache_size);
 };
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/cached_pool.ipp"

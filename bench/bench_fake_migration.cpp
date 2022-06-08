@@ -1,10 +1,11 @@
+#include <sys/mman.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
-#include <numeric>
-#include <sys/mman.h>
-#include <vector>
 #include <memory>
+#include <numeric>
+#include <vector>
 
 extern "C" {
 #include <net/ip.h>

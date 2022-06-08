@@ -6,7 +6,8 @@ namespace nu {
 
 class DistributedMemPool;
 
-template <typename T> auto move_if_safe(T &&t) {
+template <typename T>
+auto move_if_safe(T &&t) {
   // TODO: add DistributedHashTable
   if constexpr (is_specialization_of_v<std::decay_t<T>, Proclet> ||
                 is_specialization_of_v<std::decay_t<T>, RemUniquePtr> ||
@@ -18,4 +19,4 @@ template <typename T> auto move_if_safe(T &&t) {
   }
 }
 
-} // namespace nu
+}  // namespace nu

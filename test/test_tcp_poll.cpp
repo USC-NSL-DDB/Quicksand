@@ -1,11 +1,11 @@
+#include <net.h>
+#include <runtime.h>
+#include <thread.h>
+
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-
-#include <net.h>
-#include <runtime.h>
-#include <thread.h>
 
 using namespace rt;
 

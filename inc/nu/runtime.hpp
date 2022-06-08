@@ -29,8 +29,10 @@ class Migrator;
 class RPCServer;
 class PressureHandler;
 class ResourceReporter;
-template <typename T> class RuntimeAllocator;
-template <typename T> class RuntimeDeleter;
+template <typename T>
+class RuntimeAllocator;
+template <typename T>
+class RuntimeDeleter;
 
 struct RPCReqReserveConns {
   RPCReqType rpc_type = kReserveConns;
@@ -38,7 +40,7 @@ struct RPCReqReserveConns {
 } __attribute__((packed));
 
 class Runtime {
-public:
+ public:
   enum Mode { kClient, kServer, kController };
 
   static SlabAllocator runtime_slab;
@@ -49,7 +51,7 @@ public:
   static uint32_t get_ip_by_proclet_id(ProcletID id);
   static void reserve_conns(uint32_t ip);
 
-private:
+ private:
   static RCULock rcu_lock;
   static std::unique_ptr<ProcletServer> proclet_server;
   static std::unique_ptr<ControllerClient> controller_client;
@@ -84,10 +86,14 @@ private:
   friend class MigrationEnabledGuard;
   friend class MigrationDisabledGuard;
   friend class NonBlockingMigrationDisabledGuard;
-  template <typename T> friend class Proclet;
-  template <typename T> friend class RemRawPtr;
-  template <typename T> friend class RemUniquePtr;
-  template <typename T> friend class RemSharedPtr;
+  template <typename T>
+  friend class Proclet;
+  template <typename T>
+  friend class RemRawPtr;
+  template <typename T>
+  friend class RemUniquePtr;
+  template <typename T>
+  friend class RemSharedPtr;
 
   Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid);
   static void common_init();
@@ -102,35 +108,38 @@ private:
   static void *switch_to_runtime_slab();
   template <typename T, typename... Args>
   static T *new_on_runtime_heap(Args &&... args);
-  template <typename T> static void delete_on_runtime_heap(T *ptr);
+  template <typename T>
+  static void delete_on_runtime_heap(T *ptr);
   static SlabAllocator *get_current_proclet_slab();
   static ProcletHeader *get_current_proclet_header();
   static ProcletID get_current_proclet_id();
-  template <typename T> static T *get_current_root_obj();
-  template <typename T> static T *get_root_obj(ProcletID id);
+  template <typename T>
+  static T *get_current_root_obj();
+  template <typename T>
+  static T *get_root_obj(ProcletID id);
 };
 
 class RuntimeSlabGuard {
-public:
+ public:
   RuntimeSlabGuard();
   ~RuntimeSlabGuard();
 
-private:
+ private:
   void *original_slab_;
 };
 
 class ProcletSlabGuard {
-public:
+ public:
   ProcletSlabGuard(void *slab);
   ~ProcletSlabGuard();
 
-private:
+ private:
   void *original_slab_;
 };
 
 int runtime_main_init(int argc, char **argv,
                       std::function<void(int argc, char **argv)> main_func);
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/runtime.ipp"

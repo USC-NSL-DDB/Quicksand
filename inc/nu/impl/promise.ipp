@@ -16,7 +16,8 @@ Promise<T>::Promise() : futurized_(false), ready_(false) {}
 
 inline Promise<void>::Promise() : futurized_(false), ready_(false) {}
 
-template <typename T> Promise<T>::~Promise() {
+template <typename T>
+Promise<T>::~Promise() {
   spin_.lock();
   spin_.unlock();
 }
@@ -34,13 +35,15 @@ Future<T, Deleter> Promise<T>::get_future() {
   return Future<T, Deleter>(this);
 }
 
-template <typename Deleter> Future<void, Deleter> Promise<void>::get_future() {
+template <typename Deleter>
+Future<void, Deleter> Promise<void>::get_future() {
   BUG_ON(futurized_);
   futurized_ = true;
   return Future<void, Deleter>(this);
 }
 
-template <typename T> void Promise<T>::set_ready() {
+template <typename T>
+void Promise<T>::set_ready() {
   spin_.lock();
   ready_ = true;
   cv_.signal_all();
@@ -54,11 +57,14 @@ inline void Promise<void>::set_ready() {
   spin_.unlock();
 }
 
-template <typename T> T *Promise<T>::data() { return &t_; }
+template <typename T>
+T *Promise<T>::data() {
+  return &t_;
+}
 
 template <typename T>
 template <typename F, typename Allocator>
-Promise<T> *Promise<T>::create(F && f) {
+Promise<T> *Promise<T>::create(F &&f) {
   Allocator allocator;
   auto *promise = allocator.allocate(1);
   new (promise) Promise<T>();
@@ -81,4 +87,4 @@ Promise<void> *Promise<void>::create(F &&f) {
   return promise;
 }
 
-} // namespace nu
+}  // namespace nu

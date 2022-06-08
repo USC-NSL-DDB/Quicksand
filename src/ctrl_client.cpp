@@ -37,8 +37,8 @@ ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode,
   std::cout << "running with lpid = " << lpid_ << std::endl;
 }
 
-std::optional<std::pair<lpid_t, VAddrRange>>
-ControllerClient::register_node(const Node &node, MD5Val md5) {
+std::optional<std::pair<lpid_t, VAddrRange>> ControllerClient::register_node(
+    const Node &node, MD5Val md5) {
   RPCReqRegisterNode req;
   req.node = node;
   req.lpid = lpid_;
@@ -141,4 +141,4 @@ void ControllerClient::report_free_resource(Resource resource) {
                               /* poll = */ true) != sizeof(req));
 }
 
-} // namespace nu
+}  // namespace nu

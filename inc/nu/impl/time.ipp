@@ -34,4 +34,4 @@ inline void Time::proclet_env_sleep(uint64_t duration_us) {
   proclet_env_sleep_until(proclet_env_microtime() + duration_us);
 }
 
-} // namespace nu
+}  // namespace nu

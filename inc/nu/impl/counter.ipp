@@ -1,6 +1,6 @@
-#include <cstring>
-
 #include <sync.h>
+
+#include <cstring>
 
 namespace nu {
 
@@ -32,4 +32,4 @@ inline int64_t Counter::get() {
 
 inline void Counter::reset() { memset(cnts_, 0, sizeof(cnts_)); }
 
-} // namespace nu
+}  // namespace nu

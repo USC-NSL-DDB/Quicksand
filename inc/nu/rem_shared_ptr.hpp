@@ -6,8 +6,9 @@
 
 namespace nu {
 
-template <typename T> class RemSharedPtr : public RemPtr<T> {
-public:
+template <typename T>
+class RemSharedPtr : public RemPtr<T> {
+ public:
   RemSharedPtr() noexcept;
   RemSharedPtr(std::shared_ptr<T> &&shared_ptr) noexcept;
   ~RemSharedPtr() noexcept;
@@ -18,11 +19,14 @@ public:
   void reset();
   Future<void> reset_async();
 
-  template <class Archive> void save(Archive &ar) const;
-  template <class Archive> void save(Archive &ar);
-  template <class Archive> void load(Archive &ar);
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void save(Archive &ar);
+  template <class Archive>
+  void load(Archive &ar);
 
-private:
+ private:
   std::shared_ptr<T> *shared_ptr_ = nullptr;
 
   RemSharedPtr(std::shared_ptr<T> *shared_ptr);
@@ -34,6 +38,6 @@ private:
 template <typename T, typename... Args>
 RemSharedPtr<T> make_rem_shared(Args &&... args);
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/rem_shared_ptr.ipp"

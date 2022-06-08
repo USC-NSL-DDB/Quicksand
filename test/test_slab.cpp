@@ -1,9 +1,9 @@
+#include <runtime.h>
+
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-
-#include <runtime.h>
 
 #include "nu/utils/slab.hpp"
 
@@ -96,4 +96,3 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-

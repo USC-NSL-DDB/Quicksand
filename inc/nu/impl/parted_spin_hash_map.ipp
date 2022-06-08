@@ -73,4 +73,4 @@ bool ThreadSafeHashMap<K, V, Allocator, NPartitions>::try_get_and_remove(K1 &&k,
   return true;
 }
 
-} // namespace nu
+}  // namespace nu

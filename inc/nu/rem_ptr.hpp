@@ -7,8 +7,9 @@
 
 namespace nu {
 
-template <typename T> class RemPtr {
-public:
+template <typename T>
+class RemPtr {
+ public:
   RemPtr() noexcept;
   RemPtr(const RemPtr &) noexcept;
   RemPtr &operator=(const RemPtr &) noexcept;
@@ -22,20 +23,21 @@ public:
   template <typename RetT, typename... S0s, typename... S1s>
   RetT run(RetT (*fn)(T &, S0s...), S1s &&... states);
 
-  template <class Archive> void save(Archive &ar) const;
-  template <class Archive> void load(Archive &ar);
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
 
-protected:
+ protected:
   ProcletID proclet_id_;
   T *raw_ptr_ = nullptr;
 
   RemPtr(ProcletID id, T *raw_ptr);
 
-private:
+ private:
   friend class DistributedMemPool;
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/rem_ptr.ipp"
-

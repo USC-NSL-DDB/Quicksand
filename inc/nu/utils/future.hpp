@@ -5,11 +5,12 @@
 
 namespace nu {
 
-template <typename T> class Promise;
+template <typename T>
+class Promise;
 
 template <typename T, typename Deleter = std::default_delete<Promise<T>>>
 class Future {
-public:
+ public:
   Future();
   Future(const Future &) = delete;
   Future &operator=(const Future &) = delete;
@@ -20,15 +21,17 @@ public:
   bool is_ready();
   T &get();
 
-private:
+ private:
   std::unique_ptr<Promise<T>, Deleter> promise_;
-  template <typename U> friend class Promise;
+  template <typename U>
+  friend class Promise;
 
   Future(Promise<T> *promise);
 };
 
-template <typename Deleter> class Future<void, Deleter> {
-public:
+template <typename Deleter>
+class Future<void, Deleter> {
+ public:
   Future();
   Future(const Future &) = delete;
   Future &operator=(const Future &) = delete;
@@ -39,9 +42,10 @@ public:
   bool is_ready();
   void get();
 
-private:
+ private:
   std::unique_ptr<Promise<void>, Deleter> promise_;
-  template <typename U> friend class Promise;
+  template <typename U>
+  friend class Promise;
 
   Future(Promise<void> *promise);
 };
@@ -50,6 +54,6 @@ template <typename F, typename Allocator = std::allocator<
                           Promise<std::invoke_result_t<std::decay_t<F>>>>>
 Future<std::invoke_result_t<std::decay_t<F>>> async(F &&f);
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/future.ipp"

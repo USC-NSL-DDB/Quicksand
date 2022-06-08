@@ -1,6 +1,7 @@
+#include <sys/mman.h>
+
 #include <algorithm>
 #include <cstring>
-#include <sys/mman.h>
 
 extern "C" {
 #include <runtime/preempt.h>
@@ -11,11 +12,12 @@ extern "C" {
 namespace nu {
 
 StackManager::StackManager(VAddrRange stack_cluster)
-    : range_(stack_cluster), cached_pool_([]() -> uint8_t * { BUG(); },
-                                          [](uint8_t *) {}, kPerCoreCacheSize) {
+    : range_(stack_cluster),
+      cached_pool_([]() -> uint8_t * { BUG(); }, [](uint8_t *) {},
+                   kPerCoreCacheSize) {
   mmap(stack_cluster);
   auto num_stacks = (stack_cluster.end - stack_cluster.start) / kStackSize -
-                    1; // The first kStackSize bytes are reserved for metadata.
+                    1;  // The first kStackSize bytes are reserved for metadata.
   auto *ptr = reinterpret_cast<uint8_t *>(stack_cluster.start + kStackSize);
   for (uint64_t i = 0; i < num_stacks; i++) {
     cached_pool_.put(ptr);
@@ -56,4 +58,4 @@ uint8_t *StackManager::get() { return cached_pool_.get(); }
 
 void StackManager::put(uint8_t *stack) { cached_pool_.put(stack); }
 
-} // namespace nu
+}  // namespace nu

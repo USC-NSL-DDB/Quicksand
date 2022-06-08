@@ -17,4 +17,4 @@ BlockedSyncer::get_all() {
   return sync_map_.get_all_pairs();
 }
 
-} // namespace nu
+}  // namespace nu

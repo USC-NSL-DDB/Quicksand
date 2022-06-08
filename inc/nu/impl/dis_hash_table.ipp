@@ -14,9 +14,9 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets> &
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
-    const DistributedHashTable &o) {
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
+    &DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
+        const DistributedHashTable &o) {
   power_num_shards_ = o.power_num_shards_;
   num_shards_ = o.num_shards_;
   shards_ = o.shards_;
@@ -32,9 +32,9 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets> &
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
-    DistributedHashTable &&o) {
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
+    &DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
+        DistributedHashTable &&o) {
   power_num_shards_ = o.power_num_shards_;
   num_shards_ = o.num_shards_;
   for (uint32_t i = 0; i < num_shards_; i++) {
@@ -76,8 +76,8 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_proclet_id(
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
-std::optional<V>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
+std::optional<V> DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(
+    K1 &&k) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
@@ -85,7 +85,7 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
   return shard.__run(
       +[](HashTableShard &shard, K k, uint64_t key_hash) {
         auto *v_ptr = shard.get_with_hash(std::move(k), key_hash);
-	return v_ptr ? std::make_optional(*v_ptr) : std::nullopt;
+        return v_ptr ? std::make_optional(*v_ptr) : std::nullopt;
       },
       std::forward<K1>(k), key_hash);
 }
@@ -93,9 +93,8 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
-std::optional<V>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k,
-                                                            bool *is_local) {
+std::optional<V> DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(
+    K1 &&k, bool *is_local) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
@@ -184,9 +183,8 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_async(K1 &&k) {
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1, typename V1>
-Future<void>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::put_async(K1 &&k,
-                                                                  V1 &&v) {
+Future<void> DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::put_async(
+    K1 &&k, V1 &&v) {
   return nu::async([&, k, v] { return put(std::move(k), std::move(v)); });
 }
 
@@ -287,8 +285,8 @@ void DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::serialize(
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
-make_dis_hash_table(uint32_t power_num_shards) {
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets> make_dis_hash_table(
+    uint32_t power_num_shards) {
   using TableType = DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>;
   TableType table;
   table.power_num_shards_ = power_num_shards;
@@ -315,4 +313,4 @@ make_dis_hash_table_pinned(uint32_t power_num_shards) {
   return table;
 }
 
-} // namespace nu
+}  // namespace nu

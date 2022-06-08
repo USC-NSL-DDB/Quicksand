@@ -79,4 +79,4 @@ void ProcletServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
   }
 }
 
-} // namespace nu
+}  // namespace nu

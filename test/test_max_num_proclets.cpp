@@ -17,11 +17,11 @@ extern "C" {
 using namespace nu;
 
 class Obj {
-public:
+ public:
   Obj(uint32_t x) : x_(x) {}
   uint32_t get() { return x_; }
 
-private:
+ private:
   uint32_t x_;
 };
 

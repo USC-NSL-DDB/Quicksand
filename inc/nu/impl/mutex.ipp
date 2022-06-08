@@ -6,13 +6,9 @@ extern "C" {
 
 namespace nu {
 
-inline Mutex::Mutex() {
-  mutex_init(&m_);
-}
+inline Mutex::Mutex() { mutex_init(&m_); }
 
-inline Mutex::~Mutex() {
-  assert(!mutex_held(&m_));
-}
+inline Mutex::~Mutex() { assert(!mutex_held(&m_)); }
 
 inline void Mutex::lock() {
   if (unlikely(!try_lock())) {
@@ -31,4 +27,4 @@ inline bool Mutex::try_lock() { return mutex_try_lock(&m_); }
 
 inline list_head *Mutex::get_waiters() { return &m_.waiters; }
 
-} // namespace nu
+}  // namespace nu

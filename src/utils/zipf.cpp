@@ -1,7 +1,7 @@
+#include "nu/utils/zipf.hpp"
+
 #include <cmath>
 #include <memory>
-
-#include "nu/utils/zipf.hpp"
 
 namespace nu {
 
@@ -20,4 +20,4 @@ uint64_t zipf_distribution::min() const { return 0; }
 
 uint64_t zipf_distribution::max() const { return num_ - 1; }
 
-} // namespace nu
+}  // namespace nu

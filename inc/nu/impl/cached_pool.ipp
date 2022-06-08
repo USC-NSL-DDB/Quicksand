@@ -10,7 +10,8 @@ template <typename T, typename Allocator>
 CachedPool<T, Allocator>::CachedPool(const std::function<T *(void)> &new_fn,
                                      const std::function<void(T *)> &delete_fn,
                                      uint32_t per_core_cache_size)
-    : new_fn_(new_fn), delete_fn_(delete_fn),
+    : new_fn_(new_fn),
+      delete_fn_(delete_fn),
       per_core_cache_size_(per_core_cache_size) {
   init(per_core_cache_size);
 }
@@ -19,7 +20,8 @@ template <typename T, typename Allocator>
 CachedPool<T, Allocator>::CachedPool(std::function<T *(void)> &&new_fn,
                                      std::function<void(T *)> &&delete_fn,
                                      uint32_t per_core_cache_size)
-    : new_fn_(std::move(new_fn)), delete_fn_(std::move(delete_fn)),
+    : new_fn_(std::move(new_fn)),
+      delete_fn_(std::move(delete_fn)),
       per_core_cache_size_(per_core_cache_size) {
   init(per_core_cache_size);
 }
@@ -50,7 +52,8 @@ CachedPool<T, Allocator>::~CachedPool() {
   }
 }
 
-template <typename T, typename Allocator> T *CachedPool<T, Allocator>::get() {
+template <typename T, typename Allocator>
+T *CachedPool<T, Allocator>::get() {
   int cpu = get_cpu();
   auto &local = locals_[cpu];
   T *item;
@@ -102,4 +105,4 @@ void CachedPool<T, Allocator>::reserve(uint32_t num) {
   }
 }
 
-} // namespace nu
+}  // namespace nu

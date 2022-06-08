@@ -2,8 +2,9 @@ extern "C" {
 #include <base/log.h>
 }
 
-#include <type_traits>
 #include <runtime.h>
+
+#include <type_traits>
 
 #include "nu/utils/rpc.hpp"
 
@@ -23,10 +24,10 @@ enum rpc_cmd : unsigned int {
 
 // Binary header format for requests sent by client.
 struct rpc_req_hdr {
-  rpc_cmd cmd;                 // the command type
-  unsigned int demand;         // number of RPCs waiting to be sent and inflight
-  std::size_t len;             // the length of this RPC request
-  std::size_t completion_data; // an opaque token to complete the RPC
+  rpc_cmd cmd;          // the command type
+  unsigned int demand;  // number of RPCs waiting to be sent and inflight
+  std::size_t len;      // the length of this RPC request
+  std::size_t completion_data;  // an opaque token to complete the RPC
 };
 
 constexpr rpc_req_hdr MakeCallRequest(unsigned int demand, std::size_t len,
@@ -40,11 +41,11 @@ constexpr rpc_req_hdr MakeUpdateRequest(unsigned int demand) {
 
 // Binary header format for responses sent by server.
 struct rpc_resp_hdr {
-  rpc_cmd cmd;                 // the command type
-  unsigned int credits;        // the number of credits available
-  ssize_t len;                 // the length of this RPC response,
-                               // < 0 indicates an error
-  std::size_t completion_data; // an opaque token to complete the RPC
+  rpc_cmd cmd;                  // the command type
+  unsigned int credits;         // the number of credits available
+  ssize_t len;                  // the length of this RPC response,
+                                // < 0 indicates an error
+  std::size_t completion_data;  // an opaque token to complete the RPC
 };
 
 constexpr rpc_resp_hdr MakeCallResponse(unsigned int credits, ssize_t len,
@@ -81,7 +82,7 @@ void RPCServerListener(uint16_t port, RPCHandler &&handler, bool blocking) {
   }
 }
 
-} // namespace
+}  // namespace
 
 namespace rpc_internal {
 
@@ -123,8 +124,7 @@ void RPCServer::SendWorker() {
     {
       // wait for an actionable state.
       rt::SpinGuard guard(&lock_);
-      while (completions_.empty() && !close_)
-        guard.Park(&wake_sender_);
+      while (completions_.empty() && !close_) guard.Park(&wake_sender_);
 
       // gather all queued completions.
       std::move(completions_.begin(), completions_.end(),
@@ -133,8 +133,7 @@ void RPCServer::SendWorker() {
     }
 
     // Check if the connection is closed.
-    if (unlikely(close_ && completions.empty()))
-      break;
+    if (unlikely(close_ && completions.empty())) break;
 
     // process each of the requests.
     iovecs.clear();
@@ -145,8 +144,7 @@ void RPCServer::SendWorker() {
       hdrs.emplace_back(MakeCallResponse(
           credits_, c.rc == kOk ? span.size_bytes() : c.rc, c.completion_data));
       iovecs.emplace_back(&hdrs.back(), sizeof(decltype(hdrs)::value_type));
-      if (span.size_bytes() == 0)
-        continue;
+      if (span.size_bytes() == 0) continue;
       iovecs.emplace_back(const_cast<std::byte *>(span.data()),
                           span.size_bytes());
     }
@@ -159,8 +157,7 @@ void RPCServer::SendWorker() {
     }
     completions.clear();
   }
-  if (WARN_ON(c_->Shutdown(SHUT_WR)))
-    c_->Abort();
+  if (WARN_ON(c_->Shutdown(SHUT_WR))) c_->Abort();
 }
 
 void RPCServer::ReceiveWorker() {
@@ -168,8 +165,7 @@ void RPCServer::ReceiveWorker() {
     // Read the request header.
     rpc_req_hdr hdr;
     ssize_t ret = c_->ReadFull(&hdr, sizeof(hdr));
-    if (unlikely(ret == 0))
-      break;
+    if (unlikely(ret == 0)) break;
     if (unlikely(ret < 0)) {
       log_err("rpc: ReadFull failed, err = %ld", ret);
       break;
@@ -178,8 +174,7 @@ void RPCServer::ReceiveWorker() {
     // Parse the request header.
     std::size_t completion_data = hdr.completion_data;
     demand_ = hdr.demand;
-    if (hdr.cmd != rpc_cmd::call)
-      continue;
+    if (hdr.cmd != rpc_cmd::call) continue;
 
     // Spawn a handler with no argument data provided.
     if (hdr.len == 0) {
@@ -193,8 +188,7 @@ void RPCServer::ReceiveWorker() {
     // Allocate and fill a buffer with the argument data.
     auto buf = std::make_unique_for_overwrite<std::byte[]>(hdr.len);
     ret = c_->ReadFull(buf.get(), hdr.len);
-    if (unlikely(ret == 0))
-      break;
+    if (unlikely(ret == 0)) break;
     if (unlikely(ret < 0)) {
       log_err("rpc: ReadFull failed, err = %ld", ret);
       return;
@@ -268,8 +262,7 @@ void RPCFlow::SendWorker() {
     }
 
     // Check if it is time to close the connection.
-    if (unlikely(close))
-      break;
+    if (unlikely(close)) break;
 
     // construct a scatter-gather list for all the pending requests.
     iovecs.clear();
@@ -281,8 +274,7 @@ void RPCFlow::SendWorker() {
           MakeCallRequest(demand, span.size_bytes(),
                           reinterpret_cast<std::size_t>(r.completion)));
       iovecs.emplace_back(&hdrs.back(), sizeof(decltype(hdrs)::value_type));
-      if (span.size_bytes() == 0)
-        continue;
+      if (span.size_bytes() == 0) continue;
       iovecs.emplace_back(const_cast<std::byte *>(span.data()),
                           span.size_bytes());
     }
@@ -297,8 +289,7 @@ void RPCFlow::SendWorker() {
   }
 
   // send FIN on the wire.
-  if (WARN_ON(c_->Shutdown(SHUT_WR)))
-    c_->Abort();
+  if (WARN_ON(c_->Shutdown(SHUT_WR))) c_->Abort();
 }
 
 void RPCFlow::ReceiveWorker() {
@@ -316,12 +307,10 @@ void RPCFlow::ReceiveWorker() {
       rt::SpinGuard guard(&lock_);
       unsigned int inflight = sent_count_ - ++recv_count_;
       // credits_ = hdr.credits;
-      if (credits_ > inflight && !reqs_.empty())
-        wake_sender_.Wake();
+      if (credits_ > inflight && !reqs_.empty()) wake_sender_.Wake();
     }
 
-    if (hdr.cmd != rpc_cmd::call)
-      continue;
+    if (hdr.cmd != rpc_cmd::call) continue;
 
     // Check if there is no return data.
     auto *completion = reinterpret_cast<RPCCompletion *>(hdr.completion_data);
@@ -340,7 +329,7 @@ std::unique_ptr<RPCFlow> RPCFlow::New(unsigned int cpu_affinity,
   return f;
 }
 
-} // namespace rpc_internal
+}  // namespace rpc_internal
 
 void RPCServerInit(uint16_t port, RPCHandler &&handler, bool blocking) {
   RPCServerListener(port, std::move(handler), blocking);

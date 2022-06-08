@@ -52,13 +52,19 @@ struct Key {
     return false;
   }
 
-  template <class Archive> void serialize(Archive &ar) { ar(data); }
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(data);
+  }
 };
 
 struct Val {
   char data[kValLen];
 
-  template <class Archive> void serialize(Archive &ar) { ar(data); }
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(data);
+  }
 };
 
 constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
@@ -77,7 +83,7 @@ struct Test {
   Test() {}
   uint64_t get_mem_usage() { return Runtime::proclet_manager->get_mem_usage(); }
 };
-} // namespace nu
+}  // namespace nu
 
 using LocalHashTable =
     SyncHashMap<Test::kTotalNumBuckets, Key, Val, decltype(kFarmHashKeytoU64),
@@ -125,24 +131,24 @@ void gen_commands(std::vector<Command> *commands) {
         std::set<Key>::iterator iter;
 
         switch (op) {
-        case kPut:
-          random_str(dist, mt, kKeyLen, key.data);
-          random_str(dist, mt, kValLen, val.data);
-          commands_pt->emplace_back(kPut, key, val);
-          set_pt.emplace(key);
-          break;
-        case kDelete:
-          random_str(dist, mt, kKeyLen, key.data);
-          iter = set_pt.lower_bound(key);
-          if (unlikely(iter == set_pt.end())) {
+          case kPut:
+            random_str(dist, mt, kKeyLen, key.data);
+            random_str(dist, mt, kValLen, val.data);
+            commands_pt->emplace_back(kPut, key, val);
+            set_pt.emplace(key);
             break;
-          }
-          key = *iter;
-          commands_pt->emplace_back(kDelete, key);
-          set_pt.erase(iter);
-          break;
-        default:
-          BUG();
+          case kDelete:
+            random_str(dist, mt, kKeyLen, key.data);
+            iter = set_pt.lower_bound(key);
+            if (unlikely(iter == set_pt.end())) {
+              break;
+            }
+            key = *iter;
+            commands_pt->emplace_back(kDelete, key);
+            set_pt.erase(iter);
+            break;
+          default:
+            BUG();
         }
       }
     });
@@ -164,14 +170,14 @@ uint64_t run_on_local_hash_table(std::vector<Command> *commands) {
     threads.emplace_back([&, tid = i, commands_pt = &commands[i]] {
       for (auto &cmd : *commands_pt) {
         switch (cmd.op) {
-        case kPut:
-          local_hash_table.put(cmd.key, *cmd.val);
-          break;
-        case kDelete:
-          BUG_ON(!local_hash_table.remove(cmd.key));
-          break;
-        default:
-          BUG();
+          case kPut:
+            local_hash_table.put(cmd.key, *cmd.val);
+            break;
+          case kDelete:
+            BUG_ON(!local_hash_table.remove(cmd.key));
+            break;
+          default:
+            BUG();
         }
       }
     });
@@ -198,14 +204,14 @@ uint64_t run_on_dis_hash_table(std::vector<Command> *commands) {
     threads.emplace_back([&, tid = i, commands_pt = &commands[i]] {
       for (auto &cmd : *commands_pt) {
         switch (cmd.op) {
-        case kPut:
-          dis_hash_table.put(cmd.key, *cmd.val);
-          break;
-        case kDelete:
-          BUG_ON(!dis_hash_table.remove(cmd.key));
-          break;
-        default:
-          BUG();
+          case kPut:
+            dis_hash_table.put(cmd.key, *cmd.val);
+            break;
+          case kDelete:
+            BUG_ON(!dis_hash_table.remove(cmd.key));
+            break;
+          default:
+            BUG();
         }
       }
     });

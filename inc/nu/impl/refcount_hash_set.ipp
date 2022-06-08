@@ -52,4 +52,4 @@ std::vector<K> RefcountHashSet<K>::all_keys() {
   return keys;
 }
 
-} // namespace nu
+}  // namespace nu

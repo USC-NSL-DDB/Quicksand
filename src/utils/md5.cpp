@@ -3,13 +3,14 @@ extern "C" {
 #include <base/stddef.h>
 }
 
-#include <cstdlib>
-#include <cstring>
 #include <fcntl.h>
-#include <string>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 #include "nu/utils/md5.hpp"
 
@@ -35,4 +36,4 @@ MD5Val get_md5(std::string file_name) {
   return md5_val;
 }
 
-} // namespace nu
+}  // namespace nu

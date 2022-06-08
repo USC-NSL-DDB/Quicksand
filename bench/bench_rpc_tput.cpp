@@ -4,10 +4,11 @@ extern "C" {
 #include <unistd.h>
 }
 
+#include <runtime.h>
+
 #include <chrono>
 #include <iostream>
 #include <memory>
-#include <runtime.h>
 
 #include "nu/utils/rpc.hpp"
 
@@ -22,7 +23,8 @@ void ServerHandler(std::span<std::byte> args, nu::RPCReturner *returner) {
   auto buf = std::make_unique<std::byte[]>(args.size());
   std::copy(args.begin(), args.end(), buf.get());
   std::span<const std::byte> s(buf.get(), args.size());
-  returner->Return(nu::RPCReturnCode::kOk, s, [b = std::move(buf)]() mutable {});
+  returner->Return(nu::RPCReturnCode::kOk, s,
+                   [b = std::move(buf)]() mutable {});
 }
 
 void RunServer() { nu::RPCServerInit(kPort, &ServerHandler); }
@@ -70,7 +72,7 @@ int StringToAddr(const char *str, uint32_t *addr) {
   return 0;
 }
 
-} // namespace
+}  // namespace
 
 int main(int argc, char *argv[]) {
   if (argc < 3) {

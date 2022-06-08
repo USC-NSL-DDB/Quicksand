@@ -19,7 +19,7 @@ using namespace nu;
 Runtime::Mode mode;
 
 class Obj {
-public:
+ public:
   void set_vec_a(std::vector<int> vec) { a_ = vec; }
   void set_vec_b(std::vector<int> vec) { b_ = vec; }
   std::vector<int> plus() {
@@ -30,7 +30,7 @@ public:
     return c;
   }
 
-private:
+ private:
   std::vector<int> a_;
   std::vector<int> b_;
 };

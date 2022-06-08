@@ -7,17 +7,17 @@ extern "C" {
 namespace nu {
 
 class ResourceReporter {
-public:
+ public:
   constexpr static uint32_t kReportResourceIntervalMs = 1;
 
   ResourceReporter();
   ~ResourceReporter();
 
-private:
+ private:
   bool done_;
   rt::Thread voluntary_reporter_;
   rt::Thread iokernel_forced_reporter_;
 
   void report_resource(bool forced);
 };
-} // namespace nu
+}  // namespace nu

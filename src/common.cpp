@@ -22,4 +22,4 @@ uint32_t str_to_ip(std::string ip_str) {
   return MAKE_IP_ADDR(addr0, addr1, addr2, addr3);
 }
 
-} // namespace nu
+}  // namespace nu

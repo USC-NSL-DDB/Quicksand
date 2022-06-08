@@ -40,11 +40,15 @@ struct VAddrRange {
   }
 };
 
-template <typename T> union MethodPtr {
+template <typename T>
+union MethodPtr {
   T ptr;
   uint8_t raw[sizeof(T)];
 
-  template <class Archive> void serialize(Archive &ar) { ar(raw); }
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(raw);
+  }
 };
 
 constexpr static uint64_t kNumCores = NCORES;
@@ -85,12 +89,15 @@ void *switch_stack(void *new_rsp);
 VAddrRange get_proclet_stack_range(thread_t *thread);
 bool is_in_proclet_heap(void *ptr, void *proclet_base);
 bool is_copied_on_migration(void *ptr, ProcletHeader *proclet_header);
-template <typename T> std::span<std::byte> to_span(T &t);
-template <typename T> T &from_span(std::span<std::byte> span);
-template <typename T> const T &from_span(std::span<const std::byte> span);
+template <typename T>
+std::span<std::byte> to_span(T &t);
+template <typename T>
+T &from_span(std::span<std::byte> span);
+template <typename T>
+const T &from_span(std::span<const std::byte> span);
 uint32_t str_to_ip(std::string ip_str);
 void unblock_and_relax();
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/commons.ipp"

@@ -37,7 +37,8 @@ inline ProcletID Runtime::get_current_proclet_id() {
   return to_proclet_id(proclet_base);
 }
 
-template <typename T> T *Runtime::get_current_root_obj() {
+template <typename T>
+T *Runtime::get_current_root_obj() {
   auto *proclet_header = get_current_proclet_header();
   if (!proclet_header) {
     return nullptr;
@@ -46,7 +47,8 @@ template <typename T> T *Runtime::get_current_root_obj() {
       reinterpret_cast<uintptr_t>(proclet_header->slab.get_base()));
 }
 
-template <typename T> T *Runtime::get_root_obj(ProcletID id) {
+template <typename T>
+T *Runtime::get_root_obj(ProcletID id) {
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(to_proclet_base(id));
   return reinterpret_cast<T *>(
       reinterpret_cast<uintptr_t>(proclet_header->slab.get_base()));
@@ -114,7 +116,8 @@ T *Runtime::new_on_runtime_heap(Args &&... args) {
   return reinterpret_cast<T *>(ptr);
 }
 
-template <typename T> void Runtime::delete_on_runtime_heap(T *ptr) {
+template <typename T>
+void Runtime::delete_on_runtime_heap(T *ptr) {
   ptr->~T();
   Runtime::runtime_slab.free(ptr);
 }
@@ -135,4 +138,4 @@ inline ProcletSlabGuard::~ProcletSlabGuard() {
   thread_set_proclet_slab(original_slab_);
 }
 
-} // namespace nu
+}  // namespace nu

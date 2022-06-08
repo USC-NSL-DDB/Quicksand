@@ -1,4 +1,5 @@
 #include "nu/utils/cond_var.hpp"
+
 #include "nu/runtime.hpp"
 #include "nu/utils/blocked_syncer.hpp"
 #include "nu/utils/mutex.hpp"
@@ -101,4 +102,4 @@ void CondVar::signal_all() {
   }
 }
 
-} // namespace nu
+}  // namespace nu

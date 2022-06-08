@@ -17,7 +17,8 @@ void RemPtr<T>::load(Archive &ar) {
   proclet_id_ = id;
 }
 
-template <typename T> RemPtr<T>::RemPtr() noexcept {}
+template <typename T>
+RemPtr<T>::RemPtr() noexcept {}
 
 template <typename T>
 RemPtr<T>::RemPtr(const RemPtr<T> &o) noexcept
@@ -34,7 +35,8 @@ template <typename T>
 RemPtr<T>::RemPtr(RemPtr<T> &&o) noexcept
     : proclet_id_(o.proclet_id_), raw_ptr_(o.raw_ptr_) {}
 
-template <typename T> RemPtr<T> &RemPtr<T>::operator=(RemPtr<T> &&o) noexcept {
+template <typename T>
+RemPtr<T> &RemPtr<T>::operator=(RemPtr<T> &&o) noexcept {
   proclet_id_ = o.proclet_id_;
   raw_ptr_ = o.raw_ptr_;
   return *this;
@@ -44,11 +46,18 @@ template <typename T>
 RemPtr<T>::RemPtr(ProcletID id, T *raw_ptr)
     : proclet_id_(id), raw_ptr_(raw_ptr) {}
 
-template <typename T> RemPtr<T>::operator bool() const { return raw_ptr_; }
+template <typename T>
+RemPtr<T>::operator bool() const {
+  return raw_ptr_;
+}
 
-template <typename T> T *RemPtr<T>::get() { return raw_ptr_; }
+template <typename T>
+T *RemPtr<T>::get() {
+  return raw_ptr_;
+}
 
-template <typename T> T RemPtr<T>::operator*() {
+template <typename T>
+T RemPtr<T>::operator*() {
   Proclet<ErasedType> proclet(proclet_id_, false);
   return proclet.__run(
       +[](ErasedType &, T *raw_ptr) { return *raw_ptr; }, raw_ptr_);
@@ -82,4 +91,4 @@ RetT RemPtr<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
       raw_ptr_addr, fn, std::forward<S1s>(states)...);
 }
 
-} // namespace nu
+}  // namespace nu

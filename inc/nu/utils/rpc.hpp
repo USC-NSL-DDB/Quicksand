@@ -1,5 +1,9 @@
 #pragma once
 
+#include <net.h>
+#include <sync.h>
+#include <thread.h>
+
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -7,24 +11,19 @@
 #include <span>
 #include <vector>
 
-#include <net.h>
-#include <sync.h>
-#include <thread.h>
-
 #include "nu/commons.hpp"
 
 namespace nu {
 
 // RPCReturnBuffer manages a return data buffer and its lifetime.
 class RPCReturnBuffer {
-public:
+ public:
   RPCReturnBuffer() {}
   RPCReturnBuffer(std::span<const std::byte> buf,
                   folly::Function<void()> deleter_fn = {})
       : buf_(buf), deleter_fn_(std::move(deleter_fn)) {}
   ~RPCReturnBuffer() {
-    if (deleter_fn_)
-      deleter_fn_();
+    if (deleter_fn_) deleter_fn_();
   }
 
   // disable copy
@@ -37,8 +36,7 @@ public:
     rbuf.buf_ = std::span<const std::byte>();
   }
   RPCReturnBuffer &operator=(RPCReturnBuffer &&rbuf) {
-    if (deleter_fn_)
-      deleter_fn_();
+    if (deleter_fn_) deleter_fn_();
     buf_ = rbuf.buf_;
     deleter_fn_ = std::move(rbuf.deleter_fn_);
     rbuf.buf_ = std::span<const std::byte>();
@@ -50,8 +48,7 @@ public:
   // replaces the return data buffer.
   void Reset(std::span<const std::byte> buf = {},
              folly::Function<void()> deleter_fn = nullptr) {
-    if (deleter_fn_)
-      deleter_fn_();
+    if (deleter_fn_) deleter_fn_();
     buf_ = buf;
     deleter_fn_ = std::move(deleter_fn);
   }
@@ -64,7 +61,7 @@ public:
     return std::span(const_cast<std::byte *>(buf_.data()), buf_.size());
   }
 
-private:
+ private:
   std::span<const std::byte> buf_;
   folly::Function<void()> deleter_fn_;
 };
@@ -72,14 +69,14 @@ private:
 enum RPCReturnCode { kErrWrongClient = -2, kErrTimeout = -1, kOk = 0 };
 
 class RPCReturner {
-public:
+ public:
   RPCReturner() {}
   RPCReturner(void *rpc_server, std::size_t completion_data);
   void Return(RPCReturnCode rc, std::span<const std::byte> buf,
               folly::Function<void()> deleter_fn);
   void Return(RPCReturnCode rc);
 
-private:
+ private:
   void *rpc_server_;
   std::size_t completion_data_;
 };
@@ -94,7 +91,7 @@ namespace rpc_internal {
 
 // RPCCompletion manages the completion of an inflight request.
 class RPCCompletion {
-public:
+ public:
   RPCCompletion(RPCReturnBuffer *return_buf)
       : return_buf_(return_buf), poll_(!preempt_enabled()) {
     if (!poll_) {
@@ -118,7 +115,7 @@ public:
     return rc_;
   }
 
-private:
+ private:
   RPCReturnCode rc_;
   RPCReturnBuffer *return_buf_;
   RPCCallback callback_;
@@ -128,13 +125,16 @@ private:
 
 // RPCFlow encapsulates one of the TCP connections used by an RPCClient.
 class RPCFlow {
-public:
+ public:
   constexpr static bool kEnableAdaptiveBatching = true;
   constexpr static uint64_t kReqBatchSize = 4;
   constexpr static uint64_t kBatchTimeoutUs = 5;
 
   RPCFlow(std::unique_ptr<rt::TcpConn> c)
-      : close_(false), c_(std::move(c)), sent_count_(0), recv_count_(0),
+      : close_(false),
+        c_(std::move(c)),
+        sent_count_(0),
+        recv_count_(0),
         credits_(128) {}
   ~RPCFlow();
 
@@ -148,7 +148,7 @@ public:
   RPCFlow(const RPCFlow &) = delete;
   RPCFlow &operator=(const RPCFlow &) = delete;
 
-private:
+ private:
   // State for managing inflight requests.
   struct req_ctx {
     std::span<const std::byte> payload;
@@ -172,13 +172,13 @@ private:
   uint64_t last_sent_us_;
 };
 
-} // namespace rpc_internal
+}  // namespace rpc_internal
 
 // Initializes and runs the RPC server.
 void RPCServerInit(uint16_t port, RPCHandler &&handler, bool blocking = true);
 
 class RPCClient {
-public:
+ public:
   ~RPCClient(){};
 
   // Creates an RPC Client and establishes the underlying TCP connections.
@@ -198,7 +198,7 @@ public:
   RPCClient(const RPCClient &) = delete;
   RPCClient &operator=(const RPCClient &) = delete;
 
-private:
+ private:
   using RPCCompletion = rpc_internal::RPCCompletion;
   using RPCFlow = rpc_internal::RPCFlow;
 
@@ -210,6 +210,6 @@ private:
   netaddr raddr_;
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/rpc.ipp"

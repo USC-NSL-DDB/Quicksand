@@ -21,10 +21,10 @@ constexpr static uint32_t kNumRuns = 100000;
 Runtime::Mode mode;
 
 class Obj {
-public:
+ public:
   int foo() { return 0x88; }
 
-private:
+ private:
 };
 
 void do_work() {

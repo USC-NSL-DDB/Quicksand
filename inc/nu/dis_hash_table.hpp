@@ -1,8 +1,9 @@
 #pragma once
 
+#include <thread.h>
+
 #include <cereal/types/vector.hpp>
 #include <memory>
-#include <thread.h>
 #include <utility>
 #include <vector>
 
@@ -22,7 +23,7 @@ namespace nu {
 template <typename K, typename V, typename Hash = std::hash<K>,
           typename KeyEqual = std::equal_to<K>, uint64_t NumBuckets = 32768>
 class DistributedHashTable {
-public:
+ public:
   constexpr static uint32_t kDefaultPowerNumShards = 13;
   constexpr static uint64_t kNumBucketsPerShard = NumBuckets;
 
@@ -35,42 +36,49 @@ public:
   DistributedHashTable(DistributedHashTable &&);
   DistributedHashTable &operator=(DistributedHashTable &&);
   DistributedHashTable();
-  template <typename K1> std::optional<V> get(K1 &&k);
-  template <typename K1> std::optional<V> get(K1 &&k, bool *is_local);
-  template <typename K1, typename V1> void put(K1 &&k, V1 &&v);
-  template <typename K1> bool remove(K1 &&k);
+  template <typename K1>
+  std::optional<V> get(K1 &&k);
+  template <typename K1>
+  std::optional<V> get(K1 &&k, bool *is_local);
+  template <typename K1, typename V1>
+  void put(K1 &&k, V1 &&v);
+  template <typename K1>
+  bool remove(K1 &&k);
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
   RetT apply(K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...),
              A1s &&... args);
-  template <typename K1> Future<std::optional<V>> get_async(K1 &&k);
-  template <typename K1, typename V1> Future<void> put_async(K1 &&k, V1 &&v);
-  template <typename K1> Future<bool> remove_async(K1 &&k);
+  template <typename K1>
+  Future<std::optional<V>> get_async(K1 &&k);
+  template <typename K1, typename V1>
+  Future<void> put_async(K1 &&k, V1 &&v);
+  template <typename K1>
+  Future<bool> remove_async(K1 &&k);
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
   Future<RetT> apply_async(K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...),
                            A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
-  RetT
-  associative_reduce(bool clear, RetT init_val,
-                     void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
-                     void (*merge_fn)(RetT &result, RetT &partition, A0s...),
-                     A1s &&... args);
+  RetT associative_reduce(
+      bool clear, RetT init_val,
+      void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
+      void (*merge_fn)(RetT &result, RetT &partition, A0s...), A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
-  std::vector<RetT>
-  associative_reduce(bool clear, RetT init_val,
-                     void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
-                     A1s &&... args);
+  std::vector<RetT> associative_reduce(
+      bool clear, RetT init_val,
+      void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
+      A1s &&... args);
   std::vector<std::pair<K, V>> get_all_pairs();
   template <typename K1>
   static uint32_t get_shard_idx(K1 &&k, uint32_t power_num_shards);
   ProcletID get_shard_proclet_id(uint32_t shard_id);
 
-  template <class Archive> void serialize(Archive &ar);
+  template <class Archive>
+  void serialize(Archive &ar);
 
   // For debugging and performance analysis.
   template <typename K1>
   std::pair<std::optional<V>, uint32_t> get_with_ip(K1 &&k);
 
-private:
+ private:
   friend class Test;
 
   uint32_t get_shard_idx(uint64_t key_hash);
@@ -80,11 +88,11 @@ private:
   std::vector<Proclet<HashTableShard>> shards_;
 
   template <typename X, typename Y, typename H, typename Eq, uint64_t N>
-  friend DistributedHashTable<X, Y, H, Eq, N>
-  make_dis_hash_table(uint32_t power_num_shards);
+  friend DistributedHashTable<X, Y, H, Eq, N> make_dis_hash_table(
+      uint32_t power_num_shards);
   template <typename X, typename Y, typename H, typename Eq, uint64_t N>
-  friend DistributedHashTable<X, Y, H, Eq, N>
-  make_dis_hash_table_pinned(uint32_t power_num_shards);
+  friend DistributedHashTable<X, Y, H, Eq, N> make_dis_hash_table_pinned(
+      uint32_t power_num_shards);
 };
 
 template <typename K, typename V, typename Hash = std::hash<K>,
@@ -99,6 +107,6 @@ make_dis_hash_table_pinned(
     uint32_t power_num_shards = DistributedHashTable<
         K, V, Hash, KeyEqual, NumBuckets>::kDefaultPowerNumShards);
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/dis_hash_table.ipp"

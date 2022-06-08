@@ -3,7 +3,8 @@
 
 namespace nu {
 
-template <typename T> RemRawPtr<T>::RemRawPtr() {}
+template <typename T>
+RemRawPtr<T>::RemRawPtr() {}
 
 template <typename T>
 RemRawPtr<T>::RemRawPtr(T *raw_ptr)
@@ -21,7 +22,8 @@ RemRawPtr<T> &RemRawPtr<T>::operator=(const RemRawPtr<T> &o) {
 template <typename T>
 RemRawPtr<T>::RemRawPtr(RemRawPtr<T> &&o) : RemPtr<T>(std::move(o)) {}
 
-template <typename T> RemRawPtr<T> &RemRawPtr<T>::operator=(RemRawPtr<T> &&o) {
+template <typename T>
+RemRawPtr<T> &RemRawPtr<T>::operator=(RemRawPtr<T> &&o) {
   RemPtr<T>::operator=(std::move(o));
   return *this;
 }
@@ -31,4 +33,4 @@ RemRawPtr<T> make_rem_ptr(Args &&... args) {
   return RemRawPtr<T>(new T(std::forward<Args>(args)...));
 }
 
-} // namespace nu
+}  // namespace nu

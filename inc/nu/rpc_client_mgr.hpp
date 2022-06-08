@@ -1,8 +1,9 @@
 #pragma once
 
+#include <sync.h>
+
 #include <limits>
 #include <memory>
-#include <sync.h>
 #include <unordered_map>
 #include <utility>
 
@@ -16,15 +17,15 @@ using NodeIP = uint32_t;
 using NodeID = uint16_t;
 
 class RPCClientMgr {
-public:
+ public:
   RPCClientMgr(uint16_t port);
   RPCClient *get_by_proclet_id(ProcletID proclet_id);
   RPCClient *get_by_ip(NodeIP ip);
   uint32_t get_ip_by_proclet_id(ProcletID proclet_id);
   void update_cache(ProcletID proclet_id, RPCClient *old_client);
 
-private:
-  union NodeInfo { // Supports atomic assignment.
+ private:
+  union NodeInfo {  // Supports atomic assignment.
     struct {
       NodeIP ip;
       NodeID id;
@@ -51,4 +52,4 @@ private:
   RPCClient *get_client(NodeInfo info);
   NodeInfo get_info(ProcletID proclet_id);
 };
-} // namespace nu
+}  // namespace nu

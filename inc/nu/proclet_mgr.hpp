@@ -32,7 +32,8 @@ class SlabAllocator;
 class Mutex;
 class CondVar;
 class Time;
-template <typename T> class RuntimeAllocator;
+template <typename T>
+class RuntimeAllocator;
 
 enum ProcletStatus { kAbsent = 0, kMapped, kPresent, kDestructed };
 
@@ -81,7 +82,7 @@ struct ProcletHeader {
 };
 
 class ProcletManager {
-public:
+ public:
   ProcletManager();
 
   static void mmap(void *proclet_base);
@@ -98,7 +99,7 @@ public:
   uint64_t get_mem_usage();
   uint32_t get_num_present_proclets();
 
-private:
+ private:
   constexpr static uint32_t kNumAlwaysMmapedPages =
       (offsetof(ProcletHeader, always_mmaped_end) - 1) / kPageSize + 1;
   constexpr static uint32_t kNumAlwaysMmapedBytes =
@@ -118,7 +119,7 @@ private:
 };
 
 class MigrationEnabledGuard {
-public:
+ public:
   // By default guards the current proclet header.
   MigrationEnabledGuard();
   MigrationEnabledGuard(ProcletHeader *proclet_header);
@@ -127,12 +128,12 @@ public:
   void reset(ProcletHeader *proclet_header = nullptr);
   ~MigrationEnabledGuard();
 
-private:
+ private:
   ProcletHeader *proclet_header_;
 };
 
 class MigrationDisabledGuard {
-public:
+ public:
   // By default guards the current proclet header.
   MigrationDisabledGuard();
   MigrationDisabledGuard(ProcletHeader *proclet_header);
@@ -143,27 +144,27 @@ public:
   operator bool() const;
   ProcletHeader *get_proclet_header();
 
-private:
+ private:
   ProcletHeader *proclet_header_;
 };
 
 class NonBlockingMigrationDisabledGuard {
-public:
+ public:
   // By default guards the current proclet header.
   NonBlockingMigrationDisabledGuard();
   NonBlockingMigrationDisabledGuard(ProcletHeader *proclet_header);
   NonBlockingMigrationDisabledGuard(NonBlockingMigrationDisabledGuard &&o);
-  NonBlockingMigrationDisabledGuard &
-  operator=(NonBlockingMigrationDisabledGuard &&o);
+  NonBlockingMigrationDisabledGuard &operator=(
+      NonBlockingMigrationDisabledGuard &&o);
   ~NonBlockingMigrationDisabledGuard();
   void reset(ProcletHeader *proclet_header = nullptr);
   operator bool() const;
   ProcletHeader *get_proclet_header();
 
-private:
+ private:
   ProcletHeader *proclet_header_;
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/proclet_mgr.ipp"

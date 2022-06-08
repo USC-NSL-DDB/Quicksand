@@ -1,17 +1,18 @@
 #pragma once
 
-#include <cstdint>
-#include <map>
 #include <sync.h>
 
+#include <cstdint>
+#include <map>
+
 #include "nu/commons.hpp"
-#include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/cached_pool.hpp"
+#include "nu/utils/rcu_lock.hpp"
 
 namespace nu {
 
 class StackManager {
-public:
+ public:
   constexpr static uint32_t kPerCoreCacheSize = 32;
 
   StackManager(VAddrRange stack_cluster);
@@ -20,7 +21,7 @@ public:
   VAddrRange get_range();
   void add_ref_cnt(VAddrRange borrowed_stack_cluster, uint32_t cnt);
 
-private:
+ private:
   struct alignas(kCacheLineBytes) CoreCache {
     uint8_t *stack;
   };
@@ -34,6 +35,6 @@ private:
   static void munmap(VAddrRange borrowed_stack_cluster);
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/stack_manager.ipp"

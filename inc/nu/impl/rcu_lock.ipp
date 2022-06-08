@@ -27,4 +27,4 @@ inline bool RCULock::try_reader_lock() {
   return true;
 }
 
-} // namespace nu
+}  // namespace nu

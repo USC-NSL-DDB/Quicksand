@@ -10,8 +10,9 @@
 
 namespace nu {
 
-template <typename Allocator> class ArchivePool {
-public:
+template <typename Allocator>
+class ArchivePool {
+ public:
   constexpr static uint32_t kOAStreamPreallocBufSize = 128 - 1;
   constexpr static uint32_t kOAStreamMaxBufSize = 8192 - 1;
 
@@ -39,7 +40,7 @@ public:
   OASStream *get_oa_sstream();
   void put_oa_sstream(OASStream *oa_sstream);
 
-private:
+ private:
   using IAAllocator =
       std::allocator_traits<Allocator>::template rebind_alloc<IASStream>;
   using OAAllocator =
@@ -49,6 +50,6 @@ private:
   CachedPool<OASStream, OAAllocator> oa_pool_;
 };
 
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/archive_pool.ipp"

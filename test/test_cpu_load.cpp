@@ -22,14 +22,14 @@ Runtime::Mode mode;
 uint32_t ip = MAKE_IP_ADDR(18, 18, 1, 2);
 
 class CPUHeavyObj {
-public:
+ public:
   constexpr static uint32_t kTimeUs = 100;
 
   void compute() { delay_us(kTimeUs); }
 };
 
 class CPULightObj {
-public:
+ public:
   constexpr static uint32_t kTimeUs = 10;
 
   void compute() {
@@ -39,10 +39,9 @@ public:
 };
 
 class CPUSpinObj {
-public:
+ public:
   void compute() {
-    while (!rt::access_once(done_))
-      cpu_relax();
+    while (!rt::access_once(done_)) cpu_relax();
   }
 
   void done() { done_ = true; }
@@ -51,7 +50,7 @@ public:
 };
 
 class CPUNestedObj {
-public:
+ public:
   constexpr static uint32_t kTime0Us = 40;
   constexpr static uint32_t kTime1Us = 50;
   constexpr static uint32_t kTimeUs = kTime0Us + kTime1Us;
@@ -74,7 +73,7 @@ public:
 namespace nu {
 
 class Test {
-public:
+ public:
   void migrate() {
     ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
                                      .num_cores_to_release = 0};
@@ -134,7 +133,7 @@ public:
     return passed;
   };
 };
-} // namespace nu
+}  // namespace nu
 
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {

@@ -1,9 +1,9 @@
 #pragma once
 
+#include <sync.h>
+
 #include <cstdint>
 #include <functional>
-
-#include <sync.h>
 
 #include "nu/commons.hpp"
 #include "nu/utils/cond_var.hpp"
@@ -13,7 +13,7 @@
 namespace nu {
 
 class RCULock {
-public:
+ public:
   constexpr static uint32_t kReaderWaitFastPathMaxUs = 20;
   constexpr static uint32_t kWriterWaitFastPathMaxUs = 20;
   constexpr static uint32_t kWriterWaitSlowPathSleepUs = 10;
@@ -25,7 +25,7 @@ public:
   void reader_unlock();
   void writer_sync(bool prioritize_readers = false);
 
-private:
+ private:
   union Cnt {
     struct Data {
       int32_t c;
@@ -44,10 +44,11 @@ private:
   std::vector<rt::ThreadWaker> wakers_;
   rt::Spin spin_;
 
-  template <typename Fn> void write_sync_general(Fn &&fn);
+  template <typename Fn>
+  void write_sync_general(Fn &&fn);
   void reader_wait();
   void __reader_lock();
 };
-} // namespace nu
+}  // namespace nu
 
 #include "nu/impl/rcu_lock.ipp"

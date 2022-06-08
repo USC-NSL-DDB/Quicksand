@@ -24,7 +24,8 @@ inline Thread &Thread::operator=(Thread &&t) {
   return *this;
 }
 
-template <typename F> Thread::Thread(F &&f) {
+template <typename F>
+Thread::Thread(F &&f) {
   auto *proclet_header = Runtime::get_current_proclet_header();
 
   if (proclet_header) {
@@ -48,7 +49,8 @@ void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
   thread_ready(th_);
 }
 
-template <typename F> void Thread::create_in_runtime_env(F &&f) {
+template <typename F>
+void Thread::create_in_runtime_env(F &&f) {
   th_ = thread_create_with_buf(trampoline_in_runtime_env,
                                reinterpret_cast<void **>(&join_data_),
                                sizeof(*join_data_));
@@ -58,4 +60,4 @@ template <typename F> void Thread::create_in_runtime_env(F &&f) {
 }
 
 inline bool Thread::joinable() { return join_data_; }
-} // namespace nu
+}  // namespace nu

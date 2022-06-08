@@ -3,7 +3,7 @@ namespace nu {
 namespace rpc_internal {
 
 class RPCServer {
-public:
+ public:
   RPCServer(std::unique_ptr<rt::TcpConn> c, nu::RPCHandler &handler)
       : c_(std::move(c)), handler_(handler), close_(false) {}
   ~RPCServer() {}
@@ -14,7 +14,7 @@ public:
   void Return(RPCReturnCode rc, RPCReturnBuffer &&buf,
               std::size_t completion_data);
 
-private:
+ private:
   // Internal worker threads for sending and receiving.
   void SendWorker();
   void ReceiveWorker();
@@ -48,7 +48,7 @@ inline void RPCFlow::Call(std::span<const std::byte> src, RPCCompletion *c) {
   if (sent_count_ - recv_count_ < credits_) wake_sender_.Wake();
 }
 
-} // namespace rpc_internal
+}  // namespace rpc_internal
 
 inline RPCReturner::RPCReturner(void *rpc_server, std::size_t completion_data)
     : rpc_server_(rpc_server), completion_data_(completion_data) {}
@@ -96,4 +96,4 @@ inline RPCReturnCode RPCClient::Call(std::span<const std::byte> args,
   return completion.get_return_code();
 }
 
-} // namespace nu
+}  // namespace nu

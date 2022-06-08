@@ -46,7 +46,8 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h> // for memcpy and memset
+#include <string.h>  // for memcpy and memset
+
 #include <utility>
 
 #ifndef NAMESPACE_FOR_HASH_FUNCTIONS
@@ -189,7 +190,8 @@ inline uint64_t Fingerprint(uint64_t x) {
 // Hash function for a byte array.
 // May change from time to time, may differ on different platforms, may differ
 // depending on NDEBUG.
-template <typename Str> inline size_t Hash(const Str &s) {
+template <typename Str>
+inline size_t Hash(const Str &s) {
   assert(sizeof(s[0]) == 1);
   return Hash(s.data(), s.length());
 }
@@ -197,7 +199,8 @@ template <typename Str> inline size_t Hash(const Str &s) {
 // Hash function for a byte array.  Most useful in 32-bit binaries.
 // May change from time to time, may differ on different platforms, may differ
 // depending on NDEBUG.
-template <typename Str> inline uint32_t Hash32(const Str &s) {
+template <typename Str>
+inline uint32_t Hash32(const Str &s) {
   assert(sizeof(s[0]) == 1);
   return Hash32(s.data(), s.length());
 }
@@ -216,7 +219,8 @@ inline uint32_t Hash32WithSeed(const Str &s, uint32_t seed) {
 // Hash function for a byte array.
 // May change from time to time, may differ on different platforms, may differ
 // depending on NDEBUG.
-template <typename Str> inline uint64_t Hash64(const Str &s) {
+template <typename Str>
+inline uint64_t Hash64(const Str &s) {
   assert(sizeof(s[0]) == 1);
   return Hash64(s.data(), s.length());
 }
@@ -244,7 +248,8 @@ inline uint64_t Hash64WithSeeds(const Str &s, uint64_t seed0, uint64_t seed1) {
 // Hash function for a byte array.
 // May change from time to time, may differ on different platforms, may differ
 // depending on NDEBUG.
-template <typename Str> inline uint128_t Hash128(const Str &s) {
+template <typename Str>
+inline uint128_t Hash128(const Str &s) {
   assert(sizeof(s[0]) == 1);
   return Hash128(s.data(), s.length());
 }
@@ -262,27 +267,30 @@ inline uint128_t Hash128WithSeed(const Str &s, uint128_t seed) {
 // FINGERPRINTING (i.e., good, portable, forever-fixed hash functions)
 
 // Fingerprint function for a byte array.  Most useful in 32-bit binaries.
-template <typename Str> inline uint32_t Fingerprint32(const Str &s) {
+template <typename Str>
+inline uint32_t Fingerprint32(const Str &s) {
   assert(sizeof(s[0]) == 1);
   return Fingerprint32(s.data(), s.length());
 }
 
 // Fingerprint 128 input bits down to 64 bits of output.
 // Fingerprint function for a byte array.
-template <typename Str> inline uint64_t Fingerprint64(const Str &s) {
+template <typename Str>
+inline uint64_t Fingerprint64(const Str &s) {
   assert(sizeof(s[0]) == 1);
   return Fingerprint64(s.data(), s.length());
 }
 
 // Fingerprint function for a byte array.
-template <typename Str> inline uint128_t Fingerprint128(const Str &s) {
+template <typename Str>
+inline uint128_t Fingerprint128(const Str &s) {
   assert(sizeof(s[0]) == 1);
   return Fingerprint128(s.data(), s.length());
 }
 
 #endif
 
-} // namespace NAMESPACE_FOR_HASH_FUNCTIONS
+}  // namespace NAMESPACE_FOR_HASH_FUNCTIONS
 
 /* gently define FARMHASH_BIG_ENDIAN when detected big-endian machine */
 #if defined(__BIG_ENDIAN__)
@@ -290,24 +298,24 @@ template <typename Str> inline uint128_t Fingerprint128(const Str &s) {
 #define FARMHASH_BIG_ENDIAN
 #endif
 #elif defined(__LITTLE_ENDIAN__)
-  // nothing for little-endian
-#elif defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) &&           \
+   // nothing for little-endian
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
     (__BYTE_ORDER == __ORDER_LITTLE_ENDIAN__)
-  // nothing for little-endian
-#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) &&              \
+   // nothing for little-endian
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && \
     (__BYTE_ORDER == __ORDER_BIG_ENDIAN__)
 #if !defined(FARMHASH_BIG_ENDIAN)
 #define FARMHASH_BIG_ENDIAN
 #endif
-#elif defined(__linux__) || defined(__CYGWIN__) ||                             \
+#elif defined(__linux__) || defined(__CYGWIN__) || \
     defined(__GNUC__) && !defined(_WIN32) || defined(__GNU_LIBRARY__)
-#include <endian.h> // libc6-dev, GLIBC
+#include <endian.h>  // libc6-dev, GLIBC
 #if BYTE_ORDER == BIG_ENDIAN
 #if !defined(FARMHASH_BIG_ENDIAN)
 #define FARMHASH_BIG_ENDIAN
 #endif
 #endif
-#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) ||   \
+#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || \
     defined(__DragonFly__) || defined(__s390x__)
 #include <sys/endian.h>
 #if BYTE_ORDER == BIG_ENDIAN
@@ -316,9 +324,9 @@ template <typename Str> inline uint128_t Fingerprint128(const Str &s) {
 #endif
 #endif
 #elif defined(_WIN32)
-  // Windows is (currently) little-endian
+   // Windows is (currently) little-endian
 #else
 #error "Unable to determine endianness!"
 #endif /* __BIG_ENDIAN__ */
 
-#endif // FARM_HASH_HPP_
+#endif  // FARM_HASH_HPP_

@@ -63,4 +63,4 @@ void SpinlockHashSet<K, Allocator, NPartitions>::for_each(
   }
 }
 
-} // namespace nu
+}  // namespace nu

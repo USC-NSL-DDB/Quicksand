@@ -1,11 +1,12 @@
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
-#include <fcntl.h>
 #include <memory>
 #include <span>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 extern "C" {
 #include <base/assert.h>
@@ -146,28 +147,28 @@ void Migrator::run_background_loop() {
           }
 
           switch (type) {
-          case kCopyProclet:
-            handle_copy_proclet(c);
-            break;
-          case kMigrate:
-            handle_load(c);
-            break;
-          case kEnablePoll:
-            poll = true;
-            preempt_disable();
-            break;
-          case kDisablePoll:
-            poll = false;
-            preempt_enable();
-            break;
-          case kRegisterCallBack:
-            handle_register_callback(c);
-            break;
-          case kDeregisterCallBack:
-            handle_deregister_callback(c);
-            break;
-          default:
-            BUG();
+            case kCopyProclet:
+              handle_copy_proclet(c);
+              break;
+            case kMigrate:
+              handle_load(c);
+              break;
+            case kEnablePoll:
+              poll = true;
+              preempt_disable();
+              break;
+            case kDisablePoll:
+              poll = false;
+              preempt_enable();
+              break;
+            case kRegisterCallBack:
+              handle_register_callback(c);
+              break;
+            case kDeregisterCallBack:
+              handle_deregister_callback(c);
+              break;
+            default:
+              BUG();
           }
         }
         BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
@@ -408,14 +409,14 @@ void Migrator::transmit(rt::TcpConn *c, ProcletHeader *proclet_header,
   auto all_blocked_syncers = proclet_header->blocked_syncer.get_all();
   for (auto [raw_ptr, type] : all_blocked_syncers) {
     switch (type) {
-    case BlockedSyncer::kMutex:
-      mutexes.push_back(reinterpret_cast<Mutex *>(raw_ptr));
-      break;
-    case BlockedSyncer::kCondVar:
-      condvars.push_back(reinterpret_cast<CondVar *>(raw_ptr));
-      break;
-    default:
-      BUG();
+      case BlockedSyncer::kMutex:
+        mutexes.push_back(reinterpret_cast<Mutex *>(raw_ptr));
+        break;
+      case BlockedSyncer::kCondVar:
+        condvars.push_back(reinterpret_cast<CondVar *>(raw_ptr));
+        break;
+      default:
+        BUG();
     }
   }
 
@@ -756,8 +757,8 @@ VAddrRange Migrator::load_stack_cluster_mmap_task(rt::TcpConn *c) {
   return stack_cluster;
 }
 
-std::vector<ProcletRange>
-Migrator::load_proclet_mmap_populate_ranges(rt::TcpConn *c) {
+std::vector<ProcletRange> Migrator::load_proclet_mmap_populate_ranges(
+    rt::TcpConn *c) {
   std::vector<ProcletRange> populate_ranges;
   uint64_t size;
 
@@ -873,4 +874,4 @@ void Migrator::forward_to_client(RPCReqForward &req) {
   Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(req.stack_top));
 }
 
-} // namespace nu
+}  // namespace nu
