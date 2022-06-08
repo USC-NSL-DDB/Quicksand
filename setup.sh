@@ -34,9 +34,15 @@ function setup_dropless_rq {
     sudo ethtool --set-priv-flags $nic_dev dropless_rq on
 }
 
+function prune_fdb_table {
+    sudo bridge fdb | grep $nic_dev | awk '{print $1, $2, $3}' | \
+	xargs -d '\n' -I {} bash -c "sudo bridge fdb delete {}"
+}
+
 get_nic_dev
 setup_caladan
 setup_jumbo_frame
 setup_trust_dscp
 #setup_pfc
 setup_dropless_rq
+
