@@ -1,15 +1,13 @@
 #!/bin/bash
 
-function check_param {
-    if [[ ! -v DPDK_NIC ]]; then
-        echo 'Please set env var $DPDK_NIC, e.g., export DPDK_NIC=enp5s0f0'
-        exit 1
-    fi
-}
-
-function restart_port {
-    sudo ifconfig $DPDK_NIC down
-    sudo ifconfig $DPDK_NIC up
+function get_nic_dev {
+    sudo caladan/iokerneld >.tmp 2>&1 &
+    ( tail -f -n0 .tmp & ) | grep -q "MAC"
+    sudo pkill -9 iokerneld
+    mac=`cat .tmp | grep "MAC" | sed "s/.*MAC: \(.*\)/\1/g" | tr " " ":"`
+    rm .tmp
+    nic_dev=`ifconfig | grep "flags\|ether" | awk 'NR%2{printf "%s ",$0;next;}1' \
+             | grep $mac | awk -F ':' '{print $1}'`
 }
 
 function setup_caladan {
@@ -17,29 +15,28 @@ function setup_caladan {
 }
 
 function setup_jumbo_frame {
-    sudo ifconfig $DPDK_NIC mtu 9000
+    sudo ifconfig $nic_dev mtu 9000
 }
 
 function setup_trust_dscp {
-    sudo mlnx_qos -i $DPDK_NIC --trust dscp
+    sudo mlnx_qos -i $nic_dev --trust dscp
 }
 
 function setup_pfc {
-    sudo ethtool -A $DPDK_NIC rx off tx off
-    sudo mlnx_qos -i $DPDK_NIC -f 1,1,1,1,1,1,1,1 \
+    sudo ethtool -A $nic_dev rx off tx off
+    sudo mlnx_qos -i $nic_dev -f 1,1,1,1,1,1,1,1 \
 	                       -p 0,1,2,3,4,5,6,7 \
 	                       --prio2buffer 0,1,1,1,1,1,1,1 \
 			       -s strict,strict,strict,strict,strict,strict,strict,strict
 }
 
 function setup_dropless_rq {
-    sudo ethtool --set-priv-flags $DPDK_NIC dropless_rq on
+    sudo ethtool --set-priv-flags $nic_dev dropless_rq on
 }
 
-check_param
-restart_port
+get_nic_dev
 setup_caladan
 setup_jumbo_frame
 setup_trust_dscp
-setup_pfc
+#setup_pfc
 setup_dropless_rq
