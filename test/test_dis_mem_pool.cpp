@@ -44,7 +44,7 @@ bool run_single_thread() {
 
   std::vector<RemUniquePtr<int>> unique_ptrs;
   for (uint64_t i = 0; i < DistributedMemPool::kShardSize / sizeof(int); i++) {
-    unique_ptrs.emplace_back(std::move(dis_mem_pool.allocate_unique<int>()));
+    unique_ptrs.emplace_back(dis_mem_pool.allocate_unique<int>());
   }
 
   return true;
@@ -60,9 +60,9 @@ bool run_multi_thread() {
   for (uint32_t i = 0; i < kNumThreads; i++) {
     alloc_threads.emplace_back([tid = i, &unique_ptrs, &dis_mem_pool] {
       for (uint32_t j = 0; j < kNumAllocationsPerThread; j++) {
-        unique_ptrs[tid].emplace_back(std::move(
+        unique_ptrs[tid].emplace_back(
             dis_mem_pool.allocate_unique<std::pair<uint64_t, uint64_t>>(tid,
-                                                                        j)));
+                                                                        j));
       }
     });
   }

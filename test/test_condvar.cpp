@@ -62,13 +62,13 @@ void do_work() {
 
   std::vector<Future<void>> futures;
   for (size_t i = 0; i < kConcurrency; i++) {
-    futures.push_back(std::move(proclet.run_async(&Test::consume)));
+    futures.emplace_back(proclet.run_async(&Test::consume));
   }
 
-  futures.push_back(std::move(proclet.run_async(&Test::migrate)));
+  futures.emplace_back(proclet.run_async(&Test::migrate));
 
   for (size_t i = 0; i < kConcurrency; i++) {
-    futures.push_back(std::move(proclet.run_async(&Test::produce)));
+    futures.emplace_back(proclet.run_async(&Test::produce));
   }
 
   for (auto &future : futures) {

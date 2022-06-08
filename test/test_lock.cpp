@@ -56,9 +56,9 @@ void do_work() {
 
   std::vector<Future<void>> futures;
   for (size_t i = 0; i < kConcurrency; i++) {
-    futures.push_back(std::move(proclet.run_async(&Test::mutex)));
+    futures.emplace_back(proclet.run_async(&Test::mutex));
   }
-  futures.push_back(std::move(proclet.run_async(&Test::migrate)));
+  futures.emplace_back(proclet.run_async(&Test::migrate));
 
   for (auto &future : futures) {
     future.get();
