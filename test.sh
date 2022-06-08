@@ -7,12 +7,12 @@ all_passed=1
 local_unit_tests=("test_slab" "test_perf" "test_tcp_poll")
 
 function prepare {
+    ./setup.sh >/dev/null 2>&1
     sudo sync; sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
     if [[ ! -v DPDK_NIC ]]; then
 	echo 'Please set env var $DPDK_NIC, e.g., export DPDK_NIC=enp5s0f0'
 	exit 1
     fi
-    sudo ifconfig $DPDK_NIC mtu 9000
     sudo bridge fdb add 1E:CF:16:43:AF:94 self dev $DPDK_NIC 2>/dev/null
     sudo bridge fdb add 1E:CF:16:43:AF:95 self dev $DPDK_NIC 2>/dev/null
     sudo bridge fdb add 1E:CF:16:43:AF:96 self dev $DPDK_NIC 2>/dev/null
@@ -78,6 +78,15 @@ function cleanup {
     sudo bridge fdb delete 1E:CF:16:43:AF:96 self dev $DPDK_NIC 2>/dev/null
     sudo bridge fdb delete 1E:CF:16:43:AF:97 self dev $DPDK_NIC 2>/dev/null
 }
+
+function force_cleanup {
+    kill_controller
+    kill_process test_
+    cleanup
+    exit 1
+}
+
+trap force_cleanup INT
 
 prepare
 run_all_tests
