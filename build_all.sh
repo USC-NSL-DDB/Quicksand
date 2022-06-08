@@ -26,6 +26,8 @@ if [ $NODE_TYPE == "xl170-uswitch" ]; then
     patch -p1 -d caladan/ < caladan/build/connectx-4.patch    
 fi
 
+patch -p1 -d caladan/ < caladan/build/runtime_fdb.patch
+
 # Build caladan.
 cd caladan
 ./build.sh
