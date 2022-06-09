@@ -9,6 +9,7 @@ extern "C" {
 #include <runtime.h>
 
 #include "nu/commons.hpp"
+#include "nu/runtime.hpp"
 #include "nu/utils/perf.hpp"
 
 using namespace nu;
@@ -57,15 +58,7 @@ class Test {
 }  // namespace nu
 
 int main(int argc, char **argv) {
-  int ret;
-
-  if (argc < 2) {
-    std::cerr << "usage: [cfg_file]" << std::endl;
-    return -EINVAL;
-  }
-
-  ret = rt::RuntimeInit(std::string(argv[1]), [] {
-    std::cout << "Running " << __FILE__ "..." << std::endl;
+  return runtime_main_init(argc, argv, [](int, char **) {
     Test test;
     if (test.run()) {
       std::cout << "Passed" << std::endl;
@@ -73,11 +66,4 @@ int main(int argc, char **argv) {
       std::cout << "Failed" << std::endl;
     }
   });
-
-  if (ret) {
-    std::cerr << "failed to start runtime" << std::endl;
-    return ret;
-  }
-
-  return 0;
 }

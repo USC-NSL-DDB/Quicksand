@@ -7,6 +7,8 @@
 #include <iostream>
 #include <memory>
 
+#include "nu/runtime.hpp"
+
 using namespace rt;
 
 constexpr static uint32_t kPingPongTimes = 400000;
@@ -34,7 +36,7 @@ void run_server(bool poll) {
 
 uint64_t run_client(bool poll) {
   netaddr laddr = {.ip = 0, .port = 0};
-  netaddr raddr = {.ip = MAKE_IP_ADDR(18, 18, 1, 4), .port = 8081};
+  netaddr raddr = {.ip = get_cfg_ip(), .port = 8081};
   auto *c = TcpConn::Dial(laddr, raddr);
   BUG_ON(!c);
   int num = 0;
@@ -68,22 +70,8 @@ uint64_t run(bool poll) {
 }
 
 int main(int argc, char **argv) {
-  int ret;
-
-  if (argc < 2) {
-    std::cerr << "usage: [cfg_file]" << std::endl;
-    return -EINVAL;
-  }
-
-  ret = rt::RuntimeInit(std::string(argv[1]), [] {
+  return nu::runtime_main_init(argc, argv, [](int, char **) {
     run(true);
     std::cout << "Passed" << std::endl;
   });
-
-  if (ret) {
-    std::cerr << "failed to start runtime" << std::endl;
-    return ret;
-  }
-
-  return 0;
 }

@@ -10,7 +10,7 @@
 
 constexpr uint32_t kMagic = 0x12345678;
 constexpr uint32_t ip0 = MAKE_IP_ADDR(18, 18, 1, 2);
-constexpr uint32_t ip1 = MAKE_IP_ADDR(18, 18, 1, 5);
+constexpr uint32_t ip1 = MAKE_IP_ADDR(18, 18, 1, 3);
 
 namespace nu {
 

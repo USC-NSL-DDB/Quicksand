@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 
+#include "nu/runtime.hpp"
 #include "nu/utils/slab.hpp"
 
 using namespace nu;
@@ -13,7 +14,7 @@ constexpr static uint64_t kBufSize = (4ULL << 30);
 constexpr static uint64_t kMinSlabClassSize =
     (1ULL << SlabAllocator::kMinSlabClassShift);
 constexpr static uint64_t kMaxSlabClassSize = (1ULL << 27);
-uint16_t slab_id = 0;
+uint16_t slab_id = kRuntimeSlabId + 1;
 
 static_assert(kBufSize >= kMaxSlabClassSize);
 
@@ -73,26 +74,11 @@ bool run() {
 }
 
 int main(int argc, char **argv) {
-  int ret;
-
-  if (argc < 2) {
-    std::cerr << "usage: [cfg_file]" << std::endl;
-    return -EINVAL;
-  }
-
-  ret = rt::RuntimeInit(std::string(argv[1]), [] {
-    std::cout << "Running " << __FILE__ "..." << std::endl;
+  return runtime_main_init(argc, argv, [](int, char **) {
     if (run()) {
       std::cout << "Passed" << std::endl;
     } else {
       std::cout << "Failed" << std::endl;
     }
   });
-
-  if (ret) {
-    std::cerr << "failed to start runtime" << std::endl;
-    return ret;
-  }
-
-  return 0;
 }

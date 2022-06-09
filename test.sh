@@ -3,12 +3,26 @@
 source shared.sh
 
 all_passed=1
-
-local_unit_tests=("test_slab" "test_perf" "test_tcp_poll")
+CLIENT_IP="18.18.1.4"
+SERVER1_IP="18.18.1.2"
+SERVER2_IP="18.18.1.3"
+LPID=1
 
 function prepare {
     source setup.sh >/dev/null 2>&1
     sudo sync; sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
+}
+
+function run_client {
+    sudo stdbuf -o0 sh -c "$1 -c -l $LPID -i $CLIENT_IP"
+}
+
+function run_server1 {
+    sudo stdbuf -o0 sh -c "$1 -s -l $LPID -i $SERVER1_IP --memps"
+}
+
+function run_server2 {
+    sudo stdbuf -o0 sh -c "$1 -s -l $LPID -i $SERVER2_IP"
 }
 
 function run_test {
@@ -18,11 +32,11 @@ function run_test {
     disown -r
     sleep 3
 
-    run_server 1 $BIN 1>/dev/null 2>&1 &
+    run_server1 $BIN 1>/dev/null 2>&1 &
     disown -r
     sleep 3
 
-    run_server 2 $BIN 1>/dev/null 2>&1 &
+    run_server2 $BIN 1>/dev/null 2>&1 &
     disown -r
     sleep 3    
 
@@ -42,11 +56,7 @@ function run_local_unit_test {
 function run_single_test {
     echo "Running test $1..."
     rerun_iokerneld
-    if [[ " ${local_unit_tests[@]} " =~ " $1 " ]]; then
-	run_local_unit_test $1
-    else
-        run_test $1
-    fi
+    run_test $1
     if [[ $? == 0 ]]; then
         say_passed
     else

@@ -1,5 +1,10 @@
 #include <sys/mman.h>
+#include <unistd.h>
 
+#include <boost/program_options.hpp>
+#include <cstring>
+#include <exception>
+#include <fstream>
 #include <new>
 #include <string>
 
@@ -149,39 +154,123 @@ void Runtime::reserve_conns(uint32_t ip) {
   rpc_client_mgr->get_by_ip(ip);
 }
 
+void either_options(const boost::program_options::variables_map &vm,
+                    const char *opt1, const char *opt2) {
+  if (vm.count(opt1) && !vm[opt1].defaulted() && vm.count(opt2) &&
+      !vm[opt2].defaulted()) {
+    throw std::logic_error(std::string("Both '") + opt1 + "' and '" + opt2 +
+                           "' are specified.");
+  }
+  if (!vm.count(opt1) && !vm[opt1].defaulted() && !vm.count(opt2) &&
+      !vm[opt2].defaulted()) {
+    throw std::logic_error(std::string("Neither '") + opt1 + "' nor '" + opt2 +
+                           "' is specified.");
+  }
+}
+
 int runtime_main_init(int argc, char **argv,
                       std::function<void(int argc, char **argv)> main_func) {
-  int ret;
-  std::string mode_str;
+  auto default_length =
+      boost::program_options::options_description::m_default_line_length;
+  boost::program_options::options_description all_desc(
+      "Usage: nu_args caladan_args [--] [app_args]", default_length * 2,
+      default_length);
+  boost::program_options::options_description nu_desc(
+      "Nu arguments", default_length * 2, default_length);
+  boost::program_options::options_description caladan_desc(
+      "Caladan arguments", default_length * 2, default_length);
+
   Runtime::Mode mode;
-  uint32_t remote_ctrl_ip;
   lpid_t lpid;
+  std::string ctrl_ip_str;
+  uint32_t ctrl_ip;
+  int kthreads, guaranteed, spinning;
+  std::string conf_path, ip, netmask, gateway;
 
-  if (argc < 5) {
-    goto wrong_args;
+  nu_desc.add_options()
+    ("help,h", "print help")
+    ("server,s", "proclet server mode")
+    ("client,c", "client mode")
+    ("controller,t", boost::program_options::value(&ctrl_ip_str)->default_value("18.18.1.1"), "controller ip")
+    ("lpid,l", boost::program_options::value(&lpid)->required(), "logical process id")
+    ("memps", "react to memory pressure (only useful for server)")
+    ("cpups", "react to CPU pressure (only useful for server)");
+
+  caladan_desc.add_options()
+    ("conf,f", boost::program_options::value(&conf_path), "caladan configuration file")
+    ("kthreads,k", boost::program_options::value(&kthreads)->default_value(kNumCores - 2), "number of kthreads (if conf unspecified)")
+    ("guaranteed,g", boost::program_options::value(&guaranteed)->default_value(0), "number of guaranteed kthreads (if conf unspecified)")
+    ("spinning,p", boost::program_options::value(&spinning)->default_value(0), "number of spinning kthreads (if conf unspecified)")
+    ("ip,i", boost::program_options::value(&ip), "IP address used in caladan (if conf unspecified)")
+    ("netmask,m", boost::program_options::value(&netmask)->default_value("255.255.255.0"), "netmask used in caladan (if conf unspecified)")
+    ("gateway,w", boost::program_options::value(&gateway)->default_value("18.18.1.1"), "gateway used in caladan (if conf unspecified)");
+
+  all_desc.add(nu_desc).add(caladan_desc);
+
+  try {
+    boost::program_options::variables_map vm;
+    boost::program_options::store(parse_command_line(argc, argv, all_desc), vm);
+    boost::program_options::notify(vm);
+
+    either_options(vm, "conf", "kthreads");
+    either_options(vm, "conf", "guaranteed");
+    either_options(vm, "conf", "spinning");
+    either_options(vm, "conf", "ip");
+    either_options(vm, "conf", "netmask");
+    either_options(vm, "conf", "gateway");
+    either_options(vm, "server", "client");
+
+    if (vm.count("help")) {
+      std::cout << all_desc << std::endl;
+      return 0;
+    }
+
+    if (vm.count("server")) {
+      mode = nu::Runtime::Mode::kServer;
+    } else {
+      mode = nu::Runtime::Mode::kClient;
+    }
+
+    ctrl_ip = str_to_ip(ctrl_ip_str);
+
+    if (conf_path.empty()) {
+      conf_path = std::string(".conf_") + std::to_string(getpid());
+      std::ofstream ofs(conf_path);
+      ofs << "host_addr " << ip << std::endl;
+      ofs << "host_netmask " << netmask << std::endl;
+      ofs << "host_gateway " << gateway << std::endl;
+      ofs << "host_mtu " << 9000 << std::endl;
+      ofs << "runtime_kthreads " << kthreads << std::endl;
+      ofs << "runtime_guaranteed_kthreads " << guaranteed << std::endl;
+      ofs << "runtime_spinning_kthreads " << spinning << std::endl;
+      ofs << "runtime_qdelay_us " << 0 << std::endl;
+      ofs << "enable_directpath " << 1 << std::endl;
+      ofs << "log_level " << 0 << std::endl;
+      if (mode == nu::Runtime::Mode::kServer) {
+        if (vm.count("memps")) {
+          ofs << "runtime_react_mem_pressure 1" << std::endl;
+        }
+        if (vm.count("cpups")) {
+          ofs << "runtime_react_cpu_pressure 1" << std::endl;
+        }
+      }
+    }
+  } catch (std::exception &e) {
+    std::cout << all_desc << std::endl;
+    std::cerr << e.what() << std::endl;
+    return -EINVAL;
   }
-
-  mode_str = std::string(argv[2]);
-  if (mode_str == "CLT") {
-    mode = nu::Runtime::Mode::kClient;
-  } else if (mode_str == "SRV") {
-    mode = nu::Runtime::Mode::kServer;
-  } else {
-    goto wrong_args;
-  }
-
-  if (argc > 5 && std::string(argv[5]) != "--") {
-    goto wrong_args;
-  }
-
-  remote_ctrl_ip = str_to_ip(std::string(argv[3]));
-  lpid = stoi(std::string(argv[4]));
-
-  ret = rt::RuntimeInit(std::string(argv[1]), [&] {
-    auto runtime = nu::Runtime::init(remote_ctrl_ip, mode, lpid);
-    auto num_skipped_args = (argc > 5) ? 5 : 4;
-    argv[num_skipped_args] = argv[0];
-    main_func(argc - num_skipped_args, &argv[num_skipped_args]);
+  auto ret = rt::RuntimeInit(conf_path, [&] {
+    auto runtime = nu::Runtime::init(ctrl_ip, mode, lpid);
+    for (uint32_t i = 0; i < argc; i++) {
+      if (strcmp(argv[i], "--") == 0 || i == argc - 1) {
+        argc -= i;
+        argv[i] = argv[0];
+        argv += i;
+        break;
+      }
+    }
+    main_func(argc, argv);
   });
 
   if (ret) {
@@ -190,11 +279,6 @@ int runtime_main_init(int argc, char **argv,
   }
 
   return 0;
-
-wrong_args:
-  std::cerr << "usage: cfg_file CLT/SRV ctrl_ip lpid [--] [app args]"
-            << std::endl;
-  return -EINVAL;
 }
 
 }  // namespace nu
