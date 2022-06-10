@@ -2,6 +2,7 @@
 
 function get_nic_dev {
     sudo caladan/iokerneld >.tmp 2>&1 &
+    disown -r
     ( tail -f -n0 .tmp & ) | grep -q "MAC"
     sudo pkill -9 iokerneld
     mac=`cat .tmp | grep "MAC" | sed "s/.*MAC: \(.*\)/\1/g" | tr " " ":"`
