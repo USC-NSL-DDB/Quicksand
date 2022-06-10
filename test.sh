@@ -21,7 +21,7 @@ function run_client {
 }
 
 function run_server1 {
-    sudo stdbuf -o0 sh -c "$1 -s -l $LPID -i $SERVER1_IP --memps"
+    sudo stdbuf -o0 sh -c "$1 -s -l $LPID -i $SERVER1_IP"
 }
 
 function run_server2 {
