@@ -9,6 +9,9 @@ SERVER2_IP="18.18.1.3"
 LPID=1
 
 function prepare {
+    kill_iokerneld
+    kill_controller
+    sleep 5
     source setup.sh >/dev/null 2>&1
     sudo sync; sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
 }
