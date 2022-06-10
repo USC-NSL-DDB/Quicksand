@@ -46,4 +46,4 @@ setup_jumbo_frame
 setup_trust_dscp
 #setup_pfc
 setup_dropless_rq
-
+prune_fdb_table

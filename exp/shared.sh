@@ -1,75 +1,105 @@
 #!/bin/bash
 
-DPDK_NIC=ens1f0
-CONTROLLER_ETHER=1E:CF:16:43:AF:95
-CLIENT1_ETHER=1E:CF:16:43:AF:94
-SERVER1_ETHER=1E:CF:16:43:AF:96
-SERVER2_ETHER=1E:CF:16:43:AF:97
-SERVER1_IP=10.10.2.1
-SERVER2_IP=10.10.2.2
-SERVER3_IP=10.10.2.3
-SERVER4_IP=10.10.2.4
-SERVER5_IP=10.10.2.5
-SERVER6_IP=10.10.2.6
-SERVER7_IP=10.10.2.7
-SERVER8_IP=10.10.2.8
-SERVER9_IP=10.10.2.9
-SERVER10_IP=10.10.2.10
-SERVER11_IP=10.10.2.11
-SERVER12_IP=10.10.2.12
-SERVER13_IP=10.10.2.13
-SERVER14_IP=10.10.2.14
-SERVER15_IP=10.10.2.15
-SERVER16_IP=10.10.2.16
-SERVER17_IP=10.10.2.17
-SERVER18_IP=10.10.2.18
-SERVER19_IP=10.10.2.19
-SERVER20_IP=10.10.2.20
-SERVER21_IP=10.10.2.21
-SERVER22_IP=10.10.2.22
-SERVER23_IP=10.10.2.23
-SERVER24_IP=10.10.2.24
-SERVER25_IP=10.10.2.25
-SERVER26_IP=10.10.2.26
-SERVER27_IP=10.10.2.27
-SERVER28_IP=10.10.2.28
-SERVER29_IP=10.10.2.29
-SERVER30_IP=10.10.2.30
-SERVER31_IP=10.10.2.31
-
-SERVER32_IP=10.10.2.32
-SERVER33_IP=10.10.2.33
-SERVER34_IP=10.10.2.34
-SERVER35_IP=10.10.2.35
-SERVER36_IP=10.10.2.36
-SERVER37_IP=10.10.2.37
-SERVER38_IP=10.10.2.38
-SERVER39_IP=10.10.2.39
-SERVER40_IP=10.10.2.40
-
-SERVER_IPS=( $SERVER1_IP $SERVER2_IP $SERVER3_IP $SERVER4_IP $SERVER5_IP $SERVER6_IP $SERVER7_IP $SERVER8_IP \
-	     $SERVER9_IP $SERVER10_IP $SERVER11_IP $SERVER12_IP $SERVER13_IP $SERVER14_IP $SERVER15_IP \
-             $SERVER16_IP $SERVER17_IP $SERVER18_IP $SERVER19_IP $SERVER20_IP $SERVER21_IP $SERVER22_IP \
-             $SERVER23_IP $SERVER24_IP $SERVER25_IP $SERVER26_IP $SERVER27_IP $SERVER28_IP $SERVER29_IP \
-             $SERVER30_IP $SERVER31_IP $SERVER32_IP $SERVER33_IP $SERVER34_IP $SERVER35_IP $SERVER36_IP \
-	     $SERVER37_IP $SERVER38_IP $SERVER39_IP $SERVER40_IP )
-REMOTE_SERVER_IPS=( $SERVER2_IP $SERVER3_IP $SERVER4_IP $SERVER5_IP $SERVER6_IP $SERVER7_IP $SERVER8_IP \
-		    $SERVER9_IP $SERVER10_IP $SERVER11_IP $SERVER12_IP $SERVER13_IP $SERVER14_IP $SERVER15_IP \
-                    $SERVER16_IP $SERVER17_IP $SERVER18_IP $SERVER19_IP $SERVER20_IP $SERVER21_IP $SERVER22_IP \
-                    $SERVER23_IP $SERVER24_IP $SERVER25_IP $SERVER26_IP $SERVER27_IP $SERVER28_IP $SERVER29_IP \
-                    $SERVER30_IP $SERVER31_IP $SERVER32_IP $SERVER33_IP $SERVER34_IP $SERVER35_IP $SERVER36_IP \
-	            $SERVER37_IP $SERVER38_IP $SERVER39_IP $SERVER40_IP)
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 NU_DIR=$SCRIPT_DIR/..
+CALADAN_DIR=$NU_DIR/caladan
 
-function set_bridge {
-    sudo bridge fdb add $1 self dev $DPDK_NIC 2>/dev/null
+function ssh_ip() {
+    srv_idx=$1
+    echo "10.10.2."$srv_idx
 }
 
-function unset_bridge {
-    sudo bridge fdb delete $1 self dev $DPDK_NIC 2>/dev/null
+function caladan_srv_ip() {
+    srv_idx=$1
+    echo "18.18.1."$(($srv_idx+1))
 }
 
-function to_100g_addr {
-    echo `echo $1 | sed "s/10\.10\.2\(.*\)/10\.10\.1\1/g"`
+function caladan_clt_ip() {
+    clt_idx=$1
+    echo "18.18.1."$(($clt_idx+128))
 }
+
+function probe_num_nodes() {
+    num_nodes=1
+    while true
+    do
+	next_node=$(($num_nodes + 1))
+	ping -c 1 $(ssh_ip $next_node) 1>/dev/null 2>&1
+	if [ $? != 0 ]
+	then
+	    break
+	fi
+	num_nodes=$next_node
+    done    
+}
+
+function cleanup() {
+    for i in `seq 1 $num_nodes`
+    do
+	ssh $(ssh_ip $i) "sudo pkill -9 iokerneld; \
+                          sudo pkill -9 ctrl_main;
+                          sudo pkill -9 main;
+                          sudo pkill -9 client;
+                          sudo pkill -9 server;"
+    done
+}
+
+function force_cleanup() {
+    cleanup
+    sudo pkill -9 run.sh
+    exit 1
+}
+
+function start_iokerneld() {
+    srv_idx=$1
+    ssh $(ssh_ip $srv_idx) "sudo $CALADAN_DIR/iokerneld" &
+}
+
+function start_ctrl() {
+    srv_idx=$1
+    ssh $(ssh_ip $srv_idx) "sudo $NU_DIR/bin/ctrl_main" &
+}
+
+function start_server() {
+    file_path=$1    
+    file_full_path=$(readlink -f $file_path)
+    srv_idx=$2
+    ip=$(caladan_srv_ip $srv_idx)
+    lpid=$3
+    ssh $(ssh_ip $srv_idx) "sudo $file_full_path -s -l $lpid -i $ip"
+}
+
+function start_client() {
+    file_path=$1    
+    file_full_path=$(readlink -f $file_path)
+    clt_idx=$2
+    ip=$(caladan_clt_ip $clt_idx)
+    lpid=$3
+    ssh $(ssh_ip $srv_idx) "sudo $file_full_path -c -l $lpid -i $ip"
+}
+
+function distribute() {
+    file_path=$1
+    file_full_path=$(readlink -f $file_path)
+    src_idx=$2
+    scp $file_full_path $(ssh_ip $src_idx):$file_full_path
+}
+
+function prepare() {
+    probe_num_nodes
+    for i in `seq 1 $num_nodes`
+    do
+	ssh $(ssh_ip $i) "cd $NU_DIR; sudo ./setup.sh" &
+    done
+    wait
+}
+
+trap force_cleanup INT
+
+prepare
+cleanup
+sleep 5
+
+rm -rf logs.bak
+[ -d logs ] && mv logs logs.bak
+mkdir logs
