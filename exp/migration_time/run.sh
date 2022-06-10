@@ -1,55 +1,44 @@
 #!/bin/bash
 
 source ../shared.sh
-CTRL_IP=18.18.1.3
+
 LPID=1
+HEAP_SIZES=( 65536 131072 262144 524288 1048576 2097152 4194304 8388608 16777216 )
+SRC_SRV_IDX=1
+DEST_SRV_IDX=2
 
-heap_sizes=( 65536 131072 262144 524288 1048576 2097152 4194304 8388608 16777216 )
-
-mkdir logs
-rm -rf logs/*
-
-SRC_SERVER=$SERVER2_IP
-DEST_SERVER=$SERVER3_IP
-
-ssh $SRC_SERVER "source `pwd`/../shared.sh; set_bridge $CONTROLLER_ETHER"
-ssh $SRC_SERVER "source `pwd`/../shared.sh; set_bridge $CLIENT1_ETHER"
-ssh $SRC_SERVER "source `pwd`/../shared.sh; set_bridge $SERVER1_ETHER"
 pushd $NU_DIR
-sed "s/constexpr static bool kEnableLogging = .*/constexpr static bool kEnableLogging = true;/g" \
-    -i src/migrator.cpp
+sed "s/\(constexpr static bool kEnableLogging =\).*/\1 true;/g" -i src/migrator.cpp
 make -j
 popd
 
 make clean
 
-for heap_size in ${heap_sizes[@]}
+for heap_size in ${HEAP_SIZES[@]}
 do
+    start_iokerneld $SRC_SRV_IDX
+    start_iokerneld $DEST_SRV_IDX
     sleep 5
-    ssh $SRC_SERVER "sudo $NU_DIR/caladan/iokerneld" &
-    ssh $DEST_SERVER "sudo $NU_DIR/caladan/iokerneld" &
-    sleep 5
-    sed "s/constexpr uint32_t kObjSize = .*/constexpr uint32_t kObjSize = $heap_size;/g" -i main.cpp
+ 
+    sed "s/\(constexpr uint32_t kObjSize =\).*/\1 $heap_size;/g" -i main.cpp
     make
-    scp main $SRC_SERVER:`pwd`
-    scp main $DEST_SERVER:`pwd`    
-    ssh $SRC_SERVER "sudo $NU_DIR/bin/ctrl_main `pwd`/conf/controller CTL" &
+    distribute main $SRC_SRV_IDX
+    distribute main $DEST_SRV_IDX
+
+    start_ctrl $SRC_SRV_IDX
     sleep 5
-    ssh $SRC_SERVER "cd `pwd`; sudo ./main conf/server1 SRV $CTRL_IP $LPID" 1>logs/$heap_size.src 2>&1 &
-    ssh $DEST_SERVER "cd `pwd`; sudo ./main conf/server2 SRV $CTRL_IP $LPID" 1>logs/$heap_size.dest 2>&1 &
+
+    start_server main $SRC_SRV_IDX $LPID 1>logs/$heap_size.src 2>&1 &
+    start_server main $DEST_SRV_IDX $LPID 1>logs/$heap_size.dest 2>&1 &
     sleep 5
-    ssh $SRC_SERVER "cd `pwd`; sudo ./main conf/client1 CLT $CTRL_IP $LPID"
-    ssh $SRC_SERVER "sudo pkill -9 iokerneld"
-    ssh $SRC_SERVER "sudo pkill -9 main"
-    ssh $DEST_SERVER "sudo pkill -9 iokerneld"
-    ssh $DEST_SERVER "sudo pkill -9 main"
+
+    start_client main $SRC_SRV_IDX $LPID
+
+    cleanup
+    sleep 5
 done
 
-ssh $SRC_SERVER "source `pwd`/../shared.sh; unset_bridge $CONTROLLER_ETHER"
-ssh $SRC_SERVER "source `pwd`/../shared.sh; unset_bridge $CLIENT1_ETHER"
-ssh $SRC_SERVER "source `pwd`/../shared.sh; unset_bridge $SERVER1_ETHER"
 pushd $NU_DIR
-sed "s/constexpr static bool kEnableLogging = .*/constexpr static bool kEnableLogging = false;/g" \
-    -i src/migrator.cpp
+sed "s/\(constexpr static bool kEnableLogging =\).*/\1 false;/g" -i src/migrator.cpp
 make -j
 popd
