@@ -21,12 +21,12 @@ src = $(lib_src)
 obj = $(src:.cpp=.o)
 dep = $(obj:.o=.d)
 
-test_rem_obj_src = test/test_rem_obj.cpp
-test_rem_obj_obj = $(test_rem_obj_src:.cpp=.o)
+test_proclet_src = test/test_proclet.cpp
+test_proclet_obj = $(test_proclet_src:.cpp=.o)
 test_slab_src = test/test_slab.cpp
 test_slab_obj = $(test_slab_src:.cpp=.o)
-test_pass_obj_src = test/test_pass_obj.cpp
-test_pass_obj_obj = $(test_pass_obj_src:.cpp=.o)
+test_pass_proclet_src = test/test_pass_proclet.cpp
+test_pass_proclet_obj = $(test_pass_proclet_src:.cpp=.o)
 test_migrate_src = test/test_migrate.cpp
 test_migrate_obj = $(test_migrate_src:.cpp=.o)
 test_lock_src = test/test_lock.cpp
@@ -41,8 +41,8 @@ test_dis_hash_table_src = test/test_dis_hash_table.cpp
 test_dis_hash_table_obj = $(test_dis_hash_table_src:.cpp=.o)
 test_dis_mem_pool_src = test/test_dis_mem_pool.cpp
 test_dis_mem_pool_obj = $(test_dis_mem_pool_src:.cpp=.o)
-test_nested_rem_obj_src = test/test_nested_rem_obj.cpp
-test_nested_rem_obj_obj = $(test_nested_rem_obj_src:.cpp=.o)
+test_nested_proclet_src = test/test_nested_proclet.cpp
+test_nested_proclet_obj = $(test_nested_proclet_src:.cpp=.o)
 test_rem_raw_ptr_src = test/test_rem_raw_ptr.cpp
 test_rem_raw_ptr_obj = $(test_rem_raw_ptr_src:.cpp=.o)
 test_rem_unique_ptr_src = test/test_rem_unique_ptr.cpp
@@ -68,10 +68,10 @@ test_max_num_proclets_obj = $(test_max_num_proclets_src:.cpp=.o)
 
 bench_rpc_tput_src = bench/bench_rpc_tput.cpp
 bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
-bench_rem_obj_call_tput_src = bench/bench_rem_obj_call_tput.cpp
-bench_rem_obj_call_tput_obj = $(bench_rem_obj_call_tput_src:.cpp=.o)
-bench_rem_obj_call_lat_src = bench/bench_rem_obj_call_lat.cpp
-bench_rem_obj_call_lat_obj = $(bench_rem_obj_call_lat_src:.cpp=.o)
+bench_proclet_call_tput_src = bench/bench_proclet_call_tput.cpp
+bench_proclet_call_tput_obj = $(bench_proclet_call_tput_src:.cpp=.o)
+bench_proclet_call_lat_src = bench/bench_proclet_call_lat.cpp
+bench_proclet_call_lat_obj = $(bench_proclet_call_lat_src:.cpp=.o)
 bench_thread_src = bench/bench_thread.cpp
 bench_thread_obj = $(bench_thread_src:.cpp=.o)
 bench_migrate_src = bench/bench_migrate.cpp
@@ -94,11 +94,11 @@ bench_controller_obj = $(bench_controller_src:.cpp=.o)
 ctrl_main_src = src/ctrl_main.cpp
 ctrl_main_obj = $(ctrl_main_src:.cpp=.o)
 
-all: libnu.a bin/test_slab bin/test_rem_obj bin/test_pass_obj bin/test_migrate \
+all: libnu.a bin/test_slab bin/test_proclet bin/test_pass_proclet bin/test_migrate \
 bin/test_lock bin/test_condvar bin/test_time bin/bench_rpc_tput \
-bin/bench_rem_obj_call_tput bin/bench_rem_obj_call_lat bin/bench_thread \
+bin/bench_proclet_call_tput bin/bench_proclet_call_lat bin/bench_thread \
 bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
-bin/bench_hashtable_timeseries bin/bench_fake_migration bin/test_nested_rem_obj \
+bin/bench_hashtable_timeseries bin/bench_fake_migration bin/test_nested_proclet \
 bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
@@ -111,12 +111,12 @@ bin/bench_controller
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-bin/test_rem_obj: $(test_rem_obj_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(test_rem_obj_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_proclet: $(test_proclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_proclet_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_slab: $(test_slab_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_slab_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/test_pass_obj: $(test_pass_obj_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(test_pass_obj_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_pass_proclet: $(test_pass_proclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_pass_proclet_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_migrate: $(test_migrate_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_migrate_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_lock: $(test_lock_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
@@ -131,8 +131,8 @@ bin/test_dis_hash_table: $(test_dis_hash_table_obj) $(librt_libs) $(RUNTIME_DEPS
 	$(LDXX) -o $@ $(test_dis_hash_table_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_dis_mem_pool: $(test_dis_mem_pool_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_dis_mem_pool_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/test_nested_rem_obj: $(test_nested_rem_obj_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(test_nested_rem_obj_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_nested_proclet: $(test_nested_proclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_nested_proclet_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_rem_raw_ptr: $(test_rem_raw_ptr_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_rem_raw_ptr_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_rem_unique_ptr: $(test_rem_unique_ptr_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
@@ -156,10 +156,10 @@ bin/test_max_num_proclets: $(test_max_num_proclets_obj) $(librt_libs) $(RUNTIME_
 
 bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/bench_rem_obj_call_tput: $(bench_rem_obj_call_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(bench_rem_obj_call_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/bench_rem_obj_call_lat: $(bench_rem_obj_call_lat_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(bench_rem_obj_call_lat_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_proclet_call_tput: $(bench_proclet_call_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_proclet_call_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_proclet_call_lat: $(bench_proclet_call_lat_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_proclet_call_lat_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_thread: $(bench_thread_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_thread_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_migrate: $(bench_migrate_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
