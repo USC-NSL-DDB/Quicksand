@@ -45,15 +45,18 @@ void do_work() {
   auto proclet_future = make_proclet_async<Obj>();
   auto proclet = std::move(proclet_future.get());
 
-  auto future_0 = proclet.run_async(&Obj::set_vec_a, a);
-  auto future_1 = proclet.run_async(&Obj::set_vec_b, b);
+  // We can get a weak reference to the proclet (like C++'s WeakPtr).
+  auto weak_proclet = proclet.get_weak();
+
+  auto future_0 = weak_proclet.run_async(&Obj::set_vec_a, a);
+  auto future_1 = weak_proclet.run_async(&Obj::set_vec_b, b);
   future_0.get();
   future_1.get();
 
-  auto tmp_obj = make_proclet<ErasedType>();
+  auto tmp_proclet = make_proclet<ErasedType>();
   bool match;
   // We can move a Proclet into/out of closure without updating the ref cnt.
-  std::tie(proclet, match) = tmp_obj.run(
+  std::tie(proclet, match) = tmp_proclet.run(
       +[](ErasedType &, Proclet<Obj> proclet, std::vector<int> a,
           std::vector<int> b) {
         auto c = proclet.run(&Obj::plus);

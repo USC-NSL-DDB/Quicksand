@@ -520,6 +520,16 @@ void Proclet<T>::load(Archive &ar) {
   ref_cnted_ = true;
 }
 
+template <typename T>
+WeakProclet<T> Proclet<T>::get_weak() {
+  return WeakProclet<T>(*this);
+}
+
+template <typename T>
+WeakProclet<T>::WeakProclet(const Proclet<T> &proclet) : Proclet<T>() {
+  this->id_ = proclet.id_;
+}
+
 template <typename T, typename... As>
 Proclet<T> make_proclet(As &&... args) {
   return Proclet<T>::__create(/* pinned = */ false, 0,

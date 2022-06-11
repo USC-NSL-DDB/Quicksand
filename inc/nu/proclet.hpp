@@ -11,6 +11,9 @@
 namespace nu {
 
 template <typename T>
+class WeakProclet;
+
+template <typename T>
 class Proclet {
  public:
   Proclet(const Proclet &);
@@ -30,6 +33,7 @@ class Proclet {
   RetT run(RetT (T::*md)(A0s...), A1s &&... args);
   void reset();
   std::optional<Future<void>> reset_async();
+  WeakProclet<T> get_weak();
 
   template <class Archive>
   void save(Archive &ar) const;
@@ -41,6 +45,8 @@ class Proclet {
   Future<void> inc_ref_;
   bool ref_cnted_;
 
+  template <typename U>
+  friend class WeakProclet;
   template <typename U>
   friend class RemPtr;
   template <typename K, typename V, typename Hash, typename KeyEqual,
@@ -87,6 +93,12 @@ class Proclet {
   template <typename U, typename... As>
   friend Future<Proclet<U>> make_proclet_pinned_async_at(uint32_t ip,
                                                          As &&... args);
+};
+
+template <typename T>
+class WeakProclet : public Proclet<T> {
+ public:
+  WeakProclet(const Proclet<T> &proclet);
 };
 
 template <typename T, typename... As>
