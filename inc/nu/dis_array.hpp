@@ -18,36 +18,45 @@ extern "C" {
 namespace nu {
 template <typename T>
 class ArrayShard {
-  ArrayShard(usize capacity);
+ public:
+  ArrayShard(uint32_t capacity);
 
-  T operator[](usize index);
+  T operator[](uint32_t index);
 
  private:
-  usize size_;
+  uint32_t size_;
   std::vector<T> data_;
-}
+};
 
 template <typename T>
 class DistributedArray {
+ public:
   constexpr static uint32_t kDefaultPowerShardSize = 20;
 
+  DistributedArray();
   DistributedArray(const DistributedArray &);
   DistributedArray &operator=(const DistributedArray &);
   DistributedArray(DistributedArray &&);
   DistributedArray &operator=(DistributedArray &&);
 
-  T operator[](usize index);
+  T operator[](uint32_t index);
 
  private:
   uint32_t power_shard_sz_;
   uint32_t shard_sz_;
-  usize elems_per_shard_;
-  usize size_;
-  std::vector<Proclet<ArrayShard>> shards_;
-}
+  uint32_t elems_per_shard_;
+  uint32_t size_;
+  std::vector<Proclet<ArrayShard<T>>> shards_;
+
+  template <typename X>
+  friend DistributedArray<X> make_dis_array(uint32_t size,
+                                            uint32_t power_shard_sz);
+};
 
 template <typename T>
 DistributedArray<T> make_dis_array(
-    usize size,
-    uint32_t power_shard_sz_ = DistributedArray<T, N>::kDefaultPowerShardSize);
+    uint32_t size,
+    uint32_t power_shard_sz = DistributedArray<T>::kDefaultPowerShardSize);
 }  // namespace nu
+
+#include "nu/impl/dis_array.ipp"
