@@ -75,7 +75,7 @@ function start_client() {
     clt_idx=$2
     ip=$(caladan_clt_ip $clt_idx)
     lpid=$3
-    ssh $(ssh_ip $srv_idx) "sudo $file_full_path -c -l $lpid -i $ip"
+    ssh $(ssh_ip $clt_idx) "sudo $file_full_path -c -l $lpid -i $ip"
 }
 
 function distribute() {
@@ -95,6 +95,7 @@ function prepare() {
 }
 
 trap force_cleanup INT
+trap cleanup EXIT
 
 prepare
 cleanup
