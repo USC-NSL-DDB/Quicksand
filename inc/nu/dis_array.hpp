@@ -46,6 +46,9 @@ class DistributedArray {
   template <typename V>
   void set(uint32_t index, V value);
 
+  template <class Archive>
+  void serialize(Archive &ar);
+
  private:
   uint32_t power_shard_sz_;
   uint32_t shard_sz_;

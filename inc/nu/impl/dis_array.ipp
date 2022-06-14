@@ -58,7 +58,6 @@ DistributedArray<T>::DistributedArray()
 
 template <typename T>
 T DistributedArray<T>::operator[](uint32_t index) {
-  if (index >= size_) return nullptr;
   uint32_t shard_idx = index / elems_per_shard_;
   uint32_t idx_in_shard = index % elems_per_shard_;
   auto& shard = shards_[shard_idx];
@@ -79,6 +78,16 @@ void DistributedArray<T>::set(uint32_t index, V value) {
         shard.set(idx, value);
       },
       idx_in_shard, value);
+}
+
+template <typename T>
+template <class Archive>
+void DistributedArray<T>::serialize(Archive& ar) {
+  ar(power_shard_sz_);
+  ar(shard_sz_);
+  ar(elems_per_shard_);
+  ar(size_);
+  ar(shards_);
 }
 
 template <typename T>
