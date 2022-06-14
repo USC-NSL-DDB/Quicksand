@@ -16,8 +16,6 @@ extern "C" {
 
 using namespace nu;
 
-Runtime::Mode mode;
-
 namespace nu {
 
 class Test {

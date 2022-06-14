@@ -14,8 +14,6 @@ extern "C" {
 
 using namespace nu;
 
-Runtime::Mode mode;
-
 class VecStore {
  public:
   VecStore(const std::vector<int> &a, const std::vector<int> &b)

@@ -25,8 +25,6 @@ extern "C" {
 
 using namespace nu;
 
-Runtime::Mode mode;
-
 constexpr size_t kNumPairs = 100000;
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;

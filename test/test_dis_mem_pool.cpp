@@ -16,8 +16,6 @@ extern "C" {
 
 using namespace nu;
 
-Runtime::Mode mode;
-
 constexpr static uint32_t kNumThreads = 100;
 constexpr static uint32_t kNumAllocationsPerThread = 100000;
 

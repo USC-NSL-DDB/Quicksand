@@ -18,7 +18,6 @@ extern "C" {
 
 using namespace nu;
 
-Runtime::Mode mode;
 uint32_t ip = MAKE_IP_ADDR(18, 18, 1, 2);
 
 class CPUHeavyObj {

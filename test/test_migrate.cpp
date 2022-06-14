@@ -18,8 +18,6 @@ using namespace nu;
 
 constexpr static int kMagic = 0xDEADBEEF;
 
-Runtime::Mode mode;
-
 namespace nu {
 class Test {
  public:
