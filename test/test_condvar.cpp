@@ -21,8 +21,6 @@ using namespace nu;
 
 constexpr static int kConcurrency = 100;
 
-Runtime::Mode mode;
-
 namespace nu {
 class Test {
  public:

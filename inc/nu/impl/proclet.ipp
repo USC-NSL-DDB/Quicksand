@@ -166,23 +166,27 @@ Proclet<T>::~Proclet() {
 }
 
 template <typename T>
-Proclet<T>::Proclet(const Proclet<T> &o) : id_(o.id_) {
-  auto inc_ref_optional = update_ref_cnt(1);
-  if (inc_ref_optional) {
-    inc_ref_optional->get();
+Proclet<T>::Proclet(const Proclet<T> &o)
+    : id_(o.id_), ref_cnted_(o.ref_cnted_) {
+  if (ref_cnted_) {
+    auto inc_ref_optional = update_ref_cnt(1);
+    if (inc_ref_optional) {
+      inc_ref_optional->get();
+    }
   }
-  ref_cnted_ = true;
 }
 
 template <typename T>
 Proclet<T> &Proclet<T>::operator=(const Proclet<T> &o) {
   reset();
   id_ = o.id_;
-  auto inc_ref_optional = update_ref_cnt(1);
-  if (inc_ref_optional) {
-    inc_ref_optional->get();
+  ref_cnted_ = o.ref_cnted_;
+  if (ref_cnted_) {
+    auto inc_ref_optional = update_ref_cnt(1);
+    if (inc_ref_optional) {
+      inc_ref_optional->get();
+    }
   }
-  ref_cnted_ = true;
   return *this;
 }
 
@@ -509,15 +513,14 @@ std::optional<Future<void>> Proclet<T>::reset_async() {
 template <typename T>
 template <class Archive>
 void Proclet<T>::save(Archive &ar) const {
+  ar(id_, ref_cnted_);
   const_cast<Proclet<T> *>(this)->ref_cnted_ = false;
-  ar(id_);
 }
 
 template <typename T>
 template <class Archive>
 void Proclet<T>::load(Archive &ar) {
-  ar(id_);
-  ref_cnted_ = true;
+  ar(id_, ref_cnted_);
 }
 
 template <typename T>

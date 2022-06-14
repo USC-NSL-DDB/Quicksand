@@ -2,36 +2,36 @@
 
 source ../../shared.sh
 
-delays=( 100 1000 2000 3000 4000 5000 6000 7000 8000 9000 10000 )
-
-mkdir logs
-rm -rf logs/*
+DELAYS=( 100 1000 2000 3000 4000 5000 6000 7000 8000 9000 10000 )
+CLT_IDX=1
+SRV_IDX=2
+SRV_IP=$(ssh_ip $SRV_IDX)
 
 version=0.12.0 && git clone -b $version https://github.com/apache/thrift.git
 cd thrift
 ./bootstrap.sh
-./configure --enable-caladanthreads=yes --enable-caladantcp=yes \
-            --with-caladan=$NU_DIR/caladan  \
+./configure --enable-nuthreads=no --enable-caladantcp=no \
             --enable-shared=no --enable-tests=no --enable-tutorial=no \
 	    --with-libevent=no
 make -j
 cd ..
 
 make clean
-make -j
+sed "s/\(constexpr auto kIp = \).*/\1 \"$SRV_IP\";/g" -i client.cpp
 
-sed "s/constexpr auto kIp = .*/constexpr auto kIp = \"$SERVER2_IP\";/g" -i client.cpp
-
-for delay in ${delays[@]}
+for delay in ${DELAYS[@]}
 do
-    sleep 5
-    sed "s/constexpr uint32_t kDelayNs = .*/constexpr uint32_t kDelayNs = $delay;/g" -i server.cpp
+    sed "s/\(constexpr uint32_t kDelayNs = \).*/\1 $delay;/g" -i server.cpp
     make
-    scp server $SERVER2_IP:`pwd`
-    ssh $SERVER2_IP "cd `pwd`; sudo ./server" &
+
+    distribute server $SRV_IDX
+
+    start_server server $SRV_IDX &
     sleep 5
-    sudo ./client 1>logs/$delay 2>&1 &
+
+    start_client client $CLT_IDX 1>logs/$delay 2>&1 &
     sleep 10
-    sudo pkill -9 client
-    ssh $SERVER2_IP "sudo pkill -9 server"
+
+    cleanup
+    sleep 5
 done

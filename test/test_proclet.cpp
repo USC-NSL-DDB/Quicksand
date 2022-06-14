@@ -16,8 +16,6 @@ extern "C" {
 
 using namespace nu;
 
-Runtime::Mode mode;
-
 class Obj {
  public:
   void set_vec_a(std::vector<int> vec) { a_ = vec; }

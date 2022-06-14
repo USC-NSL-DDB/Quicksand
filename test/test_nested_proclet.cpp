@@ -16,8 +16,6 @@ extern "C" {
 
 using namespace nu;
 
-Runtime::Mode mode;
-
 class Obj {};
 
 void do_work() {

@@ -24,7 +24,7 @@ using namespace apache::thrift::transport;
 constexpr uint32_t kPort = 10088;
 constexpr uint32_t kNumThreads = 1000;
 constexpr uint32_t kPrintIntervalUS = 1000 * 1000;
-constexpr auto kIp = "18.18.1.5";
+constexpr auto kIp = "18.18.1.2";
 
 struct alignas(nu::kCacheLineBytes) AlignedCnt {
   uint32_t cnt;
