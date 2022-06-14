@@ -11,8 +11,7 @@ INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offsetof \
                      -DNCORES=$(NCORES)
-override LDFLAGS += -L$(NU_PATH)/glibc/build/install/lib -lcrypto -lpthread \
-                    -lboost_program_options
+override LDFLAGS +=  -lcrypto -lpthread -lboost_program_options
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
 lib_nu = $(NU_PATH)/libnu.a
