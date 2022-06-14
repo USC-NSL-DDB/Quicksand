@@ -15,6 +15,12 @@ T ArrayShard<T>::operator[](uint32_t index) {
 }
 
 template <typename T>
+template <typename V>
+void ArrayShard<T>::set(uint32_t index, V value) {
+  data_[index] = value;
+}
+
+template <typename T>
 DistributedArray<T>::DistributedArray(const DistributedArray& o) {
   *this = o;
 }
@@ -59,6 +65,20 @@ T DistributedArray<T>::operator[](uint32_t index) {
   return shard.__run(
       +[](ArrayShard<T>& shard, uint32_t idx) { return shard[idx]; },
       idx_in_shard);
+}
+
+template <typename T>
+template <typename V>
+void DistributedArray<T>::set(uint32_t index, V value) {
+  if (index >= size_) return;
+  uint32_t shard_idx = index / elems_per_shard_;
+  uint32_t idx_in_shard = index % elems_per_shard_;
+  auto& shard = shards_[shard_idx];
+  shard.__run(
+      +[](ArrayShard<T>& shard, uint32_t idx, V value) {
+        shard.set(idx, value);
+      },
+      idx_in_shard, value);
 }
 
 template <typename T>

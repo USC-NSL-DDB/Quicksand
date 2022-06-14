@@ -52,6 +52,8 @@ class Proclet {
   template <typename K, typename V, typename Hash, typename KeyEqual,
             uint64_t NumBuckets>
   friend class DistributedHashTable;
+  template <typename V>
+  friend class DistributedArray;
   friend class DistributedMemPool;
 
   Proclet(ProcletID id, bool ref_cnted);

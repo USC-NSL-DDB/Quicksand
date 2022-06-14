@@ -22,6 +22,8 @@ class ArrayShard {
   ArrayShard(uint32_t capacity);
 
   T operator[](uint32_t index);
+  template <typename V>
+  void set(uint32_t index, V value);
 
  private:
   uint32_t size_;
@@ -40,6 +42,9 @@ class DistributedArray {
   DistributedArray &operator=(DistributedArray &&);
 
   T operator[](uint32_t index);
+
+  template <typename V>
+  void set(uint32_t index, V value);
 
  private:
   uint32_t power_shard_sz_;
