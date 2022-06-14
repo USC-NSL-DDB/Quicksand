@@ -10,9 +10,9 @@ INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -
 -I$(CALADAN_PATH)/deps/folly/include/ -Ithrift/lib/cpp/src/ -I.
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -DNCORES=$(NCORES)
-override LDFLAGS += -L$(NU_PATH)/glibc/build/install/lib -Lthrift/lib/cpp/.libs -lthrift
-override LDFLAGS += -static -static-libstdc++ -static-libgcc -lpthread
+override LDFLAGS += -lcrypto -lboost_program_options
 
+lib_thrift = thrift/lib/cpp/.libs/libthrift.a
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
 lib_nu = $(NU_PATH)/libnu.a
 
@@ -36,10 +36,10 @@ all: client server
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-server: $(server_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(server_obj) $(lib_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-client: $(client_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(client_obj) $(lib_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+server: $(server_obj) $(lib_thrift) $(lib_nu) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(server_obj) $(lib_obj) $(lib_thrift) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+client: $(client_obj) $(lib_thrift) $(lib_nu) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(client_obj) $(lib_obj) $(lib_thrift) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)

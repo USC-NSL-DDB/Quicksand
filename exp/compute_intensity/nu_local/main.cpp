@@ -11,14 +11,13 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/monitor.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 
 using namespace nu;
 
 constexpr uint32_t kCPUFreq = 2794;
-constexpr uint32_t kDelayNs = 10000;
+constexpr uint32_t kDelayNs = 100;
 constexpr uint32_t kNumThreads = 600;
 constexpr uint32_t kPrintIntervalUS = 1000 * 1000;
 constexpr uint32_t kNumItersPerYield = 1000 * 1000 / kDelayNs;
@@ -47,7 +46,7 @@ public:
   }
 
   void run() {
-    auto obj = RemObj<Obj>::create();
+    auto obj = make_proclet<Obj>();
 
     std::vector<nu::Thread> threads;
     for (uint32_t i = 0; i < kNumThreads; i++) {
@@ -83,12 +82,10 @@ private:
 };
 
 void do_work() {
-  auto experiment = RemObj<Experiment>::create();
+  auto experiment = make_proclet<Experiment>();
   experiment.run(&Experiment::run);
 }
 
 int main(int argc, char **argv) {
-  return runtime_main_init(argc, argv, [](int, char **) {
-    do_work();
-  });
+  return runtime_main_init(argc, argv, [](int, char **) { do_work(); });
 }

@@ -6,12 +6,12 @@ include $(CALADAN_PATH)/build/shared.mk
 
 NCORES = $(shell nproc)
 
-INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/ \
--I$(CALADAN_PATH)/deps/folly/include/
+INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched \
+       -I/usr/include/libnl3/ -I$(CALADAN_PATH)/deps/folly/include/
 
-override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -DNCORES=$(NCORES)
-override LDFLAGS += -L$(NU_PATH)/glibc/build/install/lib
-override LDFLAGS += -static -static-libstdc++ -static-libgcc -lpthread
+override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offsetof \
+                     -DNCORES=$(NCORES)
+override LDFLAGS += -lcrypto -lpthread -lboost_program_options
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
 lib_nu = $(NU_PATH)/libnu.a

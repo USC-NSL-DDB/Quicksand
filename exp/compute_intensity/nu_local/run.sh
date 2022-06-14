@@ -2,34 +2,30 @@
 
 source ../../shared.sh
 
-delays=( 100 1000 2000 3000 4000 5000 6000 7000 8000 9000 10000 )
-
-mkdir logs
-rm -rf logs/*
-
-set_bridge $CONTROLLER_ETHER
-set_bridge $CLIENT1_ETHER
-set_bridge $SERVER1_ETHER
+DELAYS=( 100 1000 2000 3000 4000 5000 6000 7000 8000 9000 10000 )
+LPID=1
+SRV_IDX=1
 
 make clean
 
-for delay in ${delays[@]}
+for delay in ${DELAYS[@]}
 do
-    sed "s/constexpr uint32_t kDelayNs = .*/constexpr uint32_t kDelayNs = $delay;/g" -i main.cpp
+    sed "s/\(constexpr uint32_t kDelayNs = \).*/\1 $delay;/g" -i main.cpp
     make
+
+    start_iokerneld $SRV_IDX
     sleep 5
-    sudo $NU_DIR/caladan/iokerneld &
+
+    start_ctrl $SRV_IDX
     sleep 5
-    sudo ./main conf/controller CTL 18.18.1.3 &
+
+    start_server main $SRV_IDX $LPID 1>logs/$delay 2>&1 &
     sleep 5
-    sudo ./main conf/server1 SRV 18.18.1.3 1>logs/$delay 2>&1 &
-    sleep 5
-    sudo ./main conf/client1 CLT 18.18.1.3 &
+
+    start_client main $SRV_IDX $LPID &
     sleep 10
-    sudo pkill -9 iokerneld
-    sudo pkill -9 main    
+    
+    cleanup
+    sleep 5
 done
 
-unset_bridge $CONTROLLER_ETHER
-unset_bridge $CLIENT1_ETHER
-unset_bridge $SERVER1_ETHER
