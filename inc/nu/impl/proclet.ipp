@@ -529,6 +529,9 @@ WeakProclet<T> Proclet<T>::get_weak() {
 }
 
 template <typename T>
+WeakProclet<T>::WeakProclet() {}
+
+template <typename T>
 WeakProclet<T>::WeakProclet(const Proclet<T> &proclet) : Proclet<T>() {
   this->id_ = proclet.id_;
 }

@@ -100,6 +100,7 @@ class Proclet {
 template <typename T>
 class WeakProclet : public Proclet<T> {
  public:
+  WeakProclet();
   WeakProclet(const Proclet<T> &proclet);
 };
 
