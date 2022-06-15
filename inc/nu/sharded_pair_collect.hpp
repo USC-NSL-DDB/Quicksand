@@ -5,6 +5,9 @@
 #include <utility>
 #include <vector>
 
+#include "nu/utils/scoped_lock.hpp"
+#include "nu/utils/spinlock.hpp"
+
 namespace nu {
 
 template <typename K, typename V>
@@ -30,11 +33,12 @@ class ShardedPairCollection {
    public:
     Shard(WeakProclet<ShardingMapping> mapping, uint32_t shard_size);
     ShardDataType get_data();
-    ShardDataType &get_data_ref();
+    std::pair<ScopedLock<SpinLock>, ShardDataType *> get_data_ptr();
     void emplace_back(PairType &&p);
     void set_data(ShardDataType v);
 
    private:
+    SpinLock spin_;
     ShardDataType data_;
     uint32_t shard_size_;
     WeakProclet<ShardingMapping> mapping_;

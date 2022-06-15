@@ -54,8 +54,8 @@ void ShardedPairCollection<K, V>::for_all(void (*fn)(std::pair<const K, V> &p,
     futures.emplace_back(shard.run_async(
         +[](Shard &shard, uintptr_t raw_fn, S1s... states) {
           auto *fn = reinterpret_cast<Fn>(raw_fn);
-          auto &vec = shard.get_data_ref();
-          for (auto &t : vec) {
+          auto pair = shard.get_data_ptr();
+          for (auto &t : *pair.second) {
             fn(reinterpret_cast<std::pair<const K, V> &>(t),
                std::move(states)...);
           }
@@ -88,17 +88,21 @@ ShardedPairCollection<K, V>::Shard::Shard(WeakProclet<ShardingMapping> mapping,
 template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardDataType
 ShardedPairCollection<K, V>::Shard::get_data() {
+  ScopedLock<SpinLock> guard(&spin_);
   return data_;
 }
 
 template <typename K, typename V>
-ShardedPairCollection<K, V>::ShardDataType &
-ShardedPairCollection<K, V>::Shard::get_data_ref() {
-  return data_;
+std::pair<ScopedLock<SpinLock>,
+          typename ShardedPairCollection<K, V>::ShardDataType *>
+ShardedPairCollection<K, V>::Shard::get_data_ptr() {
+  return std::make_pair(ScopedLock(&spin_), &data_);
 }
 
 template <typename K, typename V>
 void ShardedPairCollection<K, V>::Shard::emplace_back(PairType &&p) {
+  ScopedLock<SpinLock> guard(&spin_);
+
   data_.emplace_back(std::move(p));
   if (unlikely(data_.size() * sizeof(PairType) > shard_size_)) {
     auto new_shard_future = make_proclet_async<Shard>(mapping_, shard_size_);
@@ -117,6 +121,7 @@ void ShardedPairCollection<K, V>::Shard::emplace_back(PairType &&p) {
 
 template <typename K, typename V>
 void ShardedPairCollection<K, V>::Shard::set_data(ShardDataType data) {
+  ScopedLock<SpinLock> guard(&spin_);
   data_ = std::move(data);
 }
 
