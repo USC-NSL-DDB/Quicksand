@@ -52,10 +52,6 @@ function run_test {
     return $ret
 }
 
-function run_local_unit_test {
-    run_client ./bin/$1 2>/dev/null | grep -q "Passed"
-}
-
 function run_single_test {
     echo "Running test $1..."
     rerun_iokerneld
