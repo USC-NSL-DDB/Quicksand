@@ -107,6 +107,20 @@ std::vector<std::vector<std::string>> make_nested_str_vec(uint32_t size) {
   return vec;
 }
 
+std::vector<std::unordered_map<int, std::string>> make_int_to_str_maps(
+    uint32_t size, uint32_t map_entries) {
+  using Map = std::unordered_map<int, std::string>;
+  std::vector<Map> vec(size);
+  for (uint32_t i = 0; i < size; i++) {
+    Map map;
+    for (uint32_t k = 0; k < map_entries; k++) {
+      map[k] = random_str(12);
+    }
+    vec[i] = map;
+  }
+  return vec;
+}
+
 bool run_test() {
   uint32_t power_shard_sz = 10;
   uint32_t test_arr_sz = 14243;
@@ -120,6 +134,10 @@ bool run_test() {
   auto str_vecs = make_nested_str_vec(test_arr_sz);
   ABORT_IF_FAILED(
       test_dis_array<std::vector<std::string>>(str_vecs, power_shard_sz));
+
+  using Map = std::unordered_map<int, std::string>;
+  auto maps = make_int_to_str_maps(10, 10);
+  ABORT_IF_FAILED(test_dis_array<Map>(maps, power_shard_sz));
 
   return true;
 }
