@@ -17,11 +17,18 @@ Future<T, Deleter>::Future(Promise<T> *promise)
     : promise_(promise, Deleter()) {}
 
 template <typename T, typename Deleter>
-Future<T, Deleter>::Future(Future<T, Deleter> &&o)
-    : promise_(std::move(o.promise_)) {}
+Future<T, Deleter>::Future(Future<T, Deleter> &&o) {
+  if (promise_) {
+    get();
+  }
+  promise_ = std::move(o.promise_);
+}
 
 template <typename T, typename Deleter>
 Future<T, Deleter> &Future<T, Deleter>::operator=(Future<T, Deleter> &&o) {
+  if (promise_) {
+    get();
+  }
   promise_ = std::move(o.promise_);
   return *this;
 }
@@ -34,12 +41,19 @@ Future<void, Deleter>::Future(Promise<void> *promise)
     : promise_(promise, Deleter()) {}
 
 template <typename Deleter>
-Future<void, Deleter>::Future(Future<void, Deleter> &&o)
-    : promise_(std::move(o.promise_)) {}
+Future<void, Deleter>::Future(Future<void, Deleter> &&o) {
+  if (promise_) {
+    get();
+  }
+  promise_ = std::move(o.promise_);
+}
 
 template <typename Deleter>
 Future<void, Deleter> &Future<void, Deleter>::operator=(
     Future<void, Deleter> &&o) {
+  if (promise_) {
+    get();
+  }
   promise_ = std::move(o.promise_);
   return *this;
 }
