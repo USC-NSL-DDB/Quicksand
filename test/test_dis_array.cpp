@@ -33,6 +33,18 @@ Runtime::Mode mode;
     }                           \
   } while (0);
 
+std::random_device rd;
+std::mt19937 mt(rd());
+std::uniform_int_distribution<int> dist('A', 'z');
+
+std::string random_str(uint32_t len) {
+  std::string str = "";
+  for (uint32_t i = 0; i < len; i++) {
+    str += dist(mt);
+  }
+  return str;
+}
+
 template <typename T>
 bool test_dis_array(std::vector<T> expected, uint32_t power_shard_sz) {
   uint32_t arr_sz = expected.size();
@@ -50,7 +62,7 @@ bool test_dis_array(std::vector<T> expected, uint32_t power_shard_sz) {
 
   auto proclet = make_proclet<ErasedType>();
   if (!proclet.run(
-          +[](ErasedType &, DistributedArray<int> arr, uint32_t arr_sz,
+          +[](ErasedType &, DistributedArray<T> arr, uint32_t arr_sz,
               std::vector<T> expected) {
             for (uint32_t i = 0; i < arr_sz; i++) {
               if (arr[i] != expected[i]) {
@@ -75,11 +87,24 @@ std::vector<int> make_int_range_vec(int start_incl, int end_excl) {
   return vec;
 }
 
+std::vector<std::string> make_test_str_vec(uint32_t size) {
+  int test_str_len = 35;
+  std::vector<std::string> vec(size);
+  for (uint32_t i = 0; i < size; i++) {
+    vec[i] = random_str(test_str_len);
+  }
+  return vec;
+}
+
 bool run_test() {
   uint32_t power_shard_sz = 10;
+  uint32_t test_arr_sz = 14243;
 
-  auto int_test_data = make_int_range_vec(0, 4000);
+  auto int_test_data = make_int_range_vec(0, test_arr_sz);
   ABORT_IF_FAILED(test_dis_array<int>(int_test_data, power_shard_sz));
+
+  auto str_test_data = make_test_str_vec(test_arr_sz);
+  ABORT_IF_FAILED(test_dis_array<std::string>(str_test_data, power_shard_sz));
 
   return true;
 }
