@@ -22,8 +22,7 @@ class ArrayShard {
   ArrayShard(uint32_t capacity);
 
   T operator[](uint32_t index);
-  template <typename V>
-  void set(uint32_t index, V value);
+  void set(uint32_t index, T value);
 
  private:
   uint32_t size_;
@@ -43,8 +42,7 @@ class DistributedArray {
 
   T operator[](uint32_t index);
 
-  template <typename V>
-  void set(uint32_t index, V value);
+  void set(uint32_t index, T value);
 
   template <class Archive>
   void serialize(Archive &ar);
