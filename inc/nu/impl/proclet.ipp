@@ -278,7 +278,7 @@ template <typename RetT, typename... S0s, typename... S1s>
 Future<RetT> Proclet<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
   assert_valid_invocation_types<RetT, S0s...>();
   using fn_states_checker [[maybe_unused]] =
-      decltype(fn(std::declval<T &>(), std::move(states)...));
+      decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
 
   return __run_async(fn, std::forward<S1s>(states)...);
 }
@@ -447,7 +447,7 @@ template <typename RetT, typename... A0s, typename... A1s>
 RetT Proclet<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_valid_invocation_types<RetT, A0s...>();
   using md_args_checker [[maybe_unused]] =
-      decltype((std::declval<T>().*(md))(std::move(args)...));
+      decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
 
   return __run(md, std::forward<A1s>(args)...);
 }
