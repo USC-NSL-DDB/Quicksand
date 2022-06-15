@@ -8,9 +8,9 @@
 bool run_test() {
   nu::ShardedPairCollection<int, std::string> sc;
   sc.emplace_back(1, std::string("1"));
-  std::vector<std::pair<int, std::string>> vec{
-      std::pair(2, "2"), std::pair(3, "3"), std::pair(4, "4")};
-  sc.emplace_back_batch(vec);
+  sc.emplace_back(2, std::string("2"));
+  sc.emplace_back(3, std::string("3"));
+  sc.emplace_back(4, std::string("4"));
   sc.for_all(
       +[](std::pair<const int, std::string> &p, char new_c) {
         p.second += new_c;
