@@ -34,6 +34,12 @@ bool run_test() {
     arr.set(i, i);
   }
 
+  for (uint32_t i = 0; i < arr_sz; i++) {
+    if (arr[i] != (int)i) {
+      return false;
+    }
+  }
+
   auto proclet = make_proclet<ErasedType>();
   if (!proclet.run(
           +[](ErasedType &, DistributedArray<int> arr, uint32_t arr_sz) {
