@@ -96,6 +96,8 @@ DistributedArray<T> make_dis_array(uint32_t size, uint32_t power_shard_sz) {
   arr.shard_sz_ = (1 << power_shard_sz);
   arr.size_ = size;
 
+  BUG_ON(arr.shard_sz_ < sizeof(T));
+
   uint32_t num_shards =
       ((sizeof(T) * size) + arr.shard_sz_ - 1) / arr.shard_sz_;
   arr.elems_per_shard_ = arr.shard_sz_ / sizeof(T);
