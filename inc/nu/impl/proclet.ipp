@@ -544,7 +544,7 @@ Proclet<T> make_proclet(As &&... args) {
 
 template <typename T, typename... As>
 Future<Proclet<T>> make_proclet_async(As &&... args) {
-  return nu::async([&, ... args = std::forward<As>(args)]() {
+  return nu::async([&, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(/* pinned = */ false, 0,
                                 std::forward<As>(args)...);
   });
@@ -572,7 +572,7 @@ Proclet<T> make_proclet_pinned(As &&... args) {
 
 template <typename T, typename... As>
 Future<Proclet<T>> make_proclet_pinned_async(As &&... args) {
-  return nu::async([&, ... args = std::forward<As>(args)]() {
+  return nu::async([&, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(/* pinned = */ true, 0,
                                 std::forward<As>(args)...);
   });
