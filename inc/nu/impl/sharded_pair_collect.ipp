@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
 #include <cstdint>
@@ -16,7 +17,7 @@ ShardedPairCollection<K, V>::ShardedPairCollection(uint32_t shard_size)
 template <typename K, typename V>
 template <typename K1, typename V1>
 void ShardedPairCollection<K, V>::emplace_back(K1 &&k, V1 &&v) {
-  auto shard = mapping_.run(&ShardingMapping::template get_shard<K1>,
+  auto shard = mapping_.run(&ShardingMapping::template get_shard<K>,
                             std::forward<K1>(k));
   shard.run(
       +[](Shard &shard, K k, V v) {
@@ -99,6 +100,27 @@ ShardedPairCollection<K, V>::Shard::get_data_ref() {
 template <typename K, typename V>
 void ShardedPairCollection<K, V>::Shard::emplace_back(PairType &&p) {
   data_.emplace_back(std::move(p));
+  if (unlikely(data_.size() * sizeof(PairType) > shard_size_)) {
+    auto new_shard = make_proclet<Shard>(mapping_, shard_size_);
+    auto mid = data_.begin() + data_.size() / 2;
+    auto post_split_size = data_.end() - mid;
+    std::nth_element(data_.begin(), mid, data_.end());
+    auto mid_k = data_[data_.size() / 2].first;
+    ShardDataType post_split_data;
+    for (uint32_t i = 0; i < post_split_size; i++) {
+      post_split_data.emplace_back(std::move(data_.back()));
+      data_.pop_back();
+    }
+    new_shard.run(&Shard::set_data, std::move(data_));
+    data_ = std::move(post_split_data);
+    mapping_.run(&ShardingMapping::template update_mapping<K>, std::move(mid_k),
+                 std::move(new_shard));
+  }
+}
+
+template <typename K, typename V>
+void ShardedPairCollection<K, V>::Shard::set_data(ShardDataType data) {
+  data_ = std::move(data);
 }
 
 template <typename K, typename V>
@@ -129,7 +151,7 @@ void ShardedPairCollection<K, V>::ShardingMapping::update_mapping(
     K1 k1, Proclet<Shard> shard) {
   shards_.emplace_back(std::move(shard));
   auto ret = mapping_.try_emplace(k1, shards_.size() - 1);
-  BUG_ON(!ret->second);
+  BUG_ON(!ret.second);
 }
 
 template <typename K, typename V>

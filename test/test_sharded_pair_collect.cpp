@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cereal/types/string.hpp>
 #include <iostream>
 
@@ -5,23 +6,28 @@
 #include "nu/runtime.hpp"
 #include "nu/sharded_pair_collect.hpp"
 
+constexpr uint32_t kNumElements = 104856;
+
 bool run_test() {
   nu::ShardedPairCollection<int, std::string> sc;
-  sc.emplace_back(1, std::string("1"));
-  sc.emplace_back(2, std::string("2"));
-  sc.emplace_back(3, std::string("3"));
-  sc.emplace_back(4, std::string("4"));
+  for (uint32_t i = 0; i < kNumElements; i++) {
+    auto str = std::to_string(i);
+    sc.emplace_back(i, str);
+  }
   sc.for_all(
       +[](std::pair<const int, std::string> &p, char new_c) {
         p.second += new_c;
       },
       ' ');
   auto v = sc.collect();
-  std::vector<std::pair<int, std::string>> expected_v{
-      std::pair(1, "1 "), std::pair(2, "2 "), std::pair(3, "3 "),
-      std::pair(4, "4 ")};
+  sort(v.begin(), v.end());
+
+  std::vector<std::pair<int, std::string>> expected_v;
+  for (uint32_t i = 0; i < kNumElements; i++) {
+    expected_v.emplace_back(i, std::string(std::to_string(i) + " "));
+  }
+
   return v == expected_v;
-  return true;
 }
 
 int main(int argc, char **argv) {

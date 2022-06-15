@@ -24,6 +24,7 @@ class ShardedPairCollection {
   ShardDataType collect();
 
  private:
+
   class ShardingMapping;
   class Shard {
    public:
@@ -31,6 +32,7 @@ class ShardedPairCollection {
     ShardDataType get_data();
     ShardDataType &get_data_ref();
     void emplace_back(PairType &&p);
+    void set_data(ShardDataType v);
 
    private:
     ShardDataType data_;
