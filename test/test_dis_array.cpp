@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/types/unordered_map.hpp>
@@ -96,6 +98,15 @@ std::vector<std::string> make_test_str_vec(uint32_t size) {
   return vec;
 }
 
+std::vector<std::vector<std::string>> make_nested_str_vec(uint32_t size) {
+  uint32_t sz = sqrt(size);
+  std::vector<std::vector<std::string>> vec(sz);
+  for (uint32_t i = 0; i < sz; i++) {
+    vec[i] = make_test_str_vec(sz);
+  }
+  return vec;
+}
+
 bool run_test() {
   uint32_t power_shard_sz = 10;
   uint32_t test_arr_sz = 14243;
@@ -105,6 +116,10 @@ bool run_test() {
 
   auto str_test_data = make_test_str_vec(test_arr_sz);
   ABORT_IF_FAILED(test_dis_array<std::string>(str_test_data, power_shard_sz));
+
+  auto str_vecs = make_nested_str_vec(test_arr_sz);
+  ABORT_IF_FAILED(
+      test_dis_array<std::vector<std::string>>(str_vecs, power_shard_sz));
 
   return true;
 }
