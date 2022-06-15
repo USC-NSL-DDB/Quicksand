@@ -51,7 +51,7 @@ class ShardedPairCollection {
     void set_initial_shard(Proclet<Shard> shard);
 
    private:
-    std::map<K, int> mapping_;
+    std::map<K, int, std::greater<K>> mapping_;
     std::vector<Proclet<Shard>> shards_;
   };
 

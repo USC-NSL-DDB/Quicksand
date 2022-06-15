@@ -101,18 +101,15 @@ template <typename K, typename V>
 void ShardedPairCollection<K, V>::Shard::emplace_back(PairType &&p) {
   data_.emplace_back(std::move(p));
   if (unlikely(data_.size() * sizeof(PairType) > shard_size_)) {
-    auto new_shard = make_proclet<Shard>(mapping_, shard_size_);
+    auto new_shard_future = make_proclet_async<Shard>(mapping_, shard_size_);
     auto mid = data_.begin() + data_.size() / 2;
-    auto post_split_size = data_.end() - mid;
     std::nth_element(data_.begin(), mid, data_.end());
     auto mid_k = data_[data_.size() / 2].first;
-    ShardDataType post_split_data;
-    for (uint32_t i = 0; i < post_split_size; i++) {
-      post_split_data.emplace_back(std::move(data_.back()));
-      data_.pop_back();
-    }
-    new_shard.run(&Shard::set_data, std::move(data_));
-    data_ = std::move(post_split_data);
+    // TODO: get rid of copy.
+    ShardDataType post_split_data(mid, data_.end());
+    data_.erase(mid, data_.end());
+    auto &new_shard = new_shard_future.get();
+    new_shard.run(&Shard::set_data, std::move(post_split_data));
     mapping_.run(&ShardingMapping::template update_mapping<K>, std::move(mid_k),
                  std::move(new_shard));
   }
