@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -20,47 +21,53 @@ class ShardedPairCollection {
   ShardedPairCollection(uint32_t shard_size = kDefaultShardSize);
   template <typename K1, typename V1>
   void emplace_back(K1 &&k1, V1 &&v1);
-  void emplace_back(PairType &&p);
   void emplace_back(const PairType &p);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(std::pair<const K, V> &, S0s...), S1s &&... states);
   ShardDataType collect();
 
  private:
-
   class ShardingMapping;
   class Shard {
    public:
-    Shard(WeakProclet<ShardingMapping> mapping, uint32_t shard_size);
+    Shard(WeakProclet<ShardingMapping> mapping, uint32_t shard_size,
+          std::optional<K> key_l, std::optional<K> key_r, ShardDataType data);
     ShardDataType get_data();
     std::pair<ScopedLock<SpinLock>, ShardDataType *> get_data_ptr();
-    void emplace_back(PairType &&p);
-    void set_data(ShardDataType v);
+    bool emplace_back(PairType &&p);
 
    private:
     SpinLock spin_;
-    ShardDataType data_;
     uint32_t shard_size_;
     WeakProclet<ShardingMapping> mapping_;
+    std::optional<K> key_l_;
+    std::optional<K> key_r_;
+    ShardDataType data_;
   };
 
   class ShardingMapping {
    public:
     ShardingMapping();
     template <typename K1>
-    WeakProclet<Shard> get_shard(K1 k1);
+    std::pair<std::optional<K>, WeakProclet<Shard>> get_shard(K1 k1);
     std::vector<WeakProclet<Shard>> get_all_shards();
     template <typename K1>
     void update_mapping(K1 k1, Proclet<Shard> shard);
     void set_initial_shard(Proclet<Shard> shard);
 
    private:
-    std::map<K, int, std::greater<K>> mapping_;
-    std::vector<Proclet<Shard>> shards_;
+    std::map<std::optional<K>, Proclet<Shard>, std::greater<std::optional<K>>>
+        mapping_;
   };
 
   Proclet<ShardingMapping> mapping_;
+  SpinLock spin_;
+  std::map<std::optional<K>, WeakProclet<Shard>, std::greater<std::optional<K>>>
+      cached_mapping_;
   uint32_t shard_size_;
+
+  template <typename K1>
+  WeakProclet<Shard> get_shard(const K1 &k1, bool invalidate_cache = false);
 };
 
 }  // namespace nu
