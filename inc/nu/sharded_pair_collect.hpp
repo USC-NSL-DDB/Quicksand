@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "nu/utils/reader_writer_lock.hpp"
 #include "nu/utils/scoped_lock.hpp"
 #include "nu/utils/spin_lock.hpp"
 
@@ -64,10 +65,11 @@ class ShardedPairCollection {
    private:
     std::map<std::optional<K>, Proclet<Shard>, std::greater<std::optional<K>>>
         mapping_;
+    ReaderWriterLock rw_lock_;
   };
 
   Proclet<ShardingMapping> mapping_;
-  SpinLock spin_;
+  ReaderWriterLock rw_lock_;
   std::map<std::optional<K>, WeakProclet<Shard>, std::greater<std::optional<K>>>
       cached_mapping_;
   uint32_t shard_size_;

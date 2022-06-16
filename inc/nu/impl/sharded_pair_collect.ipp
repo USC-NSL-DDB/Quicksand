@@ -176,18 +176,24 @@ template <typename K1>
 std::pair<std::optional<K>,
           WeakProclet<typename ShardedPairCollection<K, V>::Shard>>
 ShardedPairCollection<K, V>::ShardingMapping::get_shard(K1 k1) {
+  rw_lock_.reader_lock();
   auto iter = mapping_.lower_bound(k1);
   BUG_ON(iter == mapping_.end());
-  return std::make_pair(iter->first, iter->second.get_weak());
+  auto ret = std::make_pair(iter->first, iter->second.get_weak());
+  rw_lock_.reader_unlock();
+  return ret;
 }
 
 template <typename K, typename V>
 std::vector<WeakProclet<typename ShardedPairCollection<K, V>::Shard>>
 ShardedPairCollection<K, V>::ShardingMapping::get_all_shards() {
   std::vector<WeakProclet<Shard>> shards;
+
+  rw_lock_.reader_lock();
   for (auto &[_, shard] : mapping_) {
     shards.emplace_back(shard.get_weak());
   }
+  rw_lock_.reader_unlock();
   return shards;
 }
 
@@ -195,7 +201,9 @@ template <typename K, typename V>
 template <typename K1>
 void ShardedPairCollection<K, V>::ShardingMapping::update_mapping(
     K1 k1, Proclet<Shard> shard) {
+  rw_lock_.writer_lock();
   auto ret = mapping_.try_emplace(k1, std::move(shard));
+  rw_lock_.writer_unlock();
   BUG_ON(!ret.second);
 }
 
@@ -210,15 +218,20 @@ template <typename K, typename V>
 template <typename K1>
 WeakProclet<typename ShardedPairCollection<K, V>::Shard>
 ShardedPairCollection<K, V>::get_shard(const K1 &k1, bool invalidate_cache) {
-  ScopedLock<SpinLock> guard(&spin_);
-
   if (unlikely(invalidate_cache)) {
     auto pair = mapping_.run(&ShardingMapping::template get_shard<K1>, k1);
+    rw_lock_.writer_lock();
     cached_mapping_.insert(std::move(pair));
+    rw_lock_.writer_unlock();
   }
+
+  rw_lock_.reader_lock();
   auto iter = cached_mapping_.lower_bound(k1);
   BUG_ON(iter == cached_mapping_.end());
-  return iter->second;
+  auto ret = iter->second;
+  rw_lock_.reader_unlock();
+
+  return ret;
 }
 
 }  // namespace nu
