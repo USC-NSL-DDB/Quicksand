@@ -10,6 +10,7 @@
 
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/rcu_lock.hpp"
+#include "nu/utils/reader_writer_lock.hpp"
 
 namespace nu {
 
@@ -31,15 +32,6 @@ class RCUHashSet {
   using KeyEqual = std::equal_to<K>;
 
   std::unordered_set<K, Hash, KeyEqual, Allocator> set_;
-  RCULock rcu_;
-  bool writer_barrier_ = false;
-  Mutex mutex_;
-  CondVar cond_var_;
-
-  void reader_lock();
-  void reader_unlock();
-  void writer_lock();
-  void writer_unlock();
 };
 }  // namespace nu
 
