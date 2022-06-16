@@ -20,4 +20,4 @@ class SpinLock {
 };
 }  // namespace nu
 
-#include "nu/impl/spinlock.ipp"
+#include "nu/impl/spin_lock.ipp"

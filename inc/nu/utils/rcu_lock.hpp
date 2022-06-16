@@ -8,7 +8,7 @@
 #include "nu/commons.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
-#include "nu/utils/spinlock.hpp"
+#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 

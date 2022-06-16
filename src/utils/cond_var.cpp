@@ -3,7 +3,7 @@
 #include "nu/runtime.hpp"
 #include "nu/utils/blocked_syncer.hpp"
 #include "nu/utils/mutex.hpp"
-#include "nu/utils/spinlock.hpp"
+#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 

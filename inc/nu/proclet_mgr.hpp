@@ -22,7 +22,7 @@ extern "C" {
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/slab.hpp"
-#include "nu/utils/spinlock.hpp"
+#include "nu/utils/spin_lock.hpp"
 #include "nu/utils/time.hpp"
 
 namespace nu {
