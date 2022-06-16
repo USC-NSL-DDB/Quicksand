@@ -152,6 +152,7 @@ bool ProcletServer::update_ref_cnt_locally(ProcletID id, int delta) {
     {
       auto *obj = Runtime::get_root_obj<Cls>(id);
       ProcletSlabGuard proclet_slab_guard(&proclet_header->slab);
+      MigrationEnabledGuard guard;
       obj->~Cls();
     }
 
