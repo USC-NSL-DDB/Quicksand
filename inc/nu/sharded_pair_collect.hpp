@@ -19,12 +19,18 @@ class ShardedPairCollection {
   constexpr static uint32_t kDefaultShardSize = 2 << 20;
 
   ShardedPairCollection(uint32_t shard_size = kDefaultShardSize);
+  ShardedPairCollection(const ShardedPairCollection &);
+  ShardedPairCollection &operator=(const ShardedPairCollection &);
+  ShardedPairCollection(ShardedPairCollection &&);
+  ShardedPairCollection &operator=(ShardedPairCollection &&);
   template <typename K1, typename V1>
   void emplace_back(K1 &&k1, V1 &&v1);
   void emplace_back(const PairType &p);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(std::pair<const K, V> &, S0s...), S1s &&... states);
   ShardDataType collect();
+  template <class Archive>
+  void serialize(Archive &ar);
 
  private:
   class ShardingMapping;

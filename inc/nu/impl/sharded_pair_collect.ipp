@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cereal/types/map.hpp>
 #include <cereal/types/optional.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
@@ -16,6 +17,37 @@ ShardedPairCollection<K, V>::ShardedPairCollection(uint32_t shard_size)
                           std::optional<K>(), ShardDataType());
   cached_mapping_.try_emplace(std::nullopt, initial_shard.get_weak());
   mapping_.run(&ShardingMapping::set_initial_shard, std::move(initial_shard));
+}
+
+template <typename K, typename V>
+ShardedPairCollection<K, V>::ShardedPairCollection(
+    const ShardedPairCollection &o)
+    : mapping_(o.mapping_),
+      cached_mapping_(o.cached_mapping_),
+      shard_size_(o.shard_size_) {}
+
+template <typename K, typename V>
+ShardedPairCollection<K, V> &ShardedPairCollection<K, V>::operator=(
+    const ShardedPairCollection &o) {
+  this->mapping_ = o.mapping_;
+  this->cached_mapping_ = o.cached_mapping_;
+  this->shard_size_ = o.shard_size_;
+  return *this;
+}
+
+template <typename K, typename V>
+ShardedPairCollection<K, V>::ShardedPairCollection(ShardedPairCollection &&o)
+    : mapping_(std::move(o.mapping_)),
+      cached_mapping_(std::move(o.cached_mapping_)),
+      shard_size_(o.shard_size_) {}
+
+template <typename K, typename V>
+ShardedPairCollection<K, V> &ShardedPairCollection<K, V>::operator=(
+    ShardedPairCollection &&o) {
+  this->mapping_ = std::move(o.mapping_);
+  this->cached_mapping_ = std::move(o.cached_mapping_);
+  this->shard_size_ = o.shard_size_;
+  return *this;
 }
 
 template <typename K, typename V>
@@ -77,6 +109,12 @@ ShardedPairCollection<K, V>::collect() {
     all.insert(all.end(), vec.begin(), vec.end());
   }
   return all;
+}
+
+template <typename K, typename V>
+template <class Archive>
+void ShardedPairCollection<K, V>::serialize(Archive &ar) {
+  ar(mapping_, cached_mapping_, shard_size_);
 }
 
 template <typename K, typename V>

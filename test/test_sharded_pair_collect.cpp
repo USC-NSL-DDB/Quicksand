@@ -9,34 +9,43 @@
 
 constexpr uint32_t kNumElements = 1 << 20;
 
+class Worker {
+ public:
+  Worker(nu::ShardedPairCollection<int, std::string> sc) : sc_(sc) {}
+
+  void emplace(uint32_t start, uint32_t end) {
+    for (uint32_t i = start; i < end; i++) {
+      auto str = std::to_string(i);
+      sc_.emplace_back(i, str);
+    }
+  }
+
+  void mutate() {
+    sc_.for_all(
+        +[](std::pair<const int, std::string> &p, char new_c) {
+          p.second += new_c;
+        },
+        ' ');
+  }
+
+ private:
+  nu::ShardedPairCollection<int, std::string> sc_;
+};
+
 bool run_test() {
   nu::ShardedPairCollection<int, std::string> sc;
-  std::function emplace_thread_fn = [&](uint32_t start, uint32_t end) {
-    return nu::Thread([&, start, end] {
-      for (uint32_t i = start; i < end; i++) {
-        auto str = std::to_string(i);
-        sc.emplace_back(i, str);
-      }
-    });
-  };
-  auto t0 = emplace_thread_fn(0, kNumElements / 2);
-  auto t1 = emplace_thread_fn(kNumElements / 2, kNumElements);
-  t0.join();
-  t1.join();
+  auto p0 = make_proclet<Worker>(sc);
+  auto p1 = make_proclet<Worker>(sc);
 
-  std::function for_all_thread_fn = [&] {
-    return nu::Thread([&] {
-      sc.for_all(
-          +[](std::pair<const int, std::string> &p, char new_c) {
-            p.second += new_c;
-          },
-          ' ');
-    });
-  };
-  auto t2 = for_all_thread_fn();
-  auto t3 = for_all_thread_fn();
-  t2.join();
-  t3.join();
+  auto f0 = p0.run_async(&Worker::emplace, 0, kNumElements / 2);
+  auto f1 = p1.run_async(&Worker::emplace, kNumElements / 2, kNumElements);
+  f0.get();
+  f1.get();
+
+  auto f2 = p0.run_async(&Worker::mutate);
+  auto f3 = p1.run_async(&Worker::mutate);
+  f2.get();
+  f3.get();
 
   auto v = sc.collect();
   sort(v.begin(), v.end());
