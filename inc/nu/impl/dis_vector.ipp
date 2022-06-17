@@ -62,6 +62,12 @@ void VectorShard<T>::push_back(const T& value) {
 }
 
 template <typename T>
+void VectorShard<T>::pop_back() {
+  BUG_ON(data_.size() == 0);
+  data_.pop_back();
+}
+
+template <typename T>
 DistributedVector<T>::DistributedVector()
     : shard_max_size_(0), shard_max_size_bytes_(0), size_(0), shards_(0) {}
 
@@ -135,6 +141,24 @@ void DistributedVector<T>::push_back(const T& value) {
   shard.__run(
       +[](VectorShard<T>& shard, T value) { shard.push_back(value); }, value);
   size_++;
+}
+
+template <typename T>
+void DistributedVector<T>::pop_back() {
+  if (size_ == 0) return;
+
+  BUG_ON(shard_max_size_ == 0);
+  uint32_t shard_idx = (size_ - 1) / shard_max_size_;
+  BUG_ON(shard_idx >= shards_.size());
+
+  bool last_shard_empty = ((size_ - 1) % shard_max_size_) == 0;
+  if (last_shard_empty) {
+    shards_.pop_back();
+  } else {
+    auto& shard = shards_[shard_idx];
+    shard.__run(+[](VectorShard<T>& shard) { shard.pop_back(); });
+  }
+  size_--;
 }
 
 template <typename T>

@@ -52,6 +52,7 @@ class VectorShard {
 
   ElRef<T> operator[](uint32_t index);
   void push_back(const T &value);
+  void pop_back();
 
   template <typename T1>
   friend class ElRef;
@@ -76,6 +77,7 @@ class DistributedVector {
 
   void set(uint32_t index, T value);
   void push_back(const T &value);
+  void pop_back();
   bool empty();
   size_t size();
 

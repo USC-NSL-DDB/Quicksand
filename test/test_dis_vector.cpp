@@ -50,7 +50,7 @@ bool run_test() {
 
   for (int i = 0; i < 1000; i++) {
     vec.push_back(i);
-    TEST(vec.size() == (size_t)i + 1);
+    TEST(vec.size() == (size_t)(i + 1));
     TEST(!vec.empty());
   }
   for (int i = 0; i < 1000; i++) {
@@ -64,6 +64,11 @@ bool run_test() {
   }
 
   TEST(!vec.empty());
+  for (int i = 0; i < 1000; i++) {
+    vec.pop_back();
+    TEST(vec.size() == (size_t)(1000 - i - 1));
+  }
+  TEST(vec.empty());
 
   return true;
 }
