@@ -42,33 +42,52 @@ Runtime::Mode mode;
     }               \
   } while (0);
 
-bool run_test() {
-  uint32_t power_shard_sz = 10;
+std::vector<int> make_int_range_vec(int start_incl, int end_excl) {
+  BUG_ON(start_incl > end_excl);
+  std::vector<int> vec(end_excl - start_incl);
+  for (int i = 0; i < end_excl - start_incl; i++) {
+    vec[i] = i + start_incl;
+  }
+  return vec;
+}
 
-  auto vec = make_dis_vector<int>(power_shard_sz);
+template <typename T>
+bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
+  size_t len = expected.size();
+
+  auto vec = make_dis_vector<T>(power_shard_sz);
   TEST(vec.empty());
 
-  for (int i = 0; i < 1000; i++) {
-    vec.push_back(i);
-    TEST(vec.size() == (size_t)(i + 1));
+  for (size_t i = 0; i < len; i++) {
+    vec.push_back(expected[i]);
+    TEST(vec.size() == i + 1);
     TEST(!vec.empty());
   }
-  for (int i = 0; i < 1000; i++) {
-    TEST(vec[i] == i);
+  for (size_t i = 0; i < len; i++) {
+    TEST(vec[i] == expected[i]);
   }
-  for (int i = 0; i < 1000; i++) {
-    vec[i] = 1000 - i;
+  for (size_t i = 0; i < len; i++) {
+    vec[i] = expected[len - i];
   }
-  for (int i = 0; i < 1000; i++) {
-    TEST(vec[i] == 1000 - i);
+  for (size_t i = 0; i < len; i++) {
+    TEST(vec[i] == expected[len - i]);
   }
 
   TEST(!vec.empty());
-  for (int i = 0; i < 1000; i++) {
+  for (size_t i = 0; i < len; i++) {
     vec.pop_back();
-    TEST(vec.size() == (size_t)(1000 - i - 1));
+    TEST(vec.size() == (len - i - 1));
   }
   TEST(vec.empty());
+
+  return true;
+}
+
+bool run_test() {
+  uint32_t power_shard_sz = 10;
+
+  auto expected_ints = make_int_range_vec(0, 1000);
+  ABORT_IF_FAILED(test_push_and_pop<int>(expected_ints, power_shard_sz));
 
   return true;
 }
