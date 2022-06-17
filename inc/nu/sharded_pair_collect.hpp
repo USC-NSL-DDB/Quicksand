@@ -58,11 +58,11 @@ class ShardedPairCollection {
   class ShardingMapping {
    public:
     ShardingMapping();
-    template <typename K1>
-    std::pair<std::optional<K>, WeakProclet<Shard>> get_shard(K1 k1);
+    std::vector<std::pair<std::optional<K>, WeakProclet<Shard>>>
+    get_shards_in_range(std::optional<K> key_l, std::optional<K> key_r);
     std::vector<WeakProclet<Shard>> get_all_shards();
     template <typename K1>
-    void update_mapping(K1 k1, Proclet<Shard> shard);
+    void update_mapping(K1 k, Proclet<Shard> shard);
     void set_initial_shard(Proclet<Shard> shard);
 
    private:
@@ -86,8 +86,9 @@ class ShardedPairCollection {
   uint32_t shard_size_;
   uint32_t cache_bucket_size_;
 
-  bool push(WeakProclet<Shard> shard, ShardDataType &&data_to_push,
-            bool with_wlock = false);
+  bool push_data(std::optional<K> key_l, std::optional<K> key_r,
+                 WeakProclet<Shard> shard, ShardDataType &&data,
+                 bool with_wlock = false);
 };
 
 }  // namespace nu

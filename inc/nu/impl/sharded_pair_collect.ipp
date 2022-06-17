@@ -74,6 +74,7 @@ void ShardedPairCollection<K, V>::emplace_back(PairType &&p) {
 
   WeakProclet<Shard> shard;
   ShardDataType data_to_push;
+  std::optional<K> key_l, key_r;
   {
     rt::Preempt pt;
     rt::PreemptGuard g(&pt);
@@ -83,30 +84,31 @@ void ShardedPairCollection<K, V>::emplace_back(PairType &&p) {
     data.emplace_back(p);
     if (unlikely(data.size() * sizeof(PairType) > cache_bucket_size_)) {
       data_to_push = std::move(data);
+      key_l = iter->first;
+      if (iter != cache_mapping_.begin()) {
+        key_r = (--iter)->first;
+      }
       data.clear();
     }
   }
   rw_lock_.reader_unlock();
 
   if (unlikely(!data_to_push.empty())) {
-    push(shard, std::move(data_to_push));
+    push_data(key_l, key_r, shard, std::move(data_to_push));
   }
 }
 
 template <typename K, typename V>
-bool ShardedPairCollection<K, V>::push(WeakProclet<Shard> shard,
-                                       ShardDataType &&data_to_push,
-                                       bool with_wlock) {
-  auto rejected_data =
-      shard.run(&Shard::try_emplace_back, std::move(data_to_push));
+bool ShardedPairCollection<K, V>::push_data(std::optional<K> key_l,
+                                            std::optional<K> key_r,
+                                            WeakProclet<Shard> shard,
+                                            ShardDataType &&data,
+                                            bool with_wlock) {
+  auto rejected_data = shard.run(&Shard::try_emplace_back, std::move(data));
 
   if (unlikely(!rejected_data.empty())) {
-    std::map<std::optional<K>, WeakProclet<Shard>> new_mappings;
-    for (auto &[k, _] : rejected_data) {
-      auto new_mapping =
-          mapping_.run(&ShardingMapping::template get_shard<K>, k);
-      new_mappings.insert(new_mapping);
-    }
+    auto new_mappings = mapping_.run(&ShardingMapping::get_shards_in_range,
+                                     std::move(key_l), std::move(key_r));
 
     if (!with_wlock) rw_lock_.writer_lock();
     for (auto &[k, s] : new_mappings) {
@@ -135,11 +137,16 @@ void ShardedPairCollection<K, V>::flush() {
   bool done = true;
   rw_lock_.writer_lock();
   do {
-    for (auto &[k, cache] : cache_mapping_) {
+    std::optional<K> key_r;
+    for (auto iter = cache_mapping_.begin(); iter != cache_mapping_.end();
+         iter++) {
+      auto &[key_l, cache] = *iter;
       for (uint32_t i = 0; i < kNumCores; i++) {
-        done &= push(cache.shard, std::move(cache.data[i]), true);
+        done &= push_data(key_l, key_r, cache.shard, std::move(cache.data[i]),
+                          true);
         cache.data[i].clear();
       }
+      key_r = key_l;
     }
   } while (!done);
   rw_lock_.writer_unlock();
@@ -256,16 +263,21 @@ template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardingMapping::ShardingMapping() {}
 
 template <typename K, typename V>
-template <typename K1>
-std::pair<std::optional<K>,
-          WeakProclet<typename ShardedPairCollection<K, V>::Shard>>
-ShardedPairCollection<K, V>::ShardingMapping::get_shard(K1 k1) {
+std::vector<std::pair<std::optional<K>,
+                      WeakProclet<typename ShardedPairCollection<K, V>::Shard>>>
+ShardedPairCollection<K, V>::ShardingMapping::get_shards_in_range(
+    std::optional<K> key_l, std::optional<K> key_r) {
+  std::vector<std::pair<std::optional<K>, WeakProclet<Shard>>> shards;
   rw_lock_.reader_lock();
-  auto iter = mapping_.lower_bound(k1);
-  BUG_ON(iter == mapping_.end());
+  typename decltype(mapping_)::iterator iter =
+      key_r ? mapping_.upper_bound(key_r) : mapping_.begin();
+  while (iter != mapping_.end() && iter->first >= key_l) {
+    shards.emplace_back(iter->first, iter->second.get_weak());
+    iter++;
+  }
   auto ret = std::make_pair(iter->first, iter->second.get_weak());
   rw_lock_.reader_unlock();
-  return ret;
+  return shards;
 }
 
 template <typename K, typename V>
@@ -284,9 +296,9 @@ ShardedPairCollection<K, V>::ShardingMapping::get_all_shards() {
 template <typename K, typename V>
 template <typename K1>
 void ShardedPairCollection<K, V>::ShardingMapping::update_mapping(
-    K1 k1, Proclet<Shard> shard) {
+    K1 k, Proclet<Shard> shard) {
   rw_lock_.writer_lock();
-  auto ret = mapping_.try_emplace(k1, std::move(shard));
+  auto ret = mapping_.try_emplace(k, std::move(shard));
   rw_lock_.writer_unlock();
   BUG_ON(!ret.second);
 }
