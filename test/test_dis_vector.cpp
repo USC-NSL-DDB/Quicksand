@@ -28,6 +28,27 @@ using namespace nu;
 
 Runtime::Mode mode;
 
+std::random_device rd;
+std::mt19937 mt(rd());
+std::uniform_int_distribution<int> dist('A', 'z');
+
+std::string random_str(uint32_t len) {
+  std::string str = "";
+  for (uint32_t i = 0; i < len; i++) {
+    str += dist(mt);
+  }
+  return str;
+}
+
+std::vector<std::string> make_test_str_vec(uint32_t size) {
+  int test_str_len = 35;
+  std::vector<std::string> vec(size);
+  for (uint32_t i = 0; i < size; i++) {
+    vec[i] = random_str(test_str_len);
+  }
+  return vec;
+}
+
 #define ABORT_IF_FAILED(passed) \
   do {                          \
     if (!passed) {              \
@@ -85,9 +106,13 @@ bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
 
 bool run_test() {
   uint32_t power_shard_sz = 10;
+  uint32_t test_data_sz = 12345;
 
-  auto expected_ints = make_int_range_vec(0, 1000);
+  auto expected_ints = make_int_range_vec(0, test_data_sz);
   ABORT_IF_FAILED(test_push_and_pop<int>(expected_ints, power_shard_sz));
+
+  auto test_strs = make_test_str_vec(test_data_sz);
+  ABORT_IF_FAILED(test_push_and_pop<std::string>(test_strs, power_shard_sz));
 
   return true;
 }
