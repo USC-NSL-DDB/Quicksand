@@ -5,7 +5,15 @@
 
 namespace nu {
 template <typename T>
-VectorShard<T>::VectorShard() : data_(0) {}
+VectorShard<T>::VectorShard() : data_(0), size_max_(0) {}
+
+template <typename T>
+VectorShard<T>::VectorShard(uint32_t capacity, uint32_t size_max)
+    : data_(0), size_max_(size_max) {
+  if (capacity) {
+    data_.reserve(capacity);
+  }
+}
 
 template <typename T>
 T VectorShard<T>::operator[](uint32_t index) {
@@ -13,17 +21,14 @@ T VectorShard<T>::operator[](uint32_t index) {
 }
 
 template <typename T>
-void VectorShard<T>::set(uint32_t index, T value) {
-  data_[index] = value;
+void VectorShard<T>::push_back(const T& value) {
+  BUG_ON(data_.size() > size_max_);
+  data_.push_back(value);
 }
 
 template <typename T>
 DistributedVector<T>::DistributedVector()
-    : power_shard_sz_(0),
-      shard_sz_(0),
-      elems_per_shard_(0),
-      size_(0),
-      shards_(0) {}
+    : shard_max_size_(0), shard_max_size_bytes_(0), size_(0), shards_(0) {}
 
 template <typename T>
 DistributedVector<T>::DistributedVector(const DistributedVector& o) {
@@ -33,10 +38,9 @@ DistributedVector<T>::DistributedVector(const DistributedVector& o) {
 template <typename T>
 DistributedVector<T>& DistributedVector<T>::operator=(
     const DistributedVector& o) {
-  power_shard_sz_ = o.power_shard_sz_;
-  shard_sz_ = o.shard_sz_;
+  shard_max_size_bytes_ = o.shard_max_size_bytes_;
+  shard_max_size_ = o.shard_max_size_;
   shards_ = o.shards_;
-  elems_per_shard_ = o.elems_per_shard_;
   size_ = o.size_;
   return *this;
 }
@@ -48,9 +52,8 @@ DistributedVector<T>::DistributedVector(DistributedVector&& o) {
 
 template <typename T>
 DistributedVector<T>& DistributedVector<T>::operator=(DistributedVector&& o) {
-  power_shard_sz_ = o.power_shard_sz_;
-  shard_sz_ = o.shard_sz_;
-  elems_per_shard_ = o.elems_per_shard_;
+  shard_max_size_ = o.shard_max_size_;
+  shard_max_size_bytes_ = o.shard_max_size_bytes_;
   size_ = o.size_;
   for (uint32_t i = 0; i < o.shards_.size(); i++) {
     shards_.emplace_back(std::move(o.shards_[i]));
@@ -60,8 +63,8 @@ DistributedVector<T>& DistributedVector<T>::operator=(DistributedVector&& o) {
 
 template <typename T>
 T DistributedVector<T>::operator[](uint32_t index) {
-  uint32_t shard_idx = index / elems_per_shard_;
-  uint32_t idx_in_shard = index % elems_per_shard_;
+  uint32_t shard_idx = index / shard_max_size_;
+  uint32_t idx_in_shard = index % shard_max_size_;
   auto& shard = shards_[shard_idx];
   return shard.__run(
       +[](VectorShard<T>& shard, uint32_t idx) { return shard[idx]; },
@@ -71,8 +74,8 @@ T DistributedVector<T>::operator[](uint32_t index) {
 template <typename T>
 void DistributedVector<T>::set(uint32_t index, T value) {
   if (index >= size_) return;
-  uint32_t shard_idx = index / elems_per_shard_;
-  uint32_t idx_in_shard = index % elems_per_shard_;
+  uint32_t shard_idx = index / shard_max_size_;
+  uint32_t idx_in_shard = index % shard_max_size_;
   auto& shard = shards_[shard_idx];
   shard.__run(
       +[](VectorShard<T>& shard, uint32_t idx, T value) {
@@ -82,11 +85,26 @@ void DistributedVector<T>::set(uint32_t index, T value) {
 }
 
 template <typename T>
+void DistributedVector<T>::push_back(const T& value) {
+  BUG_ON(shard_max_size_ == 0);
+  uint32_t shard_idx = size_ / shard_max_size_;
+  BUG_ON(shard_idx > shards_.size());
+  if (shard_idx == shards_.size()) {
+    uint32_t capacity = shard_max_size_;
+    uint32_t max_size = shard_max_size_;
+    shards_.emplace_back(make_proclet<VectorShard<T>>(capacity, max_size));
+  }
+  auto& shard = shards_[shard_idx];
+  shard.__run(
+      +[](VectorShard<T>& shard, T value) { shard.push_back(value); }, value);
+  size_++;
+}
+
+template <typename T>
 template <class Archive>
 void DistributedVector<T>::serialize(Archive& ar) {
-  ar(power_shard_sz_);
-  ar(shard_sz_);
-  ar(elems_per_shard_);
+  ar(shard_max_size_bytes_);
+  ar(shard_max_size_);
   ar(size_);
   ar(shards_);
 }
@@ -95,10 +113,10 @@ template <typename T>
 DistributedVector<T> make_dis_vector(uint32_t power_shard_sz) {
   DistributedVector<T> vec;
 
-  vec.power_shard_sz_ = power_shard_sz;
-  vec.shard_sz_ = (1 << power_shard_sz);
+  vec.shard_max_size_bytes_ = (1 << power_shard_sz);
+  vec.shard_max_size_ = vec.shard_max_size_bytes_ / sizeof(T);
 
-  BUG_ON(vec.shard_sz_ < sizeof(T));
+  BUG_ON(vec.shard_max_size_bytes_ < sizeof(T));
 
   return vec;
 }

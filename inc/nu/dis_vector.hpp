@@ -20,12 +20,14 @@ template <typename T>
 class VectorShard {
  public:
   VectorShard();
+  VectorShard(uint32_t capacity, uint32_t size_max);
 
   T operator[](uint32_t index);
-  void set(uint32_t index, T value);
+  void push_back(const T &value);
 
  private:
   std::vector<T> data_;
+  uint32_t size_max_;
 };
 
 template <typename T>
@@ -42,14 +44,14 @@ class DistributedVector {
   T operator[](uint32_t index);
 
   void set(uint32_t index, T value);
+  void push_back(const T &value);
 
   template <class Archive>
   void serialize(Archive &ar);
 
  private:
-  uint32_t power_shard_sz_;
-  uint32_t shard_sz_;
-  uint32_t elems_per_shard_;
+  uint32_t shard_max_size_;
+  uint32_t shard_max_size_bytes_;
   uint32_t size_;
   std::vector<Proclet<VectorShard<T>>> shards_;
 

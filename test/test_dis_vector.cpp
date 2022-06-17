@@ -35,10 +35,23 @@ Runtime::Mode mode;
     }                           \
   } while (0);
 
+#define TEST(cond)  \
+  do {              \
+    if (!(cond)) {  \
+      return false; \
+    }               \
+  } while (0);
+
 bool run_test() {
   uint32_t power_shard_sz = 10;
 
   auto vec = make_dis_vector<int>(power_shard_sz);
+  for (int i = 0; i < 1000; i++) {
+    vec.push_back(i);
+  }
+  for (int i = 0; i < 1000; i++) {
+    TEST(vec[i] == i);
+  }
 
   return true;
 }

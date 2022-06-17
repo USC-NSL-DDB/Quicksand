@@ -55,6 +55,8 @@ class Proclet {
   template <typename V>
   friend class DistributedArray;
   friend class DistributedMemPool;
+  template <typename V>
+  friend class DistributedVector;
 
   Proclet(ProcletID id, bool ref_cnted);
   std::optional<Future<void>> update_ref_cnt(int delta);
