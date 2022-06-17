@@ -5,6 +5,41 @@
 
 namespace nu {
 template <typename T>
+ElRef<T>::ElRef() {}
+
+template <typename T>
+ElRef<T>::ElRef(uint32_t index, T element) : el_(element), idx_(index) {}
+
+template <typename T>
+const T& ElRef<T>::operator*() {
+  return el_;
+}
+
+template <typename T>
+template <typename T1>
+bool ElRef<T>::operator==(T1&& rhs) {
+  return rhs == el_;
+}
+
+template <typename T>
+ElRef<T>& ElRef<T>::operator=(const T& value) {
+  shard_.value().__run(
+      +[](VectorShard<T>& shard, uint32_t idx, const T& value) {
+        shard.data_[idx] = value;
+      },
+      idx_, value);
+  return *this;
+}
+
+template <typename T>
+template <class Archive>
+void ElRef<T>::serialize(Archive& ar) {
+  ar(el_);
+  ar(idx_);
+  ar(shard_);
+}
+
+template <typename T>
 VectorShard<T>::VectorShard() : data_(0), size_max_(0) {}
 
 template <typename T>
@@ -16,8 +51,8 @@ VectorShard<T>::VectorShard(uint32_t capacity, uint32_t size_max)
 }
 
 template <typename T>
-T VectorShard<T>::operator[](uint32_t index) {
-  return data_[index];
+ElRef<T> VectorShard<T>::operator[](uint32_t index) {
+  return ElRef(index, data_[index]);
 }
 
 template <typename T>
@@ -62,13 +97,15 @@ DistributedVector<T>& DistributedVector<T>::operator=(DistributedVector&& o) {
 }
 
 template <typename T>
-T DistributedVector<T>::operator[](uint32_t index) {
+ElRef<T> DistributedVector<T>::operator[](uint32_t index) {
   uint32_t shard_idx = index / shard_max_size_;
   uint32_t idx_in_shard = index % shard_max_size_;
   auto& shard = shards_[shard_idx];
-  return shard.__run(
+  auto ret = shard.__run(
       +[](VectorShard<T>& shard, uint32_t idx) { return shard[idx]; },
       idx_in_shard);
+  ret.shard_ = shard.get_weak();
+  return ret;
 }
 
 template <typename T>

@@ -52,6 +52,12 @@ bool run_test() {
   for (int i = 0; i < 1000; i++) {
     TEST(vec[i] == i);
   }
+  for (int i = 0; i < 1000; i++) {
+    vec[i] = 1000 - i;
+  }
+  for (int i = 0; i < 1000; i++) {
+    TEST(vec[i] == 1000 - i);
+  }
 
   return true;
 }

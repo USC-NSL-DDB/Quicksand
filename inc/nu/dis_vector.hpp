@@ -17,13 +17,44 @@ extern "C" {
 
 namespace nu {
 template <typename T>
+class VectorShard;
+
+template <typename T>
+class DistributedVector;
+
+template <typename T>
+class ElRef {
+ public:
+  ElRef();
+  ElRef(uint32_t index, T elem);
+  ElRef &operator=(const T &);
+  template <typename T1>
+  bool operator==(T1 &&);
+  const T &operator*();
+
+  template <class Archive>
+  void serialize(Archive &ar);
+
+  template <typename T1>
+  friend class DistributedVector;
+
+ private:
+  T el_;
+  uint32_t idx_;
+  std::optional<WeakProclet<VectorShard<T>>> shard_;
+};
+
+template <typename T>
 class VectorShard {
  public:
   VectorShard();
   VectorShard(uint32_t capacity, uint32_t size_max);
 
-  T operator[](uint32_t index);
+  ElRef<T> operator[](uint32_t index);
   void push_back(const T &value);
+
+  template <typename T1>
+  friend class ElRef;
 
  private:
   std::vector<T> data_;
@@ -41,7 +72,7 @@ class DistributedVector {
   DistributedVector(DistributedVector &&);
   DistributedVector &operator=(DistributedVector &&);
 
-  T operator[](uint32_t index);
+  ElRef<T> operator[](uint32_t index);
 
   void set(uint32_t index, T value);
   void push_back(const T &value);
