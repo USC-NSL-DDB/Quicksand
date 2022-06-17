@@ -18,18 +18,21 @@ class ShardedPairCollection {
   using PairType = std::pair<K, V>;
   using ShardDataType = std::vector<PairType>;
   constexpr static uint32_t kDefaultShardSize = 2 << 20;
+  constexpr static uint32_t kDefaultCacheBucketSize = 4 << 10;
 
-  ShardedPairCollection(uint32_t shard_size = kDefaultShardSize);
+  ShardedPairCollection(uint32_t shard_size = kDefaultShardSize,
+                        uint32_t cache_bucket_size = kDefaultCacheBucketSize);
   ShardedPairCollection(const ShardedPairCollection &);
   ShardedPairCollection &operator=(const ShardedPairCollection &);
   ShardedPairCollection(ShardedPairCollection &&);
   ShardedPairCollection &operator=(ShardedPairCollection &&);
   template <typename K1, typename V1>
   void emplace_back(K1 &&k1, V1 &&v1);
-  void emplace_back(const PairType &p);
+  void emplace_back(PairType &&p);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(std::pair<const K, V> &, S0s...), S1s &&... states);
   ShardDataType collect();
+  void flush();
   template <class Archive>
   void serialize(Archive &ar);
 
@@ -41,7 +44,7 @@ class ShardedPairCollection {
           std::optional<K> key_l, std::optional<K> key_r, ShardDataType data);
     ShardDataType get_data();
     std::pair<ScopedLock<SpinLock>, ShardDataType *> get_data_ptr();
-    bool emplace_back(PairType &&p);
+    ShardDataType try_emplace_back(ShardDataType p);
 
    private:
     SpinLock spin_;
@@ -68,14 +71,23 @@ class ShardedPairCollection {
     ReaderWriterLock rw_lock_;
   };
 
+  struct Cache {
+    WeakProclet<Shard> shard;
+    ShardDataType data[kNumCores];
+
+    template <class Archive>
+    void serialize(Archive &ar);
+  };
+
   Proclet<ShardingMapping> mapping_;
   ReaderWriterLock rw_lock_;
-  std::map<std::optional<K>, WeakProclet<Shard>, std::greater<std::optional<K>>>
-      cached_mapping_;
+  std::map<std::optional<K>, Cache, std::greater<std::optional<K>>>
+      cache_mapping_;
   uint32_t shard_size_;
+  uint32_t cache_bucket_size_;
 
-  template <typename K1>
-  WeakProclet<Shard> get_shard(const K1 &k1, bool invalidate_cache = false);
+  bool push(WeakProclet<Shard> shard, ShardDataType &&data_to_push,
+            bool with_wlock = false);
 };
 
 }  // namespace nu

@@ -1,3 +1,5 @@
+#include <sync.h>
+
 #include <algorithm>
 #include <cereal/types/map.hpp>
 #include <cereal/types/optional.hpp>
@@ -10,43 +12,50 @@
 namespace nu {
 
 template <typename K, typename V>
-ShardedPairCollection<K, V>::ShardedPairCollection(uint32_t shard_size)
-    : mapping_(make_proclet<ShardingMapping>()), shard_size_(shard_size) {
+ShardedPairCollection<K, V>::ShardedPairCollection(
+    uint32_t shard_size, uint32_t cache_mapping_bucket_size)
+    : mapping_(make_proclet<ShardingMapping>()),
+      shard_size_(shard_size),
+      cache_bucket_size_(cache_mapping_bucket_size) {
   auto initial_shard =
       make_proclet<Shard>(mapping_.get_weak(), shard_size, std::optional<K>(),
                           std::optional<K>(), ShardDataType());
-  cached_mapping_.try_emplace(std::nullopt, initial_shard.get_weak());
+  cache_mapping_.try_emplace(std::nullopt, Cache{initial_shard.get_weak()});
   mapping_.run(&ShardingMapping::set_initial_shard, std::move(initial_shard));
 }
 
 template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardedPairCollection(
     const ShardedPairCollection &o)
-    : mapping_(o.mapping_),
-      cached_mapping_(o.cached_mapping_),
-      shard_size_(o.shard_size_) {}
+    : mapping_(o.mapping_), shard_size_(o.shard_size_) {
+  for (auto &[k, c] : o.cache_mapping_) {
+    cache_mapping_.try_emplace(k, Cache{c.shard});
+  }
+}
 
 template <typename K, typename V>
 ShardedPairCollection<K, V> &ShardedPairCollection<K, V>::operator=(
     const ShardedPairCollection &o) {
-  this->mapping_ = o.mapping_;
-  this->cached_mapping_ = o.cached_mapping_;
-  this->shard_size_ = o.shard_size_;
+  mapping_ = o.mapping_;
+  for (auto &[k, p] : o.cache_mapping_) {
+    cache_mapping_.try_emplace(k, Cache{p.first});
+  }
+  shard_size_ = o.shard_size_;
   return *this;
 }
 
 template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardedPairCollection(ShardedPairCollection &&o)
     : mapping_(std::move(o.mapping_)),
-      cached_mapping_(std::move(o.cached_mapping_)),
+      cache_mapping_(std::move(o.cache_mapping_)),
       shard_size_(o.shard_size_) {}
 
 template <typename K, typename V>
 ShardedPairCollection<K, V> &ShardedPairCollection<K, V>::operator=(
     ShardedPairCollection &&o) {
-  this->mapping_ = std::move(o.mapping_);
-  this->cached_mapping_ = std::move(o.cached_mapping_);
-  this->shard_size_ = o.shard_size_;
+  mapping_ = std::move(o.mapping_);
+  cache_mapping_ = std::move(o.cache_mapping_);
+  shard_size_ = o.shard_size_;
   return *this;
 }
 
@@ -54,22 +63,83 @@ template <typename K, typename V>
 template <typename K1, typename V1>
 void ShardedPairCollection<K, V>::emplace_back(K1 &&k, V1 &&v) {
   std::pair<K, V> p(std::forward<K1>(k), std::forward<V1>(v));
-  emplace_back(p);
+  emplace_back(std::move(p));
 }
 
 template <typename K, typename V>
-void ShardedPairCollection<K, V>::emplace_back(const PairType &p) {
-  auto shard = get_shard(p.first);
-retry:
-  auto success = shard.run(
-      +[](Shard &shard, PairType p) {
-        return shard.emplace_back(std::move(p));
-      },
-      p);
-  if (unlikely(!success)) {
-    shard = get_shard(p.first, /* invalidate_cache = */ true);
-    goto retry;
+void ShardedPairCollection<K, V>::emplace_back(PairType &&p) {
+  rw_lock_.reader_lock();
+  auto iter = cache_mapping_.lower_bound(p.first);
+  BUG_ON(iter == cache_mapping_.end());
+
+  WeakProclet<Shard> shard;
+  ShardDataType data_to_push;
+  {
+    rt::Preempt pt;
+    rt::PreemptGuard g(&pt);
+    shard = iter->second.shard;
+    auto &data = iter->second.data[pt.get_cpu()];
+
+    data.emplace_back(p);
+    if (unlikely(data.size() * sizeof(PairType) > cache_bucket_size_)) {
+      data_to_push = std::move(data);
+      data.clear();
+    }
   }
+  rw_lock_.reader_unlock();
+
+  if (unlikely(!data_to_push.empty())) {
+    push(shard, std::move(data_to_push));
+  }
+}
+
+template <typename K, typename V>
+bool ShardedPairCollection<K, V>::push(WeakProclet<Shard> shard,
+                                       ShardDataType &&data_to_push,
+                                       bool with_wlock) {
+  auto rejected_data =
+      shard.run(&Shard::try_emplace_back, std::move(data_to_push));
+
+  if (unlikely(!rejected_data.empty())) {
+    std::map<std::optional<K>, WeakProclet<Shard>> new_mappings;
+    for (auto &[k, _] : rejected_data) {
+      auto new_mapping =
+          mapping_.run(&ShardingMapping::template get_shard<K>, k);
+      new_mappings.insert(new_mapping);
+    }
+
+    if (!with_wlock) rw_lock_.writer_lock();
+    for (auto &[k, s] : new_mappings) {
+      cache_mapping_.try_emplace(std::move(k), Cache{s});
+    }
+    if (!with_wlock) rw_lock_.writer_unlock();
+
+    rt::Preempt pt;
+    rt::PreemptGuard g(&pt);
+    if (!with_wlock) rw_lock_.reader_lock();
+    for (auto &p : rejected_data) {
+      auto iter = cache_mapping_.lower_bound(p.first);
+      BUG_ON(iter == cache_mapping_.end());
+      auto &data = iter->second.data[pt.get_cpu()];
+      data.emplace_back(p);
+    }
+    if (!with_wlock) rw_lock_.reader_unlock();
+    return false;
+  }
+
+  return true;
+}
+
+template <typename K, typename V>
+void ShardedPairCollection<K, V>::flush() {
+  rw_lock_.writer_lock();
+  for (auto &[k, cache] : cache_mapping_) {
+    for (uint32_t i = 0; i < kNumCores; i++) {
+      push(cache.shard, std::move(cache.data[i]), true);
+      cache.data[i].clear();
+    }
+  }
+  rw_lock_.writer_unlock();
 }
 
 template <typename K, typename V>
@@ -114,7 +184,7 @@ ShardedPairCollection<K, V>::collect() {
 template <typename K, typename V>
 template <class Archive>
 void ShardedPairCollection<K, V>::serialize(Archive &ar) {
-  ar(mapping_, cached_mapping_, shard_size_);
+  ar(mapping_, cache_mapping_, shard_size_);
 }
 
 template <typename K, typename V>
@@ -144,14 +214,20 @@ ShardedPairCollection<K, V>::Shard::get_data_ptr() {
 }
 
 template <typename K, typename V>
-bool ShardedPairCollection<K, V>::Shard::emplace_back(PairType &&p) {
+ShardedPairCollection<K, V>::ShardDataType
+ShardedPairCollection<K, V>::Shard::try_emplace_back(ShardDataType data) {
   ScopedLock<SpinLock> guard(&spin_);
 
-  if ((key_l_ && p.first < *key_l_) || (key_r_ && p.first >= *key_r_)) {
-    return false;
+  ShardDataType rejected_data;
+  for (auto &p : data) {
+    if (unlikely((key_l_ && p.first < *key_l_) ||
+                 (key_r_ && p.first >= *key_r_))) {
+      rejected_data.emplace_back(std::move(p));
+    } else {
+      data_.emplace_back(std::move(p));
+    }
   }
 
-  data_.emplace_back(std::move(p));
   if (unlikely(data_.size() * sizeof(PairType) > shard_size_)) {
     auto mid = data_.begin() + data_.size() / 2;
     std::nth_element(data_.begin(), mid, data_.end());
@@ -165,7 +241,8 @@ bool ShardedPairCollection<K, V>::Shard::emplace_back(PairType &&p) {
     mapping_.run(&ShardingMapping::template update_mapping<K>, std::move(mid_k),
                  std::move(new_shard));
   }
-  return true;
+
+  return rejected_data;
 }
 
 template <typename K, typename V>
@@ -215,23 +292,9 @@ void ShardedPairCollection<K, V>::ShardingMapping::set_initial_shard(
 }
 
 template <typename K, typename V>
-template <typename K1>
-WeakProclet<typename ShardedPairCollection<K, V>::Shard>
-ShardedPairCollection<K, V>::get_shard(const K1 &k1, bool invalidate_cache) {
-  if (unlikely(invalidate_cache)) {
-    auto pair = mapping_.run(&ShardingMapping::template get_shard<K1>, k1);
-    rw_lock_.writer_lock();
-    cached_mapping_.insert(std::move(pair));
-    rw_lock_.writer_unlock();
-  }
-
-  rw_lock_.reader_lock();
-  auto iter = cached_mapping_.lower_bound(k1);
-  BUG_ON(iter == cached_mapping_.end());
-  auto ret = iter->second;
-  rw_lock_.reader_unlock();
-
-  return ret;
+template <class Archive>
+void ShardedPairCollection<K, V>::Cache::serialize(Archive &ar) {
+  ar(shard, data);
 }
 
 }  // namespace nu

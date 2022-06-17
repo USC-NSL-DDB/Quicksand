@@ -18,6 +18,7 @@ class Worker {
       auto str = std::to_string(i);
       sc_.emplace_back(i, str);
     }
+    sc_.flush();
   }
 
   void mutate() {
