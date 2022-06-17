@@ -80,6 +80,7 @@ class DistributedVector {
   void pop_back();
   bool empty();
   size_t size();
+  void clear();
 
   template <class Archive>
   void serialize(Archive &ar);

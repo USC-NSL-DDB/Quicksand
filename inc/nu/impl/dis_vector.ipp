@@ -172,6 +172,12 @@ size_t DistributedVector<T>::size() {
 }
 
 template <typename T>
+void DistributedVector<T>::clear() {
+  shards_.clear();
+  size_ = 0;
+}
+
+template <typename T>
 template <class Archive>
 void DistributedVector<T>::serialize(Archive& ar) {
   ar(shard_max_size_bytes_);
