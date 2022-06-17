@@ -76,6 +76,8 @@ class DistributedVector {
 
   void set(uint32_t index, T value);
   void push_back(const T &value);
+  bool empty();
+  size_t size();
 
   template <class Archive>
   void serialize(Archive &ar);
@@ -83,7 +85,7 @@ class DistributedVector {
  private:
   uint32_t shard_max_size_;
   uint32_t shard_max_size_bytes_;
-  uint32_t size_;
+  size_t size_;
   std::vector<Proclet<VectorShard<T>>> shards_;
 
   template <typename X>

@@ -138,6 +138,16 @@ void DistributedVector<T>::push_back(const T& value) {
 }
 
 template <typename T>
+bool DistributedVector<T>::empty() {
+  return size_ == 0;
+}
+
+template <typename T>
+size_t DistributedVector<T>::size() {
+  return size_;
+}
+
+template <typename T>
 template <class Archive>
 void DistributedVector<T>::serialize(Archive& ar) {
   ar(shard_max_size_bytes_);
