@@ -54,13 +54,11 @@ class DistributedVector {
   std::vector<Proclet<VectorShard<T>>> shards_;
 
   template <typename X>
-  friend DistributedVector<X> make_dis_vector(uint32_t size,
-                                              uint32_t power_shard_sz);
+  friend DistributedVector<X> make_dis_vector(uint32_t power_shard_sz);
 };
 
 template <typename T>
 DistributedVector<T> make_dis_vector(
-    uint32_t size,
     uint32_t power_shard_sz = DistributedVector<T>::kDefaultPowerShardSize);
 }  // namespace nu
 

@@ -8,20 +8,20 @@ template <typename T>
 VectorShard<T>::VectorShard() : data_(0) {}
 
 template <typename T>
-VectorShard<T>::operator[](uint32_t index) {
+T VectorShard<T>::operator[](uint32_t index) {
   return data_[index];
 }
 
 template <typename T>
-void set(uint32_t index, T value) {
+void VectorShard<T>::set(uint32_t index, T value) {
   data_[index] = value;
 }
 
 template <typename T>
-DistributedVector::DistributedVector()
+DistributedVector<T>::DistributedVector()
     : power_shard_sz_(0),
       shard_sz_(0),
-      elems_per_shard(0),
+      elems_per_shard_(0),
       size_(0),
       shards_(0) {}
 
@@ -59,7 +59,17 @@ DistributedVector<T>& DistributedVector<T>::operator=(DistributedVector&& o) {
 }
 
 template <typename T>
-void DistributedVector<T>::operator[](uint32_t index) {
+T DistributedVector<T>::operator[](uint32_t index) {
+  uint32_t shard_idx = index / elems_per_shard_;
+  uint32_t idx_in_shard = index % elems_per_shard_;
+  auto& shard = shards_[shard_idx];
+  return shard.__run(
+      +[](VectorShard<T>& shard, uint32_t idx) { return shard[idx]; },
+      idx_in_shard);
+}
+
+template <typename T>
+void DistributedVector<T>::set(uint32_t index, T value) {
   if (index >= size_) return;
   uint32_t shard_idx = index / elems_per_shard_;
   uint32_t idx_in_shard = index % elems_per_shard_;
@@ -82,26 +92,13 @@ void DistributedVector<T>::serialize(Archive& ar) {
 }
 
 template <typename T>
-DistributedVector<T> make_dis_vector(uint32_t size, uint32_t power_shard_sz) {
+DistributedVector<T> make_dis_vector(uint32_t power_shard_sz) {
   DistributedVector<T> vec;
 
   vec.power_shard_sz_ = power_shard_sz;
   vec.shard_sz_ = (1 << power_shard_sz);
-  vec.size_ = size;
 
   BUG_ON(vec.shard_sz_ < sizeof(T));
-
-  uint32_t num_shards =
-      ((sizeof(T) * size) + vec.shard_sz_ - 1) / vec.shard_sz_;
-  vec.elems_per_shard_ = vec.shard_sz_ / sizeof(T);
-
-  for (uint32_t i = 0; i < num_shards - 1; i++) {
-    vec.shards_.emplace_back(
-        make_proclet<VectorShard<T>>(vec.elems_per_shard_));
-  }
-
-  vec.shards_.emplace_back(make_proclet<VectorShard<T>>(
-      size - vec.elems_per_shard_ * (num_shards - 1)));
 
   return vec;
 }

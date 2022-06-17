@@ -43,6 +43,8 @@ test_dis_hash_table_src = test/test_dis_hash_table.cpp
 test_dis_hash_table_obj = $(test_dis_hash_table_src:.cpp=.o)
 test_dis_mem_pool_src = test/test_dis_mem_pool.cpp
 test_dis_mem_pool_obj = $(test_dis_mem_pool_src:.cpp=.o)
+test_dis_vector_src = test/test_dis_vector.cpp
+test_dis_vector_obj = $(test_dis_vector_src:.cpp=.o)
 test_nested_proclet_src = test/test_nested_proclet.cpp
 test_nested_proclet_obj = $(test_nested_proclet_src:.cpp=.o)
 test_rem_raw_ptr_src = test/test_rem_raw_ptr.cpp
@@ -107,7 +109,8 @@ bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
 bin/test_fast_path bin/test_slow_path bin/ctrl_main bin/test_max_num_proclets \
-bin/test_dis_array bin/test_sharded_pair_collect bin/bench_controller
+bin/test_dis_array bin/test_sharded_pair_collect bin/bench_controller \
+bin/test_dis_vector
 
 
 %.d: %.cpp
@@ -137,6 +140,8 @@ bin/test_dis_hash_table: $(test_dis_hash_table_obj) $(librt_libs) $(RUNTIME_DEPS
 	$(LDXX) -o $@ $(test_dis_hash_table_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_dis_mem_pool: $(test_dis_mem_pool_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_dis_mem_pool_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_dis_vector: $(test_dis_vector_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_dis_vector_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_nested_proclet: $(test_nested_proclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_nested_proclet_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_rem_raw_ptr: $(test_rem_raw_ptr_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
