@@ -132,13 +132,16 @@ bool ShardedPairCollection<K, V>::push(WeakProclet<Shard> shard,
 
 template <typename K, typename V>
 void ShardedPairCollection<K, V>::flush() {
+  bool done = true;
   rw_lock_.writer_lock();
-  for (auto &[k, cache] : cache_mapping_) {
-    for (uint32_t i = 0; i < kNumCores; i++) {
-      push(cache.shard, std::move(cache.data[i]), true);
-      cache.data[i].clear();
+  do {
+    for (auto &[k, cache] : cache_mapping_) {
+      for (uint32_t i = 0; i < kNumCores; i++) {
+        done &= push(cache.shard, std::move(cache.data[i]), true);
+        cache.data[i].clear();
+      }
     }
-  }
+  } while (!done);
   rw_lock_.writer_unlock();
 }
 
@@ -147,6 +150,8 @@ template <typename... S0s, typename... S1s>
 void ShardedPairCollection<K, V>::for_all(void (*fn)(std::pair<const K, V> &p,
                                                      S0s...),
                                           S1s &&... states) {
+  flush();
+
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   auto shards = mapping_.run(&ShardingMapping::get_all_shards);
@@ -168,6 +173,8 @@ void ShardedPairCollection<K, V>::for_all(void (*fn)(std::pair<const K, V> &p,
 template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardDataType
 ShardedPairCollection<K, V>::collect() {
+  flush();
+
   auto shards = mapping_.run(&ShardingMapping::get_all_shards);
   std::vector<Future<ShardDataType>> futures;
   for (auto &shard : shards) {
