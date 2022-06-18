@@ -45,7 +45,8 @@ ShardedPairCollection<K, V> &ShardedPairCollection<K, V>::operator=(
 }
 
 template <typename K, typename V>
-ShardedPairCollection<K, V>::ShardedPairCollection(ShardedPairCollection &&o) noexcept
+ShardedPairCollection<K, V>::ShardedPairCollection(
+    ShardedPairCollection &&o) noexcept
     : mapping_(std::move(o.mapping_)),
       cache_mapping_(std::move(o.cache_mapping_)),
       shard_size_(o.shard_size_) {}
@@ -61,12 +62,12 @@ ShardedPairCollection<K, V> &ShardedPairCollection<K, V>::operator=(
 
 template <typename K, typename V>
 template <typename K1, typename V1>
-void ShardedPairCollection<K, V>::emplace_back(K1 &&k, V1 &&v) {
-  emplace_back({std::forward<K1>(k), std::forward<V1>(v)});
+void ShardedPairCollection<K, V>::emplace(K1 &&k, V1 &&v) {
+  emplace({std::forward<K1>(k), std::forward<V1>(v)});
 }
 
 template <typename K, typename V>
-void ShardedPairCollection<K, V>::emplace_back(PairType &&p) {
+void ShardedPairCollection<K, V>::emplace(PairType &&p) {
   rw_lock_.reader_lock();
   auto iter = cache_mapping_.lower_bound(p.first);
   BUG_ON(iter == cache_mapping_.end());
@@ -262,7 +263,7 @@ ShardedPairCollection<K, V>::Shard::try_emplace_back(ShardDataType data) {
     data_.erase(mid, data_.end());
     key_r_ = mid_k;
     mapping_.run(&ShardingMapping::template update_mapping<K>, mid_k,
-                 new_shard);
+                 std::move(new_shard));
   }
 
   return rejected_data;

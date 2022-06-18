@@ -28,8 +28,8 @@ class ShardedPairCollection {
   ShardedPairCollection(ShardedPairCollection &&) noexcept;
   ShardedPairCollection &operator=(ShardedPairCollection &&) noexcept;
   template <typename K1, typename V1>
-  void emplace_back(K1 &&k1, V1 &&v1);
-  void emplace_back(PairType &&p);
+  void emplace(K1 &&k1, V1 &&v1);
+  void emplace(PairType &&p);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(std::pair<const K, V> &, S0s...), S1s &&... states);
   ShardDataType collect();

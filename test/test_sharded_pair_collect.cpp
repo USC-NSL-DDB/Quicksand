@@ -16,7 +16,7 @@ class Worker {
   void emplace(uint32_t start, uint32_t end) {
     for (uint32_t i = start; i < end; i++) {
       auto str = std::to_string(i);
-      sc_.emplace_back(i, str);
+      sc_.emplace(i, str);
     }
     sc_.flush();
   }
