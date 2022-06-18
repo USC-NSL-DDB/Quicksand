@@ -104,6 +104,19 @@ bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
   return true;
 }
 
+bool test_push_pop() {
+  uint32_t power_shard_sz = 10;
+  uint32_t test_data_sz = 12345;
+
+  auto expected_ints = make_int_range_vec(0, test_data_sz);
+  ABORT_IF_FAILED(test_push_and_pop<int>(expected_ints, power_shard_sz));
+
+  auto test_strs = make_test_str_vec(test_data_sz);
+  ABORT_IF_FAILED(test_push_and_pop<std::string>(test_strs, power_shard_sz));
+
+  return true;
+}
+
 bool test_vec_clear() {
   auto vec = make_dis_vector<int>(10);
 
@@ -156,15 +169,7 @@ bool test_capacity_reserve() {
 }
 
 bool run_test() {
-  uint32_t power_shard_sz = 10;
-  uint32_t test_data_sz = 12345;
-
-  auto expected_ints = make_int_range_vec(0, test_data_sz);
-  ABORT_IF_FAILED(test_push_and_pop<int>(expected_ints, power_shard_sz));
-
-  auto test_strs = make_test_str_vec(test_data_sz);
-  ABORT_IF_FAILED(test_push_and_pop<std::string>(test_strs, power_shard_sz));
-
+  ABORT_IF_FAILED(test_push_pop());
   ABORT_IF_FAILED(test_vec_clear());
   ABORT_IF_FAILED(test_capacity());
   ABORT_IF_FAILED(test_capacity_reserve());
