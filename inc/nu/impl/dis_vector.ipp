@@ -115,19 +115,6 @@ ElRef<T> DistributedVector<T>::operator[](uint32_t index) {
 }
 
 template <typename T>
-void DistributedVector<T>::set(uint32_t index, T value) {
-  if (index >= size_) return;
-  uint32_t shard_idx = index / shard_max_size_;
-  uint32_t idx_in_shard = index % shard_max_size_;
-  auto& shard = shards_[shard_idx];
-  shard.__run(
-      +[](VectorShard<T>& shard, uint32_t idx, T value) {
-        shard.set(idx, value);
-      },
-      idx_in_shard, value);
-}
-
-template <typename T>
 void DistributedVector<T>::push_back(const T& value) {
   BUG_ON(shard_max_size_ == 0);
   uint32_t shard_idx = size_ / shard_max_size_;

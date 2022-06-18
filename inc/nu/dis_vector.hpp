@@ -75,7 +75,6 @@ class DistributedVector {
 
   ElRef<T> operator[](uint32_t index);
 
-  void set(uint32_t index, T value);
   void push_back(const T &value);
   void pop_back();
   bool empty();
