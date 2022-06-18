@@ -81,6 +81,11 @@ size_t VectorShard<T>::capacity() const {
 }
 
 template <typename T>
+void VectorShard<T>::reserve(size_t new_cap) {
+  data_.reserve(new_cap);
+}
+
+template <typename T>
 DistributedVector<T>::DistributedVector()
     : shard_max_size_(0),
       shard_max_size_bytes_(0),
@@ -215,6 +220,27 @@ void DistributedVector<T>::shrink_to_fit() {
   size_t num_shards = size_ / shard_max_size_ + 1 * (size_ % shard_max_size_);
   BUG_ON(num_shards > shards_.size());
   shards_.resize(num_shards);
+}
+
+template <typename T>
+void DistributedVector<T>::reserve(size_t new_cap) {
+  size_t cur_cap = capacity();
+  if (new_cap <= cur_cap) return;
+
+  size_t last_shard_cap = cur_cap % shard_max_size_;
+  if (last_shard_cap != 0) {
+    shards_.back().__run(
+        +[](VectorShard<T>& shard, size_t cap) { shard.reserve(cap); },
+        shard_max_size_);
+    cur_cap += (shard_max_size_ - last_shard_cap);
+  }
+  while (cur_cap < new_cap) {
+    size_t shard_cap = shard_max_size_;
+    shards_.emplace_back(
+        make_proclet<VectorShard<T>>(shard_cap, shard_max_size_));
+    cur_cap += shard_max_size_;
+  }
+  capacity_ = cur_cap;
 }
 
 template <typename T>

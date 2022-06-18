@@ -142,6 +142,19 @@ bool test_capacity() {
   return true;
 }
 
+bool test_capacity_reserve() {
+  int power_shard_sz = 10;
+  auto vec = make_dis_vector<int>(power_shard_sz);
+
+  vec.reserve(12345);
+  TEST(vec.capacity() >= 12345);
+  TEST(vec.size() == 0);
+  vec.reserve(22);
+  TEST(vec.capacity() >= 12345);
+
+  return true;
+}
+
 bool run_test() {
   uint32_t power_shard_sz = 10;
   uint32_t test_data_sz = 12345;
@@ -154,6 +167,7 @@ bool run_test() {
 
   ABORT_IF_FAILED(test_vec_clear());
   ABORT_IF_FAILED(test_capacity());
+  ABORT_IF_FAILED(test_capacity_reserve());
 
   return true;
 }

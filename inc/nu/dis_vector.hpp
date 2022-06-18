@@ -55,6 +55,7 @@ class VectorShard {
   void pop_back();
   void clear();
   size_t capacity() const;
+  void reserve(size_t new_cap);
 
   template <typename T1>
   friend class ElRef;
@@ -84,6 +85,7 @@ class DistributedVector {
   void clear();
   size_t capacity();
   void shrink_to_fit();
+  void reserve(size_t new_cap);
 
   template <class Archive>
   void serialize(Archive &ar);
