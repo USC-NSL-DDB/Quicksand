@@ -49,23 +49,44 @@ void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls, typename... As>
-void ProcletServer::construct_proclet_locally(void *base, bool pinned,
-                                              As &&... args) {
+void ProcletServer::construct_proclet_locally(
+    MigrationDisabledGuard *caller_guard, void *base, bool pinned,
+    As &&... args) {
   RuntimeSlabGuard runtime_slab_guard;
   Runtime::proclet_manager->allocate(base, /* migratable = */ !pinned);
 
-  auto *proclet_header = reinterpret_cast<ProcletHeader *>(base);
-  proclet_header->cpu_load.reset();
-  auto &slab = proclet_header->slab;
+  auto *callee_header = reinterpret_cast<ProcletHeader *>(base);
+  callee_header->cpu_load.reset();
+  callee_header->status = kPresent;
+  auto &slab = callee_header->slab;
   auto obj_space = slab.yield(sizeof(Cls));
+
+  auto *caller_header = caller_guard->get_proclet_header();
   {
     ProcletSlabGuard proclet_slab_guard(&slab);
-    proclet_header->status = kPresent;
-    auto *self = thread_self();
-    auto *old_owner = thread_set_owner_proclet(self, base);
-    new (obj_space) Cls(move_if_safe(std::forward<As>(args))...);
-    thread_set_owner_proclet(self, old_owner);
+
+    using ArgsTuple = std::tuple<std::decay_t<As>...>;
+    // Do copy for the most cases and only do move when we are sure it's safe.
+    // For copy, we assume the type implements "deep copy".
+    ArgsTuple copied_args(move_if_safe(std::forward<As>(args))...);
+    thread_set_owner_proclet(thread_self(), base);
+    // Save to drop the caller migration guard now.
+    caller_guard->reset();
+
+    std::apply(
+        [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
+        copied_args);
   }
+
+  NonBlockingMigrationDisabledGuard guard(caller_header);
+  if (caller_header && unlikely(!guard)) {
+    RPCReturnBuffer return_buf;
+    Migrator::migrate_thread_and_ret_val<void>(
+        std::move(return_buf), to_proclet_id(caller_header), nullptr, nullptr);
+  } else {
+    thread_set_owner_proclet(thread_self(), caller_header);
+  }
+
   Runtime::proclet_manager->insert(base);
 }
 

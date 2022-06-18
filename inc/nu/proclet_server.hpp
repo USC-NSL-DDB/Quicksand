@@ -9,6 +9,7 @@ extern "C" {
 #include <runtime/net.h>
 }
 
+#include "nu/proclet_mgr.hpp"
 #include "nu/runtime_alloc.hpp"
 #include "nu/utils/archive_pool.hpp"
 #include "nu/utils/rpc.hpp"
@@ -30,7 +31,8 @@ class ProcletServer {
   static void construct_proclet(cereal::BinaryInputArchive &ia,
                                 RPCReturner *returner);
   template <typename Cls, typename... As>
-  static void construct_proclet_locally(void *base, bool pinned, As &&... args);
+  static void construct_proclet_locally(MigrationDisabledGuard *caller_guard,
+                                        void *base, bool pinned, As &&... args);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
   static void run_closure(cereal::BinaryInputArchive &ia,
                           RPCReturner *returner);

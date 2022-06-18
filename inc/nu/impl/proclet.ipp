@@ -244,10 +244,11 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint, As &&... args) {
 
   {
     MigrationDisabledGuard disabled_guard;
-    if (Runtime::rpc_server && server_ip == get_cfg_ip()) {
+    if (server_ip == get_cfg_ip()) {
       // Fast path: the proclet is actually local, use normal function call.
       ProcletServer::construct_proclet_locally<T, As...>(
-          to_proclet_base(id), pinned, std::forward<As>(args)...);
+          &disabled_guard, to_proclet_base(id), pinned,
+          std::forward<As>(args)...);
       return proclet;
     }
   }
