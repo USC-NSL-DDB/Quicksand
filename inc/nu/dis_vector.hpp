@@ -48,11 +48,13 @@ template <typename T>
 class VectorShard {
  public:
   VectorShard();
-  VectorShard(uint32_t capacity, uint32_t size_max);
+  VectorShard(size_t capacity, uint32_t size_max);
 
   ElRef<T> operator[](uint32_t index);
   void push_back(const T &value);
   void pop_back();
+  void clear();
+  size_t capacity() const;
 
   template <typename T1>
   friend class ElRef;
@@ -80,6 +82,7 @@ class DistributedVector {
   bool empty();
   size_t size();
   void clear();
+  size_t capacity();
 
   template <class Archive>
   void serialize(Archive &ar);
@@ -88,15 +91,18 @@ class DistributedVector {
   uint32_t shard_max_size_;
   uint32_t shard_max_size_bytes_;
   size_t size_;
+  size_t capacity_;
   std::vector<Proclet<VectorShard<T>>> shards_;
 
   template <typename X>
-  friend DistributedVector<X> make_dis_vector(uint32_t power_shard_sz);
+  friend DistributedVector<X> make_dis_vector(uint32_t power_shard_sz,
+                                              size_t capacity);
 };
 
 template <typename T>
 DistributedVector<T> make_dis_vector(
-    uint32_t power_shard_sz = DistributedVector<T>::kDefaultPowerShardSize);
+    uint32_t power_shard_sz = DistributedVector<T>::kDefaultPowerShardSize,
+    size_t capacity = 0);
 }  // namespace nu
 
 #include "nu/impl/dis_vector.ipp"

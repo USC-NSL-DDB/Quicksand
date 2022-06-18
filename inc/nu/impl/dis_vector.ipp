@@ -3,6 +3,9 @@
 
 #include "nu/commons.hpp"
 
+#define DIV_ROUND_UP_UNCHECKED(dividend, divisor) \
+  (dividend + divisor - 1) / divisor
+
 namespace nu {
 template <typename T>
 ElRef<T>::ElRef() {}
@@ -43,7 +46,7 @@ template <typename T>
 VectorShard<T>::VectorShard() : data_(0), size_max_(0) {}
 
 template <typename T>
-VectorShard<T>::VectorShard(uint32_t capacity, uint32_t size_max)
+VectorShard<T>::VectorShard(size_t capacity, uint32_t size_max)
     : data_(0), size_max_(size_max) {
   if (capacity) {
     data_.reserve(capacity);
@@ -68,8 +71,22 @@ void VectorShard<T>::pop_back() {
 }
 
 template <typename T>
+void VectorShard<T>::clear() {
+  data_.clear();
+}
+
+template <typename T>
+size_t VectorShard<T>::capacity() const {
+  return data_.capacity();
+}
+
+template <typename T>
 DistributedVector<T>::DistributedVector()
-    : shard_max_size_(0), shard_max_size_bytes_(0), size_(0), shards_(0) {}
+    : shard_max_size_(0),
+      shard_max_size_bytes_(0),
+      size_(0),
+      capacity_(0),
+      shards_(0) {}
 
 template <typename T>
 DistributedVector<T>::DistributedVector(const DistributedVector& o) {
@@ -160,8 +177,30 @@ size_t DistributedVector<T>::size() {
 
 template <typename T>
 void DistributedVector<T>::clear() {
-  shards_.clear();
   size_ = 0;
+  std::vector<Future<void>> futures;
+  for (uint32_t i = 0; i < shards_.size(); i++) {
+    futures.emplace_back(shards_[i].__run_async(
+        +[](VectorShard<T>& shard) { return shard.clear(); }));
+  }
+  for (auto& future : futures) {
+    future.get();
+  }
+}
+
+template <typename T>
+size_t DistributedVector<T>::capacity() {
+  size_t capacity = 0;
+  std::vector<Future<size_t>> futures;
+  for (uint32_t i = 0; i < shards_.size(); i++) {
+    futures.emplace_back(shards_[i].__run_async(
+        +[](VectorShard<T>& shard) { return shard.capacity(); }));
+  }
+  for (auto& future : futures) {
+    capacity += future.get();
+  }
+  capacity_ = capacity;
+  return capacity;
 }
 
 template <typename T>
@@ -170,17 +209,33 @@ void DistributedVector<T>::serialize(Archive& ar) {
   ar(shard_max_size_bytes_);
   ar(shard_max_size_);
   ar(size_);
+  ar(capacity_);
   ar(shards_);
 }
 
 template <typename T>
-DistributedVector<T> make_dis_vector(uint32_t power_shard_sz) {
+DistributedVector<T> make_dis_vector(uint32_t power_shard_sz, size_t capacity) {
   DistributedVector<T> vec;
 
   vec.shard_max_size_bytes_ = (1 << power_shard_sz);
   vec.shard_max_size_ = vec.shard_max_size_bytes_ / sizeof(T);
+  vec.capacity_ = capacity;
 
   BUG_ON(vec.shard_max_size_bytes_ < sizeof(T));
+
+  size_t initial_shard_cnt =
+      DIV_ROUND_UP_UNCHECKED(vec.capacity_, vec.shard_max_size_);
+
+  if (initial_shard_cnt > 0) {
+    for (size_t i = 0; i < initial_shard_cnt - 1; i++) {
+      vec.shards_.emplace_back(make_proclet<VectorShard<T>>(
+          vec.shard_max_size_, vec.shard_max_size_));
+    }
+    size_t remaining_capacity =
+        vec.capacity_ - (initial_shard_cnt - 1) * vec.shard_max_size_;
+    vec.shards_.emplace_back(
+        make_proclet<VectorShard<T>>(remaining_capacity, vec.shard_max_size_));
+  }
 
   return vec;
 }

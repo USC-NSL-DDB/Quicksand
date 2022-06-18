@@ -122,6 +122,26 @@ bool test_vec_clear() {
   return true;
 }
 
+bool test_capacity() {
+  int power_shard_sz = 10;
+  auto vec = make_dis_vector<int>(power_shard_sz);
+  TEST(vec.capacity() == 0);
+  vec.push_back(2);
+  TEST(vec.capacity() > 0);
+
+  for (int i = 0; i < (1 << power_shard_sz); i++) {
+    vec.push_back(i);
+  }
+  size_t cap = vec.capacity();
+  vec.clear();
+  TEST(vec.capacity() == cap);
+
+  // vec.shrink_to_fit(); // non-binding
+  // TEST(vec.capacity() <= cap);
+
+  return true;
+}
+
 bool run_test() {
   uint32_t power_shard_sz = 10;
   uint32_t test_data_sz = 12345;
@@ -132,7 +152,8 @@ bool run_test() {
   auto test_strs = make_test_str_vec(test_data_sz);
   ABORT_IF_FAILED(test_push_and_pop<std::string>(test_strs, power_shard_sz));
 
-  test_vec_clear();
+  ABORT_IF_FAILED(test_vec_clear());
+  ABORT_IF_FAILED(test_capacity());
 
   return true;
 }
