@@ -20,7 +20,7 @@ inline void RCULock::reader_lock() {
 inline bool RCULock::try_reader_lock() {
   thread_hold_rcu(this);
   if (unlikely(rt::access_once(sync_barrier_))) {
-    thread_unhold_rcu();
+    thread_unhold_rcu(this);
     return false;
   }
   __reader_lock();
