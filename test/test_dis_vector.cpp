@@ -190,12 +190,39 @@ bool test_resize() {
   return true;
 }
 
+int double_int(int x) { return x * 2; }
+
+bool test_transform() {
+  int power_shard_sz = 10;
+  auto vec = make_dis_vector<int>(power_shard_sz);
+
+  for (int i = 0; i < 1000; i++) {
+    vec.push_back(i);
+  }
+  vec.transform(+[](int x) { return x * 2; });
+  for (int i = 0; i < 1000; i++) {
+    TEST(vec[i] == i * 2);
+  }
+
+  auto vec2 = make_dis_vector<int>(power_shard_sz);
+  for (int i = 0; i < 1000; i++) {
+    vec2.push_back(i);
+  }
+  vec2.transform(double_int).transform(double_int).transform(double_int);
+  for (int i = 0; i < 1000; i++) {
+    TEST(vec2[i] == i * 8);
+  }
+
+  return true;
+}
+
 bool run_test() {
   ABORT_IF_FAILED(test_push_pop());
   ABORT_IF_FAILED(test_vec_clear());
   ABORT_IF_FAILED(test_capacity());
   ABORT_IF_FAILED(test_capacity_reserve());
   ABORT_IF_FAILED(test_resize());
+  ABORT_IF_FAILED(test_transform());
 
   return true;
 }

@@ -91,6 +91,11 @@ void VectorShard<T>::resize(size_t count) {
 }
 
 template <typename T>
+void VectorShard<T>::transform(T (*fn)(T)) {
+  std::transform(data_.cbegin(), data_.cend(), data_.begin(), fn);
+}
+
+template <typename T>
 DistributedVector<T>::DistributedVector()
     : shard_max_size_(0),
       shard_max_size_bytes_(0),
@@ -316,6 +321,19 @@ void DistributedVector<T>::_resize_up(size_t target_size) {
   }
 
   size_ = cur_size;
+}
+
+template <typename T>
+DistributedVector<T>& DistributedVector<T>::transform(T (*fn)(T)) {
+  std::vector<Future<void>> futures;
+  for (size_t i = 0; i < shards_.size(); i++) {
+    futures.emplace_back(shards_[i].__run_async(
+        +[](VectorShard<T>& shard, T (*fn)(T)) { shard.transform(fn); }, fn));
+  }
+  for (auto& future : futures) {
+    future.get();
+  }
+  return *this;
 }
 
 template <typename T>
