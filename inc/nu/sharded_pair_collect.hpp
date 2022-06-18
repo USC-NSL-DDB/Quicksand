@@ -6,9 +6,10 @@
 #include <utility>
 #include <vector>
 
+#include "nu/utils/mutex.hpp"
 #include "nu/utils/reader_writer_lock.hpp"
 #include "nu/utils/scoped_lock.hpp"
-#include "nu/utils/spin_lock.hpp"
+#include "nu/utils/span_to_vector.hpp"
 
 namespace nu {
 
@@ -24,8 +25,8 @@ class ShardedPairCollection {
                         uint32_t cache_bucket_size = kDefaultCacheBucketSize);
   ShardedPairCollection(const ShardedPairCollection &);
   ShardedPairCollection &operator=(const ShardedPairCollection &);
-  ShardedPairCollection(ShardedPairCollection &&);
-  ShardedPairCollection &operator=(ShardedPairCollection &&);
+  ShardedPairCollection(ShardedPairCollection &&) noexcept;
+  ShardedPairCollection &operator=(ShardedPairCollection &&) noexcept;
   template <typename K1, typename V1>
   void emplace_back(K1 &&k1, V1 &&v1);
   void emplace_back(PairType &&p);
@@ -42,12 +43,15 @@ class ShardedPairCollection {
    public:
     Shard(WeakProclet<ShardingMapping> mapping, uint32_t shard_size,
           std::optional<K> key_l, std::optional<K> key_r, ShardDataType data);
+    Shard(WeakProclet<ShardingMapping> mapping, uint32_t shard_size,
+          std::optional<K> key_l, std::optional<K> key_r,
+          SpanToVectorWrapper<PairType> data);
     ShardDataType get_data();
-    std::pair<ScopedLock<SpinLock>, ShardDataType *> get_data_ptr();
+    std::pair<ScopedLock<Mutex>, ShardDataType *> get_data_ptr();
     ShardDataType try_emplace_back(ShardDataType p);
 
    private:
-    SpinLock spin_;
+    Mutex mutex_;
     uint32_t shard_size_;
     WeakProclet<ShardingMapping> mapping_;
     std::optional<K> key_l_;
@@ -87,7 +91,7 @@ class ShardedPairCollection {
   uint32_t cache_bucket_size_;
 
   bool push_data(std::optional<K> key_l, std::optional<K> key_r,
-                 WeakProclet<Shard> shard, ShardDataType &&data,
+                 WeakProclet<Shard> shard, const ShardDataType &data,
                  bool with_wlock = false);
 };
 
