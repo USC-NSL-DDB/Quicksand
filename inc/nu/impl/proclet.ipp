@@ -319,7 +319,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
       thread_set_owner_proclet(thread_self(), callee_proclet_header);
       // Do copy for the most cases and only do move when we are sure it's safe.
       // For copy, we assume the type implements "deep copy".
-      copied_states = StatesTuple(move_if_safe(states)...);
+      copied_states = StatesTuple(move_if_safe(std::forward<S1s>(states))...);
     }
     callee_guard.reset();
 

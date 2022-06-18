@@ -58,16 +58,14 @@ void ProcletServer::construct_proclet_locally(void *base, bool pinned,
   proclet_header->cpu_load.reset();
   auto &slab = proclet_header->slab;
   auto obj_space = slab.yield(sizeof(Cls));
-
   {
     ProcletSlabGuard proclet_slab_guard(&slab);
     proclet_header->status = kPresent;
     auto *self = thread_self();
     auto *old_owner = thread_set_owner_proclet(self, base);
-    new (obj_space) Cls(std::forward<As>(args)...);
+    new (obj_space) Cls(move_if_safe(std::forward<As>(args))...);
     thread_set_owner_proclet(self, old_owner);
   }
-
   Runtime::proclet_manager->insert(base);
 }
 
@@ -234,7 +232,7 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
   if constexpr (!std::is_same<RetT, void>::value) {
     auto *ret = reinterpret_cast<RetT *>(alloca(sizeof(RetT)));
     std::construct_at(ret);
-    *ret = fn_ptr(*obj, std::forward<S1s>(states)...);
+    *ret = fn_ptr(*obj, std::move(states)...);
     callee_proclet_header->thread_cnt.dec_unsafe();
     callee_proclet_header->cpu_load.monitor_end(state);
 
@@ -244,7 +242,7 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
       if (likely(caller_guard)) {
         {
           ProcletSlabGuard caller_slab_guard(&caller_proclet_header->slab);
-          *caller_ptr = move_if_safe(*ret);
+          *caller_ptr = move_if_safe(std::move(*ret));
         }
         thread_set_owner_proclet(thread_self(), caller_proclet_header);
         std::destroy_at(ret);
@@ -272,7 +270,7 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
           Runtime::archive_pool->put_oa_sstream(oa_sstream);
         });
   } else {
-    fn_ptr(*obj, std::forward<S1s>(states)...);
+    fn_ptr(*obj, std::move(states)...);
     callee_proclet_header->thread_cnt.dec_unsafe();
     callee_proclet_header->cpu_load.monitor_end(state);
 
