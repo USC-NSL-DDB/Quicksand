@@ -362,55 +362,6 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 }
 
 template <typename T>
-template <typename RetT, typename... S0s, typename... S1s>
-RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (*fn)(T &, S0s...),
-                                   S1s &&... states) {
-  auto *caller_proclet_header = Runtime::get_current_proclet_header();
-
-  if (caller_proclet_header) {
-    auto callee_proclet_header = to_proclet_header(id_);
-    void *caller_slab = nullptr;
-    {
-      NonBlockingMigrationDisabledGuard callee_disabled_guard(
-          callee_proclet_header);
-      if (callee_disabled_guard) {
-        caller_slab = Runtime::switch_slab(&callee_proclet_header->slab);
-        thread_set_owner_proclet(thread_self(), callee_proclet_header);
-      }
-    }
-    if (caller_slab) {
-      *is_local = true;
-      // Fast path: the callee proclet is actually local, use function call.
-      if constexpr (!std::is_same<RetT, void>::value) {
-        RetT ret;
-        ProcletServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-            &ret, to_proclet_id(caller_proclet_header), id_, fn,
-            std::forward<S1s>(states)...);
-        Runtime::switch_slab(caller_slab);
-        return ret;
-      } else {
-        ProcletServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-            nullptr, to_proclet_id(caller_proclet_header), id_, fn,
-            std::forward<S1s>(states)...);
-        Runtime::switch_slab(caller_slab);
-        return;
-      }
-    }
-  }
-
-  *is_local = false;
-  // Slow path: the callee proclet is actually remote, use RPC.
-  auto *handler = ProcletServer::run_closure<T, RetT, decltype(fn), S1s...>;
-  if constexpr (!std::is_same<RetT, void>::value) {
-    auto ret = invoke_remote_with_ret<RetT>(id_, handler, id_, fn,
-                                            std::forward<S1s>(states)...);
-    return ret;
-  } else {
-    invoke_remote(id_, handler, id_, fn, std::forward<S1s>(states)...);
-  }
-}
-
-template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 Future<RetT> Proclet<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   assert_valid_invocation_types<RetT, A0s...>();
@@ -426,20 +377,6 @@ Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   return nu::async([&, md, ... args = std::forward<A1s>(args)]() mutable {
     return __run(md, std::forward<A1s>(args)...);
   });
-}
-
-template <typename T>
-template <typename RetT, typename... A0s, typename... A1s>
-RetT Proclet<T>::__run_and_get_loc(bool *is_local, RetT (T::*md)(A0s...),
-                                   A1s &&... args) {
-  MethodPtr<decltype(md)> method_ptr;
-  method_ptr.ptr = md;
-  return __run_and_get_loc(
-      is_local,
-      +[](T &t, decltype(method_ptr) method_ptr, A0s... args) {
-        return (t.*(method_ptr.ptr))(std::move(args)...);
-      },
-      method_ptr, std::forward<A1s>(args)...);
 }
 
 template <typename T>
