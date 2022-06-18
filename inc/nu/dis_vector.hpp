@@ -83,6 +83,7 @@ class DistributedVector {
   size_t size();
   void clear();
   size_t capacity();
+  void shrink_to_fit();
 
   template <class Archive>
   void serialize(Archive &ar);

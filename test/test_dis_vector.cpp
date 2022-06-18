@@ -136,8 +136,8 @@ bool test_capacity() {
   vec.clear();
   TEST(vec.capacity() == cap);
 
-  // vec.shrink_to_fit(); // non-binding
-  // TEST(vec.capacity() <= cap);
+  vec.shrink_to_fit();  // non-binding
+  TEST(vec.capacity() <= cap);
 
   return true;
 }

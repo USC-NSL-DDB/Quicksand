@@ -204,6 +204,20 @@ size_t DistributedVector<T>::capacity() {
 }
 
 template <typename T>
+void DistributedVector<T>::shrink_to_fit() {
+  if (capacity_ < size_) {
+    // capacity_ can be stale, so it can appear to be lower than size_.
+    // to keep shrink_to_fit() cheap, do not query all shards to get
+    // the vector's actual capacity.
+    return;
+  }
+
+  size_t num_shards = size_ / shard_max_size_ + 1 * (size_ % shard_max_size_);
+  BUG_ON(num_shards > shards_.size());
+  shards_.resize(num_shards);
+}
+
+template <typename T>
 template <class Archive>
 void DistributedVector<T>::serialize(Archive& ar) {
   ar(shard_max_size_bytes_);
