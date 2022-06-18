@@ -314,15 +314,16 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
     using StatesTuple = std::tuple<std::decay_t<S1s>...>;
     std::optional<StatesTuple> copied_states;
 
-    NonBlockingMigrationDisabledGuard callee_guard(callee_proclet_header);
-    if (callee_guard) {
-      caller_slab = Runtime::switch_slab(&callee_proclet_header->slab);
-      thread_set_owner_proclet(thread_self(), callee_proclet_header);
-      // Do copy for the most cases and only do move when we are sure it's safe.
-      // For copy, we assume the type implements "deep copy".
-      copied_states = StatesTuple(move_if_safe(std::forward<S1s>(states))...);
+    {
+      NonBlockingMigrationDisabledGuard callee_guard(callee_proclet_header);
+      if (callee_guard) {
+        caller_slab = Runtime::switch_slab(&callee_proclet_header->slab);
+        thread_set_owner_proclet(thread_self(), callee_proclet_header);
+        // Do copy for the most cases and only do move when we are sure it's
+        // safe. For copy, we assume the type implements "deep copy".
+        copied_states = StatesTuple(move_if_safe(std::forward<S1s>(states))...);
+      }
     }
-    callee_guard.reset();
 
     if (caller_slab) {
       // Fast path: the callee proclet is actually local, use function call.
@@ -408,7 +409,8 @@ std::optional<Future<void>> Proclet<T>::update_ref_cnt(int delta) {
     NonBlockingMigrationDisabledGuard callee_guard(to_proclet_header(id_));
     if (callee_guard) {
       // Fast path: the proclet is actually local, use function call.
-      if (likely(ProcletServer::update_ref_cnt_locally<T>(id_, delta))) {
+      if (likely(ProcletServer::update_ref_cnt_locally<T>(&callee_guard, id_,
+                                                          delta))) {
         return std::nullopt;
       }
     }
