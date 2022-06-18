@@ -56,6 +56,7 @@ class VectorShard {
   void clear();
   size_t capacity() const;
   void reserve(size_t new_cap);
+  void resize(size_t count);
 
   template <typename T1>
   friend class ElRef;
@@ -86,6 +87,7 @@ class DistributedVector {
   size_t capacity();
   void shrink_to_fit();
   void reserve(size_t new_cap);
+  void resize(size_t count);
 
   template <class Archive>
   void serialize(Archive &ar);
@@ -96,6 +98,9 @@ class DistributedVector {
   size_t size_;
   size_t capacity_;
   std::vector<Proclet<VectorShard<T>>> shards_;
+
+  void _resize_down(size_t target_size);
+  void _resize_up(size_t target_size);
 
   template <typename X>
   friend DistributedVector<X> make_dis_vector(uint32_t power_shard_sz,

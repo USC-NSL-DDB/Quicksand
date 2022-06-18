@@ -86,6 +86,11 @@ void VectorShard<T>::reserve(size_t new_cap) {
 }
 
 template <typename T>
+void VectorShard<T>::resize(size_t count) {
+  data_.resize(count);
+}
+
+template <typename T>
 DistributedVector<T>::DistributedVector()
     : shard_max_size_(0),
       shard_max_size_bytes_(0),
@@ -241,6 +246,76 @@ void DistributedVector<T>::reserve(size_t new_cap) {
     cur_cap += shard_max_size_;
   }
   capacity_ = cur_cap;
+}
+
+template <typename T>
+void DistributedVector<T>::resize(size_t count) {
+  if (count == size_) return;
+
+  if (count < size_) {
+    _resize_down(count);
+  } else {
+    _resize_up(count);
+  }
+}
+
+template <typename T>
+void DistributedVector<T>::_resize_down(size_t target_size) {
+  BUG_ON(!(target_size < size_));
+  BUG_ON(shards_.empty());
+
+  size_t cur_size = size_;
+  size_t last_shard_size = size_ % shard_max_size_;
+  if (last_shard_size != 0) {
+    size_t truncated =
+        std::min((cur_size - target_size), (size_t)last_shard_size);
+    size_t size_target = last_shard_size - truncated;
+    shards_.back().__run(
+        +[](VectorShard<T>& shard, size_t target) { shard.resize(target); },
+        size_target);
+    cur_size -= truncated;
+  }
+
+  auto shard = shards_.rbegin()++;
+  while (cur_size > target_size && shard != shards_.rend()) {
+    size_t truncated =
+        std::min((cur_size - target_size), (size_t)shard_max_size_);
+    size_t size_target = shard_max_size_ - truncated;
+    (*shard).__run(
+        +[](VectorShard<T>& shard, size_t target) { shard.resize(target); },
+        size_target);
+    cur_size -= truncated;
+    shard++;
+  }
+
+  size_ = cur_size;
+}
+
+template <typename T>
+void DistributedVector<T>::_resize_up(size_t target_size) {
+  BUG_ON(!(target_size > size_));
+
+  size_t cur_size = size_;
+  size_t last_shard_size = size_ % shard_max_size_;
+  if (last_shard_size != 0) {
+    size_t extended = std::min((target_size - cur_size),
+                               (size_t)(shard_max_size_ - last_shard_size));
+    size_t size_target = last_shard_size + extended;
+    shards_.back().__run(
+        +[](VectorShard<T>& shard, size_t target) { shard.resize(target); },
+        size_target);
+    cur_size += extended;
+  }
+
+  while (cur_size < target_size) {
+    size_t shard_sz =
+        std::min((target_size - cur_size), (size_t)shard_max_size_);
+    shards_.emplace_back(
+        make_proclet<VectorShard<T>>(shard_sz, shard_max_size_));
+    cur_size += shard_sz;
+  }
+
+  size_ = cur_size;
 }
 
 template <typename T>

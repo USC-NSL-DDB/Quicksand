@@ -168,11 +168,34 @@ bool test_capacity_reserve() {
   return true;
 }
 
+bool test_resize() {
+  int power_shard_sz = 10;
+  auto vec = make_dis_vector<int>(power_shard_sz);
+
+  vec.resize(100);
+  TEST(vec.size() == 100);
+  for (int i = 0; i < 100; i++) {
+    TEST(vec[i] == 0);
+  }
+  vec.resize(150);
+  TEST(vec.size() == 150);
+  for (int i = 100; i < 150; i++) {
+    TEST(vec[i] == 0);
+  }
+  vec.resize(150);
+  TEST(vec.size() == 150);
+  vec.resize(0);
+  TEST(vec.size() == 0);
+
+  return true;
+}
+
 bool run_test() {
   ABORT_IF_FAILED(test_push_pop());
   ABORT_IF_FAILED(test_vec_clear());
   ABORT_IF_FAILED(test_capacity());
   ABORT_IF_FAILED(test_capacity_reserve());
+  ABORT_IF_FAILED(test_resize());
 
   return true;
 }
