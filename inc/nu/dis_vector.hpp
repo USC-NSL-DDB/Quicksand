@@ -79,8 +79,8 @@ class DistributedVector {
 
   void push_back(const T &value);
   void pop_back();
-  bool empty();
-  size_t size();
+  constexpr bool empty() const noexcept;
+  constexpr size_t size() const noexcept;
   void clear();
   size_t capacity();
   void shrink_to_fit();

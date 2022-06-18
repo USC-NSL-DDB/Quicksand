@@ -166,12 +166,12 @@ void DistributedVector<T>::pop_back() {
 }
 
 template <typename T>
-bool DistributedVector<T>::empty() {
+constexpr bool DistributedVector<T>::empty() const noexcept {
   return size_ == 0;
 }
 
 template <typename T>
-size_t DistributedVector<T>::size() {
+constexpr size_t DistributedVector<T>::size() const noexcept {
   return size_;
 }
 
