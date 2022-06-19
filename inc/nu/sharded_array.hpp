@@ -65,4 +65,4 @@ DistributedArray<T> make_dis_array(
     uint32_t power_shard_sz = DistributedArray<T>::kDefaultPowerShardSize);
 }  // namespace nu
 
-#include "nu/impl/dis_array.ipp"
+#include "nu/impl/sharded_array.ipp"

@@ -19,9 +19,9 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/dis_array.hpp"
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
+#include "nu/sharded_array.hpp"
 #include "nu/utils/farmhash.hpp"
 
 using namespace nu;
