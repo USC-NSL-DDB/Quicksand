@@ -96,6 +96,8 @@ bench_real_cpu_pressure_src = bench/bench_real_cpu_pressure.cpp
 bench_real_cpu_pressure_obj = $(bench_real_cpu_pressure_src:.cpp=.o)
 bench_controller_src = bench/bench_controller.cpp
 bench_controller_obj = $(bench_controller_src:.cpp=.o)
+bench_sharded_pair_collect_src = bench/bench_sharded_pair_collect.cpp
+bench_sharded_pair_collect_obj = $(bench_sharded_pair_collect_src:.cpp=.o)
 
 ctrl_main_src = src/ctrl_main.cpp
 ctrl_main_obj = $(ctrl_main_src:.cpp=.o)
@@ -110,7 +112,7 @@ bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
 bin/test_fast_path bin/test_slow_path bin/ctrl_main bin/test_max_num_proclets \
 bin/test_sharded_array bin/test_sharded_pair_collect bin/bench_controller \
-bin/test_sharded_vector
+bin/test_sharded_vector bin/bench_sharded_pair_collect
 
 
 %.d: %.cpp
@@ -189,6 +191,8 @@ bin/bench_real_cpu_pressure: $(bench_real_cpu_pressure_obj) $(librt_libs) $(RUNT
 	$(LDXX) -o $@ $(bench_real_cpu_pressure_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_controller: $(bench_controller_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_controller_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_sharded_pair_collect: $(bench_sharded_pair_collect_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_sharded_pair_collect_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/ctrl_main: $(ctrl_main_obj) $(lib_obj)
 	$(LDXX) -o $@ $(ctrl_main_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
