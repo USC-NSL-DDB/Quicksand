@@ -213,6 +213,10 @@ bool test_transform() {
     TEST(vec2[i] == i * 8);
   }
 
+  auto vec3 = make_dis_vector<std::unordered_map<int, int>>(power_shard_sz);
+  vec3.resize(100);
+  vec3.transform(+[](std::unordered_map<int, int> &map) { map[1] = 1; });
+
   return true;
 }
 

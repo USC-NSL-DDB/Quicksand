@@ -58,6 +58,7 @@ class VectorShard {
   void reserve(size_t new_cap);
   void resize(size_t count);
   void transform(T (*fn)(T));
+  void transform(void (*fn)(T &));
 
   template <typename T1>
   friend class ElRef;
@@ -90,6 +91,7 @@ class DistributedVector {
   void reserve(size_t new_cap);
   void resize(size_t count);
   DistributedVector &transform(T (*fn)(T));
+  DistributedVector &transform(void (*fn)(T &));
 
   template <class Archive>
   void serialize(Archive &ar);

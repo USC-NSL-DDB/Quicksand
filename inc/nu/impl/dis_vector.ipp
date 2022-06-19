@@ -96,6 +96,11 @@ void VectorShard<T>::transform(T (*fn)(T)) {
 }
 
 template <typename T>
+void VectorShard<T>::transform(void (*fn)(T&)) {
+  std::for_each(data_.begin(), data_.end(), fn);
+}
+
+template <typename T>
 DistributedVector<T>::DistributedVector()
     : shard_max_size_(0),
       shard_max_size_bytes_(0),
@@ -329,6 +334,20 @@ DistributedVector<T>& DistributedVector<T>::transform(T (*fn)(T)) {
   for (size_t i = 0; i < shards_.size(); i++) {
     futures.emplace_back(shards_[i].__run_async(
         +[](VectorShard<T>& shard, T (*fn)(T)) { shard.transform(fn); }, fn));
+  }
+  for (auto& future : futures) {
+    future.get();
+  }
+  return *this;
+}
+
+template <typename T>
+DistributedVector<T>& DistributedVector<T>::transform(void (*fn)(T&)) {
+  std::vector<Future<void>> futures;
+  for (size_t i = 0; i < shards_.size(); i++) {
+    futures.emplace_back(shards_[i].__run_async(
+        +[](VectorShard<T>& shard, void (*fn)(T&)) { shard.transform(fn); },
+        fn));
   }
   for (auto& future : futures) {
     future.get();
