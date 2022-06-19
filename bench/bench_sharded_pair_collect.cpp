@@ -34,6 +34,7 @@ class Work {
     }
 
     {
+      nu::RuntimeSlabGuard slab;
       std::vector<std::pair<int, int>> v;
       auto t0 = microtime();
       for (uint32_t i = 0; i < kNumElements; i++) {
