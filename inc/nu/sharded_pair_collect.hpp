@@ -3,9 +3,11 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <queue>
 #include <utility>
 #include <vector>
 
+#include "nu/utils/future.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/reader_writer_lock.hpp"
 #include "nu/utils/scoped_lock.hpp"
@@ -18,11 +20,11 @@ class ShardedPairCollection {
  public:
   using PairType = std::pair<K, V>;
   using ShardDataType = std::vector<PairType>;
-  constexpr static uint32_t kDefaultShardSize = 2 << 20;
-  constexpr static uint32_t kDefaultCacheBucketSize = 4 << 10;
+  constexpr static uint32_t kDefaultShardBytes = 2 << 20;
+  constexpr static uint32_t kDefaultCacheBucketBytes = 16 << 10;
 
-  ShardedPairCollection(uint32_t shard_size = kDefaultShardSize,
-                        uint32_t cache_bucket_size = kDefaultCacheBucketSize);
+  ShardedPairCollection(uint32_t shard_bytes = kDefaultShardBytes,
+                        uint32_t cache_bucket_bytes = kDefaultCacheBucketBytes);
   ShardedPairCollection(const ShardedPairCollection &);
   ShardedPairCollection &operator=(const ShardedPairCollection &);
   ShardedPairCollection(ShardedPairCollection &&) noexcept;
@@ -83,16 +85,21 @@ class ShardedPairCollection {
     void serialize(Archive &ar);
   };
 
+  using CacheMappingType =
+      std::map<std::optional<K>, Cache, std::greater<std::optional<K>>>;
+
+  constexpr static uint32_t kMaxNumAsyncPushDataPerCore = 32;
   Proclet<ShardingMapping> mapping_;
   ReaderWriterLock rw_lock_;
-  std::map<std::optional<K>, Cache, std::greater<std::optional<K>>>
-      cache_mapping_;
+  CacheMappingType cache_mapping_;
   uint32_t shard_size_;
   uint32_t cache_bucket_size_;
+  std::queue<Future<bool>> push_data_futures_[kNumCores];
 
-  bool push_data(std::optional<K> key_l, std::optional<K> key_r,
-                 WeakProclet<Shard> shard, const ShardDataType &data,
-                 bool with_wlock = false);
+  bool push_data(std::optional<K> &key_l, std::optional<K> &key_r,
+                 WeakProclet<Shard> &shard, const ShardDataType &data);
+  Future<bool> push_data_async(std::optional<K> key_l, std::optional<K> key_r,
+                               WeakProclet<Shard> shard, ShardDataType data);
 };
 
 }  // namespace nu
