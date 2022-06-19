@@ -2,11 +2,22 @@
 
 source shared.sh
 
+USAGE="Usage: $0 [test_name]
+"
+
 all_passed=1
 CLIENT_IP="18.18.1.4"
 SERVER1_IP="18.18.1.2"
 SERVER2_IP="18.18.1.3"
 LPID=1
+
+test_name=
+while (( "$#" )); do
+	case "$1" in
+		-h|--help) echo "$USAGE" >&2 ; exit 0 ;;
+		*) test_name=$1 ; shift ;;
+	esac
+done
 
 function prepare {
     kill_iokerneld
@@ -87,7 +98,11 @@ function force_cleanup {
 trap force_cleanup INT
 
 prepare
-run_all_tests
+if [[ -z $test_name ]]; then
+    run_all_tests
+else
+    run_single_test $test_name
+fi
 cleanup
 
 if [[ $all_passed -eq 1 ]]; then
