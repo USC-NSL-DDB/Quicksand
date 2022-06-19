@@ -215,11 +215,17 @@ bool test_transform() {
     TEST(vec2[i] == i * 32);
   }
 
-  auto vec3 = make_dis_vector<std::unordered_map<int, int>>(power_shard_sz);
+  using MapType = std::unordered_map<int, int>;
+  auto vec3 = make_dis_vector<MapType>(power_shard_sz);
   vec3.resize(100);
-  vec3.transform(+[](std::unordered_map<int, int> &map) { map[1] = 1; });
+  vec3.transform(+[](MapType &map) { map[1] = 1; });
   vec3.transform(
-      +[](std::unordered_map<int, int> &map, int val) { map[1] = val; }, 54321);
+      +[](MapType &map, int key, int val) { map[key] = val; }, 2, 2);
+  auto maps = vec3.collect();
+  for (auto &map : maps) {
+    TEST(map[1] == 1);
+    TEST(map[2] == 2);
+  }
 
   return true;
 }
