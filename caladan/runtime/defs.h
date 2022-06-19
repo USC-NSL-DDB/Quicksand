@@ -99,6 +99,8 @@ struct thread_nu_state {
 	struct thread_tf	tf;
 };
 
+#define MAX_NUM_RCUS_HELD       2
+
 struct thread {
 	struct list_node	link;
 	struct stack		*stack;
@@ -108,7 +110,7 @@ struct thread {
 	unsigned int		last_cpu;
 	uint64_t                run_start_tsc;
 	uint64_t		ready_tsc;
-	void                    *rcu;
+	void                    *rcus[MAX_NUM_RCUS_HELD];
 #ifdef GC
 	struct list_node	gc_link;
 	unsigned int		onk;

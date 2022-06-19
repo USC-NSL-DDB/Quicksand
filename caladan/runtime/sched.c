@@ -259,6 +259,8 @@ void pause_local_migrating_threads(void)
 	putk();
 }
 
+bool thread_is_rcu_held(thread_t *th, void *rcu);
+
 static void __prioritize_rcu_readers_locked(struct kthread *k)
 {
 	thread_t *th;
@@ -269,7 +271,7 @@ static void __prioritize_rcu_readers_locked(struct kthread *k)
 	avail = load_acquire(&k->rq_head) - k->rq_tail;
 	for (i = 0; i < avail; i++) {
 		th = k->rq[k->rq_tail++ % RUNTIME_RQ_SIZE];
-		if (th->rcu != global_prioritized_rcu) {
+		if (!thread_is_rcu_held(th, global_prioritized_rcu)) {
 			num_paused++;
 			list_add_tail(&k->rq_deprioritized, &th->link);
 		} else {
@@ -282,7 +284,7 @@ static void __prioritize_rcu_readers_locked(struct kthread *k)
 	        list_add_tail(&k->rq_overflow, &sentinel.link);
 		while ((th = list_pop(&k->rq_overflow, thread_t, link)) !=
 		       &sentinel) {
-			if (th->rcu != global_prioritized_rcu) {
+			if (!thread_is_rcu_held(th, global_prioritized_rcu)) {
 				num_paused++;
 				list_add_tail(&k->rq_deprioritized, &th->link);
 			} else
@@ -1030,7 +1032,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->run_start_tsc = UINT64_MAX;
 	th->wq_spin = false;
 	th->migrated = false;
-	th->rcu = NULL;
+	memset(th->rcus, 0, sizeof(th->rcus));
 	th->nu_state.run_cycles = NULL;
 	th->nu_state.nu_thread = NULL;
 	th->nu_state.creator_ip = get_cfg_ip();
@@ -1457,13 +1459,35 @@ struct aligned_cycles *thread_get_monitor_cycles(thread_t *th)
 
 void thread_hold_rcu(void *rcu)
 {
-       BUG_ON(__self->rcu); /* no nested rcu locks */
-       __self->rcu = rcu;
+       int i;
+       for (i = 0; i < MAX_NUM_RCUS_HELD; i++) {
+              if (!__self->rcus[i]) {
+                     __self->rcus[i] = rcu;
+                     return;
+              }
+       }
+       BUG();
 }
 
-void thread_unhold_rcu(void)
+void thread_unhold_rcu(void *rcu)
 {
-       __self->rcu = NULL;
+       int i;
+       for (i = 0; i < MAX_NUM_RCUS_HELD; i++) {
+              if (__self->rcus[i] == rcu) {
+                     __self->rcus[i] = NULL;
+                     return;
+              }
+       }
+       BUG();
+}
+
+inline bool thread_is_rcu_held(thread_t *th, void *rcu) {
+       int i;
+       for (i = 0; i < MAX_NUM_RCUS_HELD; i++) {
+              if (th->rcus[i] == rcu)
+                     return true;
+       }
+       return false;
 }
 
 void thread_set_nu_thread(thread_t *th, void *nu_thread)

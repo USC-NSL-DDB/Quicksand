@@ -26,7 +26,8 @@ class ProcletServer {
   static void update_ref_cnt(cereal::BinaryInputArchive &ia,
                              RPCReturner *returner);
   template <typename Cls>
-  static bool update_ref_cnt_locally(ProcletID id, int delta);
+  static bool update_ref_cnt_locally(
+      NonBlockingMigrationDisabledGuard *callee_guard, ProcletID id, int delta);
   template <typename Cls, typename... As>
   static void construct_proclet(cereal::BinaryInputArchive &ia,
                                 RPCReturner *returner);

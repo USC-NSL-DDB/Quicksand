@@ -82,7 +82,7 @@ inline bool thread_monitored(void) {
 	return *(void **)((uint64_t)__self + thread_run_cycles_offset);
 }
 extern void thread_hold_rcu(void *rcu);
-extern void thread_unhold_rcu(void);
+extern void thread_unhold_rcu(void *rcu);
 
 /*
  * High-level routines, use this API most of the time.
