@@ -68,7 +68,7 @@ void ShardedPairCollection<K, V>::emplace(K1 &&k, V1 &&v) {
 
 template <typename K, typename V>
 void ShardedPairCollection<K, V>::emplace(PairType &&p) {
-  rw_lock_.reader_lock();
+  rw_lock_.reader_lock_np();
   auto iter = cache_mapping_.lower_bound(p.first);
   BUG_ON(iter == cache_mapping_.end());
 
@@ -76,12 +76,10 @@ void ShardedPairCollection<K, V>::emplace(PairType &&p) {
   ShardDataType data_to_push;
   std::optional<K> key_l, key_r;
   {
-    rt::Preempt pt;
-    rt::PreemptGuard g(&pt);
     shard = iter->second.shard;
-    auto &data = iter->second.data[pt.get_cpu()];
+    auto &data = iter->second.data[read_cpu()];
 
-    data.emplace_back(p);
+    data.emplace_back(std::move(p));
     if (unlikely(data.size() * sizeof(PairType) > cache_bucket_size_)) {
       data_to_push = std::move(data);
       key_l = iter->first;
@@ -91,7 +89,7 @@ void ShardedPairCollection<K, V>::emplace(PairType &&p) {
       data.clear();
     }
   }
-  rw_lock_.reader_unlock();
+  rw_lock_.reader_unlock_np();
 
   if (unlikely(!data_to_push.empty())) {
     push_data(key_l, key_r, shard, data_to_push);

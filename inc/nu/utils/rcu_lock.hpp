@@ -21,8 +21,11 @@ class RCULock {
   RCULock();
   ~RCULock();
   void reader_lock();
-  bool try_reader_lock();
+  bool try_reader_lock();  
   void reader_unlock();
+  void reader_lock_np();
+  bool try_reader_lock_np();
+  void reader_unlock_np();
   void writer_sync(bool prioritize_readers = false);
 
  private:
@@ -47,6 +50,7 @@ class RCULock {
   template <typename Fn>
   void write_sync_general(Fn &&fn);
   void reader_wait();
+  void __reader_lock_np();
   void __reader_lock();
 };
 }  // namespace nu
