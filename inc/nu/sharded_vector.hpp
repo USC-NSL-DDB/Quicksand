@@ -20,7 +20,7 @@ template <typename T>
 class VectorShard;
 
 template <typename T>
-class DistributedVector;
+class ShardedVector;
 
 template <typename T>
 class ElRef {
@@ -36,7 +36,7 @@ class ElRef {
   void serialize(Archive &ar);
 
   template <typename T1>
-  friend class DistributedVector;
+  friend class ShardedVector;
 
  private:
   T el_;
@@ -65,7 +65,7 @@ class VectorShard {
   template <typename T1>
   friend class ElRef;
   template <typename T1>
-  friend class DistributedVector;
+  friend class ShardedVector;
 
  private:
   std::vector<T> data_;
@@ -73,15 +73,15 @@ class VectorShard {
 };
 
 template <typename T>
-class DistributedVector {
+class ShardedVector {
  public:
   constexpr static uint32_t kDefaultPowerShardSize = 20;
 
-  DistributedVector();
-  DistributedVector(const DistributedVector &);
-  DistributedVector &operator=(const DistributedVector &);
-  DistributedVector(DistributedVector &&);
-  DistributedVector &operator=(DistributedVector &&);
+  ShardedVector();
+  ShardedVector(const ShardedVector &);
+  ShardedVector &operator=(const ShardedVector &);
+  ShardedVector(ShardedVector &&);
+  ShardedVector &operator=(ShardedVector &&);
 
   ElRef<T> operator[](uint32_t index);
 
@@ -95,9 +95,9 @@ class DistributedVector {
   void reserve(size_t new_cap);
   void resize(size_t count);
   template <typename... A0s, typename... A1s>
-  DistributedVector &transform(T (*fn)(T, A0s...), A1s &&... args);
+  ShardedVector &transform(T (*fn)(T, A0s...), A1s &&... args);
   template <typename... A0s, typename... A1s>
-  DistributedVector &transform(void (*fn)(T &, A0s...), A1s &&... args);
+  ShardedVector &transform(void (*fn)(T &, A0s...), A1s &&... args);
   std::vector<T> collect();
 
   template <class Archive>
@@ -114,13 +114,13 @@ class DistributedVector {
   void _resize_up(size_t target_size);
 
   template <typename X>
-  friend DistributedVector<X> make_dis_vector(uint32_t power_shard_sz,
-                                              size_t capacity);
+  friend ShardedVector<X> make_dis_vector(uint32_t power_shard_sz,
+                                          size_t capacity);
 };
 
 template <typename T>
-DistributedVector<T> make_dis_vector(
-    uint32_t power_shard_sz = DistributedVector<T>::kDefaultPowerShardSize,
+ShardedVector<T> make_dis_vector(
+    uint32_t power_shard_sz = ShardedVector<T>::kDefaultPowerShardSize,
     size_t capacity = 0);
 }  // namespace nu
 

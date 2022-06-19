@@ -105,7 +105,7 @@ void VectorShard<T>::transform(void (*fn)(T&, A0s...), A1s&&... args) {
 }
 
 template <typename T>
-DistributedVector<T>::DistributedVector()
+ShardedVector<T>::ShardedVector()
     : shard_max_size_(0),
       shard_max_size_bytes_(0),
       size_(0),
@@ -113,13 +113,12 @@ DistributedVector<T>::DistributedVector()
       shards_(0) {}
 
 template <typename T>
-DistributedVector<T>::DistributedVector(const DistributedVector& o) {
+ShardedVector<T>::ShardedVector(const ShardedVector& o) {
   *this = o;
 }
 
 template <typename T>
-DistributedVector<T>& DistributedVector<T>::operator=(
-    const DistributedVector& o) {
+ShardedVector<T>& ShardedVector<T>::operator=(const ShardedVector& o) {
   shard_max_size_bytes_ = o.shard_max_size_bytes_;
   shard_max_size_ = o.shard_max_size_;
   shards_ = o.shards_;
@@ -128,12 +127,12 @@ DistributedVector<T>& DistributedVector<T>::operator=(
 }
 
 template <typename T>
-DistributedVector<T>::DistributedVector(DistributedVector&& o) {
+ShardedVector<T>::ShardedVector(ShardedVector&& o) {
   *this = std::move(o);
 }
 
 template <typename T>
-DistributedVector<T>& DistributedVector<T>::operator=(DistributedVector&& o) {
+ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
   shard_max_size_ = o.shard_max_size_;
   shard_max_size_bytes_ = o.shard_max_size_bytes_;
   size_ = o.size_;
@@ -144,7 +143,7 @@ DistributedVector<T>& DistributedVector<T>::operator=(DistributedVector&& o) {
 }
 
 template <typename T>
-ElRef<T> DistributedVector<T>::operator[](uint32_t index) {
+ElRef<T> ShardedVector<T>::operator[](uint32_t index) {
   uint32_t shard_idx = index / shard_max_size_;
   uint32_t idx_in_shard = index % shard_max_size_;
   auto& shard = shards_[shard_idx];
@@ -156,7 +155,7 @@ ElRef<T> DistributedVector<T>::operator[](uint32_t index) {
 }
 
 template <typename T>
-void DistributedVector<T>::push_back(const T& value) {
+void ShardedVector<T>::push_back(const T& value) {
   BUG_ON(shard_max_size_ == 0);
   uint32_t shard_idx = size_ / shard_max_size_;
   BUG_ON(shard_idx > shards_.size());
@@ -172,7 +171,7 @@ void DistributedVector<T>::push_back(const T& value) {
 }
 
 template <typename T>
-void DistributedVector<T>::pop_back() {
+void ShardedVector<T>::pop_back() {
   if (size_ == 0) return;
 
   BUG_ON(shard_max_size_ == 0);
@@ -190,17 +189,17 @@ void DistributedVector<T>::pop_back() {
 }
 
 template <typename T>
-constexpr bool DistributedVector<T>::empty() const noexcept {
+constexpr bool ShardedVector<T>::empty() const noexcept {
   return size_ == 0;
 }
 
 template <typename T>
-constexpr size_t DistributedVector<T>::size() const noexcept {
+constexpr size_t ShardedVector<T>::size() const noexcept {
   return size_;
 }
 
 template <typename T>
-void DistributedVector<T>::clear() {
+void ShardedVector<T>::clear() {
   size_ = 0;
   std::vector<Future<void>> futures;
   for (uint32_t i = 0; i < shards_.size(); i++) {
@@ -213,7 +212,7 @@ void DistributedVector<T>::clear() {
 }
 
 template <typename T>
-size_t DistributedVector<T>::capacity() {
+size_t ShardedVector<T>::capacity() {
   size_t capacity = 0;
   std::vector<Future<size_t>> futures;
   for (uint32_t i = 0; i < shards_.size(); i++) {
@@ -228,7 +227,7 @@ size_t DistributedVector<T>::capacity() {
 }
 
 template <typename T>
-void DistributedVector<T>::shrink_to_fit() {
+void ShardedVector<T>::shrink_to_fit() {
   if (capacity_ < size_) {
     // capacity_ can be stale, so it can appear to be lower than size_.
     // to keep shrink_to_fit() cheap, do not query all shards to get
@@ -242,7 +241,7 @@ void DistributedVector<T>::shrink_to_fit() {
 }
 
 template <typename T>
-void DistributedVector<T>::reserve(size_t new_cap) {
+void ShardedVector<T>::reserve(size_t new_cap) {
   size_t cur_cap = capacity();
   if (new_cap <= cur_cap) return;
 
@@ -263,7 +262,7 @@ void DistributedVector<T>::reserve(size_t new_cap) {
 }
 
 template <typename T>
-void DistributedVector<T>::resize(size_t count) {
+void ShardedVector<T>::resize(size_t count) {
   if (count == size_) return;
 
   if (count < size_) {
@@ -274,7 +273,7 @@ void DistributedVector<T>::resize(size_t count) {
 }
 
 template <typename T>
-void DistributedVector<T>::_resize_down(size_t target_size) {
+void ShardedVector<T>::_resize_down(size_t target_size) {
   BUG_ON(!(target_size < size_));
   BUG_ON(shards_.empty());
 
@@ -306,7 +305,7 @@ void DistributedVector<T>::_resize_down(size_t target_size) {
 }
 
 template <typename T>
-void DistributedVector<T>::_resize_up(size_t target_size) {
+void ShardedVector<T>::_resize_up(size_t target_size) {
   BUG_ON(!(target_size > size_));
 
   size_t cur_size = size_;
@@ -334,8 +333,8 @@ void DistributedVector<T>::_resize_up(size_t target_size) {
 
 template <typename T>
 template <typename... A0s, typename... A1s>
-DistributedVector<T>& DistributedVector<T>::transform(T (*fn)(T, A0s...),
-                                                      A1s&&... args) {
+ShardedVector<T>& ShardedVector<T>::transform(T (*fn)(T, A0s...),
+                                              A1s&&... args) {
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   std::vector<Future<void>> futures;
@@ -355,8 +354,8 @@ DistributedVector<T>& DistributedVector<T>::transform(T (*fn)(T, A0s...),
 
 template <typename T>
 template <typename... A0s, typename... A1s>
-DistributedVector<T>& DistributedVector<T>::transform(void (*fn)(T&, A0s...),
-                                                      A1s&&... args) {
+ShardedVector<T>& ShardedVector<T>::transform(void (*fn)(T&, A0s...),
+                                              A1s&&... args) {
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   std::vector<Future<void>> futures;
@@ -375,7 +374,7 @@ DistributedVector<T>& DistributedVector<T>::transform(void (*fn)(T&, A0s...),
 }
 
 template <typename T>
-std::vector<T> DistributedVector<T>::collect() {
+std::vector<T> ShardedVector<T>::collect() {
   std::vector<T> output;
 
   std::vector<Future<std::vector<T>>> futures;
@@ -393,7 +392,7 @@ std::vector<T> DistributedVector<T>::collect() {
 
 template <typename T>
 template <class Archive>
-void DistributedVector<T>::serialize(Archive& ar) {
+void ShardedVector<T>::serialize(Archive& ar) {
   ar(shard_max_size_bytes_);
   ar(shard_max_size_);
   ar(size_);
@@ -402,8 +401,8 @@ void DistributedVector<T>::serialize(Archive& ar) {
 }
 
 template <typename T>
-DistributedVector<T> make_dis_vector(uint32_t power_shard_sz, size_t capacity) {
-  DistributedVector<T> vec;
+ShardedVector<T> make_dis_vector(uint32_t power_shard_sz, size_t capacity) {
+  ShardedVector<T> vec;
 
   vec.shard_max_size_bytes_ = (1 << power_shard_sz);
   vec.shard_max_size_ = vec.shard_max_size_bytes_ / sizeof(T);
