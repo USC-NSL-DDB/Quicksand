@@ -64,7 +64,7 @@ bool test_dis_array(std::vector<T> expected, uint32_t power_shard_sz) {
 
   auto proclet = make_proclet<ErasedType>();
   if (!proclet.run(
-          +[](ErasedType &, DistributedArray<T> arr, uint32_t arr_sz,
+          +[](ErasedType &, ShardedArray<T> arr, uint32_t arr_sz,
               std::vector<T> expected) {
             for (uint32_t i = 0; i < arr_sz; i++) {
               if (arr[i] != expected[i]) {

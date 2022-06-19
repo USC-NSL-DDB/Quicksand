@@ -30,15 +30,15 @@ class ArrayShard {
 };
 
 template <typename T>
-class DistributedArray {
+class ShardedArray {
  public:
   constexpr static uint32_t kDefaultPowerShardSize = 20;
 
-  DistributedArray();
-  DistributedArray(const DistributedArray &);
-  DistributedArray &operator=(const DistributedArray &);
-  DistributedArray(DistributedArray &&);
-  DistributedArray &operator=(DistributedArray &&);
+  ShardedArray();
+  ShardedArray(const ShardedArray &);
+  ShardedArray &operator=(const ShardedArray &);
+  ShardedArray(ShardedArray &&);
+  ShardedArray &operator=(ShardedArray &&);
 
   T operator[](uint32_t index);
 
@@ -55,14 +55,13 @@ class DistributedArray {
   std::vector<Proclet<ArrayShard<T>>> shards_;
 
   template <typename X>
-  friend DistributedArray<X> make_dis_array(uint32_t size,
-                                            uint32_t power_shard_sz);
+  friend ShardedArray<X> make_dis_array(uint32_t size, uint32_t power_shard_sz);
 };
 
 template <typename T>
-DistributedArray<T> make_dis_array(
+ShardedArray<T> make_dis_array(
     uint32_t size,
-    uint32_t power_shard_sz = DistributedArray<T>::kDefaultPowerShardSize);
+    uint32_t power_shard_sz = ShardedArray<T>::kDefaultPowerShardSize);
 }  // namespace nu
 
 #include "nu/impl/sharded_array.ipp"

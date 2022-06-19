@@ -20,12 +20,12 @@ void ArrayShard<T>::set(uint32_t index, T value) {
 }
 
 template <typename T>
-DistributedArray<T>::DistributedArray(const DistributedArray& o) {
+ShardedArray<T>::ShardedArray(const ShardedArray& o) {
   *this = o;
 }
 
 template <typename T>
-DistributedArray<T>& DistributedArray<T>::operator=(const DistributedArray& o) {
+ShardedArray<T>& ShardedArray<T>::operator=(const ShardedArray& o) {
   power_shard_sz_ = o.power_shard_sz_;
   shard_sz_ = o.shard_sz_;
   shards_ = o.shards_;
@@ -35,12 +35,12 @@ DistributedArray<T>& DistributedArray<T>::operator=(const DistributedArray& o) {
 }
 
 template <typename T>
-DistributedArray<T>::DistributedArray(DistributedArray&& o) {
+ShardedArray<T>::ShardedArray(ShardedArray&& o) {
   *this = std::move(o);
 }
 
 template <typename T>
-DistributedArray<T>& DistributedArray<T>::operator=(DistributedArray&& o) {
+ShardedArray<T>& ShardedArray<T>::operator=(ShardedArray&& o) {
   power_shard_sz_ = o.power_shard_sz_;
   shard_sz_ = o.shard_sz_;
   elems_per_shard_ = o.elems_per_shard_;
@@ -52,11 +52,11 @@ DistributedArray<T>& DistributedArray<T>::operator=(DistributedArray&& o) {
 }
 
 template <typename T>
-DistributedArray<T>::DistributedArray()
+ShardedArray<T>::ShardedArray()
     : power_shard_sz_(0), shard_sz_(0), elems_per_shard_(0), size_(0) {}
 
 template <typename T>
-T DistributedArray<T>::operator[](uint32_t index) {
+T ShardedArray<T>::operator[](uint32_t index) {
   uint32_t shard_idx = index / elems_per_shard_;
   uint32_t idx_in_shard = index % elems_per_shard_;
   auto& shard = shards_[shard_idx];
@@ -66,7 +66,7 @@ T DistributedArray<T>::operator[](uint32_t index) {
 }
 
 template <typename T>
-void DistributedArray<T>::set(uint32_t index, T value) {
+void ShardedArray<T>::set(uint32_t index, T value) {
   if (index >= size_) return;
   uint32_t shard_idx = index / elems_per_shard_;
   uint32_t idx_in_shard = index % elems_per_shard_;
@@ -80,7 +80,7 @@ void DistributedArray<T>::set(uint32_t index, T value) {
 
 template <typename T>
 template <class Archive>
-void DistributedArray<T>::serialize(Archive& ar) {
+void ShardedArray<T>::serialize(Archive& ar) {
   ar(power_shard_sz_);
   ar(shard_sz_);
   ar(elems_per_shard_);
@@ -89,8 +89,8 @@ void DistributedArray<T>::serialize(Archive& ar) {
 }
 
 template <typename T>
-DistributedArray<T> make_dis_array(uint32_t size, uint32_t power_shard_sz) {
-  DistributedArray<T> arr;
+ShardedArray<T> make_dis_array(uint32_t size, uint32_t power_shard_sz) {
+  ShardedArray<T> arr;
 
   arr.power_shard_sz_ = power_shard_sz;
   arr.shard_sz_ = (1 << power_shard_sz);
