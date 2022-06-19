@@ -209,13 +209,17 @@ bool test_transform() {
     vec2.push_back(i);
   }
   vec2.transform(double_int).transform(double_int).transform(double_int);
+  vec2.transform(
+      +[](int x, int mult1, int mult2) { return x * mult1 * mult2; }, 2, 2);
   for (int i = 0; i < 1000; i++) {
-    TEST(vec2[i] == i * 8);
+    TEST(vec2[i] == i * 32);
   }
 
   auto vec3 = make_dis_vector<std::unordered_map<int, int>>(power_shard_sz);
   vec3.resize(100);
   vec3.transform(+[](std::unordered_map<int, int> &map) { map[1] = 1; });
+  vec3.transform(
+      +[](std::unordered_map<int, int> &map, int val) { map[1] = val; }, 54321);
 
   return true;
 }

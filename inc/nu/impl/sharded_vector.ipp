@@ -91,13 +91,17 @@ void VectorShard<T>::resize(size_t count) {
 }
 
 template <typename T>
-void VectorShard<T>::transform(T (*fn)(T)) {
-  std::transform(data_.cbegin(), data_.cend(), data_.begin(), fn);
+template <typename... A0s, typename... A1s>
+void VectorShard<T>::transform(T (*fn)(T, A0s...), A1s&&... args) {
+  std::transform(data_.cbegin(), data_.cend(), data_.begin(),
+                 [=](T elem) { return fn(elem, args...); });
 }
 
 template <typename T>
-void VectorShard<T>::transform(void (*fn)(T&)) {
-  std::for_each(data_.begin(), data_.end(), fn);
+template <typename... A0s, typename... A1s>
+void VectorShard<T>::transform(void (*fn)(T&, A0s...), A1s&&... args) {
+  std::for_each(data_.begin(), data_.end(),
+                [=](T& elem) { fn(elem, args...); });
 }
 
 template <typename T>
@@ -329,11 +333,19 @@ void DistributedVector<T>::_resize_up(size_t target_size) {
 }
 
 template <typename T>
-DistributedVector<T>& DistributedVector<T>::transform(T (*fn)(T)) {
+template <typename... A0s, typename... A1s>
+DistributedVector<T>& DistributedVector<T>::transform(T (*fn)(T, A0s...),
+                                                      A1s&&... args) {
+  using Fn = decltype(fn);
+  auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   std::vector<Future<void>> futures;
   for (size_t i = 0; i < shards_.size(); i++) {
     futures.emplace_back(shards_[i].__run_async(
-        +[](VectorShard<T>& shard, T (*fn)(T)) { shard.transform(fn); }, fn));
+        +[](VectorShard<T>& shard, uintptr_t raw_fn, A1s&&... args) {
+          auto* fn = reinterpret_cast<Fn>(raw_fn);
+          shard.transform(fn, args...);
+        },
+        raw_fn, args...));
   }
   for (auto& future : futures) {
     future.get();
@@ -342,12 +354,19 @@ DistributedVector<T>& DistributedVector<T>::transform(T (*fn)(T)) {
 }
 
 template <typename T>
-DistributedVector<T>& DistributedVector<T>::transform(void (*fn)(T&)) {
+template <typename... A0s, typename... A1s>
+DistributedVector<T>& DistributedVector<T>::transform(void (*fn)(T&, A0s...),
+                                                      A1s&&... args) {
+  using Fn = decltype(fn);
+  auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   std::vector<Future<void>> futures;
   for (size_t i = 0; i < shards_.size(); i++) {
     futures.emplace_back(shards_[i].__run_async(
-        +[](VectorShard<T>& shard, void (*fn)(T&)) { shard.transform(fn); },
-        fn));
+        +[](VectorShard<T>& shard, uintptr_t raw_fn, A1s&&... args) {
+          auto* fn = reinterpret_cast<Fn>(raw_fn);
+          shard.transform(fn, args...);
+        },
+        raw_fn, args...));
   }
   for (auto& future : futures) {
     future.get();

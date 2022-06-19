@@ -57,8 +57,10 @@ class VectorShard {
   size_t capacity() const;
   void reserve(size_t new_cap);
   void resize(size_t count);
-  void transform(T (*fn)(T));
-  void transform(void (*fn)(T &));
+  template <typename... A0s, typename... A1s>
+  void transform(T (*fn)(T, A0s...), A1s &&... args);
+  template <typename... A0s, typename... A1s>
+  void transform(void (*fn)(T &, A0s...), A1s &&... args);
 
   template <typename T1>
   friend class ElRef;
@@ -90,8 +92,10 @@ class DistributedVector {
   void shrink_to_fit();
   void reserve(size_t new_cap);
   void resize(size_t count);
-  DistributedVector &transform(T (*fn)(T));
-  DistributedVector &transform(void (*fn)(T &));
+  template <typename... A0s, typename... A1s>
+  DistributedVector &transform(T (*fn)(T, A0s...), A1s &&... args);
+  template <typename... A0s, typename... A1s>
+  DistributedVector &transform(void (*fn)(T &, A0s...), A1s &&... args);
 
   template <class Archive>
   void serialize(Archive &ar);
