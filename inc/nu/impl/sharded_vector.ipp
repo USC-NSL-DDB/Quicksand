@@ -375,6 +375,23 @@ DistributedVector<T>& DistributedVector<T>::transform(void (*fn)(T&, A0s...),
 }
 
 template <typename T>
+std::vector<T> DistributedVector<T>::collect() {
+  std::vector<T> output;
+
+  std::vector<Future<std::vector<T>>> futures;
+  for (size_t i = 0; i < shards_.size(); i++) {
+    futures.emplace_back(shards_[i].__run_async(
+        +[](VectorShard<T>& shard) { return shard.data_; }));
+  }
+  for (auto& future : futures) {
+    auto shard_data = future.get();
+    output.insert(output.end(), shard_data.begin(), shard_data.end());
+  }
+
+  return output;
+}
+
+template <typename T>
 template <class Archive>
 void DistributedVector<T>::serialize(Archive& ar) {
   ar(shard_max_size_bytes_);

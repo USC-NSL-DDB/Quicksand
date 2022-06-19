@@ -64,6 +64,8 @@ class VectorShard {
 
   template <typename T1>
   friend class ElRef;
+  template <typename T1>
+  friend class DistributedVector;
 
  private:
   std::vector<T> data_;
@@ -96,6 +98,7 @@ class DistributedVector {
   DistributedVector &transform(T (*fn)(T, A0s...), A1s &&... args);
   template <typename... A0s, typename... A1s>
   DistributedVector &transform(void (*fn)(T &, A0s...), A1s &&... args);
+  std::vector<T> collect();
 
   template <class Archive>
   void serialize(Archive &ar);
