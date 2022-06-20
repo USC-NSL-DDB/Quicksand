@@ -383,27 +383,6 @@ ShardedVector<T>& ShardedVector<T>::transform(void (*fn)(T&, A0s...),
 }
 
 template <typename T>
-template <typename V, typename... A0s, typename... A1s>
-std::vector<V> ShardedVector<T>::__for_all_shards(V (*fn)(VectorShard<T>&,
-                                                          A0s...),
-                                                  A1s&&... args) {
-  std::vector<V> out;
-  out.reserve(shards_.size());
-  std::vector<Future<V>> futures;
-  futures.reserve(shards_.size());
-
-  for (uint32_t i = 0; i < shards_.size(); i++) {
-    futures.emplace_back(
-        shards_[i].__run_async(fn, std::forward<A1s>(args)...));
-  }
-  for (auto& future : futures) {
-    out.emplace_back(future.get());
-  }
-
-  return out;
-}
-
-template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT ShardedVector<T>::reduce(RetT initial_val,
                               RetT (*reducer)(RetT, T, A0s...), A1s&&... args) {
@@ -449,6 +428,27 @@ void ShardedVector<T>::serialize(Archive& ar) {
   ar(size_);
   ar(capacity_);
   ar(shards_);
+}
+
+template <typename T>
+template <typename V, typename... A0s, typename... A1s>
+std::vector<V> ShardedVector<T>::__for_all_shards(V (*fn)(VectorShard<T>&,
+                                                          A0s...),
+                                                  A1s&&... args) {
+  std::vector<V> out;
+  out.reserve(shards_.size());
+  std::vector<Future<V>> futures;
+  futures.reserve(shards_.size());
+
+  for (uint32_t i = 0; i < shards_.size(); i++) {
+    futures.emplace_back(
+        shards_[i].__run_async(fn, std::forward<A1s>(args)...));
+  }
+  for (auto& future : futures) {
+    out.emplace_back(future.get());
+  }
+
+  return out;
 }
 
 template <typename T>
