@@ -58,9 +58,9 @@ class VectorShard {
   void reserve(size_t new_cap);
   void resize(size_t count);
   template <typename... A0s, typename... A1s>
-  void transform(T (*fn)(T, A0s...), A1s &&... args);
+  void for_all(T (*fn)(T, A0s...), A1s &&... args);
   template <typename... A0s, typename... A1s>
-  void transform(void (*fn)(T &, A0s...), A1s &&... args);
+  void for_all(void (*fn)(T &, A0s...), A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
   RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T, A0s...),
               A1s &&... args);
@@ -101,9 +101,9 @@ class ShardedVector {
   void reserve(size_t new_cap);
   void resize(size_t count);
   template <typename... A0s, typename... A1s>
-  ShardedVector &transform(T (*fn)(T, A0s...), A1s &&... args);
+  ShardedVector &for_all(T (*fn)(T, A0s...), A1s &&... args);
   template <typename... A0s, typename... A1s>
-  ShardedVector &transform(void (*fn)(T &, A0s...), A1s &&... args);
+  ShardedVector &for_all(void (*fn)(T &, A0s...), A1s &&... args);
   template <typename RetT, typename... A0s, typename... A1s>
   RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T, A0s...),
               A1s &&... args);

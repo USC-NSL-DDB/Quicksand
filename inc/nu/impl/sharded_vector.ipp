@@ -92,14 +92,14 @@ void VectorShard<T>::resize(size_t count) {
 
 template <typename T>
 template <typename... A0s, typename... A1s>
-void VectorShard<T>::transform(T (*fn)(T, A0s...), A1s&&... args) {
+void VectorShard<T>::for_all(T (*fn)(T, A0s...), A1s&&... args) {
   std::transform(data_.cbegin(), data_.cend(), data_.begin(),
                  [=](T elem) { return fn(elem, args...); });
 }
 
 template <typename T>
 template <typename... A0s, typename... A1s>
-void VectorShard<T>::transform(void (*fn)(T&, A0s...), A1s&&... args) {
+void VectorShard<T>::for_all(void (*fn)(T&, A0s...), A1s&&... args) {
   std::for_each(data_.begin(), data_.end(),
                 [=](T& elem) { fn(elem, args...); });
 }
@@ -345,14 +345,13 @@ void ShardedVector<T>::_resize_up(size_t target_size) {
 
 template <typename T>
 template <typename... A0s, typename... A1s>
-ShardedVector<T>& ShardedVector<T>::transform(T (*fn)(T, A0s...),
-                                              A1s&&... args) {
+ShardedVector<T>& ShardedVector<T>::for_all(T (*fn)(T, A0s...), A1s&&... args) {
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   __for_all_shards(
       +[](VectorShard<T>& shard, uintptr_t raw_fn, A1s&&... args) {
         auto* fn = reinterpret_cast<Fn>(raw_fn);
-        shard.transform(fn, args...);
+        shard.for_all(fn, args...);
       },
       raw_fn, args...);
   return *this;
@@ -360,14 +359,14 @@ ShardedVector<T>& ShardedVector<T>::transform(T (*fn)(T, A0s...),
 
 template <typename T>
 template <typename... A0s, typename... A1s>
-ShardedVector<T>& ShardedVector<T>::transform(void (*fn)(T&, A0s...),
-                                              A1s&&... args) {
+ShardedVector<T>& ShardedVector<T>::for_all(void (*fn)(T&, A0s...),
+                                            A1s&&... args) {
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   __for_all_shards(
       +[](VectorShard<T>& shard, uintptr_t raw_fn, A1s&&... args) {
         auto* fn = reinterpret_cast<Fn>(raw_fn);
-        shard.transform(fn, args...);
+        shard.for_all(fn, args...);
       },
       raw_fn, args...);
   return *this;

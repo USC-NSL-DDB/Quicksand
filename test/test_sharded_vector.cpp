@@ -192,14 +192,14 @@ bool test_resize() {
 
 int double_int(int x) { return x * 2; }
 
-bool test_transform() {
+bool test_for_all() {
   int power_shard_sz = 10;
   auto vec = make_dis_vector<int>(power_shard_sz);
 
   for (int i = 0; i < 1000; i++) {
     vec.push_back(i);
   }
-  vec.transform(+[](int x) { return x * 2; });
+  vec.for_all(+[](int x) { return x * 2; });
   for (int i = 0; i < 1000; i++) {
     TEST(vec[i] == i * 2);
   }
@@ -208,8 +208,8 @@ bool test_transform() {
   for (int i = 0; i < 1000; i++) {
     vec2.push_back(i);
   }
-  vec2.transform(double_int).transform(double_int).transform(double_int);
-  vec2.transform(
+  vec2.for_all(double_int).for_all(double_int).for_all(double_int);
+  vec2.for_all(
       +[](int x, int mult1, int mult2) { return x * mult1 * mult2; }, 2, 2);
   for (int i = 0; i < 1000; i++) {
     TEST(vec2[i] == i * 32);
@@ -218,8 +218,8 @@ bool test_transform() {
   using MapType = std::unordered_map<int, int>;
   auto vec3 = make_dis_vector<MapType>(power_shard_sz);
   vec3.resize(100);
-  vec3.transform(+[](MapType &map) { map[1] = 1; });
-  vec3.transform(
+  vec3.for_all(+[](MapType &map) { map[1] = 1; });
+  vec3.for_all(
       +[](MapType &map, int key, int val) { map[key] = val; }, 2, 2);
   auto maps = vec3.collect();
   for (auto &map : maps) {
@@ -262,7 +262,7 @@ bool run_test() {
   ABORT_IF_FAILED(test_capacity());
   ABORT_IF_FAILED(test_capacity_reserve());
   ABORT_IF_FAILED(test_resize());
-  ABORT_IF_FAILED(test_transform());
+  ABORT_IF_FAILED(test_for_all());
   ABORT_IF_FAILED(test_reduction());
 
   return true;
