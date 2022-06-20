@@ -60,7 +60,7 @@ T ShardedArray<T>::operator[](uint32_t index) {
   uint32_t shard_idx = index / elems_per_shard_;
   uint32_t idx_in_shard = index % elems_per_shard_;
   auto& shard = shards_[shard_idx];
-  return shard.__run(
+  return shard.run(
       +[](ArrayShard<T>& shard, uint32_t idx) { return shard[idx]; },
       idx_in_shard);
 }
@@ -71,7 +71,7 @@ void ShardedArray<T>::set(uint32_t index, T value) {
   uint32_t shard_idx = index / elems_per_shard_;
   uint32_t idx_in_shard = index % elems_per_shard_;
   auto& shard = shards_[shard_idx];
-  shard.__run(
+  shard.run(
       +[](ArrayShard<T>& shard, uint32_t idx, T value) {
         shard.set(idx, value);
       },

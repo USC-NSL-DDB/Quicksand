@@ -52,8 +52,6 @@ class Proclet {
   template <typename K, typename V, typename Hash, typename KeyEqual,
             uint64_t NumBuckets>
   friend class DistributedHashTable;
-  template <typename V>
-  friend class ShardedArray;
   friend class DistributedMemPool;
   template <typename V>
   friend class ShardedVector;
