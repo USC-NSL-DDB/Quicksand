@@ -233,17 +233,9 @@ void ShardedVector<T>::clear() {
 
 template <typename T>
 size_t ShardedVector<T>::capacity() {
-  size_t capacity = 0;
-  std::vector<Future<size_t>> futures;
-  for (uint32_t i = 0; i < shards_.size(); i++) {
-    futures.emplace_back(shards_[i].__run_async(
-        +[](VectorShard<T>& shard) { return shard.capacity(); }));
-  }
-  for (auto& future : futures) {
-    capacity += future.get();
-  }
-  capacity_ = capacity;
-  return capacity;
+  std::vector<size_t> capacities =
+      __for_all_shards(+[](VectorShard<T>& shard) { return shard.capacity(); });
+  return std::accumulate(capacities.begin(), capacities.end(), 0);
 }
 
 template <typename T>
@@ -437,16 +429,12 @@ RetT ShardedVector<T>::reduce(RetT initial_val,
 
 template <typename T>
 std::vector<T> ShardedVector<T>::collect() {
-  std::vector<T> output;
+  std::vector<std::vector<T>> shard_data =
+      __for_all_shards(+[](VectorShard<T>& shard) { return shard.data_; });
 
-  std::vector<Future<std::vector<T>>> futures;
-  for (size_t i = 0; i < shards_.size(); i++) {
-    futures.emplace_back(shards_[i].__run_async(
-        +[](VectorShard<T>& shard) { return shard.data_; }));
-  }
-  for (auto& future : futures) {
-    auto shard_data = future.get();
-    output.insert(output.end(), shard_data.begin(), shard_data.end());
+  std::vector<T> output;
+  for (auto& data : shard_data) {
+    output.insert(output.end(), data.begin(), data.end());
   }
 
   return output;
