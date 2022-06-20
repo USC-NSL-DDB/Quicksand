@@ -230,6 +230,22 @@ bool test_transform() {
   return true;
 }
 
+bool test_reduction() {
+  int power_shard_sz = 10;
+  auto vec = make_dis_vector<int>(power_shard_sz);
+
+  for (int i = 0; i < 100000; i++) {
+    vec.push_back(1);
+  }
+
+  int sum = vec.reduce(
+      0, +[](int sum, int x) { return sum + x; });
+
+  TEST(sum == 100000);
+
+  return true;
+}
+
 bool run_test() {
   ABORT_IF_FAILED(test_push_pop());
   ABORT_IF_FAILED(test_vec_clear());

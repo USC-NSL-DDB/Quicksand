@@ -61,6 +61,9 @@ class VectorShard {
   void transform(T (*fn)(T, A0s...), A1s &&... args);
   template <typename... A0s, typename... A1s>
   void transform(void (*fn)(T &, A0s...), A1s &&... args);
+  template <typename RetT, typename... A0s, typename... A1s>
+  RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T, A0s...),
+              A1s &&... args);
 
   template <typename T1>
   friend class ElRef;
@@ -98,6 +101,12 @@ class ShardedVector {
   ShardedVector &transform(T (*fn)(T, A0s...), A1s &&... args);
   template <typename... A0s, typename... A1s>
   ShardedVector &transform(void (*fn)(T &, A0s...), A1s &&... args);
+  template <typename RetT, typename... A0s, typename... A1s>
+  RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T, A0s...),
+              A1s &&... args);
+  template <typename RetT, typename... A0s, typename... A1s>
+  RetT reduce(RetT initial_val, void (*reducer)(RetT &, T &, A0s...),
+              A1s &&... args);
   std::vector<T> collect();
 
   template <class Archive>
@@ -112,6 +121,9 @@ class ShardedVector {
 
   void _resize_down(size_t target_size);
   void _resize_up(size_t target_size);
+  template <typename V, typename... A0s, typename... A1s>
+  std::vector<V> __for_all_shards(V (*fn)(VectorShard<T> &, A0s...),
+                                  A1s &&... args);
 
   template <typename X>
   friend ShardedVector<X> make_dis_vector(uint32_t power_shard_sz,
