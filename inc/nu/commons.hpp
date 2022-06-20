@@ -97,6 +97,8 @@ template <typename T>
 const T &from_span(std::span<const std::byte> span);
 uint32_t str_to_ip(std::string ip_str);
 void unblock_and_relax();
+template <typename T>
+T div_round_up_unchecked(T dividend, T divisor);
 
 }  // namespace nu
 

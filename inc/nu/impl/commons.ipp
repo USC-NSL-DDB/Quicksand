@@ -82,4 +82,9 @@ inline void unblock_and_relax() {
   cpu_relax();
 }
 
+template <typename T>
+inline T div_round_up_unchecked(T dividend, T divisor) {
+  return (dividend + divisor - 1) / divisor;
+}
+
 }  // namespace nu

@@ -3,9 +3,6 @@
 
 #include "nu/commons.hpp"
 
-#define DIV_ROUND_UP_UNCHECKED(dividend, divisor) \
-  (dividend + divisor - 1) / divisor
-
 namespace nu {
 template <typename T>
 ElRef<T>::ElRef() {}
@@ -483,7 +480,7 @@ ShardedVector<T> make_dis_vector(uint32_t power_shard_sz, size_t capacity) {
   BUG_ON(vec.shard_max_size_bytes_ < sizeof(T));
 
   size_t initial_shard_cnt =
-      DIV_ROUND_UP_UNCHECKED(vec.capacity_, vec.shard_max_size_);
+      div_round_up_unchecked(vec.capacity_, (size_t)vec.shard_max_size_);
 
   if (initial_shard_cnt > 0) {
     for (size_t i = 0; i < initial_shard_cnt - 1; i++) {
