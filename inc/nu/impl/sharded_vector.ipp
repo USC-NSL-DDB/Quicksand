@@ -5,41 +5,6 @@
 
 namespace nu {
 template <typename T>
-ElRef<T>::ElRef() {}
-
-template <typename T>
-ElRef<T>::ElRef(uint32_t index, T element) : el_(element), idx_(index) {}
-
-template <typename T>
-const T& ElRef<T>::operator*() {
-  return el_;
-}
-
-template <typename T>
-template <typename T1>
-bool ElRef<T>::operator==(T1&& rhs) {
-  return rhs == el_;
-}
-
-template <typename T>
-ElRef<T>& ElRef<T>::operator=(const T& value) {
-  shard_.value().run(
-      +[](VectorShard<T>& shard, uint32_t idx, T value) {
-        shard.data_[idx] = value;
-      },
-      idx_, value);
-  return *this;
-}
-
-template <typename T>
-template <class Archive>
-void ElRef<T>::serialize(Archive& ar) {
-  ar(el_);
-  ar(idx_);
-  ar(shard_);
-}
-
-template <typename T>
 VectorShard<T>::VectorShard() : data_(0), size_max_(0) {}
 
 template <typename T>
@@ -51,8 +16,8 @@ VectorShard<T>::VectorShard(size_t capacity, uint32_t size_max)
 }
 
 template <typename T>
-ElRef<T> VectorShard<T>::operator[](uint32_t index) {
-  return ElRef(index, data_[index]);
+RemRawPtr<T> VectorShard<T>::operator[](uint32_t index) {
+  return RemRawPtr(&data_[index]);
 }
 
 template <typename T>
@@ -172,14 +137,12 @@ ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
 }
 
 template <typename T>
-ElRef<T> ShardedVector<T>::operator[](uint32_t index) {
+RemRawPtr<T> ShardedVector<T>::operator[](uint32_t index) {
   auto loc = calc_index(index);
   auto& shard = shards_[loc.shard_idx];
-  auto ret = shard.run(
+  return shard.run(
       +[](VectorShard<T>& shard, uint32_t idx) { return shard[idx]; },
       loc.idx_in_shard);
-  ret.shard_ = shard.get_weak();
-  return ret;
 }
 
 template <typename T>

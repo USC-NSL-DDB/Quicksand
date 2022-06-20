@@ -12,6 +12,7 @@ extern "C" {
 }
 
 #include "nu/proclet.hpp"
+#include "nu/rem_ptr.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/spin_lock.hpp"
 
@@ -23,34 +24,12 @@ template <typename T>
 class ShardedVector;
 
 template <typename T>
-class ElRef {
- public:
-  ElRef();
-  ElRef(uint32_t index, T elem);
-  ElRef &operator=(const T &);
-  template <typename T1>
-  bool operator==(T1 &&);
-  const T &operator*();
-
-  template <class Archive>
-  void serialize(Archive &ar);
-
-  template <typename T1>
-  friend class ShardedVector;
-
- private:
-  T el_;
-  uint32_t idx_;
-  std::optional<WeakProclet<VectorShard<T>>> shard_;
-};
-
-template <typename T>
 class VectorShard {
  public:
   VectorShard();
   VectorShard(size_t capacity, uint32_t size_max);
 
-  ElRef<T> operator[](uint32_t index);
+  RemRawPtr<T> operator[](uint32_t index);
   void push_back(const T &value);
   void pop_back();
   template <typename T1>
@@ -93,7 +72,7 @@ class ShardedVector {
   ShardedVector(ShardedVector &&);
   ShardedVector &operator=(ShardedVector &&);
 
-  ElRef<T> operator[](uint32_t index);
+  RemRawPtr<T> operator[](uint32_t index);
 
   void push_back(const T &value);
   void pop_back();
