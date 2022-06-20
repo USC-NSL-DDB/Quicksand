@@ -56,8 +56,6 @@ class Proclet {
   friend class ShardedArray;
   friend class DistributedMemPool;
   template <typename V>
-  friend class ElRef;
-  template <typename V>
   friend class ShardedVector;
 
   Proclet(ProcletID id, bool ref_cnted);

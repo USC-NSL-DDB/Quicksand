@@ -26,8 +26,8 @@ bool ElRef<T>::operator==(T1&& rhs) {
 
 template <typename T>
 ElRef<T>& ElRef<T>::operator=(const T& value) {
-  shard_.value().__run(
-      +[](VectorShard<T>& shard, uint32_t idx, const T& value) {
+  shard_.value().run(
+      +[](VectorShard<T>& shard, uint32_t idx, T value) {
         shard.data_[idx] = value;
       },
       idx_, value);
