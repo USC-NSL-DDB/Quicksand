@@ -53,6 +53,8 @@ class VectorShard {
   ElRef<T> operator[](uint32_t index);
   void push_back(const T &value);
   void pop_back();
+  template <typename T1>
+  void set(uint32_t index, T1 &&value);
   template <typename... A0s, typename... A1s>
   void apply(uint32_t index, void (*fn)(T &, A0s...), A1s &&... args);
   void clear();
@@ -95,6 +97,8 @@ class ShardedVector {
 
   void push_back(const T &value);
   void pop_back();
+  template <typename T1>
+  void set(uint32_t index, T1 &&value);
   template <typename... A0s, typename... A1s>
   void apply(uint32_t index, void (*fn)(T &, A0s...), A1s &&... args);
   template <typename... A0s, typename... A1s>

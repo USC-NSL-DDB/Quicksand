@@ -68,6 +68,12 @@ void VectorShard<T>::pop_back() {
 }
 
 template <typename T>
+template <typename T1>
+void VectorShard<T>::set(uint32_t index, T1&& value) {
+  data_[index] = value;
+}
+
+template <typename T>
 template <typename... A0s, typename... A1s>
 void VectorShard<T>::apply(uint32_t index, void (*fn)(T&, A0s...),
                            A1s&&... args) {
@@ -207,6 +213,18 @@ void ShardedVector<T>::pop_back() {
     shard.run(+[](VectorShard<T>& shard) { shard.pop_back(); });
   }
   size_--;
+}
+
+template <typename T>
+template <typename T1>
+void ShardedVector<T>::set(uint32_t index, T1&& value) {
+  if (index >= size_) return;
+  ElemIndex loc = calc_index(index);
+  shards_[loc.shard_idx].run(
+      +[](VectorShard<T>& shard, uint32_t idx, T value) {
+        shard.set(idx, value);
+      },
+      loc.idx_in_shard, value);
 }
 
 template <typename T>
