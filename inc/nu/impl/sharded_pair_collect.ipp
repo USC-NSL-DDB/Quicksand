@@ -153,6 +153,8 @@ template <typename K, typename V>
 void ShardedPairCollection<K, V>::flush() {
   std::vector<Future<bool>> futures;
 
+  rw_lock_.writer_lock();
+
   for (auto &q : push_data_futures_) {
     while (!q.empty()) {
       futures.emplace_back(std::move(q.front()));
@@ -161,7 +163,6 @@ void ShardedPairCollection<K, V>::flush() {
   }
 
 again:
-  rw_lock_.reader_lock();
   std::optional<K> key_r;
   for (auto iter = cache_mapping_.begin(); iter != cache_mapping_.end();
        iter++) {
@@ -176,15 +177,17 @@ again:
     }
     key_r = key_l;
   }
-  rw_lock_.reader_unlock();
+
+  rw_lock_.writer_unlock();
 
   bool done = true;
   for (auto &future : futures) {
     done &= future.get();
   }
 
-  if (!done) {
+  if (unlikely(!done)) {
     futures.clear();
+    rw_lock_.writer_lock();
     goto again;
   }
 }
