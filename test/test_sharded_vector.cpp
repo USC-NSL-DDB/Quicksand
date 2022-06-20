@@ -117,6 +117,40 @@ bool test_push_pop() {
   return true;
 }
 
+bool test_apply() {
+  uint32_t power_shard_sz = 10;
+  uint32_t test_data_sz = 1000;
+
+  auto test_strs = make_test_str_vec(test_data_sz);
+  auto vec = make_dis_vector<std::string>(power_shard_sz);
+  for (uint32_t i = 0; i < vec.size() / 2; i++) {
+    vec.apply(
+        i, +[](std::string &s) {
+          std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+        });
+  }
+
+  std::vector<Future<void>> futures;
+  for (uint32_t i = vec.size() / 2; i < vec.size(); i++) {
+    futures.emplace_back(vec.apply_async(
+        i, +[](std::string &s) {
+          std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+        }));
+  }
+  for (auto &future : futures) {
+    future.get();
+  }
+
+  for (auto &s : test_strs) {
+    std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+  }
+  for (uint32_t i = 0; i < vec.size(); i++) {
+    TEST(vec[i] == test_strs[i]);
+  }
+
+  return true;
+}
+
 bool test_vec_clear() {
   auto vec = make_dis_vector<int>(10);
 
@@ -258,6 +292,7 @@ bool test_reduction() {
 
 bool run_test() {
   ABORT_IF_FAILED(test_push_pop());
+  ABORT_IF_FAILED(test_apply());
   ABORT_IF_FAILED(test_vec_clear());
   ABORT_IF_FAILED(test_capacity());
   ABORT_IF_FAILED(test_capacity_reserve());

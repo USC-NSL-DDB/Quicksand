@@ -68,6 +68,14 @@ void VectorShard<T>::pop_back() {
 }
 
 template <typename T>
+template <typename... A0s, typename... A1s>
+void VectorShard<T>::apply(uint32_t index, void (*fn)(T&, A0s...),
+                           A1s&&... args) {
+  T& elem = data_[index];
+  fn(elem, std::forward(args)...);
+}
+
+template <typename T>
 void VectorShard<T>::clear() {
   data_.clear();
 }
@@ -201,6 +209,29 @@ void ShardedVector<T>::pop_back() {
     shard.run(+[](VectorShard<T>& shard) { shard.pop_back(); });
   }
   size_--;
+}
+
+template <typename T>
+template <typename... A0s, typename... A1s>
+void ShardedVector<T>::apply(uint32_t index, void (*fn)(T&, A0s...),
+                             A1s&&... args) {
+  return apply_async(index, fn, std::forward(args)...).get();
+}
+
+template <typename T>
+template <typename... A0s, typename... A1s>
+Future<void> ShardedVector<T>::apply_async(uint32_t index,
+                                           void (*fn)(T&, A0s...),
+                                           A1s&&... args) {
+  Future<void> noop;
+  if (index >= size_) return noop;
+  using Fn = decltype(fn);
+  ElemIndex loc = calc_index(index);
+  return shards_[loc.shard_idx].__run_async(
+      +[](VectorShard<T>& shard, uint32_t idx, Fn fn, A1s&&... args) {
+        shard.apply(idx, fn, std::forward(args)...);
+      },
+      loc.idx_in_shard, fn, std::forward(args)...);
 }
 
 template <typename T>
@@ -407,6 +438,16 @@ RetT ShardedVector<T>::reduce(RetT initial_val,
   }
 
   return out;
+}
+
+template <typename T>
+inline ShardedVector<T>::ElemIndex ShardedVector<T>::calc_index(
+    uint32_t index) {
+  BUG_ON(index >= size_);
+  ElemIndex loc;
+  loc.shard_idx = index / shard_max_size_;
+  loc.idx_in_shard = index % shard_max_size_;
+  return loc;
 }
 
 template <typename T>

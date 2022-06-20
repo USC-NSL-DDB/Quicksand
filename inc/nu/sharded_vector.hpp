@@ -53,6 +53,8 @@ class VectorShard {
   ElRef<T> operator[](uint32_t index);
   void push_back(const T &value);
   void pop_back();
+  template <typename... A0s, typename... A1s>
+  void apply(uint32_t index, void (*fn)(T &, A0s...), A1s &&... args);
   void clear();
   size_t capacity() const;
   void reserve(size_t new_cap);
@@ -93,6 +95,11 @@ class ShardedVector {
 
   void push_back(const T &value);
   void pop_back();
+  template <typename... A0s, typename... A1s>
+  void apply(uint32_t index, void (*fn)(T &, A0s...), A1s &&... args);
+  template <typename... A0s, typename... A1s>
+  Future<void> apply_async(uint32_t index, void (*fn)(T &, A0s...),
+                           A1s &&... args);
   constexpr bool empty() const noexcept;
   constexpr size_t size() const noexcept;
   void clear();
@@ -121,6 +128,12 @@ class ShardedVector {
   size_t size_;
   size_t capacity_;
   std::vector<Proclet<VectorShard<T>>> shards_;
+
+  struct ElemIndex {
+    uint32_t shard_idx;
+    uint32_t idx_in_shard;
+  };
+  ElemIndex calc_index(uint32_t index);
 
   void _resize_down(size_t target_size);
   void _resize_up(size_t target_size);
