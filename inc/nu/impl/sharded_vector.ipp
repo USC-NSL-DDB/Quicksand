@@ -153,9 +153,7 @@ ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
   shard_max_size_ = o.shard_max_size_;
   shard_max_size_bytes_ = o.shard_max_size_bytes_;
   size_ = o.size_;
-  for (uint32_t i = 0; i < o.shards_.size(); i++) {
-    shards_.emplace_back(std::move(o.shards_[i]));
-  }
+  shards_ = std::move(o.shards_);
   return *this;
 }
 
