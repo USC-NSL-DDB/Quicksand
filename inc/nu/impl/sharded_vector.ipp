@@ -349,18 +349,12 @@ ShardedVector<T>& ShardedVector<T>::transform(T (*fn)(T, A0s...),
                                               A1s&&... args) {
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
-  std::vector<Future<void>> futures;
-  for (size_t i = 0; i < shards_.size(); i++) {
-    futures.emplace_back(shards_[i].__run_async(
-        +[](VectorShard<T>& shard, uintptr_t raw_fn, A1s&&... args) {
-          auto* fn = reinterpret_cast<Fn>(raw_fn);
-          shard.transform(fn, args...);
-        },
-        raw_fn, args...));
-  }
-  for (auto& future : futures) {
-    future.get();
-  }
+  __for_all_shards(
+      +[](VectorShard<T>& shard, uintptr_t raw_fn, A1s&&... args) {
+        auto* fn = reinterpret_cast<Fn>(raw_fn);
+        shard.transform(fn, args...);
+      },
+      raw_fn, args...);
   return *this;
 }
 
@@ -370,18 +364,12 @@ ShardedVector<T>& ShardedVector<T>::transform(void (*fn)(T&, A0s...),
                                               A1s&&... args) {
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
-  std::vector<Future<void>> futures;
-  for (size_t i = 0; i < shards_.size(); i++) {
-    futures.emplace_back(shards_[i].__run_async(
-        +[](VectorShard<T>& shard, uintptr_t raw_fn, A1s&&... args) {
-          auto* fn = reinterpret_cast<Fn>(raw_fn);
-          shard.transform(fn, args...);
-        },
-        raw_fn, args...));
-  }
-  for (auto& future : futures) {
-    future.get();
-  }
+  __for_all_shards(
+      +[](VectorShard<T>& shard, uintptr_t raw_fn, A1s&&... args) {
+        auto* fn = reinterpret_cast<Fn>(raw_fn);
+        shard.transform(fn, args...);
+      },
+      raw_fn, args...);
   return *this;
 }
 
@@ -469,6 +457,20 @@ std::vector<V> ShardedVector<T>::__for_all_shards(V (*fn)(VectorShard<T>&,
   }
 
   return out;
+}
+
+template <typename T>
+template <typename... A0s, typename... A1s>
+void ShardedVector<T>::__for_all_shards(void (*fn)(VectorShard<T>&, A0s...),
+                                        A1s&&... args) {
+  std::vector<Future<void>> futures;
+  for (uint32_t i = 0; i < shards_.size(); i++) {
+    futures.emplace_back(
+        shards_[i].__run_async(fn, std::forward<A1s>(args)...));
+  }
+  for (auto& future : futures) {
+    future.get();
+  }
 }
 
 template <typename T>

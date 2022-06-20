@@ -127,6 +127,8 @@ class ShardedVector {
   template <typename V, typename... A0s, typename... A1s>
   std::vector<V> __for_all_shards(V (*fn)(VectorShard<T> &, A0s...),
                                   A1s &&... args);
+  template <typename... A0s, typename... A1s>
+  void __for_all_shards(void (*fn)(VectorShard<T> &, A0s...), A1s &&... args);
 
   template <typename X>
   friend ShardedVector<X> make_dis_vector(uint32_t power_shard_sz,
