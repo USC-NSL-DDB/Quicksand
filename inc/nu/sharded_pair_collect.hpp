@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <queue>
@@ -25,6 +26,10 @@ class ShardedPairCollection {
 
   ShardedPairCollection(uint32_t shard_bytes = kDefaultShardBytes,
                         uint32_t cache_bucket_bytes = kDefaultCacheBucketBytes);
+  ShardedPairCollection(uint64_t num, K estimated_min_key,
+                        std::function<void(K &, uint64_t)> key_inc_fn,
+                        uint32_t shard_bytes = kDefaultShardBytes,
+                        uint32_t cache_bucket_bytes = kDefaultCacheBucketBytes);
   ShardedPairCollection(const ShardedPairCollection &);
   ShardedPairCollection &operator=(const ShardedPairCollection &);
   ShardedPairCollection(ShardedPairCollection &&) noexcept;
@@ -44,9 +49,9 @@ class ShardedPairCollection {
   class Shard {
    public:
     Shard(WeakProclet<ShardingMapping> mapping, uint32_t shard_size,
-          std::optional<K> key_l, std::optional<K> key_r, ShardDataType data);
+          std::optional<K> l_key, std::optional<K> r_key, ShardDataType data);
     Shard(WeakProclet<ShardingMapping> mapping, uint32_t shard_size,
-          std::optional<K> key_l, std::optional<K> key_r,
+          std::optional<K> l_key, std::optional<K> r_key,
           SpanToVectorWrapper<PairType> data);
     ShardDataType get_data();
     std::pair<ScopedLock<Mutex>, ShardDataType *> get_data_ptr();
@@ -56,8 +61,8 @@ class ShardedPairCollection {
     Mutex mutex_;
     uint32_t shard_size_;
     WeakProclet<ShardingMapping> mapping_;
-    std::optional<K> key_l_;
-    std::optional<K> key_r_;
+    std::optional<K> l_key_;
+    std::optional<K> r_key_;
     ShardDataType data_;
   };
 
@@ -65,7 +70,7 @@ class ShardedPairCollection {
    public:
     ShardingMapping();
     std::vector<std::pair<std::optional<K>, WeakProclet<Shard>>>
-    get_shards_in_range(std::optional<K> key_l, std::optional<K> key_r);
+    get_shards_in_range(std::optional<K> l_key, std::optional<K> r_key);
     std::vector<WeakProclet<Shard>> get_all_shards();
     template <typename K1>
     void update_mapping(K1 k, Proclet<Shard> shard);
@@ -96,9 +101,9 @@ class ShardedPairCollection {
   uint32_t cache_bucket_size_;
   std::queue<Future<bool>> push_data_futures_[kNumCores];
 
-  bool push_data(std::optional<K> &key_l, std::optional<K> &key_r,
+  bool push_data(std::optional<K> &l_key, std::optional<K> &r_key,
                  WeakProclet<Shard> &shard, const ShardDataType &data);
-  Future<bool> push_data_async(std::optional<K> key_l, std::optional<K> key_r,
+  Future<bool> push_data_async(std::optional<K> l_key, std::optional<K> r_key,
                                WeakProclet<Shard> shard, ShardDataType data);
 };
 

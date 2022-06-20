@@ -26,6 +26,34 @@ ShardedPairCollection<K, V>::ShardedPairCollection(
 
 template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardedPairCollection(
+    uint64_t num, K estimated_min_key,
+    std::function<void(K &, uint64_t)> key_inc_fn, uint32_t shard_bytes,
+    uint32_t cache_mapping_bucket_bytes)
+    : ShardedPairCollection(shard_bytes, cache_mapping_bucket_bytes) {
+  auto num_shards = (num - 1) / shard_size_ + 1;
+  std::vector<Future<Proclet<Shard>>> shard_futures;
+
+  auto k = estimated_min_key;
+  for (uint32_t i = 0; i < num_shards; i++) {
+    auto prev_k = k;
+    key_inc_fn(k, shard_size_);
+    shard_futures.emplace_back(make_proclet_async<Shard>(
+        mapping_.get_weak(), shard_size_, prev_k, k, ShardDataType()));
+  }
+
+  k = estimated_min_key;
+  for (auto &shard_future : shard_futures) {
+    auto &shard = shard_future.get();
+    auto weak_shard = shard.get_weak();
+    auto update_future = mapping_.run_async(
+        &ShardingMapping::template update_mapping<K>, k, std::move(shard));
+    cache_mapping_.try_emplace(k, Cache{weak_shard});
+    key_inc_fn(k, shard_size_);
+  }
+}
+
+template <typename K, typename V>
+ShardedPairCollection<K, V>::ShardedPairCollection(
     const ShardedPairCollection &o)
     : mapping_(o.mapping_), shard_size_(o.shard_size_) {
   for (auto &[k, c] : o.cache_mapping_) {
@@ -85,10 +113,10 @@ void ShardedPairCollection<K, V>::emplace(PairType &&p) {
 
   if (unlikely(data.size() > cache_bucket_size_)) {
     auto &shard = iter->second.shard;
-    auto &key_l = iter->first;
-    std::optional<K> key_r;
+    auto &l_key = iter->first;
+    std::optional<K> r_key;
     if (iter != cache_mapping_.begin()) {
-      key_r = (--iter)->first;
+      r_key = (--iter)->first;
     }
 
     auto &futures = push_data_futures_[core_id];
@@ -98,7 +126,7 @@ void ShardedPairCollection<K, V>::emplace(PairType &&p) {
       futures.pop();
     }
     futures.emplace(
-        push_data_async(key_l, std::move(key_r), shard, std::move(data)));
+        push_data_async(l_key, std::move(r_key), shard, std::move(data)));
     data.clear();
     rw_lock_.reader_unlock_np();
     return;
@@ -109,25 +137,25 @@ void ShardedPairCollection<K, V>::emplace(PairType &&p) {
 
 template <typename K, typename V>
 Future<bool> ShardedPairCollection<K, V>::push_data_async(
-    std::optional<K> key_l, std::optional<K> key_r, WeakProclet<Shard> shard,
+    std::optional<K> l_key, std::optional<K> r_key, WeakProclet<Shard> shard,
     ShardDataType data) {
-  return nu::async([this, key_l = std::move(key_l), key_r = std::move(key_r),
+  return nu::async([this, l_key = std::move(l_key), r_key = std::move(r_key),
                     shard = std::move(shard),
                     data = std::move(data)]() mutable {
-    return push_data(key_l, key_r, shard, data);
+    return push_data(l_key, r_key, shard, data);
   });
 }
 
 template <typename K, typename V>
-bool ShardedPairCollection<K, V>::push_data(std::optional<K> &key_l,
-                                            std::optional<K> &key_r,
+bool ShardedPairCollection<K, V>::push_data(std::optional<K> &l_key,
+                                            std::optional<K> &r_key,
                                             WeakProclet<Shard> &shard,
                                             const ShardDataType &data) {
   auto rejected_data = shard.run(&Shard::try_emplace_back, data);
 
   if (unlikely(!rejected_data.empty())) {
     auto new_mappings =
-        mapping_.run(&ShardingMapping::get_shards_in_range, key_l, key_r);
+        mapping_.run(&ShardingMapping::get_shards_in_range, l_key, r_key);
 
     rw_lock_.writer_lock();
     for (auto &[k, s] : new_mappings) {
@@ -163,19 +191,19 @@ void ShardedPairCollection<K, V>::flush() {
   }
 
 again:
-  std::optional<K> key_r;
+  std::optional<K> r_key;
   for (auto iter = cache_mapping_.begin(); iter != cache_mapping_.end();
        iter++) {
-    auto &[key_l, cache] = *iter;
+    auto &[l_key, cache] = *iter;
     for (uint32_t i = 0; i < kNumCores; i++) {
       auto &data = cache.data[i];
       if (!data.empty()) {
         futures.emplace_back(
-            push_data_async(key_l, key_r, cache.shard, std::move(data)));
+            push_data_async(l_key, r_key, cache.shard, std::move(data)));
         data.clear();
       }
     }
-    key_r = key_l;
+    r_key = l_key;
   }
 
   rw_lock_.writer_unlock();
@@ -244,25 +272,25 @@ void ShardedPairCollection<K, V>::serialize(Archive &ar) {
 template <typename K, typename V>
 ShardedPairCollection<K, V>::Shard::Shard(WeakProclet<ShardingMapping> mapping,
                                           uint32_t shard_size,
-                                          std::optional<K> key_l,
-                                          std::optional<K> key_r,
+                                          std::optional<K> l_key,
+                                          std::optional<K> r_key,
                                           ShardDataType data)
     : shard_size_(shard_size),
       mapping_(std::move(mapping)),
-      key_l_(key_l),
-      key_r_(key_r),
+      l_key_(l_key),
+      r_key_(r_key),
       data_(data) {}
 
 template <typename K, typename V>
 ShardedPairCollection<K, V>::Shard::Shard(WeakProclet<ShardingMapping> mapping,
                                           uint32_t shard_size,
-                                          std::optional<K> key_l,
-                                          std::optional<K> key_r,
+                                          std::optional<K> l_key,
+                                          std::optional<K> r_key,
                                           SpanToVectorWrapper<PairType> data)
     : shard_size_(shard_size),
       mapping_(std::move(mapping)),
-      key_l_(key_l),
-      key_r_(key_r),
+      l_key_(l_key),
+      r_key_(r_key),
       data_(std::move(data.unwrap())) {}
 
 template <typename K, typename V>
@@ -286,8 +314,8 @@ ShardedPairCollection<K, V>::Shard::try_emplace_back(ShardDataType data) {
 
   ShardDataType rejected_data;
   for (auto &p : data) {
-    if (unlikely((key_l_ && p.first < *key_l_) ||
-                 (key_r_ && p.first >= *key_r_))) {
+    if (unlikely((l_key_ && p.first < *l_key_) ||
+                 (r_key_ && p.first >= *r_key_))) {
       rejected_data.emplace_back(std::move(p));
     } else {
       data_.emplace_back(std::move(p));
@@ -299,10 +327,10 @@ ShardedPairCollection<K, V>::Shard::try_emplace_back(ShardDataType data) {
     std::nth_element(data_.begin(), mid, data_.end());
     auto mid_k = data_[data_.size() / 2].first;
     SpanToVectorWrapper post_split_data(std::span(mid, data_.end()));
-    auto new_shard = make_proclet<Shard>(mapping_, shard_size_, mid_k, key_r_,
+    auto new_shard = make_proclet<Shard>(mapping_, shard_size_, mid_k, r_key_,
                                          post_split_data);
     data_.erase(mid, data_.end());
-    key_r_ = mid_k;
+    r_key_ = mid_k;
     mapping_.run(&ShardingMapping::template update_mapping<K>, mid_k,
                  std::move(new_shard));
   }
@@ -317,12 +345,12 @@ template <typename K, typename V>
 std::vector<std::pair<std::optional<K>,
                       WeakProclet<typename ShardedPairCollection<K, V>::Shard>>>
 ShardedPairCollection<K, V>::ShardingMapping::get_shards_in_range(
-    std::optional<K> key_l, std::optional<K> key_r) {
+    std::optional<K> l_key, std::optional<K> r_key) {
   std::vector<std::pair<std::optional<K>, WeakProclet<Shard>>> shards;
   rw_lock_.reader_lock();
   typename decltype(mapping_)::iterator iter =
-      key_r ? mapping_.upper_bound(key_r) : mapping_.begin();
-  while (iter != mapping_.end() && iter->first >= key_l) {
+      r_key ? mapping_.upper_bound(r_key) : mapping_.begin();
+  while (iter != mapping_.end() && iter->first >= l_key) {
     shards.emplace_back(iter->first, iter->second.get_weak());
     iter++;
   }

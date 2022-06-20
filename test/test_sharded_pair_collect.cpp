@@ -33,14 +33,14 @@ class Worker {
   nu::ShardedPairCollection<int, std::string> sc_;
 };
 
-bool run_test() {
-  nu::ShardedPairCollection<int, std::string> sc;
-  auto p0 = make_proclet<Worker>(sc);
-  auto p1 = make_proclet<Worker>(sc);
+bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
+  auto p0 = make_proclet<Worker>(*sc);
+  auto p1 = make_proclet<Worker>(*sc);
 
   auto f0 = p0.run_async(&Worker::emplace, 0, kNumElements / 4);
   auto f1 = p0.run_async(&Worker::emplace, kNumElements / 4, kNumElements / 2);
-  auto f2 = p1.run_async(&Worker::emplace, kNumElements / 2, kNumElements / 4 * 3);
+  auto f2 =
+      p1.run_async(&Worker::emplace, kNumElements / 2, kNumElements / 4 * 3);
   auto f3 = p1.run_async(&Worker::emplace, kNumElements / 4 * 3, kNumElements);
   f0.get();
   f1.get();
@@ -52,7 +52,7 @@ bool run_test() {
   f4.get();
   f5.get();
 
-  auto v = sc.collect();
+  auto v = sc->collect();
   sort(v.begin(), v.end());
 
   std::vector<std::pair<int, std::string>> expected_v;
@@ -63,9 +63,26 @@ bool run_test() {
   return v == expected_v;
 }
 
+bool run_test_no_hint() {
+  nu::ShardedPairCollection<int, std::string> sc;
+  return run_test(&sc);
+}
+
+bool run_test_with_hint() {
+  // Intentionally use a very bad hint.
+  nu::ShardedPairCollection<int, std::string> sc(
+      /* num = */ kNumElements, /* estimated_min_key = */ kNumElements,
+      /* key_inc_fn = */ [](int &k, uint64_t offset) { k += offset; });
+  return run_test(&sc);
+}
+
+bool run_all_tests() {
+  return run_test_no_hint() && run_test_with_hint();
+}
+
 int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv, [](int, char **) {
-    if (run_test()) {
+    if (run_all_tests()) {
       std::cout << "Passed" << std::endl;
     } else {
       std::cout << "Failed" << std::endl;
