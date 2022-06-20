@@ -64,6 +64,9 @@ class VectorShard {
   template <typename RetT, typename... A0s, typename... A1s>
   RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T, A0s...),
               A1s &&... args);
+  template <typename RetT, typename... A0s, typename... A1s>
+  RetT reduce(RetT initial_val, void (*reducer)(RetT &, T &, A0s...),
+              A1s &&... args);
 
   template <typename T1>
   friend class ElRef;

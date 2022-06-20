@@ -114,6 +114,17 @@ RetT VectorShard<T>::reduce(RetT initial_val, RetT (*reducer)(RetT, T, A0s...),
 }
 
 template <typename T>
+template <typename RetT, typename... A0s, typename... A1s>
+RetT VectorShard<T>::reduce(RetT initial_val,
+                            void (*reducer)(RetT&, T&, A0s...), A1s&&... args) {
+  RetT out = std::move(initial_val);
+  for (size_t i = 0; i < data_.size(); i++) {
+    reducer(out, data_[i], std::forward(args)...);
+  }
+  return out;
+}
+
+template <typename T>
 ShardedVector<T>::ShardedVector()
     : shard_max_size_(0),
       shard_max_size_bytes_(0),
@@ -401,6 +412,27 @@ RetT ShardedVector<T>::reduce(RetT initial_val,
     output = reducer(output, results[i], args...);
   }
   return output;
+}
+
+template <typename T>
+template <typename RetT, typename... A0s, typename... A1s>
+RetT ShardedVector<T>::reduce(RetT initial_val,
+                              void (*reducer)(RetT&, T&, A0s...),
+                              A1s&&... args) {
+  if (shards_.size() == 0) return initial_val;
+
+  using Fn = decltype(reducer);
+  RetT out = std::move(initial_val);
+  for (uint32_t i = 0; i < shards_.size(); i++) {
+    out = shards_[i].__run(
+        +[](VectorShard<T>& shard, RetT initial_val, Fn reducer,
+            A1s&&... args) {
+          return shard.reduce(initial_val, reducer, std::forward(args)...);
+        },
+        std::move(out), reducer, std::forward(args)...);
+  }
+
+  return out;
 }
 
 template <typename T>

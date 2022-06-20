@@ -243,6 +243,16 @@ bool test_reduction() {
 
   TEST(sum == 100000);
 
+  auto strvec = make_dis_vector<std::string>(power_shard_sz);
+  for (int i = 0; i < 1000; i++) {
+    strvec.push_back("a");
+  }
+  using WordCountMap = std::unordered_map<std::string, uint32_t>;
+  WordCountMap empty_map;
+  WordCountMap map = strvec.reduce(
+      empty_map, +[](WordCountMap &map, std::string &s) { map[s]++; });
+  TEST(map["a"] == 1000);
+
   return true;
 }
 
@@ -253,6 +263,7 @@ bool run_test() {
   ABORT_IF_FAILED(test_capacity_reserve());
   ABORT_IF_FAILED(test_resize());
   ABORT_IF_FAILED(test_transform());
+  ABORT_IF_FAILED(test_reduction());
 
   return true;
 }
