@@ -167,7 +167,7 @@ ElRef<T> ShardedVector<T>::operator[](uint32_t index) {
   uint32_t shard_idx = index / shard_max_size_;
   uint32_t idx_in_shard = index % shard_max_size_;
   auto& shard = shards_[shard_idx];
-  auto ret = shard.__run(
+  auto ret = shard.run(
       +[](VectorShard<T>& shard, uint32_t idx) { return shard[idx]; },
       idx_in_shard);
   ret.shard_ = shard.get_weak();
@@ -185,7 +185,7 @@ void ShardedVector<T>::push_back(const T& value) {
     shards_.emplace_back(make_proclet<VectorShard<T>>(capacity, max_size));
   }
   auto& shard = shards_[shard_idx];
-  shard.__run(
+  shard.run(
       +[](VectorShard<T>& shard, T value) { shard.push_back(value); }, value);
   size_++;
 }
@@ -203,7 +203,7 @@ void ShardedVector<T>::pop_back() {
     shards_.pop_back();
   } else {
     auto& shard = shards_[shard_idx];
-    shard.__run(+[](VectorShard<T>& shard) { shard.pop_back(); });
+    shard.run(+[](VectorShard<T>& shard) { shard.pop_back(); });
   }
   size_--;
 }
@@ -223,7 +223,7 @@ void ShardedVector<T>::clear() {
   size_ = 0;
   std::vector<Future<void>> futures;
   for (uint32_t i = 0; i < shards_.size(); i++) {
-    futures.emplace_back(shards_[i].__run_async(
+    futures.emplace_back(shards_[i].run_async(
         +[](VectorShard<T>& shard) { return shard.clear(); }));
   }
   for (auto& future : futures) {
@@ -259,7 +259,7 @@ void ShardedVector<T>::reserve(size_t new_cap) {
 
   size_t last_shard_cap = cur_cap % shard_max_size_;
   if (last_shard_cap != 0) {
-    shards_.back().__run(
+    shards_.back().run(
         +[](VectorShard<T>& shard, size_t cap) { shard.reserve(cap); },
         shard_max_size_);
     cur_cap += (shard_max_size_ - last_shard_cap);
@@ -295,7 +295,7 @@ void ShardedVector<T>::_resize_down(size_t target_size) {
     size_t truncated =
         std::min((cur_size - target_size), (size_t)last_shard_size);
     size_t size_target = last_shard_size - truncated;
-    shards_.back().__run(
+    shards_.back().run(
         +[](VectorShard<T>& shard, size_t target) { shard.resize(target); },
         size_target);
     cur_size -= truncated;
@@ -306,7 +306,7 @@ void ShardedVector<T>::_resize_down(size_t target_size) {
     size_t truncated =
         std::min((cur_size - target_size), (size_t)shard_max_size_);
     size_t size_target = shard_max_size_ - truncated;
-    (*shard).__run(
+    (*shard).run(
         +[](VectorShard<T>& shard, size_t target) { shard.resize(target); },
         size_target);
     cur_size -= truncated;
@@ -326,7 +326,7 @@ void ShardedVector<T>::_resize_up(size_t target_size) {
     size_t extended = std::min((target_size - cur_size),
                                (size_t)(shard_max_size_ - last_shard_size));
     size_t size_target = last_shard_size + extended;
-    shards_.back().__run(
+    shards_.back().run(
         +[](VectorShard<T>& shard, size_t target) { shard.resize(target); },
         size_target);
     cur_size += extended;
