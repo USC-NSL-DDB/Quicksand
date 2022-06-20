@@ -56,12 +56,15 @@ std::vector<std::string> make_test_str_vec(uint32_t size) {
     }                           \
   } while (0);
 
-#define TEST(cond)  \
-  do {              \
-    if (!(cond)) {  \
-      return false; \
-    }               \
+#define CHECK_TEST_FAILURE(cond, file, line)       \
+  do {                                             \
+    if (!(cond)) {                                 \
+      printf("TEST FAILURE: %s:%d\n", file, line); \
+      return false;                                \
+    }                                              \
   } while (0);
+
+#define TEST(cond) CHECK_TEST_FAILURE(cond, __FILE__, __LINE__)
 
 std::vector<int> make_int_range_vec(int start_incl, int end_excl) {
   BUG_ON(start_incl > end_excl);
