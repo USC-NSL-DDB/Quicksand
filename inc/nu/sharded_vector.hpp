@@ -12,7 +12,6 @@ extern "C" {
 }
 
 #include "nu/proclet.hpp"
-#include "nu/rem_ptr.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/spin_lock.hpp"
 
@@ -29,7 +28,7 @@ class VectorShard {
   VectorShard();
   VectorShard(size_t capacity, uint32_t size_max);
 
-  RemRawPtr<T> operator[](uint32_t index);
+  T operator[](uint32_t index);
   void push_back(const T &value);
   void pop_back();
   template <typename T1>
@@ -72,7 +71,7 @@ class ShardedVector {
   ShardedVector(ShardedVector &&);
   ShardedVector &operator=(ShardedVector &&);
 
-  RemRawPtr<T> operator[](uint32_t index);
+  T operator[](uint32_t index);
 
   void push_back(const T &value);
   void pop_back();

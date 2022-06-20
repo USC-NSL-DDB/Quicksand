@@ -16,8 +16,8 @@ VectorShard<T>::VectorShard(size_t capacity, uint32_t size_max)
 }
 
 template <typename T>
-RemRawPtr<T> VectorShard<T>::operator[](uint32_t index) {
-  return RemRawPtr(&data_[index]);
+T VectorShard<T>::operator[](uint32_t index) {
+  return data_[index];
 }
 
 template <typename T>
@@ -137,7 +137,7 @@ ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
 }
 
 template <typename T>
-RemRawPtr<T> ShardedVector<T>::operator[](uint32_t index) {
+T ShardedVector<T>::operator[](uint32_t index) {
   auto loc = calc_index(index);
   auto& shard = shards_[loc.shard_idx];
   return shard.run(

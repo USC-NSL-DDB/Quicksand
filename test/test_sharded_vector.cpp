@@ -88,13 +88,13 @@ bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
     TEST(!vec.empty());
   }
   for (size_t i = 0; i < len; i++) {
-    TEST(*vec[i] == expected[i]);
+    TEST(vec[i] == expected[i]);
   }
   for (size_t i = 0; i < len; i++) {
     vec.set(i, expected[len - i]);
   }
   for (size_t i = 0; i < len; i++) {
-    TEST(*vec[i] == expected[len - i]);
+    TEST(vec[i] == expected[len - i]);
   }
 
   TEST(!vec.empty());
@@ -148,7 +148,7 @@ bool test_apply() {
     std::transform(s.begin(), s.end(), s.begin(), ::toupper);
   }
   for (uint32_t i = 0; i < vec.size(); i++) {
-    TEST(*vec[i] == test_strs[i]);
+    TEST(vec[i] == test_strs[i]);
   }
 
   return true;
@@ -212,12 +212,12 @@ bool test_resize() {
   vec.resize(100);
   TEST(vec.size() == 100);
   for (int i = 0; i < 100; i++) {
-    TEST(*vec[i] == 0);
+    TEST(vec[i] == 0);
   }
   vec.resize(150);
   TEST(vec.size() == 150);
   for (int i = 100; i < 150; i++) {
-    TEST(*vec[i] == 0);
+    TEST(vec[i] == 0);
   }
   vec.resize(150);
   TEST(vec.size() == 150);
@@ -238,7 +238,7 @@ bool test_for_all() {
   }
   vec.for_all(+[](int x) { return x * 2; });
   for (int i = 0; i < 1000; i++) {
-    TEST(*vec[i] == i * 2);
+    TEST(vec[i] == i * 2);
   }
 
   auto vec2 = make_dis_vector<int>(power_shard_sz);
@@ -249,7 +249,7 @@ bool test_for_all() {
   vec2.for_all(
       +[](int x, int mult1, int mult2) { return x * mult1 * mult2; }, 2, 2);
   for (int i = 0; i < 1000; i++) {
-    TEST(*vec2[i] == i * 32);
+    TEST(vec2[i] == i * 32);
   }
 
   using MapType = std::unordered_map<int, int>;
