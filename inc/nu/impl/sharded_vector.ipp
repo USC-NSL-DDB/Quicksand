@@ -167,12 +167,11 @@ ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
 
 template <typename T>
 ElRef<T> ShardedVector<T>::operator[](uint32_t index) {
-  uint32_t shard_idx = index / shard_max_size_;
-  uint32_t idx_in_shard = index % shard_max_size_;
-  auto& shard = shards_[shard_idx];
+  auto loc = calc_index(index);
+  auto& shard = shards_[loc.shard_idx];
   auto ret = shard.run(
       +[](VectorShard<T>& shard, uint32_t idx) { return shard[idx]; },
-      idx_in_shard);
+      loc.idx_in_shard);
   ret.shard_ = shard.get_weak();
   return ret;
 }
@@ -181,14 +180,13 @@ template <typename T>
 void ShardedVector<T>::push_back(const T& value) {
   BUG_ON(shard_max_size_ == 0);
   uint32_t shard_idx = size_ / shard_max_size_;
-  BUG_ON(shard_idx > shards_.size());
+  BUG_ON(!((shard_idx == shards_.size()) || (shard_idx == shards_.size() - 1)));
   if (shard_idx == shards_.size()) {
     uint32_t capacity = shard_max_size_;
     uint32_t max_size = shard_max_size_;
     shards_.emplace_back(make_proclet<VectorShard<T>>(capacity, max_size));
   }
-  auto& shard = shards_[shard_idx];
-  shard.run(
+  shards_.back().run(
       +[](VectorShard<T>& shard, T value) { shard.push_back(value); }, value);
   size_++;
 }
@@ -443,7 +441,6 @@ RetT ShardedVector<T>::reduce(RetT initial_val,
 template <typename T>
 inline ShardedVector<T>::ElemIndex ShardedVector<T>::calc_index(
     uint32_t index) {
-  BUG_ON(index >= size_);
   ElemIndex loc;
   loc.shard_idx = index / shard_max_size_;
   loc.idx_in_shard = index % shard_max_size_;
