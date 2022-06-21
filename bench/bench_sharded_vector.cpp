@@ -1,0 +1,53 @@
+#include <algorithm>
+#include <cereal/types/string.hpp>
+#include <functional>
+#include <iostream>
+
+#include "nu/proclet.hpp"
+#include "nu/runtime.hpp"
+#include "nu/sharded_vector.hpp"
+
+constexpr uint32_t kNumElements = 10 << 20;
+constexpr uint32_t kRunTimes = 1;
+constexpr uint32_t kPowerShardSize = 10;
+
+class Work {
+ public:
+  Work() {
+    for (uint32_t i = 0; i < kRunTimes; i++) {
+      std::cout << "Running No." << i << " time..." << std::endl;
+      single_thread();
+      // TODO: add more.
+    }
+  }
+
+  void single_thread() {
+    std::cout << "\tRunning single-thread bench..." << std::endl;
+    {
+      auto vec = nu::make_sharded_vector<int>(kPowerShardSize);
+      auto t0 = microtime();
+      for (uint32_t i = 0; i < kNumElements; i++) {
+        vec.push_back(i);
+      }
+      auto t1 = microtime();
+      std::cout << "\t\tShardedPairCollection: " << t1 - t0 << " us"
+                << std::endl;
+    }
+
+    {
+      nu::RuntimeSlabGuard slab;
+      std::vector<int> v;
+      auto t0 = microtime();
+      for (uint32_t i = 0; i < kNumElements; i++) {
+        v.push_back(i);
+      }
+      auto t1 = microtime();
+      std::cout << "\t\tstd::vector: " << t1 - t0 << " us" << std::endl;
+    }
+  }
+};
+
+int main(int argc, char **argv) {
+  return nu::runtime_main_init(argc, argv,
+                               [](int, char **) { nu::make_proclet<Work>(); });
+}
