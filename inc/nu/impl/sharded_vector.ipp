@@ -487,7 +487,7 @@ void ShardedVector<T>::__for_all_shards(void (*fn)(VectorShard<T>&, A0s...),
 }
 
 template <typename T>
-ShardedVector<T> make_dis_vector(uint32_t power_shard_sz, size_t capacity) {
+ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz, size_t capacity) {
   ShardedVector<T> vec;
 
   vec.shard_max_size_bytes_ = (1 << power_shard_sz);

@@ -79,7 +79,7 @@ template <typename T>
 bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
   size_t len = expected.size();
 
-  auto vec = make_dis_vector<T>(power_shard_sz);
+  auto vec = make_sharded_vector<T>(power_shard_sz);
   TEST(vec.empty());
 
   for (size_t i = 0; i < len; i++) {
@@ -125,7 +125,7 @@ bool test_apply() {
   uint32_t test_data_sz = 1000;
 
   auto test_strs = make_test_str_vec(test_data_sz);
-  auto vec = make_dis_vector<std::string>(power_shard_sz);
+  auto vec = make_sharded_vector<std::string>(power_shard_sz);
   for (uint32_t i = 0; i < vec.size() / 2; i++) {
     vec.apply(
         i, +[](std::string &s) {
@@ -155,7 +155,7 @@ bool test_apply() {
 }
 
 bool test_vec_clear() {
-  auto vec = make_dis_vector<int>(10);
+  auto vec = make_sharded_vector<int>(10);
 
   TEST(vec.empty());
   vec.clear();
@@ -174,7 +174,7 @@ bool test_vec_clear() {
 
 bool test_capacity() {
   int power_shard_sz = 10;
-  auto vec = make_dis_vector<int>(power_shard_sz);
+  auto vec = make_sharded_vector<int>(power_shard_sz);
   TEST(vec.capacity() == 0);
   vec.push_back(2);
   TEST(vec.capacity() > 0);
@@ -194,7 +194,7 @@ bool test_capacity() {
 
 bool test_capacity_reserve() {
   int power_shard_sz = 10;
-  auto vec = make_dis_vector<int>(power_shard_sz);
+  auto vec = make_sharded_vector<int>(power_shard_sz);
 
   vec.reserve(12345);
   TEST(vec.capacity() >= 12345);
@@ -207,7 +207,7 @@ bool test_capacity_reserve() {
 
 bool test_resize() {
   int power_shard_sz = 10;
-  auto vec = make_dis_vector<int>(power_shard_sz);
+  auto vec = make_sharded_vector<int>(power_shard_sz);
 
   vec.resize(100);
   TEST(vec.size() == 100);
@@ -231,7 +231,7 @@ int double_int(int x) { return x * 2; }
 
 bool test_for_all() {
   int power_shard_sz = 10;
-  auto vec = make_dis_vector<int>(power_shard_sz);
+  auto vec = make_sharded_vector<int>(power_shard_sz);
 
   for (int i = 0; i < 1000; i++) {
     vec.push_back(i);
@@ -241,7 +241,7 @@ bool test_for_all() {
     TEST(vec[i] == i * 2);
   }
 
-  auto vec2 = make_dis_vector<int>(power_shard_sz);
+  auto vec2 = make_sharded_vector<int>(power_shard_sz);
   for (int i = 0; i < 1000; i++) {
     vec2.push_back(i);
   }
@@ -253,7 +253,7 @@ bool test_for_all() {
   }
 
   using MapType = std::unordered_map<int, int>;
-  auto vec3 = make_dis_vector<MapType>(power_shard_sz);
+  auto vec3 = make_sharded_vector<MapType>(power_shard_sz);
   vec3.resize(100);
   vec3.for_all(+[](MapType &map) { map[1] = 1; });
   vec3.for_all(
@@ -269,7 +269,7 @@ bool test_for_all() {
 
 bool test_reduction() {
   int power_shard_sz = 10;
-  auto vec = make_dis_vector<int>(power_shard_sz);
+  auto vec = make_sharded_vector<int>(power_shard_sz);
 
   for (int i = 0; i < 100000; i++) {
     vec.push_back(1);
@@ -280,7 +280,7 @@ bool test_reduction() {
 
   TEST(sum == 100000);
 
-  auto strvec = make_dis_vector<std::string>(power_shard_sz);
+  auto strvec = make_sharded_vector<std::string>(power_shard_sz);
   for (int i = 0; i < 1000; i++) {
     strvec.push_back("a");
   }

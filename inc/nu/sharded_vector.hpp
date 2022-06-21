@@ -126,12 +126,12 @@ class ShardedVector {
   void __for_all_shards(void (*fn)(VectorShard<T> &, A0s...), A1s &&... args);
 
   template <typename X>
-  friend ShardedVector<X> make_dis_vector(uint32_t power_shard_sz,
-                                          size_t capacity);
+  friend ShardedVector<X> make_sharded_vector(uint32_t power_shard_sz,
+                                              size_t capacity);
 };
 
 template <typename T>
-ShardedVector<T> make_dis_vector(
+ShardedVector<T> make_sharded_vector(
     uint32_t power_shard_sz = ShardedVector<T>::kDefaultPowerShardSize,
     size_t capacity = 0);
 }  // namespace nu
