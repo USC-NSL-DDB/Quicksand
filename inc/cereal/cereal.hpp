@@ -419,7 +419,7 @@ namespace cereal
       void process( T && head )
       {
         prologue( *self, head );
-        self->processImpl( head );
+        self->processImpl( std::forward<T>(head) );
         epilogue( *self, head );
       }
 
@@ -503,11 +503,31 @@ namespace cereal
         return *self;
       }
 
+      //! Member split (save_move)
+      template <
+          class T, PROCESS_IF(member_save_move),
+          class = typename std::enable_if<std::is_rvalue_reference_v<T &&> &&
+                                          std::is_class_v<T>>::type>
+      inline ArchiveType &processImpl(T && t) {
+        access::member_save_move(*self, std::move(t));
+        return *self;
+      }
+
       //! Non member split (save)
       template <class T, PROCESS_IF(non_member_save)> inline
       ArchiveType & processImpl(T const & t)
       {
         CEREAL_SAVE_FUNCTION_NAME(*self, t);
+        return *self;
+      }
+
+      //! Non member split (save_move)
+      template <
+          class T, PROCESS_IF(non_member_save_move),
+          class = typename std::enable_if<std::is_rvalue_reference_v<T &&> &&
+                                          std::is_class_v<T>>::type>
+      inline ArchiveType &processImpl(T && t) {
+        CEREAL_SAVE_MOVE_FUNCTION_NAME(*self, std::move(t));
         return *self;
       }
 

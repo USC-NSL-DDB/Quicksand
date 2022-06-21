@@ -369,9 +369,25 @@ namespace cereal
     KeyType key;
     ValueType value;
 
-    //! Serialize the MapItem with the NVPs "key" and "value"
+    //! Save the MapItem with the NVPs "key" and "value"
     template <class Archive> inline
-    void CEREAL_SERIALIZE_FUNCTION_NAME(Archive & archive)
+    void CEREAL_SAVE_FUNCTION_NAME(Archive & archive) const
+    {
+      archive( make_nvp<Archive>("key",   key),
+               make_nvp<Archive>("value", value) );
+    }
+
+    //! Save the MapItem with the NVPs "key" and "value"
+    template <class Archive> inline
+    void CEREAL_SAVE_MOVE_FUNCTION_NAME(Archive & archive)
+    {
+      archive( make_nvp<Archive>("key",   key),
+               make_nvp<Archive>("value", std::move(value)) );
+    }
+
+    //! Load the MapItem with the NVPs "key" and "value"
+    template <class Archive> inline
+    void CEREAL_LOAD_FUNCTION_NAME(Archive & archive)
     {
       archive( make_nvp<Archive>("key",   key),
                make_nvp<Archive>("value", value) );

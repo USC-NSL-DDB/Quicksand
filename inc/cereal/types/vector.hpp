@@ -71,6 +71,17 @@ namespace cereal
 
   //! Serialization for non-arithmetic vector types
   template <class Archive, class T, class A> inline
+  typename std::enable_if<(!traits::is_output_serializable<BinaryData<T>, Archive>::value
+                          || !std::is_arithmetic<T>::value) && !std::is_same<T, bool>::value, void>::type
+  CEREAL_SAVE_MOVE_FUNCTION_NAME( Archive & ar, std::vector<T, A> &&vector )
+  {
+    ar( make_size_tag( static_cast<size_type>(vector.size()) ) ); // number of elements
+    for(auto && v : vector)
+      ar( std::move(v) );
+  }
+
+  //! Serialization for non-arithmetic vector types
+  template <class Archive, class T, class A> inline
   typename std::enable_if<(!traits::is_input_serializable<BinaryData<T>, Archive>::value
                           || !std::is_arithmetic<T>::value) && !std::is_same<T, bool>::value, void>::type
   CEREAL_LOAD_FUNCTION_NAME( Archive & ar, std::vector<T, A> & vector )

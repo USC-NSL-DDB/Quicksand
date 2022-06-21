@@ -250,6 +250,10 @@ namespace cereal
       { return t.CEREAL_SAVE_FUNCTION_NAME(ar); }
 
       template<class Archive, class T> inline
+      static auto member_save_move(Archive & ar, T && t) -> decltype(t.CEREAL_SAVE_MOVE_FUNCTION_NAME(ar))
+      { return t.CEREAL_SAVE_MOVE_FUNCTION_NAME(ar); }
+
+      template<class Archive, class T> inline
       static auto member_save_non_const(Archive & ar, T & t) -> decltype(t.CEREAL_SAVE_FUNCTION_NAME(ar))
       { return t.CEREAL_SAVE_FUNCTION_NAME(ar); }
 

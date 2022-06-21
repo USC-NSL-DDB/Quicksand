@@ -35,9 +35,25 @@
 
 namespace cereal
 {
-  //! Serializing for std::pair
+  //! Save for std::pair
   template <class Archive, class T1, class T2> inline
-  void CEREAL_SERIALIZE_FUNCTION_NAME( Archive & ar, std::pair<T1, T2> & pair )
+  void CEREAL_SAVE_FUNCTION_NAME( Archive & ar, std::pair<T1, T2> const & pair )
+  {
+    ar( CEREAL_NVP_("first",  pair.first),
+        CEREAL_NVP_("second", pair.second) );
+  }
+
+  //! Save for std::pair
+  template <class Archive, class T1, class T2> inline
+  void CEREAL_SAVE_MOVE_FUNCTION_NAME( Archive & ar, std::pair<T1, T2> && pair )
+  {
+    ar( CEREAL_NVP_("first",  std::move(pair.first)),
+        CEREAL_NVP_("second", std::move(pair.second)) );
+  }
+
+  //! Load for std::pair
+  template <class Archive, class T1, class T2> inline
+  void CEREAL_LOAD_FUNCTION_NAME( Archive & ar, std::pair<T1, T2> & pair )
   {
     ar( CEREAL_NVP_("first",  pair.first),
         CEREAL_NVP_("second", pair.second) );

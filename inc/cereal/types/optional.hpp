@@ -46,6 +46,18 @@ namespace cereal {
     }
   }
 
+  //! Saving for std::optional
+  template <class Archive, typename T> inline
+  void CEREAL_SAVE_MOVE_FUNCTION_NAME(Archive& ar, std::optional<T>&& optional)
+  {
+    if(!optional) {
+      ar(CEREAL_NVP_("nullopt", true));
+    } else {
+      ar(CEREAL_NVP_("nullopt", false),
+         CEREAL_NVP_("data", std::move(*optional)));
+    }
+  }
+
   //! Loading for std::optional
   template <class Archive, typename T> inline
   void CEREAL_LOAD_FUNCTION_NAME(Archive& ar, std::optional<T>& optional)

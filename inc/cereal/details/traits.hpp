@@ -296,6 +296,23 @@ namespace cereal
         static const bool not_const_type = test2<T, A>();                                                                           \
       };                                                                                                                            \
     } /* end namespace detail */
+
+    #define CEREAL_MAKE_HAS_MEMBER_SAVE_MOVE_IMPL(test_name, versioned)                                                             \
+    namespace detail                                                                                                                \
+    {                                                                                                                               \
+    template <class T, class A>                                                                                                     \
+    struct has_member_##test_name##_impl                                                                                            \
+      {                                                                                                                             \
+        template <class TT, class AA, class SFINAE = void> struct test : no {};                                                     \
+        template <class TT, class AA>                                                                                               \
+        struct test<TT, AA,                                                                                                         \
+          typename detail::Void< decltype( cereal::access::member_save_move( std::declval<AA&>(),                                   \
+                                                                             std::declval<TT &&>() versioned ) ) >::type> : yes {}; \
+        static const bool value = test<T, A>();                                                                                     \
+                                                                                                                                    \
+      };                                                                                                                            \
+    } /* end namespace detail */
+
     #else /* NOT CEREAL_OLDER_GCC =================================== */
     #define CEREAL_MAKE_HAS_MEMBER_SAVE_IMPL(test_name, versioned)                                                                  \
     namespace detail                                                                                                                \
@@ -317,6 +334,21 @@ namespace cereal
         static const bool not_const_type = std::is_same<decltype(test2<T, A>(0)), yes>::value;                                      \
       };                                                                                                                            \
     } /* end namespace detail */
+
+    #define CEREAL_MAKE_HAS_MEMBER_SAVE_MOVE_IMPL(test_name, versioned)                                                             \
+    namespace detail                                                                                                                \
+    {                                                                                                                               \
+    template <class T, class A>                                                                                                     \
+    struct has_member_##test_name##_impl                                                                                            \
+      {                                                                                                                             \
+        template <class TT, class AA>                                                                                               \
+        static auto test(int) -> decltype( cereal::access::member_save_move( std::declval<AA&>(),                                   \
+                                                                             std::declval<TT &&>() versioned ), yes());             \
+        template <class, class> static no test(...);                                                                                \
+        static const bool value = std::is_same<decltype(test<T, A>(0)), yes>::value;                                                \
+      };                                                                                                                            \
+    } /* end namespace detail */
+
     #endif /* NOT CEREAL_OLDER_GCC */
 
     // ######################################################################
@@ -333,6 +365,15 @@ namespace cereal
     };
 
     // ######################################################################
+    // Member Save (move)
+    CEREAL_MAKE_HAS_MEMBER_SAVE_MOVE_IMPL(save_move, )
+
+    template <class T, class A>
+    struct has_member_save_move
+        : std::integral_constant<
+              bool, detail::has_member_save_move_impl<T, A>::value> {};
+
+    // ######################################################################
     // Member Save (versioned)
     CEREAL_MAKE_HAS_MEMBER_SAVE_IMPL(versioned_save, CEREAL_MAKE_VERSIONED_TEST)
 
@@ -346,7 +387,18 @@ namespace cereal
     };
 
     // ######################################################################
+    // Member Save (versioned_move)
+    CEREAL_MAKE_HAS_MEMBER_SAVE_MOVE_IMPL(versioned_save_move, CEREAL_MAKE_VERSIONED_TEST)
+
+    template <class T, class A>
+    struct has_member_versioned_save_move
+        : std::integral_constant<
+              bool, detail::has_member_versioned_save_move_impl<T, A>::value> {
+    };
+
+    // ######################################################################
     #undef CEREAL_MAKE_HAS_MEMBER_SAVE_IMPL
+    #undef CEREAL_MAKE_HAS_MEMBER_SAVE_MOVE_IMPL
 
     // ######################################################################
     //! Creates a test for whether a non-member save function exists
@@ -386,13 +438,40 @@ namespace cereal
         #test_name " non-member functions must always pass their types as const" );                                          \
     };
 
+    #define CEREAL_MAKE_HAS_NON_MEMBER_SAVE_MOVE_TEST(test_name, versioned)                                                  \
+    namespace detail                                                                                                         \
+    {                                                                                                                        \
+      template <class T, class A>                                                                                            \
+      struct has_non_member_##test_name##_impl                                                                               \
+      {                                                                                                                      \
+        template <class TT, class AA>                                                                                        \
+        static auto test(int) -> decltype( CEREAL_SAVE_MOVE_FUNCTION_NAME(                                                   \
+                                              std::declval<AA&>(),                                                           \
+                                              std::declval<TT &&>() versioned ), yes());                                     \
+        template <class, class> static no test(...);                                                                         \
+        static const bool value = std::is_same<decltype(test<T, A>(0)), yes>::value;                                         \
+      };                                                                                                                     \
+    } /* end namespace detail */                                                                                             \
+                                                                                                                             \
+    template <class T, class A>                                                                                              \
+    struct has_non_member_##test_name : std::integral_constant<bool, detail::has_non_member_##test_name##_impl<T, A>::value> \
+    {};
+
     // ######################################################################
     // Non Member Save
     CEREAL_MAKE_HAS_NON_MEMBER_SAVE_TEST(save, )
 
     // ######################################################################
+    // Non Member Save (moved)
+    CEREAL_MAKE_HAS_NON_MEMBER_SAVE_MOVE_TEST(save_move, )
+
+    // ######################################################################
     // Non Member Save (versioned)
     CEREAL_MAKE_HAS_NON_MEMBER_SAVE_TEST(versioned_save, CEREAL_MAKE_VERSIONED_TEST)
+
+    // ######################################################################
+    // Non Member Save (versioned+moved)
+    CEREAL_MAKE_HAS_NON_MEMBER_SAVE_MOVE_TEST(versioned_save_move, CEREAL_MAKE_VERSIONED_TEST)
 
     // ######################################################################
     #undef CEREAL_MAKE_HAS_NON_MEMBER_SAVE_TEST
@@ -1048,7 +1127,9 @@ namespace cereal
     CEREAL_MAKE_IS_SPECIALIZED(non_member_serialize, non_member_versioned_serialize, non_member_serialize);
 
     CEREAL_MAKE_IS_SPECIALIZED(member_save, member_versioned_save, member_load_save);
+    CEREAL_MAKE_IS_SPECIALIZED(member_save_move, member_versioned_save_move, member_load_save);
     CEREAL_MAKE_IS_SPECIALIZED(non_member_save, non_member_versioned_save, non_member_load_save);
+    CEREAL_MAKE_IS_SPECIALIZED(non_member_save_move, non_member_versioned_save_move, non_member_load_save);
     CEREAL_MAKE_IS_SPECIALIZED(member_load, member_versioned_load, member_load_save);
     CEREAL_MAKE_IS_SPECIALIZED(non_member_load, non_member_versioned_load, non_member_load_save);
 
@@ -1092,15 +1173,15 @@ namespace cereal
       template <class T, class OutputArchive>
       struct count_output_serializers : std::integral_constant<int,
         count_specializations<T, OutputArchive>::value ? count_specializations<T, OutputArchive>::value :
-        has_member_save<T, OutputArchive>::value +
-        has_non_member_save<T, OutputArchive>::value +
+        (has_member_save<T, OutputArchive>::value | has_member_save_move<T, OutputArchive>::value) +
+        (has_non_member_save<T, OutputArchive>::value | has_non_member_save_move<T, OutputArchive>::value) +
         has_member_serialize<T, OutputArchive>::value +
         has_non_member_serialize<T, OutputArchive>::value +
         has_member_save_minimal<T, OutputArchive>::value +
         has_non_member_save_minimal<T, OutputArchive>::value +
         /*-versioned---------------------------------------------------------*/
-        has_member_versioned_save<T, OutputArchive>::value +
-        has_non_member_versioned_save<T, OutputArchive>::value +
+        (has_member_versioned_save<T, OutputArchive>::value | has_member_versioned_save_move<T, OutputArchive>::value) +
+        (has_non_member_versioned_save<T, OutputArchive>::value | has_non_member_versioned_save_move<T, OutputArchive>::value) +
         has_member_versioned_serialize<T, OutputArchive>::value +
         has_non_member_versioned_serialize<T, OutputArchive>::value +
         has_member_versioned_save_minimal<T, OutputArchive>::value +

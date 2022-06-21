@@ -41,8 +41,21 @@ namespace cereal
   {
     ar( make_size_tag( static_cast<size_type>(map.size()) ) );
 
-    for( const auto & i : map )
-      ar( make_map_item(i.first, i.second) );
+    for( const auto & i : map ) {
+      auto map_item = make_map_item(i.first, i.second);
+      ar( map_item );
+    }
+  }
+
+  //! Saving for std-like pair associative containers
+  template <class Archive, template <typename...> class Map, typename... Args, typename = typename Map<Args...>::mapped_type> inline
+  void CEREAL_SAVE_MOVE_FUNCTION_NAME( Archive & ar, Map<Args...> && map )
+  {
+    ar( make_size_tag( static_cast<size_type>(map.size()) ) );
+
+    for( auto & i : map ) {
+      ar( make_map_item(i.first, std::move(i.second)) );
+    }
   }
 
   //! Loading for std-like pair associative containers

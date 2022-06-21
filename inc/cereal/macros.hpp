@@ -92,6 +92,13 @@
 #define CEREAL_SAVE_FUNCTION_NAME save
 #endif // CEREAL_SAVE_FUNCTION_NAME
 
+#ifndef CEREAL_SAVE_MOVE_FUNCTION_NAME
+//! The serialization (save_move) function name to search for.
+/*! You can define @c CEREAL_SAVE_MOVE_FUNCTION_NAME to be different assuming you do so
+    before this file is included. */
+#define CEREAL_SAVE_MOVE_FUNCTION_NAME save_move
+#endif // CEREAL_SAVE_MOVE_FUNCTION_NAME
+
 #ifndef CEREAL_LOAD_MINIMAL_FUNCTION_NAME
 //! The deserialization (load_minimal) function name to search for.
 /*! You can define @c CEREAL_LOAD_MINIMAL_FUNCTION_NAME to be different assuming you do so

@@ -45,6 +45,16 @@ namespace cereal
       ar( i );
   }
 
+  //! Saving for std::deque
+  template <class Archive, class T, class A> inline
+  void CEREAL_SAVE_MOVE_FUNCTION_NAME( Archive & ar, std::deque<T, A> && deque )
+  {
+    ar( make_size_tag( static_cast<size_type>(deque.size()) ) );
+
+    for( auto & i : deque )
+      ar( std::move(i) );
+  }
+
   //! Loading for std::deque
   template <class Archive, class T, class A> inline
   void CEREAL_LOAD_FUNCTION_NAME( Archive & ar, std::deque<T, A> & deque )

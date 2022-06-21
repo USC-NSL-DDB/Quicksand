@@ -47,6 +47,14 @@ namespace cereal
 
   //! Serialization for basic_string types, if binary data is supported
   template<class Archive, class CharT, class Traits, class Alloc> inline
+  typename std::enable_if<traits::is_output_serializable<BinaryData<CharT>, Archive>::value, void>::type
+  CEREAL_SAVE_MOVE_FUNCTION_NAME(Archive & ar, std::basic_string<CharT, Traits, Alloc> && str)
+  {
+    CEREAL_SAVE_FUNCTION_NAME(ar, str);
+  }
+
+  //! Serialization for basic_string types, if binary data is supported
+  template<class Archive, class CharT, class Traits, class Alloc> inline
   typename std::enable_if<traits::is_input_serializable<BinaryData<CharT>, Archive>::value, void>::type
   CEREAL_LOAD_FUNCTION_NAME(Archive & ar, std::basic_string<CharT, Traits, Alloc> & str)
   {
