@@ -71,6 +71,8 @@ test_max_num_proclets_src = test/test_max_num_proclets.cpp
 test_max_num_proclets_obj = $(test_max_num_proclets_src:.cpp=.o)
 test_sharded_pair_collect_src = test/test_sharded_pair_collect.cpp
 test_sharded_pair_collect_obj = $(test_sharded_pair_collect_src:.cpp=.o)
+test_cereal_src = test/test_cereal.cpp
+test_cereal_obj = $(test_cereal_src:.cpp=.o)
 
 bench_rpc_tput_src = bench/bench_rpc_tput.cpp
 bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
@@ -114,8 +116,7 @@ bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
 bin/test_fast_path bin/test_slow_path bin/ctrl_main bin/test_max_num_proclets \
 bin/test_sharded_array bin/test_sharded_pair_collect bin/bench_controller \
-bin/test_sharded_vector bin/bench_sharded_pair_collect bin/bench_sharded_vector
-
+bin/test_sharded_vector bin/bench_sharded_pair_collect bin/test_cereal bin/bench_sharded_vector
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -170,6 +171,8 @@ bin/test_max_num_proclets: $(test_max_num_proclets_obj) $(librt_libs) $(RUNTIME_
 	$(LDXX) -o $@ $(test_max_num_proclets_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_pair_collect: $(test_sharded_pair_collect_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_pair_collect_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_cereal: $(test_cereal_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_cereal_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
