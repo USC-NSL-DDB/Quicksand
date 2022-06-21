@@ -58,9 +58,7 @@ class DistributedMemPool {
   Future<void> free_raw_async(const RemRawPtr<T> &ptr);
 
   template <class Archive>
-  void save(Archive &ar) const;
-  template <class Archive>
-  void save(Archive &ar);
+  void save_move(Archive &ar);
   template <class Archive>
   void load(Archive &ar);
 
@@ -88,7 +86,12 @@ class DistributedMemPool {
     Shard &operator=(Shard &&o);
 
     template <class Archive>
-    void serialize(Archive &ar) {
+    void save_move(Archive &ar) {
+      ar(failed_alloc_size, std::move(proclet));
+    }
+
+    template <class Archive>
+    void load(Archive &ar) {
       ar(failed_alloc_size, proclet);
     }
   };
@@ -97,7 +100,12 @@ class DistributedMemPool {
     std::optional<Shard> shard;
 
     template <class Archive>
-    void serialize(Archive &ar) {
+    void save_move(Archive &ar) {
+      ar(std::move(shard));
+    }
+
+    template <class Archive>
+    void load(Archive &ar) {
       ar(shard);
     }
   };

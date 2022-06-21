@@ -8,7 +8,7 @@ RemRawPtr<T>::RemRawPtr() {}
 
 template <typename T>
 RemRawPtr<T>::RemRawPtr(T *raw_ptr)
-    : RemPtr<T>(Runtime::get_current_proclet_id(), raw_ptr) {}
+    : RemPtr<T>(Runtime::get_current_proclet_header(), raw_ptr) {}
 
 template <typename T>
 RemRawPtr<T>::RemRawPtr(const RemRawPtr<T> &o) : RemPtr<T>(o) {}
@@ -29,7 +29,7 @@ RemRawPtr<T> &RemRawPtr<T>::operator=(RemRawPtr<T> &&o) {
 }
 
 template <typename T, typename... Args>
-RemRawPtr<T> make_rem_ptr(Args &&... args) {
+RemRawPtr<T> make_rem_raw(Args &&... args) {
   return RemRawPtr<T>(new T(std::forward<Args>(args)...));
 }
 

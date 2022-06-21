@@ -36,7 +36,7 @@ class Test {
   bool run_callee_migrated_test() {
     auto caller_obj = make_proclet_pinned_at<CallerObj>(ip0);
     auto callee_obj = make_proclet_at<CalleeObj>(ip1);
-    auto future = caller_obj.run_async(&CallerObj::foo, std::move(callee_obj));
+    auto future = caller_obj.run_async(&CallerObj::foo, callee_obj);
     delay_us(500 * 1000);
     callee_obj.run(+[](CalleeObj &_) { Test::migrate(); });
     return future.get() == kMagic;
@@ -54,7 +54,7 @@ class Test {
   bool run_both_migrated_test() {
     auto caller_obj = make_proclet_at<nu::CallerObj>(ip0);
     auto callee_obj = make_proclet_at<nu::CalleeObj>(ip1);
-    auto future = caller_obj.run_async(&CallerObj::foo, std::move(callee_obj));
+    auto future = caller_obj.run_async(&CallerObj::foo, callee_obj);
     delay_us(500 * 1000);
     caller_obj.run(+[](CallerObj &_) { Test::migrate(); });
     callee_obj.run(+[](CalleeObj &_) { Test::migrate(); });

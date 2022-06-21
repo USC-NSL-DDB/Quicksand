@@ -219,7 +219,7 @@ void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
     guard.reset();
 
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
-    oa_sstream->oa << ret;
+    oa_sstream->oa << std::move(ret);
   }
 
   send_rpc_resp_ok(oa_sstream, &returner);
@@ -274,7 +274,7 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
 
     decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
-    oa_sstream->oa << *ret;
+    oa_sstream->oa << std::move(*ret);
     auto ss_view = oa_sstream->ss.view();
     auto ret_val_span = std::span<const std::byte>(
         reinterpret_cast<const std::byte *>(ss_view.data()),

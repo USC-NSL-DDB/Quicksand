@@ -31,12 +31,6 @@ inline ProcletHeader *Runtime::get_current_proclet_header() {
   return reinterpret_cast<ProcletHeader *>(thread_get_owner_proclet());
 }
 
-inline ProcletID Runtime::get_current_proclet_id() {
-  auto *proclet_base = Runtime::get_current_proclet_header();
-  BUG_ON(!proclet_base);
-  return to_proclet_id(proclet_base);
-}
-
 template <typename T>
 T *Runtime::get_current_root_obj() {
   auto *proclet_header = get_current_proclet_header();

@@ -5,13 +5,14 @@ namespace nu {
 template <typename T>
 template <class Archive>
 void RemSharedPtr<T>::save(Archive &ar) const {
-  const_cast<RemSharedPtr<T> *>(this)->save(ar);
+  auto copy = *this;
+  copy.save_move(ar);
 }
 
 template <typename T>
 template <class Archive>
-void RemSharedPtr<T>::save(Archive &ar) {
-  RemPtr<T>::save(ar);
+void RemSharedPtr<T>::save_move(Archive &ar) {
+  RemPtr<T>::save_move(ar);
   ar(shared_ptr_);
   RemPtr<T>::raw_ptr_ = nullptr;
 }
@@ -40,12 +41,12 @@ RemSharedPtr<T>::RemSharedPtr() noexcept {}
 
 template <typename T>
 RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> &&shared_ptr) noexcept
-    : RemPtr<T>(Runtime::get_current_proclet_id(), shared_ptr.get()),
+    : RemPtr<T>(Runtime::get_current_proclet_header(), shared_ptr.get()),
       shared_ptr_(new std::shared_ptr<T>(std::move(shared_ptr))) {}
 
 template <typename T>
 RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> *shared_ptr)
-    : RemPtr<T>(Runtime::get_current_proclet_id(),
+    : RemPtr<T>(Runtime::get_current_proclet_header(),
                 shared_ptr ? shared_ptr->get() : nullptr),
       shared_ptr_(shared_ptr) {}
 

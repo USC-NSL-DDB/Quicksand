@@ -28,16 +28,12 @@ void do_work() {
 
   auto rem_unique_ptr_a_future = proclet.run_async(
       +[](Obj &_, std::vector<int> vec_a) {
-        auto unique_ptr_a =
-            std::make_unique<std::vector<int>>(std::move(vec_a));
-        return RemUniquePtr(std::move(unique_ptr_a));
+        return make_rem_unique<std::vector<int>>(std::move(vec_a));
       },
       a);
   auto rem_unique_ptr_b_future = proclet.run_async(
       +[](Obj &_, std::vector<int> vec_b) {
-        auto unique_ptr_b =
-            std::make_unique<std::vector<int>>(std::move(vec_b));
-        return RemUniquePtr(std::move(unique_ptr_b));
+        return make_rem_unique<std::vector<int>>(std::move(vec_b));
       },
       b);
 
@@ -48,11 +44,11 @@ void do_work() {
           RemUniquePtr<std::vector<int>> rem_unique_ptr_b) {
         auto *raw_ptr_a = rem_unique_ptr_a.get();
         auto *raw_ptr_b = rem_unique_ptr_b.get();
-        std::vector<int> rem_c;
+        std::vector<int> c;
         for (size_t i = 0; i < raw_ptr_a->size(); i++) {
-          rem_c.push_back(raw_ptr_a->at(i) + raw_ptr_b->at(i));
+          c.push_back(raw_ptr_a->at(i) + raw_ptr_b->at(i));
         }
-        return rem_c;
+        return c;
       },
       std::move(rem_unique_ptr_a), std::move(rem_unique_ptr_b));
 

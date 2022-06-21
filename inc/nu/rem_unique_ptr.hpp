@@ -21,9 +21,9 @@ class RemUniquePtr : public RemPtr<T> {
   Future<void> reset_async();
 
   template <class Archive>
-  void save(Archive &ar) const;
+  void save(Archive &ar) = delete;
   template <class Archive>
-  void save(Archive &ar);
+  void save_move(Archive &ar);
 
  private:
   RemUniquePtr(T *raw_ptr);

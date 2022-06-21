@@ -112,7 +112,6 @@ class Runtime {
   static void delete_on_runtime_heap(T *ptr);
   static SlabAllocator *get_current_proclet_slab();
   static ProcletHeader *get_current_proclet_header();
-  static ProcletID get_current_proclet_id();
   template <typename T>
   static T *get_current_root_obj();
   template <typename T>

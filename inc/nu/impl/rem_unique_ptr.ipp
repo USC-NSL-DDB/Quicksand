@@ -4,13 +4,7 @@ namespace nu {
 
 template <typename T>
 template <class Archive>
-void RemUniquePtr<T>::save(Archive &ar) const {
-  const_cast<RemUniquePtr<T> *>(this)->save(ar);
-}
-
-template <typename T>
-template <class Archive>
-void RemUniquePtr<T>::save(Archive &ar) {
+void RemUniquePtr<T>::save_move(Archive &ar) {
   RemPtr<T>::save(ar);
   release();
 }
@@ -25,7 +19,7 @@ RemUniquePtr<T>::RemUniquePtr() noexcept {}
 
 template <typename T>
 RemUniquePtr<T>::RemUniquePtr(T *raw_ptr)
-    : RemPtr<T>(Runtime::get_current_proclet_id(), raw_ptr) {}
+    : RemPtr<T>(Runtime::get_current_proclet_header(), raw_ptr) {}
 
 template <typename T>
 RemUniquePtr<T>::RemUniquePtr(std::unique_ptr<T> &&unique_ptr) noexcept

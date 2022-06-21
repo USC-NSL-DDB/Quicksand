@@ -38,12 +38,12 @@ class Proclet {
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
+  void save_move(Archive &ar);
+  template <class Archive>
   void load(Archive &ar);
 
  private:
   ProcletID id_;
-  Future<void> inc_ref_;
-  bool ref_cnted_;
 
   template <typename U>
   friend class WeakProclet;
@@ -56,8 +56,7 @@ class Proclet {
   template <typename V>
   friend class ShardedVector;
 
-  Proclet(ProcletID id, bool ref_cnted);
-  std::optional<Future<void>> update_ref_cnt(int delta);
+  std::optional<Future<void>> update_ref_cnt(ProcletID id, int delta);
   template <typename... S1s>
   static void invoke_remote(ProcletID id, S1s &&... states);
   template <typename RetT, typename... S1s>
@@ -96,7 +95,16 @@ template <typename T>
 class WeakProclet : public Proclet<T> {
  public:
   WeakProclet();
+  ~WeakProclet();
   WeakProclet(const Proclet<T> &proclet);
+  WeakProclet(const WeakProclet<T> &proclet);
+  WeakProclet &operator=(const WeakProclet<T> &proclet);
+
+ private:
+  template <typename U>
+  friend class RemPtr;
+
+  WeakProclet(ProcletID id);
 };
 
 template <typename T, typename... As>

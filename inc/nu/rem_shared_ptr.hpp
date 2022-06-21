@@ -22,7 +22,7 @@ class RemSharedPtr : public RemPtr<T> {
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
-  void save(Archive &ar);
+  void save_move(Archive &ar);
   template <class Archive>
   void load(Archive &ar);
 

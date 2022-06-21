@@ -28,7 +28,7 @@ class Test {
 
   void consume() {
     mutex_.lock();
-    while (ACCESS_ONCE(credits_) == 0) {
+    while (rt::access_once(credits_) == 0) {
       condvar_.wait(&mutex_);
     }
     credits_--;

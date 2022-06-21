@@ -107,8 +107,12 @@ Future<RemRawPtr<T>> DistributedMemPool::allocate_raw_async(As &&... args) {
 
 template <typename T>
 void DistributedMemPool::free_raw(const RemRawPtr<T> &ptr) {
-  Proclet<Heap> shard(ptr.proclet_id_, false);
-  shard.__run(&Heap::free_raw<T>, const_cast<RemRawPtr<T> &>(ptr).get());
+  auto &proclet = const_cast<WeakProclet<ErasedType> &>(ptr.proclet_);
+  proclet.__run(
+      +[](ErasedType &raw_obj, T *raw_ptr) {
+        reinterpret_cast<Heap &>(raw_obj).free_raw(raw_ptr);
+      },
+      const_cast<RemRawPtr<T> &>(ptr).get());
   check_probing();
 }
 
@@ -126,20 +130,20 @@ inline void DistributedMemPool::check_probing() {
 }
 
 template <class Archive>
-void DistributedMemPool::save(Archive &ar) const {
-  const_cast<DistributedMemPool *>(this)->save(ar);
-}
-
-template <class Archive>
-void DistributedMemPool::save(Archive &ar) {
+void DistributedMemPool::save_move(Archive &ar) {
   halt_probing();
-  ar(local_free_shards_, global_free_shards_, global_full_shards_);
+  for (auto &local_free_shard : local_free_shards_) {
+    ar(std::move(local_free_shard));
+  }
+  ar(std::move(global_free_shards_), std::move(global_full_shards_));
 }
 
 template <class Archive>
 void DistributedMemPool::load(Archive &ar) {
-  ar(local_free_shards_, global_free_shards_, global_full_shards_);
-
+  for (auto &local_free_shard : local_free_shards_) {
+    ar(local_free_shard);
+  }
+  ar(global_free_shards_, global_full_shards_);
   last_probing_us_ = microtime();
   probing_active_ = false;
   done_ = false;

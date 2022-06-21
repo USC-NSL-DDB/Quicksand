@@ -147,18 +147,7 @@ retry:
 }
 
 template <typename T>
-Proclet<T>::Proclet(ProcletID id, bool ref_cnted)
-    : id_(id), ref_cnted_(ref_cnted) {
-  if (ref_cnted) {
-    auto inc_ref_optional = update_ref_cnt(1);
-    if (inc_ref_optional) {
-      inc_ref_ = std::move(*inc_ref_optional);
-    }
-  }
-}
-
-template <typename T>
-Proclet<T>::Proclet() : id_(kNullProcletID), ref_cnted_(false) {}
+Proclet<T>::Proclet() : id_(kNullProcletID) {}
 
 template <typename T>
 Proclet<T>::~Proclet() {
@@ -167,9 +156,9 @@ Proclet<T>::~Proclet() {
 
 template <typename T>
 Proclet<T>::Proclet(const Proclet<T> &o)
-    : id_(o.id_), ref_cnted_(o.ref_cnted_) {
-  if (ref_cnted_) {
-    auto inc_ref_optional = update_ref_cnt(1);
+    : id_(o.id_) {
+  if (id_ != kNullProcletID) {
+    auto inc_ref_optional = update_ref_cnt(id_, 1);
     if (inc_ref_optional) {
       inc_ref_optional->get();
     }
@@ -180,9 +169,8 @@ template <typename T>
 Proclet<T> &Proclet<T>::operator=(const Proclet<T> &o) {
   reset();
   id_ = o.id_;
-  ref_cnted_ = o.ref_cnted_;
-  if (ref_cnted_) {
-    auto inc_ref_optional = update_ref_cnt(1);
+  if (id_ != kNullProcletID) {
+    auto inc_ref_optional = update_ref_cnt(id_, 1);
     if (inc_ref_optional) {
       inc_ref_optional->get();
     }
@@ -191,18 +179,15 @@ Proclet<T> &Proclet<T>::operator=(const Proclet<T> &o) {
 }
 
 template <typename T>
-Proclet<T>::Proclet(Proclet<T> &&o) noexcept
-    : id_(o.id_), inc_ref_(std::move(o.inc_ref_)), ref_cnted_(o.ref_cnted_) {
-  o.ref_cnted_ = false;
+Proclet<T>::Proclet(Proclet<T> &&o) noexcept : id_(o.id_) {
+  o.id_ = kNullProcletID;
 }
 
 template <typename T>
 Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) noexcept {
   reset();
   id_ = o.id_;
-  inc_ref_ = std::move(o.inc_ref_);
-  ref_cnted_ = o.ref_cnted_;
-  o.ref_cnted_ = false;
+  o.id_ = kNullProcletID;
   return *this;
 }
 
@@ -240,7 +225,6 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint, As &&... args) {
 
   Proclet<T> proclet;
   proclet.id_ = id;
-  proclet.ref_cnted_ = true;
 
   {
     MigrationDisabledGuard disabled_guard;
@@ -404,12 +388,13 @@ RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
 }
 
 template <typename T>
-std::optional<Future<void>> Proclet<T>::update_ref_cnt(int delta) {
+std::optional<Future<void>> Proclet<T>::update_ref_cnt(ProcletID id,
+                                                       int delta) {
   if (Runtime::proclet_server) {
-    NonBlockingMigrationDisabledGuard callee_guard(to_proclet_header(id_));
+    NonBlockingMigrationDisabledGuard callee_guard(to_proclet_header(id));
     if (callee_guard) {
       // Fast path: the proclet is actually local, use function call.
-      if (likely(ProcletServer::update_ref_cnt_locally<T>(&callee_guard, id_,
+      if (likely(ProcletServer::update_ref_cnt_locally<T>(&callee_guard, id,
                                                           delta))) {
         return std::nullopt;
       }
@@ -417,7 +402,7 @@ std::optional<Future<void>> Proclet<T>::update_ref_cnt(int delta) {
   }
 
   // Slow path: the proclet is actually remote, use RPC.
-  return nu::async([&, id = id_, delta]() {
+  return nu::async([&, id, delta]() {
     auto *handler = ProcletServer::update_ref_cnt<T>;
     invoke_remote(id, handler, id, delta);
   });
@@ -425,13 +410,9 @@ std::optional<Future<void>> Proclet<T>::update_ref_cnt(int delta) {
 
 template <typename T>
 void Proclet<T>::reset() {
-  if (ref_cnted_) {
-    ref_cnted_ = false;
-    if (inc_ref_) {
-      inc_ref_.get();
-    }
-
-    auto dec_ref = update_ref_cnt(-1);
+  if (id_ != kNullProcletID) {
+    auto dec_ref = update_ref_cnt(id_, -1);
+    id_ = kNullProcletID;
     if (dec_ref) {
       dec_ref->get();
     }
@@ -440,27 +421,32 @@ void Proclet<T>::reset() {
 
 template <typename T>
 std::optional<Future<void>> Proclet<T>::reset_async() {
-  if (ref_cnted_) {
-    ref_cnted_ = false;
-    if (inc_ref_) {
-      inc_ref_.get();
-    }
-
-    return update_ref_cnt(-1);
+  if (id_ != kNullProcletID) {
+    auto ret = update_ref_cnt(id_, -1);
+    id_ = kNullProcletID;
+    return ret;
   }
+  return std::nullopt;
 }
 
 template <typename T>
 template <class Archive>
 void Proclet<T>::save(Archive &ar) const {
-  ar(id_, ref_cnted_);
-  const_cast<Proclet<T> *>(this)->ref_cnted_ = false;
+  auto copy(*this);
+  copy.save_move(ar);
+}
+
+template <typename T>
+template <class Archive>
+void Proclet<T>::save_move(Archive &ar) {
+  ar(id_);
+  id_ = kNullProcletID;
 }
 
 template <typename T>
 template <class Archive>
 void Proclet<T>::load(Archive &ar) {
-  ar(id_, ref_cnted_);
+  ar(id_);
 }
 
 template <typename T>
@@ -472,8 +458,29 @@ template <typename T>
 WeakProclet<T>::WeakProclet() {}
 
 template <typename T>
+WeakProclet<T>::~WeakProclet() {
+  this->id_ = kNullProcletID;
+}
+
+template <typename T>
 WeakProclet<T>::WeakProclet(const Proclet<T> &proclet) : Proclet<T>() {
   this->id_ = proclet.id_;
+}
+
+template <typename T>
+WeakProclet<T>::WeakProclet(const WeakProclet<T> &proclet) : Proclet<T>() {
+  this->id_ = proclet.id_;
+}
+
+template <typename T>
+WeakProclet<T> &WeakProclet<T>::operator=(const WeakProclet<T> &proclet) {
+  this->id_ = proclet.id_;
+  return *this;
+}
+
+template <typename T>
+WeakProclet<T>::WeakProclet(ProcletID id) {
+  this->id_ = id;
 }
 
 template <typename T, typename... As>

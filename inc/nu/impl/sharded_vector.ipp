@@ -4,6 +4,7 @@
 #include "nu/commons.hpp"
 
 namespace nu {
+
 template <typename T>
 VectorShard<T>::VectorShard() : data_(0), size_max_(0) {}
 

@@ -26,13 +26,15 @@ class RemPtr {
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
+  void save_move(Archive &ar);
+  template <class Archive>
   void load(Archive &ar);
 
  protected:
-  ProcletID proclet_id_;
+  WeakProclet<ErasedType> proclet_;
   T *raw_ptr_ = nullptr;
 
-  RemPtr(ProcletID id, T *raw_ptr);
+  RemPtr(ProcletHeader *header, T *raw_ptr);
 
  private:
   friend class DistributedMemPool;
