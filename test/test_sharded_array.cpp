@@ -50,7 +50,7 @@ std::string random_str(uint32_t len) {
 template <typename T>
 bool test_dis_array(std::vector<T> expected, uint32_t power_shard_sz) {
   uint32_t arr_sz = expected.size();
-  auto arr = make_dis_array<T>(arr_sz, power_shard_sz);
+  auto arr = make_sharded_array<T>(arr_sz, power_shard_sz);
 
   for (uint32_t i = 0; i < arr_sz; i++) {
     arr.set(i, expected[i]);

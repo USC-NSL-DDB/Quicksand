@@ -89,7 +89,7 @@ void ShardedArray<T>::serialize(Archive& ar) {
 }
 
 template <typename T>
-ShardedArray<T> make_dis_array(uint32_t size, uint32_t power_shard_sz) {
+ShardedArray<T> make_sharded_array(uint32_t size, uint32_t power_shard_sz) {
   ShardedArray<T> arr;
 
   arr.power_shard_sz_ = power_shard_sz;

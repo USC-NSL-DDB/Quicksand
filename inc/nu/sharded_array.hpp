@@ -55,11 +55,12 @@ class ShardedArray {
   std::vector<Proclet<ArrayShard<T>>> shards_;
 
   template <typename X>
-  friend ShardedArray<X> make_dis_array(uint32_t size, uint32_t power_shard_sz);
+  friend ShardedArray<X> make_sharded_array(uint32_t size,
+                                            uint32_t power_shard_sz);
 };
 
 template <typename T>
-ShardedArray<T> make_dis_array(
+ShardedArray<T> make_sharded_array(
     uint32_t size,
     uint32_t power_shard_sz = ShardedArray<T>::kDefaultPowerShardSize);
 }  // namespace nu
