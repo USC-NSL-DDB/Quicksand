@@ -27,9 +27,12 @@ class VectorShard {
  public:
   VectorShard();
   VectorShard(size_t capacity, uint32_t size_max);
+  VectorShard(std::vector<T> elems, uint32_t size_max);
 
   T operator[](uint32_t index);
+  void init(std::vector<T> elems);
   void push_back(const T &value);
+  void push_back_batch(std::vector<T> elems);
   void pop_back();
   template <typename T1>
   void set(uint32_t index, T1 &&value);
@@ -50,8 +53,6 @@ class VectorShard {
   RetT reduce(RetT initial_val, void (*reducer)(RetT &, T &, A0s...),
               A1s &&... args);
 
-  template <typename T1>
-  friend class ElRef;
   template <typename T1>
   friend class ShardedVector;
 
@@ -74,7 +75,10 @@ class ShardedVector {
   T operator[](uint32_t index);
 
   void push_back_sync(const T &value);
+  void push_back(const T &value);
   void pop_back_sync();
+  void pop_back();
+  void flush();
   template <typename T1>
   void set(uint32_t index, T1 &&value);
   template <typename... A0s, typename... A1s>
@@ -109,6 +113,8 @@ class ShardedVector {
   uint32_t shard_max_size_bytes_;
   size_t size_;
   size_t capacity_;
+  uint32_t max_batch_size_;
+  std::vector<T> tail_elems_;
   std::vector<Proclet<VectorShard<T>>> shards_;
 
   struct ElemIndex {
@@ -133,7 +139,7 @@ class ShardedVector {
 template <typename T>
 ShardedVector<T> make_sharded_vector(
     uint32_t power_shard_sz = ShardedVector<T>::kDefaultPowerShardSize,
-    size_t capacity = 0);
+    size_t remote_capacity = 0);
 }  // namespace nu
 
 #include "nu/impl/sharded_vector.ipp"

@@ -17,6 +17,19 @@ VectorShard<T>::VectorShard(size_t capacity, uint32_t size_max)
 }
 
 template <typename T>
+VectorShard<T>::VectorShard(std::vector<T> elems, uint32_t size_max) {
+  BUG_ON(size_max < elems.size());
+  size_max_ = size_max;
+  data_ = std::move(elems);
+}
+
+template <typename T>
+void VectorShard<T>::init(std::vector<T> elems) {
+  BUG_ON(!data_.empty());
+  data_.insert(data_.end(), elems.begin(), elems.end());
+}
+
+template <typename T>
 T VectorShard<T>::operator[](uint32_t index) {
   return data_[index];
 }
@@ -25,6 +38,12 @@ template <typename T>
 void VectorShard<T>::push_back(const T& value) {
   BUG_ON(data_.size() > size_max_);
   data_.push_back(value);
+}
+
+template <typename T>
+void VectorShard<T>::push_back_batch(std::vector<T> elems) {
+  BUG_ON(data_.size() + elems.size() > size_max_);
+  data_.insert(data_.end(), elems.begin(), elems.end());
 }
 
 template <typename T>
@@ -107,6 +126,8 @@ ShardedVector<T>::ShardedVector()
       shard_max_size_bytes_(0),
       size_(0),
       capacity_(0),
+      max_batch_size_(0),
+      tail_elems_(0),
       shards_(0) {}
 
 template <typename T>
@@ -120,6 +141,8 @@ ShardedVector<T>& ShardedVector<T>::operator=(const ShardedVector& o) {
   shard_max_size_ = o.shard_max_size_;
   shards_ = o.shards_;
   size_ = o.size_;
+  max_batch_size_ = o.max_batch_size_;
+  tail_elems_ = o.tail_elems_;
   return *this;
 }
 
@@ -134,6 +157,8 @@ ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
   shard_max_size_bytes_ = o.shard_max_size_bytes_;
   size_ = o.size_;
   shards_ = std::move(o.shards_);
+  max_batch_size_ = o.max_batch_size_;
+  tail_elems_ = std::move(o.tail_elems_);
   return *this;
 }
 
@@ -148,35 +173,87 @@ T ShardedVector<T>::operator[](uint32_t index) {
 
 template <typename T>
 void ShardedVector<T>::push_back_sync(const T& value) {
+  push_back(value);
+  flush();
+}
+
+template <typename T>
+void ShardedVector<T>::push_back(const T& value) {
   BUG_ON(shard_max_size_ == 0);
-  uint32_t shard_idx = size_ / shard_max_size_;
-  BUG_ON(!((shard_idx == shards_.size()) || (shard_idx == shards_.size() - 1)));
-  if (shard_idx == shards_.size()) {
-    uint32_t capacity = shard_max_size_;
-    uint32_t max_size = shard_max_size_;
-    shards_.emplace_back(make_proclet<VectorShard<T>>(capacity, max_size));
-  }
-  shards_.back().run(
-      +[](VectorShard<T>& shard, T value) { shard.push_back(value); }, value);
+  tail_elems_.push_back(value);
   size_++;
+  if (tail_elems_.size() >= max_batch_size_) {
+    flush();
+  }
 }
 
 template <typename T>
 void ShardedVector<T>::pop_back_sync() {
-  if (size_ == 0) return;
+  pop_back();
+  flush();
+}
 
-  BUG_ON(shard_max_size_ == 0);
-  uint32_t shard_idx = (size_ - 1) / shard_max_size_;
-  BUG_ON(shard_idx >= shards_.size());
-
-  bool last_shard_empty = ((size_ - 1) % shard_max_size_) == 0;
-  if (last_shard_empty) {
-    shards_.pop_back();
+template <typename T>
+void ShardedVector<T>::pop_back() {
+  if (!tail_elems_.empty()) {
+    tail_elems_.pop_back();
   } else {
+    uint32_t shard_idx = (size_ - 1) / shard_max_size_;
+    BUG_ON(shard_idx >= shards_.size());
     auto& shard = shards_[shard_idx];
     shard.run(+[](VectorShard<T>& shard) { shard.pop_back(); });
   }
   size_--;
+}
+
+template <typename T>
+void ShardedVector<T>::flush() {
+  if (tail_elems_.empty()) return;
+
+  std::vector<Future<void>> futures;
+  BUG_ON(size_ < tail_elems_.size());
+  size_t synced_sz_ = size_ - tail_elems_.size();
+  size_t last_shard_remaining = synced_sz_ % shard_max_size_;
+  size_t to_send = std::min(last_shard_remaining, tail_elems_.size());
+  if (to_send > 0) {
+    std::vector<T> elems;
+    elems.reserve(to_send);
+    elems.insert(elems.end(), tail_elems_.begin(),
+                 tail_elems_.begin() + to_send);
+    futures.emplace_back(shards_.back().run_async(
+        +[](VectorShard<T>& shard, std::vector<T> payload) {
+          shard.push_back_batch(payload);
+        },
+        std::move(elems)));
+    synced_sz_ += to_send;
+  }
+
+  size_t start = to_send;
+  while (start < tail_elems_.size()) {
+    to_send = std::min(tail_elems_.size() - start, (size_t)shard_max_size_);
+    std::vector<T> elems;
+    elems.reserve(to_send);
+    elems.insert(elems.end(), tail_elems_.begin() + start,
+                 tail_elems_.begin() + start + to_send);
+    size_t shard_idx = (synced_sz_ + start) / shard_max_size_;
+    if (shard_idx < shards_.size()) {
+      futures.emplace_back(shards_[shard_idx].run_async(
+          +[](VectorShard<T>& shard, std::vector<T> payload) {
+            shard.init(payload);
+          },
+          std::move(elems)));
+    } else {
+      shards_.emplace_back(
+          make_proclet<VectorShard<T>>(std::move(elems), shard_max_size_));
+    }
+    start += to_send;
+    synced_sz_ += to_send;
+  }
+  tail_elems_.clear();
+
+  for (auto& future : futures) {
+    future.get();
+  }
 }
 
 template <typename T>
@@ -449,6 +526,8 @@ void ShardedVector<T>::serialize(Archive& ar) {
   ar(shard_max_size_);
   ar(size_);
   ar(capacity_);
+  ar(max_batch_size_);
+  ar(tail_elems_);
   ar(shards_);
 }
 
@@ -488,12 +567,14 @@ void ShardedVector<T>::__for_all_shards(void (*fn)(VectorShard<T>&, A0s...),
 }
 
 template <typename T>
-ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz, size_t capacity) {
+ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz,
+                                     size_t remote_capacity) {
   ShardedVector<T> vec;
 
   vec.shard_max_size_bytes_ = (1 << power_shard_sz);
   vec.shard_max_size_ = vec.shard_max_size_bytes_ / sizeof(T);
-  vec.capacity_ = capacity;
+  vec.max_batch_size_ = vec.shard_max_size_;
+  vec.capacity_ = remote_capacity;
 
   BUG_ON(vec.shard_max_size_bytes_ < sizeof(T));
 
@@ -510,6 +591,8 @@ ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz, size_t capacity) {
     vec.shards_.emplace_back(
         make_proclet<VectorShard<T>>(remaining_capacity, vec.shard_max_size_));
   }
+
+  vec.tail_elems_.reserve(vec.max_batch_size_);
 
   return vec;
 }
