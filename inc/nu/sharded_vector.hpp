@@ -73,8 +73,8 @@ class ShardedVector {
 
   T operator[](uint32_t index);
 
-  void push_back(const T &value);
-  void pop_back();
+  void push_back_sync(const T &value);
+  void pop_back_sync();
   template <typename T1>
   void set(uint32_t index, T1 &&value);
   template <typename... A0s, typename... A1s>

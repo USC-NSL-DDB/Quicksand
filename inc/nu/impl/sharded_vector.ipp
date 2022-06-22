@@ -147,7 +147,7 @@ T ShardedVector<T>::operator[](uint32_t index) {
 }
 
 template <typename T>
-void ShardedVector<T>::push_back(const T& value) {
+void ShardedVector<T>::push_back_sync(const T& value) {
   BUG_ON(shard_max_size_ == 0);
   uint32_t shard_idx = size_ / shard_max_size_;
   BUG_ON(!((shard_idx == shards_.size()) || (shard_idx == shards_.size() - 1)));
@@ -162,7 +162,7 @@ void ShardedVector<T>::push_back(const T& value) {
 }
 
 template <typename T>
-void ShardedVector<T>::pop_back() {
+void ShardedVector<T>::pop_back_sync() {
   if (size_ == 0) return;
 
   BUG_ON(shard_max_size_ == 0);
