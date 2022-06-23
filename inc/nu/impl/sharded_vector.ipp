@@ -24,12 +24,6 @@ VectorShard<T>::VectorShard(std::vector<T> elems, uint32_t size_max) {
 }
 
 template <typename T>
-void VectorShard<T>::init(std::vector<T> elems) {
-  BUG_ON(!data_.empty());
-  data_.insert(data_.end(), elems.begin(), elems.end());
-}
-
-template <typename T>
 T VectorShard<T>::operator[](uint32_t index) {
   return data_[index];
 }
@@ -211,41 +205,35 @@ void ShardedVector<T>::flush() {
   if (tail_elems_.empty()) return;
 
   std::vector<Future<void>> futures;
+
   BUG_ON(size_ < tail_elems_.size());
   size_t synced_sz_ = size_ - tail_elems_.size();
-  size_t last_shard_remaining = synced_sz_ % shard_max_size_;
-  size_t to_send = std::min(last_shard_remaining, tail_elems_.size());
-  if (to_send > 0) {
-    std::vector<T> elems;
-    elems.reserve(to_send);
-    elems.insert(elems.end(), tail_elems_.begin(),
-                 tail_elems_.begin() + to_send);
-    futures.emplace_back(shards_.back().run_async(
-        +[](VectorShard<T>& shard, std::vector<T> payload) {
-          shard.push_back_batch(payload);
-        },
-        std::move(elems)));
-    synced_sz_ += to_send;
-  }
-
-  size_t start = to_send;
+  size_t start = 0, to_send = 0;
   while (start < tail_elems_.size()) {
-    to_send = std::min(tail_elems_.size() - start, (size_t)shard_max_size_);
-    std::vector<T> elems;
-    elems.reserve(to_send);
-    elems.insert(elems.end(), tail_elems_.begin() + start,
-                 tail_elems_.begin() + start + to_send);
-    size_t shard_idx = (synced_sz_ + start) / shard_max_size_;
+    size_t remaining = tail_elems_.size() - start;
+    size_t shard_idx = synced_sz_ / shard_max_size_;
+
     if (shard_idx < shards_.size()) {
+      size_t shard_remaining_cap =
+          shard_max_size_ - (synced_sz_ % shard_max_size_);
+      to_send = std::min(remaining, shard_remaining_cap);
+
+      std::vector<T> elems(tail_elems_.begin() + start,
+                           tail_elems_.begin() + start + to_send);
+
       futures.emplace_back(shards_[shard_idx].run_async(
           +[](VectorShard<T>& shard, std::vector<T> payload) {
-            shard.init(payload);
+            shard.push_back_batch(payload);
           },
           std::move(elems)));
     } else {
+      to_send = std::min(remaining, (size_t)shard_max_size_);
+      std::vector<T> elems(tail_elems_.begin() + start,
+                           tail_elems_.begin() + start + to_send);
       shards_.emplace_back(
           make_proclet<VectorShard<T>>(std::move(elems), shard_max_size_));
     }
+
     start += to_send;
     synced_sz_ += to_send;
   }

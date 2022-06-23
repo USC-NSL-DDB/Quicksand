@@ -30,7 +30,6 @@ class VectorShard {
   VectorShard(std::vector<T> elems, uint32_t size_max);
 
   T operator[](uint32_t index);
-  void init(std::vector<T> elems);
   void push_back(const T &value);
   void push_back_batch(std::vector<T> elems);
   void pop_back();
