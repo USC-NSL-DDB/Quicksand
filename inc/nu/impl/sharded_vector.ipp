@@ -222,8 +222,9 @@ void ShardedVector<T>::flush() {
           shard_max_size_ - (synced_sz_ % shard_max_size_);
       to_send = std::min(remaining, shard_remaining_cap);
 
-      std::vector<T> elems(tail_elems_.begin() + start,
-                           tail_elems_.begin() + start + to_send);
+      std::vector<T> elems(
+          std::make_move_iterator(tail_elems_.begin() + start),
+          std::make_move_iterator(tail_elems_.begin() + start + to_send));
 
       futures.emplace_back(shards_[shard_idx].run_async(
           +[](VectorShard<T>& shard, std::vector<T> payload) {
@@ -232,8 +233,9 @@ void ShardedVector<T>::flush() {
           std::move(elems)));
     } else {
       to_send = std::min(remaining, (size_t)shard_max_size_);
-      std::vector<T> elems(tail_elems_.begin() + start,
-                           tail_elems_.begin() + start + to_send);
+      std::vector<T> elems(
+          std::make_move_iterator(tail_elems_.begin() + start),
+          std::make_move_iterator(tail_elems_.begin() + start + to_send));
       shards_.emplace_back(
           make_proclet<VectorShard<T>>(std::move(elems), shard_max_size_));
     }
