@@ -83,7 +83,7 @@ bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
   TEST(vec.empty());
 
   for (size_t i = 0; i < len; i++) {
-    vec.push_back_sync(expected[i]);
+    vec.push_back(expected[i]);
     TEST(vec.size() == i + 1);
     TEST(!vec.empty());
   }
@@ -99,7 +99,7 @@ bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
 
   TEST(!vec.empty());
   for (size_t i = 0; i < len; i++) {
-    vec.pop_back_sync();
+    vec.pop_back();
     TEST(vec.size() == (len - i - 1));
   }
   TEST(vec.empty());
@@ -162,7 +162,7 @@ bool test_vec_clear() {
   TEST(vec.empty());
 
   for (size_t i = 0; i < 10; i++) {
-    vec.push_back_sync(i);
+    vec.push_back(i);
   }
 
   TEST(!vec.empty());
@@ -176,13 +176,16 @@ bool test_capacity() {
   int power_shard_sz = 10;
   auto vec = make_sharded_vector<int>(power_shard_sz);
   TEST(vec.capacity() == 0);
-  vec.push_back_sync(2);
+  vec.push_back(2);
+  vec.flush();
   TEST(vec.capacity() > 0);
 
   for (int i = 0; i < (1 << power_shard_sz); i++) {
-    vec.push_back_sync(i);
+    vec.push_back(i);
   }
+  vec.flush();
   size_t cap = vec.capacity();
+
   vec.clear();
   TEST(vec.capacity() == cap);
 
@@ -234,7 +237,7 @@ bool test_for_all() {
   auto vec = make_sharded_vector<int>(power_shard_sz);
 
   for (int i = 0; i < 1000; i++) {
-    vec.push_back_sync(i);
+    vec.push_back(i);
   }
   vec.for_all(+[](int x) { return x * 2; });
   for (int i = 0; i < 1000; i++) {
@@ -243,7 +246,7 @@ bool test_for_all() {
 
   auto vec2 = make_sharded_vector<int>(power_shard_sz);
   for (int i = 0; i < 1000; i++) {
-    vec2.push_back_sync(i);
+    vec2.push_back(i);
   }
   vec2.for_all(double_int).for_all(double_int).for_all(double_int);
   vec2.for_all(
@@ -272,7 +275,7 @@ bool test_reduction() {
   auto vec = make_sharded_vector<int>(power_shard_sz);
 
   for (int i = 0; i < 100000; i++) {
-    vec.push_back_sync(1);
+    vec.push_back(1);
   }
 
   int sum = vec.reduce(
@@ -282,7 +285,7 @@ bool test_reduction() {
 
   auto strvec = make_sharded_vector<std::string>(power_shard_sz);
   for (int i = 0; i < 1000; i++) {
-    strvec.push_back_sync("a");
+    strvec.push_back("a");
   }
   using WordCountMap = std::unordered_map<std::string, uint32_t>;
   WordCountMap empty_map;
