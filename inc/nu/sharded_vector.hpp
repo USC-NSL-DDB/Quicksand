@@ -16,49 +16,6 @@ extern "C" {
 #include "nu/utils/spin_lock.hpp"
 
 namespace nu {
-template <typename T>
-class VectorShard;
-
-template <typename T>
-class ShardedVector;
-
-template <typename T>
-class VectorShard {
- public:
-  VectorShard();
-  VectorShard(size_t capacity, uint32_t size_max);
-  VectorShard(std::vector<T> elems, uint32_t size_max);
-
-  T operator[](uint32_t index);
-  void push_back(const T &value);
-  void push_back_batch(std::vector<T> elems);
-  void pop_back();
-  template <typename T1>
-  void set(uint32_t index, T1 &&value);
-  template <typename... A0s, typename... A1s>
-  void apply(uint32_t index, void (*fn)(T &, A0s...), A1s &&... args);
-  void clear();
-  size_t capacity() const;
-  void reserve(size_t new_cap);
-  void resize(size_t count);
-  template <typename... A0s, typename... A1s>
-  void for_all(T (*fn)(T, A0s...), A1s &&... args);
-  template <typename... A0s, typename... A1s>
-  void for_all(void (*fn)(T &, A0s...), A1s &&... args);
-  template <typename RetT, typename... A0s, typename... A1s>
-  RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T, A0s...),
-              A1s &&... args);
-  template <typename RetT, typename... A0s, typename... A1s>
-  RetT reduce(RetT initial_val, void (*reducer)(RetT &, T &, A0s...),
-              A1s &&... args);
-
-  template <typename T1>
-  friend class ShardedVector;
-
- private:
-  std::vector<T> data_;
-  uint32_t size_max_;
-};
 
 template <typename T>
 class ShardedVector {
@@ -108,13 +65,48 @@ class ShardedVector {
   void serialize(Archive &ar);
 
  private:
+  class Shard {
+   public:
+    Shard();
+    Shard(size_t capacity, uint32_t size_max);
+    Shard(std::vector<T> elems, uint32_t size_max);
+
+    T operator[](uint32_t index);
+    void push_back(const T &value);
+    void push_back_batch(std::vector<T> elems);
+    void pop_back();
+    template <typename T1>
+    void set(uint32_t index, T1 &&value);
+    template <typename... A0s, typename... A1s>
+    void apply(uint32_t index, void (*fn)(T &, A0s...), A1s &&... args);
+    void clear();
+    size_t capacity() const;
+    void reserve(size_t new_cap);
+    void resize(size_t count);
+    std::vector<T> collect();
+    template <typename... A0s, typename... A1s>
+    void for_all(T (*fn)(T, A0s...), A1s &&... args);
+    template <typename... A0s, typename... A1s>
+    void for_all(void (*fn)(T &, A0s...), A1s &&... args);
+    template <typename RetT, typename... A0s, typename... A1s>
+    RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T, A0s...),
+                A1s &&... args);
+    template <typename RetT, typename... A0s, typename... A1s>
+    RetT reduce(RetT initial_val, void (*reducer)(RetT &, T &, A0s...),
+                A1s &&... args);
+
+   private:
+    std::vector<T> data_;
+    uint32_t size_max_;
+  };
+
   uint32_t shard_max_size_;
   uint32_t shard_max_size_bytes_;
   size_t size_;
   size_t capacity_;
   uint32_t max_batch_size_;
   std::vector<T> tail_elems_;
-  std::vector<Proclet<VectorShard<T>>> shards_;
+  std::vector<Proclet<Shard>> shards_;
 
   struct ElemIndex {
     bool in_buffer;
@@ -133,10 +125,9 @@ class ShardedVector {
   void _resize_down(size_t target_size);
   void _resize_up(size_t target_size);
   template <typename V, typename... A0s, typename... A1s>
-  std::vector<V> __for_all_shards(V (*fn)(VectorShard<T> &, A0s...),
-                                  A1s &&... args);
+  std::vector<V> __for_all_shards(V (*fn)(Shard &, A0s...), A1s &&... args);
   template <typename... A0s, typename... A1s>
-  void __for_all_shards(void (*fn)(VectorShard<T> &, A0s...), A1s &&... args);
+  void __for_all_shards(void (*fn)(Shard &, A0s...), A1s &&... args);
 
   template <typename X>
   friend ShardedVector<X> make_sharded_vector(uint32_t power_shard_sz,
