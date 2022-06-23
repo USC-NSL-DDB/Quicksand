@@ -117,8 +117,16 @@ class ShardedVector {
   std::vector<Proclet<VectorShard<T>>> shards_;
 
   struct ElemIndex {
-    uint32_t shard_idx;
-    uint32_t idx_in_shard;
+    bool in_buffer;
+    union {
+      struct shard_idx_t {
+        uint32_t shard_idx;
+        uint32_t idx_in_shard;
+      } shard;
+      struct buffer_idx_t {
+        uint32_t idx;
+      } buffer;
+    } loc;
   };
   ElemIndex calc_index(uint32_t index);
 

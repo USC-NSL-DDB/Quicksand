@@ -158,11 +158,15 @@ ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
 
 template <typename T>
 T ShardedVector<T>::operator[](uint32_t index) {
-  auto loc = calc_index(index);
-  auto& shard = shards_[loc.shard_idx];
-  return shard.run(
-      +[](VectorShard<T>& shard, uint32_t idx) { return shard[idx]; },
-      loc.idx_in_shard);
+  auto elem = calc_index(index);
+  if (elem.in_buffer) {
+    return tail_elems_[elem.loc.buffer.idx];
+  } else {
+    auto& shard = shards_[elem.loc.shard.shard_idx];
+    return shard.run(
+        +[](VectorShard<T>& shard, uint32_t idx) { return shard[idx]; },
+        elem.loc.shard.idx_in_shard);
+  }
 }
 
 template <typename T>
@@ -248,12 +252,16 @@ template <typename T>
 template <typename T1>
 void ShardedVector<T>::set(uint32_t index, T1&& value) {
   if (index >= size_) return;
-  ElemIndex loc = calc_index(index);
-  shards_[loc.shard_idx].run(
-      +[](VectorShard<T>& shard, uint32_t idx, T value) {
-        shard.set(idx, value);
-      },
-      loc.idx_in_shard, value);
+  ElemIndex elem = calc_index(index);
+  if (elem.in_buffer) {
+    tail_elems_[elem.loc.buffer.idx] = value;
+  } else {
+    shards_[elem.loc.shard.shard_idx].run(
+        +[](VectorShard<T>& shard, uint32_t idx, T value) {
+          shard.set(idx, value);
+        },
+        elem.loc.shard.idx_in_shard, value);
+  }
 }
 
 template <typename T>
@@ -271,12 +279,17 @@ Future<void> ShardedVector<T>::apply_async(uint32_t index,
   Future<void> noop;
   if (index >= size_) return noop;
   using Fn = decltype(fn);
-  ElemIndex loc = calc_index(index);
-  return shards_[loc.shard_idx].__run_async(
-      +[](VectorShard<T>& shard, uint32_t idx, Fn fn, A1s&&... args) {
-        shard.apply(idx, fn, std::forward(args)...);
-      },
-      loc.idx_in_shard, fn, std::forward(args)...);
+  ElemIndex elem = calc_index(index);
+  if (elem.in_buffer) {
+    fn(tail_elems_[elem.loc.buffer.idx], std::forward(args)...);
+    return noop;
+  } else {
+    return shards_[elem.loc.shard.shard_idx].__run_async(
+        +[](VectorShard<T>& shard, uint32_t idx, Fn fn, A1s&&... args) {
+          shard.apply(idx, fn, std::forward(args)...);
+        },
+        elem.loc.shard.idx_in_shard, fn, std::forward(args)...);
+  }
 }
 
 template <typename T>
@@ -417,6 +430,7 @@ void ShardedVector<T>::_resize_up(size_t target_size) {
 template <typename T>
 template <typename... A0s, typename... A1s>
 ShardedVector<T>& ShardedVector<T>::for_all(T (*fn)(T, A0s...), A1s&&... args) {
+  flush();
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   __for_all_shards(
@@ -432,6 +446,7 @@ template <typename T>
 template <typename... A0s, typename... A1s>
 ShardedVector<T>& ShardedVector<T>::for_all(void (*fn)(T&, A0s...),
                                             A1s&&... args) {
+  flush();
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   __for_all_shards(
@@ -447,6 +462,7 @@ template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT ShardedVector<T>::reduce(RetT initial_val,
                               RetT (*reducer)(RetT, T, A0s...), A1s&&... args) {
+  flush();
   if (shards_.size() == 0) return initial_val;
 
   using Fn = decltype(reducer);
@@ -469,6 +485,7 @@ template <typename RetT, typename... A0s, typename... A1s>
 RetT ShardedVector<T>::reduce(RetT initial_val,
                               void (*reducer)(RetT&, T&, A0s...),
                               A1s&&... args) {
+  flush();
   if (shards_.size() == 0) return initial_val;
 
   using Fn = decltype(reducer);
@@ -488,10 +505,17 @@ RetT ShardedVector<T>::reduce(RetT initial_val,
 template <typename T>
 inline ShardedVector<T>::ElemIndex ShardedVector<T>::calc_index(
     uint32_t index) {
-  ElemIndex loc;
-  loc.shard_idx = index / shard_max_size_;
-  loc.idx_in_shard = index % shard_max_size_;
-  return loc;
+  BUG_ON(size_ < tail_elems_.size());
+  size_t synced_sz = size_ - tail_elems_.size();
+  ElemIndex out;
+  out.in_buffer = index >= synced_sz;
+  if (out.in_buffer) {
+    out.loc.buffer.idx = index - synced_sz;
+  } else {
+    out.loc.shard.shard_idx = index / shard_max_size_;
+    out.loc.shard.idx_in_shard = index % shard_max_size_;
+  }
+  return out;
 }
 
 template <typename T>
