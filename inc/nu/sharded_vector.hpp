@@ -126,6 +126,7 @@ class ShardedVector {
 
   void _resize_down(size_t target_size);
   void _resize_up(size_t target_size);
+  void _invalidate_read_buffer();
   template <typename V, typename... A0s, typename... A1s>
   std::vector<V> __for_all_shards(V (*fn)(Shard &, A0s...), A1s &&... args);
   template <typename... A0s, typename... A1s>

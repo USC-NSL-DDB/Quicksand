@@ -81,9 +81,7 @@ void ShardedVector<T>::push_back(const T& value) {
   if (unlikely(tail_buffer_.size() >= max_tail_buffer_size_)) {
     flush();
   }
-  // invalidate read buffer. to make pushing back simple, we do not try to check
-  // if read_buffer_ overlaps with tail_buffer_ or to make them consistent.
-  buffered_shard_idx_ = (uint32_t)-1;
+  _invalidate_read_buffer();
 }
 
 template <typename T>
@@ -189,7 +187,7 @@ Future<void> ShardedVector<T>::apply_async(uint32_t index,
     return noop;
   } else {
     if (unlikely(elem.loc.shard.shard_idx == buffered_shard_idx_)) {
-      buffered_shard_idx_ = (uint32_t)-1;
+      _invalidate_read_buffer();
     }
     return shards_[elem.loc.shard.shard_idx].__run_async(
         +[](Shard& shard, uint32_t idx, Fn fn, A1s&&... args) {
@@ -213,8 +211,7 @@ template <typename T>
 void ShardedVector<T>::clear() {
   size_ = 0;
   tail_buffer_.clear();
-  read_buffer_.clear();
-  buffered_shard_idx_ = (uint32_t)-1;
+  _invalidate_read_buffer();
   std::vector<Future<void>> futures;
   for (uint32_t i = 0; i < shards_.size(); i++) {
     futures.emplace_back(shards_[i].run_async(&Shard::clear));
@@ -274,7 +271,7 @@ void ShardedVector<T>::resize(size_t count) {
     _resize_up(count);
   }
 
-  buffered_shard_idx_ = (uint32_t)-1;
+  _invalidate_read_buffer();
 }
 
 template <typename T>
@@ -349,7 +346,7 @@ ShardedVector<T>& ShardedVector<T>::for_all(T (*fn)(T, A0s...), A1s&&... args) {
         shard.for_all(fn, args...);
       },
       raw_fn, args...);
-  buffered_shard_idx_ = (uint32_t)-1;
+  _invalidate_read_buffer();
   return *this;
 }
 
@@ -366,7 +363,7 @@ ShardedVector<T>& ShardedVector<T>::for_all(void (*fn)(T&, A0s...),
         shard.for_all(fn, args...);
       },
       raw_fn, args...);
-  buffered_shard_idx_ = (uint32_t)-1;
+  _invalidate_read_buffer();
   return *this;
 }
 
@@ -454,6 +451,11 @@ void ShardedVector<T>::serialize(Archive& ar) {
   ar(buffered_shard_idx_);
   ar(read_buffer_);
   ar(shards_);
+}
+
+template <typename T>
+inline void ShardedVector<T>::_invalidate_read_buffer() {
+  buffered_shard_idx_ = (uint32_t)-1;
 }
 
 template <typename T>
