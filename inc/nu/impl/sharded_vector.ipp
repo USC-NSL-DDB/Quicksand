@@ -61,6 +61,7 @@ T ShardedVector<T>::operator[](uint32_t index) {
       read_buffer_.clear();
       read_buffer_.insert(read_buffer_.end(), shard_data.begin(),
                           shard_data.end());
+      buffered_shard_idx_ = elem.loc.shard.shard_idx;
     }
     return read_buffer_[elem.loc.shard.idx_in_shard];
   }
