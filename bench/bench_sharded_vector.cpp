@@ -39,18 +39,26 @@ class Work {
         x += vec[i];
       }
       auto t3 = microtime();
-      std::cout << "\t\t ---- Result: " << x << std::endl;
-      std::cout << "\t\tShardedVector sequential access:\t" << t3 - t2 << " us"
+      std::cout << "\t\t ---- sum: " << x << std::endl;
+      std::cout << "\t\tShardedVector sequential access:" << t3 - t2 << " us"
                 << std::endl;
 
       auto t4 = microtime();
       size_t sum = vec.reduce(
           0, +[](int sum, int x) { return sum + x; });
       auto t5 = microtime();
-      std::cout << "\t\t ---- Result: " << sum << std::endl;
+      std::cout << "\t\t ---- sum: " << sum << std::endl;
       std::cout << "\t\tShardedVector reduction access:\t" << t5 - t4 << " us"
                 << std::endl;
+
+      auto t6 = microtime();
+      vec.for_all(+[](int x) { return 0; });
+      auto t7 = microtime();
+      std::cout << "\t\tShardedVector for_all access:\t" << t7 - t6 << " us"
+                << std::endl;
     }
+
+    std::cout << std::endl;
 
     {
       nu::RuntimeSlabGuard slab;
@@ -68,7 +76,7 @@ class Work {
         x += v[i];
       }
       auto t3 = microtime();
-      std::cout << "\t\t ---- Result: " << x << std::endl;
+      std::cout << "\t\t ---- sum: " << x << std::endl;
       std::cout << "\t\tstd::vector sequential access:\t" << t3 - t2 << " us"
                 << std::endl;
     }
