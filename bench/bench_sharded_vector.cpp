@@ -42,6 +42,14 @@ class Work {
       std::cout << "\t\t ---- Result: " << x << std::endl;
       std::cout << "\t\tShardedVector sequential access:\t" << t3 - t2 << " us"
                 << std::endl;
+
+      auto t4 = microtime();
+      size_t sum = vec.reduce(
+          0, +[](int sum, int x) { return sum + x; });
+      auto t5 = microtime();
+      std::cout << "\t\t ---- Result: " << sum << std::endl;
+      std::cout << "\t\tShardedVector reduction access:\t" << t5 - t4 << " us"
+                << std::endl;
     }
 
     {
