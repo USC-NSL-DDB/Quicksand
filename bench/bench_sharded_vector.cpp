@@ -7,9 +7,17 @@
 #include "nu/runtime.hpp"
 #include "nu/sharded_vector.hpp"
 
-constexpr uint32_t kNumElements = 10 << 25;
+constexpr uint32_t kNumElements = 10 << 30;
 constexpr uint32_t kRunTimes = 1;
 constexpr uint32_t kPowerShardSize = 20;
+
+template <typename F>
+inline uint64_t time(F fn) {
+  auto t0 = microtime();
+  fn();
+  auto t1 = microtime();
+  return t1 - t0;
+}
 
 class Work {
  public:
@@ -26,36 +34,38 @@ class Work {
     std::cout << "\tRunning single-thread bench..." << std::endl;
     {
       auto vec = nu::make_sharded_vector<int>(kPowerShardSize);
-      auto t0 = microtime();
-      for (uint32_t i = 0; i < kNumElements; i++) {
-        vec.push_back(1);
-      }
-      auto t1 = microtime();
-      std::cout << "\t\tShardedVector:\t" << t1 - t0 << " us" << std::endl;
 
-      auto t2 = microtime();
+      auto insertion_time = time([&]() {
+        for (uint32_t i = 0; i < kNumElements; i++) {
+          vec.push_back(1);
+        }
+      });
+      std::cout << "\t\tShardedVector:\t" << insertion_time << " us"
+                << std::endl;
+
       size_t x = 0;
-      for (uint32_t i = 0; i < kNumElements; i++) {
-        x += vec[i];
-      }
-      auto t3 = microtime();
+      auto naive_summation_time = time([&]() {
+        for (uint32_t i = 0; i < kNumElements; i++) {
+          x += vec[i];
+        }
+      });
       std::cout << "\t\t ---- sum: " << x << std::endl;
-      std::cout << "\t\tShardedVector sequential access:" << t3 - t2 << " us"
-                << std::endl;
+      std::cout << "\t\tShardedVector sequential access:"
+                << naive_summation_time << " us" << std::endl;
 
-      auto t4 = microtime();
-      size_t sum = vec.reduce(
-          0, +[](int sum, int x) { return sum + x; });
-      auto t5 = microtime();
+      size_t sum;
+      auto reduced_summation_time = time([&]() {
+        sum = vec.reduce(
+            0, +[](int sum, int x) { return sum + x; });
+      });
       std::cout << "\t\t ---- sum: " << sum << std::endl;
-      std::cout << "\t\tShardedVector reduction access:\t" << t5 - t4 << " us"
-                << std::endl;
+      std::cout << "\t\tShardedVector reduction access:\t"
+                << reduced_summation_time << " us" << std::endl;
 
-      auto t6 = microtime();
-      vec.for_all(+[](int x) { return 0; });
-      auto t7 = microtime();
-      std::cout << "\t\tShardedVector for_all access:\t" << t7 - t6 << " us"
-                << std::endl;
+      auto for_all_time =
+          time([&]() { vec.for_all(+[](int x) { return 0; }); });
+      std::cout << "\t\tShardedVector for_all access:\t" << for_all_time
+                << " us" << std::endl;
     }
 
     std::cout << std::endl;
