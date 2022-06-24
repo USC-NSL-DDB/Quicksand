@@ -7,7 +7,7 @@
 #include "nu/runtime.hpp"
 #include "nu/sharded_vector.hpp"
 
-constexpr uint32_t kNumElements = 10 << 30;
+constexpr uint32_t kNumElements = 10 << 25;
 constexpr uint32_t kRunTimes = 1;
 constexpr uint32_t kPowerShardSize = 20;
 
