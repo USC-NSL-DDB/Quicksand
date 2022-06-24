@@ -104,8 +104,8 @@ class ShardedVector {
   uint32_t shard_max_size_bytes_;
   size_t size_;
   size_t capacity_;
-  uint32_t max_batch_size_;
-  std::vector<T> tail_elems_;
+  uint32_t max_tail_buffer_size_;
+  std::vector<T> tail_buffer_;
   std::vector<Proclet<Shard>> shards_;
 
   struct ElemIndex {
