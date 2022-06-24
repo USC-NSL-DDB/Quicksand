@@ -219,7 +219,7 @@ bool test_resize() {
   }
   vec.resize(150);
   TEST(vec.size() == 150);
-  for (int i = 100; i < 150; i++) {
+  for (int i = 0; i < 150; i++) {
     TEST(vec[i] == 0);
   }
   vec.resize(150);

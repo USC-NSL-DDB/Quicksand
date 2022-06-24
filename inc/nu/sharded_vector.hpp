@@ -68,7 +68,7 @@ class ShardedVector {
   class Shard {
    public:
     Shard();
-    Shard(size_t capacity, uint32_t size_max);
+    Shard(size_t capacity, uint32_t size_max, uint32_t initial_size = 0);
     Shard(std::vector<T> elems, uint32_t size_max);
 
     T operator[](uint32_t index);
@@ -106,6 +106,8 @@ class ShardedVector {
   size_t capacity_;
   uint32_t max_tail_buffer_size_;
   std::vector<T> tail_buffer_;
+  uint32_t buffered_shard_idx_;
+  std::vector<T> read_buffer_;
   std::vector<Proclet<Shard>> shards_;
 
   struct ElemIndex {

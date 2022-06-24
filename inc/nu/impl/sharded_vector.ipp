@@ -13,6 +13,8 @@ ShardedVector<T>::ShardedVector()
       capacity_(0),
       max_tail_buffer_size_(0),
       tail_buffer_(0),
+      buffered_shard_idx_((uint32_t)-1),
+      read_buffer_(0),
       shards_(0) {}
 
 template <typename T>
@@ -53,10 +55,14 @@ T ShardedVector<T>::operator[](uint32_t index) {
   if (elem.in_buffer) {
     return tail_buffer_[elem.loc.buffer.idx];
   } else {
-    auto& shard = shards_[elem.loc.shard.shard_idx];
-    return shard.run(
-        +[](Shard& shard, uint32_t idx) { return shard[idx]; },
-        elem.loc.shard.idx_in_shard);
+    if (unlikely(elem.loc.shard.shard_idx != buffered_shard_idx_)) {
+      auto& shard = shards_[elem.loc.shard.shard_idx];
+      auto shard_data = shard.run(&Shard::collect);
+      read_buffer_.clear();
+      read_buffer_.insert(read_buffer_.end(), shard_data.begin(),
+                          shard_data.end());
+    }
+    return read_buffer_[elem.loc.shard.idx_in_shard];
   }
 }
 
@@ -71,9 +77,12 @@ void ShardedVector<T>::push_back(const T& value) {
   BUG_ON(shard_max_size_ == 0);
   tail_buffer_.push_back(value);
   size_++;
-  if (tail_buffer_.size() >= max_tail_buffer_size_) {
+  if (unlikely(tail_buffer_.size() >= max_tail_buffer_size_)) {
     flush();
   }
+  // invalidate read buffer. to make pushing back simple, we do not try to check
+  // if read_buffer_ overlaps with tail_buffer_ or to make them consistent.
+  buffered_shard_idx_ = (uint32_t)-1;
 }
 
 template <typename T>
@@ -91,6 +100,9 @@ void ShardedVector<T>::pop_back() {
     BUG_ON(shard_idx >= shards_.size());
     auto& shard = shards_[shard_idx];
     shard.run(&Shard::pop_back);
+    if (unlikely(shard_idx == buffered_shard_idx_)) {
+      read_buffer_.pop_back();
+    }
   }
   size_--;
 }
@@ -149,6 +161,9 @@ void ShardedVector<T>::set(uint32_t index, T1&& value) {
     shards_[elem.loc.shard.shard_idx].run(
         +[](Shard& shard, uint32_t idx, T value) { shard.set(idx, value); },
         elem.loc.shard.idx_in_shard, value);
+    if (unlikely(elem.loc.shard.shard_idx == buffered_shard_idx_)) {
+      read_buffer_[elem.loc.shard.idx_in_shard] = value;
+    }
   }
 }
 
@@ -172,6 +187,9 @@ Future<void> ShardedVector<T>::apply_async(uint32_t index,
     fn(tail_buffer_[elem.loc.buffer.idx], std::forward(args)...);
     return noop;
   } else {
+    if (unlikely(elem.loc.shard.shard_idx == buffered_shard_idx_)) {
+      buffered_shard_idx_ = (uint32_t)-1;
+    }
     return shards_[elem.loc.shard.shard_idx].__run_async(
         +[](Shard& shard, uint32_t idx, Fn fn, A1s&&... args) {
           shard.apply(idx, fn, std::forward(args)...);
@@ -193,6 +211,9 @@ constexpr size_t ShardedVector<T>::size() const noexcept {
 template <typename T>
 void ShardedVector<T>::clear() {
   size_ = 0;
+  tail_buffer_.clear();
+  read_buffer_.clear();
+  buffered_shard_idx_ = (uint32_t)-1;
   std::vector<Future<void>> futures;
   for (uint32_t i = 0; i < shards_.size(); i++) {
     futures.emplace_back(shards_[i].run_async(&Shard::clear));
@@ -251,6 +272,8 @@ void ShardedVector<T>::resize(size_t count) {
   } else {
     _resize_up(count);
   }
+
+  buffered_shard_idx_ = (uint32_t)-1;
 }
 
 template <typename T>
@@ -304,7 +327,9 @@ void ShardedVector<T>::_resize_up(size_t target_size) {
   while (cur_size < target_size) {
     size_t shard_sz =
         std::min((target_size - cur_size), (size_t)shard_max_size_);
-    shards_.emplace_back(make_proclet<Shard>(shard_sz, shard_max_size_));
+    size_t capacity = shard_max_size_;
+    shards_.emplace_back(
+        make_proclet<Shard>(capacity, shard_max_size_, shard_sz));
     cur_size += shard_sz;
   }
 
@@ -323,6 +348,7 @@ ShardedVector<T>& ShardedVector<T>::for_all(T (*fn)(T, A0s...), A1s&&... args) {
         shard.for_all(fn, args...);
       },
       raw_fn, args...);
+  buffered_shard_idx_ = (uint32_t)-1;
   return *this;
 }
 
@@ -339,6 +365,7 @@ ShardedVector<T>& ShardedVector<T>::for_all(void (*fn)(T&, A0s...),
         shard.for_all(fn, args...);
       },
       raw_fn, args...);
+  buffered_shard_idx_ = (uint32_t)-1;
   return *this;
 }
 
@@ -423,6 +450,8 @@ void ShardedVector<T>::serialize(Archive& ar) {
   ar(capacity_);
   ar(max_tail_buffer_size_);
   ar(tail_buffer_);
+  ar(buffered_shard_idx_);
+  ar(read_buffer_);
   ar(shards_);
 }
 
@@ -496,10 +525,14 @@ template <typename T>
 ShardedVector<T>::Shard::Shard() : data_(0), size_max_(0) {}
 
 template <typename T>
-ShardedVector<T>::Shard::Shard(size_t capacity, uint32_t size_max)
+ShardedVector<T>::Shard::Shard(size_t capacity, uint32_t size_max,
+                               uint32_t initial_size)
     : data_(0), size_max_(size_max) {
   if (capacity) {
     data_.reserve(capacity);
+  }
+  if (initial_size) {
+    data_.resize(initial_size);
   }
 }
 
