@@ -296,6 +296,25 @@ bool test_reduction() {
   return true;
 }
 
+bool test_map() {
+  int power_shard_sz = 10;
+  auto vec = make_sharded_vector<int>(power_shard_sz);
+
+  size_t vec_sz = 100000;
+  for (size_t i = 0; i < vec_sz; i++) {
+    vec.push_back(1);
+  }
+
+  auto doubled_vec = vec.map(+[](int x) { return x * 2; });
+  TEST(doubled_vec.size() == vec_sz);
+  for (size_t i = 0; i < vec_sz; i++) {
+    TEST(doubled_vec[i] == 2);
+    TEST(vec[i] == 1);
+  }
+
+  return true;
+}
+
 bool run_test() {
   ABORT_IF_FAILED(test_push_pop());
   ABORT_IF_FAILED(test_apply());
@@ -305,6 +324,7 @@ bool run_test() {
   ABORT_IF_FAILED(test_resize());
   ABORT_IF_FAILED(test_for_all());
   ABORT_IF_FAILED(test_reduction());
+  ABORT_IF_FAILED(test_map());
 
   return true;
 }

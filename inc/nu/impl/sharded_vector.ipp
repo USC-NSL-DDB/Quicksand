@@ -4,6 +4,50 @@
 #include "nu/commons.hpp"
 
 namespace nu {
+template <typename T>
+ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz,
+                                     uint32_t remote_capacity) {
+  uint32_t shard_max_size_bytes = (1 << power_shard_sz);
+  BUG_ON(shard_max_size_bytes < sizeof(T));
+  return ShardedVector<T>(shard_max_size_bytes, remote_capacity);
+}
+
+template <typename T>
+ShardedVector<T>::ShardedVector(uint32_t shard_max_size_bytes,
+                                uint32_t remote_capacity)
+    : shard_max_size_(0),
+      shard_max_size_bytes_(0),
+      size_(0),
+      capacity_(0),
+      max_tail_buffer_size_(0),
+      tail_buffer_(0),
+      buffered_shard_idx_((uint32_t)-1),
+      read_buffer_(0),
+      shards_(0) {
+  BUG_ON(shard_max_size_bytes < sizeof(T));
+
+  shard_max_size_bytes_ = shard_max_size_bytes;
+  shard_max_size_ = shard_max_size_bytes_ / sizeof(T);
+  max_tail_buffer_size_ = shard_max_size_;
+  capacity_ = remote_capacity;
+
+  size_t initial_shard_cnt =
+      div_round_up_unchecked(capacity_, (size_t)shard_max_size_);
+
+  if (initial_shard_cnt > 0) {
+    for (size_t i = 0; i < initial_shard_cnt - 1; i++) {
+      shards_.emplace_back(
+          make_proclet<typename nu::ShardedVector<T>::Shard<T>>(
+              shard_max_size_, shard_max_size_));
+    }
+    size_t remaining_capacity =
+        capacity_ - (initial_shard_cnt - 1) * shard_max_size_;
+    shards_.emplace_back(make_proclet<typename nu::ShardedVector<T>::Shard<T>>(
+        remaining_capacity, shard_max_size_));
+  }
+
+  tail_buffer_.reserve(max_tail_buffer_size_);
+}
 
 template <typename T>
 ShardedVector<T>::ShardedVector()
@@ -412,6 +456,24 @@ RetT ShardedVector<T>::reduce(RetT initial_val,
 }
 
 template <typename T>
+template <typename T1, typename... A0s, typename... A1s>
+ShardedVector<T1> ShardedVector<T>::map(T1 (*fn)(T, A0s...), A1s&&... args) {
+  using Fn = decltype(fn);
+
+  flush();
+  auto vec_new = ShardedVector(shard_max_size_bytes_);
+  vec_new.shards_ = __for_all_shards(
+      +[](Shard<T>& shard, Fn fn, A1s&&... args) {
+        return make_proclet<Shard<T1>>(
+            shard.map(fn, std::forward<A1s>(args)...));
+      },
+      fn, std::forward(args)...);
+  vec_new.size_ = size_;
+
+  return vec_new;
+}
+
+template <typename T>
 inline ShardedVector<T>::ElemIndex ShardedVector<T>::calc_index(
     uint32_t index) {
   BUG_ON(size_ < tail_buffer_.size());
@@ -491,39 +553,6 @@ void ShardedVector<T>::__for_all_shards(void (*fn)(Shard<T>&, A0s...),
   for (auto& future : futures) {
     future.get();
   }
-}
-
-template <typename T>
-ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz,
-                                     size_t remote_capacity) {
-  ShardedVector<T> vec;
-
-  vec.shard_max_size_bytes_ = (1 << power_shard_sz);
-  vec.shard_max_size_ = vec.shard_max_size_bytes_ / sizeof(T);
-  vec.max_tail_buffer_size_ = vec.shard_max_size_;
-  vec.capacity_ = remote_capacity;
-
-  BUG_ON(vec.shard_max_size_bytes_ < sizeof(T));
-
-  size_t initial_shard_cnt =
-      div_round_up_unchecked(vec.capacity_, (size_t)vec.shard_max_size_);
-
-  if (initial_shard_cnt > 0) {
-    for (size_t i = 0; i < initial_shard_cnt - 1; i++) {
-      vec.shards_.emplace_back(
-          make_proclet<typename nu::ShardedVector<T>::Shard<T>>(
-              vec.shard_max_size_, vec.shard_max_size_));
-    }
-    size_t remaining_capacity =
-        vec.capacity_ - (initial_shard_cnt - 1) * vec.shard_max_size_;
-    vec.shards_.emplace_back(
-        make_proclet<typename nu::ShardedVector<T>::Shard<T>>(
-            remaining_capacity, vec.shard_max_size_));
-  }
-
-  vec.tail_buffer_.reserve(vec.max_tail_buffer_size_);
-
-  return vec;
 }
 
 template <typename T>
@@ -643,6 +672,34 @@ void ShardedVector<T>::Shard<T1>::for_all(void (*fn)(T1&, A0s...),
 
 template <typename T>
 template <typename T1>
+template <typename T2, typename... A0s, typename... A1s>
+ShardedVector<T>::Shard<T2> ShardedVector<T>::Shard<T1>::map(T2 (*fn)(T1,
+                                                                      A0s...),
+                                                             A1s&&... args) {
+  std::vector<T2> mapped;
+  mapped.reserve(data_.size());
+  std::transform(data_.begin(), data_.end(), std::back_inserter(mapped),
+                 [=](T1 elem) { return fn(elem, std::forward<A1s>(args)...); });
+  return Shard(std::move(mapped), size_max_);
+}
+
+template <typename T>
+template <typename T1>
+template <typename T2, typename... A0s, typename... A1s>
+ShardedVector<T>::Shard<T2> ShardedVector<T>::Shard<T1>::map(T2 (*fn)(const T1&,
+                                                                      A0s...),
+                                                             A1s&&... args) {
+  std::vector<T2> mapped;
+  mapped.reserve(data_.size());
+  std::transform(data_.cbegin(), data_.cend(), std::back_inserter(mapped),
+                 [=](const T1& elem) {
+                   return fn(std::forward(elem), std::forward<A1s>(args)...);
+                 });
+  return Shard(std::move(mapped), size_max_);
+}
+
+template <typename T>
+template <typename T1>
 template <typename RetT, typename... A0s, typename... A1s>
 RetT ShardedVector<T>::Shard<T1>::reduce(RetT initial_val,
                                          RetT (*reducer)(RetT, T1, A0s...),
@@ -663,6 +720,14 @@ RetT ShardedVector<T>::Shard<T1>::reduce(RetT initial_val,
     reducer(out, data_[i], std::forward(args)...);
   }
   return out;
+}
+
+template <typename T>
+template <typename T1>
+template <class Archive>
+void ShardedVector<T>::Shard<T1>::serialize(Archive& ar) {
+  ar(data_);
+  ar(size_max_);
 }
 
 }  // namespace nu

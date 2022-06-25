@@ -22,6 +22,7 @@ class ShardedVector {
  public:
   constexpr static uint32_t kDefaultPowerShardSize = 20;
 
+  ShardedVector(uint32_t shard_max_size_bytes, uint32_t remote_capacity = 0);
   ShardedVector();
   ShardedVector(const ShardedVector &);
   ShardedVector &operator=(const ShardedVector &);
@@ -59,6 +60,11 @@ class ShardedVector {
   template <typename RetT, typename... A0s, typename... A1s>
   RetT reduce(RetT initial_val, void (*reducer)(RetT &, T &, A0s...),
               A1s &&... args);
+  template <typename T1, typename... A0s, typename... A1s>
+  ShardedVector<T1> map(T1 (*fn)(T, A0s...), A1s &&... args);
+  template <typename T1, typename... A0s, typename... A1s>
+  ShardedVector<T1> map(T1 (*fn)(const T &, A0s...), A1s &&... args);
+
   std::vector<T> collect();
 
   template <class Archive>
@@ -89,12 +95,19 @@ class ShardedVector {
     void for_all(T1 (*fn)(T1, A0s...), A1s &&... args);
     template <typename... A0s, typename... A1s>
     void for_all(void (*fn)(T1 &, A0s...), A1s &&... args);
+    template <typename T2, typename... A0s, typename... A1s>
+    Shard<T2> map(T2 (*fn)(T1, A0s...), A1s &&... args);
+    template <typename T2, typename... A0s, typename... A1s>
+    Shard<T2> map(T2 (*fn)(const T1 &, A0s...), A1s &&... args);
     template <typename RetT, typename... A0s, typename... A1s>
     RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T1, A0s...),
                 A1s &&... args);
     template <typename RetT, typename... A0s, typename... A1s>
     RetT reduce(RetT initial_val, void (*reducer)(RetT &, T1 &, A0s...),
                 A1s &&... args);
+
+    template <class Archive>
+    void serialize(Archive &ar);
 
    private:
     std::vector<T1> data_;
@@ -135,13 +148,13 @@ class ShardedVector {
 
   template <typename X>
   friend ShardedVector<X> make_sharded_vector(uint32_t power_shard_sz,
-                                              size_t capacity);
+                                              uint32_t capacity);
 };
 
 template <typename T>
 ShardedVector<T> make_sharded_vector(
     uint32_t power_shard_sz = ShardedVector<T>::kDefaultPowerShardSize,
-    size_t remote_capacity = 0);
+    uint32_t remote_capacity = 0);
 }  // namespace nu
 
 #include "nu/impl/sharded_vector.ipp"
