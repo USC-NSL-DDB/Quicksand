@@ -9,7 +9,7 @@
 
 constexpr uint32_t kRunTimes = 1;
 constexpr uint32_t kNumElements = 160 << 20;
-constexpr uint32_t kNumThreads = 32;
+constexpr uint32_t kNumThreads = nu::kNumCores * 2;
 
 class Work {
  public:
@@ -17,7 +17,8 @@ class Work {
     for (uint32_t i = 0; i < kRunTimes; i++) {
       std::cout << "Running No." << i << " time..." << std::endl;
       single_thread();
-      multi_threads();
+      multi_threads_no_partition();
+      multi_threads_perfect_partition();
       // TODO: add more.
     }
   }
@@ -50,18 +51,27 @@ class Work {
     }
   }
 
-  void multi_threads() {
-    std::cout << "\tRunning multi-thread bench..." << std::endl;
+  void multi_threads_no_partition() {
+    std::cout << "\tRunning multi-thread-no-partition bench..." << std::endl;
+    auto sc = nu::make_sharded_pair_collection<int, int>();
+    multi_threads(&sc);
+  }
 
+  void multi_threads_perfect_partition() {
+    std::cout << "\tRunning multi-thread-perfect-partition bench..."
+              << std::endl;
     auto sc = nu::make_sharded_pair_collection<int, int>(
         kNumElements, 0, [](int &x, uint64_t offset) { x += offset; });
-    std::vector<nu::Thread> ths;
+    multi_threads(&sc);
+  }
 
+  void multi_threads(nu::ShardedPairCollection<int, int> *sc) {
+    std::vector<nu::Thread> ths;
     for (uint32_t i = 0; i < kNumThreads; i++) {
-      ths.emplace_back([&sc, tid = i] {
+      ths.emplace_back([sc, tid = i] {
         auto num_elems_per_th = kNumElements / kNumThreads;
         for (uint32_t i = 0; i < num_elems_per_th; i++) {
-          sc.emplace(tid * num_elems_per_th + i, i);
+          sc->emplace(i * kNumThreads + tid, i);
         }
       });
     }
