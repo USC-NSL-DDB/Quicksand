@@ -136,11 +136,12 @@ class ShardedPairCollection {
   bool __emplace(PairType &&p);
   bool push_data(NodeIP ip, std::vector<PushDataReq> reqs);
   Future<bool> push_data_async(NodeIP ip, std::vector<PushDataReq> reqs);
-  void add_cache(int core_id, std::optional<K> k, WeakProclet<Shard> shard);
-  void add_cache_to_all(std::optional<K> k, WeakProclet<Shard> shard);
-  void bind_cache(int core_id, NodeIP,
-                  const KeyToCacheMappingType::iterator &cache);
-  void bind_cache_to_all(NodeIP, const KeyToCacheMappingType::iterator &cache);
+  void add_cache_to_core(int core_id, std::optional<K> k,
+                         WeakProclet<Shard> shard);
+  void add_cache_to_cur_core(std::optional<K> k, WeakProclet<Shard> shard);
+  void add_cache_to_all_cores(std::optional<K> k, WeakProclet<Shard> shard);
+  void bind_cache_to_core(int core_id, NodeIP,
+                          const KeyToCacheMappingType::iterator &cache);
   std::vector<PushDataReq> gen_push_data_reqs(uint32_t core_id, NodeIP ip);
   WeakProclet<ErasedType> get_node_proxy_shard(NodeIP ip);
   template <typename K1, typename V1>

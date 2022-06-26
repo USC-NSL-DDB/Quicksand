@@ -17,6 +17,7 @@ namespace nu {
 using ProcletID = uint64_t;
 using lpid_t = uint16_t;
 using SlabId_t = uint64_t;
+using NodeIP = uint32_t;
 
 struct ErasedType {};
 struct ProcletHeader;

@@ -13,7 +13,6 @@
 
 namespace nu {
 
-using NodeIP = uint32_t;
 using NodeID = uint16_t;
 
 class RPCClientMgr {

@@ -48,7 +48,7 @@ class Runtime {
   ~Runtime();
   static std::unique_ptr<Runtime> init(uint32_t remote_ctrl_ip, Mode mode,
                                        lpid_t lpid);
-  static uint32_t get_ip_by_proclet_id(ProcletID id);
+  static NodeIP get_ip_by_proclet_id(ProcletID id);
   static void reserve_conns(uint32_t ip);
 
  private:
