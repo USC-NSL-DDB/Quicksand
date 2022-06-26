@@ -215,24 +215,21 @@ void ShardedPairCollection<K, V>::bind_cache_to_core(
 template <typename K, typename V>
 WeakProclet<ErasedType> ShardedPairCollection<K, V>::get_node_proxy_shard(
     NodeIP ip) {
+  rw_lock_.reader_lock();
   auto iter = node_proxy_shards_.find(ip);
   if (unlikely(iter == node_proxy_shards_.end())) {
-    mutex_.lock();
+    rw_lock_.reader_unlock();
+    rw_lock_.writer_lock();
     if (likely(!node_proxy_shards_.contains(ip))) {
       node_proxy_shards_.try_emplace(ip,
                                      make_proclet_pinned_at<ErasedType>(ip));
     }
     iter = node_proxy_shards_.find(ip);
-    mutex_.unlock();
+    rw_lock_.writer_unlock();
+  } else {
+    rw_lock_.reader_unlock();
   }
   return iter->second.get_weak();
-}
-
-template <typename K, typename V>
-Future<bool> ShardedPairCollection<K, V>::push_data_async(
-    NodeIP ip, std::vector<PushDataReq> reqs) {
-  return nu::async(
-      [this, ip, reqs = std::move(reqs)] { return push_data(ip, reqs); });
 }
 
 template <typename K, typename V>
@@ -281,18 +278,35 @@ bool ShardedPairCollection<K, V>::push_data(NodeIP ip,
 
 template <typename K, typename V>
 void ShardedPairCollection<K, V>::flush() {
-  std::vector<Future<bool>> futures;
-
 again:
+  std::vector<Thread> ths;
+  std::vector<std::pair<NodeIP, std::vector<PushDataReq>>>
+      all_ip_reqs[kNumCores];
+
   for (uint32_t i = 0; i < kNumCores; i++) {
-    std::vector<PushDataReq> reqs;
-    for (auto &[ip, _] : per_cores_[i].ip_to_caches) {
-      auto reqs = gen_push_data_reqs(i, ip);
-      if (!reqs.empty()) {
-        futures.emplace_back(push_data_async(ip, std::move(reqs)));
-	reqs.clear();
+    ths.emplace_back([this, tid = i, ip_reqs_ptr = &all_ip_reqs[i]] {
+      for (auto &[ip, _] : per_cores_[tid].ip_to_caches) {
+        auto reqs = gen_push_data_reqs(tid, ip);
+        if (!reqs.empty()) {
+          ip_reqs_ptr->emplace_back(ip, std::move(reqs));
+        }
       }
-    }
+    });
+  }
+  for (auto &th : ths) {
+    th.join();
+  }
+  ths.clear();
+
+  std::vector<Future<bool>> futures;
+  for (uint32_t i = 0; i < kNumCores; i++) {
+    futures.emplace_back(nu::async([this, ip_reqs_ptr = &all_ip_reqs[i]] {
+      bool done = true;
+      for (auto &[ip, reqs] : *ip_reqs_ptr) {
+        done &= push_data(ip, std::move(reqs));
+      }
+      return done;
+    }));
   }
 
   bool done = true;

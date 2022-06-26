@@ -124,7 +124,7 @@ class ShardedPairCollection {
   uint32_t max_shard_size_;
   uint32_t max_per_core_cache_size_;
   std::map<NodeIP, Proclet<ErasedType>> node_proxy_shards_;
-  Mutex mutex_;
+  ReaderWriterLock rw_lock_;
   PerCore per_cores_[kNumCores];
 
   ShardedPairCollection(uint32_t max_shard_bytes,
@@ -135,7 +135,6 @@ class ShardedPairCollection {
                         uint32_t max_per_core_cache_bytes);
   bool __emplace(PairType &&p);
   bool push_data(NodeIP ip, std::vector<PushDataReq> reqs);
-  Future<bool> push_data_async(NodeIP ip, std::vector<PushDataReq> reqs);
   void add_cache_to_core(int core_id, std::optional<K> k,
                          WeakProclet<Shard> shard);
   void add_cache_to_cur_core(std::optional<K> k, WeakProclet<Shard> shard);
