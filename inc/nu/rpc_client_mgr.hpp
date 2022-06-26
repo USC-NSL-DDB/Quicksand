@@ -21,7 +21,7 @@ class RPCClientMgr {
   RPCClientMgr(uint16_t port);
   RPCClient *get_by_proclet_id(ProcletID proclet_id);
   RPCClient *get_by_ip(NodeIP ip);
-  uint32_t get_ip_by_proclet_id(ProcletID proclet_id);
+  NodeIP get_ip_by_proclet_id(ProcletID proclet_id);
   void update_cache(ProcletID proclet_id, RPCClient *old_client);
 
  private:

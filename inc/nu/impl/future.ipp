@@ -106,6 +106,13 @@ T &Future<T, Deleter>::get() {
   return promise_->t_;
 }
 
+template <typename T, typename Deleter>
+T &Future<T, Deleter>::get_sync() {
+  while (!is_ready())
+    ;
+  return promise_->t_;
+}
+
 template <typename Deleter>
 void Future<void, Deleter>::get() {
   if (is_ready()) {
@@ -117,6 +124,12 @@ void Future<void, Deleter>::get() {
     promise_->cv_.wait(&promise_->spin_);
   }
   promise_->spin_.unlock();
+}
+
+template <typename Deleter>
+void Future<void, Deleter>::get_sync() {
+  while (!is_ready())
+    ;
 }
 
 template <typename F, typename Allocator>

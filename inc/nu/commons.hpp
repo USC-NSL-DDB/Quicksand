@@ -100,6 +100,14 @@ void unblock_and_relax();
 template <typename T>
 T div_round_up_unchecked(T dividend, T divisor);
 
+
+#define Aligned(type, alignment)            \
+  struct alignas(alignment) Aligned##type { \
+    type d;                                 \
+  }
+
+#define CachelineAligned(type) Aligned(type, kCacheLineBytes)
+
 }  // namespace nu
 
 #include "nu/impl/commons.ipp"

@@ -11,15 +11,16 @@ constexpr uint32_t kNumElements = 1 << 20;
 
 class Worker {
  public:
-  Worker(nu::ShardedPairCollection<int, std::string> sc) : sc_(sc) {}
+  Worker(nu::ShardedPairCollection<int, std::string> sc) : sc_(std::move(sc)) {}
 
   void emplace(uint32_t start, uint32_t end) {
     for (uint32_t i = start; i < end; i++) {
       auto str = std::to_string(i);
       sc_.emplace(i, str);
     }
-    sc_.flush();
   }
+
+  void flush() { sc_.flush(); }
 
   void mutate() {
     sc_.for_all(
@@ -47,10 +48,13 @@ bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
   f2.get();
   f3.get();
 
-  auto f4 = p0.run_async(&Worker::mutate);
-  auto f5 = p1.run_async(&Worker::mutate);
-  f4.get();
-  f5.get();
+  p0.run(&Worker::flush);
+  p1.run(&Worker::flush);
+
+  auto f6 = p0.run_async(&Worker::mutate);
+  auto f7 = p1.run_async(&Worker::mutate);
+  f6.get();
+  f7.get();
 
   auto v = sc->collect();
   sort(v.begin(), v.end());
@@ -64,13 +68,13 @@ bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
 }
 
 bool run_test_no_hint() {
-  nu::ShardedPairCollection<int, std::string> sc;
+  auto sc = nu::make_sharded_pair_collection<int, std::string>();
   return run_test(&sc);
 }
 
 bool run_test_with_hint() {
   // Intentionally use a very bad hint.
-  nu::ShardedPairCollection<int, std::string> sc(
+  auto sc = nu::make_sharded_pair_collection<int, std::string>(
       /* num = */ kNumElements, /* estimated_min_key = */ kNumElements,
       /* key_inc_fn = */ [](int &k, uint64_t offset) { k += offset; });
   return run_test(&sc);

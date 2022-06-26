@@ -20,6 +20,7 @@ class Future {
   operator bool() const;
   bool is_ready();
   T &get();
+  T &get_sync();
 
  private:
   std::unique_ptr<Promise<T>, Deleter> promise_;
@@ -41,6 +42,7 @@ class Future<void, Deleter> {
   operator bool() const;
   bool is_ready();
   void get();
+  void get_sync();
 
  private:
   std::unique_ptr<Promise<void>, Deleter> promise_;
