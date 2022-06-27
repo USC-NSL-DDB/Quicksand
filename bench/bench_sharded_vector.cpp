@@ -19,76 +19,122 @@ inline uint64_t time(F fn) {
   return t1 - t0;
 }
 
+template <typename F>
+inline void time_sharded_vec(F fn) {
+  auto t = time(fn);
+  std::cout << "\t\tShardedVector: " << t << std::endl;
+}
+
+template <typename F>
+inline void time_std_vec(F fn) {
+  auto t = time(fn);
+  std::cout << "\t\tstd::vector: " << t << std::endl;
+}
+
 class Work {
  public:
   Work() {
     std::cout << "Num elements: " << kNumElements << std::endl;
     for (uint32_t i = 0; i < kRunTimes; i++) {
       std::cout << "Running No." << i << " time..." << std::endl;
-      single_thread();
-      // TODO: add more.
+
+      single_thread_push_back_int();
+      single_thread_push_back_string();
+      single_thread_seq_read();
+      single_thread_seq_write();
     }
   }
 
-  void single_thread() {
-    std::cout << "\tRunning single-thread bench..." << std::endl;
-    {
-      auto vec = nu::make_sharded_vector<int>(kPowerShardSize);
+  void single_thread_push_back_int() {
+    std::cout << "\tRunning single-thread push_back int..." << std::endl;
+    bench_push_back(kNumElements, 33);
+  }
 
+  void single_thread_push_back_string() {
+    std::cout << "\tRunning single-thread push_back string..." << std::endl;
+    std::string s = "hello world";
+    bench_push_back(kNumElements, s);
+  }
+
+  template <typename T>
+  void bench_push_back(uint32_t num_elems, const T &elem) {
+    {
+      auto v = nu::make_sharded_vector<T>(kPowerShardSize);
       auto insertion_time = time([&]() {
-        for (uint32_t i = 0; i < kNumElements; i++) {
-          vec.push_back(1);
+        for (uint32_t i = 0; i < num_elems; i++) {
+          v.push_back(elem);
         }
       });
       std::cout << "\t\tShardedVector:\t" << insertion_time << " us"
                 << std::endl;
-
-      size_t x = 0;
-      auto naive_summation_time = time([&]() {
-        for (uint32_t i = 0; i < kNumElements; i++) {
-          x += vec[i];
-        }
-      });
-      std::cout << "\t\t ---- sum: " << x << std::endl;
-      std::cout << "\t\tShardedVector sequential access:"
-                << naive_summation_time << " us" << std::endl;
-
-      size_t sum;
-      auto reduced_summation_time = time([&]() {
-        sum = vec.reduce(
-            0, +[](int sum, int x) { return sum + x; });
-      });
-      std::cout << "\t\t ---- sum: " << sum << std::endl;
-      std::cout << "\t\tShardedVector reduction access:\t"
-                << reduced_summation_time << " us" << std::endl;
-
-      auto for_all_time =
-          time([&]() { vec.for_all(+[](int x) { return 0; }); });
-      std::cout << "\t\tShardedVector for_all access:\t" << for_all_time
-                << " us" << std::endl;
     }
-
-    std::cout << std::endl;
 
     {
       nu::RuntimeSlabGuard slab;
-      std::vector<int> v;
-      auto t0 = microtime();
-      for (uint32_t i = 0; i < kNumElements; i++) {
-        v.push_back(1);
-      }
-      auto t1 = microtime();
-      std::cout << "\t\tstd::vector:\t" << t1 - t0 << " us" << std::endl;
+      std::vector<T> v;
+      auto insertion_time = time([&]() {
+        for (uint32_t i = 0; i < num_elems; i++) {
+          v.push_back(elem);
+        }
+      });
+      std::cout << "\t\tstd::vector:\t" << insertion_time << " us" << std::endl;
+    }
+  }
 
-      auto t2 = microtime();
-      size_t x = 0;
+  void single_thread_seq_read() {
+    std::cout << "\tRunning single-thread sequential read..." << std::endl;
+    {
+      auto sv = nu::make_sharded_vector<int>(kPowerShardSize);
       for (uint32_t i = 0; i < kNumElements; i++) {
-        x += v[i];
+        sv.push_back(1);
       }
-      auto t3 = microtime();
-      std::cout << "\t\t ---- sum: " << x << std::endl;
-      std::cout << "\t\tstd::vector sequential access:\t" << t3 - t2 << " us"
-                << std::endl;
+      int x = 0;
+      time_sharded_vec([&]() {
+        for (uint32_t i = 0; i < kNumElements; i++) {
+          x += sv[i];
+        }
+      });
+      assert(x == kNumElements);
+
+      x = 0;
+      time_sharded_vec([&]() {
+        x = sv.reduce(
+            0, +[](int sum, int x) { return sum + x; });
+      });
+      assert(x == kNumElements);
+    }
+
+    {
+      nu::RuntimeSlabGuard slab;
+      std::vector<int> v(kNumElements, 1);
+      int x = 0;
+      time_std_vec([&]() {
+        for (uint32_t i = 0; i < kNumElements; i++) {
+          x += v[i];
+        }
+      });
+      std::cout << "\t\t\toutput: " << x << std::endl;
+    }
+  }
+
+  void single_thread_seq_write() {
+    std::cout << "\tRunning single-thread sequential write..." << std::endl;
+    {
+      auto sv = nu::make_sharded_vector<int>(kPowerShardSize);
+      for (uint32_t i = 0; i < kNumElements; i++) {
+        sv.push_back(1);
+      }
+      time_sharded_vec([&]() { sv.for_all(+[](int x) { return x * 2; }); });
+    }
+
+    {
+      nu::RuntimeSlabGuard slab;
+      std::vector<int> v(kNumElements, 1);
+      time_std_vec([&]() {
+        for (uint32_t i = 0; i < kNumElements; i++) {
+          v[i] = v[i] * 2;
+        }
+      });
     }
   }
 };
