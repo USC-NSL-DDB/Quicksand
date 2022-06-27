@@ -7,7 +7,7 @@
 #include "nu/runtime.hpp"
 #include "nu/sharded_pair_collect.hpp"
 
-constexpr uint32_t kNumElements = 1 << 20;
+constexpr uint32_t kNumElements = 16 << 20;
 
 class Worker {
  public:
@@ -55,6 +55,8 @@ bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
   auto f7 = p1.run_async(&Worker::mutate);
   f6.get();
   f7.get();
+
+  nu::RuntimeSlabGuard g;
 
   auto v = sc->collect();
   sort(v.begin(), v.end());
