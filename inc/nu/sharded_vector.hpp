@@ -22,7 +22,6 @@ class ShardedVector {
  public:
   constexpr static uint32_t kDefaultPowerShardSize = 20;
 
-  ShardedVector(uint32_t shard_max_size_bytes, uint32_t remote_capacity = 0);
   ShardedVector();
   ShardedVector(const ShardedVector &);
   ShardedVector &operator=(const ShardedVector &);
@@ -115,7 +114,7 @@ class ShardedVector {
   };
 
   uint32_t shard_max_size_;
-  uint32_t shard_max_size_bytes_;
+  uint32_t power_shard_max_size_;
   size_t size_;
   size_t capacity_;
   uint32_t max_tail_buffer_size_;

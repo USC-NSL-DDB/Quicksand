@@ -9,50 +9,39 @@ ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz,
                                      uint32_t remote_capacity) {
   uint32_t shard_max_size_bytes = (1 << power_shard_sz);
   BUG_ON(shard_max_size_bytes < sizeof(T));
-  return ShardedVector<T>(shard_max_size_bytes, remote_capacity);
-}
 
-template <typename T>
-ShardedVector<T>::ShardedVector(uint32_t shard_max_size_bytes,
-                                uint32_t remote_capacity)
-    : shard_max_size_(0),
-      shard_max_size_bytes_(0),
-      size_(0),
-      capacity_(0),
-      max_tail_buffer_size_(0),
-      tail_buffer_(0),
-      buffered_shard_idx_((uint32_t)-1),
-      read_buffer_(0),
-      shards_(0) {
-  BUG_ON(shard_max_size_bytes < sizeof(T));
+  ShardedVector<T> vec;
 
-  shard_max_size_bytes_ = shard_max_size_bytes;
-  shard_max_size_ = shard_max_size_bytes_ / sizeof(T);
-  max_tail_buffer_size_ = shard_max_size_;
-  capacity_ = remote_capacity;
+  vec.power_shard_max_size_ = power_shard_sz;
+  vec.shard_max_size_ = shard_max_size_bytes / sizeof(T);
+  vec.max_tail_buffer_size_ = vec.shard_max_size_;
+  vec.capacity_ = remote_capacity;
 
   size_t initial_shard_cnt =
-      div_round_up_unchecked(capacity_, (size_t)shard_max_size_);
+      div_round_up_unchecked(vec.capacity_, (size_t)vec.shard_max_size_);
 
   if (initial_shard_cnt > 0) {
     for (size_t i = 0; i < initial_shard_cnt - 1; i++) {
-      shards_.emplace_back(
+      vec.shards_.emplace_back(
           make_proclet<typename nu::ShardedVector<T>::Shard<T>>(
-              shard_max_size_, shard_max_size_));
+              vec.shard_max_size_, vec.shard_max_size_));
     }
     size_t remaining_capacity =
-        capacity_ - (initial_shard_cnt - 1) * shard_max_size_;
-    shards_.emplace_back(make_proclet<typename nu::ShardedVector<T>::Shard<T>>(
-        remaining_capacity, shard_max_size_));
+        vec.capacity_ - (initial_shard_cnt - 1) * vec.shard_max_size_;
+    vec.shards_.emplace_back(
+        make_proclet<typename nu::ShardedVector<T>::Shard<T>>(
+            remaining_capacity, vec.shard_max_size_));
   }
 
-  tail_buffer_.reserve(max_tail_buffer_size_);
+  vec.tail_buffer_.reserve(vec.max_tail_buffer_size_);
+
+  return vec;
 }
 
 template <typename T>
 ShardedVector<T>::ShardedVector()
     : shard_max_size_(0),
-      shard_max_size_bytes_(0),
+      power_shard_max_size_(0),
       size_(0),
       capacity_(0),
       max_tail_buffer_size_(0),
@@ -68,7 +57,7 @@ ShardedVector<T>::ShardedVector(const ShardedVector& o) {
 
 template <typename T>
 ShardedVector<T>& ShardedVector<T>::operator=(const ShardedVector& o) {
-  shard_max_size_bytes_ = o.shard_max_size_bytes_;
+  power_shard_max_size_ = o.power_shard_max_size_;
   shard_max_size_ = o.shard_max_size_;
   shards_ = o.shards_;
   size_ = o.size_;
@@ -85,7 +74,7 @@ ShardedVector<T>::ShardedVector(ShardedVector&& o) {
 template <typename T>
 ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
   shard_max_size_ = o.shard_max_size_;
-  shard_max_size_bytes_ = o.shard_max_size_bytes_;
+  power_shard_max_size_ = o.power_shard_max_size_;
   size_ = o.size_;
   shards_ = std::move(o.shards_);
   max_tail_buffer_size_ = o.max_tail_buffer_size_;
@@ -461,7 +450,7 @@ ShardedVector<T1> ShardedVector<T>::map(T1 (*fn)(T, A0s...), A1s&&... args) {
   using Fn = decltype(fn);
 
   flush();
-  auto vec_new = ShardedVector(shard_max_size_bytes_);
+  auto vec_new = make_sharded_vector<T1>(power_shard_max_size_);
   vec_new.shards_ = __for_all_shards(
       +[](Shard<T>& shard, Fn fn, A1s&&... args) {
         return make_proclet<Shard<T1>>(
@@ -505,7 +494,7 @@ std::vector<T> ShardedVector<T>::collect() {
 template <typename T>
 template <class Archive>
 void ShardedVector<T>::serialize(Archive& ar) {
-  ar(shard_max_size_bytes_);
+  ar(power_shard_max_size_);
   ar(shard_max_size_);
   ar(size_);
   ar(capacity_);
