@@ -58,15 +58,16 @@ class ShardedPairCollection {
           SpanToVectorWrapper<PairType> data);
     ShardDataType get_data();
     std::pair<ScopedLock<Mutex>, ShardDataType *> get_data_ptr();
-    ShardDataType try_emplace_back(ShardDataType p);
+    bool try_emplace_back(std::optional<K> l_key, std::optional<K> r_key,
+                          ShardDataType p);
 
    private:
-    Mutex mutex_;
     uint32_t max_shard_size_;
     WeakProclet<ShardingMapping> mapping_;
     std::optional<K> l_key_;
     std::optional<K> r_key_;
     ShardDataType data_;
+    Mutex mutex_;
   };
 
   class ShardingMapping {
@@ -75,9 +76,7 @@ class ShardedPairCollection {
     std::vector<std::pair<std::optional<K>, WeakProclet<Shard>>>
     get_shards_in_range(std::optional<K> l_key, std::optional<K> r_key);
     std::vector<WeakProclet<Shard>> get_all_shards();
-    template <typename K1>
-    void update_mapping(K1 k, Proclet<Shard> shard);
-    void set_initial_shard(Proclet<Shard> shard);
+    void update_mapping(std::optional<K> k, Proclet<Shard> shard);
 
    private:
     std::map<std::optional<K>, Proclet<Shard>, std::greater<std::optional<K>>>
@@ -128,7 +127,9 @@ class ShardedPairCollection {
   PerCore per_cores_[kNumCores];
 
   ShardedPairCollection(uint32_t max_shard_bytes,
-                        uint32_t max_per_core_cache_bytes);
+                        uint32_t max_per_core_cache_bytes,
+                        std::optional<K> initial_l_key,
+                        std::optional<K> initial_r_key);
   ShardedPairCollection(uint64_t num, K estimated_min_key,
                         std::function<void(K &, uint64_t)> key_inc_fn,
                         uint32_t max_shard_bytes,
