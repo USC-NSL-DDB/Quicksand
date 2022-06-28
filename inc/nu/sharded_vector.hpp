@@ -21,6 +21,8 @@ template <typename T>
 class ShardedVector {
  public:
   constexpr static uint32_t kDefaultPowerShardSize = 20;
+  constexpr static uint32_t kDefaultMaxWriteBatchSize =
+      (1 << kDefaultPowerShardSize) * 4;
 
   ShardedVector();
   ShardedVector(const ShardedVector &);
@@ -149,13 +151,16 @@ class ShardedVector {
 
   template <typename X>
   friend ShardedVector<X> make_sharded_vector(uint32_t power_shard_sz,
-                                              uint32_t capacity);
+                                              uint32_t remote_capacity,
+                                              uint32_t max_write_batch_size);
 };
 
 template <typename T>
 ShardedVector<T> make_sharded_vector(
     uint32_t power_shard_sz = ShardedVector<T>::kDefaultPowerShardSize,
-    uint32_t remote_capacity = 0);
+    uint32_t remote_capacity = 0,
+    uint32_t max_write_batch_size =
+        ShardedVector<T>::kDefaultMaxWriteBatchSize);
 }  // namespace nu
 
 #include "nu/impl/sharded_vector.ipp"

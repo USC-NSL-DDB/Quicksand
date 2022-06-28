@@ -6,7 +6,8 @@
 namespace nu {
 template <typename T>
 ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz,
-                                     uint32_t remote_capacity) {
+                                     uint32_t remote_capacity,
+                                     uint32_t max_write_batch_size) {
   uint32_t shard_max_size_bytes = (1 << power_shard_sz);
   BUG_ON(shard_max_size_bytes < sizeof(T));
 
@@ -14,7 +15,7 @@ ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz,
 
   vec.power_shard_max_size_ = power_shard_sz;
   vec.shard_max_size_ = shard_max_size_bytes / sizeof(T);
-  vec.max_tail_buffer_size_ = vec.shard_max_size_;
+  vec.max_tail_buffer_size_ = max_write_batch_size;
   vec.capacity_ = remote_capacity;
 
   size_t initial_shard_cnt =
