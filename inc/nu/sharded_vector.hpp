@@ -121,6 +121,7 @@ class ShardedVector {
   std::vector<T> tail_buffer_;
   uint32_t buffered_shard_idx_;
   std::vector<T> read_buffer_;
+  std::vector<Future<void>> flush_reqs_;
   std::vector<Proclet<Shard<T>>> shards_;
 
   struct ElemIndex {
@@ -137,6 +138,7 @@ class ShardedVector {
   };
   ElemIndex calc_index(uint32_t index);
 
+  void init_flush();
   void _resize_down(size_t target_size);
   void _resize_up(size_t target_size);
   void _invalidate_read_buffer();

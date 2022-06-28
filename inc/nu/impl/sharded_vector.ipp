@@ -48,6 +48,7 @@ ShardedVector<T>::ShardedVector()
       tail_buffer_(0),
       buffered_shard_idx_((uint32_t)-1),
       read_buffer_(0),
+      flush_reqs_(0),
       shards_(0) {}
 
 template <typename T>
@@ -79,6 +80,7 @@ ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
   shards_ = std::move(o.shards_);
   max_tail_buffer_size_ = o.max_tail_buffer_size_;
   tail_buffer_ = std::move(o.tail_buffer_);
+  flush_reqs_ = std::move(o.flush_reqs_);
   return *this;
 }
 
@@ -112,7 +114,7 @@ void ShardedVector<T>::push_back(const T& value) {
   tail_buffer_.push_back(value);
   size_++;
   if (unlikely(tail_buffer_.size() >= max_tail_buffer_size_)) {
-    flush();
+    init_flush();
   }
   _invalidate_read_buffer();
 }
@@ -141,9 +143,21 @@ void ShardedVector<T>::pop_back() {
 
 template <typename T>
 void ShardedVector<T>::flush() {
+  init_flush();
+  for (auto& future : flush_reqs_) {
+    future.get();
+  }
+  flush_reqs_.clear();
+}
+
+template <typename T>
+void ShardedVector<T>::init_flush() {
   if (tail_buffer_.empty()) return;
 
-  std::vector<Future<void>> futures;
+  for (auto& future : flush_reqs_) {
+    future.get();
+  }
+  flush_reqs_.clear();
 
   BUG_ON(size_ < tail_buffer_.size());
   size_t synced_sz_ = size_ - tail_buffer_.size();
@@ -161,7 +175,7 @@ void ShardedVector<T>::flush() {
           std::make_move_iterator(tail_buffer_.begin() + start),
           std::make_move_iterator(tail_buffer_.begin() + start + to_send));
 
-      futures.emplace_back(shards_[shard_idx].run_async(
+      flush_reqs_.emplace_back(shards_[shard_idx].run_async(
           &Shard<T>::push_back_batch, std::move(elems)));
     } else {
       to_send = std::min(remaining, (size_t)shard_max_size_);
@@ -176,10 +190,6 @@ void ShardedVector<T>::flush() {
     synced_sz_ += to_send;
   }
   tail_buffer_.clear();
-
-  for (auto& future : futures) {
-    future.get();
-  }
 }
 
 template <typename T>
@@ -502,6 +512,7 @@ void ShardedVector<T>::serialize(Archive& ar) {
   ar(tail_buffer_);
   ar(buffered_shard_idx_);
   ar(read_buffer_);
+  ar(flush_reqs_);
   ar(shards_);
 }
 
