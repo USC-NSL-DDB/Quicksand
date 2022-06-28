@@ -31,9 +31,33 @@ inline void time_std_vec(F fn) {
   std::cout << "\t\tstd::vector: " << t << std::endl;
 }
 
-class Work {
+template <typename T>
+void bench_push_back(uint32_t num_elems, const T &elem) {
+  {
+    auto v = nu::make_sharded_vector<T>(kPowerShardSize);
+    auto insertion_time = time([&]() {
+      for (uint32_t i = 0; i < num_elems; i++) {
+        v.push_back(elem);
+      }
+    });
+    std::cout << "\t\tShardedVector:\t" << insertion_time << " us" << std::endl;
+  }
+
+  {
+    nu::RuntimeSlabGuard slab;
+    std::vector<T> v;
+    auto insertion_time = time([&]() {
+      for (uint32_t i = 0; i < num_elems; i++) {
+        v.push_back(elem);
+      }
+    });
+    std::cout << "\t\tstd::vector:\t" << insertion_time << " us" << std::endl;
+  }
+}
+
+class SingleNodeWork {
  public:
-  Work() {
+  SingleNodeWork() {
     std::cout << "Num elements: " << kNumElements << std::endl;
     for (uint32_t i = 0; i < kRunTimes; i++) {
       std::cout << "Running No." << i << " time..." << std::endl;
@@ -54,31 +78,6 @@ class Work {
     std::cout << "\tRunning single-thread push_back string..." << std::endl;
     std::string s = "hello world";
     bench_push_back(kNumElements, s);
-  }
-
-  template <typename T>
-  void bench_push_back(uint32_t num_elems, const T &elem) {
-    {
-      auto v = nu::make_sharded_vector<T>(kPowerShardSize);
-      auto insertion_time = time([&]() {
-        for (uint32_t i = 0; i < num_elems; i++) {
-          v.push_back(elem);
-        }
-      });
-      std::cout << "\t\tShardedVector:\t" << insertion_time << " us"
-                << std::endl;
-    }
-
-    {
-      nu::RuntimeSlabGuard slab;
-      std::vector<T> v;
-      auto insertion_time = time([&]() {
-        for (uint32_t i = 0; i < num_elems; i++) {
-          v.push_back(elem);
-        }
-      });
-      std::cout << "\t\tstd::vector:\t" << insertion_time << " us" << std::endl;
-    }
   }
 
   void single_thread_seq_read() {
@@ -140,6 +139,8 @@ class Work {
 };
 
 int main(int argc, char **argv) {
-  return nu::runtime_main_init(argc, argv,
-                               [](int, char **) { nu::make_proclet<Work>(); });
+  return nu::runtime_main_init(argc, argv, [](int, char **) {
+    nu::make_proclet<SingleNodeWork>();
+    bench_push_back(kNumElements, 33);
+  });
 }
