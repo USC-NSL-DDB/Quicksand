@@ -26,7 +26,7 @@ class Work {
   }
 
   void single_thread_std_vector() {
-    std::cout << "\tRunning single-thread-std-vector ench..." << std::endl;
+    std::cout << "\tRunning single-thread-std-vector bench..." << std::endl;
 
     nu::RuntimeSlabGuard slab;
     std::vector<std::pair<int, int>> v;
