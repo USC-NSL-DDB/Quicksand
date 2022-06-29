@@ -35,7 +35,7 @@ class Time;
 template <typename T>
 class RuntimeAllocator;
 
-enum ProcletStatus { kAbsent = 0, kMapped, kPresent, kDestructed };
+enum ProcletStatus { kAbsent = 0, kPending, kPresent, kDestructed };
 
 struct ProcletHeader {
   ~ProcletHeader();
@@ -85,12 +85,9 @@ class ProcletManager {
  public:
   ProcletManager();
 
-  static void mmap(void *proclet_base);
   static void madvise_populate(void *proclet_base, uint64_t populate_len);
-  static void munmap(void *proclet_base);
-  static void allocate(void *proclet_base, bool migratable);
-  static void deallocate(void *proclet_base);
   static void setup(void *proclet_base, bool migratable, bool from_migration);
+  static void cleanup(void *proclet_base);
   static void wait_until_present(ProcletHeader *proclet_header);
   void insert(void *proclet_base);
   bool remove_for_migration(void *proclet_base);
@@ -100,10 +97,10 @@ class ProcletManager {
   uint32_t get_num_present_proclets();
 
  private:
-  constexpr static uint32_t kNumAlwaysMmapedPages =
+  constexpr static uint32_t kNumAlwaysPopulatedPages =
       (offsetof(ProcletHeader, always_mmaped_end) - 1) / kPageSize + 1;
-  constexpr static uint32_t kNumAlwaysMmapedBytes =
-      kNumAlwaysMmapedPages * kPageSize;
+  constexpr static uint32_t kNumAlwaysPopulatedBytes =
+      kNumAlwaysPopulatedPages * kPageSize;
 
   std::vector<void *> present_proclets_;
   uint32_t num_present_proclets_;

@@ -21,66 +21,35 @@ ProcletManager::ProcletManager() {
   for (uint64_t vaddr = kMinProcletHeapVAddr;
        vaddr + kProcletHeapSize <= kMaxProcletHeapVAddr;
        vaddr += kProcletHeapSize) {
-    auto *proclet_base = reinterpret_cast<ProcletHeader *>(vaddr);
+    auto *proclet_base = reinterpret_cast<uint8_t *>(vaddr);
     auto mmap_addr =
-        ::mmap(proclet_base, kNumAlwaysMmapedBytes, PROT_READ | PROT_WRITE,
-               MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_POPULATE, -1, 0);
+        mmap(proclet_base, kNumAlwaysPopulatedBytes, PROT_READ | PROT_WRITE,
+             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_POPULATE, -1, 0);
+    BUG_ON(mmap_addr != proclet_base);
     auto *proclet_header = reinterpret_cast<ProcletHeader *>(mmap_addr);
     proclet_header->status = kAbsent;
     std::construct_at(&proclet_header->rcu_lock);
     std::construct_at(&proclet_header->spin_lock);
     std::construct_at(&proclet_header->cond_var);
-  }
-}
 
-void ProcletManager::allocate(void *proclet_base, bool migratable) {
-  auto mmap_addr =
-      ::mmap(reinterpret_cast<uint8_t *>(proclet_base) + kNumAlwaysMmapedBytes,
-             kProcletHeapSize - kNumAlwaysMmapedBytes, PROT_READ | PROT_WRITE,
-             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
-  BUG_ON(mmap_addr == reinterpret_cast<void *>(-1));
-  setup(proclet_base, migratable, /* from_migration = */ false);
-}
-
-void ProcletManager::mmap(void *proclet_base) {
-  auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-  if (proclet_header->status >= kMapped) {
-    return;
+    auto *populate_addr = proclet_base + kNumAlwaysPopulatedBytes;
+    mmap_addr = mmap(populate_addr, kProcletHeapSize - kNumAlwaysPopulatedBytes,
+                     PROT_READ | PROT_WRITE,
+                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+    BUG_ON(mmap_addr != populate_addr);
   }
-
-  proclet_header->spin_lock.lock();
-  if (unlikely(proclet_header->status >= kMapped)) {
-    proclet_header->spin_lock.unlock();
-    return;
-  }
-  auto *mmap_base =
-      reinterpret_cast<uint8_t *>(proclet_base) + kNumAlwaysMmapedBytes;
-  auto *mmap_addr = ::mmap(mmap_base, kProcletHeapSize - kNumAlwaysMmapedBytes,
-                           PROT_READ | PROT_WRITE,
-                           MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
-  BUG_ON(mmap_addr != mmap_base);
-  barrier();
-  proclet_header->status = kMapped;
-  proclet_header->spin_lock.unlock();
 }
 
 void ProcletManager::madvise_populate(void *proclet_base,
                                       uint64_t populate_len) {
   auto *mmap_base =
-      reinterpret_cast<uint8_t *>(proclet_base) + kNumAlwaysMmapedBytes;
-  populate_len -= kNumAlwaysMmapedBytes;
+      reinterpret_cast<uint8_t *>(proclet_base) + kNumAlwaysPopulatedBytes;
+  populate_len -= kNumAlwaysPopulatedBytes;
   populate_len = ((populate_len - 1) / kPageSize + 1) * kPageSize;
   BUG_ON(madvise(mmap_base, populate_len, MADV_POPULATE_WRITE) != 0);
 }
 
-void ProcletManager::munmap(void *proclet_base) {
-  auto *munmap_base =
-      reinterpret_cast<uint8_t *>(proclet_base) + kNumAlwaysMmapedBytes;
-  auto total_munmap_size = kProcletHeapSize - kNumAlwaysMmapedBytes;
-  BUG_ON(::munmap(munmap_base, total_munmap_size) == -1);
-}
-
-void ProcletManager::deallocate(void *proclet_base) {
+void ProcletManager::cleanup(void *proclet_base) {
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
   proclet_header->spin_lock.lock();  // Sync with PressureHandler.
 
@@ -93,7 +62,16 @@ void ProcletManager::deallocate(void *proclet_base) {
   std::destroy_at(&proclet_header->spin);
   std::destroy_at(&proclet_header->slab);
   proclet_header->spin_lock.unlock();
-  munmap(proclet_base);
+
+  // Use munmap to release physical pages and then use mmap to recreate vmas.
+  // This is way faster than the madvise(MADV_FREE) interface.
+  auto *munmap_base =
+      reinterpret_cast<uint8_t *>(proclet_base) + kNumAlwaysPopulatedBytes;
+  auto size = kProcletHeapSize - kNumAlwaysPopulatedBytes;
+  BUG_ON(munmap(munmap_base, size) == -1);
+  auto mmap_addr = mmap(munmap_base, size, PROT_READ | PROT_WRITE,
+                        MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+  BUG_ON(mmap_addr != munmap_base);
 }
 
 void ProcletManager::setup(void *proclet_base, bool migratable,

@@ -105,7 +105,6 @@ void Migrator::handle_copy_proclet(rt::TcpConn *c) {
          0);
   auto proclet_base_addr = (start_addr & (~(kProcletHeapSize - 1)));
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base_addr);
-  ProcletManager::mmap(proclet_header);
   BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(start_addr), len,
                      /* nt = */ true, /* poll = */ true) <= 0);
   proclet_header->pending_load_cnt--;
@@ -501,7 +500,7 @@ void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
 void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
   rt::Thread([proclet_header] {
     proclet_header->thread_cnt.reset();
-    Runtime::proclet_manager->deallocate(proclet_header);
+    Runtime::proclet_manager->cleanup(proclet_header);
     SlabAllocator::deregister_slab_by_id(to_slab_id(proclet_header));
   }).Detach();
 }
@@ -527,12 +526,12 @@ void Migrator::__migrate(Resource resource,
   transmit_stack_cluster_mmap_task(conn);
 
   for (auto [proclet_header, _] : proclets) {
+    Runtime::controller_client->update_location(to_proclet_id(proclet_header),
+                                                dest_ip);
     if (unlikely(!try_mark_proclet_migrating(proclet_header))) {
       skip_proclet(conn, proclet_header);
       continue;
     }
-    Runtime::controller_client->update_location(to_proclet_id(proclet_header),
-                                                dest_ip);
     pause_migrating_threads(proclet_header);
     transmit(conn, proclet_header, &all_migrating_ths);
     gc_migrated_threads();
@@ -771,6 +770,10 @@ std::vector<ProcletRange> Migrator::load_proclet_mmap_populate_ranges(
                        /* poll = */ true) <= 0);
   }
 
+  for (auto &range : populate_ranges) {
+    range.proclet_header->status = kPending;
+  }
+
   return populate_ranges;
 }
 
@@ -778,7 +781,6 @@ void Migrator::load(rt::TcpConn *c) {
   auto populate_ranges = load_proclet_mmap_populate_ranges(c);
   rt::Thread mmap_th([populate_ranges] {
     for (auto &range : populate_ranges) {
-      Runtime::proclet_manager->mmap(range.proclet_header);
       Runtime::proclet_manager->madvise_populate(range.proclet_header,
                                                  range.len);
     }
@@ -822,7 +824,7 @@ void Migrator::load(rt::TcpConn *c) {
     mmap_th.Join();
     preempt_disable();
     for (auto *proclet : skipped_proclets) {
-      Runtime::proclet_manager->munmap(proclet);
+      Runtime::proclet_manager->cleanup(proclet);
     }
     Runtime::stack_manager->add_ref_cnt(stack_cluster,
                                         -skipped_proclets.size());

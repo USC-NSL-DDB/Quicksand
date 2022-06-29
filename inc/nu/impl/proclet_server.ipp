@@ -22,7 +22,8 @@ void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
   bool pinned;
   ia >> base >> pinned;
 
-  Runtime::proclet_manager->allocate(base, /* migratable = */ !pinned);
+  Runtime::proclet_manager->setup(base, /* migratable = */ !pinned,
+                                  /* from_migration = */ false);
 
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(base);
   proclet_header->cpu_load.reset();
@@ -53,7 +54,8 @@ void ProcletServer::construct_proclet_locally(
     MigrationDisabledGuard *caller_guard, void *base, bool pinned,
     As &&... args) {
   RuntimeSlabGuard runtime_slab_guard;
-  Runtime::proclet_manager->allocate(base, /* migratable = */ !pinned);
+  Runtime::proclet_manager->setup(base, /* migratable = */ !pinned,
+                                  /* from_migration = */ false);
 
   auto *callee_header = reinterpret_cast<ProcletHeader *>(base);
   callee_header->cpu_load.reset();
@@ -146,7 +148,7 @@ void ProcletServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
   if (deallocate) {
     // Wait for all ongoing invocations to finish.
     proclet_header->rcu_lock.writer_sync();
-    Runtime::proclet_manager->deallocate(proclet_base);
+    Runtime::proclet_manager->cleanup(proclet_base);
   }
 
   if (proclet_not_found) {
@@ -177,7 +179,7 @@ bool ProcletServer::update_ref_cnt_locally(
     }
 
     RuntimeSlabGuard runtime_slab_guard;
-    Runtime::proclet_manager->deallocate(proclet_header);
+    Runtime::proclet_manager->cleanup(proclet_header);
   }
 
   return true;
