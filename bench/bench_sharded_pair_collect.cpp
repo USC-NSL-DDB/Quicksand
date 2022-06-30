@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <cereal/archives/binary.hpp>
 #include <cereal/types/string.hpp>
+#include <cstring>
 #include <functional>
 #include <iostream>
 
@@ -8,8 +10,67 @@
 #include "nu/sharded_pair_collect.hpp"
 
 constexpr uint32_t kRunTimes = 1;
-constexpr uint32_t kNumElements = 160 << 20;
+constexpr uint32_t kNumElements = 16 << 20;
 constexpr uint32_t kNumThreads = 4 * (nu::kNumCores - 2);
+constexpr uint32_t kKeyLen = 10;
+constexpr uint32_t kValLen = 90;
+
+struct Key {
+  uint8_t data[kKeyLen];
+
+  Key() {}
+
+  Key(uint64_t num) {
+    static_assert(kKeyLen >= sizeof(num));
+    *reinterpret_cast<uint64_t *>(data) = num;
+    std::reverse(data, data + sizeof(num));
+    memset(data + sizeof(num), 0, kKeyLen - sizeof(num));
+  }
+
+  bool operator<(const Key &o) const {
+    return std::memcmp(data, o.data, kKeyLen) < 0;
+  }
+
+  bool operator>(const Key &o) const {
+    return std::memcmp(data, o.data, kKeyLen) > 0;
+  }
+
+  bool operator>=(const Key &o) const {
+    return std::memcmp(data, o.data, kKeyLen) >= 0;
+  }
+
+  Key &operator+=(const uint64_t offset) {
+    std::reverse(data, data + sizeof(offset));
+    *reinterpret_cast<uint64_t *>(data) += offset;
+    std::reverse(data, data + sizeof(offset));
+    return *this;
+  }
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(data);
+  }
+};
+
+struct Val {
+  uint8_t data[kValLen];
+
+  Val() {}
+
+  Val(uint64_t num) {
+    static_assert(kValLen >= sizeof(num));
+    *reinterpret_cast<uint64_t *>(data) = num;
+    std::reverse(data, data + sizeof(num));
+    memset(data + sizeof(num), 0, kValLen - sizeof(num));
+  }
+
+  bool operator<(const Val &) const { return false; }
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(data);
+  }
+};
 
 class Work {
  public:
@@ -29,57 +90,59 @@ class Work {
     std::cout << "\tRunning single-thread-std-vector bench..." << std::endl;
 
     nu::RuntimeSlabGuard slab;
-    std::vector<std::pair<int, int>> v;
+    std::vector<std::pair<Key, Val>> v;
     auto t0 = microtime();
     for (uint32_t i = 0; i < kNumElements; i++) {
       v.emplace_back(i, i);
     }
     auto t1 = microtime();
-    std::cout << "\t\tstd::vector: "
-              << static_cast<double>(kNumElements) / (t1 - t0) << " MOPS"
+    auto mops = static_cast<double>(kNumElements) / (t1 - t0);
+    auto bw = mops * sizeof(std::pair<Key, Val>);
+    std::cout << "\t\tstd::vector: " << mops << " MOPS, " << bw << " MB/s"
               << std::endl;
   }
 
   void single_thread_no_partition() {
     std::cout << "\tRunning single-thread-no-partition bench..." << std::endl;
-    auto sc = nu::make_sharded_pair_collection<int, int>();
+    auto sc = nu::make_sharded_pair_collection<Key, Val>();
     single_thread(&sc);
   }
 
   void single_thread_perfect_partition() {
     std::cout << "\tRunning single-thread-perfect-partition bench..."
               << std::endl;
-    auto sc = nu::make_sharded_pair_collection<int, int>(
-        kNumElements, 0, [](int &x, uint64_t offset) { x += offset; });
+    auto sc = nu::make_sharded_pair_collection<Key, Val>(
+        kNumElements, 0, [](Key &x, uint64_t offset) { x += offset; });
     single_thread(&sc);
   }
 
-  void single_thread(nu::ShardedPairCollection<int, int> *sc) {
+  void single_thread(nu::ShardedPairCollection<Key, Val> *sc) {
     auto t0 = microtime();
     for (uint32_t i = 0; i < kNumElements; i++) {
       sc->emplace(i, i);
     }
     auto t1 = microtime();
-    std::cout << "\t\tShardedPairCollection: "
-              << static_cast<double>(kNumElements) / (t1 - t0) << " MOPS"
-              << std::endl;
+    auto mops = static_cast<double>(kNumElements) / (t1 - t0);
+    auto bw = mops * sizeof(std::pair<Key, Val>);
+    std::cout << "\t\tShardedPairCollection: " << mops << " MOPS, " << bw
+              << " MB/s" << std::endl;
   }
 
   void multi_threads_no_partition() {
     std::cout << "\tRunning multi-threads-no-partition bench..." << std::endl;
-    auto sc = nu::make_sharded_pair_collection<int, int>();
+    auto sc = nu::make_sharded_pair_collection<Key, Val>();
     multi_threads(&sc);
   }
 
   void multi_threads_perfect_partition() {
     std::cout << "\tRunning multi-threads-perfect-partition bench..."
               << std::endl;
-    auto sc = nu::make_sharded_pair_collection<int, int>(
-        kNumElements, 0, [](int &x, uint64_t offset) { x += offset; });
+    auto sc = nu::make_sharded_pair_collection<Key, Val>(
+        kNumElements, 0, [](Key &x, uint64_t offset) { x += offset; });
     multi_threads(&sc);
   }
 
-  void multi_threads(nu::ShardedPairCollection<int, int> *sc) {
+  void multi_threads(nu::ShardedPairCollection<Key, Val> *sc) {
     std::vector<nu::Thread> ths;
     for (uint32_t i = 0; i < kNumThreads; i++) {
       ths.emplace_back([sc, tid = i] {
@@ -94,8 +157,10 @@ class Work {
       th.join();
     }
     auto t1 = microtime();
-    std::cout << "\t\tShardedPairCollection: " << kNumElements / (t1 - t0)
-              << " MOPS" << std::endl;
+    auto mops = static_cast<double>(kNumElements) / (t1 - t0);
+    auto bw = mops * sizeof(std::pair<Key, Val>);
+    std::cout << "\t\tShardedPairCollection: " << mops << " MOPS, " << bw
+              << " MB/s" << std::endl;
   }
 };
 
@@ -103,3 +168,4 @@ int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv,
                                [](int, char **) { nu::make_proclet<Work>(); });
 }
+
