@@ -146,7 +146,7 @@ bool ShardedPairCollection<K, V>::__emplace(PairType &&p) {
   cache.data.emplace_back(std::move(p));
   auto &cache_size = ++(*cache.per_ip_cache_size);
 
-  if (unlikely(cache_size > max_per_core_cache_size_)) {
+  if (unlikely(cache_size >= max_per_core_cache_size_)) {
     auto proclet_id = iter->second.shard.get_id();
     put_cpu();
     auto ip = Runtime::get_ip_by_proclet_id(proclet_id);
