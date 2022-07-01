@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "usage: [cfg_file] [command] ..." << std::endl;
     std::cerr << "commands>" << std::endl;
     std::cerr << "\tserver - runs an RPC server" << std::endl;
-    std::cerr << "\tclinet - runs an RPC client" << std::endl;
+    std::cerr << "\tclient - runs an RPC client" << std::endl;
     return -EINVAL;
   }
 
