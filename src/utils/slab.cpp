@@ -1,6 +1,6 @@
-#include "nu/utils/slab.hpp"
-
 #include <algorithm>
+
+#include "nu/utils/slab.hpp"
 
 namespace nu {
 
@@ -67,18 +67,44 @@ inline uint32_t get_num_cache_entries(uint32_t slab_shift) {
   }
 }
 
-void *SlabAllocator::_allocate(size_t size) noexcept {
+#ifdef SLAB_TRANSFER_CACHE
+inline void SlabAllocator::drain_transferred_cache(
+    const rt::Preempt &p, uint32_t slab_shift) noexcept {
+  auto &transferred_cache = transferred_caches_[p.get_cpu()];
+  auto &list = transferred_cache.lists[slab_shift];
+
+  if (list.size()) {
+    rt::SpinGuard g(&transferred_cache.spin);
+
+    while (list.size()) {
+      auto *ptr = list.pop();
+      __do_free(p, ptr, slab_shift);
+    }
+  }
+}
+#endif
+
+void *SlabAllocator::__allocate(size_t size) noexcept {
   void *ret = nullptr;
+  int cpu;
   auto slab_shift = get_slab_shift(size);
+
   if (likely(slab_shift < kMaxSlabClassShift)) {
-    int cpu = get_cpu();
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+
+#ifdef SLAB_TRANSFER_CACHE
+    drain_transferred_cache(p, slab_shift);
+#endif
+
+    cpu = p.get_cpu();
     auto &cache_list = cache_lists_[cpu].lists[slab_shift];
     if (likely(cache_list.size())) {
       ret = cache_list.pop();
     }
 
     if (unlikely(!ret)) {
-      rt::ScopedLock<rt::Spin> lock(&spin_);
+      rt::SpinGuard g(&spin_);
       auto &slab_list = slab_lists_[slab_shift];
       auto num_cache_entries =
           std::max(static_cast<uint32_t>(1), get_num_cache_entries(slab_shift));
@@ -104,12 +130,14 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
         ret = cache_list.pop();
       }
     }
-    put_cpu();
   }
 
   if (ret) {
     auto *hdr = reinterpret_cast<PtrHeader *>(ret);
     hdr->size = size;
+#ifdef SLAB_TRANSFER_CACHE
+    hdr->core_id = cpu;
+#endif
     hdr->slab_id = slab_id_;
     auto addr = reinterpret_cast<uintptr_t>(ret);
     addr += sizeof(PtrHeader);
@@ -120,7 +148,7 @@ void *SlabAllocator::_allocate(size_t size) noexcept {
   return ret;
 }
 
-void SlabAllocator::_free(const void *_ptr) noexcept {
+void SlabAllocator::__free(const void *_ptr) noexcept {
   auto ptr = const_cast<void *>(_ptr);
   auto *hdr = reinterpret_cast<PtrHeader *>(reinterpret_cast<uintptr_t>(ptr) -
                                             sizeof(PtrHeader));
@@ -133,24 +161,41 @@ void SlabAllocator::_free(const void *_ptr) noexcept {
   auto slab_shift = slab->get_slab_shift(size);
 
   if (likely(slab_shift < slab->kMaxSlabClassShift)) {
-    int cpu = get_cpu();
-    auto &cache_list = slab->cache_lists_[cpu].lists[slab_shift];
-    cache_list.push(ptr);
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
 
-    auto num_cache_entries = get_num_cache_entries(slab_shift);
-    if (unlikely(cache_list.size() > num_cache_entries)) {
-      rt::ScopedLock<rt::Spin> lock(&slab->spin_);
-      auto &slab_list = slab->slab_lists_[slab_shift];
-      while (cache_list.size() > num_cache_entries / 2) {
-        slab_list.push(cache_list.pop());
-      }
+#ifdef SLAB_TRANSFER_CACHE
+    slab->drain_transferred_cache(p, slab_shift);
+    if (likely(p.get_cpu() == hdr->core_id)) {
+#endif
+      slab->__do_free(p, ptr, slab_shift);
+#ifdef SLAB_TRANSFER_CACHE
+    } else {
+      auto &transferred_cache = slab->transferred_caches_[hdr->core_id];
+      rt::SpinGuard g(&transferred_cache.spin);
+      transferred_cache.lists[slab_shift].push(ptr);
     }
-    put_cpu();
+#endif
+  }
+}
+
+inline void SlabAllocator::__do_free(const rt::Preempt &p, void *ptr,
+                                     uint32_t slab_shift) noexcept {
+  auto &cache_list = cache_lists_[p.get_cpu()].lists[slab_shift];
+  cache_list.push(ptr);
+
+  auto num_cache_entries = get_num_cache_entries(slab_shift);
+  if (unlikely(cache_list.size() > num_cache_entries)) {
+    rt::SpinGuard g(&spin_);
+    auto &slab_list = slab_lists_[slab_shift];
+    while (cache_list.size() > num_cache_entries / 2) {
+      slab_list.push(cache_list.pop());
+    }
   }
 }
 
 void *SlabAllocator::yield(size_t size) noexcept {
-  rt::ScopedLock<rt::Spin> lock(&spin_);
+  rt::SpinGuard g(&spin_);
   size = (((size - 1) / kAlignment) + 1) * kAlignment;
   if (unlikely(cur_ + size > end_)) {
     return nullptr;

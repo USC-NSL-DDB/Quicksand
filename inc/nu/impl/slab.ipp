@@ -25,14 +25,14 @@ inline void *SlabAllocator::allocate(size_t size) noexcept {
   if (unlikely(!size)) {
     return nullptr;
   }
-  return _allocate(size);
+  return __allocate(size);
 }
 
 inline void SlabAllocator::free(const void *ptr) noexcept {
   if (unlikely(!ptr)) {
     return;
   }
-  _free(ptr);
+  __free(ptr);
 }
 
 inline uint32_t SlabAllocator::get_slab_shift(uint64_t size) noexcept {

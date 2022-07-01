@@ -18,11 +18,20 @@ extern "C" {
 
 namespace nu {
 
+#ifdef SLAB_TRANSFER_CACHE
+struct PtrHeader {
+  uint64_t size : 56;
+  uint64_t core_id : 8;
+  SlabId_t slab_id;
+};
+#else
 struct PtrHeader {
   uint64_t size;
   SlabId_t slab_id;
 };
+#endif
 
+// It's the constraint placed by GCC for enabling vectorization optimizations.
 constexpr static uint32_t kAlignment = 16;
 static_assert(sizeof(PtrHeader) % kAlignment == 0);
 
@@ -73,6 +82,11 @@ class SlabAllocator {
     FreePtrsLinkedList lists[kMaxSlabClassShift];
   };
 
+  struct alignas(kCacheLineBytes) TransferredCoreCache {
+    rt::Spin spin;
+    FreePtrsLinkedList lists[kMaxSlabClassShift];
+  };
+
   static SlabAllocator *slabs_[get_max_slab_id() + 1];
   SlabId_t slab_id_;
   const uint8_t *start_;
@@ -80,11 +94,17 @@ class SlabAllocator {
   uint8_t *cur_;
   FreePtrsLinkedList slab_lists_[kMaxSlabClassShift];
   CoreCache cache_lists_[kNumCores];
+#ifdef SLAB_TRANSFER_CACHE
+  TransferredCoreCache transferred_caches_[kNumCores];
+#endif
   rt::Spin spin_;
 
-  void *_allocate(size_t size) noexcept;
-  static void _free(const void *ptr) noexcept;
+  void *__allocate(size_t size) noexcept;
+  static void __free(const void *ptr) noexcept;
+  void __do_free(const rt::Preempt &p, void *ptr, uint32_t slab_shift) noexcept;
   uint32_t get_slab_shift(uint64_t size) noexcept;
+  void drain_transferred_cache(const rt::Preempt &p,
+                               uint32_t slab_shift) noexcept;
 };
 }  // namespace nu
 
