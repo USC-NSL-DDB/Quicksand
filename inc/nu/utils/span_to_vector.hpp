@@ -10,6 +10,7 @@ class SpanToVectorWrapper {
  public:
   SpanToVectorWrapper();
   SpanToVectorWrapper(std::span<T> s);
+  SpanToVectorWrapper(std::span<T> s, uint32_t vec_capacity);
   SpanToVectorWrapper(const SpanToVectorWrapper &);
   SpanToVectorWrapper &operator=(const SpanToVectorWrapper &);
   SpanToVectorWrapper(SpanToVectorWrapper &&) noexcept;
@@ -23,6 +24,7 @@ class SpanToVectorWrapper {
  private:
   std::span<T> s_;
   std::vector<T> v_;
+  uint32_t vec_capacity_;
 };
 
 }  // namespace nu

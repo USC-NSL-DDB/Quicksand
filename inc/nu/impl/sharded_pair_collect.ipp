@@ -443,20 +443,23 @@ bool ShardedPairCollection<K, V>::Shard::try_emplace_back(
     return false;
   }
 
-  data_.insert(data_.end(), std::make_move_iterator(data.begin()),
-               std::make_move_iterator(data.end()));
-
-  if (unlikely(data_.size() > max_shard_size_)) {
+  if (unlikely(data_.size() + data.size() > max_shard_size_)) {
     auto mid = data_.begin() + data_.size() / 2;
     std::nth_element(data_.begin(), mid, data_.end());
     auto mid_k = data_[data_.size() / 2].first;
-    SpanToVectorWrapper post_split_data(std::span(mid, data_.end()));
+    SpanToVectorWrapper post_split_data(std::span(mid, data_.end()),
+                                        max_shard_size_);
     auto new_shard = make_proclet<Shard>(mapping_, max_shard_size_, mid_k,
                                          r_key_, post_split_data);
     data_.erase(mid, data_.end());
     r_key_ = mid_k;
     mapping_.run(&ShardingMapping::update_mapping, mid_k, std::move(new_shard));
+    return false;
   }
+
+  data_.insert(data_.end(), std::make_move_iterator(data.begin()),
+               std::make_move_iterator(data.end()));
+
   return true;
 }
 
