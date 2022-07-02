@@ -402,8 +402,10 @@ ShardedPairCollection<K, V>::Shard::Shard(WeakProclet<ShardingMapping> mapping,
     : max_shard_size_(max_shard_size),
       mapping_(std::move(mapping)),
       l_key_(l_key),
-      r_key_(r_key),
-      data_(data) {}
+      r_key_(r_key) {
+  data_.reserve(max_shard_size_);
+  data_ = data;
+}
 
 template <typename K, typename V>
 ShardedPairCollection<K, V>::Shard::Shard(WeakProclet<ShardingMapping> mapping,
