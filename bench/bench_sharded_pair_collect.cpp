@@ -72,9 +72,24 @@ struct Val {
   }
 };
 
-class Work {
+class Worker {
  public:
-  Work() {
+  Worker(nu::ShardedPairCollection<Key, Val> sc) : sc_(std::move(sc)) {}
+
+  void do_work(uint32_t wid) {
+    auto num_elems_per_th = kNumElements / kNumThreads;
+    for (uint32_t i = 0; i < num_elems_per_th; i++) {
+      sc_.emplace(wid * num_elems_per_th + i, i);
+    }
+  }
+
+ private:
+  nu::ShardedPairCollection<Key, Val> sc_;
+};
+
+class Bench {
+ public:
+  Bench() {
     for (uint32_t i = 0; i < kRunTimes; i++) {
       std::cout << "Running No." << i << " time..." << std::endl;
       single_thread_std_vector();
@@ -116,10 +131,10 @@ class Work {
     single_thread(&sc);
   }
 
-  void single_thread(nu::ShardedPairCollection<Key, Val> *sc) {
+  void single_thread(nu::ShardedPairCollection<Key, Val> *sc_ptr) {
     auto t0 = microtime();
     for (uint32_t i = 0; i < kNumElements; i++) {
-      sc->emplace(i, i);
+      sc_ptr->emplace(i, i);
     }
     auto t1 = microtime();
     auto mops = static_cast<double>(kNumElements) / (t1 - t0);
@@ -142,19 +157,21 @@ class Work {
     multi_threads(&sc);
   }
 
-  void multi_threads(nu::ShardedPairCollection<Key, Val> *sc) {
-    std::vector<nu::Thread> ths;
+  void multi_threads(nu::ShardedPairCollection<Key, Val> *sc_ptr) {
+    std::vector<nu::Proclet<Worker>> workers;
+
     for (uint32_t i = 0; i < kNumThreads; i++) {
-      ths.emplace_back([sc, tid = i] {
-        auto num_elems_per_th = kNumElements / kNumThreads;
-        for (uint32_t i = 0; i < num_elems_per_th; i++) {
-          sc->emplace(tid * num_elems_per_th + i, i);
-        }
-      });
+      workers.emplace_back(nu::make_proclet<Worker>(*sc_ptr));
     }
+    
+    std::vector<nu::Future<void>> futures;
+    for (uint32_t i = 0; i < kNumThreads; i++) {
+      futures.emplace_back(workers[i].run_async(&Worker::do_work, i));
+    }
+
     auto t0 = microtime();
-    for (auto &th : ths) {
-      th.join();
+    for (auto &future : futures) {
+      future.get();
     }
     auto t1 = microtime();
     auto mops = static_cast<double>(kNumElements) / (t1 - t0);
@@ -166,6 +183,6 @@ class Work {
 
 int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv,
-                               [](int, char **) { nu::make_proclet<Work>(); });
+                               [](int, char **) { nu::make_proclet<Bench>(); });
 }
 

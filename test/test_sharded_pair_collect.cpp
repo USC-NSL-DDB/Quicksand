@@ -18,9 +18,8 @@ class Worker {
       auto str = std::to_string(i);
       sc_.emplace(i, str);
     }
+    sc_.flush();
   }
-
-  void flush() { sc_.flush(); }
 
   void mutate() {
     sc_.for_all(
@@ -38,23 +37,15 @@ bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
   auto p0 = make_proclet<Worker>(*sc);
   auto p1 = make_proclet<Worker>(*sc);
 
-  auto f0 = p0.run_async(&Worker::emplace, 0, kNumElements / 4);
-  auto f1 = p0.run_async(&Worker::emplace, kNumElements / 4, kNumElements / 2);
-  auto f2 =
-      p1.run_async(&Worker::emplace, kNumElements / 2, kNumElements / 4 * 3);
-  auto f3 = p1.run_async(&Worker::emplace, kNumElements / 4 * 3, kNumElements);
+  auto f0 = p0.run_async(&Worker::emplace, 0, kNumElements / 2);
+  auto f1 = p1.run_async(&Worker::emplace, kNumElements / 2, kNumElements);
   f0.get();
   f1.get();
+
+  auto f2 = p0.run_async(&Worker::mutate);
+  auto f3 = p1.run_async(&Worker::mutate);
   f2.get();
   f3.get();
-
-  p0.run(&Worker::flush);
-  p1.run(&Worker::flush);
-
-  auto f6 = p0.run_async(&Worker::mutate);
-  auto f7 = p1.run_async(&Worker::mutate);
-  f6.get();
-  f7.get();
 
   nu::RuntimeSlabGuard g;
 
