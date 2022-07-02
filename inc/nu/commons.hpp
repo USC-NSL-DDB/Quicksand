@@ -107,7 +107,7 @@ T div_round_up_unchecked(T dividend, T divisor);
     type d;                                 \
   }
 
-#define CachelineAligned(type) Aligned(type, kCacheLineBytes)
+#define CachelineAligned(type) Aligned(type, nu::kCacheLineBytes)
 
 }  // namespace nu
 
