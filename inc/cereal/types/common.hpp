@@ -117,13 +117,15 @@ namespace cereal
   }
 
   //! Serialization for C style arrays
-  template <class Archive, class T> inline
-  typename std::enable_if<std::is_array<T>::value, void>::type
-  CEREAL_SERIALIZE_FUNCTION_NAME(Archive & ar, T & array)
-  {
-    common_detail::serializeArray( ar, array,
-        std::integral_constant<bool, traits::is_output_serializable<BinaryData<T>, Archive>::value &&
-                                     std::is_arithmetic<typename std::remove_all_extents<T>::type>::value>() );
+  template <class Archive, class T>
+  inline typename std::enable_if<std::is_array<T>::value, void>::type
+  CEREAL_SERIALIZE_FUNCTION_NAME(Archive &ar, T &array) {
+    common_detail::serializeArray(
+        ar, array, std::integral_constant<bool,
+        (traits::is_output_serializable<BinaryData<T>, Archive>::value ||
+         traits::is_input_serializable<BinaryData<T>, Archive>::value) &&
+            std::is_arithmetic<
+                typename std::remove_all_extents<T>::type>::value>());
   }
 } // namespace cereal
 
