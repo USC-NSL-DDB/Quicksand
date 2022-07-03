@@ -78,6 +78,8 @@ bench_rpc_tput_src = bench/bench_rpc_tput.cpp
 bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
 bench_proclet_call_tput_src = bench/bench_proclet_call_tput.cpp
 bench_proclet_call_tput_obj = $(bench_proclet_call_tput_src:.cpp=.o)
+bench_proclet_call_bw_src = bench/bench_proclet_call_bw.cpp
+bench_proclet_call_bw_obj = $(bench_proclet_call_bw_src:.cpp=.o)
 bench_proclet_call_lat_src = bench/bench_proclet_call_lat.cpp
 bench_proclet_call_lat_obj = $(bench_proclet_call_lat_src:.cpp=.o)
 bench_thread_src = bench/bench_thread.cpp
@@ -116,7 +118,8 @@ bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
 bin/test_fast_path bin/test_slow_path bin/ctrl_main bin/test_max_num_proclets \
 bin/test_sharded_array bin/test_sharded_pair_collect bin/bench_controller \
-bin/test_sharded_vector bin/bench_sharded_pair_collect bin/test_cereal bin/bench_sharded_vector
+bin/test_sharded_vector bin/bench_sharded_pair_collect bin/test_cereal bin/bench_sharded_vector \
+bin/bench_proclet_call_bw
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -178,6 +181,8 @@ bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_ob
 	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_proclet_call_tput: $(bench_proclet_call_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_proclet_call_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_proclet_call_bw: $(bench_proclet_call_bw_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_proclet_call_bw_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_proclet_call_lat: $(bench_proclet_call_lat_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_proclet_call_lat_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_thread: $(bench_thread_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
