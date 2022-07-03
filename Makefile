@@ -8,7 +8,8 @@ NCORES = $(shell nproc)
 INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/ \
 -I$(CALADAN_PATH)/deps/folly/include/
 
-override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offsetof -DNCORES=$(NCORES)
+override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offsetof -DNCORES=$(NCORES) \
+                     -DSLAB_TRANSFER_CACHE
 override LDFLAGS += -lcrypto -lpthread -lboost_program_options
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
