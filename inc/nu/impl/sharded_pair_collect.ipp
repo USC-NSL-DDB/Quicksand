@@ -9,6 +9,7 @@
 
 #include "nu/runtime.hpp"
 #include "nu/sharded_pair_collect.hpp"
+#include "nu/utils/bfprt/median_of_ninthers.h"
 
 namespace nu {
 
@@ -221,7 +222,7 @@ bool ShardedPairCollection<K, V>::push_data(NodeIP ip,
       }
 
       for (auto &p : rejected_data) {
-	emplace(std::move(p));
+        emplace(std::move(p));
       }
     }
     return false;
@@ -364,8 +365,8 @@ bool ShardedPairCollection<K, V>::Shard::try_emplace_back(
   }
 
   if (unlikely(data_.size() + data.size() > max_shard_size_)) {
+    adaptiveQuickselect(data_.data(), data_.size() / 2, data_.size());
     auto mid = data_.begin() + data_.size() / 2;
-    std::nth_element(data_.begin(), mid, data_.end());
     auto mid_k = data_[data_.size() / 2].first;
     SpanToVectorWrapper post_split_data(std::span(mid, data_.end()),
                                         max_shard_size_);
