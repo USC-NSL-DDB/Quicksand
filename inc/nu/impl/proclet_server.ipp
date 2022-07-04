@@ -175,7 +175,10 @@ bool ProcletServer::update_ref_cnt_locally(
       auto *obj = Runtime::get_root_obj<Cls>(id);
       ProcletSlabGuard proclet_slab_guard(&proclet_header->slab);
       callee_guard->reset();
+      auto *self = thread_self();
+      auto *old_owner = thread_set_owner_proclet(self, proclet_header);
       obj->~Cls();
+      thread_set_owner_proclet(self, old_owner);
     }
 
     RuntimeSlabGuard runtime_slab_guard;
