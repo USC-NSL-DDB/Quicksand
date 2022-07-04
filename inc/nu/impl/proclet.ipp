@@ -483,6 +483,25 @@ WeakProclet<T>::WeakProclet(ProcletID id) {
   this->id_ = id;
 }
 
+template <typename T>
+template <class Archive>
+void WeakProclet<T>::save(Archive &ar) const {
+  ar(this->id_);
+}
+
+template <typename T>
+template <class Archive>
+void WeakProclet<T>::save_move(Archive &ar) {
+  ar(this->id_);
+  this->id_ = kNullProcletID;
+}
+
+template <typename T>
+template <class Archive>
+void WeakProclet<T>::load(Archive &ar) {
+  ar(this->id_);
+}
+
 template <typename T, typename... As>
 Proclet<T> make_proclet(As &&... args) {
   return Proclet<T>::__create(/* pinned = */ false, 0,
