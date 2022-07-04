@@ -505,7 +505,7 @@ Proclet<T> make_proclet_at(uint32_t ip_hint, As &&... args) {
 
 template <typename T, typename... As>
 Future<Proclet<T>> make_proclet_async_at(uint32_t ip_hint, As &&... args) {
-  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
+  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(/* pinned = */ false, ip_hint,
                                 std::forward<As>(args)...);
   });
