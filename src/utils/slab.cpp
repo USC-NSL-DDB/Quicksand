@@ -42,7 +42,8 @@ void SlabAllocator::FreePtrsLinkedList::push(void *ptr) {
 }
 
 // TODO: should be dynamic.
-inline uint32_t get_num_cache_entries(uint32_t slab_shift) {
+inline uint32_t get_num_cache_entries(bool aggressive_caching,
+                                      uint32_t slab_shift) {
   switch (slab_shift) {
     case 4:  // 32 B
       return 64;
@@ -63,7 +64,7 @@ inline uint32_t get_num_cache_entries(uint32_t slab_shift) {
     case 12:  // 8192 B
       return 1;
     default:
-      return 0;
+      return aggressive_caching && slab_shift <= 20;  // 2 MiB
   }
 }
 
@@ -107,7 +108,8 @@ void *SlabAllocator::__allocate(size_t size) noexcept {
       rt::SpinGuard g(&spin_);
       auto &slab_list = slab_lists_[slab_shift];
       auto num_cache_entries =
-          std::max(static_cast<uint32_t>(1), get_num_cache_entries(slab_shift));
+          std::max(static_cast<uint32_t>(1),
+                   get_num_cache_entries(aggressive_caching_, slab_shift));
       while (slab_list.size() && cache_list.size() < num_cache_entries) {
         cache_list.push(slab_list.pop());
       }
@@ -184,7 +186,8 @@ inline void SlabAllocator::__do_free(const rt::Preempt &p, void *ptr,
   auto &cache_list = cache_lists_[p.get_cpu()].lists[slab_shift];
   cache_list.push(ptr);
 
-  auto num_cache_entries = get_num_cache_entries(slab_shift);
+  auto num_cache_entries =
+      get_num_cache_entries(aggressive_caching_, slab_shift);
   if (unlikely(cache_list.size() > num_cache_entries)) {
     rt::SpinGuard g(&spin_);
     auto &slab_list = slab_lists_[slab_shift];

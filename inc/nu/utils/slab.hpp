@@ -44,9 +44,11 @@ class SlabAllocator {
   static_assert((1 << kMinSlabClassShift) % kAlignment == 0);
 
   SlabAllocator() noexcept;
-  SlabAllocator(SlabId_t slab_id, void *buf, size_t len) noexcept;
+  SlabAllocator(SlabId_t slab_id, void *buf, size_t len,
+                bool aggressive_caching = false) noexcept;
   ~SlabAllocator() noexcept;
-  void init(SlabId_t slab_id, void *buf, size_t len) noexcept;
+  void init(SlabId_t slab_id, void *buf, size_t len,
+            bool aggressive_caching = false) noexcept;
   void *allocate(size_t size) noexcept;
   void *yield(size_t size) noexcept;
   void *get_base() const noexcept;
@@ -89,6 +91,7 @@ class SlabAllocator {
 
   static SlabAllocator *slabs_[get_max_slab_id() + 1];
   SlabId_t slab_id_;
+  bool aggressive_caching_;
   const uint8_t *start_;
   uint8_t *end_;
   uint8_t *cur_;

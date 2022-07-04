@@ -5,17 +5,18 @@ namespace nu {
 
 inline SlabAllocator::SlabAllocator() noexcept {}
 
-inline SlabAllocator::SlabAllocator(SlabId_t slab_id, void *buf,
-                                    uint64_t len) noexcept {
-  init(slab_id, buf, len);
+inline SlabAllocator::SlabAllocator(SlabId_t slab_id, void *buf, uint64_t len,
+                                    bool aggressive_caching) noexcept {
+  init(slab_id, buf, len, aggressive_caching);
 }
 
 inline SlabAllocator::~SlabAllocator() noexcept {}
 
-inline void SlabAllocator::init(SlabId_t slab_id, void *buf,
-                                uint64_t len) noexcept {
+inline void SlabAllocator::init(SlabId_t slab_id, void *buf, uint64_t len,
+                                bool aggressive_caching) noexcept {
   register_slab_by_id(this, slab_id);
   slab_id_ = slab_id;
+  aggressive_caching_ = aggressive_caching;
   start_ = reinterpret_cast<const uint8_t *>(buf);
   end_ = const_cast<uint8_t *>(start_) + len;
   cur_ = const_cast<uint8_t *>(start_);
