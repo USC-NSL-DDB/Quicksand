@@ -10,8 +10,8 @@
 #include "nu/sharded_pair_collect.hpp"
 
 constexpr uint32_t kRunTimes = 1;
-constexpr uint32_t kNumElements = 16 << 20;
-constexpr uint32_t kNumThreads = 4 * (nu::kNumCores - 2);
+constexpr uint32_t kNumElements = 256 << 20;
+constexpr uint32_t kNumThreads = nu::kNumCores - 2;
 constexpr uint32_t kKeyLen = 10;
 constexpr uint32_t kValLen = 90;
 
@@ -106,6 +106,7 @@ class Bench {
 
     nu::RuntimeSlabGuard slab;
     std::vector<std::pair<Key, Val>> v;
+
     auto t0 = microtime();
     for (uint32_t i = 0; i < kNumElements; i++) {
       v.emplace_back(i, i);
@@ -113,8 +114,8 @@ class Bench {
     auto t1 = microtime();
     auto mops = static_cast<double>(kNumElements) / (t1 - t0);
     auto bw = mops * sizeof(std::pair<Key, Val>);
-    std::cout << "\t\tstd::vector: " << mops << " MOPS, " << bw << " MB/s"
-              << std::endl;
+    std::cout << "\t\tstd::vector: " << t1 - t0 << " us, " << mops << " MOPS, "
+              << bw << " MB/s" << std::endl;
   }
 
   void single_thread_no_partition() {
@@ -139,8 +140,8 @@ class Bench {
     auto t1 = microtime();
     auto mops = static_cast<double>(kNumElements) / (t1 - t0);
     auto bw = mops * sizeof(std::pair<Key, Val>);
-    std::cout << "\t\tShardedPairCollection: " << mops << " MOPS, " << bw
-              << " MB/s" << std::endl;
+    std::cout << "\t\tShardedPairCollection: " << t1 - t0 << " us, " << mops
+              << " MOPS, " << bw << " MB/s" << std::endl;
   }
 
   void multi_threads_no_partition() {
@@ -163,7 +164,7 @@ class Bench {
     for (uint32_t i = 0; i < kNumThreads; i++) {
       workers.emplace_back(nu::make_proclet<Worker>(*sc_ptr));
     }
-    
+
     std::vector<nu::Future<void>> futures;
     for (uint32_t i = 0; i < kNumThreads; i++) {
       futures.emplace_back(workers[i].run_async(&Worker::do_work, i));
@@ -176,8 +177,8 @@ class Bench {
     auto t1 = microtime();
     auto mops = static_cast<double>(kNumElements) / (t1 - t0);
     auto bw = mops * sizeof(std::pair<Key, Val>);
-    std::cout << "\t\tShardedPairCollection: " << mops << " MOPS, " << bw
-              << " MB/s" << std::endl;
+    std::cout << "\t\tShardedPairCollection: " << t1 - t0 << " us, " << mops
+              << " MOPS, " << bw << " MB/s" << std::endl;
   }
 };
 
@@ -185,4 +186,3 @@ int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv,
                                [](int, char **) { nu::make_proclet<Bench>(); });
 }
-

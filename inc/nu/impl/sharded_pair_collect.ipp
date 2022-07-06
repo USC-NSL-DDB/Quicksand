@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cereal/types/map.hpp>
 #include <cereal/types/optional.hpp>
 #include <cereal/types/utility.hpp>
@@ -96,6 +95,8 @@ ShardedPairCollection<K, V> &ShardedPairCollection<K, V>::operator=(
   node_proxy_shards_ = std::move(o.node_proxy_shards_);
   key_to_cache_ = std::move(o.key_to_cache_);
   ip_to_caches_ = std::move(o.ip_to_caches_);
+  push_future_ = std::move(o.push_future_);
+  rejected_push_reqs_ = std::move(o.rejected_push_reqs_);
   return *this;
 }
 
@@ -131,6 +132,14 @@ void ShardedPairCollection<K, V>::emplace(K1 &&k, V1 &&v) {
 
 template <typename K, typename V>
 void ShardedPairCollection<K, V>::emplace(PairType &&p) {
+  if (unlikely(!rejected_push_reqs_.empty())) {
+    spin_.lock();
+    auto reqs = std::move(rejected_push_reqs_);
+    rejected_push_reqs_.clear();
+    spin_.unlock();
+    handle_rejected_push_reqs(reqs);
+  }
+
   auto iter = key_to_cache_.lower_bound(p.first);
   assert(iter != key_to_cache_.end());
   auto &cache = iter->second;
@@ -143,7 +152,7 @@ void ShardedPairCollection<K, V>::emplace(PairType &&p) {
     auto ip = Runtime::get_ip_by_proclet_id(proclet_id);
     auto reqs = gen_push_data_reqs(ip);
     if (!reqs.empty()) {
-      push_data(ip, std::move(reqs));
+      submit_push_data_req(ip, std::move(reqs));
     }
   }
 }
@@ -190,45 +199,61 @@ WeakProclet<ErasedType> ShardedPairCollection<K, V>::get_node_proxy_shard(
 }
 
 template <typename K, typename V>
-bool ShardedPairCollection<K, V>::push_data(NodeIP ip,
-                                            std::vector<PushDataReq> reqs) {
+void ShardedPairCollection<K, V>::submit_push_data_req(
+    NodeIP ip, std::vector<PushDataReq> reqs) {
   auto node_proxy_shard = get_node_proxy_shard(ip);
-
-  auto rejected_req_indices = node_proxy_shard.run(
-      +[](ErasedType &_, std::vector<PushDataReq> reqs) {
-        std::vector<uint32_t> rejected_req_indices;
-
-        for (uint64_t i = 0; i < reqs.size(); i++) {
-          auto &req = reqs[i];
-          auto &[l_key, r_key, shard, data] = req;
-          bool success =
-              shard.run(&Shard::try_emplace_back, l_key, r_key, data);
-          if (unlikely(!success)) {
-            rejected_req_indices.push_back(i);
-          }
-        }
-        return rejected_req_indices;
-      },
-      reqs);
-
-  if (!rejected_req_indices.empty()) {
-    for (auto idx : rejected_req_indices) {
-      auto &[l_key, r_key, shard, rejected_data] = reqs[idx];
-      auto new_mappings =
-          mapping_.run(&ShardingMapping::get_shards_in_range, l_key, r_key);
-
-      for (auto &[k, s] : new_mappings) {
-        add_cache(std::move(k), s);
-      }
-
-      for (auto &p : rejected_data) {
-        emplace(std::move(p));
-      }
+  if (push_future_) {
+    auto &rejected_reqs = push_future_.get();
+    if (unlikely(!rejected_reqs.empty())) {
+      ScopedLock g(&spin_);
+      BUG_ON(!rejected_push_reqs_.empty());
+      rejected_push_reqs_ = std::move(rejected_reqs);
     }
-    return false;
   }
 
-  return true;
+  push_future_ =
+      nu::async([node_proxy_shard, reqs = std::move(reqs)]() mutable {
+        auto rejected_req_indices = node_proxy_shard.run(
+            +[](ErasedType &_, std::vector<PushDataReq> reqs) {
+              std::vector<uint32_t> rejected_req_indices;
+
+              for (uint64_t i = 0; i < reqs.size(); i++) {
+                auto &req = reqs[i];
+                auto &[l_key, r_key, shard, data] = req;
+                bool success =
+                    shard.run(&Shard::try_emplace_back, l_key, r_key, data);
+                if (unlikely(!success)) {
+                  rejected_req_indices.push_back(i);
+                }
+              }
+              return rejected_req_indices;
+            },
+            reqs);
+
+        std::vector<PushDataReq> rejected_reqs;
+        for (auto idx : rejected_req_indices) {
+          rejected_reqs.emplace_back(std::move(reqs[idx]));
+        }
+
+        return rejected_reqs;
+      });
+}
+
+template <typename K, typename V>
+void ShardedPairCollection<K, V>::handle_rejected_push_reqs(
+    std::vector<PushDataReq> &reqs) {
+  for (auto &[l_key, r_key, shard, rejected_data] : reqs) {
+    auto new_mappings =
+        mapping_.run(&ShardingMapping::get_shards_in_range, l_key, r_key);
+
+    for (auto &[k, s] : new_mappings) {
+      add_cache(std::move(k), s);
+    }
+
+    for (auto &p : rejected_data) {
+      emplace(std::move(p));
+    }
+  }
 }
 
 template <typename K, typename V>
@@ -243,12 +268,17 @@ again:
     }
   }
 
-  bool done = true;
+  bool rejected = false;
   for (auto &[ip, reqs] : all_ip_reqs) {
-    done &= push_data(ip, std::move(reqs));
+    submit_push_data_req(ip, std::move(reqs));
+    auto &rejected_reqs = push_future_.get();
+    if (unlikely(!rejected_reqs.empty())) {
+      handle_rejected_push_reqs(rejected_reqs);
+      rejected = true;
+    }
   }
 
-  if (unlikely(!done)) {
+  if (unlikely(rejected)) {
     goto again;
   }
 }

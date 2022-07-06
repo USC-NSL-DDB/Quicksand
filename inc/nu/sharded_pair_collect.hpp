@@ -18,6 +18,7 @@
 #include "nu/utils/reader_writer_lock.hpp"
 #include "nu/utils/scoped_lock.hpp"
 #include "nu/utils/span_to_vector.hpp"
+#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 
@@ -26,7 +27,7 @@ class ShardedPairCollection {
  public:
   using PairType = std::pair<K, V>;
   using ShardDataType = std::vector<PairType>;
-  constexpr static uint32_t kDefaultMaxShardBytes = 2 << 20;
+  constexpr static uint32_t kDefaultMaxShardBytes = 16 << 20;
   constexpr static uint32_t kDefaultMaxCacheBytes = 100 << 10;
 
   ShardedPairCollection();
@@ -119,8 +120,11 @@ class ShardedPairCollection {
   uint32_t max_cache_size_;
   KeyToCacheMappingType key_to_cache_;
   IPToCachesMappingType ip_to_caches_;
+  Future<std::vector<PushDataReq>> push_future_;
   std::map<NodeIP, Proclet<ErasedType>> node_proxy_shards_;
   ReaderWriterLock rw_lock_;
+  std::vector<PushDataReq> rejected_push_reqs_;
+  SpinLock spin_;
 
   ShardedPairCollection(uint32_t max_shard_bytes, uint32_t max_cache_bytes,
                         std::optional<K> initial_l_key,
@@ -128,11 +132,12 @@ class ShardedPairCollection {
   ShardedPairCollection(uint64_t num, K estimated_min_key,
                         std::function<void(K &, uint64_t)> key_inc_fn,
                         uint32_t max_shard_bytes, uint32_t max_cache_bytes);
-  bool push_data(NodeIP ip, std::vector<PushDataReq> reqs);
+  void submit_push_data_req(NodeIP ip, std::vector<PushDataReq> reqs);
   void add_cache(std::optional<K> k, WeakProclet<Shard> shard);
   void bind_cache(NodeIP, const KeyToCacheMappingType::iterator &cache);
   std::vector<PushDataReq> gen_push_data_reqs(NodeIP ip);
   WeakProclet<ErasedType> get_node_proxy_shard(NodeIP ip);
+  void handle_rejected_push_reqs(std::vector<PushDataReq> &reqs);
   template <typename K1, typename V1>
   friend ShardedPairCollection<K1, V1> make_sharded_pair_collection(
       uint32_t max_shard_bytes, uint32_t max_cache_bytes);
