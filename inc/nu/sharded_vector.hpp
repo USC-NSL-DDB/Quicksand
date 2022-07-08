@@ -21,8 +21,7 @@ template <typename T>
 class ShardedVector {
  public:
   constexpr static uint32_t kDefaultPowerShardSize = 20;
-  constexpr static uint32_t kDefaultMaxWriteBatchSize =
-      (1 << kDefaultPowerShardSize) * 4;
+  constexpr static uint32_t kDefaultMaxWriteBatchSize = 2'000'000;
 
   ShardedVector();
   ShardedVector(const ShardedVector &);
