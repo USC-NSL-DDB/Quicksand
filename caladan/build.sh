@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo apt-get install -y meson
+
 make submodules -j
 make clean && make -j
 pushd ksched
