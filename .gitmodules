@@ -1,9 +1,6 @@
 [submodule "caladan/dpdk"]
 	path = caladan/dpdk
 	url = http://dpdk.org/git/dpdk
-[submodule "caladan/spdk"]
-	path = caladan/spdk
-	url = https://github.com/spdk/spdk
 [submodule "caladan/rdma-core"]
 	path = caladan/rdma-core
 	url = https://github.com/linux-rdma/rdma-core
@@ -16,3 +13,6 @@
 [submodule "caladan/deps/folly"]
 	path = caladan/deps/folly
 	url = https://github.com/facebook/folly
+[submodule "caladan/spdk"]
+	path = caladan/spdk
+	url = https://github.com/spdk/spdk.git

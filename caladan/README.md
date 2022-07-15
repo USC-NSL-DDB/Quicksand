@@ -12,13 +12,19 @@ For any questions about Caladan, please email <caladan@csail.mit.edu>.
 
 1) Clone the Caladan repository.
 
-2) Set up submodules (e.g., DPDK, SPDK, and rdma-core).
+2) Install dependencies.
+
+```
+sudo apt install make gcc cmake pkg-config libnl-3-dev libnl-route-3-dev libnuma-dev uuid-dev libssl-dev libaio-dev libcunit1-dev libclang-dev libncurses-dev meson
+```
+
+3) Set up submodules (e.g., DPDK, SPDK, and rdma-core).
 
 ```
 make submodules
 ```
 
-3) Build the scheduler (IOKernel), the Caladan runtime, and Ksched and perform some machine setup.
+4) Build the scheduler (IOKernel), the Caladan runtime, and Ksched and perform some machine setup.
 Before building, set the parameters in build/config (e.g., `CONFIG_SPDK=y` to use
 storage, `CONFIG_DIRECTPATH=y` to use directpath, and the MLX4 or MLX5 flags to use
 MLX4 or MLX5 NICs, respectively, ). To enable debugging, set `CONFIG_DEBUG=y` before building.
@@ -30,7 +36,7 @@ popd
 sudo ./scripts/setup_machine.sh
 ```
 
-4) Install Rust and build a synthetic client-server application.
+5) Install Rust and build a synthetic client-server application.
 
 ```
 curl https://sh.rustup.rs -sSf | sh
@@ -43,7 +49,7 @@ cargo update
 cargo build --release
 ```
 
-5) Run the synthetic application with a client and server. The client
+6) Run the synthetic application with a client and server. The client
 sends requests to the server, which performs a specified amount of
 fake work (e.g., computing square roots for 10us), before responding.
 
@@ -61,8 +67,8 @@ sudo ./iokerneld
 
 ## Supported Platforms
 
-This code has been tested most thoroughly on Ubuntu 18.04, with kernel
-5.2.0.
+This code has been tested most thoroughly on Ubuntu 18.04 with kernel
+5.2.0 and Ubuntu 20.04 with kernel 5.4.0.
 
 ### NICs
 This code has been tested with Intel 82599ES 10 Gbits/s NICs,
@@ -71,6 +77,14 @@ If you use Mellanox NICs, you should install the Mellanox OFED as described in [
 documentation](https://doc.dpdk.org/guides/nics/mlx4.html). If you use
 Intel NICs, you should insert the IGB UIO module and bind your NIC
 interface to it (e.g., using the script `./dpdk/usertools/dpdk-setup.sh`).
+
+To enable Jumbo Frames for higher throughput, first enable them in Linux on the
+relevant interface like so:
+```
+ip link set eth0 mtu 9000
+```
+Then use the (`host_mtu`) option in the config file of each runtime to set the
+MTU to the value you'd like, up to the size of the MTU set for the interface.
 
 #### Directpath
 Directpath allows runtime cores to directly send packets to/receive packets from the NIC, enabling
