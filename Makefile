@@ -207,7 +207,7 @@ bin/bench_sharded_pair_collect: $(bench_sharded_pair_collect_obj) $(librt_libs) 
 bin/bench_sharded_vector: $(bench_sharded_vector_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_sharded_vector_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
-bin/ctrl_main: $(ctrl_main_obj) $(lib_obj)
+bin/ctrl_main: $(ctrl_main_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(ctrl_main_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 $(ctrl_main_obj): $(ctrl_main_src)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
