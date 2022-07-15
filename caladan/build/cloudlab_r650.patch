@@ -1,0 +1,615 @@
+diff --git a/caladan/iokernel/dpdk.c b/caladan/iokernel/dpdk.c
+index c7226f7..88b7346 100644
+--- a/caladan/iokernel/dpdk.c
++++ b/caladan/iokernel/dpdk.c
+@@ -246,7 +246,7 @@ int dpdk_init(void)
+ int dpdk_late_init(void)
+ {
+ 	/* initialize port */
+-	dp.port = 0;
++	dp.port = 2;
+ 	if (dpdk_port_init(dp.port, dp.rx_mbuf_pool) != 0) {
+ 		log_err("dpdk: cannot init port %"PRIu8 "\n", dp.port);
+ 		return -1;
+diff --git a/caladan/iokernel/ias_bw.c b/caladan/iokernel/ias_bw.c
+index 56d09fb..e563465 100644
+--- a/caladan/iokernel/ias_bw.c
++++ b/caladan/iokernel/ias_bw.c
+@@ -10,7 +10,7 @@
+ #include "ksched.h"
+ #include "pmc.h"
+ #include "ias.h"
+-#include "pcm.h"
++/* #include "pcm.h" */
+ 
+ /* statistics */
+ uint64_t ias_bw_punish_count;
+@@ -185,7 +185,8 @@ static float ias_measure_bw(void)
+ 	barrier();
+ 	tsc = rdtsc();
+ 	barrier();
+-	cur_cas = pcm_caladan_get_cas_count(0);
++	/* cur_cas = pcm_caladan_get_cas_count(0); */
++	cur_cas = 0;
+ 	bw_estimate = (float)(cur_cas - last_cas) / (float)(tsc - last_tsc);
+ 	last_cas = cur_cas;
+ 	last_tsc = tsc;
+@@ -257,14 +258,16 @@ int ias_bw_init(void)
+ 	if (cfg.nobw)
+ 		return 0;
+ 
+-	ret = pcm_caladan_init(0);
++	/* ret = pcm_caladan_init(0); */
++	ret = 0;
+ 	if (ret)
+ 		return ret;
+ 
+ 	/* We monitor 1 channel, so multiply measurements by nr_channels to estimate real bw */
+-	nr_channels = pcm_caladan_get_active_channel_count();
+-	if (nr_channels == 0)
+-		return -EINVAL;
++	/* nr_channels = pcm_caladan_get_active_channel_count(); */
++	/* if (nr_channels == 0) */
++	/* 	return -EINVAL; */
++	nr_channels = 0;
+ 
+ 	/* Use default limit if none supplied */
+ 	if (!cfg.ias_bw_limit)
+diff --git a/caladan/iokernel/sched.c b/caladan/iokernel/sched.c
+index 6846dc1..c19ba79 100644
+--- a/caladan/iokernel/sched.c
++++ b/caladan/iokernel/sched.c
+@@ -671,7 +671,7 @@ int sched_init(void)
+ 	 */
+ 
+ 	for (i = 0; i < cpu_count; i++) {
+-		if (cpu_info_tbl[i].package != 0 && sched_ops != &numa_ops)
++		if (cpu_info_tbl[i].package != 1 && sched_ops != &numa_ops)
+ 			continue;
+ 
+ 		if (allowed_cores_supplied &&
+diff --git a/caladan/runtime/net/directpath/common.c b/caladan/runtime/net/directpath/common.c
+index deb009c..13947b5 100644
+--- a/caladan/runtime/net/directpath/common.c
++++ b/caladan/runtime/net/directpath/common.c
+@@ -11,6 +11,8 @@
+ static struct hardware_q *rxq_out[NCPU];
+ static struct direct_txq *txq_out[NCPU][ETH_VLAN_MAX_PCP];
+ 
++char device_name[DEVICE_NAME_MAX];
++
+ /* configuration options */
+ struct pci_addr nic_pci_addr;
+ bool cfg_pci_addr_specified;
+@@ -44,7 +46,7 @@ REGISTER_CFG(directpath_pci_handler);
+ size_t directpath_rx_buf_pool_sz(unsigned int nrqs)
+ {
+ 	size_t buflen = MBUF_DEFAULT_LEN;
+-	buflen *= MAX(8, guaranteedks) * (16 * RQ_NUM_DESC) * 2UL;
++	buflen *= MAX(8, guaranteedks) * (16 * RQ_NUM_DESC) * 6UL;
+ 	return align_up(buflen, PGSIZE_2MB);
+ }
+ 
+@@ -120,8 +122,7 @@ int directpath_init(void)
+ 	if (ret)
+ 		return ret;
+ 
+-	return 0;
+-
++	return nl_register_mac_address();
+ }
+ 
+ int directpath_init_thread(void)
+diff --git a/caladan/runtime/net/directpath/defs.h b/caladan/runtime/net/directpath/defs.h
+index d329b3d..4b82748 100644
+--- a/caladan/runtime/net/directpath/defs.h
++++ b/caladan/runtime/net/directpath/defs.h
+@@ -30,6 +30,11 @@ static inline unsigned int directpath_get_buf_size(void)
+ extern struct pci_addr nic_pci_addr;
+ extern bool cfg_pci_addr_specified;
+ 
++#define DEVICE_NAME_MAX 64
++extern char device_name[DEVICE_NAME_MAX];
++extern int nl_register_mac_address(void);
++
++
+ extern struct mempool directpath_buf_mp;
+ extern struct tcache *directpath_buf_tcache;
+ extern DEFINE_PERTHREAD(struct tcache_perthread, directpath_buf_pt);
+diff --git a/caladan/runtime/net/directpath/mlx5/mlx5_init.c b/caladan/runtime/net/directpath/mlx5/mlx5_init.c
+index 0071d92..fac072b 100644
+--- a/caladan/runtime/net/directpath/mlx5/mlx5_init.c
++++ b/caladan/runtime/net/directpath/mlx5/mlx5_init.c
+@@ -385,7 +385,7 @@ int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
+ 	}
+ 
+ 	for (i = 0; dev_list[i]; i++) {
+-		if (strncmp(ibv_get_device_name(dev_list[i]), "mlx5", 4))
++		if (strncmp(ibv_get_device_name(dev_list[i]), "mlx5_2", 6))
+ 			continue;
+ 
+ 		if (!cfg_pci_addr_specified)
+@@ -414,6 +414,8 @@ int mlx5_init(struct hardware_q **rxq_out, struct direct_txq **txq_out,
+ 		return -1;
+ 	}
+ 
++	strncpy(device_name, dev_list[i]->name, DEVICE_NAME_MAX);
++
+ 	ibv_free_device_list(dev_list);
+ 
+ 	ret = mlx5dv_set_context_attr(context,
+diff --git a/caladan/runtime/net/directpath/netlink.c b/caladan/runtime/net/directpath/netlink.c
+new file mode 100644
+index 0000000..68585a8
+--- /dev/null
++++ b/caladan/runtime/net/directpath/netlink.c
+@@ -0,0 +1,454 @@
++#ifdef DIRECTPATH
++
++#include <base/log.h>
++#include <base/stddef.h>
++#include <net/ethernet.h>
++
++#include <linux/if_link.h>
++#include <linux/netlink.h>
++#include <linux/rtnetlink.h>
++#include <net/if.h>
++#include <rdma/rdma_netlink.h>
++#include <string.h>
++#include <unistd.h>
++
++#include "defs.h"
++
++static int nl_route_fd = -1;
++static unsigned int iface_idx;
++
++#define rte_ether_addr eth_addr
++#define RTE_ETHER_ADDR_LEN ETH_ADDR_LEN
++
++/* Size of the buffer to receive kernel messages */
++#define MLX5_NL_BUF_SIZE (32 * 1024)
++/* Send buffer size for the Netlink socket */
++#define MLX5_SEND_BUF_SIZE 32768
++/* Receive buffer size for the Netlink socket */
++#define MLX5_RECV_BUF_SIZE 32768
++
++#define MLX5_NL_CMD_GET_IB_NAME (1 << 0)
++#define MLX5_NL_CMD_GET_IB_INDEX (1 << 1)
++#define MLX5_NL_CMD_GET_NET_INDEX (1 << 2)
++#define MLX5_NL_CMD_GET_PORT_INDEX (1 << 3)
++
++static __thread int nlerrno;
++#define rte_errno nlerrno
++
++/** Data structure used by mlx5_nl_cmdget_cb(). */
++struct mlx5_nl_ifindex_data {
++	const char *name; /**< IB device name (in). */
++	uint32_t flags; /**< found attribute flags (out). */
++	uint32_t ibindex; /**< IB device index (out). */
++	uint32_t ifindex; /**< Network interface index (out). */
++	uint32_t portnum; /**< IB device max port number (out). */
++};
++
++static uint32_t atomic_sn;
++#define MLX5_NL_SN_GENERATE __atomic_add_fetch(&atomic_sn, 1, __ATOMIC_RELAXED)
++
++/**
++ * Process network interface information from Netlink message.
++ *
++ * @param nh
++ *   Pointer to Netlink message header.
++ * @param arg
++ *   Opaque data pointer for this callback.
++ *
++ * @return
++ *   0 on success, a negative errno value otherwise and rte_errno is set.
++ */
++static int
++mlx5_nl_cmdget_cb(struct nlmsghdr *nh, void *arg)
++{
++	struct mlx5_nl_ifindex_data *data = arg;
++	struct mlx5_nl_ifindex_data local = {
++		.flags = 0,
++	};
++	size_t off = NLMSG_HDRLEN;
++
++	if (nh->nlmsg_type !=
++	    RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, RDMA_NLDEV_CMD_GET) &&
++	    nh->nlmsg_type !=
++	    RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, RDMA_NLDEV_CMD_PORT_GET))
++		goto error;
++	while (off < nh->nlmsg_len) {
++		struct nlattr *na = (void *)((uintptr_t)nh + off);
++		void *payload = (void *)((uintptr_t)na + NLA_HDRLEN);
++
++		if (na->nla_len > nh->nlmsg_len - off)
++			goto error;
++		switch (na->nla_type) {
++		case RDMA_NLDEV_ATTR_DEV_INDEX:
++			local.ibindex = *(uint32_t *)payload;
++			local.flags |= MLX5_NL_CMD_GET_IB_INDEX;
++			break;
++		case RDMA_NLDEV_ATTR_DEV_NAME:
++			if (!strcmp(payload, data->name))
++				local.flags |= MLX5_NL_CMD_GET_IB_NAME;
++			break;
++		case RDMA_NLDEV_ATTR_NDEV_INDEX:
++			local.ifindex = *(uint32_t *)payload;
++			local.flags |= MLX5_NL_CMD_GET_NET_INDEX;
++			break;
++		case RDMA_NLDEV_ATTR_PORT_INDEX:
++			local.portnum = *(uint32_t *)payload;
++			local.flags |= MLX5_NL_CMD_GET_PORT_INDEX;
++			break;
++		default:
++			break;
++		}
++		off += NLA_ALIGN(na->nla_len);
++	}
++	/*
++	 * It is possible to have multiple messages for all
++	 * Infiniband devices in the system with appropriate name.
++	 * So we should gather parameters locally and copy to
++	 * query context only in case of coinciding device name.
++	 */
++	if (local.flags & MLX5_NL_CMD_GET_IB_NAME) {
++		data->flags = local.flags;
++		data->ibindex = local.ibindex;
++		data->ifindex = local.ifindex;
++		data->portnum = local.portnum;
++	}
++	return 0;
++error:
++	rte_errno = EINVAL;
++	return -rte_errno;
++}
++
++/**
++ * Send a message to the kernel on the Netlink socket.
++ *
++ * @param[in] nlsk_fd
++ *   The Netlink socket file descriptor used for communication.
++ * @param[in] nh
++ *   The Netlink message send to the kernel.
++ * @param[in] sn
++ *   Sequence number.
++ *
++ * @return
++ *   The number of sent bytes on success, a negative errno value otherwise and
++ *   rte_errno is set.
++ */
++static int
++mlx5_nl_send(int nlsk_fd, struct nlmsghdr *nh, uint32_t sn)
++{
++	struct sockaddr_nl sa = {
++		.nl_family = AF_NETLINK,
++	};
++	struct iovec iov = {
++		.iov_base = nh,
++		.iov_len = nh->nlmsg_len,
++	};
++	struct msghdr msg = {
++		.msg_name = &sa,
++		.msg_namelen = sizeof(sa),
++		.msg_iov = &iov,
++		.msg_iovlen = 1,
++	};
++	int send_bytes;
++
++	nh->nlmsg_pid = 0; /* communication with the kernel uses pid 0 */
++	nh->nlmsg_seq = sn;
++	send_bytes = sendmsg(nlsk_fd, &msg, 0);
++	if (send_bytes < 0) {
++		rte_errno = errno;
++		return -rte_errno;
++	}
++	return send_bytes;
++}
++
++/**
++ * Receive a message from the kernel on the Netlink socket, following
++ * mlx5_nl_send().
++ *
++ * @param[in] nlsk_fd
++ *   The Netlink socket file descriptor used for communication.
++ * @param[in] sn
++ *   Sequence number.
++ * @param[in] cb
++ *   The callback function to call for each Netlink message received.
++ * @param[in, out] arg
++ *   Custom arguments for the callback.
++ *
++ * @return
++ *   0 on success, a negative errno value otherwise and rte_errno is set.
++ */
++static int
++mlx5_nl_recv(int nlsk_fd, uint32_t sn, int (*cb)(struct nlmsghdr *, void *arg),
++	     void *arg)
++{
++	struct sockaddr_nl sa;
++	char buf[MLX5_RECV_BUF_SIZE];
++	struct iovec iov = {
++		.iov_base = buf,
++		.iov_len = MLX5_RECV_BUF_SIZE,
++	};
++	struct msghdr msg = {
++		.msg_name = &sa,
++		.msg_namelen = sizeof(sa),
++		.msg_iov = &iov,
++		/* One message at a time */
++		.msg_iovlen = 1,
++	};
++	int multipart = 0;
++	int ret = 0;
++
++	do {
++		struct nlmsghdr *nh;
++		int recv_bytes = 0;
++
++		do {
++			recv_bytes = recvmsg(nlsk_fd, &msg, 0);
++			if (recv_bytes == -1) {
++				rte_errno = errno;
++				ret = -rte_errno;
++				goto exit;
++			}
++			nh = (struct nlmsghdr *)buf;
++		} while (nh->nlmsg_seq != sn);
++		for (;
++		     NLMSG_OK(nh, (unsigned int)recv_bytes);
++		     nh = NLMSG_NEXT(nh, recv_bytes)) {
++			if (nh->nlmsg_type == NLMSG_ERROR) {
++				struct nlmsgerr *err_data = NLMSG_DATA(nh);
++
++				if (err_data->error < 0) {
++					rte_errno = -err_data->error;
++					ret = -rte_errno;
++					goto exit;
++				}
++				/* Ack message. */
++				ret = 0;
++				goto exit;
++			}
++			/* Multi-part msgs and their trailing DONE message. */
++			if (nh->nlmsg_flags & NLM_F_MULTI) {
++				if (nh->nlmsg_type == NLMSG_DONE) {
++					ret =  0;
++					goto exit;
++				}
++				multipart = 1;
++			}
++			if (cb) {
++				ret = cb(nh, arg);
++				if (ret < 0)
++					goto exit;
++			}
++		}
++	} while (multipart);
++exit:
++	return ret;
++}
++
++static unsigned int
++mlx5_nl_ifindex(int nl, const char *name, uint32_t pindex)
++{
++	struct mlx5_nl_ifindex_data data = {
++		.name = name,
++		.flags = 0,
++		.ibindex = 0, /* Determined during first pass. */
++		.ifindex = 0, /* Determined during second pass. */
++	};
++	union {
++		struct nlmsghdr nh;
++		uint8_t buf[NLMSG_HDRLEN +
++			    NLA_HDRLEN + NLA_ALIGN(sizeof(data.ibindex)) +
++			    NLA_HDRLEN + NLA_ALIGN(sizeof(pindex))];
++	} req = {
++		.nh = {
++			.nlmsg_len = NLMSG_LENGTH(0),
++			.nlmsg_type = RDMA_NL_GET_TYPE(RDMA_NL_NLDEV,
++						       RDMA_NLDEV_CMD_GET),
++			.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP,
++		},
++	};
++	struct nlattr *na;
++	uint32_t sn = MLX5_NL_SN_GENERATE;
++	int ret;
++
++	ret = mlx5_nl_send(nl, &req.nh, sn);
++	if (ret < 0)
++		return 0;
++	ret = mlx5_nl_recv(nl, sn, mlx5_nl_cmdget_cb, &data);
++	if (ret < 0)
++		return 0;
++	if (!(data.flags & MLX5_NL_CMD_GET_IB_NAME) ||
++	    !(data.flags & MLX5_NL_CMD_GET_IB_INDEX))
++		goto error;
++	data.flags = 0;
++	sn = MLX5_NL_SN_GENERATE;
++	req.nh.nlmsg_type = RDMA_NL_GET_TYPE(RDMA_NL_NLDEV,
++					     RDMA_NLDEV_CMD_PORT_GET);
++	req.nh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
++	req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(req.buf) - NLMSG_HDRLEN);
++	na = (void *)((uintptr_t)req.buf + NLMSG_HDRLEN);
++	na->nla_len = NLA_HDRLEN + sizeof(data.ibindex);
++	na->nla_type = RDMA_NLDEV_ATTR_DEV_INDEX;
++	memcpy((void *)((uintptr_t)na + NLA_HDRLEN),
++	       &data.ibindex, sizeof(data.ibindex));
++	na = (void *)((uintptr_t)na + NLA_ALIGN(na->nla_len));
++	na->nla_len = NLA_HDRLEN + sizeof(pindex);
++	na->nla_type = RDMA_NLDEV_ATTR_PORT_INDEX;
++	memcpy((void *)((uintptr_t)na + NLA_HDRLEN),
++	       &pindex, sizeof(pindex));
++	ret = mlx5_nl_send(nl, &req.nh, sn);
++	if (ret < 0)
++		return 0;
++	ret = mlx5_nl_recv(nl, sn, mlx5_nl_cmdget_cb, &data);
++	if (ret < 0)
++		return 0;
++	if (!(data.flags & MLX5_NL_CMD_GET_IB_NAME) ||
++	    !(data.flags & MLX5_NL_CMD_GET_IB_INDEX) ||
++	    !(data.flags & MLX5_NL_CMD_GET_NET_INDEX) ||
++	    !data.ifindex)
++		goto error;
++	return data.ifindex;
++error:
++	rte_errno = ENODEV;
++	return 0;
++}
++
++
++/**
++ * Opens a Netlink socket.
++ *
++ * @param protocol
++ *   Netlink protocol (e.g. NETLINK_ROUTE, NETLINK_RDMA).
++ *
++ * @return
++ *   A file descriptor on success, a negative errno value otherwise and
++ *   rte_errno is set.
++ */
++static int
++mlx5_nl_init(int protocol)
++{
++	int fd;
++	int sndbuf_size = MLX5_SEND_BUF_SIZE;
++	int rcvbuf_size = MLX5_RECV_BUF_SIZE;
++	struct sockaddr_nl local = {
++		.nl_family = AF_NETLINK,
++	};
++	int ret;
++
++	fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
++	if (fd == -1) {
++		rte_errno = errno;
++		return -rte_errno;
++	}
++	ret = setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf_size, sizeof(int));
++	if (ret == -1) {
++		rte_errno = errno;
++		goto error;
++	}
++	ret = setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(int));
++	if (ret == -1) {
++		rte_errno = errno;
++		goto error;
++	}
++	ret = bind(fd, (struct sockaddr *)&local, sizeof(local));
++	if (ret == -1) {
++		rte_errno = errno;
++		goto error;
++	}
++	return fd;
++error:
++	close(fd);
++	return -rte_errno;
++}
++
++
++/**
++ * Modify the MAC address neighbour table with Netlink.
++ *
++ * @param[in] nlsk_fd
++ *   Netlink socket file descriptor.
++ * @param[in] iface_idx
++ *   Net device interface index.
++ * @param mac
++ *   MAC address to consider.
++ * @param add
++ *   1 to add the MAC address, 0 to remove the MAC address.
++ *
++ * @return
++ *   0 on success, a negative errno value otherwise and rte_errno is set.
++ */
++static int
++mlx5_nl_mac_addr_modify(int nlsk_fd, unsigned int iface_idx,
++			struct rte_ether_addr *mac, int add)
++{
++	struct {
++		struct nlmsghdr hdr;
++		struct ndmsg ndm;
++		struct rtattr rta;
++		uint8_t buffer[RTE_ETHER_ADDR_LEN];
++	} req = {
++		.hdr = {
++			.nlmsg_len = NLMSG_LENGTH(sizeof(struct ndmsg)),
++			.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE |
++				NLM_F_EXCL | NLM_F_ACK,
++			.nlmsg_type = add ? RTM_NEWNEIGH : RTM_DELNEIGH,
++		},
++		.ndm = {
++			.ndm_family = PF_BRIDGE,
++			.ndm_state = NUD_NOARP | NUD_PERMANENT,
++			.ndm_ifindex = iface_idx,
++			.ndm_flags = NTF_SELF,
++		},
++		.rta = {
++			.rta_type = NDA_LLADDR,
++			.rta_len = RTA_LENGTH(RTE_ETHER_ADDR_LEN),
++		},
++	};
++	uint32_t sn = MLX5_NL_SN_GENERATE;
++	int ret;
++
++	if (nlsk_fd == -1)
++		return 0;
++	memcpy(RTA_DATA(&req.rta), mac, RTE_ETHER_ADDR_LEN);
++	req.hdr.nlmsg_len = NLMSG_ALIGN(req.hdr.nlmsg_len) +
++		RTA_ALIGN(req.rta.rta_len);
++	ret = mlx5_nl_send(nlsk_fd, &req.hdr, sn);
++	if (ret < 0)
++		goto error;
++	ret = mlx5_nl_recv(nlsk_fd, sn, NULL, NULL);
++	if (ret < 0)
++		goto error;
++	return 0;
++error:
++	return -rte_errno;
++}
++
++int nl_register_mac_address(void)
++{
++	int nl_rdma_fd, ret;
++
++	nl_rdma_fd = mlx5_nl_init(NETLINK_RDMA);
++	if (nl_rdma_fd < 0)
++		return nl_rdma_fd;
++
++	// todo error check...
++	iface_idx =  mlx5_nl_ifindex(nl_rdma_fd, device_name, 1); // TODO dynamic port number
++	if (iface_idx == 0)
++		return rte_errno;
++
++	close(nl_rdma_fd);
++
++	nl_route_fd = mlx5_nl_init(NETLINK_ROUTE);
++	if (nl_route_fd < 0)
++		return -errno;
++
++	ret = mlx5_nl_mac_addr_modify(nl_route_fd,iface_idx, &netcfg.mac, 1);
++
++	close(nl_route_fd);
++
++	/* not a problem if mac is already registered */
++	if (ret == -EEXIST)
++		return 0;
++
++	return 0;
++}
++
++#endif // DIRECTPATH
+diff --git a/caladan/scripts/setup_machine.sh b/caladan/scripts/setup_machine.sh
+index 8e3bbcd..e218495 100755
+--- a/caladan/scripts/setup_machine.sh
++++ b/caladan/scripts/setup_machine.sh
+@@ -16,8 +16,8 @@ mknod /dev/ksched c 280 0
+ chmod uga+rwx /dev/ksched
+ 
+ # reserve huge pages
+-echo 5192 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+-echo 0 > /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
++echo 0 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
++echo 5192 > /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
+ for n in /sys/devices/system/node/node[2-9]; do
+ 	echo 0 > $n/hugepages/hugepages-2048kB/nr_hugepages
+ done
