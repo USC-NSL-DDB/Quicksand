@@ -269,13 +269,21 @@ again:
   }
 
   bool rejected = false;
-  for (auto &[ip, reqs] : all_ip_reqs) {
-    submit_push_data_req(ip, std::move(reqs));
+
+  auto wait_fn = [&] {
     auto &rejected_reqs = push_future_.get();
     if (unlikely(!rejected_reqs.empty())) {
       handle_rejected_push_reqs(rejected_reqs);
       rejected = true;
     }
+  };
+
+  if (push_future_) {
+    wait_fn();
+  }
+  for (auto &[ip, reqs] : all_ip_reqs) {
+    submit_push_data_req(ip, std::move(reqs));
+    wait_fn();
   }
 
   if (unlikely(rejected)) {
