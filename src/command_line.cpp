@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
+#include <numa.h>
 
 #include "nu/command_line.hpp"
 
@@ -69,9 +70,12 @@ CaladanOptionsDesc::CaladanOptionsDesc(std::string default_ip, bool help)
       default_ip.empty()
           ? boost::program_options::value(&ip)
           : boost::program_options::value(&ip)->default_value(default_ip);
+  auto num_cores_per_numa_node =
+      numa_num_configured_cpus() / numa_num_configured_nodes();
+  auto max_num_kthreads = num_cores_per_numa_node - 2;
   desc.add_options()
     ("conf,f", boost::program_options::value(&conf_path), "caladan configuration file")
-    ("kthreads,k", boost::program_options::value(&kthreads)->default_value(kNumCores - 2), "number of kthreads (if conf unspecified)")
+    ("kthreads,k", boost::program_options::value(&kthreads)->default_value(max_num_kthreads), "number of kthreads (if conf unspecified)")
     ("guaranteed,g", boost::program_options::value(&guaranteed)->default_value(0), "number of guaranteed kthreads (if conf unspecified)")
     ("spinning,p", boost::program_options::value(&spinning)->default_value(0), "number of spinning kthreads (if conf unspecified)")
     ("ip,i", ip_opt, "IP address (if conf unspecified)")
