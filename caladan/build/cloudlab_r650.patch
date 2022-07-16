@@ -90,7 +90,7 @@ index deb009c..13947b5 100644
  {
  	size_t buflen = MBUF_DEFAULT_LEN;
 -	buflen *= MAX(8, guaranteedks) * (16 * RQ_NUM_DESC) * 2UL;
-+	buflen *= MAX(8, guaranteedks) * (16 * RQ_NUM_DESC) * 6UL;
++	buflen *= MAX(24, guaranteedks) * (16 * RQ_NUM_DESC) * 2UL;
  	return align_up(buflen, PGSIZE_2MB);
  }
 
