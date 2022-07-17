@@ -1,0 +1,177 @@
+#pragma once
+
+#include <functional>
+#include <list>
+#include <map>
+#include <optional>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "nu/commons.hpp"
+#include "nu/proclet.hpp"
+#include "nu/type_traits.hpp"
+#include "nu/utils/future.hpp"
+#include "nu/utils/mutex.hpp"
+#include "nu/utils/reader_writer_lock.hpp"
+#include "nu/utils/scoped_lock.hpp"
+
+namespace nu {
+
+template <typename K, typename V>
+class GeneralContainer {
+ public:
+  using Key = K;
+  using Val = V;
+  using Pair = std::pair<K, V>;
+
+  virtual std::size_t size() const = 0;
+  virtual bool empty() const = 0;
+  virtual void clear() = 0;
+  virtual void reserve(std::size_t size) = 0;
+  virtual void emplace(K k, V v) = 0;
+  virtual void emplace_batch(GeneralContainer &container) = 0;
+  virtual void split(K *mid_k_ptr, GeneralContainer *latter_half_ptr) = 0;
+  virtual void merge(GeneralContainer &container) = 0;
+  virtual void for_all(std::function<void(std::pair<const Key, Val> &)> fn) = 0;
+  virtual void save(cereal::BinaryOutputArchive &ar) const = 0;
+  virtual void load(cereal::BinaryInputArchive &ar) = 0;
+};
+
+template <class Shard>
+class GeneralShardingMapping;
+
+template <class Container>
+class GeneralShard {
+  static_assert(is_base_of_template_v<Container, GeneralContainer>);
+
+ public:
+  using Key = Container::Key;
+  using Val = Container::Val;
+  using Pair = Container::Pair;
+  using ShardingMapping = GeneralShardingMapping<GeneralShard>;
+
+  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size,
+               std::optional<Key> l_key, std::optional<Key> r_key,
+               Container container);
+  Container get_container();
+  std::pair<ScopedLock<Mutex>, Container *> get_container_ptr();
+  bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
+                         Container container);
+
+ private:
+  uint32_t max_shard_size_;
+  WeakProclet<ShardingMapping> mapping_;
+  std::optional<Key> l_key_;
+  std::optional<Key> r_key_;
+  Container container_;
+  Mutex mutex_;
+};
+
+template <class Shard>
+class GeneralShardingMapping {
+  static_assert(is_base_of_template_v<Shard, GeneralShard>);
+
+ public:
+  using Key = Shard::Key;
+
+  std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
+  get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
+  std::vector<WeakProclet<Shard>> get_all_shards();
+  void update_mapping(std::optional<Key> k, Proclet<Shard> shard);
+
+ private:
+  std::map<std::optional<Key>, Proclet<Shard>, std::greater<std::optional<Key>>>
+      mapping_;
+  ReaderWriterLock rw_lock_;
+};
+
+template <class Container>
+class ShardedDataStructure {
+  static_assert(is_base_of_template_v<Container, GeneralContainer>);
+
+ public:
+  using Key = Container::Key;
+  using Val = Container::Val;
+  using Pair = Container::Pair;
+  using Shard = GeneralShard<Container>;
+  using ShardingMapping = GeneralShardingMapping<Shard>;
+
+  ShardedDataStructure();
+  ShardedDataStructure(std::optional<Key> initial_l_key,
+                       std::optional<Key> initial_r_key,
+                       uint32_t max_shard_bytes, uint32_t max_cache_bytes);
+  ShardedDataStructure(uint64_t num, Key estimated_min_key,
+                       std::function<void(Key &, uint64_t)> key_inc_fn,
+                       uint32_t max_shard_bytes, uint32_t max_cache_bytes);
+  ShardedDataStructure(const ShardedDataStructure &);
+  ShardedDataStructure &operator=(const ShardedDataStructure &);
+  ShardedDataStructure(ShardedDataStructure &&) noexcept;
+  ShardedDataStructure &operator=(ShardedDataStructure &&) noexcept;
+  ~ShardedDataStructure();
+  template <typename K1, typename V1>
+  void emplace(K1 &&k1, V1 &&v1);
+  void emplace(Pair &&p);
+  template <typename... S0s, typename... S1s>
+  void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
+               S1s &&... states);
+  Container collect();
+  void flush();
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
+
+ private:
+  struct Cache {
+    WeakProclet<Shard> shard;
+    Container container;
+    uint32_t *per_ip_cache_size = nullptr;
+
+    Cache();
+    Cache(WeakProclet<Shard>);
+
+    template <class Archive>
+    void save(Archive &ar) const;
+    template <class Archive>
+    void load(Archive &ar);
+  };
+
+  struct PushDataReq {
+    std::optional<Key> l_key;
+    std::optional<Key> r_key;
+    WeakProclet<Shard> shard;
+    Container container;
+
+    template <class Archive>
+    void serialize(Archive &ar);
+  };
+
+  using KeyToCacheMapping =
+      std::map<std::optional<Key>, Cache, std::greater<std::optional<Key>>>;
+  using IPToCachesMapping = std::unordered_map<
+      NodeIP,
+      std::pair<uint32_t, std::list<typename KeyToCacheMapping::iterator>>>;
+
+  Proclet<ShardingMapping> mapping_;
+  uint32_t max_shard_size_;
+  uint32_t max_cache_size_;
+  KeyToCacheMapping key_to_cache_;
+  IPToCachesMapping ip_to_caches_;
+  Future<std::vector<PushDataReq>> push_future_;
+  std::map<NodeIP, Proclet<ErasedType>> node_proxy_shards_;
+  ReaderWriterLock rw_lock_;
+  std::vector<PushDataReq> rejected_push_reqs_;
+  SpinLock spin_;
+
+  void submit_push_data_req(NodeIP ip, std::vector<PushDataReq> reqs);
+  void add_cache(std::optional<Key> k, WeakProclet<Shard> shard);
+  void bind_cache(NodeIP, const KeyToCacheMapping::iterator &cache);
+  std::vector<PushDataReq> gen_push_data_reqs(NodeIP ip);
+  WeakProclet<ErasedType> get_node_proxy_shard(NodeIP ip);
+  void handle_rejected_push_reqs(std::vector<PushDataReq> &reqs);
+};
+
+}  // namespace nu
+
+#include "nu/impl/sharded_ds.ipp"
