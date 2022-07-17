@@ -7,29 +7,43 @@
 namespace nu {
 
 template <typename K, typename V>
-class PairCollection : public GeneralContainer<K, V> {
+class PairCollection {
  public:
-  std::size_t size() const override;
-  bool empty() const override;
-  void clear() override;
-  void reserve(std::size_t size) override;
-  void emplace(K k, V v) override;
-  void emplace_batch(GeneralContainer<K, V> &container) override;
-  void split(K *mid_k_ptr, GeneralContainer<K, V> *latter_half_ptr) override;
-  void merge(GeneralContainer<K, V> &container) override;
-  void for_all(std::function<void(std::pair<const K, V> &)> fn) override;
-  void save(cereal::BinaryOutputArchive &ar) const override;
-  void load(cereal::BinaryInputArchive &ar) override;
+  using Key = K;
+  using Val = V;
 
-  std::vector<std::pair<K, V>> &unwrap();
+  PairCollection();
+  PairCollection(std::size_t size);
+  PairCollection(const PairCollection &);
+  PairCollection &operator=(const PairCollection &);
+  PairCollection(PairCollection &&) noexcept;
+  PairCollection &operator=(PairCollection &&) noexcept;
+  std::size_t size() const;
+  bool empty() const;
+  void clear();
+  void emplace(K k, V v);
+  void emplace_batch(PairCollection &&pc);
+  void split(K *mid_k_ptr, PairCollection *latter_half_ptr);
+  template <typename... S0s, typename... S1s>
+  void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
+               S1s &&... states);
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
+
+  std::vector<std::pair<K, V>> &get_data();
 
  private:
   std::vector<std::pair<K, V>> data_;
 };
 
 template <typename K, typename V>
+using PairCollectionContainer = GeneralContainer<PairCollection<K, V>>;
+
+template <typename K, typename V>
 class ShardedPairCollection
-    : public ShardedDataStructure<PairCollection<K, V>> {
+    : public ShardedDataStructure<PairCollectionContainer<K, V>> {
  public:
   constexpr static uint32_t kDefaultMaxShardBytes = 16 << 20;
   constexpr static uint32_t kDefaultMaxCacheBytes = 100 << 10;
@@ -41,7 +55,7 @@ class ShardedPairCollection
   ShardedPairCollection &operator=(ShardedPairCollection &&) noexcept = default;
 
  private:
-  using Base = ShardedDataStructure<PairCollection<K, V>>;
+  using Base = ShardedDataStructure<PairCollectionContainer<K, V>>;
   ShardedPairCollection(std::optional<K> initial_l_key,
                         std::optional<K> initial_r_key,
                         uint32_t max_shard_bytes, uint32_t max_cache_bytes);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+
 #include <list>
 #include <map>
 #include <optional>
@@ -18,24 +19,52 @@
 
 namespace nu {
 
-template <typename K, typename V>
+template <class Impl>
 class GeneralContainer {
  public:
-  using Key = K;
-  using Val = V;
-  using Pair = std::pair<K, V>;
+  using Key = Impl::Key;
+  using Val = Impl::Val;
+  using Pair = std::pair<Key, Val>;
 
-  virtual std::size_t size() const = 0;
-  virtual bool empty() const = 0;
-  virtual void clear() = 0;
-  virtual void reserve(std::size_t size) = 0;
-  virtual void emplace(K k, V v) = 0;
-  virtual void emplace_batch(GeneralContainer &container) = 0;
-  virtual void split(K *mid_k_ptr, GeneralContainer *latter_half_ptr) = 0;
-  virtual void merge(GeneralContainer &container) = 0;
-  virtual void for_all(std::function<void(std::pair<const Key, Val> &)> fn) = 0;
-  virtual void save(cereal::BinaryOutputArchive &ar) const = 0;
-  virtual void load(cereal::BinaryInputArchive &ar) = 0;
+  GeneralContainer() : impl_() {}
+  GeneralContainer(std::size_t size) : impl_(size) {}
+  GeneralContainer(const GeneralContainer &c) : impl_(c.impl_) {}
+  GeneralContainer &operator=(const GeneralContainer &c) {
+    impl_ = c.impl_;
+    return *this;
+  }
+  GeneralContainer(GeneralContainer &&c) noexcept : impl_(std::move(c.impl_)) {}
+  GeneralContainer &operator=(GeneralContainer &&c) noexcept {
+    impl_ = std::move(c.impl_);
+    return *this;
+  }
+  std::size_t size() const { return impl_.size(); }
+  bool empty() const { return impl_.empty(); };
+  void clear() { impl_.clear(); };
+  void emplace(Key k, Val v) { impl_.emplace(std::move(k), std::move(v)); }
+  void emplace_batch(GeneralContainer &&c) {
+    impl_.emplace_batch(std::move(c.impl_));
+  };
+  void split(Key *mid_k_ptr, GeneralContainer *latter_half_ptr) {
+    impl_.split(mid_k_ptr, &latter_half_ptr->impl_);
+  }
+  template <typename... S0s, typename... S1s>
+  void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
+               S1s &&... states) {
+    impl_.for_all(fn, std::forward<S1s>(states)...);
+  }
+  template <class Archive>
+  void save(Archive &ar) const {
+    impl_.save(ar);
+  }
+  template <class Archive>
+  void load(Archive &ar) {
+    impl_.load(ar);
+  }
+  Impl &unwrap() { return impl_; }
+
+ private:
+  Impl impl_;
 };
 
 template <class Shard>

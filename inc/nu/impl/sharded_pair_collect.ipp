@@ -3,6 +3,35 @@
 namespace nu {
 
 template <typename K, typename V>
+PairCollection<K, V>::PairCollection() {}
+
+template <typename K, typename V>
+PairCollection<K, V>::PairCollection(std::size_t size) {
+  data_.reserve(size);
+}
+
+template <typename K, typename V>
+PairCollection<K, V>::PairCollection(const PairCollection &o)
+    : data_(o.data_) {}
+
+template <typename K, typename V>
+PairCollection<K, V> &PairCollection<K, V>::operator=(const PairCollection &o) {
+  data_ = o.data_;
+  return *this;
+}
+
+template <typename K, typename V>
+PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept
+    : data_(std::move(o.data_)) {}
+
+template <typename K, typename V>
+PairCollection<K, V> &PairCollection<K, V>::operator=(
+    PairCollection &&o) noexcept {
+  data_ = std::move(o.data_);
+  return *this;
+}
+
+template <typename K, typename V>
 std::size_t PairCollection<K, V>::size() const {
   return data_.size();
 }
@@ -18,26 +47,19 @@ void PairCollection<K, V>::clear() {
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::reserve(std::size_t size) {
-  data_.reserve(size);
-}
-
-template <typename K, typename V>
 void PairCollection<K, V>::emplace(K k, V v) {
   data_.emplace_back(std::move(k), std::move(v));
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::emplace_batch(
-    GeneralContainer<K, V> &general_container) {
-  auto &container = dynamic_cast<PairCollection &>(general_container);
-  data_.insert(data_.end(), container.data_.begin(), container.data_.end());
+void PairCollection<K, V>::emplace_batch(PairCollection &&pc) {
+  data_.insert(data_.end(), std::make_move_iterator(pc.data_.begin()),
+               std::make_move_iterator(pc.data_.end()));
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::split(
-    K *mid_k_ptr, GeneralContainer<K, V> *general_latter_half_ptr) {
-  auto *latter_half_ptr = dynamic_cast<PairCollection *>(general_latter_half_ptr);
+void PairCollection<K, V>::split(K *mid_k_ptr,
+                                 PairCollection *latter_half_ptr) {
   adaptiveQuickselect(data_.data(), data_.size() / 2, data_.size());
   *mid_k_ptr = data_[data_.size() / 2].first;
   auto mid = data_.begin() + data_.size() / 2;
@@ -46,32 +68,28 @@ void PairCollection<K, V>::split(
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::merge(GeneralContainer<K, V> &general_container) {
-  auto &container = dynamic_cast<PairCollection &>(general_container);
-  data_.insert(data_.end(), std::make_move_iterator(container.data_.begin()),
-               std::make_move_iterator(container.data_.end()));
-}
-
-template <typename K, typename V>
-void PairCollection<K, V>::for_all(
-    std::function<void(std::pair<const K, V> &)> fn) {
+template <typename... S0s, typename... S1s>
+void PairCollection<K, V>::for_all(void (*fn)(std::pair<const K, V> &, S0s...),
+                                   S1s &&... states) {
   for (auto &p : data_) {
-    fn(reinterpret_cast<std::pair<const K, V> &>(p));
+    fn(reinterpret_cast<std::pair<const K, V> &>(p), states...);
   }
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::save(cereal::BinaryOutputArchive &ar) const {
+template <class Archive>
+void PairCollection<K, V>::save(Archive &ar) const {
   ar(data_);
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::load(cereal::BinaryInputArchive &ar) {
+template <class Archive>
+void PairCollection<K, V>::load(Archive &ar) {
   ar(data_);
 }
 
 template <typename K, typename V>
-std::vector<std::pair<K, V>> &PairCollection<K, V>::unwrap() {
+std::vector<std::pair<K, V>> &PairCollection<K, V>::get_data() {
   return data_;
 }
 
@@ -79,8 +97,7 @@ template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardedPairCollection(
     std::optional<K> initial_l_key, std::optional<K> initial_r_key,
     uint32_t max_shard_bytes, uint32_t max_cache_bytes)
-    : Base(initial_l_key, initial_r_key, max_shard_bytes,
-                                 max_cache_bytes) {}
+    : Base(initial_l_key, initial_r_key, max_shard_bytes, max_cache_bytes) {}
 
 template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardedPairCollection(

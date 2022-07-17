@@ -16,10 +16,8 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
     : max_shard_size_(max_shard_size),
       mapping_(std::move(mapping)),
       l_key_(l_key),
-      r_key_(r_key) {
-  container_.reserve(max_shard_size_);
-  container_ = container;
-}
+      r_key_(r_key),
+      container_(std::move(container)) {}
 
 template <class Container>
 Container GeneralShard<Container>::get_container() {
@@ -55,7 +53,7 @@ bool GeneralShard<Container>::try_emplace_batch(std::optional<Key> l_key,
     return false;
   }
 
-  container_.emplace_batch(container);
+  container_.emplace_batch(std::move(container));
 
   return true;
 }
@@ -113,7 +111,7 @@ ShardedDataStructure<Container>::ShardedDataStructure(
       max_cache_size_(max_cache_bytes / sizeof(Pair)) {
   auto initial_shard =
       make_proclet<Shard>(mapping_.get_weak(), max_shard_size_, initial_l_key,
-                          initial_r_key, Container());
+                          initial_r_key, Container(max_shard_size_));
   auto weak_shard = initial_shard.get_weak();
   add_cache(std::nullopt, weak_shard);
   mapping_.run(&ShardingMapping::update_mapping, initial_l_key,
@@ -136,7 +134,8 @@ ShardedDataStructure<Container>::ShardedDataStructure(
     key_inc_fn(k, max_shard_size_);
     shard_futures.emplace_back(make_proclet_async<Shard>(
         mapping_.get_weak(), max_shard_size_, prev_k,
-        (i != num_shards - 1) ? k : std::optional<Key>(), Container()));
+        (i != num_shards - 1) ? k : std::optional<Key>(),
+        Container(max_shard_size_)));
   }
 
   k = estimated_min_key;
@@ -339,8 +338,10 @@ void ShardedDataStructure<Container>::handle_rejected_push_reqs(
       add_cache(std::move(k), s);
     }
 
-    rejected_container.for_all(
-        [&](std::pair<const Key, Val> &p) { emplace(std::move(p)); });
+    auto fn = +[](std::pair<const Key, Val> &p, ShardedDataStructure *ds) {
+      ds->emplace(std::move(p));
+    };
+    rejected_container.for_all(fn, this);
   }
 }
 
@@ -395,8 +396,7 @@ void ShardedDataStructure<Container>::for_all(
           auto *fn = reinterpret_cast<Fn>(raw_fn);
           auto pair = shard.get_container_ptr();
           auto *container_ptr = pair.second;
-          auto lambda = std::bind(fn, std::placeholders::_1, states...);
-          container_ptr->for_all(lambda);
+          container_ptr->for_all(fn, states...);
         },
         raw_fn, states...));
   }
@@ -414,7 +414,7 @@ Container ShardedDataStructure<Container>::collect() {
   Container all;
   for (auto &future : futures) {
     auto &vec = future.get();
-    all.merge(vec);
+    all.emplace_batch(std::move(vec));
   }
   return all;
 }

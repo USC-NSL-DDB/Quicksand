@@ -50,7 +50,7 @@ bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
   nu::RuntimeSlabGuard g;
 
   auto c = sc->collect();
-  auto &v = c.unwrap();
+  auto &v = c.unwrap().get_data();
   sort(v.begin(), v.end());
 
   std::vector<std::pair<int, std::string>> expected_v;
