@@ -97,18 +97,6 @@ class ShardedDataStructure {
   using Shard = GeneralShard<Container>;
   using ShardingMapping = GeneralShardingMapping<Shard>;
 
-  ShardedDataStructure();
-  ShardedDataStructure(std::optional<Key> initial_l_key,
-                       std::optional<Key> initial_r_key,
-                       uint32_t max_shard_bytes, uint32_t max_cache_bytes);
-  ShardedDataStructure(uint64_t num, Key estimated_min_key,
-                       std::function<void(Key &, uint64_t)> key_inc_fn,
-                       uint32_t max_shard_bytes, uint32_t max_cache_bytes);
-  ShardedDataStructure(const ShardedDataStructure &);
-  ShardedDataStructure &operator=(const ShardedDataStructure &);
-  ShardedDataStructure(ShardedDataStructure &&) noexcept;
-  ShardedDataStructure &operator=(ShardedDataStructure &&) noexcept;
-  ~ShardedDataStructure();
   template <typename K1, typename V1>
   void emplace(K1 &&k1, V1 &&v1);
   void emplace(Pair &&p);
@@ -121,6 +109,20 @@ class ShardedDataStructure {
   void save(Archive &ar) const;
   template <class Archive>
   void load(Archive &ar);
+
+ protected:
+  ShardedDataStructure();
+  ShardedDataStructure(std::optional<Key> initial_l_key,
+                       std::optional<Key> initial_r_key,
+                       uint32_t max_shard_bytes, uint32_t max_cache_bytes);
+  ShardedDataStructure(uint64_t num, Key estimated_min_key,
+                       std::function<void(Key &, uint64_t)> key_inc_fn,
+                       uint32_t max_shard_bytes, uint32_t max_cache_bytes);
+  ShardedDataStructure(const ShardedDataStructure &);
+  ShardedDataStructure &operator=(const ShardedDataStructure &);
+  ShardedDataStructure(ShardedDataStructure &&) noexcept;
+  ShardedDataStructure &operator=(ShardedDataStructure &&) noexcept;
+  ~ShardedDataStructure();
 
  private:
   struct Cache {

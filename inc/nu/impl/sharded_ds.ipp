@@ -1,3 +1,8 @@
+#include <cereal/types/map.hpp>
+#include <cereal/types/optional.hpp>
+#include <cereal/types/utility.hpp>
+#include <cereal/types/vector.hpp>
+
 // TODO: support no-cache mode.
 
 namespace nu {
