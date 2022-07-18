@@ -20,6 +20,18 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       container_(std::move(container)) {}
 
 template <class Container>
+GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
+                                      uint32_t max_shard_size,
+                                      std::optional<Key> l_key,
+                                      std::optional<Key> r_key,
+                                      std::size_t capacity)
+    : max_shard_size_(max_shard_size),
+      mapping_(std::move(mapping)),
+      l_key_(l_key),
+      r_key_(r_key),
+      container_(capacity) {}
+
+template <class Container>
 Container GeneralShard<Container>::get_container() {
   ScopedLock<Mutex> guard(&mutex_);
   return container_;
@@ -109,7 +121,7 @@ ShardedDataStructure<Container>::ShardedDataStructure(
       max_batch_size_(max_batch_bytes / sizeof(Pair)) {
   auto initial_shard =
       make_proclet<Shard>(mapping_.get_weak(), max_shard_size_, initial_l_key,
-                          initial_r_key, Container(max_shard_size_));
+                          initial_r_key, max_shard_size_);
   auto weak_shard = initial_shard.get_weak();
   add_batch(std::nullopt, weak_shard);
   mapping_.run(&ShardingMapping::update_mapping, initial_l_key,
@@ -132,8 +144,7 @@ ShardedDataStructure<Container>::ShardedDataStructure(
     key_inc_fn(k, max_shard_size_);
     shard_futures.emplace_back(make_proclet_async<Shard>(
         mapping_.get_weak(), max_shard_size_, prev_k,
-        (i != num_shards - 1) ? k : std::optional<Key>(),
-        Container(max_shard_size_)));
+        (i != num_shards - 1) ? k : std::optional<Key>(), max_shard_size_));
   }
 
   k = estimated_min_key;

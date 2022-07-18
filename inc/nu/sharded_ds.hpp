@@ -87,6 +87,9 @@ class GeneralShard {
   GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size,
                std::optional<Key> l_key, std::optional<Key> r_key,
                Container container);
+  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size,
+               std::optional<Key> l_key, std::optional<Key> r_key,
+               std::size_t capacity);
   Container get_container();
   std::pair<ScopedLock<Mutex>, Container *> get_container_ptr();
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
