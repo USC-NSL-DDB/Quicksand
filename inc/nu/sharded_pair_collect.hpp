@@ -43,6 +43,7 @@ class PairCollection {
   bool ownership_;
 
   void expand();
+  void destroy();
 };
 
 template <typename K, typename V>

@@ -17,12 +17,18 @@ PairCollection<K, V>::PairCollection(std::size_t capacity) {
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection(const PairCollection &o) {
-  *this = o;
+PairCollection<K, V>::PairCollection(const PairCollection &o)
+    : data_(new std::pair<K, V>[o.capacity_]),
+      size_(o.size_),
+      capacity_(o.capacity_),
+      ownership_(true) {
+  std::copy(o.data_, o.data_ + size_, data_);
 }
 
 template <typename K, typename V>
 PairCollection<K, V> &PairCollection<K, V>::operator=(const PairCollection &o) {
+  destroy();
+
   size_ = o.size_;
   capacity_ = o.capacity_;
   data_ = new std::pair<K, V>[capacity_];
@@ -32,13 +38,19 @@ PairCollection<K, V> &PairCollection<K, V>::operator=(const PairCollection &o) {
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept {
-  *this = std::move(o);
+PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept
+    : data_(o.data_),
+      size_(o.size_),
+      capacity_(o.capacity_),
+      ownership_(o.ownership_) {
+  o.data_ = nullptr;
 }
 
 template <typename K, typename V>
 PairCollection<K, V> &PairCollection<K, V>::operator=(
     PairCollection &&o) noexcept {
+  destroy();
+
   data_ = o.data_;
   size_ = o.size_;
   capacity_ = o.capacity_;
@@ -48,10 +60,15 @@ PairCollection<K, V> &PairCollection<K, V>::operator=(
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::~PairCollection() {
+void PairCollection<K, V>::destroy() {
   if (data_ && ownership_) {
     delete[] data_;
   }
+}
+
+template <typename K, typename V>
+PairCollection<K, V>::~PairCollection() {
+  destroy();
 }
 
 template <typename K, typename V>

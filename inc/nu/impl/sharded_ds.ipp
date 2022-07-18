@@ -149,13 +149,21 @@ ShardedDataStructure<Container>::ShardedDataStructure(
 
 template <class Container>
 ShardedDataStructure<Container>::ShardedDataStructure(
-    const ShardedDataStructure &o) {
-  *this = o;
+    const ShardedDataStructure &o)
+    : mapping_(o.mapping_),
+      max_shard_size_(o.max_shard_size_),
+      max_batch_size_(o.max_batch_size_),
+      node_proxy_shards_(o.node_proxy_shards_) {
+  for (auto &[k, c] : o.key_to_batch_) {
+    add_batch(k, c.shard);
+  }
 }
 
 template <class Container>
 ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
     const ShardedDataStructure &o) {
+  flush();
+
   mapping_ = o.mapping_;
   max_shard_size_ = o.max_shard_size_;
   max_batch_size_ = o.max_batch_size_;
@@ -168,20 +176,28 @@ ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
 
 template <class Container>
 ShardedDataStructure<Container>::ShardedDataStructure(
-    ShardedDataStructure &&o) noexcept {
-  *this = std::move(o);
-}
+    ShardedDataStructure &&o) noexcept
+    : mapping_(std::move(o.mapping_)),
+      max_shard_size_(o.max_shard_size_),
+      max_batch_size_(o.max_batch_size_),
+      key_to_batch_(std::move(o.key_to_batch_)),
+      ip_to_batchs_(std::move(o.ip_to_batchs_)),
+      push_future_(std::move(o.push_future_)),
+      node_proxy_shards_(std::move(o.node_proxy_shards_)),
+      rejected_push_reqs_(std::move(o.rejected_push_reqs_)) {}
 
 template <class Container>
 ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
     ShardedDataStructure &&o) noexcept {
+  flush();
+
   mapping_ = std::move(o.mapping_);
   max_shard_size_ = o.max_shard_size_;
   max_batch_size_ = o.max_batch_size_;
-  node_proxy_shards_ = std::move(o.node_proxy_shards_);
   key_to_batch_ = std::move(o.key_to_batch_);
   ip_to_batchs_ = std::move(o.ip_to_batchs_);
   push_future_ = std::move(o.push_future_);
+  node_proxy_shards_ = std::move(o.node_proxy_shards_);
   rejected_push_reqs_ = std::move(o.rejected_push_reqs_);
   return *this;
 }
