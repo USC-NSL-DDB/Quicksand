@@ -147,10 +147,10 @@ class ShardedDataStructure {
   ShardedDataStructure();
   ShardedDataStructure(std::optional<Key> initial_l_key,
                        std::optional<Key> initial_r_key,
-                       uint32_t max_shard_bytes, uint32_t max_cache_bytes);
+                       uint32_t max_shard_bytes, uint32_t max_batch_bytes);
   ShardedDataStructure(uint64_t num, Key estimated_min_key,
                        std::function<void(Key &, uint64_t)> key_inc_fn,
-                       uint32_t max_shard_bytes, uint32_t max_cache_bytes);
+                       uint32_t max_shard_bytes, uint32_t max_batch_bytes);
   ShardedDataStructure(const ShardedDataStructure &);
   ShardedDataStructure &operator=(const ShardedDataStructure &);
   ShardedDataStructure(ShardedDataStructure &&) noexcept;
@@ -158,13 +158,13 @@ class ShardedDataStructure {
   ~ShardedDataStructure();
 
  private:
-  struct Cache {
+  struct Batch {
     WeakProclet<Shard> shard;
     Container container;
-    uint32_t *per_ip_cache_size = nullptr;
+    uint32_t *per_ip_batch_size = nullptr;
 
-    Cache();
-    Cache(WeakProclet<Shard>);
+    Batch();
+    Batch(WeakProclet<Shard>);
 
     template <class Archive>
     void save(Archive &ar) const;
@@ -182,17 +182,17 @@ class ShardedDataStructure {
     void serialize(Archive &ar);
   };
 
-  using KeyToCacheMapping =
-      std::map<std::optional<Key>, Cache, std::greater<std::optional<Key>>>;
-  using IPToCachesMapping = std::unordered_map<
+  using KeyToBatchMapping =
+      std::map<std::optional<Key>, Batch, std::greater<std::optional<Key>>>;
+  using IPToBatchsMapping = std::unordered_map<
       NodeIP,
-      std::pair<uint32_t, std::list<typename KeyToCacheMapping::iterator>>>;
+      std::pair<uint32_t, std::list<typename KeyToBatchMapping::iterator>>>;
 
   Proclet<ShardingMapping> mapping_;
   uint32_t max_shard_size_;
-  uint32_t max_cache_size_;
-  KeyToCacheMapping key_to_cache_;
-  IPToCachesMapping ip_to_caches_;
+  uint32_t max_batch_size_;
+  KeyToBatchMapping key_to_batch_;
+  IPToBatchsMapping ip_to_batchs_;
   Future<std::vector<PushDataReq>> push_future_;
   std::map<NodeIP, Proclet<ErasedType>> node_proxy_shards_;
   ReaderWriterLock rw_lock_;
@@ -200,8 +200,8 @@ class ShardedDataStructure {
   SpinLock spin_;
 
   void submit_push_data_req(NodeIP ip, std::vector<PushDataReq> reqs);
-  void add_cache(std::optional<Key> k, WeakProclet<Shard> shard);
-  void bind_cache(NodeIP, const KeyToCacheMapping::iterator &cache);
+  void add_batch(std::optional<Key> k, WeakProclet<Shard> shard);
+  void bind_batch(NodeIP, const KeyToBatchMapping::iterator &batch);
   std::vector<PushDataReq> gen_push_data_reqs(NodeIP ip);
   WeakProclet<ErasedType> get_node_proxy_shard(NodeIP ip);
   void handle_rejected_push_reqs(std::vector<PushDataReq> &reqs);
