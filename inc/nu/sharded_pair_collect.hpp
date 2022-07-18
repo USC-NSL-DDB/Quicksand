@@ -13,17 +13,19 @@ class PairCollection {
   using Val = V;
 
   PairCollection();
-  PairCollection(std::size_t size);
+  PairCollection(std::size_t capacity);
   PairCollection(const PairCollection &);
   PairCollection &operator=(const PairCollection &);
   PairCollection(PairCollection &&) noexcept;
   PairCollection &operator=(PairCollection &&) noexcept;
+  ~PairCollection();
   std::size_t size() const;
+  std::size_t capacity() const;
   bool empty() const;
   void clear();
   void emplace(K k, V v);
   void emplace_batch(PairCollection &&pc);
-  void split(K *mid_k_ptr, PairCollection *latter_half_ptr);
+  std::pair<Key, PairCollection> split();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
                S1s &&... states);
@@ -32,10 +34,15 @@ class PairCollection {
   template <class Archive>
   void load(Archive &ar);
 
-  std::vector<std::pair<K, V>> &get_data();
+  std::pair<K, V> *data();
 
  private:
-  std::vector<std::pair<K, V>> data_;
+  std::pair<K, V> *data_;
+  std::size_t size_;
+  std::size_t capacity_;
+  bool ownership_;
+
+  void expand();
 };
 
 template <typename K, typename V>

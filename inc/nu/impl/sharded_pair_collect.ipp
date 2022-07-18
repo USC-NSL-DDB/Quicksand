@@ -1,95 +1,172 @@
+#include <memory>
+
 #include "nu/utils/bfprt/median_of_ninthers.h"
 
 namespace nu {
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection() {}
+PairCollection<K, V>::PairCollection()
+    : data_(nullptr), size_(0), capacity_(0), ownership_(false) {}
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection(std::size_t size) {
-  data_.reserve(size);
+PairCollection<K, V>::PairCollection(std::size_t capacity) {
+  data_ = new std::pair<K, V>[capacity];
+  size_ = 0;
+  capacity_ = capacity;
+  ownership_ = true;
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection(const PairCollection &o)
-    : data_(o.data_) {}
+PairCollection<K, V>::PairCollection(const PairCollection &o) {
+  *this = o;
+}
 
 template <typename K, typename V>
 PairCollection<K, V> &PairCollection<K, V>::operator=(const PairCollection &o) {
-  data_ = o.data_;
+  size_ = o.size_;
+  capacity_ = o.capacity_;
+  data_ = new std::pair<K, V>[capacity_];
+  std::copy(o.data_, o.data_ + size_, data_);
+  ownership_ = true;
   return *this;
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept
-    : data_(std::move(o.data_)) {}
+PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept {
+  *this = std::move(o);
+}
 
 template <typename K, typename V>
 PairCollection<K, V> &PairCollection<K, V>::operator=(
     PairCollection &&o) noexcept {
-  data_ = std::move(o.data_);
+  data_ = o.data_;
+  size_ = o.size_;
+  capacity_ = o.capacity_;
+  ownership_ = o.ownership_;
+  o.data_ = nullptr;
   return *this;
 }
 
 template <typename K, typename V>
+PairCollection<K, V>::~PairCollection() {
+  if (data_ && ownership_) {
+    delete[] data_;
+  }
+}
+
+template <typename K, typename V>
 std::size_t PairCollection<K, V>::size() const {
-  return data_.size();
+  return size_;
+}
+
+template <typename K, typename V>
+std::size_t PairCollection<K, V>::capacity() const {
+  return capacity_;
 }
 
 template <typename K, typename V>
 bool PairCollection<K, V>::empty() const {
-  return data_.empty();
+  return !size_;
 }
 
 template <typename K, typename V>
 void PairCollection<K, V>::clear() {
-  data_.clear();
+  if (data_) {
+    for (std::size_t i = 0; i < size_; i++) {
+      std::destroy_at(&data_[i]);
+    }
+  } else {
+    // Moved. Reset it back into a specified sate.
+    capacity_ = 0;
+  }
+  size_ = 0;
+}
+
+template <typename K, typename V>
+void PairCollection<K, V>::expand() {
+  if (!capacity_) {
+    capacity_ = 1;
+    ownership_ = true;
+  } else {
+    capacity_ *= 2;
+  }
+  auto *new_data = new std::pair<K, V>[capacity_];
+
+  if (size_) {
+    for (std::size_t i = 0; i < size_; i++) {
+      new_data[i] = std::move(data_[i]);
+    }
+    delete[] data_;
+  }
+
+  data_ = new_data;
 }
 
 template <typename K, typename V>
 void PairCollection<K, V>::emplace(K k, V v) {
-  data_.emplace_back(std::move(k), std::move(v));
+  // Invoked at the client side for batching.
+  if (unlikely(size_ == capacity_)) {
+    expand();
+  }
+  data_[size_++] = std::pair<K, V>(std::move(k), std::move(v));
+  assert(size_ <= capacity_);
+  assert(ownership_);
 }
 
 template <typename K, typename V>
 void PairCollection<K, V>::emplace_batch(PairCollection &&pc) {
-  data_.insert(data_.end(), std::make_move_iterator(pc.data_.begin()),
-               std::make_move_iterator(pc.data_.end()));
+  // Invoked at the Shard. Will never go out of bound due to the split design.
+  for (std::size_t i = 0; i < pc.size_; i++) {
+    data_[size_++] = std::move(pc.data_[i]);
+  }
+  assert(size_ <= capacity_);
+  assert(ownership_);
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::split(K *mid_k_ptr,
-                                 PairCollection *latter_half_ptr) {
-  adaptiveQuickselect(data_.data(), data_.size() / 2, data_.size());
-  *mid_k_ptr = data_[data_.size() / 2].first;
-  auto mid = data_.begin() + data_.size() / 2;
-  latter_half_ptr->data_ = std::vector(mid, data_.end());
-  data_.erase(mid, data_.end());
+std::pair<K, PairCollection<K, V>> PairCollection<K, V>::split() {
+  adaptiveQuickselect(data_, size_ / 2, size_);
+  auto mid_k = data_[size_ / 2].first;
+  PairCollection latter_half;
+  latter_half.data_ = data_ + size_ / 2;
+  latter_half.size_ = size_ - size_ / 2;
+  latter_half.capacity_ = capacity_;
+  latter_half.ownership_ = false;
+  size_ /= 2;
+  return std::make_pair(std::move(mid_k), std::move(latter_half));
 }
 
 template <typename K, typename V>
 template <typename... S0s, typename... S1s>
 void PairCollection<K, V>::for_all(void (*fn)(std::pair<const K, V> &, S0s...),
                                    S1s &&... states) {
-  for (auto &p : data_) {
-    fn(reinterpret_cast<std::pair<const K, V> &>(p), states...);
+  for (std::size_t i = 0; i < size_; i++) {
+    fn(reinterpret_cast<std::pair<const K, V> &>(data_[i]), states...);
   }
 }
 
 template <typename K, typename V>
 template <class Archive>
 void PairCollection<K, V>::save(Archive &ar) const {
-  ar(data_);
+  ar(size_, capacity_);
+  for (std::size_t i = 0; i < size_; i++) {
+    ar(data_[i]);
+  }
 }
 
 template <typename K, typename V>
 template <class Archive>
 void PairCollection<K, V>::load(Archive &ar) {
-  ar(data_);
+  ar(size_, capacity_);
+  data_ = new std::pair<K, V>[capacity_];
+  for (std::size_t i = 0; i < size_; i++) {
+    ar(data_[i]);
+  }
+  ownership_ = true;
 }
 
 template <typename K, typename V>
-std::vector<std::pair<K, V>> &PairCollection<K, V>::get_data() {
+std::pair<K, V> *PairCollection<K, V>::data() {
   return data_;
 }
 

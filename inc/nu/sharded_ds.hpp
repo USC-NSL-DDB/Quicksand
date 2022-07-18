@@ -27,7 +27,7 @@ class GeneralContainer {
   using Pair = std::pair<Key, Val>;
 
   GeneralContainer() : impl_() {}
-  GeneralContainer(std::size_t size) : impl_(size) {}
+  GeneralContainer(std::size_t capacity) : impl_(capacity) {}
   GeneralContainer(const GeneralContainer &c) : impl_(c.impl_) {}
   GeneralContainer &operator=(const GeneralContainer &c) {
     impl_ = c.impl_;
@@ -39,14 +39,18 @@ class GeneralContainer {
     return *this;
   }
   std::size_t size() const { return impl_.size(); }
+  std::size_t capacity() const { return impl_.capacity(); }
   bool empty() const { return impl_.empty(); };
   void clear() { impl_.clear(); };
   void emplace(Key k, Val v) { impl_.emplace(std::move(k), std::move(v)); }
   void emplace_batch(GeneralContainer &&c) {
     impl_.emplace_batch(std::move(c.impl_));
   };
-  void split(Key *mid_k_ptr, GeneralContainer *latter_half_ptr) {
-    impl_.split(mid_k_ptr, &latter_half_ptr->impl_);
+  std::pair<Key, GeneralContainer> split() {
+    auto [k, impl] = impl_.split();
+    GeneralContainer c;
+    c.impl_ = std::move(impl);
+    return std::make_pair(std::move(k), std::move(c));
   }
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),

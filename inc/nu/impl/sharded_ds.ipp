@@ -43,11 +43,9 @@ bool GeneralShard<Container>::try_emplace_batch(std::optional<Key> l_key,
   }
 
   if (unlikely(container_.size() + container.size() > max_shard_size_)) {
-    Key mid_k;
-    Container post_split_container;
-    container_.split(&mid_k, &post_split_container);
+    auto [mid_k, latter_half_container] = container_.split();
     auto new_shard = make_proclet<GeneralShard>(
-        mapping_, max_shard_size_, mid_k, r_key_, post_split_container);
+        mapping_, max_shard_size_, mid_k, r_key_, latter_half_container);
     r_key_ = mid_k;
     mapping_.run(&ShardingMapping::update_mapping, mid_k, std::move(new_shard));
     return false;
@@ -411,11 +409,17 @@ Container ShardedDataStructure<Container>::collect() {
   for (auto &shard : shards) {
     futures.emplace_back(shard.run_async(&Shard::get_container));
   }
-  Container all;
+
+  std::size_t size = 0;
   for (auto &future : futures) {
-    auto &vec = future.get();
-    all.emplace_batch(std::move(vec));
+    size += future.get().size();
   }
+
+  Container all(size);
+  for (auto &future : futures) {
+    all.emplace_batch(std::move(future.get()));
+  }
+
   return all;
 }
 
@@ -449,12 +453,16 @@ template <class Container>
 template <class Archive>
 void ShardedDataStructure<Container>::Cache::save(Archive &ar) const {
   ar(shard);
+  ar(container.capacity());
 }
 
 template <class Container>
 template <class Archive>
 void ShardedDataStructure<Container>::Cache::load(Archive &ar) {
   ar(shard);
+  std::size_t capacity;
+  ar(capacity);
+  container = std::move(Container(capacity));
 }
 
 template <class Container>
