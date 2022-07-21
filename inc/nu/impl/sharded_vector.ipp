@@ -50,6 +50,7 @@ ShardedVector<T>::ShardedVector()
       buffered_shard_idx_((uint32_t)-1),
       read_buffer_(0),
       flush_reqs_(0),
+      new_shard_reqs_(0),
       shards_(0) {}
 
 template <typename T>
@@ -65,6 +66,8 @@ ShardedVector<T>& ShardedVector<T>::operator=(const ShardedVector& o) {
   size_ = o.size_;
   max_tail_buffer_size_ = o.max_tail_buffer_size_;
   tail_buffer_ = o.tail_buffer_;
+  flush_reqs_ = o.flush_reqs_;
+  new_shard_reqs_ = o.new_shard_reqs_;
   return *this;
 }
 
@@ -82,6 +85,7 @@ ShardedVector<T>& ShardedVector<T>::operator=(ShardedVector&& o) {
   max_tail_buffer_size_ = o.max_tail_buffer_size_;
   tail_buffer_ = std::move(o.tail_buffer_);
   flush_reqs_ = std::move(o.flush_reqs_);
+  new_shard_reqs_ = std::move(o.new_shard_reqs_);
   return *this;
 }
 
@@ -91,6 +95,9 @@ T ShardedVector<T>::operator[](uint32_t index) {
   if (elem.in_buffer) {
     return tail_buffer_[elem.loc.buffer.idx];
   } else {
+    if (unlikely(is_flush_pending())) {
+      flush();
+    }
     if (unlikely(elem.loc.shard.shard_idx != buffered_shard_idx_)) {
       auto& shard = shards_[elem.loc.shard.shard_idx];
       auto shard_data = shard.run(&Shard<T>::collect);
@@ -149,6 +156,15 @@ void ShardedVector<T>::flush() {
     future.get();
   }
   flush_reqs_.clear();
+  for (auto& new_shard : new_shard_reqs_) {
+    shards_.push_back(new_shard.get());
+  }
+  new_shard_reqs_.clear();
+}
+
+template <typename T>
+inline bool ShardedVector<T>::is_flush_pending() {
+  return flush_reqs_.size() > 0 || new_shard_reqs_.size() > 0;
 }
 
 template <typename T>
@@ -183,8 +199,8 @@ void ShardedVector<T>::init_flush() {
       std::vector<T> elems(
           std::make_move_iterator(tail_buffer_.begin() + start),
           std::make_move_iterator(tail_buffer_.begin() + start + to_send));
-      shards_.emplace_back(
-          make_proclet<Shard<T>>(std::move(elems), shard_max_size_));
+      new_shard_reqs_.emplace_back(
+          make_proclet_async<Shard<T>>(std::move(elems), shard_max_size_));
     }
 
     start += to_send;
