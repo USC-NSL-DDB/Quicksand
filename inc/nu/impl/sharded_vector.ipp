@@ -38,7 +38,7 @@ VectorShard<T>::VectorShard(VectorShard &&o) noexcept
     : data_(o.data_),
       capacity_(o.capacity_),
       l_key_(o.l_key_),
-      r_key(o.r_key_) {
+      r_key_(o.r_key_) {
   o.data_.clear();
   l_key_ = SIZE_MAX;
   r_key_ = SIZE_MAX;
@@ -146,6 +146,61 @@ void VectorShard<T>::load(Archive &ar) {
   ar(capacity_);
   ar(l_key_);
   ar(r_key_);
+}
+
+template <typename T>
+ShardedVector<T>::ShardedVector() : size_(0) {}
+
+template <typename T>
+ShardedVector<T>::ShardedVector(const ShardedVector &o) {
+  *this = o;
+}
+
+template <typename T>
+ShardedVector<T> &ShardedVector<T>::operator=(const ShardedVector &o) {
+  size_ = o.size_;
+  return *this;
+}
+
+template <typename T>
+ShardedVector<T>::ShardedVector(ShardedVector &&o) noexcept {
+  *this = std::move(o);
+}
+template <typename T>
+ShardedVector<T> &ShardedVector<T>::operator=(ShardedVector &&o) noexcept {
+  size_ = o.size_;
+  return *this;
+}
+
+template <typename T>
+T ShardedVector<T>::operator[](std::size_t index) {
+  // TODO
+}
+
+template <typename T>
+void ShardedVector<T>::push_back(const T &value) {
+  // TODO
+}
+
+template <typename T>
+void ShardedVector<T>::pop_back() {
+  // TODO
+}
+
+template <typename T>
+template <typename T1>
+void ShardedVector<T>::set(std::size_t index, T1 &&value) {
+  // TODO
+}
+
+template <typename T>
+std::size_t ShardedVector<T>::size() {
+  return size_;
+}
+
+template <typename T>
+bool ShardedVector<T>::empty() {
+  return size_ == 0;
 }
 
 }  // namespace nu

@@ -59,22 +59,23 @@ template <typename T>
 class ShardedVector
     : public ShardedDataStructure<GeneralContainer<VectorShard<T>>> {
  public:
-  ShardedVector() = default;
-  ShardedVector(const ShardedVector &) = default;
-  ShardedVector &operator=(const ShardedVector &) = default;
-  ShardedVector(ShardedVector &&) noexcept = default;
-  ShardedVector &operator=(ShardedVector &&) noexcept = default;
+  ShardedVector();
+  ShardedVector(const ShardedVector &);
+  ShardedVector &operator=(const ShardedVector &);
+  ShardedVector(ShardedVector &&) noexcept;
+  ShardedVector &operator=(ShardedVector &&) noexcept;
 
   T operator[](std::size_t index);
   void push_back(const T &value);
   void pop_back();
   template <typename T1>
   void set(std::size_t index, T1 &&value);
-  void flush();
   std::size_t size();
   bool empty();
 
  private:
+  std::size_t size_;
+
   template <typename T1>
   friend ShardedVector<T1> make_sharded_vector(uint32_t power_shard_sz);
 };
