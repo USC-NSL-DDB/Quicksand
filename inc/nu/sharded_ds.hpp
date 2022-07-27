@@ -1,7 +1,6 @@
 #pragma once
 
 #include <functional>
-
 #include <list>
 #include <map>
 #include <optional>
@@ -18,6 +17,8 @@
 #include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
+template <class Container>
+class GeneralShard;
 
 template <class Impl>
 class GeneralContainer {
@@ -27,6 +28,7 @@ class GeneralContainer {
   using Pair = std::pair<Key, Val>;
 
   GeneralContainer() : impl_() {}
+  GeneralContainer(const GeneralShard<GeneralContainer<Impl>> &s) : impl_(s) {}
   GeneralContainer(std::size_t capacity) : impl_(capacity) {}
   GeneralContainer(const GeneralContainer &c) : impl_(c.impl_) {}
   GeneralContainer &operator=(const GeneralContainer &c) {

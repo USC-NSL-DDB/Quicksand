@@ -26,6 +26,7 @@ class VectorShard {
   using Val = T;
 
   VectorShard();
+  VectorShard(const GeneralShard<GeneralContainer<VectorShard>> &shard);
   VectorShard(std::size_t capacity);
   VectorShard(const VectorShard &);
   VectorShard &operator=(const VectorShard &);
@@ -50,6 +51,8 @@ class VectorShard {
  private:
   std::vector<T> data_;
   std::size_t capacity_;
+  std::size_t l_key_;
+  std::size_t r_key_;
 };
 
 template <typename T>
