@@ -39,6 +39,7 @@ class VectorShard {
   void clear();
   void emplace(Key k, Val v);
   void emplace_batch(VectorShard &&shard);
+  std::optional<T> find(Key k);
   std::pair<Key, VectorShard> split();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
@@ -59,6 +60,9 @@ template <typename T>
 class ShardedVector
     : public ShardedDataStructure<GeneralContainer<VectorShard<T>>> {
  public:
+  constexpr static uint32_t kDefaultMaxShardBytes = 16 << 20;
+  constexpr static uint32_t kDefaultMaxBatchBytes = 100 << 10;
+
   ShardedVector();
   ShardedVector(const ShardedVector &);
   ShardedVector &operator=(const ShardedVector &);
@@ -74,14 +78,20 @@ class ShardedVector
   bool empty();
 
  private:
+  using Base = ShardedDataStructure<GeneralContainer<VectorShard<T>>>;
+  ShardedVector(uint32_t max_shard_bytes, uint32_t max_batch_bytes);
+
   std::size_t size_;
 
   template <typename T1>
-  friend ShardedVector<T1> make_sharded_vector(uint32_t power_shard_sz);
+  friend ShardedVector<T1> make_sharded_vector(uint32_t max_shard_bytes,
+                                               uint32_t max_batch_bytes);
 };
 
 template <typename T>
-ShardedVector<T> make_sharded_vector(uint32_t power_shard_sz);
+ShardedVector<T> make_sharded_vector(
+    uint32_t max_shard_bytes = ShardedVector<T>::kDefaultMaxShardBytes,
+    uint32_t max_batch_bytes = ShardedVector<T>::kDefaultMaxBatchBytes);
 }  // namespace nu
 
 #include "nu/impl/sharded_vector.ipp"

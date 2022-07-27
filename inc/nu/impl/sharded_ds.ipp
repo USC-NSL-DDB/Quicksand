@@ -2,6 +2,7 @@
 #include <cereal/types/optional.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
+#include <optional>
 
 // TODO: support no-batch mode.
 
@@ -268,6 +269,26 @@ void ShardedDataStructure<Container>::emplace(Pair &&p) {
       submit_push_data_req(ip, std::move(reqs));
     }
   }
+}
+
+template <class Container>
+std::optional<typename ShardedDataStructure<Container>::Val>
+ShardedDataStructure<Container>::find(Key k) {
+  flush();
+  auto result = mapping_.run(
+      +[](ShardingMapping &sm, Key k) {
+        return sm.get_shards_in_range(k, std::nullopt);
+      },
+      k);
+
+  if (result.size() == 0) {
+    return {};
+  }
+  BUG_ON(result.size() != 1);
+
+  auto &shard = result[0].second;
+  return shard.run(
+      +[](Shard &s, Key k) { return s.find(k); }, k);
 }
 
 template <class Container>

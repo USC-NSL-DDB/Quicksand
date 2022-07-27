@@ -2,6 +2,7 @@
 #include <cereal/types/utility.hpp>
 #include <cstdint>
 #include <iterator>
+#include <optional>
 
 #include "nu/commons.hpp"
 
@@ -97,6 +98,18 @@ void VectorShard<T>::emplace_batch(VectorShard &&shard) {
 }
 
 template <typename T>
+std::optional<T> VectorShard<T>::find(std::size_t k) {
+  if (k < l_key_ || k > r_key_) {
+    return std::nullopt;
+  }
+  std::size_t idx = k - l_key_;
+  if (idx >= data_.size()) {
+    return std::nullopt;
+  }
+  return std::optional{data_[idx]};
+}
+
+template <typename T>
 std::pair<typename VectorShard<T>::Key, VectorShard<T>>
 VectorShard<T>::split() {
   std::size_t r_key_new = r_key_ / 2;
@@ -166,6 +179,7 @@ template <typename T>
 ShardedVector<T>::ShardedVector(ShardedVector &&o) noexcept {
   *this = std::move(o);
 }
+
 template <typename T>
 ShardedVector<T> &ShardedVector<T>::operator=(ShardedVector &&o) noexcept {
   size_ = o.size_;
@@ -174,23 +188,27 @@ ShardedVector<T> &ShardedVector<T>::operator=(ShardedVector &&o) noexcept {
 
 template <typename T>
 T ShardedVector<T>::operator[](std::size_t index) {
-  // TODO
+  BUG_ON(index >= size_);
+  std::optional<T> r = this->find(index);
+  BUG_ON(!r.has_value());
+  return r.value();
 }
 
 template <typename T>
 void ShardedVector<T>::push_back(const T &value) {
-  // TODO
+  this->emplace(size_, value);
+  size_++;
 }
 
 template <typename T>
 void ShardedVector<T>::pop_back() {
-  // TODO
+  size_--;
 }
 
 template <typename T>
 template <typename T1>
 void ShardedVector<T>::set(std::size_t index, T1 &&value) {
-  // TODO
+  this->emplace(index, value);
 }
 
 template <typename T>
@@ -201,6 +219,17 @@ std::size_t ShardedVector<T>::size() {
 template <typename T>
 bool ShardedVector<T>::empty() {
   return size_ == 0;
+}
+
+template <typename T>
+ShardedVector<T>::ShardedVector(uint32_t max_shard_bytes,
+                                uint32_t max_batch_bytes)
+    : Base(0, std::nullopt, max_shard_bytes, max_batch_bytes), size_(0) {}
+
+template <typename T>
+ShardedVector<T> make_sharded_vector(uint32_t max_shard_bytes,
+                                     uint32_t max_batch_bytes) {
+  return ShardedVector<T>(max_shard_bytes, max_batch_bytes);
 }
 
 }  // namespace nu

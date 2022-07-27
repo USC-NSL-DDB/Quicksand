@@ -48,6 +48,7 @@ class GeneralContainer {
   void emplace_batch(GeneralContainer &&c) {
     impl_.emplace_batch(std::move(c.impl_));
   };
+  std::optional<Val> find(Key k) { return impl_.find(std::move(k)); }
   std::pair<Key, GeneralContainer> split() {
     auto [k, impl] = impl_.split();
     GeneralContainer c;
@@ -96,6 +97,7 @@ class GeneralShard {
   std::pair<ScopedLock<Mutex>, Container *> get_container_ptr();
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                          Container container);
+  std::optional<Val> find(Key k) { return container_.find(std::move(k)); }
 
  private:
   uint32_t max_shard_size_;
@@ -138,6 +140,7 @@ class ShardedDataStructure {
   template <typename K1, typename V1>
   void emplace(K1 &&k1, V1 &&v1);
   void emplace(Pair &&p);
+  std::optional<Val> find(Key k);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
                S1s &&... states);
