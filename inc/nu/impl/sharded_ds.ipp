@@ -195,8 +195,7 @@ ShardedDataStructure<Container>::ShardedDataStructure(
       key_to_batch_(std::move(o.key_to_batch_)),
       ip_to_batchs_(std::move(o.ip_to_batchs_)),
       push_future_(std::move(o.push_future_)),
-      node_proxy_shards_(std::move(o.node_proxy_shards_)),
-      rejected_push_reqs_(std::move(o.rejected_push_reqs_)) {}
+      node_proxy_shards_(std::move(o.node_proxy_shards_)) {}
 
 template <class Container>
 ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
@@ -210,7 +209,6 @@ ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
   ip_to_batchs_ = std::move(o.ip_to_batchs_);
   push_future_ = std::move(o.push_future_);
   node_proxy_shards_ = std::move(o.node_proxy_shards_);
-  rejected_push_reqs_ = std::move(o.rejected_push_reqs_);
   return *this;
 }
 
@@ -246,14 +244,6 @@ void ShardedDataStructure<Container>::emplace(K1 &&k, V1 &&v) {
 
 template <class Container>
 void ShardedDataStructure<Container>::emplace(Pair &&p) {
-  if (unlikely(!rejected_push_reqs_.empty())) {
-    spin_.lock();
-    auto reqs = std::move(rejected_push_reqs_);
-    rejected_push_reqs_.clear();
-    spin_.unlock();
-    handle_rejected_push_reqs(reqs);
-  }
-
   auto iter = key_to_batch_.lower_bound(p.first);
   assert(iter != key_to_batch_.end());
   auto &batch = iter->second;
@@ -336,13 +326,11 @@ template <class Container>
 void ShardedDataStructure<Container>::submit_push_data_req(
     NodeIP ip, std::vector<PushDataReq> reqs) {
   auto node_proxy_shard = get_node_proxy_shard(ip);
+
+  std::vector<PushDataReq> rejected_reqs;
+
   if (push_future_) {
-    auto &rejected_reqs = push_future_.get();
-    if (unlikely(!rejected_reqs.empty())) {
-      ScopedLock g(&spin_);
-      BUG_ON(!rejected_push_reqs_.empty());
-      rejected_push_reqs_ = std::move(rejected_reqs);
-    }
+    rejected_reqs = std::move(push_future_.get());
   }
 
   push_future_ =
@@ -371,6 +359,10 @@ void ShardedDataStructure<Container>::submit_push_data_req(
 
         return rejected_reqs;
       });
+
+  if (!rejected_reqs.empty()) {
+    handle_rejected_push_reqs(rejected_reqs);
+  }
 }
 
 template <class Container>
@@ -405,20 +397,15 @@ again:
 
   bool rejected = false;
 
-  auto wait_fn = [&] {
+  for (auto &[ip, reqs] : all_ip_reqs) {
+    submit_push_data_req(ip, std::move(reqs));
+  }
+  if (push_future_) {
     auto &rejected_reqs = push_future_.get();
     if (unlikely(!rejected_reqs.empty())) {
       handle_rejected_push_reqs(rejected_reqs);
       rejected = true;
     }
-  };
-
-  if (push_future_) {
-    wait_fn();
-  }
-  for (auto &[ip, reqs] : all_ip_reqs) {
-    submit_push_data_req(ip, std::move(reqs));
-    wait_fn();
   }
 
   if (unlikely(rejected)) {

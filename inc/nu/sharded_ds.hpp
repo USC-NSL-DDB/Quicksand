@@ -204,8 +204,6 @@ class ShardedDataStructure {
   Future<std::vector<PushDataReq>> push_future_;
   std::map<NodeIP, Proclet<ErasedType>> node_proxy_shards_;
   ReaderWriterLock rw_lock_;
-  std::vector<PushDataReq> rejected_push_reqs_;
-  SpinLock spin_;
 
   void submit_push_data_req(NodeIP ip, std::vector<PushDataReq> reqs);
   void add_batch(std::optional<Key> k, WeakProclet<Shard> shard);
