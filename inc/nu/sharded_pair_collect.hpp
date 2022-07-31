@@ -11,9 +11,11 @@ class PairCollection {
  public:
   using Key = K;
   using Val = V;
+  using Shard = GeneralShard<GeneralContainer<PairCollection<K, V>>>;
 
   PairCollection();
   PairCollection(std::size_t capacity);
+  PairCollection(const Shard *shard, std::size_t capacity);
   PairCollection(const PairCollection &);
   PairCollection &operator=(const PairCollection &);
   PairCollection(PairCollection &&) noexcept;

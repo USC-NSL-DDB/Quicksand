@@ -28,8 +28,10 @@ class GeneralContainer {
   using Pair = std::pair<Key, Val>;
 
   GeneralContainer() : impl_() {}
-  GeneralContainer(const GeneralShard<GeneralContainer<Impl>> &s) : impl_(s) {}
   GeneralContainer(std::size_t capacity) : impl_(capacity) {}
+  GeneralContainer(const GeneralShard<GeneralContainer<Impl>> *shard,
+                   std::size_t capacity)
+      : impl_(shard, capacity) {}
   GeneralContainer(const GeneralContainer &c) : impl_(c.impl_) {}
   GeneralContainer &operator=(const GeneralContainer &c) {
     impl_ = c.impl_;
@@ -98,6 +100,8 @@ class GeneralShard {
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                          Container container);
   std::optional<Val> find(Key k) { return container_.find(std::move(k)); }
+  std::optional<Key> l_key() const { return l_key_; }
+  std::optional<Key> r_key() const { return r_key_; }
 
  private:
   uint32_t max_shard_size_;
@@ -117,6 +121,7 @@ class GeneralShardingMapping {
 
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
+  std::optional<WeakProclet<Shard>> get_shard_for_key(std::optional<Key> key);
   std::vector<WeakProclet<Shard>> get_all_shards();
   void update_mapping(std::optional<Key> k, Proclet<Shard> shard);
 

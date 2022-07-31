@@ -3,6 +3,7 @@
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
 #include <optional>
+#include <utility>
 
 // TODO: support no-batch mode.
 
@@ -30,7 +31,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(capacity) {}
+      container_(this, capacity) {}
 
 template <class Container>
 Container GeneralShard<Container>::get_container() {
@@ -85,6 +86,26 @@ GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
   rw_lock_.reader_unlock();
 
   return shards;
+}
+
+template <class Shard>
+std::optional<WeakProclet<Shard>>
+GeneralShardingMapping<Shard>::get_shard_for_key(std::optional<Key> key) {
+  rw_lock_.reader_lock();
+  auto iter = mapping_.begin();
+  while (iter != mapping_.end() && iter->first >= key) {
+    iter++;
+  }
+  if (iter != mapping_.begin()) {
+    iter--;
+  }
+  if (iter->first <= key) {
+    auto shard = iter->second.get_weak();
+    rw_lock_.reader_unlock();
+    return shard;
+  }
+  rw_lock_.reader_unlock();
+  return std::nullopt;
 }
 
 template <class Shard>
@@ -266,17 +287,9 @@ std::optional<typename ShardedDataStructure<Container>::Val>
 ShardedDataStructure<Container>::find(Key k) {
   flush();
   auto result = mapping_.run(
-      +[](ShardingMapping &sm, Key k) {
-        return sm.get_shards_in_range(k, std::nullopt);
-      },
-      k);
-
-  if (result.size() == 0) {
-    return {};
-  }
-  BUG_ON(result.size() != 1);
-
-  auto &shard = result[0].second;
+      +[](ShardingMapping &sm, Key k) { return sm.get_shard_for_key(k); }, k);
+  assert(result.has_value());
+  auto &shard = result.value();
   return shard.run(
       +[](Shard &s, Key k) { return s.find(k); }, k);
 }

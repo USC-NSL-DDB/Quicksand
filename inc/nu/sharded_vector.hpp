@@ -24,10 +24,11 @@ class VectorShard {
  public:
   using Key = std::size_t;
   using Val = T;
+  using Shard = GeneralShard<GeneralContainer<VectorShard<T>>>;
 
   VectorShard();
-  VectorShard(const GeneralShard<GeneralContainer<VectorShard>> &shard);
   VectorShard(std::size_t capacity);
+  VectorShard(const Shard *s, std::size_t capacity);
   VectorShard(const VectorShard &);
   VectorShard &operator=(const VectorShard &);
   VectorShard(VectorShard &&) noexcept;

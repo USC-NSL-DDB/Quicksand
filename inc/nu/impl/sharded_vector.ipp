@@ -12,13 +12,18 @@ VectorShard<T>::VectorShard()
     : data_(0), capacity_(0), l_key_(SIZE_MAX), r_key_(SIZE_MAX) {}
 
 template <typename T>
-VectorShard<T>::VectorShard(
-    const GeneralShard<GeneralContainer<VectorShard>> &shard)
-    : data_(0), capacity_(0), l_key_(shard.l_key_), r_key_(shard.r_key_) {}
-
-template <typename T>
 VectorShard<T>::VectorShard(std::size_t capacity)
     : data_(0), capacity_(capacity), l_key_(SIZE_MAX), r_key_(SIZE_MAX) {}
+
+template <typename T>
+VectorShard<T>::VectorShard(const VectorShard<T>::Shard *shard,
+                            std::size_t capacity)
+    : data_(0), capacity_(capacity), l_key_(SIZE_MAX), r_key_(SIZE_MAX) {
+  if (shard) {
+    l_key_ = shard->l_key().value_or(SIZE_MAX);
+    r_key_ = shard->r_key().value_or(SIZE_MAX);
+  }
+}
 
 template <typename T>
 VectorShard<T>::VectorShard(const VectorShard &o) {
@@ -39,11 +44,7 @@ VectorShard<T>::VectorShard(VectorShard &&o) noexcept
     : data_(o.data_),
       capacity_(o.capacity_),
       l_key_(o.l_key_),
-      r_key_(o.r_key_) {
-  o.data_.clear();
-  l_key_ = SIZE_MAX;
-  r_key_ = SIZE_MAX;
-}
+      r_key_(o.r_key_) {}
 
 template <typename T>
 VectorShard<T> &VectorShard<T>::operator=(VectorShard &&o) noexcept {
@@ -51,9 +52,6 @@ VectorShard<T> &VectorShard<T>::operator=(VectorShard &&o) noexcept {
   capacity_ = o.capacity_;
   l_key_ = o.l_key_;
   r_key_ = o.r_key_;
-  o.data_.clear();
-  l_key_ = SIZE_MAX;
-  r_key_ = SIZE_MAX;
   return *this;
 }
 
@@ -75,19 +73,26 @@ bool VectorShard<T>::empty() const {
 template <typename T>
 void VectorShard<T>::clear() {
   data_.clear();
+  l_key_ = SIZE_MAX;
+  r_key_ = SIZE_MAX;
 }
 
 template <typename T>
 void VectorShard<T>::emplace(Key k, Val v) {
-  BUG_ON(l_key_ == SIZE_MAX || r_key_ == SIZE_MAX);
-  BUG_ON(k < l_key_ || k > r_key_);
-  BUG_ON(data_.size() == capacity_);
+  if (l_key_ == SIZE_MAX) {
+    l_key_ = k;
+  }
+  if (k < l_key_ || k > r_key_) {
+    BUG_ON(k < l_key_ || k > r_key_);
+  }
   std::size_t idx = k - l_key_;
 
   if (idx == data_.size()) {
     data_.push_back(v);
-  } else {
+  } else if (idx < data_.size()) {
     data_[idx] = v;
+  } else {
+    BUG();
   }
 }
 
@@ -112,24 +117,10 @@ std::optional<T> VectorShard<T>::find(std::size_t k) {
 template <typename T>
 std::pair<typename VectorShard<T>::Key, VectorShard<T>>
 VectorShard<T>::split() {
-  std::size_t r_key_new = r_key_ / 2;
-  BUG_ON(r_key_new == r_key_);
-  std::size_t capacity_new = capacity_ / 2;
-
+  BUG_ON(data_.size() == 0);
+  r_key_ = data_.size() - 1;
   VectorShard<T> new_shard;
-  new_shard.l_key_ = r_key_new + 1;
-  new_shard.r_key_ = r_key_;
-  new_shard.capacity_ = capacity_ - capacity_new;
-  if (data_.size() > capacity_new) {
-    new_shard.data_ =
-        std::vector(std::make_move_iterator(data_.begin() + capacity_new),
-                    std::make_move_iterator(data_.end()));
-    data_.resize(capacity_new);
-  }
-
-  r_key_ = r_key_new;
-  capacity_ = capacity_new;
-
+  new_shard.l_key_ = data_.size();
   return {new_shard.l_key_, new_shard};
 }
 
@@ -190,7 +181,7 @@ template <typename T>
 T ShardedVector<T>::operator[](std::size_t index) {
   BUG_ON(index >= size_);
   std::optional<T> r = this->find(index);
-  BUG_ON(!r.has_value());
+  assert(r.has_value());
   return r.value();
 }
 

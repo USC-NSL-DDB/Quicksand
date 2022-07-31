@@ -17,6 +17,14 @@ PairCollection<K, V>::PairCollection(std::size_t capacity) {
 }
 
 template <typename K, typename V>
+PairCollection<K, V>::PairCollection(const Shard *shard, std::size_t capacity) {
+  data_ = new std::pair<K, V>[capacity];
+  size_ = 0;
+  capacity_ = capacity;
+  ownership_ = true;
+}
+
+template <typename K, typename V>
 PairCollection<K, V>::PairCollection(const PairCollection &o)
     : data_(new std::pair<K, V>[o.capacity_]),
       size_(o.size_),
@@ -198,8 +206,8 @@ ShardedPairCollection<K, V>::ShardedPairCollection(
     uint64_t num, K estimated_min_key,
     std::function<void(K &, uint64_t)> key_inc_fn, uint32_t max_shard_bytes,
     uint32_t max_cache_bytes)
-    : Base(num, estimated_min_key, key_inc_fn,
-                                 max_shard_bytes, max_cache_bytes) {}
+    : Base(num, estimated_min_key, key_inc_fn, max_shard_bytes,
+           max_cache_bytes) {}
 
 template <typename K, typename V>
 ShardedPairCollection<K, V> make_sharded_pair_collection(
