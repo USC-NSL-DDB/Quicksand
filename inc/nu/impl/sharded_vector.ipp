@@ -9,21 +9,19 @@
 namespace nu {
 template <typename T>
 VectorShard<T>::VectorShard()
-    : data_(0), capacity_(0), l_key_(SIZE_MAX), r_key_(SIZE_MAX) {}
+    : data_(0), capacity_(0), l_key_inferred_(SIZE_MAX), shard_(nullptr) {}
 
 template <typename T>
 VectorShard<T>::VectorShard(std::size_t capacity)
-    : data_(0), capacity_(capacity), l_key_(SIZE_MAX), r_key_(SIZE_MAX) {}
+    : data_(0),
+      capacity_(capacity),
+      l_key_inferred_(SIZE_MAX),
+      shard_(nullptr) {}
 
 template <typename T>
 VectorShard<T>::VectorShard(const VectorShard<T>::Shard *shard,
                             std::size_t capacity)
-    : data_(0), capacity_(capacity), l_key_(SIZE_MAX), r_key_(SIZE_MAX) {
-  if (shard) {
-    l_key_ = shard->l_key().value_or(SIZE_MAX);
-    r_key_ = shard->r_key().value_or(SIZE_MAX);
-  }
-}
+    : data_(0), capacity_(capacity), l_key_inferred_(SIZE_MAX), shard_(shard) {}
 
 template <typename T>
 VectorShard<T>::VectorShard(const VectorShard &o) {
@@ -34,8 +32,8 @@ template <typename T>
 VectorShard<T> &VectorShard<T>::operator=(const VectorShard &o) {
   data_ = o.data_;
   capacity_ = o.capacity_;
-  l_key_ = o.l_key_;
-  r_key_ = o.r_key_;
+  l_key_inferred_ = o.l_key_inferred_;
+  shard_ = o.shard_;
   return *this;
 }
 
@@ -43,15 +41,15 @@ template <typename T>
 VectorShard<T>::VectorShard(VectorShard &&o) noexcept
     : data_(o.data_),
       capacity_(o.capacity_),
-      l_key_(o.l_key_),
-      r_key_(o.r_key_) {}
+      l_key_inferred_(o.l_key_inferred_),
+      shard_(o.shard_) {}
 
 template <typename T>
 VectorShard<T> &VectorShard<T>::operator=(VectorShard &&o) noexcept {
   data_ = o.data_;
   capacity_ = o.capacity_;
-  l_key_ = o.l_key_;
-  r_key_ = o.r_key_;
+  l_key_inferred_ = o.l_key_inferred_;
+  shard_ = o.shard_;
   return *this;
 }
 
@@ -73,20 +71,23 @@ bool VectorShard<T>::empty() const {
 template <typename T>
 void VectorShard<T>::clear() {
   data_.clear();
-  l_key_ = SIZE_MAX;
-  r_key_ = SIZE_MAX;
+  l_key_inferred_ = SIZE_MAX;
 }
 
 template <typename T>
 void VectorShard<T>::emplace(Key k, Val v) {
-  if (l_key_ == SIZE_MAX) {
-    l_key_ = k;
+  if (!shard_ && l_key_inferred_ == SIZE_MAX) {
+    l_key_inferred_ = k;
   }
-  if (k < l_key_ || k > r_key_) {
-    BUG_ON(k < l_key_ || k > r_key_);
-  }
-  std::size_t idx = k - l_key_;
 
+  auto l_key = this->l_key();
+  auto r_key = this->r_key();
+
+  if (k < l_key || k > r_key) {
+    BUG_ON(k < l_key || k > r_key);
+  }
+
+  std::size_t idx = k - l_key;
   if (idx == data_.size()) {
     data_.push_back(v);
   } else if (idx < data_.size()) {
@@ -104,10 +105,13 @@ void VectorShard<T>::emplace_batch(VectorShard &&shard) {
 
 template <typename T>
 std::optional<T> VectorShard<T>::find(std::size_t k) {
-  if (k < l_key_ || k > r_key_) {
+  auto l_key = this->l_key();
+  auto r_key = this->r_key();
+
+  if (k < l_key || k > r_key) {
     return std::nullopt;
   }
-  std::size_t idx = k - l_key_;
+  std::size_t idx = k - l_key;
   if (idx >= data_.size()) {
     return std::nullopt;
   }
@@ -117,11 +121,11 @@ std::optional<T> VectorShard<T>::find(std::size_t k) {
 template <typename T>
 std::pair<typename VectorShard<T>::Key, VectorShard<T>>
 VectorShard<T>::split() {
-  BUG_ON(data_.size() == 0);
-  r_key_ = data_.size() - 1;
+  auto l_key = this->l_key();
+  assert(l_key != SIZE_MAX);
+  auto mid_key = l_key + data_.size();
   VectorShard<T> new_shard;
-  new_shard.l_key_ = data_.size();
-  return {new_shard.l_key_, new_shard};
+  return {mid_key, new_shard};
 }
 
 template <typename T>
@@ -135,12 +139,27 @@ void VectorShard<T>::for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
 }
 
 template <typename T>
+std::size_t VectorShard<T>::l_key() const {
+  if (shard_) {
+    return shard_->l_key().value_or(SIZE_MAX);
+  }
+  return l_key_inferred_;
+}
+
+template <typename T>
+std::size_t VectorShard<T>::r_key() const {
+  if (shard_) {
+    return shard_->r_key().value_or(SIZE_MAX);
+  }
+  return SIZE_MAX;
+}
+
+template <typename T>
 template <class Archive>
 void VectorShard<T>::save(Archive &ar) const {
   ar(data_);
   ar(capacity_);
-  ar(l_key_);
-  ar(r_key_);
+  ar(shard_);
 }
 
 template <typename T>
@@ -148,8 +167,7 @@ template <class Archive>
 void VectorShard<T>::load(Archive &ar) {
   ar(data_);
   ar(capacity_);
-  ar(l_key_);
-  ar(r_key_);
+  ar(shard_);
 }
 
 template <typename T>
