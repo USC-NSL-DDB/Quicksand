@@ -91,21 +91,14 @@ template <class Shard>
 std::optional<WeakProclet<Shard>>
 GeneralShardingMapping<Shard>::get_shard_for_key(std::optional<Key> key) {
   rw_lock_.reader_lock();
-  auto iter = mapping_.begin();
-  while (iter != mapping_.end() && iter->first > key) {
-    iter++;
-  }
+  auto iter = mapping_.lower_bound(key);
   if (iter == mapping_.end()) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
-  if (iter->first <= key) {
-    auto shard = iter->second.get_weak();
-    rw_lock_.reader_unlock();
-    return shard;
-  }
+  auto shard = iter->second.get_weak();
   rw_lock_.reader_unlock();
-  return std::nullopt;
+  return shard;
 }
 
 template <class Shard>
