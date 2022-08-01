@@ -81,6 +81,7 @@ class ShardedVector
   void set(std::size_t index, T1 &&value);
   std::size_t size();
   bool empty();
+  void clear();
 
  private:
   using Base = ShardedDataStructure<GeneralContainer<VectorShard<T>>>;

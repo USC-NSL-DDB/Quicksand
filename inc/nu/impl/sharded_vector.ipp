@@ -271,6 +271,11 @@ bool ShardedVector<T>::empty() {
 }
 
 template <typename T>
+void ShardedVector<T>::clear() {
+  size_ = 0;
+}
+
+template <typename T>
 ShardedVector<T>::ShardedVector(uint32_t max_shard_bytes,
                                 uint32_t max_batch_bytes)
     : Base(0, std::nullopt, max_shard_bytes, max_batch_bytes), size_(0) {}
