@@ -55,6 +55,16 @@ PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept
 }
 
 template <typename K, typename V>
+PairCollection<K, V>::PairCollection(const Shard *shard,
+                                     PairCollection &&o) noexcept
+    : data_(o.data_),
+      size_(o.size_),
+      capacity_(o.capacity_),
+      ownership_(o.ownership_) {
+  o.data_ = nullptr;
+}
+
+template <typename K, typename V>
 PairCollection<K, V> &PairCollection<K, V>::operator=(
     PairCollection &&o) noexcept {
   destroy();

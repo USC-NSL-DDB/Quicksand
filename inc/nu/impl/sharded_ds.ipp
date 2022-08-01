@@ -19,7 +19,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(std::move(container)) {}
+      container_(this, std::move(container)) {}
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,

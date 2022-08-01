@@ -55,6 +55,14 @@ VectorShard<T>::VectorShard(VectorShard &&o) noexcept
       shard_(o.shard_) {}
 
 template <typename T>
+VectorShard<T>::VectorShard(const VectorShard<T>::Shard *shard,
+                            VectorShard &&o) noexcept
+    : data_(o.data_),
+      capacity_(o.capacity_),
+      l_key_inferred_(o.l_key_inferred_),
+      shard_(shard) {}
+
+template <typename T>
 VectorShard<T> &VectorShard<T>::operator=(VectorShard &&o) noexcept {
   data_ = o.data_;
   capacity_ = o.capacity_;

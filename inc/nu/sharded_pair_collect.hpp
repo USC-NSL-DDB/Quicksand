@@ -19,6 +19,7 @@ class PairCollection {
   PairCollection(const PairCollection &);
   PairCollection &operator=(const PairCollection &);
   PairCollection(PairCollection &&) noexcept;
+  PairCollection(const Shard *shard, PairCollection &&) noexcept;
   PairCollection &operator=(PairCollection &&) noexcept;
   ~PairCollection();
   std::size_t size() const;

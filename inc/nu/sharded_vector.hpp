@@ -33,6 +33,7 @@ class VectorShard {
   VectorShard(const VectorShard &);
   VectorShard &operator=(const VectorShard &);
   VectorShard(VectorShard &&) noexcept;
+  VectorShard(const Shard *s, VectorShard &&) noexcept;
   VectorShard &operator=(VectorShard &&) noexcept;
 
   std::size_t size() const;
