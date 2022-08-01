@@ -99,8 +99,16 @@ void VectorShard<T>::emplace(Key k, Val v) {
 
 template <typename T>
 void VectorShard<T>::emplace_batch(VectorShard &&shard) {
-  BUG_ON(data_.size() + shard.size() > capacity_);
-  data_.insert(data_.end(), shard.data_.begin(), shard.data_.end());
+  auto batch_l_key = shard.l_key();
+  if (batch_l_key == SIZE_MAX) {
+    data_.insert(data_.end(), shard.data_.begin(), shard.data_.end());
+  } else {
+    auto insert_loc = batch_l_key - l_key();
+    assert(insert_loc <= data_.size());
+    data_.resize(insert_loc + shard.data_.size());
+    std::copy(shard.data_.begin(), shard.data_.end(),
+              data_.begin() + insert_loc);
+  }
 }
 
 template <typename T>
