@@ -29,6 +29,7 @@ class VectorShard {
   VectorShard();
   VectorShard(std::size_t capacity);
   VectorShard(const Shard *s, std::size_t capacity);
+  VectorShard(const std::vector<T> &, std::size_t capacity);
   VectorShard(const VectorShard &);
   VectorShard &operator=(const VectorShard &);
   VectorShard(VectorShard &&) noexcept;

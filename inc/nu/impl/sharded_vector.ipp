@@ -9,7 +9,10 @@
 namespace nu {
 template <typename T>
 VectorShard<T>::VectorShard()
-    : data_(0), capacity_(0), l_key_inferred_(SIZE_MAX), shard_(nullptr) {}
+    : data_(0),
+      capacity_(SIZE_MAX),
+      l_key_inferred_(SIZE_MAX),
+      shard_(nullptr) {}
 
 template <typename T>
 VectorShard<T>::VectorShard(std::size_t capacity)
@@ -22,6 +25,13 @@ template <typename T>
 VectorShard<T>::VectorShard(const VectorShard<T>::Shard *shard,
                             std::size_t capacity)
     : data_(0), capacity_(capacity), l_key_inferred_(SIZE_MAX), shard_(shard) {}
+
+template <typename T>
+VectorShard<T>::VectorShard(const std::vector<T> &data, std::size_t capacity)
+    : data_(std::move(data)),
+      capacity_(capacity),
+      l_key_inferred_(SIZE_MAX),
+      shard_(nullptr) {}
 
 template <typename T>
 VectorShard<T>::VectorShard(const VectorShard &o) {
@@ -131,9 +141,19 @@ std::pair<typename VectorShard<T>::Key, VectorShard<T>>
 VectorShard<T>::split() {
   auto l_key = this->l_key();
   assert(l_key != SIZE_MAX);
-  auto mid_key = l_key + data_.size();
-  VectorShard<T> new_shard;
-  return {mid_key, new_shard};
+  auto this_shard_size = std::min(data_.size(), capacity_);
+  auto mid_key = l_key + this_shard_size;
+
+  if (this_shard_size != data_.size()) {
+    std::vector<T> remaining_elems(
+        std::make_move_iterator(data_.begin() + this_shard_size),
+        std::make_move_iterator(data_.end()));
+    data_.resize(this_shard_size);
+    return {mid_key, VectorShard<T>(remaining_elems, capacity_)};
+  } else {
+    VectorShard<T> new_shard;
+    return {mid_key, new_shard};
+  }
 }
 
 template <typename T>
