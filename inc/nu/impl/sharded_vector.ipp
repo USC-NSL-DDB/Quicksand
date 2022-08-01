@@ -167,6 +167,7 @@ template <class Archive>
 void VectorShard<T>::save(Archive &ar) const {
   ar(data_);
   ar(capacity_);
+  ar(l_key_inferred_);
   ar(shard_);
 }
 
@@ -175,6 +176,7 @@ template <class Archive>
 void VectorShard<T>::load(Archive &ar) {
   ar(data_);
   ar(capacity_);
+  ar(l_key_inferred_);
   ar(shard_);
 }
 
