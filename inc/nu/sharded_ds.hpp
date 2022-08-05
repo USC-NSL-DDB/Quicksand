@@ -161,9 +161,7 @@ class ShardedDataStructure {
 
  protected:
   ShardedDataStructure();
-  ShardedDataStructure(std::optional<Key> initial_l_key,
-                       std::optional<Key> initial_r_key,
-                       uint32_t max_shard_bytes, uint32_t max_batch_bytes);
+  ShardedDataStructure(uint32_t max_shard_bytes, uint32_t max_batch_bytes);
   ShardedDataStructure(uint64_t num, Key estimated_min_key,
                        std::function<void(Key &, uint64_t)> key_inc_fn,
                        uint32_t max_shard_bytes, uint32_t max_batch_bytes);

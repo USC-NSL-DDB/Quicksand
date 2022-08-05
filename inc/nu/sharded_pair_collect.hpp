@@ -67,9 +67,7 @@ class ShardedPairCollection
 
  private:
   using Base = ShardedDataStructure<PairCollectionContainer<K, V>>;
-  ShardedPairCollection(std::optional<K> initial_l_key,
-                        std::optional<K> initial_r_key,
-                        uint32_t max_shard_bytes, uint32_t max_batch_bytes);
+  ShardedPairCollection(uint32_t max_shard_bytes, uint32_t max_batch_bytes);
   ShardedPairCollection(uint64_t num, K estimated_min_key,
                         std::function<void(K &, uint64_t)> key_inc_fn,
                         uint32_t max_shard_bytes, uint32_t max_batch_bytes);
