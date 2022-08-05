@@ -121,11 +121,17 @@ void VectorShard<T>::emplace_batch(VectorShard &&shard) {
   if (batch_l_key == SIZE_MAX) {
     data_.insert(data_.end(), shard.data_.begin(), shard.data_.end());
   } else {
-    auto insert_loc = batch_l_key - l_key();
-    assert(insert_loc <= data_.size());
-    data_.resize(insert_loc + shard.data_.size());
-    std::copy(shard.data_.begin(), shard.data_.end(),
-              data_.begin() + insert_loc);
+    auto l_key = this->l_key();
+    if (l_key == SIZE_MAX) {
+      data_ = std::move(shard.data_);
+      l_key_inferred_ = batch_l_key;
+    } else {
+      auto insert_loc = batch_l_key - l_key;
+      assert(insert_loc <= data_.size());
+      data_.resize(insert_loc + shard.data_.size());
+      std::copy(shard.data_.begin(), shard.data_.end(),
+                data_.begin() + insert_loc);
+    }
   }
 }
 
@@ -147,6 +153,7 @@ std::optional<T> VectorShard<T>::find(std::size_t k) {
 template <typename T>
 std::pair<typename VectorShard<T>::Key, VectorShard<T>>
 VectorShard<T>::split() {
+  assert(data_.size() > 0);
   auto l_key = this->l_key();
   assert(l_key != SIZE_MAX);
   auto this_shard_size = std::min(data_.size(), capacity_);
@@ -180,7 +187,7 @@ void VectorShard<T>::for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
 template <typename T>
 std::size_t VectorShard<T>::l_key() const {
   if (shard_) {
-    return shard_->l_key().value_or(SIZE_MAX);
+    return shard_->l_key().value_or(l_key_inferred_);
   }
   return l_key_inferred_;
 }
