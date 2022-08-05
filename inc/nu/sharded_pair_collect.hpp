@@ -11,12 +11,15 @@ class PairCollection {
  public:
   using Key = K;
   using Val = V;
+  using Shard = GeneralShard<GeneralContainer<PairCollection<K, V>>>;
 
   PairCollection();
   PairCollection(std::size_t capacity);
+  PairCollection(const Shard *shard, std::size_t capacity);
   PairCollection(const PairCollection &);
   PairCollection &operator=(const PairCollection &);
   PairCollection(PairCollection &&) noexcept;
+  PairCollection(const Shard *shard, PairCollection &&) noexcept;
   PairCollection &operator=(PairCollection &&) noexcept;
   ~PairCollection();
   std::size_t size() const;
@@ -64,9 +67,7 @@ class ShardedPairCollection
 
  private:
   using Base = ShardedDataStructure<PairCollectionContainer<K, V>>;
-  ShardedPairCollection(std::optional<K> initial_l_key,
-                        std::optional<K> initial_r_key,
-                        uint32_t max_shard_bytes, uint32_t max_batch_bytes);
+  ShardedPairCollection(uint32_t max_shard_bytes, uint32_t max_batch_bytes);
   ShardedPairCollection(uint64_t num, K estimated_min_key,
                         std::function<void(K &, uint64_t)> key_inc_fn,
                         uint32_t max_shard_bytes, uint32_t max_batch_bytes);

@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include "sharded_ds.hpp"
+
 extern "C" {
 #include <runtime/net.h>
 }
@@ -18,150 +20,84 @@ extern "C" {
 namespace nu {
 
 template <typename T>
-class ShardedVector {
+class VectorShard {
  public:
-  constexpr static uint32_t kDefaultPowerShardSize = 20;
-  constexpr static uint32_t kDefaultMaxWriteBatchSize = 2'000'000;
+  using Key = std::size_t;
+  using Val = T;
+  using Shard = GeneralShard<GeneralContainer<VectorShard<T>>>;
+
+  VectorShard();
+  VectorShard(std::size_t capacity);
+  VectorShard(const Shard *s, std::size_t capacity);
+  VectorShard(const std::vector<T> &, std::size_t capacity);
+  VectorShard(const VectorShard &);
+  VectorShard &operator=(const VectorShard &);
+  VectorShard(VectorShard &&) noexcept;
+  VectorShard(const Shard *s, VectorShard &&) noexcept;
+  VectorShard &operator=(VectorShard &&) noexcept;
+
+  std::size_t size() const;
+  std::size_t capacity() const;
+  bool empty() const;
+  void clear();
+  void emplace(Key k, Val v);
+  void emplace_batch(VectorShard &&shard);
+  std::optional<T> find(Key k);
+  std::pair<Key, VectorShard> split();
+  template <typename... S0s, typename... S1s>
+  void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
+               S1s &&... states);
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
+
+ private:
+  std::vector<T> data_;
+  std::size_t capacity_;
+  std::size_t l_key_inferred_;
+  const Shard *shard_;
+  std::size_t l_key() const;
+  std::size_t r_key() const;
+};
+
+template <typename T>
+class ShardedVector
+    : public ShardedDataStructure<GeneralContainer<VectorShard<T>>> {
+ public:
+  constexpr static uint32_t kDefaultMaxShardBytes = 16 << 20;
+  constexpr static uint32_t kDefaultMaxBatchBytes = 100 << 10;
 
   ShardedVector();
   ShardedVector(const ShardedVector &);
   ShardedVector &operator=(const ShardedVector &);
-  ShardedVector(ShardedVector &&);
-  ShardedVector &operator=(ShardedVector &&);
+  ShardedVector(ShardedVector &&) noexcept;
+  ShardedVector &operator=(ShardedVector &&) noexcept;
 
-  T operator[](uint32_t index);
-
-  void push_back_sync(const T &value);
+  T operator[](std::size_t index);
   void push_back(const T &value);
-  void pop_back_sync();
   void pop_back();
-  void flush();
   template <typename T1>
-  void set(uint32_t index, T1 &&value);
-  template <typename... A0s, typename... A1s>
-  void apply(uint32_t index, void (*fn)(T &, A0s...), A1s &&... args);
-  template <typename... A0s, typename... A1s>
-  Future<void> apply_async(uint32_t index, void (*fn)(T &, A0s...),
-                           A1s &&... args);
-  constexpr bool empty() const noexcept;
-  constexpr size_t size() const noexcept;
+  void set(std::size_t index, T1 &&value);
+  std::size_t size();
+  bool empty();
   void clear();
-  size_t capacity();
-  void shrink_to_fit();
-  void reserve(size_t new_cap);
-  void resize(size_t count);
-  template <typename... A0s, typename... A1s>
-  ShardedVector &for_all(T (*fn)(T, A0s...), A1s &&... args);
-  template <typename... A0s, typename... A1s>
-  ShardedVector &for_all(void (*fn)(T &, A0s...), A1s &&... args);
-  template <typename RetT, typename... A0s, typename... A1s>
-  RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T, A0s...),
-              A1s &&... args);
-  template <typename RetT, typename... A0s, typename... A1s>
-  RetT reduce(RetT initial_val, void (*reducer)(RetT &, T &, A0s...),
-              A1s &&... args);
-  template <typename T1, typename... A0s, typename... A1s>
-  ShardedVector<T1> map(T1 (*fn)(T, A0s...), A1s &&... args);
-  template <typename T1, typename... A0s, typename... A1s>
-  ShardedVector<T1> map(T1 (*fn)(const T &, A0s...), A1s &&... args);
-
-  std::vector<T> collect();
-
-  template <class Archive>
-  void serialize(Archive &ar);
 
  private:
+  using Base = ShardedDataStructure<GeneralContainer<VectorShard<T>>>;
+  ShardedVector(uint32_t max_shard_bytes, uint32_t max_batch_bytes);
+
+  std::size_t size_;
+
   template <typename T1>
-  class Shard {
-   public:
-    Shard();
-    Shard(size_t capacity, uint32_t size_max, uint32_t initial_size = 0);
-    Shard(std::vector<T1> elems, uint32_t size_max);
-
-    T1 operator[](uint32_t index);
-    void push_back(const T1 &value);
-    void push_back_batch(std::vector<T1> elems);
-    void pop_back();
-    template <typename T2>
-    void set(uint32_t index, T2 &&value);
-    template <typename... A0s, typename... A1s>
-    void apply(uint32_t index, void (*fn)(T1 &, A0s...), A1s &&... args);
-    void clear();
-    size_t capacity() const;
-    void reserve(size_t new_cap);
-    void resize(size_t count);
-    std::vector<T1> collect();
-    template <typename... A0s, typename... A1s>
-    void for_all(T1 (*fn)(T1, A0s...), A1s &&... args);
-    template <typename... A0s, typename... A1s>
-    void for_all(void (*fn)(T1 &, A0s...), A1s &&... args);
-    template <typename T2, typename... A0s, typename... A1s>
-    Shard<T2> map(T2 (*fn)(T1, A0s...), A1s &&... args);
-    template <typename T2, typename... A0s, typename... A1s>
-    Shard<T2> map(T2 (*fn)(const T1 &, A0s...), A1s &&... args);
-    template <typename RetT, typename... A0s, typename... A1s>
-    RetT reduce(RetT initial_val, RetT (*reducer)(RetT, T1, A0s...),
-                A1s &&... args);
-    template <typename RetT, typename... A0s, typename... A1s>
-    RetT reduce(RetT initial_val, void (*reducer)(RetT &, T1 &, A0s...),
-                A1s &&... args);
-
-    template <class Archive>
-    void serialize(Archive &ar);
-
-   private:
-    std::vector<T1> data_;
-    uint32_t size_max_;
-  };
-
-  uint32_t shard_max_size_;
-  uint32_t power_shard_max_size_;
-  size_t size_;
-  size_t capacity_;
-  uint32_t max_tail_buffer_size_;
-  std::vector<T> tail_buffer_;
-  uint32_t buffered_shard_idx_;
-  std::vector<T> read_buffer_;
-  std::vector<Future<void>> flush_reqs_;
-  std::vector<Future<Proclet<Shard<T>>>> new_shard_reqs_;
-  std::vector<Proclet<Shard<T>>> shards_;
-
-  struct ElemIndex {
-    bool in_buffer;
-    union {
-      struct shard_idx_t {
-        uint32_t shard_idx;
-        uint32_t idx_in_shard;
-      } shard;
-      struct buffer_idx_t {
-        uint32_t idx;
-      } buffer;
-    } loc;
-  };
-  ElemIndex calc_index(uint32_t index);
-
-  void init_flush();
-  bool is_flush_pending();
-  void _resize_down(size_t target_size);
-  void _resize_up(size_t target_size);
-  void _invalidate_read_buffer();
-  template <typename V, typename... A0s, typename... A1s>
-  std::vector<V> __for_all_shards(V (*fn)(Shard<T> &, A0s...), A1s &&... args);
-  template <typename... A0s, typename... A1s>
-  void __for_all_shards(void (*fn)(Shard<T> &, A0s...), A1s &&... args);
-
-  template <typename X>
-  friend ShardedVector<X> make_sharded_vector(uint32_t power_shard_sz,
-                                              uint32_t remote_capacity,
-                                              uint32_t max_write_batch_size);
+  friend ShardedVector<T1> make_sharded_vector(uint32_t max_shard_bytes,
+                                               uint32_t max_batch_bytes);
 };
 
 template <typename T>
 ShardedVector<T> make_sharded_vector(
-    uint32_t power_shard_sz = ShardedVector<T>::kDefaultPowerShardSize,
-    uint32_t remote_capacity = 0,
-    uint32_t max_write_batch_size =
-        ShardedVector<T>::kDefaultMaxWriteBatchSize);
+    uint32_t max_shard_bytes = ShardedVector<T>::kDefaultMaxShardBytes,
+    uint32_t max_batch_bytes = ShardedVector<T>::kDefaultMaxBatchBytes);
 }  // namespace nu
 
 #include "nu/impl/sharded_vector.ipp"

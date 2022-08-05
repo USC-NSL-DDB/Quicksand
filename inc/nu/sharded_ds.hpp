@@ -1,7 +1,6 @@
 #pragma once
 
 #include <functional>
-
 #include <list>
 #include <map>
 #include <optional>
@@ -18,6 +17,8 @@
 #include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
+template <class Container>
+class GeneralShard;
 
 template <class Impl>
 class GeneralContainer {
@@ -28,12 +29,18 @@ class GeneralContainer {
 
   GeneralContainer() : impl_() {}
   GeneralContainer(std::size_t capacity) : impl_(capacity) {}
+  GeneralContainer(const GeneralShard<GeneralContainer<Impl>> *shard,
+                   std::size_t capacity)
+      : impl_(shard, capacity) {}
   GeneralContainer(const GeneralContainer &c) : impl_(c.impl_) {}
   GeneralContainer &operator=(const GeneralContainer &c) {
     impl_ = c.impl_;
     return *this;
   }
   GeneralContainer(GeneralContainer &&c) noexcept : impl_(std::move(c.impl_)) {}
+  GeneralContainer(const GeneralShard<GeneralContainer<Impl>> *shard,
+                   GeneralContainer &&c) noexcept
+      : impl_(shard, std::move(c.impl_)) {}
   GeneralContainer &operator=(GeneralContainer &&c) noexcept {
     impl_ = std::move(c.impl_);
     return *this;
@@ -46,6 +53,7 @@ class GeneralContainer {
   void emplace_batch(GeneralContainer &&c) {
     impl_.emplace_batch(std::move(c.impl_));
   };
+  std::optional<Val> find(Key k) { return impl_.find(std::move(k)); }
   std::pair<Key, GeneralContainer> split() {
     auto [k, impl] = impl_.split();
     GeneralContainer c;
@@ -94,6 +102,9 @@ class GeneralShard {
   std::pair<ScopedLock<Mutex>, Container *> get_container_ptr();
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                          Container container);
+  std::optional<Val> find(Key k) { return container_.find(std::move(k)); }
+  std::optional<Key> l_key() const { return l_key_; }
+  std::optional<Key> r_key() const { return r_key_; }
 
  private:
   uint32_t max_shard_size_;
@@ -113,6 +124,7 @@ class GeneralShardingMapping {
 
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
+  std::optional<WeakProclet<Shard>> get_shard_for_key(std::optional<Key> key);
   std::vector<WeakProclet<Shard>> get_all_shards();
   void update_mapping(std::optional<Key> k, Proclet<Shard> shard);
 
@@ -136,6 +148,7 @@ class ShardedDataStructure {
   template <typename K1, typename V1>
   void emplace(K1 &&k1, V1 &&v1);
   void emplace(Pair &&p);
+  std::optional<Val> find(Key k);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
                S1s &&... states);
@@ -148,9 +161,7 @@ class ShardedDataStructure {
 
  protected:
   ShardedDataStructure();
-  ShardedDataStructure(std::optional<Key> initial_l_key,
-                       std::optional<Key> initial_r_key,
-                       uint32_t max_shard_bytes, uint32_t max_batch_bytes);
+  ShardedDataStructure(uint32_t max_shard_bytes, uint32_t max_batch_bytes);
   ShardedDataStructure(uint64_t num, Key estimated_min_key,
                        std::function<void(Key &, uint64_t)> key_inc_fn,
                        uint32_t max_shard_bytes, uint32_t max_batch_bytes);
