@@ -26,6 +26,8 @@ extern "C" {
 
 using namespace nu;
 
+constexpr std::size_t kShardBytes = 100 << 12;
+
 Runtime::Mode mode;
 
 std::random_device rd;
@@ -90,12 +92,12 @@ bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
   for (size_t i = 0; i < len; i++) {
     TEST(vec[i] == expected[i]);
   }
-  for (size_t i = 0; i < len; i++) {
-    vec.set(i, expected[len - i]);
-  }
-  for (size_t i = 0; i < len; i++) {
-    TEST(vec[i] == expected[len - i]);
-  }
+  // for (size_t i = 0; i < len; i++) {
+  //   vec.set(i, expected[len - i]);
+  // }
+  // for (size_t i = 0; i < len; i++) {
+  //   TEST(vec[i] == expected[len - i]);
+  // }
 
   TEST(!vec.empty());
   for (size_t i = 0; i < len; i++) {
@@ -108,14 +110,13 @@ bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
 }
 
 bool test_push_pop() {
-  uint32_t power_shard_sz = 10;
   uint32_t test_data_sz = 12345;
 
   auto expected_ints = make_int_range_vec(0, test_data_sz);
-  ABORT_IF_FAILED(test_push_and_pop<int>(expected_ints, power_shard_sz));
+  ABORT_IF_FAILED(test_push_and_pop<int>(expected_ints, kShardBytes));
 
   auto test_strs = make_test_str_vec(test_data_sz);
-  ABORT_IF_FAILED(test_push_and_pop<std::string>(test_strs, power_shard_sz));
+  ABORT_IF_FAILED(test_push_and_pop<std::string>(test_strs, kShardBytes));
 
   return true;
 }
@@ -154,23 +155,24 @@ bool test_push_pop() {
 //   return true;
 // }
 //
-// bool test_vec_clear() {
-//   auto vec = make_sharded_vector<int>(10);
-//
-//   TEST(vec.empty());
-//   vec.clear();
-//   TEST(vec.empty());
-//
-//   for (size_t i = 0; i < 10; i++) {
-//     vec.push_back(i);
-//   }
-//
-//   TEST(!vec.empty());
-//   vec.clear();
-//   TEST(vec.empty());
-//
-//   return true;
-// }
+
+bool test_vec_clear() {
+  auto vec = make_sharded_vector<int>(kShardBytes);
+
+  TEST(vec.empty());
+  vec.clear();
+  TEST(vec.empty());
+
+  for (size_t i = 0; i < 10; i++) {
+    vec.push_back(i);
+  }
+
+  TEST(!vec.empty());
+  vec.clear();
+  TEST(vec.empty());
+
+  return true;
+}
 //
 // bool test_capacity() {
 //   int power_shard_sz = 10;
@@ -230,46 +232,36 @@ bool test_push_pop() {
 //   return true;
 // }
 //
-// int double_int(int x) { return x * 2; }
-//
-// bool test_for_all() {
-//   int power_shard_sz = 10;
-//   auto vec = make_sharded_vector<int>(power_shard_sz);
-//
-//   for (int i = 0; i < 1000; i++) {
-//     vec.push_back(i);
-//   }
-//   vec.for_all(+[](int x) { return x * 2; });
-//   for (int i = 0; i < 1000; i++) {
-//     TEST(vec[i] == i * 2);
-//   }
-//
-//   auto vec2 = make_sharded_vector<int>(power_shard_sz);
-//   for (int i = 0; i < 1000; i++) {
-//     vec2.push_back(i);
-//   }
-//   vec2.for_all(double_int).for_all(double_int).for_all(double_int);
-//   vec2.for_all(
-//       +[](int x, int mult1, int mult2) { return x * mult1 * mult2; }, 2, 2);
-//   for (int i = 0; i < 1000; i++) {
-//     TEST(vec2[i] == i * 32);
-//   }
-//
-//   using MapType = std::unordered_map<int, int>;
-//   auto vec3 = make_sharded_vector<MapType>(power_shard_sz);
-//   vec3.resize(100);
-//   vec3.for_all(+[](MapType &map) { map[1] = 1; });
-//   vec3.for_all(
-//       +[](MapType &map, int key, int val) { map[key] = val; }, 2, 2);
-//   auto maps = vec3.collect();
-//   for (auto &map : maps) {
-//     TEST(map[1] == 1);
-//     TEST(map[2] == 2);
-//   }
-//
-//   return true;
-// }
-//
+int double_int(int x) { return x * 2; }
+
+bool test_for_all() {
+  auto vec = make_sharded_vector<int>(kShardBytes);
+
+  for (int i = 0; i < 1000; i++) {
+    vec.push_back(i);
+  }
+  vec.for_all(+[](std::pair<const std::size_t, int> &entry) {
+    entry.second = entry.second * 2;
+  });
+  for (int i = 0; i < 1000; i++) {
+    TEST(vec[i] == i * 2);
+  }
+
+  // using MapType = std::unordered_map<int, int>;
+  // auto vec3 = make_sharded_vector<MapType>(power_shard_sz);
+  // vec3.resize(100);
+  // vec3.for_all(+[](MapType &map) { map[1] = 1; });
+  // vec3.for_all(
+  //     +[](MapType &map, int key, int val) { map[key] = val; }, 2, 2);
+  // auto maps = vec3.collect();
+  // for (auto &map : maps) {
+  //   TEST(map[1] == 1);
+  //   TEST(map[2] == 2);
+  // }
+
+  return true;
+}
+
 // bool test_reduction() {
 //   int power_shard_sz = 10;
 //   auto vec = make_sharded_vector<int>(power_shard_sz);
@@ -318,11 +310,11 @@ bool test_push_pop() {
 bool run_test() {
   ABORT_IF_FAILED(test_push_pop());
   // ABORT_IF_FAILED(test_apply());
-  // ABORT_IF_FAILED(test_vec_clear());
+  ABORT_IF_FAILED(test_vec_clear());
   // ABORT_IF_FAILED(test_capacity());
   // ABORT_IF_FAILED(test_capacity_reserve());
   // ABORT_IF_FAILED(test_resize());
-  // ABORT_IF_FAILED(test_for_all());
+  ABORT_IF_FAILED(test_for_all());
   // ABORT_IF_FAILED(test_reduction());
   // ABORT_IF_FAILED(test_map());
 
