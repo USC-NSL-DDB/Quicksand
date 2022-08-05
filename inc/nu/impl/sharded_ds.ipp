@@ -58,15 +58,16 @@ bool GeneralShard<Container>::try_emplace_batch(std::optional<Key> l_key,
     return false;
   }
 
-  container_.emplace_batch(std::move(container));
-
-  if (unlikely(container_.size() > max_shard_size_)) {
+  if (unlikely(container_.size() + container.size() > max_shard_size_)) {
     auto [mid_k, latter_half_container] = container_.split();
     auto new_shard = make_proclet<GeneralShard>(
         mapping_, max_shard_size_, mid_k, r_key_, latter_half_container);
     r_key_ = mid_k;
     mapping_.run(&ShardingMapping::update_mapping, mid_k, std::move(new_shard));
+    return false;
   }
+
+  container_.emplace_batch(std::move(container));
 
   return true;
 }
