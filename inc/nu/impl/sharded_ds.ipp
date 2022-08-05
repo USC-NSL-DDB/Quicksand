@@ -417,7 +417,7 @@ again:
     submit_push_data_req(ip, std::move(reqs));
   }
   if (push_future_) {
-    auto &rejected_reqs = push_future_.get();
+    auto rejected_reqs = std::move(push_future_.get());
     if (unlikely(!rejected_reqs.empty())) {
       handle_rejected_push_reqs(rejected_reqs);
       rejected = true;
