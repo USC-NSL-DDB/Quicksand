@@ -2,6 +2,8 @@
 #include <cereal/types/optional.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <utility>
 
@@ -128,18 +130,18 @@ template <class Container>
 ShardedDataStructure<Container>::ShardedDataStructure() {}
 
 template <class Container>
-ShardedDataStructure<Container>::ShardedDataStructure(
-    std::optional<Key> initial_l_key, std::optional<Key> initial_r_key,
-    uint32_t max_shard_bytes, uint32_t max_batch_bytes)
+ShardedDataStructure<Container>::ShardedDataStructure(uint32_t max_shard_bytes,
+                                                      uint32_t max_batch_bytes)
     : mapping_(make_proclet<ShardingMapping>()),
       max_shard_size_(max_shard_bytes / sizeof(Pair)),
       max_batch_size_(max_batch_bytes / sizeof(Pair)) {
-  auto initial_shard =
-      make_proclet<Shard>(mapping_.get_weak(), max_shard_size_, initial_l_key,
-                          initial_r_key, max_shard_size_);
+  auto container_capacity = max_shard_size_;
+  auto initial_shard = make_proclet<Shard>(
+      mapping_.get_weak(), max_shard_size_, std::optional<Key>(),
+      std::optional<Key>(), container_capacity);
   auto weak_shard = initial_shard.get_weak();
   add_batch(std::nullopt, weak_shard);
-  mapping_.run(&ShardingMapping::update_mapping, initial_l_key,
+  mapping_.run(&ShardingMapping::update_mapping, std::optional<Key>(),
                std::move(initial_shard));
 }
 
@@ -148,28 +150,36 @@ ShardedDataStructure<Container>::ShardedDataStructure(
     uint64_t num, Key estimated_min_key,
     std::function<void(Key &, uint64_t)> key_inc_fn, uint32_t max_shard_bytes,
     uint32_t max_batch_bytes)
-    : ShardedDataStructure(std::optional<Key>(), estimated_min_key,
-                           max_shard_bytes, max_batch_bytes) {
+    : mapping_(make_proclet<ShardingMapping>()),
+      max_shard_size_(max_shard_bytes / sizeof(Pair)),
+      max_batch_size_(max_batch_bytes / sizeof(Pair)) {
+  auto container_capacity = max_shard_size_;
   auto num_shards = (num - 1) / max_shard_size_ + 1;
   std::vector<Future<Proclet<Shard>>> shard_futures;
+  std::vector<std::optional<Key>> keys;
 
+  keys.push_back(std::nullopt);
   auto k = estimated_min_key;
-  for (uint32_t i = 0; i < num_shards; i++) {
-    auto prev_k = k;
+  for (std::size_t i = 0; i < num_shards; i++) {
+    keys.push_back(k);
     key_inc_fn(k, max_shard_size_);
-    shard_futures.emplace_back(make_proclet_async<Shard>(
-        mapping_.get_weak(), max_shard_size_, prev_k,
-        (i != num_shards - 1) ? k : std::optional<Key>(), max_shard_size_));
   }
 
-  k = estimated_min_key;
-  for (auto &shard_future : shard_futures) {
-    auto &shard = shard_future.get();
+  for (auto it = keys.begin(); it != keys.end(); it++) {
+    auto curr_key = *it;
+    auto next_key = (it + 1) == keys.end() ? std::optional<Key>() : *(it + 1);
+    shard_futures.emplace_back(
+        make_proclet_async<Shard>(mapping_.get_weak(), max_shard_size_,
+                                  curr_key, next_key, container_capacity));
+  }
+
+  for (std::size_t i = 0; i < keys.size(); i++) {
+    auto &shard = shard_futures[i].get();
     auto weak_shard = shard.get_weak();
-    auto update_future = mapping_.run_async(&ShardingMapping::update_mapping, k,
-                                            std::move(shard));
-    add_batch(k, weak_shard);
-    key_inc_fn(k, max_shard_size_);
+    auto &key = keys[i];
+    auto update_future = mapping_.run_async(&ShardingMapping::update_mapping,
+                                            key, std::move(shard));
+    add_batch(key, weak_shard);
   }
 }
 

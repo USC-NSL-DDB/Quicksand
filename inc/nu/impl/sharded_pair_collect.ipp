@@ -206,10 +206,9 @@ std::pair<K, V> *PairCollection<K, V>::data() {
 }
 
 template <typename K, typename V>
-ShardedPairCollection<K, V>::ShardedPairCollection(
-    std::optional<K> initial_l_key, std::optional<K> initial_r_key,
-    uint32_t max_shard_bytes, uint32_t max_cache_bytes)
-    : Base(initial_l_key, initial_r_key, max_shard_bytes, max_cache_bytes) {}
+ShardedPairCollection<K, V>::ShardedPairCollection(uint32_t max_shard_bytes,
+                                                   uint32_t max_cache_bytes)
+    : Base(max_shard_bytes, max_cache_bytes) {}
 
 template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardedPairCollection(
@@ -222,8 +221,7 @@ ShardedPairCollection<K, V>::ShardedPairCollection(
 template <typename K, typename V>
 ShardedPairCollection<K, V> make_sharded_pair_collection(
     uint32_t max_shard_bytes, uint32_t max_cache_bytes) {
-  return ShardedPairCollection<K, V>(std::optional<K>(), std::optional<K>(),
-                                     max_shard_bytes, max_cache_bytes);
+  return ShardedPairCollection<K, V>(max_shard_bytes, max_cache_bytes);
 }
 
 template <typename K, typename V>
