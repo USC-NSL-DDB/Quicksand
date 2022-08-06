@@ -155,9 +155,7 @@ class ShardedDataStructure {
   Container collect();
   void flush();
   template <class Archive>
-  void save(Archive &ar) const;
-  template <class Archive>
-  void load(Archive &ar);
+  void serialize(Archive &ar);
 
  protected:
   ShardedDataStructure();
@@ -175,7 +173,6 @@ class ShardedDataStructure {
   struct Batch {
     WeakProclet<Shard> shard;
     Container container;
-    uint32_t *per_ip_batch_size = nullptr;
 
     Batch();
     Batch(WeakProclet<Shard>);
@@ -186,37 +183,30 @@ class ShardedDataStructure {
     void load(Archive &ar);
   };
 
-  struct PushDataReq {
+  using KeyToBatchMapping =
+      std::map<std::optional<Key>, Batch, std::greater<std::optional<Key>>>;
+
+  struct FlushBatchReq {
     std::optional<Key> l_key;
     std::optional<Key> r_key;
     WeakProclet<Shard> shard;
     Container container;
 
+    FlushBatchReq();
+    FlushBatchReq(KeyToBatchMapping::iterator iter);
     template <class Archive>
     void serialize(Archive &ar);
   };
-
-  using KeyToBatchMapping =
-      std::map<std::optional<Key>, Batch, std::greater<std::optional<Key>>>;
-  using IPToBatchsMapping = std::unordered_map<
-      NodeIP,
-      std::pair<uint32_t, std::list<typename KeyToBatchMapping::iterator>>>;
 
   Proclet<ShardingMapping> mapping_;
   uint32_t max_shard_size_;
   uint32_t max_batch_size_;
   KeyToBatchMapping key_to_batch_;
-  IPToBatchsMapping ip_to_batchs_;
-  Future<std::vector<PushDataReq>> push_future_;
-  std::map<NodeIP, Proclet<ErasedType>> node_proxy_shards_;
+  Future<std::optional<FlushBatchReq>> flush_future_;
   ReaderWriterLock rw_lock_;
 
-  void submit_push_data_req(NodeIP ip, std::vector<PushDataReq> reqs);
-  void add_batch(std::optional<Key> k, WeakProclet<Shard> shard);
-  void bind_batch(NodeIP, const KeyToBatchMapping::iterator &batch);
-  std::vector<PushDataReq> gen_push_data_reqs(NodeIP ip);
-  WeakProclet<ErasedType> get_node_proxy_shard(NodeIP ip);
-  void handle_rejected_push_reqs(std::vector<PushDataReq> &reqs);
+  bool flush_one_batch(FlushBatchReq req);
+  void handle_rejected_flush_req(FlushBatchReq &req);
 };
 
 }  // namespace nu

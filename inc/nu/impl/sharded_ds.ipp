@@ -141,7 +141,8 @@ ShardedDataStructure<Container>::ShardedDataStructure(uint32_t max_shard_bytes,
       mapping_.get_weak(), max_shard_size_, std::optional<Key>(),
       std::optional<Key>(), container_capacity);
   auto weak_shard = initial_shard.get_weak();
-  add_batch(std::nullopt, weak_shard);
+
+  key_to_batch_.try_emplace(std::nullopt, weak_shard);
   mapping_.run(&ShardingMapping::update_mapping, std::optional<Key>(),
                std::move(initial_shard));
 }
@@ -180,7 +181,7 @@ ShardedDataStructure<Container>::ShardedDataStructure(
     auto &key = keys[i];
     auto update_future = mapping_.run_async(&ShardingMapping::update_mapping,
                                             key, std::move(shard));
-    add_batch(key, weak_shard);
+    key_to_batch_.try_emplace(key, weak_shard);
   }
 }
 
@@ -189,10 +190,9 @@ ShardedDataStructure<Container>::ShardedDataStructure(
     const ShardedDataStructure &o)
     : mapping_(o.mapping_),
       max_shard_size_(o.max_shard_size_),
-      max_batch_size_(o.max_batch_size_),
-      node_proxy_shards_(o.node_proxy_shards_) {
+      max_batch_size_(o.max_batch_size_) {
   for (auto &[k, c] : o.key_to_batch_) {
-    add_batch(k, c.shard);
+    key_to_batch_.try_emplace(k, c.shard);
   }
 }
 
@@ -204,9 +204,8 @@ ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
   mapping_ = o.mapping_;
   max_shard_size_ = o.max_shard_size_;
   max_batch_size_ = o.max_batch_size_;
-  node_proxy_shards_ = o.node_proxy_shards_;
   for (auto &[k, c] : o.key_to_batch_) {
-    add_batch(k, c.shard);
+    key_to_batch_.try_emplace(k, c.shard);
   }
   return *this;
 }
@@ -218,9 +217,7 @@ ShardedDataStructure<Container>::ShardedDataStructure(
       max_shard_size_(o.max_shard_size_),
       max_batch_size_(o.max_batch_size_),
       key_to_batch_(std::move(o.key_to_batch_)),
-      ip_to_batchs_(std::move(o.ip_to_batchs_)),
-      push_future_(std::move(o.push_future_)),
-      node_proxy_shards_(std::move(o.node_proxy_shards_)) {}
+      flush_future_(std::move(o.flush_future_)) {}
 
 template <class Container>
 ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
@@ -231,34 +228,13 @@ ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
   max_shard_size_ = o.max_shard_size_;
   max_batch_size_ = o.max_batch_size_;
   key_to_batch_ = std::move(o.key_to_batch_);
-  ip_to_batchs_ = std::move(o.ip_to_batchs_);
-  push_future_ = std::move(o.push_future_);
-  node_proxy_shards_ = std::move(o.node_proxy_shards_);
+  flush_future_ = std::move(o.flush_future_);
   return *this;
 }
 
 template <class Container>
 ShardedDataStructure<Container>::~ShardedDataStructure() {
   flush();
-}
-
-template <class Container>
-std::vector<typename ShardedDataStructure<Container>::PushDataReq>
-ShardedDataStructure<Container>::gen_push_data_reqs(NodeIP ip) {
-  std::vector<PushDataReq> reqs;
-
-  auto &[batch_size, batch_iters] = ip_to_batchs_[ip];
-  for (auto batch_iter : batch_iters) {
-    auto &[l_key, batch] = *batch_iter;
-    auto &shard = batch.shard;
-    auto &r_key = (--batch_iter)->first;
-    if (!batch.container.empty()) {
-      reqs.emplace_back(l_key, r_key, shard, std::move(batch.container));
-      batch.container.clear();
-    }
-  }
-  batch_size = 0;
-  return reqs;
 }
 
 template <class Container>
@@ -272,17 +248,10 @@ void ShardedDataStructure<Container>::emplace(Pair &&p) {
   auto iter = key_to_batch_.lower_bound(p.first);
   assert(iter != key_to_batch_.end());
   auto &batch = iter->second;
-
   batch.container.emplace(std::move(p.first), std::move(p.second));
-  auto &batch_size = ++(*batch.per_ip_batch_size);
 
-  if (unlikely(batch_size >= max_batch_size_)) {
-    auto proclet_id = iter->second.shard.get_id();
-    auto ip = Runtime::get_ip_by_proclet_id(proclet_id);
-    auto reqs = gen_push_data_reqs(ip);
-    if (!reqs.empty()) {
-      submit_push_data_req(ip, std::move(reqs));
-    }
+  if (unlikely(batch.container.size() >= max_batch_size_)) {
+    flush_one_batch(iter);
   }
 }
 
@@ -299,134 +268,59 @@ ShardedDataStructure<Container>::find(Key k) {
 }
 
 template <class Container>
-void ShardedDataStructure<Container>::add_batch(std::optional<Key> k,
-                                                WeakProclet<Shard> shard) {
-  auto ip = Runtime::get_ip_by_proclet_id(shard.get_id());
-  auto [iter, _] = key_to_batch_.try_emplace(std::move(k), Batch(shard));
-  bind_batch(ip, iter);
+bool ShardedDataStructure<Container>::flush_one_batch(FlushBatchReq req) {
+  bool last_req_succeed = true;
+  std::optional<FlushBatchReq> rejected_req;
+
+  if (flush_future_) {
+    rejected_req = std::move(flush_future_.get());
+  }
+
+  flush_future_ = nu::async([req = std::move(req)]() mutable {
+    bool success = req.shard.run(&Shard::try_emplace_batch, req.l_key,
+                                 req.r_key, req.container);
+    return success ? std::optional<FlushBatchReq>() : req;
+  });
+
+  if (rejected_req) {
+    handle_rejected_flush_req(*rejected_req);
+    last_req_succeed = false;
+  }
+  return last_req_succeed;
 }
 
 template <class Container>
-void ShardedDataStructure<Container>::bind_batch(
-    NodeIP ip, const KeyToBatchMapping::iterator &batch_iter) {
-  auto iter = ip_to_batchs_.find(ip);
-  if (unlikely(iter == ip_to_batchs_.end())) {
-    auto p = ip_to_batchs_.try_emplace(
-        ip, 0, std::list<typename KeyToBatchMapping::iterator>());
-    iter = p.first;
-  }
-  iter->second.second.emplace_back(batch_iter);
-  batch_iter->second.per_ip_batch_size = &iter->second.first;
-}
+void ShardedDataStructure<Container>::handle_rejected_flush_req(
+    FlushBatchReq &req) {
+  auto new_mappings =
+      mapping_.run(&ShardingMapping::get_shards_in_range, req.l_key, req.r_key);
 
-template <class Container>
-WeakProclet<ErasedType> ShardedDataStructure<Container>::get_node_proxy_shard(
-    NodeIP ip) {
-  rw_lock_.reader_lock();
-  auto iter = node_proxy_shards_.find(ip);
-  if (unlikely(iter == node_proxy_shards_.end())) {
-    rw_lock_.reader_unlock();
-    rw_lock_.writer_lock();
-    if (likely(!node_proxy_shards_.contains(ip))) {
-      node_proxy_shards_.try_emplace(ip,
-                                     make_proclet_pinned_at<ErasedType>(ip));
-    }
-    iter = node_proxy_shards_.find(ip);
-    rw_lock_.writer_unlock();
-  } else {
-    rw_lock_.reader_unlock();
-  }
-  return iter->second.get_weak();
-}
-
-template <class Container>
-void ShardedDataStructure<Container>::submit_push_data_req(
-    NodeIP ip, std::vector<PushDataReq> reqs) {
-  auto node_proxy_shard = get_node_proxy_shard(ip);
-
-  std::vector<PushDataReq> rejected_reqs;
-
-  if (push_future_) {
-    rejected_reqs = std::move(push_future_.get());
+  for (auto &[k, s] : new_mappings) {
+    key_to_batch_.try_emplace(std::move(k), s);
   }
 
-  push_future_ =
-      nu::async([node_proxy_shard, reqs = std::move(reqs)]() mutable {
-        auto rejected_req_indices = node_proxy_shard.run(
-            +[](ErasedType &_, std::vector<PushDataReq> reqs) {
-              std::vector<uint32_t> rejected_req_indices;
-
-              for (uint64_t i = 0; i < reqs.size(); i++) {
-                auto &req = reqs[i];
-                auto &[l_key, r_key, shard, data] = req;
-                bool success =
-                    shard.run(&Shard::try_emplace_batch, l_key, r_key, data);
-                if (unlikely(!success)) {
-                  rejected_req_indices.push_back(i);
-                }
-              }
-              return rejected_req_indices;
-            },
-            reqs);
-
-        std::vector<PushDataReq> rejected_reqs;
-        for (auto idx : rejected_req_indices) {
-          rejected_reqs.emplace_back(std::move(reqs[idx]));
-        }
-
-        return rejected_reqs;
-      });
-
-  if (!rejected_reqs.empty()) {
-    handle_rejected_push_reqs(rejected_reqs);
-  }
-}
-
-template <class Container>
-void ShardedDataStructure<Container>::handle_rejected_push_reqs(
-    std::vector<PushDataReq> &reqs) {
-  for (auto &[l_key, r_key, shard, rejected_container] : reqs) {
-    auto new_mappings =
-        mapping_.run(&ShardingMapping::get_shards_in_range, l_key, r_key);
-
-    for (auto &[k, s] : new_mappings) {
-      add_batch(std::move(k), s);
-    }
-
-    auto fn = +[](std::pair<const Key, Val> &p, ShardedDataStructure *ds) {
-      ds->emplace(std::move(p));
-    };
-    rejected_container.for_all(fn, this);
-  }
+  auto fn = +[](std::pair<const Key, Val> &p, ShardedDataStructure *ds) {
+    ds->emplace(std::move(p));
+  };
+  req.container.for_all(fn, this);
 }
 
 template <class Container>
 void ShardedDataStructure<Container>::flush() {
-again:
-  std::vector<std::pair<NodeIP, std::vector<PushDataReq>>> all_ip_reqs;
-
-  for (auto &[ip, _] : ip_to_batchs_) {
-    auto reqs = gen_push_data_reqs(ip);
-    if (!reqs.empty()) {
-      all_ip_reqs.emplace_back(ip, std::move(reqs));
+retry:
+  bool succeed = true;
+  for (auto iter = key_to_batch_.begin(); iter != key_to_batch_.end(); iter++) {
+    auto &batch = iter->second;
+    if (!batch.container.empty()) {
+      succeed &= flush_one_batch(iter);
     }
   }
-
-  bool rejected = false;
-
-  for (auto &[ip, reqs] : all_ip_reqs) {
-    submit_push_data_req(ip, std::move(reqs));
-  }
-  if (push_future_) {
-    auto rejected_reqs = std::move(push_future_.get());
-    if (unlikely(!rejected_reqs.empty())) {
-      handle_rejected_push_reqs(rejected_reqs);
-      rejected = true;
-    }
+  if (!key_to_batch_.empty()) {
+    succeed &= flush_one_batch(key_to_batch_.begin());
   }
 
-  if (unlikely(rejected)) {
-    goto again;
+  if (unlikely(!succeed)) {
+    goto retry;
   }
 }
 
@@ -477,20 +371,8 @@ Container ShardedDataStructure<Container>::collect() {
 
 template <class Container>
 template <class Archive>
-void ShardedDataStructure<Container>::save(Archive &ar) const {
-  ar(mapping_, max_shard_size_, max_batch_size_, node_proxy_shards_);
-  ar(key_to_batch_);
-}
-
-template <class Container>
-template <class Archive>
-void ShardedDataStructure<Container>::load(Archive &ar) {
-  ar(mapping_, max_shard_size_, max_batch_size_, node_proxy_shards_);
-  ar(key_to_batch_);
-  for (auto iter = key_to_batch_.begin(); iter != key_to_batch_.end(); iter++) {
-    auto ip = Runtime::get_ip_by_proclet_id(iter->second.shard.get_id());
-    bind_batch(ip, iter);
-  }
+void ShardedDataStructure<Container>::serialize(Archive &ar) {
+  ar(mapping_, max_shard_size_, max_batch_size_, key_to_batch_);
 }
 
 template <class Container>
@@ -518,8 +400,19 @@ void ShardedDataStructure<Container>::Batch::load(Archive &ar) {
 }
 
 template <class Container>
+ShardedDataStructure<Container>::FlushBatchReq::FlushBatchReq(
+    KeyToBatchMapping::iterator iter) {
+  auto &batch = iter->second;
+  l_key = iter->first;
+  r_key = (--iter)->first;
+  shard = batch.shard;
+  container = std::move(batch.container);
+  batch.container.clear();
+}
+
+template <class Container>
 template <class Archive>
-void ShardedDataStructure<Container>::PushDataReq::serialize(Archive &ar) {
+void ShardedDataStructure<Container>::FlushBatchReq::serialize(Archive &ar) {
   ar(l_key, r_key, shard, container);
 }
 
