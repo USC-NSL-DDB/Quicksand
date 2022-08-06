@@ -1,9 +1,4 @@
-#include <math.h>
-
-#include <cereal/types/set.hpp>
-#include <cereal/types/string.hpp>
-#include <cereal/types/unordered_map.hpp>
-#include <cereal/types/utility.hpp>
+#include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -12,17 +7,11 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-extern "C" {
-#include <net/ip.h>
-#include <runtime/runtime.h>
-}
-#include <runtime.h>
+#include <cereal/types/string.hpp>
 
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sharded_vector.hpp"
-#include "nu/utils/farmhash.hpp"
 
 using namespace nu;
 
@@ -110,7 +99,7 @@ bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
 }
 
 bool test_push_pop() {
-  uint32_t test_data_sz = 12345;
+  uint32_t test_data_sz = 1 << 16;
 
   auto expected_ints = make_int_range_vec(0, test_data_sz);
   ABORT_IF_FAILED(test_push_and_pop<int>(expected_ints, kShardBytes));

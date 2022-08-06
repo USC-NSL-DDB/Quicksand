@@ -21,7 +21,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(this, std::move(container)) {}
+      container_(std::move(container)) {}
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
@@ -33,7 +33,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(this, capacity) {}
+      container_(capacity) {}
 
 template <class Container>
 Container GeneralShard<Container>::get_container() {
@@ -260,9 +260,11 @@ std::optional<typename ShardedDataStructure<Container>::Val>
 ShardedDataStructure<Container>::find(Key k) {
   flush();
   auto result = mapping_.run(
-      +[](ShardingMapping &sm, Key k) { return sm.get_shard_for_key(k); }, k);
-  assert(result.has_value());
-  auto &shard = result.value();
+      +[](ShardingMapping &mapping, Key k) {
+        return mapping.get_shard_for_key(k);
+      },
+      k);
+  auto &shard = *result;
   return shard.run(
       +[](Shard &s, Key k) { return s.find(k); }, k);
 }

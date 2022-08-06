@@ -1,49 +1,32 @@
 #pragma once
 
-#include <thread.h>
-
-#include <cereal/types/vector.hpp>
-#include <memory>
-#include <utility>
 #include <vector>
 
 #include "sharded_ds.hpp"
 
-extern "C" {
-#include <runtime/net.h>
-}
-
-#include "nu/proclet.hpp"
-#include "nu/utils/mutex.hpp"
-#include "nu/utils/spin_lock.hpp"
-
 namespace nu {
 
 template <typename T>
-class VectorShard {
+class Vector {
  public:
   using Key = std::size_t;
   using Val = T;
-  using Shard = GeneralShard<GeneralContainer<VectorShard<T>>>;
 
-  VectorShard();
-  VectorShard(std::size_t capacity);
-  VectorShard(const Shard *s, std::size_t capacity);
-  VectorShard(const std::vector<T> &, std::size_t capacity);
-  VectorShard(const VectorShard &);
-  VectorShard &operator=(const VectorShard &);
-  VectorShard(VectorShard &&) noexcept;
-  VectorShard(const Shard *s, VectorShard &&) noexcept;
-  VectorShard &operator=(VectorShard &&) noexcept;
+  Vector();
+  Vector(std::size_t capacity);
+  Vector(const Vector &);
+  Vector &operator=(const Vector &);
+  Vector(Vector &&) noexcept;
+  Vector &operator=(Vector &&) noexcept;
 
   std::size_t size() const;
   std::size_t capacity() const;
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
-  void emplace_batch(VectorShard &&shard);
+  void emplace_batch(Vector &&vector);
   std::optional<T> find(Key k);
-  std::pair<Key, VectorShard> split();
+  std::pair<Key, Vector> split();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   template <class Archive>
@@ -53,16 +36,12 @@ class VectorShard {
 
  private:
   std::vector<T> data_;
-  std::size_t capacity_;
-  std::size_t l_key_inferred_;
-  const Shard *shard_;
-  std::size_t l_key() const;
-  std::size_t r_key() const;
+  Key l_key_;
 };
 
 template <typename T>
 class ShardedVector
-    : public ShardedDataStructure<GeneralContainer<VectorShard<T>>> {
+    : public ShardedDataStructure<GeneralContainer<Vector<T>>> {
  public:
   constexpr static uint32_t kDefaultMaxShardBytes = 16 << 20;
   constexpr static uint32_t kDefaultMaxBatchBytes = 16 << 10;
@@ -76,14 +55,12 @@ class ShardedVector
   T operator[](std::size_t index);
   void push_back(const T &value);
   void pop_back();
-  template <typename T1>
-  void set(std::size_t index, T1 &&value);
   std::size_t size();
   bool empty();
   void clear();
 
  private:
-  using Base = ShardedDataStructure<GeneralContainer<VectorShard<T>>>;
+  using Base = ShardedDataStructure<GeneralContainer<Vector<T>>>;
   ShardedVector(uint32_t max_shard_bytes, uint32_t max_batch_bytes);
 
   std::size_t size_;

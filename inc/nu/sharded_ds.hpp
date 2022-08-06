@@ -29,18 +29,12 @@ class GeneralContainer {
 
   GeneralContainer() : impl_() {}
   GeneralContainer(std::size_t capacity) : impl_(capacity) {}
-  GeneralContainer(const GeneralShard<GeneralContainer<Impl>> *shard,
-                   std::size_t capacity)
-      : impl_(shard, capacity) {}
   GeneralContainer(const GeneralContainer &c) : impl_(c.impl_) {}
   GeneralContainer &operator=(const GeneralContainer &c) {
     impl_ = c.impl_;
     return *this;
   }
   GeneralContainer(GeneralContainer &&c) noexcept : impl_(std::move(c.impl_)) {}
-  GeneralContainer(const GeneralShard<GeneralContainer<Impl>> *shard,
-                   GeneralContainer &&c) noexcept
-      : impl_(shard, std::move(c.impl_)) {}
   GeneralContainer &operator=(GeneralContainer &&c) noexcept {
     impl_ = std::move(c.impl_);
     return *this;
