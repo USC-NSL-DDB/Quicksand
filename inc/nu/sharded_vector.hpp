@@ -66,7 +66,7 @@ class ShardedVector
     : public ShardedDataStructure<GeneralContainer<VectorShard<T>>> {
  public:
   constexpr static uint32_t kDefaultMaxShardBytes = 16 << 20;
-  constexpr static uint32_t kDefaultMaxBatchBytes = 100 << 10;
+  constexpr static uint32_t kDefaultMaxBatchBytes = 16 << 10;
 
   ShardedVector();
   ShardedVector(const ShardedVector &);

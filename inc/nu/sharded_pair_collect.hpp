@@ -57,7 +57,7 @@ class ShardedPairCollection
     : public ShardedDataStructure<PairCollectionContainer<K, V>> {
  public:
   constexpr static uint32_t kDefaultMaxShardBytes = 16 << 20;
-  constexpr static uint32_t kDefaultMaxBatchBytes = 100 << 10;
+  constexpr static uint32_t kDefaultMaxBatchBytes = 16 << 10;
 
   ShardedPairCollection() = default;
   ShardedPairCollection(const ShardedPairCollection &) = default;
