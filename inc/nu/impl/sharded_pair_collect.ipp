@@ -173,10 +173,10 @@ std::pair<K, PairCollection<K, V>> PairCollection<K, V>::split() {
 
 template <typename K, typename V>
 template <typename... S0s, typename... S1s>
-void PairCollection<K, V>::for_all(void (*fn)(std::pair<const K, V> &, S0s...),
+void PairCollection<K, V>::for_all(void (*fn)(const K &key, V &val, S0s...),
                                    S1s &&... states) {
   for (std::size_t i = 0; i < size_; i++) {
-    fn(reinterpret_cast<std::pair<const K, V> &>(data_[i]), states...);
+    fn(data_[i].first, data_[i].second, states...);
   }
 }
 

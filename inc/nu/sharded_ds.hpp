@@ -61,8 +61,7 @@ class GeneralContainer {
     return std::make_pair(std::move(k), std::move(c));
   }
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
-               S1s &&... states) {
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states) {
     impl_.for_all(fn, std::forward<S1s>(states)...);
   }
   template <class Archive>
@@ -150,8 +149,7 @@ class ShardedDataStructure {
   void emplace(Pair &&p);
   std::optional<Val> find(Key k);
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
-               S1s &&... states);
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   Container collect();
   void flush();
   template <class Archive>

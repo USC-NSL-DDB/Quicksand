@@ -299,8 +299,9 @@ void ShardedDataStructure<Container>::handle_rejected_flush_req(
     key_to_batch_.try_emplace(std::move(k), s);
   }
 
-  auto fn = +[](std::pair<const Key, Val> &p, ShardedDataStructure *ds) {
-    ds->emplace(std::move(p));
+  auto fn = +[](const Key &key, Val &val, ShardedDataStructure *ds) {
+    auto &mut_key = const_cast<Key &>(key);
+    ds->emplace(std::move(mut_key), std::move(val));
   };
   req.container.for_all(fn, this);
 }
@@ -326,8 +327,9 @@ retry:
 
 template <class Container>
 template <typename... S0s, typename... S1s>
-void ShardedDataStructure<Container>::for_all(
-    void (*fn)(std::pair<const Key, Val> &p, S0s...), S1s &&... states) {
+void ShardedDataStructure<Container>::for_all(void (*fn)(const Key &key,
+                                                         Val &val, S0s...),
+                                              S1s &&... states) {
   flush();
 
   using Fn = decltype(fn);

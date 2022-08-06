@@ -23,9 +23,7 @@ class Worker {
 
   void mutate() {
     sc_.for_all(
-        +[](std::pair<const int, std::string> &p, char new_c) {
-          p.second += new_c;
-        },
+        +[](const int &key, std::string &val, char new_c) { val += new_c; },
         ' ');
   }
 

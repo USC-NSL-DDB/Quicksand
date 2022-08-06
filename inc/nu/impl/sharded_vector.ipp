@@ -173,14 +173,13 @@ VectorShard<T>::split() {
 
 template <typename T>
 template <typename... S0s, typename... S1s>
-void VectorShard<T>::for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
+void VectorShard<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
                              S1s &&... states) {
   auto l_key = this->l_key();
   auto start_index = l_key == SIZE_MAX ? 0 : l_key;
   for (std::size_t i = 0; i < data_.size(); i++) {
-    std::pair<const std::size_t, T> p = {start_index + i, data_[i]};
-    fn(p, std::forward<S0s>(states)...);
-    data_[i] = std::move(p.second);
+    auto idx = start_index + i;
+    fn(idx, data_[i], states...);
   }
 }
 

@@ -240,9 +240,7 @@ bool test_for_all() {
   for (int i = 0; i < 1000; i++) {
     vec.push_back(i);
   }
-  vec.for_all(+[](std::pair<const std::size_t, int> &entry) {
-    entry.second = entry.second * 2;
-  });
+  vec.for_all(+[](const std::size_t &idx, int &val) { val *= 2; });
   for (int i = 0; i < 1000; i++) {
     TEST(vec[i] == i * 2);
   }

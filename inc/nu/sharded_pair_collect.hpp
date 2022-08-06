@@ -30,8 +30,7 @@ class PairCollection {
   void emplace_batch(PairCollection &&pc);
   std::pair<Key, PairCollection> split();
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(std::pair<const Key, Val> &, S0s...),
-               S1s &&... states);
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
