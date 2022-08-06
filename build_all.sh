@@ -3,13 +3,17 @@
 # Config instance type.
 if [[ ! -v NODE_TYPE ]]; then
     echo 'Please set env var $NODE_TYPE, 
-supported list: [r650, c6525-100g, c6525-25g, xl170, xl170-uswitch, other]'
+supported list: [r650, r6525, c6525-100g, c6525-25g, xl170, xl170-uswitch, other]'
     exit 1
 fi
 
 # Patch source files.
 if [ $NODE_TYPE == "r650" ]; then
     patch -p1 -d caladan/ < caladan/build/cloudlab_r650.patch
+fi
+
+if [ $NODE_TYPE == "r6525" ]; then
+    patch -p1 -d caladan/ < caladan/build/cloudlab_r6525.patch
 fi
 
 if [ $NODE_TYPE == "c6525-100g" ]; then
