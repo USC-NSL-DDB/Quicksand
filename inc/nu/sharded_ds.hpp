@@ -122,8 +122,7 @@ class GeneralShardingMapping {
   void update_mapping(std::optional<Key> k, Proclet<Shard> shard);
 
  private:
-  std::map<std::optional<Key>, Proclet<Shard>, std::greater<std::optional<Key>>>
-      mapping_;
+  std::map<std::optional<Key>, Proclet<Shard>> mapping_;
   ReaderWriterLock rw_lock_;
 };
 
@@ -175,8 +174,7 @@ class ShardedDataStructure {
     void load(Archive &ar);
   };
 
-  using KeyToBatchMapping =
-      std::map<std::optional<Key>, Batch, std::greater<std::optional<Key>>>;
+  using KeyToBatchMapping = std::map<std::optional<Key>, Batch>;
 
   struct FlushBatchReq {
     std::optional<Key> l_key;
@@ -185,7 +183,8 @@ class ShardedDataStructure {
     Container container;
 
     FlushBatchReq();
-    FlushBatchReq(KeyToBatchMapping::iterator iter);
+    FlushBatchReq(const KeyToBatchMapping &mapping,
+                  KeyToBatchMapping::iterator iter);
     template <class Archive>
     void serialize(Archive &ar);
   };
@@ -197,7 +196,7 @@ class ShardedDataStructure {
   Future<std::optional<FlushBatchReq>> flush_future_;
   ReaderWriterLock rw_lock_;
 
-  bool flush_one_batch(FlushBatchReq req);
+  bool flush_one_batch(KeyToBatchMapping::iterator iter);
   void handle_rejected_flush_req(FlushBatchReq &req);
 };
 

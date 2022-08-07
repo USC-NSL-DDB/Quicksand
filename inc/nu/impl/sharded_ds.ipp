@@ -79,9 +79,8 @@ GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
 
   rw_lock_.reader_lock();
-  typename decltype(mapping_)::iterator iter =
-      r_key ? mapping_.upper_bound(r_key) : mapping_.begin();
-  while (iter != mapping_.end() && iter->first >= l_key) {
+  auto iter = --mapping_.upper_bound(l_key);
+  while (iter != mapping_.end() && (!r_key || iter->first < r_key)) {
     shards.emplace_back(iter->first, iter->second.get_weak());
     iter++;
   }
@@ -94,11 +93,7 @@ template <class Shard>
 std::optional<WeakProclet<Shard>>
 GeneralShardingMapping<Shard>::get_shard_for_key(std::optional<Key> key) {
   rw_lock_.reader_lock();
-  auto iter = mapping_.lower_bound(key);
-  if (iter == mapping_.end()) {
-    rw_lock_.reader_unlock();
-    return std::nullopt;
-  }
+  auto iter = --mapping_.upper_bound(key);
   auto shard = iter->second.get_weak();
   rw_lock_.reader_unlock();
   return shard;
@@ -245,8 +240,7 @@ void ShardedDataStructure<Container>::emplace(K1 &&k, V1 &&v) {
 
 template <class Container>
 void ShardedDataStructure<Container>::emplace(Pair &&p) {
-  auto iter = key_to_batch_.lower_bound(p.first);
-  assert(iter != key_to_batch_.end());
+  auto iter = --key_to_batch_.upper_bound(p.first);
   auto &batch = iter->second;
   batch.container.emplace(std::move(p.first), std::move(p.second));
 
@@ -270,7 +264,10 @@ ShardedDataStructure<Container>::find(Key k) {
 }
 
 template <class Container>
-bool ShardedDataStructure<Container>::flush_one_batch(FlushBatchReq req) {
+bool ShardedDataStructure<Container>::flush_one_batch(
+    KeyToBatchMapping::iterator iter) {
+  FlushBatchReq req(key_to_batch_, iter);
+
   bool last_req_succeed = true;
   std::optional<FlushBatchReq> rejected_req;
 
@@ -405,10 +402,10 @@ void ShardedDataStructure<Container>::Batch::load(Archive &ar) {
 
 template <class Container>
 ShardedDataStructure<Container>::FlushBatchReq::FlushBatchReq(
-    KeyToBatchMapping::iterator iter) {
+    const KeyToBatchMapping &mapping, KeyToBatchMapping::iterator iter) {
   auto &batch = iter->second;
   l_key = iter->first;
-  r_key = (--iter)->first;
+  r_key = (++iter != mapping.end()) ? iter->first : std::optional<Key>();
   shard = batch.shard;
   container = std::move(batch.container);
   batch.container.clear();
