@@ -52,9 +52,6 @@ template <typename K, typename V>
 class ShardedPairCollection
     : public ShardedDataStructure<PairCollectionContainer<K, V>> {
  public:
-  constexpr static uint32_t kDefaultMaxShardBytes = 16 << 20;
-  constexpr static uint32_t kDefaultMaxBatchBytes = 16 << 10;
-
   ShardedPairCollection() = default;
   ShardedPairCollection(const ShardedPairCollection &) = default;
   ShardedPairCollection &operator=(const ShardedPairCollection &) = default;
@@ -63,35 +60,24 @@ class ShardedPairCollection
 
  private:
   using Base = ShardedDataStructure<PairCollectionContainer<K, V>>;
-  ShardedPairCollection(uint32_t max_shard_bytes, uint32_t max_batch_bytes);
-  ShardedPairCollection(uint64_t num, K estimated_min_key,
-                        std::function<void(K &, uint64_t)> key_inc_fn,
-                        uint32_t max_shard_bytes, uint32_t max_batch_bytes);
+  ShardedPairCollection(bool low_latency);
+  ShardedPairCollection(bool low_latency, uint64_t num, K estimated_min_key,
+                        std::function<void(K &, uint64_t)> key_inc_fn);
   template <typename K1, typename V1>
-  friend ShardedPairCollection<K1, V1> make_sharded_pair_collection(
-      uint32_t max_shard_bytes, uint32_t max_batch_bytes);
+  friend ShardedPairCollection<K1, V1> make_sharded_pair_collection();
   template <typename K1, typename V1>
   friend ShardedPairCollection<K1, V1> make_sharded_pair_collection(
       uint64_t num, K1 estimated_min_key,
-      std::function<void(K1 &, uint64_t)> key_inc_fn, uint32_t max_shard_bytes,
-      uint32_t max_batch_bytes);
+      std::function<void(K1 &, uint64_t)> key_inc_fn);
 };
 
 template <typename K, typename V>
-ShardedPairCollection<K, V> make_sharded_pair_collection(
-    uint32_t max_shard_bytes =
-        ShardedPairCollection<K, V>::kDefaultMaxShardBytes,
-    uint32_t max_batch_bytes =
-        ShardedPairCollection<K, V>::kDefaultMaxBatchBytes);
+ShardedPairCollection<K, V> make_sharded_pair_collection();
 
 template <typename K, typename V>
 ShardedPairCollection<K, V> make_sharded_pair_collection(
     uint64_t num, K estimated_min_key,
-    std::function<void(K &, uint64_t)> key_inc_fn,
-    uint32_t max_shard_bytes =
-        ShardedPairCollection<K, V>::kDefaultMaxShardBytes,
-    uint32_t max_batch_bytes =
-        ShardedPairCollection<K, V>::kDefaultMaxBatchBytes);
+    std::function<void(K &, uint64_t)> key_inc_fn);
 
 }  // namespace nu
 

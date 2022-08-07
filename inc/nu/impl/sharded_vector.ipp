@@ -168,14 +168,12 @@ void ShardedVector<T>::clear() {
 }
 
 template <typename T>
-ShardedVector<T>::ShardedVector(uint32_t max_shard_bytes,
-                                uint32_t max_batch_bytes)
-    : Base(max_shard_bytes, max_batch_bytes), size_(0) {}
+ShardedVector<T>::ShardedVector(bool low_latency)
+    : Base(low_latency), size_(0) {}
 
 template <typename T>
-ShardedVector<T> make_sharded_vector(uint32_t max_shard_bytes,
-                                     uint32_t max_batch_bytes) {
-  return ShardedVector<T>(max_shard_bytes, max_batch_bytes);
+ShardedVector<T> make_sharded_vector(bool low_latency) {
+  return ShardedVector<T>(low_latency);
 }
 
 }  // namespace nu

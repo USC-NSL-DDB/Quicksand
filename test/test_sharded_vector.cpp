@@ -70,7 +70,7 @@ template <typename T>
 bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
   size_t len = expected.size();
 
-  auto vec = make_sharded_vector<T>(power_shard_sz);
+  auto vec = make_sharded_vector<T>(/* low_latency = */ false);
   TEST(vec.empty());
 
   for (size_t i = 0; i < len; i++) {
@@ -146,7 +146,7 @@ bool test_push_pop() {
 //
 
 bool test_vec_clear() {
-  auto vec = make_sharded_vector<int>(kShardBytes);
+  auto vec = make_sharded_vector<int>(/* low_latency = */ false);
 
   TEST(vec.empty());
   vec.clear();
@@ -224,7 +224,7 @@ bool test_vec_clear() {
 int double_int(int x) { return x * 2; }
 
 bool test_for_all() {
-  auto vec = make_sharded_vector<int>(kShardBytes);
+  auto vec = make_sharded_vector<int>(/* low_latency = */ false);
 
   for (int i = 0; i < 1000; i++) {
     vec.push_back(i);

@@ -188,32 +188,28 @@ std::pair<K, V> *PairCollection<K, V>::data() {
 }
 
 template <typename K, typename V>
-ShardedPairCollection<K, V>::ShardedPairCollection(uint32_t max_shard_bytes,
-                                                   uint32_t max_cache_bytes)
-    : Base(max_shard_bytes, max_cache_bytes) {}
+ShardedPairCollection<K, V>::ShardedPairCollection(bool low_latency)
+    : Base(low_latency) {}
 
 template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardedPairCollection(
-    uint64_t num, K estimated_min_key,
-    std::function<void(K &, uint64_t)> key_inc_fn, uint32_t max_shard_bytes,
-    uint32_t max_cache_bytes)
-    : Base(num, estimated_min_key, key_inc_fn, max_shard_bytes,
-           max_cache_bytes) {}
+    bool low_latency, uint64_t num, K estimated_min_key,
+    std::function<void(K &, uint64_t)> key_inc_fn)
+    : Base(low_latency, num, estimated_min_key, key_inc_fn) {}
 
 template <typename K, typename V>
-ShardedPairCollection<K, V> make_sharded_pair_collection(
-    uint32_t max_shard_bytes, uint32_t max_cache_bytes) {
-  return ShardedPairCollection<K, V>(max_shard_bytes, max_cache_bytes);
+ShardedPairCollection<K, V> make_sharded_pair_collection() {
+  return ShardedPairCollection<K, V>(
+      /*low_latency = */ false);  // Doesn't make sense to use this data
+                                  // structure for any low-latency purpose.
 }
 
 template <typename K, typename V>
 ShardedPairCollection<K, V> make_sharded_pair_collection(
     uint64_t num, K estimated_min_key,
-    std::function<void(K &, uint64_t)> key_inc_fn, uint32_t max_shard_bytes,
-    uint32_t max_cache_bytes) {
-  return ShardedPairCollection<K, V>(num, std::move(estimated_min_key),
-                                     std::move(key_inc_fn), max_shard_bytes,
-                                     max_cache_bytes);
+    std::function<void(K &, uint64_t)> key_inc_fn) {
+  return ShardedPairCollection<K, V>(false, num, std::move(estimated_min_key),
+                                     std::move(key_inc_fn));
 }
 
 }  // namespace nu

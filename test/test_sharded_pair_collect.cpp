@@ -66,7 +66,7 @@ bool run_test_no_hint() {
 }
 
 bool run_test_with_hint() {
-  // Intentionally use a very bad hint.
+  // Intentionally uses a very bad hint.
   auto sc = nu::make_sharded_pair_collection<int, std::string>(
       /* num = */ kNumElements, /* estimated_min_key = */ kNumElements,
       /* key_inc_fn = */ [](int &k, uint64_t offset) { k += offset; });

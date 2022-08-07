@@ -126,11 +126,20 @@ template <class Container>
 ShardedDataStructure<Container>::ShardedDataStructure() {}
 
 template <class Container>
-ShardedDataStructure<Container>::ShardedDataStructure(uint32_t max_shard_bytes,
-                                                      uint32_t max_batch_bytes)
-    : mapping_(make_proclet<ShardingMapping>()),
-      max_shard_size_(max_shard_bytes / sizeof(Pair)),
-      max_batch_size_(max_batch_bytes / sizeof(Pair)) {
+void ShardedDataStructure<Container>::set_shard_and_batch_size(
+    bool low_latency) {
+  auto max_shard_bytes =
+      low_latency ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
+  auto max_batch_bytes =
+      low_latency ? kLowLatencyMaxBatchBytes : kBatchingMaxBatchBytes;
+  max_shard_size_ = max_shard_bytes / sizeof(Pair);
+  max_batch_size_ = max_batch_bytes / sizeof(Pair);
+}
+
+template <class Container>
+ShardedDataStructure<Container>::ShardedDataStructure(bool low_latency)
+    : mapping_(make_proclet<ShardingMapping>()) {
+  set_shard_and_batch_size(low_latency);
   auto container_capacity = max_shard_size_;
   auto initial_shard = make_proclet<Shard>(
       mapping_.get_weak(), max_shard_size_, std::optional<Key>(),
@@ -144,12 +153,10 @@ ShardedDataStructure<Container>::ShardedDataStructure(uint32_t max_shard_bytes,
 
 template <class Container>
 ShardedDataStructure<Container>::ShardedDataStructure(
-    uint64_t num, Key estimated_min_key,
-    std::function<void(Key &, uint64_t)> key_inc_fn, uint32_t max_shard_bytes,
-    uint32_t max_batch_bytes)
-    : mapping_(make_proclet<ShardingMapping>()),
-      max_shard_size_(max_shard_bytes / sizeof(Pair)),
-      max_batch_size_(max_batch_bytes / sizeof(Pair)) {
+    bool low_latency, uint64_t num, Key estimated_min_key,
+    std::function<void(Key &, uint64_t)> key_inc_fn)
+    : mapping_(make_proclet<ShardingMapping>()) {
+  set_shard_and_batch_size(low_latency);
   auto container_capacity = max_shard_size_;
   auto num_shards = (num - 1) / max_shard_size_ + 1;
   std::vector<Future<Proclet<Shard>>> shard_futures;

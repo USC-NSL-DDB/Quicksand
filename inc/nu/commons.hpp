@@ -64,7 +64,7 @@ constexpr static ProcletID kNullProcletID = 0;
 // TODO: double check.
 constexpr static uint64_t kMinProcletHeapVAddr = 0x300000000000ULL;
 constexpr static uint64_t kMaxProcletHeapVAddr = 0x400000000000ULL;
-constexpr static uint64_t kProcletHeapSize = 0x8000000ULL;
+constexpr static uint64_t kProcletHeapSize = 1ULL << 30;
 constexpr static uint64_t kMaxNumProclets =
     (kMaxProcletHeapVAddr - kMinProcletHeapVAddr) / kProcletHeapSize;
 constexpr static uint64_t kMinStackClusterVAddr = kMaxProcletHeapVAddr;

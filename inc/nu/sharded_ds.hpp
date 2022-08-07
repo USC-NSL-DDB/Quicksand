@@ -150,10 +150,9 @@ class ShardedDataStructure {
 
  protected:
   ShardedDataStructure();
-  ShardedDataStructure(uint32_t max_shard_bytes, uint32_t max_batch_bytes);
-  ShardedDataStructure(uint64_t num, Key estimated_min_key,
-                       std::function<void(Key &, uint64_t)> key_inc_fn,
-                       uint32_t max_shard_bytes, uint32_t max_batch_bytes);
+  ShardedDataStructure(bool low_latency);
+  ShardedDataStructure(bool low_latency, uint64_t num, Key estimated_min_key,
+                       std::function<void(Key &, uint64_t)> key_inc_fn);
   ShardedDataStructure(const ShardedDataStructure &);
   ShardedDataStructure &operator=(const ShardedDataStructure &);
   ShardedDataStructure(ShardedDataStructure &&) noexcept;
@@ -161,6 +160,11 @@ class ShardedDataStructure {
   ~ShardedDataStructure();
 
  private:
+  constexpr static uint32_t kBatchingMaxShardBytes = 128 << 20;
+  constexpr static uint32_t kBatchingMaxBatchBytes = 16 << 10;
+  constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
+  constexpr static uint32_t kLowLatencyMaxBatchBytes = 16 << 10;
+
   struct Batch {
     WeakProclet<Shard> shard;
     Container container;
@@ -196,6 +200,7 @@ class ShardedDataStructure {
   Future<std::optional<FlushBatchReq>> flush_future_;
   ReaderWriterLock rw_lock_;
 
+  void set_shard_and_batch_size(bool low_latency);
   bool flush_one_batch(KeyToBatchMapping::iterator iter);
   void handle_rejected_flush_req(FlushBatchReq &req);
 };
