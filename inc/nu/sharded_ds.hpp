@@ -47,7 +47,7 @@ class GeneralContainer {
   void emplace_batch(GeneralContainer &&c) {
     impl_.emplace_batch(std::move(c.impl_));
   };
-  std::optional<Val> find(Key k) { return impl_.find(std::move(k)); }
+  std::optional<Val> find_val(Key k) { return impl_.find_val(std::move(k)); }
   std::pair<Key, GeneralContainer> split() {
     auto [k, impl] = impl_.split();
     GeneralContainer c;
@@ -95,9 +95,7 @@ class GeneralShard {
   std::pair<ScopedLock<Mutex>, Container *> get_container_ptr();
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                          Container container);
-  std::optional<Val> find(Key k) { return container_.find(std::move(k)); }
-  std::optional<Key> l_key() const { return l_key_; }
-  std::optional<Key> r_key() const { return r_key_; }
+  std::pair<bool, std::optional<Val>> find_val(Key k);
 
  private:
   uint32_t max_shard_size_;
@@ -118,7 +116,6 @@ class GeneralShardingMapping {
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
   std::optional<WeakProclet<Shard>> get_shard_for_key(std::optional<Key> key);
-  std::vector<WeakProclet<Shard>> get_all_shards();
   void update_mapping(std::optional<Key> k, Proclet<Shard> shard);
 
  private:
@@ -140,7 +137,7 @@ class ShardedDataStructure {
   template <typename K1, typename V1>
   void emplace(K1 &&k1, V1 &&v1);
   void emplace(Pair &&p);
-  std::optional<Val> find(Key k);
+  std::optional<Val> find_val(Key k);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   Container collect();
@@ -174,9 +171,6 @@ class ShardedDataStructure {
     WeakProclet<Shard> shard;
     Container batch;
 
-    FlushBatchReq();
-    FlushBatchReq(const KeyToShardsMapping &mapping,
-                  KeyToShardsMapping::iterator iter);
     template <class Archive>
     void serialize(Archive &ar);
   };
@@ -191,6 +185,9 @@ class ShardedDataStructure {
   void set_shard_and_batch_size(bool low_latency);
   bool flush_one_batch(KeyToShardsMapping::iterator iter);
   void handle_rejected_flush_req(FlushBatchReq &req);
+  void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key);
+  std::pair<std::optional<Key>, std::optional<Key>> get_key_range(
+      KeyToShardsMapping::iterator iter);
 };
 
 }  // namespace nu

@@ -25,7 +25,7 @@ class Vector {
   void clear();
   void emplace(Key k, Val v);
   void emplace_batch(Vector &&vector);
-  std::optional<T> find(Key k);
+  std::optional<T> find_val(Key k);
   std::pair<Key, Vector> split();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);

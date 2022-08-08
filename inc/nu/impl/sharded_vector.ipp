@@ -68,7 +68,7 @@ void Vector<T>::emplace_batch(Vector &&vector) {
 }
 
 template <typename T>
-std::optional<T> Vector<T>::find(Key k) {
+std::optional<T> Vector<T>::find_val(Key k) {
   auto l_key = l_key_;
   auto r_key = l_key_ + data_.size();
 
@@ -137,7 +137,7 @@ ShardedVector<T> &ShardedVector<T>::operator=(ShardedVector &&o) noexcept {
 template <typename T>
 T ShardedVector<T>::operator[](std::size_t index) {
   assert(index < size_);
-  std::optional<T> r = this->find(index);
+  std::optional<T> r = this->find_val(index);
   return *r;
 }
 
