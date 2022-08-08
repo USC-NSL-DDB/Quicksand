@@ -93,6 +93,7 @@ class GeneralShard {
                std::size_t capacity);
   Container get_container();
   std::pair<ScopedLock<Mutex>, Container *> get_container_ptr();
+  bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                          Container container);
   std::pair<bool, std::optional<Val>> find_val(Key k);
@@ -104,6 +105,9 @@ class GeneralShard {
   std::optional<Key> r_key_;
   Container container_;
   Mutex mutex_;
+
+  void split();
+  bool bad_range(std::optional<Key> l_key, std::optional<Key> r_key);
 };
 
 template <class Shard>
@@ -160,7 +164,7 @@ class ShardedDataStructure {
   constexpr static uint32_t kBatchingMaxShardBytes = 128 << 20;
   constexpr static uint32_t kBatchingMaxBatchBytes = 16 << 10;
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
-  constexpr static uint32_t kLowLatencyMaxBatchBytes = 16 << 10;
+  constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
 
   using KeyToShardsMapping =
       std::map<std::optional<Key>, std::pair<WeakProclet<Shard>, Container>>;

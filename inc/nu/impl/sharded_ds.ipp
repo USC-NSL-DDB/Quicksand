@@ -7,8 +7,6 @@
 #include <optional>
 #include <utility>
 
-// TODO: support no-batch mode.
-
 namespace nu {
 
 template <class Container>
@@ -48,22 +46,51 @@ GeneralShard<Container>::get_container_ptr() {
 }
 
 template <class Container>
+void GeneralShard<Container>::split() {
+  auto [mid_k, latter_half_container] = container_.split();
+  auto new_shard = make_proclet<GeneralShard>(mapping_, max_shard_size_, mid_k,
+                                              r_key_, latter_half_container);
+  r_key_ = mid_k;
+  mapping_.run(&ShardingMapping::update_mapping, mid_k, std::move(new_shard));
+}
+
+template <class Container>
+bool GeneralShard<Container>::bad_range(std::optional<Key> l_key,
+                                          std::optional<Key> r_key) {
+  return (l_key < l_key_) || (r_key_ && (r_key > r_key_ || !r_key));
+}
+
+template <class Container>
+bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
+                                          std::optional<Key> r_key, Pair p) {
+  ScopedLock<Mutex> guard(&mutex_);
+
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    return false;
+  }
+
+  if (unlikely(container_.size() >= max_shard_size_)) {
+    split();
+    return false;
+  }
+
+  container_.emplace(std::move(p.first), std::move(p.second));
+
+  return true;
+}
+
+template <class Container>
 bool GeneralShard<Container>::try_emplace_batch(std::optional<Key> l_key,
                                                 std::optional<Key> r_key,
                                                 Container container) {
   ScopedLock<Mutex> guard(&mutex_);
 
-  bool bad_range = (l_key < l_key_) || (r_key_ && ((r_key > r_key_) || !r_key));
-  if (unlikely(bad_range)) {
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
     return false;
   }
 
   if (unlikely(container_.size() + container.size() > max_shard_size_)) {
-    auto [mid_k, latter_half_container] = container_.split();
-    auto new_shard = make_proclet<GeneralShard>(
-        mapping_, max_shard_size_, mid_k, r_key_, latter_half_container);
-    r_key_ = mid_k;
-    mapping_.run(&ShardingMapping::update_mapping, mid_k, std::move(new_shard));
+    split();
     return false;
   }
 
@@ -243,12 +270,25 @@ void ShardedDataStructure<Container>::emplace(K1 &&k, V1 &&v) {
 
 template <class Container>
 void ShardedDataStructure<Container>::emplace(Pair &&p) {
+retry:
   auto iter = --key_to_shards_.upper_bound(p.first);
-  auto &batch = iter->second.second;
-  batch.emplace(std::move(p.first), std::move(p.second));
 
-  if (unlikely(batch.size() >= max_batch_size_)) {
-    flush_one_batch(iter);
+  if (max_batch_size_) {
+    auto &batch = iter->second.second;
+    batch.emplace(std::move(p.first), std::move(p.second));
+
+    if (unlikely(batch.size() >= max_batch_size_)) {
+      flush_one_batch(iter);
+    }
+  } else {
+    auto [l_key, r_key] = get_key_range(iter);
+    auto shard = iter->second.first;
+    auto right_shard = shard.run(&Shard::try_emplace, l_key, r_key, p);
+
+    if (unlikely(!right_shard)) {
+      sync_mapping(l_key, r_key);
+      goto retry;
+    }
   }
 }
 
