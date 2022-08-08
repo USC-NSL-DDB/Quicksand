@@ -53,8 +53,6 @@ class Proclet {
             uint64_t NumBuckets>
   friend class DistributedHashTable;
   friend class DistributedMemPool;
-  template <typename V>
-  friend class ShardedVector;
 
   std::optional<Future<void>> update_ref_cnt(ProcletID id, int delta);
   template <typename... S1s>

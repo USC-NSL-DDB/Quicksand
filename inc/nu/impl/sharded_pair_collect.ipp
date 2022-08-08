@@ -188,28 +188,23 @@ std::pair<K, V> *PairCollection<K, V>::data() {
 }
 
 template <typename K, typename V>
-ShardedPairCollection<K, V>::ShardedPairCollection(bool low_latency)
-    : Base(low_latency) {}
-
-template <typename K, typename V>
 ShardedPairCollection<K, V>::ShardedPairCollection(
-    bool low_latency, uint64_t num, K estimated_min_key,
-    std::function<void(K &, uint64_t)> key_inc_fn)
-    : Base(low_latency, num, estimated_min_key, key_inc_fn) {}
+    std::optional<typename Base::Hint> hint)
+    : Base(hint) {}
 
 template <typename K, typename V>
 ShardedPairCollection<K, V> make_sharded_pair_collection() {
-  return ShardedPairCollection<K, V>(
-      /*low_latency = */ false);  // Doesn't make sense to use this data
-                                  // structure for any low-latency purpose.
+  return ShardedPairCollection<K, V>(std::nullopt);
 }
 
 template <typename K, typename V>
 ShardedPairCollection<K, V> make_sharded_pair_collection(
     uint64_t num, K estimated_min_key,
     std::function<void(K &, uint64_t)> key_inc_fn) {
-  return ShardedPairCollection<K, V>(false, num, std::move(estimated_min_key),
-                                     std::move(key_inc_fn));
+  return ShardedPairCollection<K, V>(
+      std::make_optional<typename ShardedDataStructure<
+          PairCollectionContainer<K, V>, false>::Hint>(
+          num, std::move(estimated_min_key), std::move(key_inc_fn)));
 }
 
 }  // namespace nu

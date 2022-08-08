@@ -148,51 +148,37 @@ void GeneralShardingMapping<Shard>::update_mapping(std::optional<Key> k,
   BUG_ON(!ret.second);
 }
 
-template <class Container>
-ShardedDataStructure<Container>::ShardedDataStructure() {}
+template <class Container, bool LowLat>
+ShardedDataStructure<Container, LowLat>::ShardedDataStructure() {}
 
-template <class Container>
-void ShardedDataStructure<Container>::set_shard_and_batch_size(
-    bool low_latency) {
-  auto max_shard_bytes =
-      low_latency ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
-  auto max_batch_bytes =
-      low_latency ? kLowLatencyMaxBatchBytes : kBatchingMaxBatchBytes;
+template <class Container, bool LowLat>
+void ShardedDataStructure<Container, LowLat>::set_shard_and_batch_size() {
+  constexpr auto max_shard_bytes =
+      LowLat ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
+  constexpr auto max_batch_bytes =
+      LowLat ? kLowLatencyMaxBatchBytes : kBatchingMaxBatchBytes;
   max_shard_size_ = max_shard_bytes / sizeof(Pair);
   max_batch_size_ = max_batch_bytes / sizeof(Pair);
 }
 
-template <class Container>
-ShardedDataStructure<Container>::ShardedDataStructure(bool low_latency)
+template <class Container, bool LowLat>
+ShardedDataStructure<Container, LowLat>::ShardedDataStructure(
+    std::optional<Hint> hint)
     : mapping_(make_proclet<ShardingMapping>()) {
-  set_shard_and_batch_size(low_latency);
+  set_shard_and_batch_size();
   auto container_capacity = max_shard_size_;
-  auto initial_shard = make_proclet<Shard>(
-      mapping_.get_weak(), max_shard_size_, std::optional<Key>(),
-      std::optional<Key>(), container_capacity);
-  auto weak_shard = initial_shard.get_weak();
-  key_to_shards_.try_emplace(std::nullopt,
-                             std::make_pair(weak_shard, Container()));
-  mapping_.run(&ShardingMapping::update_mapping, std::optional<Key>(),
-               std::move(initial_shard));
-}
 
-template <class Container>
-ShardedDataStructure<Container>::ShardedDataStructure(
-    bool low_latency, uint64_t num, Key estimated_min_key,
-    std::function<void(Key &, uint64_t)> key_inc_fn)
-    : mapping_(make_proclet<ShardingMapping>()) {
-  set_shard_and_batch_size(low_latency);
-  auto container_capacity = max_shard_size_;
-  auto num_shards = (num - 1) / max_shard_size_ + 1;
-  std::vector<Future<Proclet<Shard>>> shard_futures;
   std::vector<std::optional<Key>> keys;
+  std::vector<Future<Proclet<Shard>>> shard_futures;
 
   keys.push_back(std::nullopt);
-  auto k = estimated_min_key;
-  for (std::size_t i = 0; i < num_shards; i++) {
-    keys.push_back(k);
-    key_inc_fn(k, max_shard_size_);
+  if (hint) {
+    auto k = hint->estimated_min_key;
+    auto num_shards = (hint->num - 1) / max_shard_size_ + 1;
+    for (std::size_t i = 0; i < num_shards; i++) {
+      keys.push_back(k);
+      hint->key_inc_fn(k, max_shard_size_);
+    }
   }
 
   for (auto it = keys.begin(); it != keys.end(); it++) {
@@ -215,17 +201,18 @@ ShardedDataStructure<Container>::ShardedDataStructure(
   }
 }
 
-template <class Container>
-ShardedDataStructure<Container>::ShardedDataStructure(
+template <class Container, bool LowLat>
+ShardedDataStructure<Container, LowLat>::ShardedDataStructure(
     const ShardedDataStructure &o)
     : mapping_(o.mapping_),
       max_shard_size_(o.max_shard_size_),
       max_batch_size_(o.max_batch_size_),
       key_to_shards_(o.key_to_shards_) {}
 
-template <class Container>
-ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
-    const ShardedDataStructure &o) {
+template <class Container, bool LowLat>
+ShardedDataStructure<Container, LowLat>
+    &ShardedDataStructure<Container, LowLat>::operator=(
+        const ShardedDataStructure &o) {
   flush();
 
   mapping_ = o.mapping_;
@@ -235,8 +222,8 @@ ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
   return *this;
 }
 
-template <class Container>
-ShardedDataStructure<Container>::ShardedDataStructure(
+template <class Container, bool LowLat>
+ShardedDataStructure<Container, LowLat>::ShardedDataStructure(
     ShardedDataStructure &&o) noexcept
     : mapping_(std::move(o.mapping_)),
       max_shard_size_(o.max_shard_size_),
@@ -244,9 +231,10 @@ ShardedDataStructure<Container>::ShardedDataStructure(
       key_to_shards_(std::move(o.key_to_shards_)),
       flush_future_(std::move(o.flush_future_)) {}
 
-template <class Container>
-ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
-    ShardedDataStructure &&o) noexcept {
+template <class Container, bool LowLat>
+ShardedDataStructure<Container, LowLat>
+    &ShardedDataStructure<Container, LowLat>::operator=(
+        ShardedDataStructure &&o) noexcept {
   flush();
 
   mapping_ = std::move(o.mapping_);
@@ -257,30 +245,23 @@ ShardedDataStructure<Container> &ShardedDataStructure<Container>::operator=(
   return *this;
 }
 
-template <class Container>
-ShardedDataStructure<Container>::~ShardedDataStructure() {
+template <class Container, bool LowLat>
+ShardedDataStructure<Container, LowLat>::~ShardedDataStructure() {
   flush();
 }
 
-template <class Container>
+template <class Container, bool LowLat>
 template <typename K1, typename V1>
-void ShardedDataStructure<Container>::emplace(K1 &&k, V1 &&v) {
+void ShardedDataStructure<Container, LowLat>::emplace(K1 &&k, V1 &&v) {
   emplace({std::forward<K1>(k), std::forward<V1>(v)});
 }
 
-template <class Container>
-void ShardedDataStructure<Container>::emplace(Pair &&p) {
-retry:
+template <class Container, bool LowLat>
+void ShardedDataStructure<Container, LowLat>::emplace(Pair &&p) {
+[[maybe_unused]] retry:
   auto iter = --key_to_shards_.upper_bound(p.first);
 
-  if (max_batch_size_) {
-    auto &batch = iter->second.second;
-    batch.emplace(std::move(p.first), std::move(p.second));
-
-    if (unlikely(batch.size() >= max_batch_size_)) {
-      flush_one_batch(iter);
-    }
-  } else {
+  if constexpr (LowLat) {
     auto [l_key, r_key] = get_key_range(iter);
     auto shard = iter->second.first;
     auto right_shard = shard.run(&Shard::try_emplace, l_key, r_key, p);
@@ -289,12 +270,19 @@ retry:
       sync_mapping(l_key, r_key);
       goto retry;
     }
+  } else {
+    auto &batch = iter->second.second;
+    batch.emplace(std::move(p.first), std::move(p.second));
+
+    if (unlikely(batch.size() >= max_batch_size_)) {
+      flush_one_batch(iter);
+    }
   }
 }
 
-template <class Container>
-std::optional<typename ShardedDataStructure<Container>::Val>
-ShardedDataStructure<Container>::find_val(Key k) {
+template <class Container, bool LowLat>
+std::optional<typename ShardedDataStructure<Container, LowLat>::Val>
+ShardedDataStructure<Container, LowLat>::find_val(Key k) {
   flush();
 
 retry:
@@ -311,10 +299,10 @@ retry:
   return val;
 }
 
-template <class Container>
-std::pair<std::optional<typename ShardedDataStructure<Container>::Key>,
-          std::optional<typename ShardedDataStructure<Container>::Key>>
-ShardedDataStructure<Container>::get_key_range(
+template <class Container, bool LowLat>
+std::pair<std::optional<typename ShardedDataStructure<Container, LowLat>::Key>,
+          std::optional<typename ShardedDataStructure<Container, LowLat>::Key>>
+ShardedDataStructure<Container, LowLat>::get_key_range(
     KeyToShardsMapping::iterator iter) {
   auto l_key = iter->first;
   auto r_key =
@@ -322,8 +310,8 @@ ShardedDataStructure<Container>::get_key_range(
   return std::make_pair(l_key, r_key);
 }
 
-template <class Container>
-bool ShardedDataStructure<Container>::flush_one_batch(
+template <class Container, bool LowLat>
+bool ShardedDataStructure<Container, LowLat>::flush_one_batch(
     KeyToShardsMapping::iterator iter) {
   FlushBatchReq req;
   req.shard = iter->second.first;
@@ -350,8 +338,8 @@ bool ShardedDataStructure<Container>::flush_one_batch(
   return last_req_succeed;
 }
 
-template <class Container>
-void ShardedDataStructure<Container>::handle_rejected_flush_req(
+template <class Container, bool LowLat>
+void ShardedDataStructure<Container, LowLat>::handle_rejected_flush_req(
     FlushBatchReq &req) {
   sync_mapping(req.l_key, req.r_key);
 
@@ -362,28 +350,31 @@ void ShardedDataStructure<Container>::handle_rejected_flush_req(
   req.batch.for_all(fn, this);
 }
 
-template <class Container>
-void ShardedDataStructure<Container>::flush() {
-retry:
-  bool succeed = true;
-  for (auto iter = key_to_shards_.begin(); iter != key_to_shards_.end(); iter++) {
-    auto &batch = iter->second.second;
-    if (!batch.empty()) {
-      succeed &= flush_one_batch(iter);
+template <class Container, bool LowLat>
+void ShardedDataStructure<Container, LowLat>::flush() {
+  if constexpr (!LowLat) {
+  retry:
+    bool succeed = true;
+    for (auto iter = key_to_shards_.begin(); iter != key_to_shards_.end();
+         iter++) {
+      auto &batch = iter->second.second;
+      if (!batch.empty()) {
+        succeed &= flush_one_batch(iter);
+      }
     }
-  }
-  if (!key_to_shards_.empty()) {
-    succeed &= flush_one_batch(key_to_shards_.begin());
-  }
+    if (!key_to_shards_.empty()) {
+      succeed &= flush_one_batch(key_to_shards_.begin());
+    }
 
-  if (unlikely(!succeed)) {
-    goto retry;
+    if (unlikely(!succeed)) {
+      goto retry;
+    }
   }
 }
 
-template <class Container>
-void ShardedDataStructure<Container>::sync_mapping(std::optional<Key> l_key,
-                                                   std::optional<Key> r_key) {
+template <class Container, bool LowLat>
+void ShardedDataStructure<Container, LowLat>::sync_mapping(
+    std::optional<Key> l_key, std::optional<Key> r_key) {
   auto latest_mapping =
       mapping_.run(&ShardingMapping::get_shards_in_range, l_key, r_key);
   for (auto &[k, s] : latest_mapping) {
@@ -391,11 +382,10 @@ void ShardedDataStructure<Container>::sync_mapping(std::optional<Key> l_key,
   }
 }
 
-template <class Container>
+template <class Container, bool LowLat>
 template <typename... S0s, typename... S1s>
-void ShardedDataStructure<Container>::for_all(void (*fn)(const Key &key,
-                                                         Val &val, S0s...),
-                                              S1s &&... states) {
+void ShardedDataStructure<Container, LowLat>::for_all(
+    void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states) {
   flush();
 
   using Fn = decltype(fn);
@@ -414,8 +404,8 @@ void ShardedDataStructure<Container>::for_all(void (*fn)(const Key &key,
   }
 }
 
-template <class Container>
-Container ShardedDataStructure<Container>::collect() {
+template <class Container, bool LowLat>
+Container ShardedDataStructure<Container, LowLat>::collect() {
   flush();
 
   sync_mapping(std::nullopt, std::nullopt);
@@ -437,15 +427,16 @@ Container ShardedDataStructure<Container>::collect() {
   return all;
 }
 
-template <class Container>
+template <class Container, bool LowLat>
 template <class Archive>
-void ShardedDataStructure<Container>::serialize(Archive &ar) {
+void ShardedDataStructure<Container, LowLat>::serialize(Archive &ar) {
   ar(mapping_, max_shard_size_, max_batch_size_, key_to_shards_);
 }
 
-template <class Container>
+template <class Container, bool LowLat>
 template <class Archive>
-void ShardedDataStructure<Container>::FlushBatchReq::serialize(Archive &ar) {
+void ShardedDataStructure<Container, LowLat>::FlushBatchReq::serialize(
+    Archive &ar) {
   ar(l_key, r_key, shard, batch);
 }
 

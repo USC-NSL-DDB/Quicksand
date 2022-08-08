@@ -127,7 +127,7 @@ class GeneralShardingMapping {
   ReaderWriterLock rw_lock_;
 };
 
-template <class Container>
+template <class Container, bool LowLat>
 class ShardedDataStructure {
   static_assert(is_base_of_template_v<Container, GeneralContainer>);
 
@@ -137,6 +137,12 @@ class ShardedDataStructure {
   using Pair = Container::Pair;
   using Shard = GeneralShard<Container>;
   using ShardingMapping = GeneralShardingMapping<Shard>;
+
+  struct Hint {
+    uint64_t num;
+    Key estimated_min_key;
+    std::function<void(Key &, uint64_t)> key_inc_fn;
+  };
 
   template <typename K1, typename V1>
   void emplace(K1 &&k1, V1 &&v1);
@@ -151,9 +157,7 @@ class ShardedDataStructure {
 
  protected:
   ShardedDataStructure();
-  ShardedDataStructure(bool low_latency);
-  ShardedDataStructure(bool low_latency, uint64_t num, Key estimated_min_key,
-                       std::function<void(Key &, uint64_t)> key_inc_fn);
+  ShardedDataStructure(std::optional<Hint> hint);
   ShardedDataStructure(const ShardedDataStructure &);
   ShardedDataStructure &operator=(const ShardedDataStructure &);
   ShardedDataStructure(ShardedDataStructure &&) noexcept;
@@ -186,7 +190,7 @@ class ShardedDataStructure {
   Future<std::optional<FlushBatchReq>> flush_future_;
   ReaderWriterLock rw_lock_;
 
-  void set_shard_and_batch_size(bool low_latency);
+  void set_shard_and_batch_size();
   bool flush_one_batch(KeyToShardsMapping::iterator iter);
   void handle_rejected_flush_req(FlushBatchReq &req);
   void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key);

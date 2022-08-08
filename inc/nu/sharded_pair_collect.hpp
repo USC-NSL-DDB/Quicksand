@@ -50,7 +50,11 @@ using PairCollectionContainer = GeneralContainer<PairCollection<K, V>>;
 
 template <typename K, typename V>
 class ShardedPairCollection
-    : public ShardedDataStructure<PairCollectionContainer<K, V>> {
+    : public ShardedDataStructure<
+          PairCollectionContainer<K, V>,
+          /* LowLat = */ false>  // Doesn't make sense to use this data
+                                 // structure for any low-latency purpose.
+{
  public:
   ShardedPairCollection() = default;
   ShardedPairCollection(const ShardedPairCollection &) = default;
@@ -59,10 +63,8 @@ class ShardedPairCollection
   ShardedPairCollection &operator=(ShardedPairCollection &&) noexcept = default;
 
  private:
-  using Base = ShardedDataStructure<PairCollectionContainer<K, V>>;
-  ShardedPairCollection(bool low_latency);
-  ShardedPairCollection(bool low_latency, uint64_t num, K estimated_min_key,
-                        std::function<void(K &, uint64_t)> key_inc_fn);
+  using Base = ShardedDataStructure<PairCollectionContainer<K, V>, false>;
+  ShardedPairCollection(std::optional<typename Base::Hint> hint);
   template <typename K1, typename V1>
   friend ShardedPairCollection<K1, V1> make_sharded_pair_collection();
   template <typename K1, typename V1>
