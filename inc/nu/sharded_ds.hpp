@@ -165,30 +165,18 @@ class ShardedDataStructure {
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 16 << 10;
 
-  struct Batch {
-    WeakProclet<Shard> shard;
-    Container container;
-
-    Batch();
-    Batch(WeakProclet<Shard>);
-
-    template <class Archive>
-    void save(Archive &ar) const;
-    template <class Archive>
-    void load(Archive &ar);
-  };
-
-  using KeyToBatchMapping = std::map<std::optional<Key>, Batch>;
+  using KeyToShardsMapping =
+      std::map<std::optional<Key>, std::pair<WeakProclet<Shard>, Container>>;
 
   struct FlushBatchReq {
     std::optional<Key> l_key;
     std::optional<Key> r_key;
     WeakProclet<Shard> shard;
-    Container container;
+    Container batch;
 
     FlushBatchReq();
-    FlushBatchReq(const KeyToBatchMapping &mapping,
-                  KeyToBatchMapping::iterator iter);
+    FlushBatchReq(const KeyToShardsMapping &mapping,
+                  KeyToShardsMapping::iterator iter);
     template <class Archive>
     void serialize(Archive &ar);
   };
@@ -196,12 +184,12 @@ class ShardedDataStructure {
   Proclet<ShardingMapping> mapping_;
   uint32_t max_shard_size_;
   uint32_t max_batch_size_;
-  KeyToBatchMapping key_to_batch_;
+  KeyToShardsMapping key_to_shards_;
   Future<std::optional<FlushBatchReq>> flush_future_;
   ReaderWriterLock rw_lock_;
 
   void set_shard_and_batch_size(bool low_latency);
-  bool flush_one_batch(KeyToBatchMapping::iterator iter);
+  bool flush_one_batch(KeyToShardsMapping::iterator iter);
   void handle_rejected_flush_req(FlushBatchReq &req);
 };
 
