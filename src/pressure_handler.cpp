@@ -192,12 +192,12 @@ std::vector<ProcletRange> PressureHandler::pick_proclets(
   float picked_mem_mbs = 0;
   uint32_t picked_num = 0;
   bool done = false;
-  std::vector<ProcletRange> picked_proclets;
+  std::set<ProcletRange> picked_proclets;
 
   auto pick_fn = [&](ProcletHeader *header) {
     auto size = get_proclet_size(header);
     ProcletRange range{header, size};
-    picked_proclets.push_back(range);
+    picked_proclets.emplace(range);
     picked_mem_mbs += size / static_cast<float>(kOneMB);
     picked_num++;
     done =
@@ -238,7 +238,8 @@ std::vector<ProcletRange> PressureHandler::pick_proclets(
     }
   }
 
-  return picked_proclets;
+  return std::vector<ProcletRange>(picked_proclets.begin(),
+                                   picked_proclets.end());
 }
 
 void PressureHandler::mock_set_pressure(ResourcePressureInfo pressure) {
