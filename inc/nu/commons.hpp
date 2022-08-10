@@ -25,6 +25,10 @@ struct ProcletHeader;
 struct ProcletRange {
   ProcletHeader *proclet_header;
   uint64_t len;
+  bool operator<(const ProcletRange &o) const {
+    return std::make_pair(proclet_header, len) <
+           std::make_pair(o.proclet_header, o.len);
+  }
 };
 
 struct Resource {
