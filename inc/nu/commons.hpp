@@ -16,20 +16,11 @@ namespace nu {
 
 using ProcletID = uint64_t;
 using lpid_t = uint16_t;
-using SlabId_t = uint64_t;
+using SlabId_t = uint32_t;
 using NodeIP = uint32_t;
 
 struct ErasedType {};
 struct ProcletHeader;
-
-struct ProcletRange {
-  ProcletHeader *proclet_header;
-  uint64_t len;
-  bool operator<(const ProcletRange &o) const {
-    return std::make_pair(proclet_header, len) <
-           std::make_pair(o.proclet_header, o.len);
-  }
-};
 
 struct Resource {
   uint32_t cores;
@@ -68,9 +59,8 @@ constexpr static ProcletID kNullProcletID = 0;
 // TODO: double check.
 constexpr static uint64_t kMinProcletHeapVAddr = 0x300000000000ULL;
 constexpr static uint64_t kMaxProcletHeapVAddr = 0x400000000000ULL;
-constexpr static uint64_t kProcletHeapSize = 1ULL << 30;
-constexpr static uint64_t kMaxNumProclets =
-    (kMaxProcletHeapVAddr - kMinProcletHeapVAddr) / kProcletHeapSize;
+constexpr static uint64_t kMinProcletHeapSize = 1ULL << 25;
+constexpr static uint64_t kMaxProcletHeapSize = 1ULL << 30;
 constexpr static uint64_t kMinStackClusterVAddr = kMaxProcletHeapVAddr;
 constexpr static uint64_t kMaxStackClusterVAddr = 0x600000000000ULL;
 constexpr static uint64_t kStackClusterSize = 1ULL << 31;
@@ -84,15 +74,15 @@ constexpr static uint64_t kOneMB = 1ULL << 20;
 constexpr static uint64_t kOneSecond = 1000 * 1000;
 constexpr static uint64_t kOneMilliSecond = 1000;
 
-uint64_t bsr_64(uint64_t a);
+constexpr uint64_t bsr_64(uint64_t a);
 constexpr ProcletHeader *to_proclet_header(ProcletID id);
 constexpr void *to_proclet_base(ProcletID id);
 constexpr ProcletID to_proclet_id(void *proclet_base);
 constexpr SlabId_t to_slab_id(void *proclet_base);
+constexpr SlabId_t to_slab_id(uint64_t proclet_base_addr);
 constexpr SlabId_t get_max_slab_id();
 void *switch_stack(void *new_rsp);
 VAddrRange get_proclet_stack_range(thread_t *thread);
-bool is_in_proclet_heap(void *ptr, void *proclet_base);
 bool is_copied_on_migration(void *ptr, ProcletHeader *proclet_header);
 template <typename T>
 std::span<std::byte> to_span(T &t);
@@ -103,8 +93,8 @@ const T &from_span(std::span<const std::byte> span);
 uint32_t str_to_ip(std::string ip_str);
 void unblock_and_relax();
 template <typename T>
-T div_round_up_unchecked(T dividend, T divisor);
-
+constexpr T div_round_up_unchecked(T dividend, T divisor);
+constexpr uint64_t round_up_to_power2(uint64_t x);
 
 #define Aligned(type, alignment)            \
   struct alignas(alignment) Aligned##type { \

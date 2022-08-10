@@ -9,6 +9,21 @@ namespace nu {
 
 inline ProcletHeader::~ProcletHeader() {}
 
+inline bool ProcletHeader::will_be_copied_on_migration(void *ptr) {
+  return reinterpret_cast<uint8_t *>(ptr) > copy_start;
+}
+
+inline bool ProcletHeader::is_inside(void *ptr) {
+  return (reinterpret_cast<uint64_t>(ptr) & (~(capacity - 1))) ==
+         reinterpret_cast<uint64_t>(this);
+}
+
+inline uint64_t ProcletHeader::size() const {
+  auto size_in_bytes = reinterpret_cast<uint64_t>(slab.get_base()) +
+                       slab.get_usage() - reinterpret_cast<uint64_t>(this);
+  return size_in_bytes;
+}
+
 inline void ProcletManager::wait_until_present(ProcletHeader *proclet_header) {
   proclet_header->spin_lock.lock();
   while (rt::access_once(proclet_header->status) < kPresent) {

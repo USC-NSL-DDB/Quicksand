@@ -29,7 +29,7 @@ retry:
   auto stack_len = stack_range.end - stack_range.start;
 
   // Only rewrite the pointer if the nu_thread locates at the dest proclet.
-  bool in_proclet_heap = is_in_proclet_heap(nu_thread, dest_proclet_header);
+  bool in_proclet_heap = dest_proclet_header->is_inside(nu_thread);
   bool in_proclet_stack =
       nu_thread_addr >= stack_range.start && nu_thread_addr < stack_range.end;
   if (in_proclet_heap || in_proclet_stack) {

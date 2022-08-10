@@ -33,7 +33,8 @@ class ProcletServer {
                                 RPCReturner *returner);
   template <typename Cls, typename... As>
   static void construct_proclet_locally(MigrationDisabledGuard *caller_guard,
-                                        void *base, bool pinned, As &&... args);
+                                        void *base, uint64_t size, bool pinned,
+                                        As &&... args);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
   static void run_closure(cereal::BinaryInputArchive &ia,
                           RPCReturner *returner);

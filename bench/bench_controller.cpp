@@ -51,7 +51,7 @@ class PerfResolveObjAdapter : public PerfAdapter {
   bool serve_req(PerfThreadState *perf_state, const PerfRequest *perf_req) {
     auto *req = reinterpret_cast<const PerfResolveObjReq *>(perf_req);
     ProcletID proclet_id =
-        kMaxProcletHeapVAddr - req->proclet_num * kProcletHeapSize;
+        kMaxProcletHeapVAddr - req->proclet_num * kMaxProcletHeapSize;
     auto ip = client_->resolve_proclet(proclet_id);
     BUG_ON(!ip);
     return true;
@@ -116,7 +116,7 @@ class PerfUpdateLocationAdapter : public PerfAdapter {
   bool serve_req(PerfThreadState *perf_state, const PerfRequest *perf_req) {
     auto *req = reinterpret_cast<const PerfUpdateLocationReq *>(perf_req);
     ProcletID proclet_id =
-        kMaxProcletHeapVAddr - req->proclet_num * kProcletHeapSize;
+        kMaxProcletHeapVAddr - req->proclet_num * kMaxProcletHeapSize;
     client_->update_location(proclet_id, get_cfg_ip());
     return true;
   }

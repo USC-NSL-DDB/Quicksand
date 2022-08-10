@@ -18,17 +18,26 @@ extern "C" {
 
 namespace nu {
 
+constexpr uint32_t get_proclet_segment_bucket_id(uint64_t capacity) {
+  auto bsr_capacity = bsr_64(capacity);
+  auto bsr_min = bsr_64(kMinProcletHeapSize);
+  BUG_ON(bsr_capacity < bsr_min);
+  return bsr_capacity - bsr_min;
+}
+
 Controller::Controller() {
   for (lpid_t lpid = 1; lpid < std::numeric_limits<lpid_t>::max(); lpid++) {
     free_lpids_.insert(lpid);
   }
 
+  auto &highest_bucket =
+      free_proclet_heap_segments_[kNumProcletSegmentBuckets - 1];
   for (uint64_t start_addr = kMinProcletHeapVAddr;
-       start_addr + kProcletHeapSize <= kMaxProcletHeapVAddr;
-       start_addr += kProcletHeapSize) {
+       start_addr + kMaxProcletHeapSize <= kMaxProcletHeapVAddr;
+       start_addr += kMaxProcletHeapSize) {
     VAddrRange range = {.start = start_addr,
-                        .end = start_addr + kProcletHeapSize};
-    free_proclet_heap_segments_.push(range);
+                        .end = start_addr + kMaxProcletHeapSize};
+    highest_bucket.push(range);
   }
 
   for (uint64_t start_addr = kMinStackClusterVAddr;
@@ -113,15 +122,28 @@ bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
 }
 
 std::optional<std::pair<ProcletID, uint32_t>> Controller::allocate_proclet(
-    lpid_t lpid, uint32_t ip_hint) {
+    uint64_t capacity, lpid_t lpid, uint32_t ip_hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  if (unlikely(free_proclet_heap_segments_.empty())) {
-    return std::nullopt;
+  auto &bucket =
+      free_proclet_heap_segments_[get_proclet_segment_bucket_id(capacity)];
+  if (unlikely(bucket.empty())) {
+    auto &highest_bucket =
+        free_proclet_heap_segments_[kNumProcletSegmentBuckets - 1];
+    if (unlikely(highest_bucket.empty())) {
+      return std::nullopt;
+    }
+    auto max_segment = highest_bucket.top();
+    highest_bucket.pop();
+    for (uint64_t start_addr = max_segment.start;
+         start_addr + capacity <= max_segment.end; start_addr += capacity) {
+      bucket.push(max_segment);
+    }
   }
-  auto start_addr = free_proclet_heap_segments_.top().start;
+
+  auto start_addr = bucket.top().start;
   auto id = start_addr;
-  free_proclet_heap_segments_.pop();
+  bucket.pop();
   auto node_optional = select_node_for_proclet(lpid, ip_hint);
   if (unlikely(!node_optional)) {
     return std::nullopt;
@@ -132,17 +154,19 @@ std::optional<std::pair<ProcletID, uint32_t>> Controller::allocate_proclet(
   return std::make_pair(id, node.ip);
 }
 
-void Controller::destroy_proclet(ProcletID id) {
+void Controller::destroy_proclet(VAddrRange proclet_segment) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  auto iter = proclet_id_to_ip_.find(id);
+  auto capacity = proclet_segment.end - proclet_segment.start;
+  auto &bucket =
+      free_proclet_heap_segments_[get_proclet_segment_bucket_id(capacity)];
+  auto proclet_id = proclet_segment.start;
+  auto iter = proclet_id_to_ip_.find(proclet_id);
   if (unlikely(iter == proclet_id_to_ip_.end())) {
     WARN();
     return;
   }
-  auto start_addr = id;
-  auto end_addr = start_addr + kProcletHeapSize;
-  free_proclet_heap_segments_.push(VAddrRange{start_addr, end_addr});
+  bucket.push(proclet_segment);
   proclet_id_to_ip_.erase(iter);
 }
 

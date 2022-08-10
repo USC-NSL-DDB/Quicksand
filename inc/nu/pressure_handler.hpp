@@ -67,8 +67,8 @@ class PressureHandler {
   bool done_;
 
   void register_handlers();
-  std::vector<ProcletRange> pick_proclets(uint32_t min_num_proclets,
-                                          uint32_t min_mem_mbs);
+  std::vector<ProcletHeader *> pick_proclets(uint32_t min_num_proclets,
+                                             uint32_t min_mem_mbs);
   void update_sorted_proclets();
   static void main_handler(void *unsed);
   static void aux_handler(void *args);

@@ -68,8 +68,9 @@ bool ControllerClient::verify_md5(MD5Val md5) {
 }
 
 std::optional<std::pair<ProcletID, uint32_t>>
-ControllerClient::allocate_proclet(uint32_t ip_hint) {
+ControllerClient::allocate_proclet(uint64_t capacity, uint32_t ip_hint) {
   RPCReqAllocateProclet req;
+  req.capacity = capacity;
   req.lpid = lpid_;
   req.ip_hint = ip_hint;
   RPCReturnBuffer return_buf;
@@ -84,9 +85,9 @@ ControllerClient::allocate_proclet(uint32_t ip_hint) {
   }
 }
 
-void ControllerClient::destroy_proclet(ProcletID id) {
+void ControllerClient::destroy_proclet(VAddrRange heap_segment) {
   RPCReqDestroyProclet req;
-  req.id = id;
+  req.heap_segment = heap_segment;
   RPCReturnBuffer return_buf;
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
 }

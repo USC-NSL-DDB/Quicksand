@@ -28,8 +28,8 @@ class ControllerClient {
                                                              MD5Val md5);
   bool verify_md5(MD5Val md5);
   std::optional<std::pair<ProcletID, uint32_t>> allocate_proclet(
-      uint32_t ip_hint);
-  void destroy_proclet(ProcletID id);
+      uint64_t capacity, uint32_t ip_hint);
+  void destroy_proclet(VAddrRange heap_segment);
   uint32_t resolve_proclet(ProcletID id);
   uint32_t get_migration_dest(Resource resource);
   void update_location(ProcletID id, uint32_t proclet_srv_ip);

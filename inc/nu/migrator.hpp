@@ -56,6 +56,12 @@ struct RPCReqMigrateThreadAndRetVal {
   uint8_t payload[0];
 };
 
+struct ProcletMigrationTask {
+  ProcletHeader *header;
+  uint64_t capacity;
+  uint64_t size;
+};
+
 class MigratorConnManager;
 
 class MigratorConn {
@@ -106,7 +112,7 @@ class Migrator {
   Migrator();
   ~Migrator();
   void run_background_loop();
-  void migrate(Resource resource, std::vector<ProcletRange> proclets);
+  void migrate(Resource resource, std::vector<ProcletHeader *> proclets);
   void reserve_conns(uint32_t dest_server_ip);
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,
                                   uint64_t payload_len, const void *payload);
@@ -138,8 +144,8 @@ class Migrator {
                 struct list_head *head);
   void transmit_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header);
-  void transmit_proclet_mmap_populate_ranges(
-      rt::TcpConn *c, const std::vector<ProcletRange> &proclets);
+  void transmit_proclet_migration_tasks(
+      rt::TcpConn *c, const std::vector<ProcletHeader *> &proclets);
   void transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes);
   void transmit_condvars(rt::TcpConn *c, std::vector<CondVar *> condvars);
   void transmit_time(rt::TcpConn *c, Time *time);
@@ -147,8 +153,10 @@ class Migrator {
   void transmit_one_thread(rt::TcpConn *c, thread_t *thread);
   bool try_mark_proclet_migrating(ProcletHeader *proclet_header);
   void load(rt::TcpConn *c);
-  bool load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header);
-  std::vector<ProcletRange> load_proclet_mmap_populate_ranges(rt::TcpConn *c);
+  bool load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
+                    uint64_t capacity);
+  std::vector<ProcletMigrationTask> load_proclet_migration_tasks(
+      rt::TcpConn *c);
   void load_mutexes(rt::TcpConn *c, ProcletHeader *proclet_header);
   void load_condvars(rt::TcpConn *c, ProcletHeader *proclet_header);
   void load_time(rt::TcpConn *c, ProcletHeader *proclet_header);
@@ -157,7 +165,7 @@ class Migrator {
   void init_aux_handlers(uint32_t dest_ip);
   void finish_aux_handlers();
   void callback();
-  void __migrate(Resource resource, std::vector<ProcletRange> proclets);
+  void __migrate(Resource resource, std::vector<ProcletHeader *> proclets);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);
 };

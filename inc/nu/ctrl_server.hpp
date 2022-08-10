@@ -43,6 +43,7 @@ struct RPCRespVerifyMD5 {
 
 struct RPCReqAllocateProclet {
   RPCReqType rpc_type = kAllocateProclet;
+  uint64_t capacity;
   lpid_t lpid;
   uint32_t ip_hint;
 } __attribute__((packed));
@@ -55,7 +56,7 @@ struct RPCRespAllocateProclet {
 
 struct RPCReqDestroyProclet {
   RPCReqType rpc_type = kDestroyProclet;
-  ProcletID id;
+  VAddrRange heap_segment;
 } __attribute__((packed));
 
 struct RPCRespDestroyProclet {

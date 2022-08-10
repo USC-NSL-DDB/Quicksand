@@ -30,16 +30,8 @@ PressureHandler::~PressureHandler() {
   update_thread_.Join();
 }
 
-uint64_t get_proclet_size(ProcletHeader *proclet_header) {
-  auto &slab = proclet_header->slab;
-  auto size_in_bytes = reinterpret_cast<uint64_t>(slab.get_base()) +
-                       slab.get_usage() -
-                       reinterpret_cast<uint64_t>(proclet_header);
-  return size_in_bytes;
-}
-
 Utility::Utility(ProcletHeader *proclet_header) {
-  auto proclet_size = get_proclet_size(proclet_header);
+  auto proclet_size = proclet_header->size();
   auto stack_size = proclet_header->thread_cnt.get() * kStackSize;
   auto size = proclet_size + stack_size;
   auto time = kFixedCostUs + (size / (kNetBwGbps / 8.0f) / 1000.0f);
@@ -187,17 +179,16 @@ void PressureHandler::aux_handler(void *args) {
   store_release(&state->done, false);
 }
 
-std::vector<ProcletRange> PressureHandler::pick_proclets(
+std::vector<ProcletHeader *> PressureHandler::pick_proclets(
     uint32_t min_num_proclets, uint32_t min_mem_mbs) {
   float picked_mem_mbs = 0;
   uint32_t picked_num = 0;
   bool done = false;
-  std::set<ProcletRange> picked_proclets;
+  std::set<ProcletHeader *> picked_proclets;
 
   auto pick_fn = [&](ProcletHeader *header) {
-    auto size = get_proclet_size(header);
-    ProcletRange range{header, size};
-    picked_proclets.emplace(range);
+    auto size = header->size();
+    picked_proclets.emplace(header);
     picked_mem_mbs += size / static_cast<float>(kOneMB);
     picked_num++;
     done =
@@ -238,8 +229,8 @@ std::vector<ProcletRange> PressureHandler::pick_proclets(
     }
   }
 
-  return std::vector<ProcletRange>(picked_proclets.begin(),
-                                   picked_proclets.end());
+  return std::vector<ProcletHeader *>(picked_proclets.begin(),
+                                      picked_proclets.end());
 }
 
 void PressureHandler::mock_set_pressure(ResourcePressureInfo pressure) {

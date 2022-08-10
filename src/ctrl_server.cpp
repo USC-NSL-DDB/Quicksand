@@ -139,7 +139,7 @@ ControllerServer::handle_allocate_proclet(const RPCReqAllocateProclet &req) {
   }
 
   auto resp = std::make_unique_for_overwrite<RPCRespAllocateProclet>();
-  auto optional = ctrl_.allocate_proclet(req.lpid, req.ip_hint);
+  auto optional = ctrl_.allocate_proclet(req.capacity, req.lpid, req.ip_hint);
   if (optional) {
     resp->empty = false;
     resp->id = optional->first;
@@ -157,7 +157,7 @@ std::unique_ptr<RPCRespDestroyProclet> ControllerServer::handle_destroy_proclet(
   }
 
   auto resp = std::make_unique_for_overwrite<RPCRespDestroyProclet>();
-  ctrl_.destroy_proclet(req.id);
+  ctrl_.destroy_proclet(req.heap_segment);
   return resp;
 }
 

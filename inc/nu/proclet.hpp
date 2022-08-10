@@ -60,7 +60,8 @@ class Proclet {
   template <typename RetT, typename... S1s>
   static RetT invoke_remote_with_ret(ProcletID id, S1s &&... states);
   template <typename... As>
-  static Proclet __create(bool pinned, uint32_t ip_hint, As &&... args);
+  static Proclet __create(uint64_t capacity, bool pinned, uint32_t ip_hint,
+                          As &&... args);
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
   template <typename RetT, typename... S0s, typename... S1s>
@@ -128,7 +129,13 @@ template <typename T, typename... As>
 Proclet<T> make_proclet_pinned_at(uint32_t ip, As &&... args);
 template <typename T, typename... As>
 Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip, As &&... args);
+template <typename T, typename... As>
+Proclet<T> make_proclet_with_capacity(uint64_t capacity, As &&... args);
+template <typename T, typename... As>
+Future<Proclet<T>> make_proclet_async_with_capacity(uint64_t capacity,
+                                                    As &&... args);
 
 }  // namespace nu
 
 #include "nu/impl/proclet.ipp"
+

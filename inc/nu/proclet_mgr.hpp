@@ -41,6 +41,7 @@ struct ProcletHeader {
   ~ProcletHeader();
 
   uint8_t status;
+  uint64_t capacity;
 
   // For synchronization.
   RCULock rcu_lock;
@@ -76,9 +77,9 @@ struct ProcletHeader {
   // Heap Mem allocator. Must be the last field.
   SlabAllocator slab;
 
-  bool will_be_copied_on_migration(void *ptr) {
-    return reinterpret_cast<uint8_t *>(ptr) > copy_start;
-  }
+  bool will_be_copied_on_migration(void *ptr);
+  bool is_inside(void *ptr);
+  uint64_t size() const;
 };
 
 class ProcletManager {
@@ -86,7 +87,8 @@ class ProcletManager {
   ProcletManager();
 
   static void madvise_populate(void *proclet_base, uint64_t populate_len);
-  static void setup(void *proclet_base, bool migratable, bool from_migration);
+  static void setup(void *proclet_base, uint64_t capacity, bool migratable,
+                    bool from_migration);
   static void cleanup(void *proclet_base);
   static void wait_until_present(ProcletHeader *proclet_header);
   void insert(void *proclet_base);

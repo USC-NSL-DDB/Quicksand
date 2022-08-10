@@ -6,11 +6,7 @@ extern "C" {
 
 namespace nu {
 
-inline uint64_t bsr_64(uint64_t a) {
-  uint64_t ret;
-  asm("bsr %q1, %q0" : "=r"(ret) : "m"(a));
-  return ret;
-}
+inline constexpr uint64_t bsr_64(uint64_t a) { return 63 - __builtin_clzll(a); }
 
 inline constexpr ProcletHeader *to_proclet_header(ProcletID id) {
   return reinterpret_cast<ProcletHeader *>(id);
@@ -25,7 +21,7 @@ inline constexpr ProcletID to_proclet_id(void *proclet_base) {
 }
 
 inline constexpr SlabId_t to_slab_id(uint64_t proclet_base_addr) {
-  return (proclet_base_addr - kMinProcletHeapVAddr) / kProcletHeapSize + 2;
+  return (proclet_base_addr - kMinProcletHeapVAddr) / kMinProcletHeapSize + 2;
 }
 
 inline constexpr SlabId_t to_slab_id(void *proclet_base) {
@@ -33,7 +29,7 @@ inline constexpr SlabId_t to_slab_id(void *proclet_base) {
 }
 
 inline constexpr SlabId_t get_max_slab_id() {
-  return to_slab_id(kMaxProcletHeapVAddr - kProcletHeapSize);
+  return to_slab_id(kMaxProcletHeapVAddr - kMinProcletHeapSize);
 }
 
 inline __attribute__((always_inline)) void *switch_stack(void *new_rsp) {
@@ -54,11 +50,6 @@ inline VAddrRange get_proclet_stack_range(thread_t *thread) {
   range.start = rsp - kStackRedZoneSize;
   range.end = ((rsp + kStackSize) & (~(kStackSize - 1)));
   return range;
-}
-
-inline bool is_in_proclet_heap(void *ptr, void *proclet_base) {
-  return (reinterpret_cast<uint64_t>(ptr) & (~(kProcletHeapSize - 1))) ==
-         reinterpret_cast<uint64_t>(proclet_base);
 }
 
 template <typename T>
@@ -83,8 +74,12 @@ inline void unblock_and_relax() {
 }
 
 template <typename T>
-inline T div_round_up_unchecked(T dividend, T divisor) {
+inline constexpr T div_round_up_unchecked(T dividend, T divisor) {
   return (dividend + divisor - 1) / divisor;
+}
+
+inline constexpr uint64_t round_up_to_power2(uint64_t x) {
+  return (1 << (bsr_64(x - 1) + 1));
 }
 
 }  // namespace nu

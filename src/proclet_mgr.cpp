@@ -19,8 +19,8 @@ namespace nu {
 ProcletManager::ProcletManager() {
   num_present_proclets_ = 0;
   for (uint64_t vaddr = kMinProcletHeapVAddr;
-       vaddr + kProcletHeapSize <= kMaxProcletHeapVAddr;
-       vaddr += kProcletHeapSize) {
+       vaddr + kMaxProcletHeapSize <= kMaxProcletHeapVAddr;
+       vaddr += kMaxProcletHeapSize) {
     auto *proclet_base = reinterpret_cast<uint8_t *>(vaddr);
     auto mmap_addr =
         mmap(proclet_base, kNumAlwaysPopulatedBytes, PROT_READ | PROT_WRITE,
@@ -33,7 +33,7 @@ ProcletManager::ProcletManager() {
     std::construct_at(&proclet_header->cond_var);
 
     auto *populate_addr = proclet_base + kNumAlwaysPopulatedBytes;
-    mmap_addr = mmap(populate_addr, kProcletHeapSize - kNumAlwaysPopulatedBytes,
+    mmap_addr = mmap(populate_addr, kMaxProcletHeapSize - kNumAlwaysPopulatedBytes,
                      PROT_READ | PROT_WRITE,
                      MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
     BUG_ON(mmap_addr != populate_addr);
@@ -67,20 +67,21 @@ void ProcletManager::cleanup(void *proclet_base) {
   // This is way faster than the madvise(MADV_FREE) interface.
   auto *munmap_base =
       reinterpret_cast<uint8_t *>(proclet_base) + kNumAlwaysPopulatedBytes;
-  auto size = kProcletHeapSize - kNumAlwaysPopulatedBytes;
+  auto size = kMaxProcletHeapSize - kNumAlwaysPopulatedBytes;
   BUG_ON(munmap(munmap_base, size) == -1);
   auto mmap_addr = mmap(munmap_base, size, PROT_READ | PROT_WRITE,
                         MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
   BUG_ON(mmap_addr != munmap_base);
 }
 
-void ProcletManager::setup(void *proclet_base, bool migratable,
-                           bool from_migration) {
+void ProcletManager::setup(void *proclet_base, uint64_t capacity,
+                           bool migratable, bool from_migration) {
   RuntimeSlabGuard guard;
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
 
   std::construct_at(&proclet_header->blocked_syncer);
   std::construct_at(&proclet_header->time);
+  proclet_header->capacity = capacity;
   proclet_header->migratable = migratable;
   // FIXME
   // std::construct_at(&proclet_header->migrated_wg);
@@ -88,7 +89,7 @@ void ProcletManager::setup(void *proclet_base, bool migratable,
   if (!from_migration) {
     std::construct_at(&proclet_header->spin);
     proclet_header->ref_cnt = 1;
-    auto slab_region_size = kProcletHeapSize - sizeof(ProcletHeader);
+    auto slab_region_size = kMaxProcletHeapSize - sizeof(ProcletHeader);
     std::construct_at(&proclet_header->slab, to_slab_id(proclet_header),
                       proclet_header + 1, slab_region_size);
   }

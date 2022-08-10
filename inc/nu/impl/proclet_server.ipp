@@ -19,10 +19,11 @@ template <typename Cls, typename... As>
 void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
                                       RPCReturner *returner) {
   void *base;
+  uint64_t size;
   bool pinned;
-  ia >> base >> pinned;
+  ia >> base >> size >> pinned;
 
-  Runtime::proclet_manager->setup(base, /* migratable = */ !pinned,
+  Runtime::proclet_manager->setup(base, size, /* migratable = */ !pinned,
                                   /* from_migration = */ false);
 
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(base);
@@ -51,10 +52,10 @@ void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
 
 template <typename Cls, typename... As>
 void ProcletServer::construct_proclet_locally(
-    MigrationDisabledGuard *caller_guard, void *base, bool pinned,
-    As &&... args) {
+    MigrationDisabledGuard *caller_guard, void *base, uint64_t size,
+    bool pinned, As &&... args) {
   RuntimeSlabGuard runtime_slab_guard;
-  Runtime::proclet_manager->setup(base, /* migratable = */ !pinned,
+  Runtime::proclet_manager->setup(base, size, /* migratable = */ !pinned,
                                   /* from_migration = */ false);
 
   auto *callee_header = reinterpret_cast<ProcletHeader *>(base);
