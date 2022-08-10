@@ -3,14 +3,18 @@
 
 namespace nu {
 
-inline SlabAllocator::SlabAllocator() noexcept {}
+inline SlabAllocator::SlabAllocator() noexcept : slab_id_(0) {}
 
 inline SlabAllocator::SlabAllocator(SlabId_t slab_id, void *buf, uint64_t len,
                                     bool aggressive_caching) noexcept {
   init(slab_id, buf, len, aggressive_caching);
 }
 
-inline SlabAllocator::~SlabAllocator() noexcept {}
+inline SlabAllocator::~SlabAllocator() noexcept {
+  if (slab_id_) {
+    deregister_slab_by_id(slab_id_);
+  }
+}
 
 inline void SlabAllocator::init(SlabId_t slab_id, void *buf, uint64_t len,
                                 bool aggressive_caching) noexcept {
