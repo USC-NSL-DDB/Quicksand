@@ -63,11 +63,11 @@ RPCClient *RPCClientMgr::get_by_proclet_id(ProcletID proclet_id) {
   return get_client(get_info(proclet_id));
 }
 
-uint32_t RPCClientMgr::get_ip_by_proclet_id(ProcletID proclet_id) {
+NodeIP RPCClientMgr::get_ip_by_proclet_id(ProcletID proclet_id) {
   return get_info(proclet_id).ip;
 }
 
-void RPCClientMgr::update_cache(ProcletID proclet_id, RPCClient *old_client) {
+void RPCClientMgr::invalidate_cache(ProcletID proclet_id, RPCClient *old_client) {
   auto slab_id = to_slab_id(proclet_id);
   auto &info_ref = rem_id_to_node_info_[slab_id];
   if (info_ref.raw) {
@@ -77,6 +77,15 @@ void RPCClientMgr::update_cache(ProcletID proclet_id, RPCClient *old_client) {
       info_ref.raw = 0;
     }
   }
+}
+
+void RPCClientMgr::update_cache(ProcletID proclet_id, NodeIP ip) {
+  auto slab_id = to_slab_id(proclet_id);
+  rt::MutexGuard g(&node_info_mutexes_[slab_id]);
+
+  auto &info = rem_id_to_node_info_[slab_id];
+  info.ip = ip;
+  info.id = get_node_id_by_node_ip(ip);
 }
 
 }  // namespace nu

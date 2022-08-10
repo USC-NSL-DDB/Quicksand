@@ -68,7 +68,7 @@ retry:
     auto *client = Runtime::rpc_client_mgr->get_by_proclet_id(id);
     rc = client->Call(args_span, &return_buf);
     if (unlikely(rc == kErrWrongClient)) {
-      Runtime::rpc_client_mgr->update_cache(id, client);
+      Runtime::rpc_client_mgr->invalidate_cache(id, client);
       goto retry;
     }
   }
@@ -116,7 +116,7 @@ retry:
     auto *client = Runtime::rpc_client_mgr->get_by_proclet_id(id);
     rc = client->Call(args_span, &return_buf);
     if (unlikely(rc == kErrWrongClient)) {
-      Runtime::rpc_client_mgr->update_cache(id, client);
+      Runtime::rpc_client_mgr->invalidate_cache(id, client);
       goto retry;
     }
   }
@@ -211,6 +211,7 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint32_t ip_hint, As &&... args) {
       throw OutOfMemory();
     }
     std::tie(id, server_ip) = *optional;
+    Runtime::rpc_client_mgr->update_cache(id, server_ip);
 
     NonBlockingMigrationDisabledGuard disabled_guard(proclet_header);
     if (proclet_header && unlikely(!disabled_guard)) {
