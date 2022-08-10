@@ -140,7 +140,9 @@ void Controller::destroy_proclet(ProcletID id) {
     WARN();
     return;
   }
-  free_proclet_heap_segments_.push(VAddrRange{id, id + kProcletHeapSize});
+  auto start_addr = id;
+  auto end_addr = start_addr + kProcletHeapSize;
+  free_proclet_heap_segments_.push(VAddrRange{start_addr, end_addr});
   proclet_id_to_ip_.erase(iter);
 }
 

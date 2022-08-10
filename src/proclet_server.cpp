@@ -79,4 +79,10 @@ void ProcletServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
   }
 }
 
+void ProcletServer::release_proclet(ProcletHeader *proclet_header) {
+  rt::Spawn([id = to_proclet_id(proclet_header)] {
+    Runtime::controller_client->destroy_proclet(id);
+  });
+}
+
 }  // namespace nu

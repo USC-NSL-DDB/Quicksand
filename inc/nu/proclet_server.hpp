@@ -64,6 +64,7 @@ class ProcletServer {
   static void __run_closure(Cls &obj, ProcletHeader *proclet_header,
                             cereal::BinaryInputArchive &ia,
                             RPCReturner returner);
+  static void release_proclet(ProcletHeader *proclet_header);
 };
 }  // namespace nu
 

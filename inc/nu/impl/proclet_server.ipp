@@ -149,6 +149,9 @@ void ProcletServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
     // Wait for all ongoing invocations to finish.
     proclet_header->rcu_lock.writer_sync();
     Runtime::proclet_manager->cleanup(proclet_base);
+    // Release the proclet back to the controller only after ensuring the
+    // cleanup has finished to avoid the race.
+    ProcletServer::release_proclet(proclet_header);
   }
 
   if (proclet_not_found) {
@@ -183,6 +186,7 @@ bool ProcletServer::update_ref_cnt_locally(
 
     RuntimeSlabGuard runtime_slab_guard;
     Runtime::proclet_manager->cleanup(proclet_header);
+    ProcletServer::release_proclet(proclet_header);
   }
 
   return true;
