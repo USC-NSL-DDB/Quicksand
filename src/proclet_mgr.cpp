@@ -88,9 +88,9 @@ void ProcletManager::setup(void *proclet_base, bool migratable,
   if (!from_migration) {
     std::construct_at(&proclet_header->spin);
     proclet_header->ref_cnt = 1;
-    auto proclet_region_size = kProcletHeapSize - sizeof(ProcletHeader);
-    proclet_header->slab.init(to_slab_id(proclet_header), proclet_header + 1,
-                              proclet_region_size);
+    auto slab_region_size = kProcletHeapSize - sizeof(ProcletHeader);
+    std::construct_at(&proclet_header->slab, to_slab_id(proclet_header),
+                      proclet_header + 1, slab_region_size);
   }
 }
 
