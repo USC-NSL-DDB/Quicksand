@@ -324,13 +324,11 @@ void prioritize_local_rcu_readers(void)
 
 static void pop_deprioritized_threads_locked(struct kthread *k)
 {
-	thread_t sentinel, *th;
-
+	thread_t *th;
 	assert_spin_lock_held(&k->lock);
 
-	list_add_tail(&k->rq_deprioritized, &sentinel.link);
-	while ((th = list_pop(&k->rq_deprioritized, thread_t, link)) !=
-	       &sentinel) {
+	while (!list_empty(&k->rq_deprioritized)) {
+		th = list_pop(&k->rq_deprioritized, thread_t, link);
 		th->thread_ready = false;
 		thread_ready_locked(th);
 	}
@@ -1500,7 +1498,7 @@ void *thread_get_nu_thread(thread_t *th)
        return th->nu_state.nu_thread;
 }
 
-void prioritize_rcu_readers(void *rcu)
+void prioritize_and_wait_rcu_readers(void *rcu)
 {
 	int i;
 

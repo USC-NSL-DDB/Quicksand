@@ -42,7 +42,7 @@ retry:
   if (sum != 0) {
     if (prioritize_readers) {
       if (!prioritized) {
-        prioritize_rcu_readers(this);
+        prioritize_and_wait_rcu_readers(this);
         prioritized = true;
       }
     } else {

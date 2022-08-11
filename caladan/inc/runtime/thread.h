@@ -102,7 +102,7 @@ extern void pause_migrating_ths_main(void *owner_proclet);
 extern void pause_migrating_ths_aux(void);
 extern struct list_head all_migrating_ths;
 extern void pause_local_migrating_threads(void);
-extern void prioritize_rcu_readers(void *rcu);
+extern void prioritize_and_wait_rcu_readers(void *rcu);
 extern void prioritize_local_rcu_readers(void);
 extern void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
 extern thread_t *create_migrated_thread(void *nu_state);
