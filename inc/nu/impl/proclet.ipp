@@ -557,7 +557,7 @@ Proclet<T> make_proclet_pinned_at(uint32_t ip_hint, As &&... args) {
 template <typename T, typename... As>
 Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip_hint,
                                                 As &&... args) {
-  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() {
+  return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(kMaxProcletHeapSize, /* pinned = */ true,
                                 ip_hint, std::forward<As>(args)...);
   });
@@ -570,7 +570,8 @@ Proclet<T> make_proclet_with_capacity(uint64_t capacity, As &&... args) {
 }
 
 template <typename T, typename... As>
-Proclet<T> make_proclet__async_with_capacity(uint64_t capacity, As &&... args) {
+Future<Proclet<T>> make_proclet_async_with_capacity(uint64_t capacity,
+                                                    As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(capacity, /* pinned = */ false, 0,
                                 std::forward<As>(args)...);

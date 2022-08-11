@@ -9,6 +9,11 @@
 
 namespace nu {
 
+template <typename Pair>
+inline constexpr uint64_t get_proclet_capacity(uint32_t max_shard_size) {
+  return 4 * max_shard_size * sizeof(Pair);
+}
+
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
                                       uint32_t max_shard_size,
@@ -48,8 +53,10 @@ GeneralShard<Container>::get_container_ptr() {
 template <class Container>
 void GeneralShard<Container>::split() {
   auto [mid_k, latter_half_container] = container_.split();
-  auto new_shard = make_proclet<GeneralShard>(mapping_, max_shard_size_, mid_k,
-                                              r_key_, latter_half_container);
+  auto proclet_capacity = get_proclet_capacity<Pair>(max_shard_size_);
+  auto new_shard = make_proclet_with_capacity<GeneralShard>(
+      proclet_capacity, mapping_, max_shard_size_, mid_k, r_key_,
+      latter_half_container);
   r_key_ = mid_k;
   mapping_.run(&ShardingMapping::update_mapping, mid_k, std::move(new_shard));
 }
@@ -181,12 +188,13 @@ ShardedDataStructure<Container, LowLat>::ShardedDataStructure(
     }
   }
 
+  auto proclet_capacity = get_proclet_capacity<Pair>(max_shard_size_);
   for (auto it = keys.begin(); it != keys.end(); it++) {
     auto curr_key = *it;
     auto next_key = (it + 1) == keys.end() ? std::optional<Key>() : *(it + 1);
-    shard_futures.emplace_back(
-        make_proclet_async<Shard>(mapping_.get_weak(), max_shard_size_,
-                                  curr_key, next_key, container_capacity));
+    shard_futures.emplace_back(make_proclet_async_with_capacity<Shard>(
+        proclet_capacity, mapping_.get_weak(), max_shard_size_, curr_key,
+        next_key, container_capacity));
   }
 
   for (std::size_t i = 0; i < keys.size(); i++) {
