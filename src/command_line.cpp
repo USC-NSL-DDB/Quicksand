@@ -102,7 +102,7 @@ void write_options_to_file(std::string path, const AllOptionsDesc &desc) {
 
 void write_options_to_file(std::string path, const CaladanOptionsDesc &desc) {
   constexpr auto kMTU = 9000;
-  constexpr auto kQDelayUs = 0;
+  constexpr auto kQDelayUs = 10;
   constexpr auto kLogLevel = 0;
 
   std::ofstream ofs(path);
