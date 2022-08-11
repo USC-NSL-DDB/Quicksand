@@ -135,9 +135,9 @@ std::optional<std::pair<ProcletID, uint32_t>> Controller::allocate_proclet(
     }
     auto max_segment = highest_bucket.top();
     highest_bucket.pop();
-    for (uint64_t start_addr = max_segment.start;
-         start_addr + capacity <= max_segment.end; start_addr += capacity) {
-      bucket.push(max_segment);
+    auto start_addr = max_segment.start;
+    while (start_addr < max_segment.end) {
+      bucket.push({start_addr, start_addr += capacity});
     }
   }
 

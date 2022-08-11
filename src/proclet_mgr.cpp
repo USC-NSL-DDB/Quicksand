@@ -41,9 +41,9 @@ void ProcletManager::madvise_populate(void *proclet_base,
 void ProcletManager::cleanup(void *proclet_base) {
   RuntimeSlabGuard guard;
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-  proclet_header->spin_lock.lock();  // Sync with PressureHandler.
   proclet_header->status() = kAbsent;
-  proclet_header->spin_lock.unlock();
+  proclet_header->rcu_lock().writer_sync(
+      /* poll = */ true);  // Sync with PressureHandler.
 
   std::destroy_at(&proclet_header->spin_lock);
   std::destroy_at(&proclet_header->cond_var);

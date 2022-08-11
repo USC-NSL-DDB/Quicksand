@@ -55,14 +55,16 @@ void PressureHandler::update_sorted_proclets() {
   auto all_proclets = Runtime::proclet_manager->get_all_proclets();
   for (auto *proclet_base : all_proclets) {
     auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-    proclet_header->spin_lock.lock();
-    if (unlikely(proclet_header->status() != kPresent ||
-                 !proclet_header->migratable)) {
-      proclet_header->spin_lock.unlock();
-      continue;
+    float cpu_pressure_utility, mem_pressure_utility;
+    {
+      NonBlockingMigrationDisabledGuard guard(proclet_header);
+      if (unlikely(!guard || !proclet_header->migratable)) {
+        continue;
+      }
+     auto u = Utility(proclet_header);
+     cpu_pressure_utility = u.cpu_pressure_util;
+     mem_pressure_utility = u.mem_pressure_util;
     }
-    auto [cpu_pressure_utility, mem_pressure_utility] = Utility(proclet_header);
-    proclet_header->spin_lock.unlock();
 
     ProcletInfo cpu{proclet_header, cpu_pressure_utility};
     new_cpu_pressure_sorted_proclets->insert(cpu);

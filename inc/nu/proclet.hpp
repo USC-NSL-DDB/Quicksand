@@ -88,6 +88,12 @@ class Proclet {
   template <typename U, typename... As>
   friend Future<Proclet<U>> make_proclet_pinned_async_at(uint32_t ip,
                                                          As &&... args);
+  template <typename U, typename... As>
+  friend Proclet<U> make_proclet_with_capacity(uint64_t capacity,
+                                               As &&... args);
+  template <typename U, typename... As>
+  friend Future<Proclet<U>> make_proclet_async_with_capacity(uint64_t capacity,
+                                                             As &&... args);
 };
 
 template <typename T>
