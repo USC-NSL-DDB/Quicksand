@@ -435,7 +435,7 @@ bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
           !Runtime::proclet_manager->remove_for_migration(proclet_header))) {
     return false;
   }
-  proclet_header->rcu_lock.writer_sync(/* poll = */ true);
+  proclet_header->rcu_lock().writer_sync(/* poll = */ true);
   return true;
 }
 
@@ -777,7 +777,7 @@ std::vector<ProcletMigrationTask> Migrator::load_proclet_migration_tasks(
   }
 
   for (auto &[header, _, __] : tasks) {
-    header->status = kPending;
+    header->status() = kPending;
   }
 
   return tasks;

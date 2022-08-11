@@ -36,7 +36,7 @@ void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
   std::apply(
       [&](auto &&... args) {
         ProcletSlabGuard proclet_slab_guard(&slab);
-        proclet_header->status = kPresent;
+        proclet_header->status() = kPresent;
         auto *self = thread_self();
         auto *old_owner = thread_set_owner_proclet(self, base);
         new (obj_space) Cls(std::move(args)...);
@@ -54,13 +54,12 @@ template <typename Cls, typename... As>
 void ProcletServer::construct_proclet_locally(
     MigrationDisabledGuard *caller_guard, void *base, uint64_t size,
     bool pinned, As &&... args) {
-  RuntimeSlabGuard runtime_slab_guard;
   Runtime::proclet_manager->setup(base, size, /* migratable = */ !pinned,
                                   /* from_migration = */ false);
 
   auto *callee_header = reinterpret_cast<ProcletHeader *>(base);
   callee_header->cpu_load.reset();
-  callee_header->status = kPresent;
+  callee_header->status() = kPresent;
   auto &slab = callee_header->slab;
   auto obj_space = slab.yield(sizeof(Cls));
 
@@ -81,6 +80,7 @@ void ProcletServer::construct_proclet_locally(
         copied_args);
   }
 
+  RuntimeSlabGuard runtime_slab_guard;
   NonBlockingMigrationDisabledGuard guard(caller_header);
   if (caller_header && unlikely(!guard)) {
     RPCReturnBuffer return_buf;
@@ -97,10 +97,10 @@ template <typename Cls>
 void ProcletServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
                                      ProcletHeader *proclet_header, int delta,
                                      bool *deallocate) {
-  proclet_header->spin.Lock();
+  proclet_header->spin_lock.lock();
   auto latest_cnt = (proclet_header->ref_cnt += delta);
   BUG_ON(latest_cnt < 0);
-  proclet_header->spin.Unlock();
+  proclet_header->spin_lock.unlock();
 
   if (latest_cnt == 0) {
     if (likely(
@@ -148,11 +148,12 @@ void ProcletServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
 
   if (deallocate) {
     // Wait for all ongoing invocations to finish.
-    proclet_header->rcu_lock.writer_sync();
+    proclet_header->rcu_lock().writer_sync();
+    auto vaddr_range = proclet_header->get_range();
     Runtime::proclet_manager->cleanup(proclet_base);
     // Release the proclet back to the controller only after ensuring the
     // cleanup has finished to avoid the race.
-    ProcletServer::release_proclet(proclet_header);
+    ProcletServer::release_proclet(vaddr_range);
   }
 
   if (proclet_not_found) {
@@ -164,10 +165,10 @@ template <typename Cls>
 bool ProcletServer::update_ref_cnt_locally(
     NonBlockingMigrationDisabledGuard *callee_guard, ProcletID id, int delta) {
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(to_proclet_base(id));
-  proclet_header->spin.Lock();
+  proclet_header->spin_lock.lock();
   auto latest_cnt = (proclet_header->ref_cnt += delta);
   BUG_ON(latest_cnt < 0);
-  proclet_header->spin.Unlock();
+  proclet_header->spin_lock.unlock();
 
   if (latest_cnt == 0) {
     if (unlikely(!Runtime::proclet_manager->remove_for_destruction(
@@ -186,8 +187,9 @@ bool ProcletServer::update_ref_cnt_locally(
     }
 
     RuntimeSlabGuard runtime_slab_guard;
+    auto vaddr_range = proclet_header->get_range();
     Runtime::proclet_manager->cleanup(proclet_header);
-    ProcletServer::release_proclet(proclet_header);
+    ProcletServer::release_proclet(vaddr_range);
   }
 
   return true;

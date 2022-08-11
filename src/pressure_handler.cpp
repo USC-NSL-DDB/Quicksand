@@ -56,7 +56,7 @@ void PressureHandler::update_sorted_proclets() {
   for (auto *proclet_base : all_proclets) {
     auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
     proclet_header->spin_lock.lock();
-    if (unlikely(proclet_header->status != kPresent ||
+    if (unlikely(proclet_header->status() != kPresent ||
                  !proclet_header->migratable)) {
       proclet_header->spin_lock.unlock();
       continue;
@@ -204,7 +204,7 @@ std::vector<ProcletHeader *> PressureHandler::pick_proclets(
     while (iter != sorted_proclets->end() && !done) {
       auto *header = iter->header;
       iter = sorted_proclets->erase(iter);
-      if (unlikely(header->status != kPresent)) {
+      if (unlikely(header->status() != kPresent)) {
         continue;
       }
       pick_fn(header);
@@ -221,7 +221,7 @@ std::vector<ProcletHeader *> PressureHandler::pick_proclets(
       while (iter != all_proclets.end() && !done) {
         auto *header = reinterpret_cast<ProcletHeader *>(*iter);
         iter++;
-        if (unlikely(header->status != kPresent || !header->migratable)) {
+        if (unlikely(header->status() != kPresent || !header->migratable)) {
           continue;
         }
         pick_fn(header);

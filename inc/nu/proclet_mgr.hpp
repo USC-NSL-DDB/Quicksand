@@ -36,15 +36,17 @@ template <typename T>
 class RuntimeAllocator;
 
 enum ProcletStatus { kAbsent = 0, kPending, kPresent, kDestructed };
+extern uint8_t proclet_statuses[kMaxNumProclets];
+
+constexpr uint32_t kMaxNumProcletRCULocks = 8192;
+extern RCULock proclet_rcu_locks[kMaxNumProcletRCULocks];
 
 struct ProcletHeader {
   ~ProcletHeader();
 
-  uint8_t status;
   uint64_t capacity;
 
   // For synchronization.
-  RCULock rcu_lock;
   SpinLock spin_lock;
   CondVar cond_var;
 
@@ -53,9 +55,6 @@ struct ProcletHeader {
 
   // Used for monitoring active threads count.
   Counter thread_cnt;
-
-  //--- Fields above are always mmaped in all proclet servers. ---/
-  uint8_t always_mmaped_end[0];
 
   // Migration related.
   std::atomic<int8_t> pending_load_cnt;
@@ -71,15 +70,17 @@ struct ProcletHeader {
   uint8_t copy_start[0];
 
   // Ref cnt related.
-  rt::Spin spin;
   int ref_cnt;
 
-  // Heap Mem allocator. Must be the last field.
+  // Heap mem allocator. Must be the last field.
   SlabAllocator slab;
 
   bool will_be_copied_on_migration(void *ptr);
   bool is_inside(void *ptr);
   uint64_t size() const;
+  uint8_t &status();
+  RCULock &rcu_lock();
+  VAddrRange get_range() const;
 };
 
 class ProcletManager {
@@ -99,11 +100,6 @@ class ProcletManager {
   uint32_t get_num_present_proclets();
 
  private:
-  constexpr static uint32_t kNumAlwaysPopulatedPages =
-      (offsetof(ProcletHeader, always_mmaped_end) - 1) / kPageSize + 1;
-  constexpr static uint32_t kNumAlwaysPopulatedBytes =
-      kNumAlwaysPopulatedPages * kPageSize;
-
   std::vector<void *> present_proclets_;
   uint32_t num_present_proclets_;
   rt::Spin spin_;

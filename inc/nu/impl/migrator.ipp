@@ -11,7 +11,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(
 retry:
   NonBlockingMigrationDisabledGuard guard(dest_proclet_header);
   if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(dest_proclet_header->status) > kAbsent)) {
+    if (unlikely(rt::access_once(dest_proclet_header->status()) > kAbsent)) {
       ProcletManager::wait_until_present(dest_proclet_header);
       goto retry;
     } else {

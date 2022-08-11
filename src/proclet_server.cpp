@@ -79,10 +79,7 @@ void ProcletServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
   }
 }
 
-void ProcletServer::release_proclet(ProcletHeader *proclet_header) {
-  auto proclet_start_addr = reinterpret_cast<uint64_t>(proclet_header);
-  auto proclet_end_addr = proclet_start_addr + proclet_header->capacity;
-  VAddrRange vaddr_range{proclet_start_addr, proclet_end_addr};
+void ProcletServer::release_proclet(VAddrRange vaddr_range) {
   rt::Spawn([vaddr_range] {
     Runtime::controller_client->destroy_proclet(vaddr_range);
   });

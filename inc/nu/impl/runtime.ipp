@@ -76,7 +76,7 @@ Runtime::run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
 retry:
   NonBlockingMigrationDisabledGuard guard(proclet_header);
   if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(proclet_header->status) > kAbsent)) {
+    if (unlikely(rt::access_once(proclet_header->status()) > kAbsent)) {
       ProcletManager::wait_until_present(proclet_header);
       goto retry;
     } else {

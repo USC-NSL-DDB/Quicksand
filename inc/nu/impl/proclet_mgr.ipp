@@ -24,9 +24,27 @@ inline uint64_t ProcletHeader::size() const {
   return size_in_bytes;
 }
 
+inline uint8_t &ProcletHeader::status() {
+  auto idx = (reinterpret_cast<uint64_t>(this) - kMinProcletHeapVAddr) /
+             kMinProcletHeapSize;
+  return proclet_statuses[idx];
+}
+
+inline RCULock &ProcletHeader::rcu_lock() {
+  auto idx = (reinterpret_cast<uint64_t>(this) - kMinProcletHeapVAddr) /
+             kMinProcletHeapSize;
+  return proclet_rcu_locks[idx & (kMaxNumProcletRCULocks - 1)];
+}
+
+inline VAddrRange ProcletHeader::get_range() const {
+  auto start_addr = reinterpret_cast<uint64_t>(this);
+  auto end_addr = start_addr + capacity;
+  return VAddrRange{start_addr, end_addr};
+}
+
 inline void ProcletManager::wait_until_present(ProcletHeader *proclet_header) {
   proclet_header->spin_lock.lock();
-  while (rt::access_once(proclet_header->status) < kPresent) {
+  while (rt::access_once(proclet_header->status()) < kPresent) {
     proclet_header->cond_var.wait(&proclet_header->spin_lock);
   }
   proclet_header->spin_lock.unlock();
@@ -34,7 +52,7 @@ inline void ProcletManager::wait_until_present(ProcletHeader *proclet_header) {
 
 inline void ProcletManager::insert(void *proclet_base) {
   rt::SpinGuard guard(&spin_);
-  reinterpret_cast<ProcletHeader *>(proclet_base)->status = kPresent;
+  reinterpret_cast<ProcletHeader *>(proclet_base)->status() = kPresent;
   num_present_proclets_++;
   present_proclets_.push_back(proclet_base);
 }
@@ -42,9 +60,10 @@ inline void ProcletManager::insert(void *proclet_base) {
 inline bool ProcletManager::remove_for_migration(void *proclet_base) {
   rt::SpinGuard guard(&spin_);
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-  if (proclet_header->status == kPresent) {
+  auto &status = proclet_header->status();
+  if (status == kPresent) {
     num_present_proclets_--;
-    proclet_header->status = kAbsent;
+    status = kAbsent;
     return true;
   } else {
     return false;
@@ -54,9 +73,10 @@ inline bool ProcletManager::remove_for_migration(void *proclet_base) {
 inline bool ProcletManager::remove_for_destruction(void *proclet_base) {
   rt::SpinGuard guard(&spin_);
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-  if (proclet_header->status == kPresent) {
+  auto &status = proclet_header->status();
+  if (status == kPresent) {
     num_present_proclets_--;
-    proclet_header->status = kDestructed;
+    status = kDestructed;
     return true;
   } else {
     return false;
@@ -64,25 +84,27 @@ inline bool ProcletManager::remove_for_destruction(void *proclet_base) {
 }
 
 inline void ProcletManager::enable_migration(ProcletHeader *proclet_header) {
-  proclet_header->rcu_lock.reader_unlock();
+  proclet_header->rcu_lock().reader_unlock();
 }
 
 inline bool ProcletManager::try_disable_migration(
     ProcletHeader *proclet_header) {
-  proclet_header->rcu_lock.reader_lock();
-  if (unlikely(rt::access_once(proclet_header->status) < kPresent)) {
-    proclet_header->rcu_lock.reader_unlock();
+  auto &rcu_lock = proclet_header->rcu_lock();
+  rcu_lock.reader_lock();
+  if (unlikely(rt::access_once(proclet_header->status()) < kPresent)) {
+    rcu_lock.reader_unlock();
     return false;
   }
   return true;
 }
 
 inline void ProcletManager::disable_migration(ProcletHeader *proclet_header) {
-  proclet_header->rcu_lock.reader_lock();
-  if (unlikely(rt::access_once(proclet_header->status) < kPresent)) {
-    proclet_header->rcu_lock.reader_unlock();
+  auto &rcu_lock = proclet_header->rcu_lock();
+  rcu_lock.reader_lock();
+  if (unlikely(rt::access_once(proclet_header->status()) < kPresent)) {
+    rcu_lock.reader_unlock();
     ProcletManager::wait_until_present(proclet_header);
-    proclet_header->rcu_lock.reader_lock();
+    rcu_lock.reader_lock();
   }
 }
 
