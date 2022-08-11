@@ -216,7 +216,7 @@ inline void *__new(size_t size) {
 
 void *operator new(size_t size) throw() {
   auto *ptr = __new(size);
-  BUG_ON(!ptr);
+  BUG_ON(size && !ptr);
   return ptr;
 }
 
