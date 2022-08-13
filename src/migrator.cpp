@@ -43,6 +43,7 @@ MigratorConn::~MigratorConn() { release(); }
 void MigratorConn::release() {
   if (tcp_conn_) {
     manager_->put(ip_, tcp_conn_);
+    tcp_conn_ = nullptr;
   }
 }
 
@@ -144,7 +145,6 @@ void Migrator::run_background_loop() {
                                    poll) <= 0)) {
             break;
           }
-
           switch (type) {
             case kCopyProclet:
               handle_copy_proclet(c);
@@ -470,8 +470,8 @@ void Migrator::callback() {
   }
 }
 
-void Migrator::migrate(Resource resource,
-                       std::vector<ProcletHeader *> proclets) {
+uint32_t Migrator::migrate(Resource resource,
+                           std::vector<ProcletHeader *> proclets) {
   if (!callback_triggered_) {
     callback_triggered_ = true;
     callback();
@@ -492,10 +492,15 @@ void Migrator::migrate(Resource resource,
         static_cast<uint32_t>(ratio * resource.mem_mbs + 0.5);
     choosen_proclets.clear();
     for (uint32_t i = 0; i < num_choosen_proclets; i++) {
-      choosen_proclets.push_back(proclets[num_migrated_proclets++]);
+      choosen_proclets.push_back(proclets[num_migrated_proclets + i]);
     }
-    __migrate(choosen_resource, choosen_proclets);
+    auto delta = __migrate(choosen_resource, choosen_proclets);
+    num_migrated_proclets += delta;
+    if (delta < choosen_proclets.size()) {
+      break;
+    }
   }
+  return num_migrated_proclets;
 }
 
 void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
@@ -516,8 +521,8 @@ void skip_proclet(rt::TcpConn *conn, ProcletHeader *proclet_header) {
                          /* poll = */ true) < 0);
 }
 
-void Migrator::__migrate(Resource resource,
-                         std::vector<ProcletHeader *> proclets) {
+uint32_t Migrator::__migrate(Resource resource,
+                             const std::vector<ProcletHeader *> &proclets) {
   auto dest_ip = Runtime::controller_client->get_migration_dest(resource);
   BUG_ON(!dest_ip);
   auto migration_conn = migrator_conn_mgr_.get(dest_ip);
@@ -530,7 +535,12 @@ void Migrator::__migrate(Resource resource,
   transmit_proclet_migration_tasks(conn, proclets);
   transmit_stack_cluster_mmap_task(conn);
 
-  for (auto *proclet_header : proclets) {
+  auto it = proclets.begin();
+  while (it != proclets.end()) {
+    if (unlikely(!PressureHandler::has_pressure())) {
+      break;
+    }
+    auto *proclet_header = *(it++);
     Runtime::controller_client->update_location(to_proclet_id(proclet_header),
                                                 dest_ip);
     if (unlikely(!try_mark_proclet_migrating(proclet_header))) {
@@ -542,8 +552,15 @@ void Migrator::__migrate(Resource resource,
     gc_migrated_threads();
     post_migration_cleanup(proclet_header);
   }
+  auto num_migrated = it - proclets.begin();
 
+  while (it != proclets.end()) {
+    auto *proclet_header = *(it++);
+    skip_proclet(conn, proclet_header);
+  }
   finish_aux_handlers();
+
+  return num_migrated;
 }
 
 bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
@@ -794,10 +811,10 @@ void Migrator::load(rt::TcpConn *c) {
   auto stack_cluster = load_stack_cluster_mmap_task(c);
   Runtime::stack_manager->add_ref_cnt(stack_cluster, tasks.size());
 
-  std::vector<ProcletHeader *> skipped_proclets;
-  for (auto &[proclet_header, capacity, _] : tasks) {
+  std::vector<std::pair<ProcletHeader *, uint64_t>> skipped_proclets;
+  for (auto &[proclet_header, capacity, size] : tasks) {
     if (unlikely(!load_proclet(c, proclet_header, capacity))) {
-      skipped_proclets.push_back(proclet_header);
+      skipped_proclets.emplace_back(proclet_header, size);
       continue;
     }
 
@@ -826,8 +843,8 @@ void Migrator::load(rt::TcpConn *c) {
     preempt_enable();
     mmap_th.Join();
     preempt_disable();
-    for (auto *proclet : skipped_proclets) {
-      Runtime::proclet_manager->cleanup(proclet);
+    for (auto [proclet, size] : skipped_proclets) {
+      Runtime::proclet_manager->depopulate(proclet, size);
     }
     Runtime::stack_manager->add_ref_cnt(stack_cluster,
                                         -skipped_proclets.size());

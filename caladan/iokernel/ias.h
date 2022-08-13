@@ -23,15 +23,12 @@
 #define IAS_RP_INTERVAL_US		50
 /* the low watermark used to detect memory pressure */
 #define IAS_PS_MEM_LOW_MB 		1024
-/* the threshold of swap usage to detect memory pressure */
-#define IAS_PS_SWAP_THRESH_MB           1000
 /* the threshold of cpu pressure duration to trigger migration */
 #define IAS_PS_CPU_THRESH_US            500
 /* the time before the core-local cache is assumed to be evicted */
 #define IAS_LOC_EVICTED_US		100
 /* the debug info printing interval */
 #define IAS_DEBUG_PRINT_US		1000000
-
 
 /*
  * Data structures

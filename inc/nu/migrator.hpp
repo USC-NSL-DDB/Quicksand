@@ -112,7 +112,7 @@ class Migrator {
   Migrator();
   ~Migrator();
   void run_background_loop();
-  void migrate(Resource resource, std::vector<ProcletHeader *> proclets);
+  uint32_t migrate(Resource resource, std::vector<ProcletHeader *> proclets);
   void reserve_conns(uint32_t dest_server_ip);
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,
                                   uint64_t payload_len, const void *payload);
@@ -165,7 +165,8 @@ class Migrator {
   void init_aux_handlers(uint32_t dest_ip);
   void finish_aux_handlers();
   void callback();
-  void __migrate(Resource resource, std::vector<ProcletHeader *> proclets);
+  uint32_t __migrate(Resource resource,
+                     const std::vector<ProcletHeader *> &proclets);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);
 };

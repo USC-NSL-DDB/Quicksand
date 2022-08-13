@@ -42,11 +42,7 @@ class Test {
     mutex_.unlock();
   }
 
-  void migrate() {
-    ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
-                                     .num_cores_to_release = 0};
-    Runtime::pressure_handler->mock_set_pressure(pressure);
-  }
+  void migrate() { Runtime::pressure_handler->mock_set_pressure(); }
 
  private:
   CondVar condvar_;

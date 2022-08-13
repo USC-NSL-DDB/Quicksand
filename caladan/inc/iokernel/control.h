@@ -46,16 +46,15 @@ struct congestion_info {
 
 enum {
 	NONE = 0,
-	PENDING,
 	HANDLING,
-	HANDLED
+	HANDLED,
 };
 
 struct resource_pressure_info {
 	uint32_t                mem_mbs_to_release;
-	uint8_t                 num_cores_to_release;
-	uint8_t                 num_cores_granted;
+	bool                    cpu_pressure;
 	uint8_t                 status;
+	bool                    mock;
 };
 
 enum {

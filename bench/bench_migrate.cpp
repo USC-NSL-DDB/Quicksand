@@ -26,9 +26,7 @@ namespace nu {
 class Test {
  public:
   void run() {
-    ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
-                                     .num_cores_to_release = 0};
-    Runtime::pressure_handler->mock_set_pressure(pressure);
+    Runtime::pressure_handler->mock_set_pressure();
     delay_ms(1000);
   }
 

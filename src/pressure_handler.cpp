@@ -1,13 +1,13 @@
-#include "nu/pressure_handler.hpp"
+#include <iostream>
+#include <limits>
 
 #include <sync.h>
 #include <thread.h>
 
-#include <iostream>
-
 #include "nu/commons.hpp"
 #include "nu/migrator.hpp"
 #include "nu/runtime.hpp"
+#include "nu/pressure_handler.hpp"
 
 constexpr static bool kEnableLogging = false;
 
@@ -88,30 +88,30 @@ void PressureHandler::register_handlers() {
 void PressureHandler::main_handler(void *unused) {
   auto &pressure = *resource_pressure_info;
   if constexpr (kEnableLogging) {
-    std::cout << "Detect pressure = { .num_cores = "
-              << static_cast<int>(pressure.num_cores_to_release)
-              << ", .mem_mbs = "
-              << static_cast<int>(pressure.mem_mbs_to_release) << " }."
+    std::cout << "Detect pressure = { .mem_mbs = "
+              << static_cast<int>(pressure.mem_mbs_to_release)
+              << ", .cpu_pressure = "
+              << static_cast<int>(pressure.cpu_pressure) << " }."
               << std::endl;
   }
 
   auto *handler = Runtime::pressure_handler.get();
-  auto core_ratio =
-      static_cast<double>(pressure.num_cores_to_release) /
-      (pressure.num_cores_to_release + pressure.num_cores_granted);
+retry:
   auto min_num_proclets =
-      Runtime::proclet_manager->get_num_present_proclets() * core_ratio;
+      pressure.cpu_pressure ? Migrator::kMaxNumProcletsPerMigration : 0;
   auto min_mem_mbs = pressure.mem_mbs_to_release;
-  auto proclets = handler->pick_proclets(min_num_proclets, min_mem_mbs);
+  auto [proclets, resource] =
+      handler->pick_proclets(min_num_proclets, min_mem_mbs);
   if (!proclets.empty()) {
-    Resource resource;
-    resource.cores = pressure.num_cores_to_release;
-    resource.mem_mbs = pressure.mem_mbs_to_release;
-    Runtime::migrator->migrate(resource, proclets);
-  }
+    auto num_migrated = Runtime::migrator->migrate(resource, proclets);
+    if constexpr (kEnableLogging) {
+      std::cout << "Migrate " << num_migrated << " proclets." << std::endl;
+    }
 
-  if constexpr (kEnableLogging) {
-    std::cout << "Migrate " << proclets.size() << " proclets." << std::endl;
+    barrier();
+    if (unlikely(has_pressure())) {
+      goto retry;
+    }
   }
 
   // Pause aux pressure handlers.
@@ -124,6 +124,8 @@ void PressureHandler::main_handler(void *unused) {
       unblock_and_relax();
     }
   }
+  pressure.mem_mbs_to_release = pressure.cpu_pressure = 0;
+  pressure.mock = false;
   store_release(&pressure.status, HANDLED);
 }
 
@@ -181,20 +183,29 @@ void PressureHandler::aux_handler(void *args) {
   store_release(&state->done, false);
 }
 
-std::vector<ProcletHeader *> PressureHandler::pick_proclets(
-    uint32_t min_num_proclets, uint32_t min_mem_mbs) {
-  float picked_mem_mbs = 0;
+std::pair<std::vector<ProcletHeader *>, Resource>
+PressureHandler::pick_proclets(uint32_t min_num_proclets,
+                               uint32_t min_mem_mbs) {
   uint32_t picked_num = 0;
   bool done = false;
   std::set<ProcletHeader *> picked_proclets;
+  Resource resource{.cores = 0, .mem_mbs = 0};
 
   auto pick_fn = [&](ProcletHeader *header) {
-    auto size = header->size();
-    picked_proclets.emplace(header);
-    picked_mem_mbs += size / static_cast<float>(kOneMB);
+    NonBlockingMigrationDisabledGuard guard(header);
+    if (unlikely(!guard || !header->migratable)) {
+      return;
+    }
+    auto [_, succeed] = picked_proclets.emplace(header);
+    if (unlikely(!succeed)) {
+      return;
+    }
+    auto size_in_mbs = header->size() / static_cast<float>(kOneMB);
     picked_num++;
+    resource.mem_mbs += size_in_mbs;
+    resource.cores += header->cpu_load.get_load();
     done =
-        ((picked_mem_mbs >= min_mem_mbs) && (picked_num >= min_num_proclets));
+        ((resource.mem_mbs >= min_mem_mbs) && (picked_num >= min_num_proclets));
   };
 
   bool cpu_pressure = min_num_proclets;
@@ -206,37 +217,27 @@ std::vector<ProcletHeader *> PressureHandler::pick_proclets(
     while (iter != sorted_proclets->end() && !done) {
       auto *header = iter->header;
       iter = sorted_proclets->erase(iter);
-      if (unlikely(header->status() != kPresent)) {
-        continue;
-      }
       pick_fn(header);
     }
   }
 
   if (unlikely(!done)) {
     auto all_proclets = Runtime::proclet_manager->get_all_proclets();
-    if (likely(picked_proclets.size() < all_proclets.size())) {
-      picked_proclets.clear();
-      picked_num = 0;
-      picked_mem_mbs = 0;
-      auto iter = all_proclets.begin();
-      while (iter != all_proclets.end() && !done) {
-        auto *header = reinterpret_cast<ProcletHeader *>(*iter);
-        iter++;
-        if (unlikely(header->status() != kPresent || !header->migratable)) {
-          continue;
-        }
-        pick_fn(header);
-      }
+    auto iter = all_proclets.begin();
+    while (iter != all_proclets.end() && !done) {
+      auto *header = reinterpret_cast<ProcletHeader *>(*(iter++));
+      pick_fn(header);
     }
   }
 
-  return std::vector<ProcletHeader *>(picked_proclets.begin(),
-                                      picked_proclets.end());
+  std::vector<ProcletHeader *> proclets_dedupped(picked_proclets.begin(),
+                                                 picked_proclets.end());
+  return std::make_pair(proclets_dedupped, resource);
 }
 
-void PressureHandler::mock_set_pressure(ResourcePressureInfo pressure) {
-  pressure.status = PENDING;
+void PressureHandler::mock_set_pressure() {
+  ResourcePressureInfo pressure = {
+      .mem_mbs_to_release = std::numeric_limits<uint32_t>::max(), .mock = true};
   *resource_pressure_info = pressure;
 }
 

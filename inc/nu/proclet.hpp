@@ -144,4 +144,3 @@ Future<Proclet<T>> make_proclet_async_with_capacity(uint64_t capacity,
 }  // namespace nu
 
 #include "nu/impl/proclet.ipp"
-

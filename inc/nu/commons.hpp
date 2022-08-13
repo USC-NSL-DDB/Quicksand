@@ -23,8 +23,8 @@ struct ErasedType {};
 struct ProcletHeader;
 
 struct Resource {
-  uint32_t cores;
-  uint32_t mem_mbs;
+  float cores;
+  float mem_mbs;
 };
 
 struct VAddrRange {

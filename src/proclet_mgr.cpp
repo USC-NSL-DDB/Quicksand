@@ -51,9 +51,13 @@ void ProcletManager::cleanup(void *proclet_base) {
   std::destroy_at(&proclet_header->time);
   std::destroy_at(&proclet_header->slab);
 
+  depopulate(proclet_base, proclet_header->size());
+}
+
+void ProcletManager::depopulate(void *proclet_base, uint64_t size) {
   // Use munmap to release physical pages and then use mmap to recreate vmas.
   // This is way faster than the madvise(MADV_FREE) interface.
-  auto size = ((proclet_header->size() - 1) / kPageSize + 1) * kPageSize;
+  size = ((size - 1) / kPageSize + 1) * kPageSize;
   BUG_ON(munmap(proclet_base, size) == -1);
   auto mmap_addr = mmap(proclet_base, size, PROT_READ | PROT_WRITE,
                         MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);

@@ -26,11 +26,7 @@ class Test {
     return Time::sleep_until(deadline_us);
   }
   void sleep(uint64_t duration_us) { Time::sleep(duration_us); }
-  void migrate() {
-    ResourcePressureInfo pressure = {.mem_mbs_to_release = 1000,
-                                     .num_cores_to_release = 0};
-    Runtime::pressure_handler->mock_set_pressure(pressure);
-  }
+  void migrate() { Runtime::pressure_handler->mock_set_pressure(); }
 };
 }  // namespace nu
 

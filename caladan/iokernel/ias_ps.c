@@ -51,19 +51,17 @@ bool ias_ps_poll(uint64_t now_us)
 {
 	bool success = true, has_pressure;
 	struct sysinfo info;
-	uint64_t free_ram_in_mbs, used_swap_in_mbs, mem_mbs_to_release;
+	int64_t free_ram_in_mbs, used_swap_in_mbs, mem_mbs_to_release;
 	struct congestion_info *congestion;
 	struct resource_pressure_info *pressure;
 	struct ias_data *sd;
-	int pos, num_cores_taken = 0;
+	int pos;
 
 	BUG_ON(sysinfo(&info) != 0);
-	free_ram_in_mbs = info.freeram / SIZE_MB;
 	used_swap_in_mbs = (info.totalswap - info.freeswap) / SIZE_MB;
+	free_ram_in_mbs = info.freeram / SIZE_MB - used_swap_in_mbs;
 	if (free_ram_in_mbs < IAS_PS_MEM_LOW_MB)
 		mem_mbs_to_release = IAS_PS_MEM_LOW_MB - free_ram_in_mbs;
-	else if (used_swap_in_mbs >= IAS_PS_SWAP_THRESH_MB)
-		mem_mbs_to_release = used_swap_in_mbs;
 	else
 		mem_mbs_to_release = 0;
 
@@ -74,6 +72,35 @@ bool ias_ps_poll(uint64_t now_us)
 		congestion->idle_num_cores = ias_num_idle_cores;
 		has_pressure = false;
 
+		if (pressure->mock) {
+			has_pressure = true;
+			goto done_pressure_update;
+		}
+
+		/* Memory pressure. */
+		if (sd->react_mem_pressure) {
+			pressure->mem_mbs_to_release =
+				mem_mbs_to_release;
+			has_pressure = mem_mbs_to_release;
+		}
+
+		/* CPU pressure. */
+		if (sd->react_cpu_pressure) {
+			if (sd->is_congested) {
+				if (!sd->cpu_pressure_start_us)
+					sd->cpu_pressure_start_us = now_us;
+				else if (now_us - sd->cpu_pressure_start_us >=
+					 IAS_PS_CPU_THRESH_US) {
+					pressure->cpu_pressure = true;
+					has_pressure = true;
+				}
+			} else {
+				sd->cpu_pressure_start_us = 0;
+				pressure->cpu_pressure = false;
+			}
+		}
+
+done_pressure_update:
 		if (pressure->status == HANDLED) {
 		        /* Take away the exclusive access. */
 	                bitmap_for_each_set(sd->reserved_pressure_handler_cores,
@@ -85,39 +112,7 @@ bool ias_ps_poll(uint64_t now_us)
 			pressure->status = NONE;
 		}
 
-		if (pressure->status == NONE) {
-			/* Memory pressure. */
-	                if (sd->react_mem_pressure && mem_mbs_to_release) {
-				pressure->mem_mbs_to_release =
-					mem_mbs_to_release;
-				mem_mbs_to_release = 0;
-				has_pressure = true;
-			}
-
-			/* CPU pressure. */
-	                if (sd->react_cpu_pressure && sd->is_congested)
-				num_cores_taken = pressure->num_cores_granted -
-                                                  sd->threads_active;
-			if (num_cores_taken > 0) {
-				if (!sd->cpu_pressure_start_us)
-					sd->cpu_pressure_start_us = now_us;
-				else if (now_us - sd->cpu_pressure_start_us >=
-					 IAS_PS_CPU_THRESH_US) {
-					sd->cpu_pressure_start_us = 0;
-					pressure->num_cores_to_release =
-                                                num_cores_taken;
-					pressure->num_cores_granted =
-						sd->threads_active;
-					has_pressure = true;
-				}
-	                } else
-				sd->cpu_pressure_start_us = 0;
-
-			if (has_pressure)
-				store_release(&pressure->status, PENDING);
-		}
-
-		if (pressure->status == PENDING) {
+		if (pressure->status == NONE && has_pressure) {
 			if (likely(ias_ps_preempt_core(sd)))
 				pressure->status = HANDLING;
 			else

@@ -40,12 +40,13 @@ class PressureHandler {
 
   PressureHandler();
   ~PressureHandler();
-  void mock_set_pressure(ResourcePressureInfo pressure);
+  void mock_set_pressure();
   void wait_aux_tasks();
   void init_aux_handler(uint32_t handler_id, MigratorConn &&conn);
   void dispatch_aux_tcp_task(uint32_t handler_id,
                              std::vector<iovec> &&tcp_write_task);
   void dispatch_aux_pause_task(uint32_t handler_id);
+  static bool has_pressure();
 
  private:
   struct ProcletInfo {
@@ -67,11 +68,13 @@ class PressureHandler {
   bool done_;
 
   void register_handlers();
-  std::vector<ProcletHeader *> pick_proclets(uint32_t min_num_proclets,
-                                             uint32_t min_mem_mbs);
+  std::pair<std::vector<ProcletHeader *>, Resource> pick_proclets(
+      uint32_t min_num_proclets, uint32_t min_mem_mbs);
   void update_sorted_proclets();
   static void main_handler(void *unsed);
   static void aux_handler(void *args);
 };
 
 }  // namespace nu
+
+#include "nu/impl/pressure_handler.ipp"

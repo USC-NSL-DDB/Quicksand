@@ -84,9 +84,7 @@ class Test {
   Test(uint32_t pressure_mem_mbs) : pressure_mem_mbs_(pressure_mem_mbs) {}
 
   int migrate() {
-    ResourcePressureInfo pressure = {.mem_mbs_to_release = pressure_mem_mbs_,
-                                     .num_cores_to_release = 0};
-    Runtime::pressure_handler->mock_set_pressure(pressure);
+    Runtime::pressure_handler->mock_set_pressure();
     return 0;
   }
 
