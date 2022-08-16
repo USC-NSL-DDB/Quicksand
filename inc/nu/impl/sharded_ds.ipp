@@ -63,7 +63,7 @@ void GeneralShard<Container>::split() {
 
 template <class Container>
 bool GeneralShard<Container>::bad_range(std::optional<Key> l_key,
-                                          std::optional<Key> r_key) {
+                                        std::optional<Key> r_key) {
   return (l_key < l_key_) || (r_key_ && (r_key > r_key_ || !r_key));
 }
 
@@ -266,8 +266,7 @@ void ShardedDataStructure<Container, LowLat>::emplace(K1 &&k, V1 &&v) {
 
 template <class Container, bool LowLat>
 void ShardedDataStructure<Container, LowLat>::emplace(Pair &&p) {
-[[maybe_unused]] retry:
-  auto iter = --key_to_shards_.upper_bound(p.first);
+  [[maybe_unused]] retry : auto iter = --key_to_shards_.upper_bound(p.first);
 
   if constexpr (LowLat) {
     auto [l_key, r_key] = get_key_range(iter);
@@ -433,6 +432,41 @@ Container ShardedDataStructure<Container, LowLat>::collect() {
   }
 
   return all;
+}
+
+template <class Container, bool LowLat>
+std::size_t ShardedDataStructure<Container, LowLat>::size() {
+  flush();
+
+  sync_mapping(std::nullopt, std::nullopt);
+  std::vector<Future<std::size_t>> futures;
+  for (auto &[_, p] : key_to_shards_) {
+    futures.emplace_back(p.first.run_async(
+        +[](Shard &s) { return s.get_container_ptr().second->size(); }));
+  }
+
+  std::size_t size = 0;
+  for (auto &future : futures) {
+    size += future.get();
+  }
+
+  return size;
+}
+
+template <class Container, bool LowLat>
+void ShardedDataStructure<Container, LowLat>::clear() {
+  flush();
+
+  sync_mapping(std::nullopt, std::nullopt);
+  std::vector<Future<void>> futures;
+  for (auto &[_, p] : key_to_shards_) {
+    futures.emplace_back(p.first.run_async(
+        +[](Shard &s) { s.get_container_ptr().second->clear(); }));
+  }
+
+  for (auto &future : futures) {
+    future.get();
+  }
 }
 
 template <class Container, bool LowLat>

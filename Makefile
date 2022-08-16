@@ -40,6 +40,8 @@ test_sync_hash_map_src = test/test_sync_hash_map.cpp
 test_sync_hash_map_obj = $(test_sync_hash_map_src:.cpp=.o)
 test_sharded_array_src = test/test_sharded_array.cpp
 test_sharded_array_obj = $(test_sharded_array_src:.cpp=.o)
+test_sharded_set_src = test/test_sharded_set.cpp
+test_sharded_set_obj = $(test_sharded_set_src:.cpp=.o)
 test_sharded_vector_src = test/test_sharded_vector.cpp
 test_sharded_vector_obj = $(test_sharded_vector_src:.cpp=.o)
 test_dis_hash_table_src = test/test_dis_hash_table.cpp
@@ -120,7 +122,7 @@ bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread 
 bin/test_fast_path bin/test_slow_path bin/ctrl_main bin/test_max_num_proclets \
 bin/test_sharded_array bin/test_sharded_pair_collect bin/bench_controller \
 bin/test_sharded_vector bin/bench_sharded_pair_collect bin/test_cereal bin/bench_sharded_vector \
-bin/bench_proclet_call_bw
+bin/bench_proclet_call_bw bin/test_sharded_set
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -145,6 +147,8 @@ bin/test_sync_hash_map: $(test_sync_hash_map_obj) $(librt_libs) $(RUNTIME_DEPS) 
 	$(LDXX) -o $@ $(test_sync_hash_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_array: $(test_sharded_array_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_array_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_sharded_set: $(test_sharded_set_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_sharded_set_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_vector: $(test_sharded_vector_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_vector_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_dis_hash_table: $(test_dis_hash_table_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
