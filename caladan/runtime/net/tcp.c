@@ -584,6 +584,7 @@ static void __check_net_softirq(struct kthread *k)
 
 static inline void waitq_poll_softirq(waitq_t *q, tcpconn_t *c)
 {
+	/* FIXME: handle the race condition of kthread parking/waking. */
 	uint32_t aff = net_ops.get_flow_affinity(CALADAN_IPPROTO_TCP,
 						 c->e.laddr.port, c->e.raddr);
 	waitq_wait_poll(q, &c->lock, ks[aff], __check_net_softirq);
