@@ -47,6 +47,7 @@ struct iokernel_control iok;
 bool cfg_prio_is_lc;
 uint64_t cfg_ht_punish_us;
 uint64_t cfg_qdelay_us = 10;
+uint64_t cfg_quantum_us = 100;
 bool cfg_react_cpu_pressure;
 bool cfg_react_mem_pressure;
 
@@ -287,6 +288,7 @@ int ioqueues_register_iokernel(void)
 	hdr->sched_cfg.preferred_socket = preferred_socket;
 	hdr->sched_cfg.react_cpu_pressure = cfg_react_cpu_pressure;
 	hdr->sched_cfg.react_mem_pressure = cfg_react_mem_pressure;
+	hdr->sched_cfg.quantum_us = cfg_quantum_us;
 
 	hdr->thread_specs = ptr_to_shmptr(r, iok.threads, sizeof(*iok.threads) * maxks);
 

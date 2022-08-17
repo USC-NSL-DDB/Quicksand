@@ -108,6 +108,7 @@ struct sched_spec {
 	unsigned int		preferred_socket;
 	uint64_t		qdelay_us;
 	uint64_t		ht_punish_us;
+	uint64_t		quantum_us;
 	bool                    react_cpu_pressure;
 	bool                    react_mem_pressure;
 };

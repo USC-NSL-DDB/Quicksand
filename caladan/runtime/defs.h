@@ -508,6 +508,7 @@ extern struct kthread *ks[NCPU];
 extern bool cfg_prio_is_lc;
 extern uint64_t cfg_ht_punish_us;
 extern uint64_t cfg_qdelay_us;
+extern uint64_t cfg_quantum_us;
 extern bool cfg_react_cpu_pressure;
 extern bool cfg_react_mem_pressure;
 
