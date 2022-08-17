@@ -926,7 +926,10 @@ static void thread_finish_cede(void)
 	STAT(PROGRAM_CYCLES) += tsc - last_tsc;
 
 	/* mark ceded thread ready at head of runqueue */
-	thread_ready_head(myth);
+	spin_lock(&k->lock);
+	k->curr_th = NULL;
+	thread_ready_head_locked(myth);
+	spin_unlock(&k->lock);
 
 	/* increment the RCU generation number (even - pretend in sched) */
 	store_release(&k->rcu_gen, k->rcu_gen + 1);
