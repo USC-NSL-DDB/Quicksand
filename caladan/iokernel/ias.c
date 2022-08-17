@@ -77,9 +77,8 @@ static int ias_attach(struct proc *p, struct sched_spec *sched_cfg)
 	sd->react_mem_pressure = sched_cfg->react_mem_pressure;
 	if (sd->is_lc)
 		sd->ht_punish_us = sched_cfg->ht_punish_us;
-	if (sd->ht_punish_us)
-		sd->ht_punish_tsc_inv = 1.0 / (float)(sd->ht_punish_us * cycles_per_us);
 	sd->qdelay_us = sched_cfg->qdelay_us;
+	sd->quantum_us = sched_cfg->quantum_us;
 	sd->threads_active = 0;
 	p->policy_data = (unsigned long)sd;
 	list_add(&all_procs, &sd->all_link);
@@ -374,7 +373,8 @@ static int ias_notify_core_needed(struct proc *p)
 	return ias_add_kthread(sd);
 }
 
-static void ias_notify_congested(struct proc *p, bool busy, uint64_t delay, bool parked_thread_delay)
+static void ias_notify_congested(struct proc *p, bool busy, uint64_t delay,
+                                 bool parked_thread_delay)
 {
 	struct ias_data *sd = (struct ias_data *)p->policy_data;
 	int ret;
@@ -483,6 +483,7 @@ static void ias_print_debug_info(void)
 		 ias_bw_relax_count, ias_bw_sample_failures, ias_bw_sample_aborts);
 	log_info("tsc %lu ht_punish %ld ht_relax %ld", now, ias_ht_punish_count,
 		 ias_ht_relax_count);
+	log_info("tsc %lu ts_count %ld", now, ias_ts_yield_count);
 
 	memset(printed, 0, sizeof(printed));
 	bitmap_for_each_set(sched_allowed_cores, NCPU, core) {
@@ -502,8 +503,9 @@ static void ias_print_debug_info(void)
 static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 {
 	static uint64_t last_bw_us, last_ht_us, last_ps_us, last_rp_us;
+	static uint64_t last_ts_us;
 #ifdef IAS_DEBUG
-	static uint64_t debug_ts = 0;
+	static uint64_t debug_ts;
 #endif
 	unsigned int core;
 
@@ -544,6 +546,11 @@ static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 	if (!cfg.norp && now - last_rp_us >= IAS_RP_INTERVAL_US)
 		if (ias_rp_poll())
 			last_rp_us = now;
+
+	if (now - last_ts_us >= IAS_TS_INTERVAL_US) {
+		last_ts_us = now;
+		ias_ts_poll();
+	}
 
 #ifdef IAS_DEBUG
 	if (now - debug_ts >= IAS_DEBUG_PRINT_US) {

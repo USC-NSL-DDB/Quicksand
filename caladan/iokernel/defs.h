@@ -66,12 +66,16 @@ struct hwq {
 	uint32_t		parity_byte_offset;
 	uint32_t		parity_bit_mask;
 	uint32_t		hwq_type;
-
 	uint32_t		last_tail;
 	uint32_t		last_head;
-
 	uint64_t		busy_since;
 };
+
+struct thread_metrics {
+	uint32_t		uthread_elapsed_us;
+	uint32_t		rcu_gen;
+	bool			work_pending;
+ };
 
 struct timer {
 	uint64_t		*next_tsc;
@@ -84,6 +88,7 @@ struct thread {
 	struct lrpc_chan_in	txpktq;
 	struct lrpc_chan_in	txcmdq;
 	pid_t			tid;
+	uint32_t                last_yield_rcu_gen;
 	struct q_ptrs		*q_ptrs;
 	uint32_t		last_rq_head;
 	uint32_t		last_rq_tail;
@@ -103,6 +108,9 @@ struct thread {
 	struct timer		timer_heap;
 	struct list_node	idle_link;
 	void                    **preemptor;
+
+	/* useful metrics for scheduling policies */
+	struct thread_metrics	metrics;
 };
 
 static inline bool hwq_busy(struct hwq *h, uint32_t cq_idx)
@@ -260,8 +268,7 @@ struct dataplane {
 	uint8_t			port;
 	bool			is_mlx;
 	struct rte_mempool	*rx_mbuf_pool;
-
-	struct shm_region		ingress_mbuf_region;
+	struct shm_region       ingress_mbuf_region;
 
 	struct proc		*clients[IOKERNEL_MAX_PROC];
 	int			nr_clients;

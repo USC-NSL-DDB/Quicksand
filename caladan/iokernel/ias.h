@@ -21,6 +21,8 @@
 #define IAS_PS_INTERVAL_US		100
 /* the resource reporting controller's polling interval */
 #define IAS_RP_INTERVAL_US		50
+/* the time sharing controller's polling interval */
+#define IAS_TS_INTERVAL_US		10
 /* the low watermark used to detect memory pressure */
 #define IAS_PS_MEM_LOW_MB 		1024
 /* the threshold of cpu pressure duration to trigger migration */
@@ -41,6 +43,7 @@ struct ias_data {
 	unsigned int		is_lc:1;
 	unsigned int		idx; /* a unique index */
 	uint64_t		qdelay_us;
+	uint64_t                quantum_us;
 	struct list_node	all_link;
 	DEFINE_BITMAP(reserved_cores, NCPU);
 	DEFINE_BITMAP(reserved_pressure_handler_cores, NCPU);
@@ -58,7 +61,6 @@ struct ias_data {
 	/* the hyperthread subcontroller */
 	uint64_t		ht_punish_us;
 	uint64_t		ht_punish_count;
-	float			ht_punish_tsc_inv;
 
 	/* memory bandwidth subcontroller */
 	float			bw_llc_miss_rate;
@@ -96,12 +98,6 @@ extern int ias_add_kthread_on_core(unsigned int core);
 DECLARE_BITMAP(ias_ht_punished_cores, NCPU);
 
 struct ias_ht_data {
-	/* the scheduler's generation counter */
-	uint64_t	sgen;
-	/* the runtime's generation counter */
-	uint64_t	rgen;
-	/* the last time these counters were updated */
-	uint64_t	last_us;
 	/* the fraction of the punish budget used so far */
 	float		budget_used;
 };
@@ -137,6 +133,13 @@ extern bool ias_ps_poll(uint64_t now_us);
 extern bool ias_rp_poll(void);
 
 /*
+ * Time sharing (TS) subcontroller definitions
+ */
+
+ extern void ias_ts_poll(void);
+
+
+/*
  * Counters
  */
 
@@ -148,3 +151,5 @@ extern uint64_t	ias_bw_sample_failures;
 extern uint64_t ias_bw_sample_aborts;
 extern uint64_t ias_ht_punish_count;
 extern uint64_t ias_ht_relax_count;
+extern uint64_t ias_ts_yield_count;
+
