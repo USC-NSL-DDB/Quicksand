@@ -87,7 +87,9 @@ inline void ProcletManager::enable_migration(ProcletHeader *proclet_header) {
 inline bool ProcletManager::try_disable_migration(
     ProcletHeader *proclet_header) {
   auto &rcu_lock = proclet_header->rcu_lock();
-  rcu_lock.reader_lock();
+  if (unlikely(!rcu_lock.try_reader_lock())) {
+    return false;
+  }
   if (unlikely(rt::access_once(proclet_header->status()) < kPresent)) {
     rcu_lock.reader_unlock();
     return false;
