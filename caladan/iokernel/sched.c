@@ -35,6 +35,8 @@ int sched_cores_nr;
 unsigned int sched_siblings_tbl[NCPU];
 int sched_siblings_nr;
 
+static int nr_guaranteed;
+
 struct core_state {
 	struct thread	*pending_th;  /* a thread waiting run */
 	struct thread	*cur_th;      /* the currently running thread */
@@ -631,7 +633,13 @@ int sched_add_core(struct proc *p)
  */
 int sched_attach_proc(struct proc *p)
 {
-	int i;
+	int i, ret;
+
+	if (p->sched_cfg.guaranteed_cores + nr_guaranteed >
+	    sched_cores_nr) {
+		log_err("guaranteed cores exceeds total core count");
+		return -1;
+	}
 
 	p->active_thread_count = 0;
 	list_head_init(&p->idle_threads);
@@ -641,7 +649,13 @@ int sched_attach_proc(struct proc *p)
 		list_add_tail(&p->idle_threads, &p->threads[i].idle_link);
 	}
 
-	return sched_ops->proc_attach(p, &p->sched_cfg);
+	ret = sched_ops->proc_attach(p, &p->sched_cfg);
+	if (ret)
+		return ret;
+
+	nr_guaranteed += p->sched_cfg.guaranteed_cores;
+
+	return 0;
 }
 
 /**
@@ -651,6 +665,7 @@ int sched_attach_proc(struct proc *p)
 void sched_detach_proc(struct proc *p)
 {
 	sched_ops->proc_detach(p);
+	nr_guaranteed -= p->sched_cfg.guaranteed_cores;
 }
 
 static int sched_scan_node(int node)
@@ -715,7 +730,7 @@ int sched_init(void)
 	 */
 
 	for (i = 0; i < cpu_count; i++) {
-		if (cpu_info_tbl[i].package != 0 && sched_ops != &numa_ops)
+		if (cpu_info_tbl[i].package != 1 && sched_ops != &numa_ops)
 			continue;
 
 		if (allowed_cores_supplied &&
