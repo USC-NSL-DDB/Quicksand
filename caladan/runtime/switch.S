@@ -50,6 +50,9 @@
 .globl __jmp_thread
 .type __jmp_thread, @function
 __jmp_thread:
+	/* restore ip and stack */
+	movq    RSP(%rdi), %rsp
+	movq    RIP(%rdi), %rsi
 
 	/* restore callee regs */
 	movq    RBX(%rdi), %rbx
@@ -61,10 +64,6 @@ __jmp_thread:
 
 	movq    STACK_PROTECTOR(%rdi), %r8
 	movq    %r8, %fs:0x28
-
-	/* restore ip and stack */
-	movq    RSP(%rdi), %rsp
-	movq    RIP(%rdi), %rsi
 
 	/* set first argument (in case new thread) */
 	movq    RDI(%rdi), %rdi /* ARG0 */
