@@ -11,7 +11,6 @@ class Map {
 
   Map() = default;
   Map(std::size_t capacity);
-  Map(std::map<K, V> initial_state);
   Map(const Map &) = default;
   Map &operator=(const Map &) = default;
   Map(Map &&) noexcept = default;
@@ -32,6 +31,8 @@ class Map {
   void load(Archive &ar);
 
  private:
+  Map(std::map<K, V> initial_state);
+
   std::map<K, V> map_;
 };
 
