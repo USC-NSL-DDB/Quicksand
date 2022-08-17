@@ -35,7 +35,7 @@ class Time;
 template <typename T>
 class RuntimeAllocator;
 
-enum ProcletStatus { kAbsent = 0, kPending, kPresent, kDestructed };
+enum ProcletStatus { kAbsent = 0, kPresent, kDestructed };
 extern uint8_t proclet_statuses[kMaxNumProclets];
 
 constexpr uint32_t kMaxNumProcletRCULocks = 8192;
@@ -75,7 +75,6 @@ struct ProcletHeader {
   // Heap mem allocator. Must be the last field.
   SlabAllocator slab;
 
-  bool will_be_copied_on_migration(void *ptr);
   bool is_inside(void *ptr);
   uint64_t size() const;
   uint8_t &status();
@@ -92,7 +91,7 @@ class ProcletManager {
   static void cleanup(void *proclet_base);
   static void madvise_populate(void *proclet_base, uint64_t populate_len);
   static void depopulate(void *proclet_base, uint64_t size);
-  static void wait_until_present(ProcletHeader *proclet_header);
+  static void wait_until(ProcletHeader *proclet_header, ProcletStatus status);
   void insert(void *proclet_base);
   bool remove_for_migration(void *proclet_base);
   bool remove_for_destruction(void *proclet_base);

@@ -142,6 +142,7 @@ class Migrator {
   VAddrRange load_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit(rt::TcpConn *c, ProcletHeader *proclet_header,
                 struct list_head *head);
+  void update_proclet_location(rt::TcpConn *c, ProcletHeader *proclet_header);
   void transmit_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header);
   void transmit_proclet_migration_tasks(

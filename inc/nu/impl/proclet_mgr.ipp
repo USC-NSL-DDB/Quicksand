@@ -9,10 +9,6 @@ namespace nu {
 
 inline ProcletHeader::~ProcletHeader() {}
 
-inline bool ProcletHeader::will_be_copied_on_migration(void *ptr) {
-  return reinterpret_cast<uint8_t *>(ptr) > copy_start;
-}
-
 inline bool ProcletHeader::is_inside(void *ptr) {
   return (reinterpret_cast<uint64_t>(ptr) & (~(capacity - 1))) ==
          reinterpret_cast<uint64_t>(this);
@@ -42,9 +38,10 @@ inline VAddrRange ProcletHeader::get_range() const {
   return VAddrRange{start_addr, end_addr};
 }
 
-inline void ProcletManager::wait_until_present(ProcletHeader *proclet_header) {
+inline void ProcletManager::wait_until(ProcletHeader *proclet_header,
+                                       ProcletStatus status) {
   proclet_header->spin_lock.lock();
-  while (rt::access_once(proclet_header->status()) < kPresent) {
+  while (rt::access_once(proclet_header->status()) != status) {
     proclet_header->cond_var.wait(&proclet_header->spin_lock);
   }
   proclet_header->spin_lock.unlock();
@@ -103,7 +100,7 @@ inline void ProcletManager::disable_migration(ProcletHeader *proclet_header) {
   rcu_lock.reader_lock();
   if (unlikely(rt::access_once(proclet_header->status()) < kPresent)) {
     rcu_lock.reader_unlock();
-    ProcletManager::wait_until_present(proclet_header);
+    ProcletManager::wait_until(proclet_header, kPresent);
     rcu_lock.reader_lock();
   }
 }

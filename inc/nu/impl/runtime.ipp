@@ -73,15 +73,13 @@ __attribute__((optimize("no-omit-frame-pointer"))) bool
 Runtime::run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                                 A1s &&... args) {
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-retry:
+
   NonBlockingMigrationDisabledGuard guard(proclet_header);
   if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(proclet_header->status()) > kAbsent)) {
-      ProcletManager::wait_until_present(proclet_header);
-      goto retry;
-    } else {
-      return false;
+    if (unlikely(rt::access_once(proclet_header->status()) != kAbsent)) {
+      ProcletManager::wait_until(proclet_header, kAbsent);
     }
+    return false;
   }
 
   auto *slab = &proclet_header->slab;

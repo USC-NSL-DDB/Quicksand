@@ -116,7 +116,7 @@ void ProcletServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
       // finished.
       {
         MigrationEnabledGuard guard;
-        ProcletManager::wait_until_present(proclet_header);
+        ProcletManager::wait_until(proclet_header, kPresent);
       }
       // Safe without acquiring the lock since the proclet is dead now.
       proclet_header->ref_cnt = -delta;

@@ -396,9 +396,22 @@ void Migrator::transmit_proclet_migration_tasks(
   }
 }
 
+void Migrator::update_proclet_location(rt::TcpConn *c,
+                                       ProcletHeader *proclet_header) {
+  Runtime::controller_client->update_location(to_proclet_id(proclet_header),
+                                              c->RemoteAddr().ip);
+  // Wakeup the blocked requests after marking the proclet as absent so that
+  // they will be immediately rejected.
+  proclet_header->spin_lock.lock();
+  proclet_header->status() = kAbsent;
+  proclet_header->cond_var.signal_all();
+  proclet_header->spin_lock.unlock();
+}
+
 void Migrator::transmit(rt::TcpConn *c, ProcletHeader *proclet_header,
                         struct list_head *paused_ths_list) {
   transmit_proclet(c, proclet_header);
+  update_proclet_location(c, proclet_header);
 
   std::vector<thread_t *> ready_threads;
   std::vector<Mutex *> mutexes;
@@ -524,6 +537,7 @@ void skip_proclet(rt::TcpConn *conn, ProcletHeader *proclet_header) {
 uint32_t Migrator::__migrate(Resource resource,
                              const std::vector<ProcletHeader *> &proclets) {
   auto dest_ip = Runtime::controller_client->get_migration_dest(resource);
+  // FIXME: handle the case of no idle server.
   BUG_ON(!dest_ip);
   auto migration_conn = migrator_conn_mgr_.get(dest_ip);
   auto *conn = migration_conn.get_tcp_conn();
@@ -541,8 +555,6 @@ uint32_t Migrator::__migrate(Resource resource,
       break;
     }
     auto *proclet_header = *(it++);
-    Runtime::controller_client->update_location(to_proclet_id(proclet_header),
-                                                dest_ip);
     if (unlikely(!try_mark_proclet_migrating(proclet_header))) {
       skip_proclet(conn, proclet_header);
       continue;
@@ -674,9 +686,7 @@ void Migrator::load_mutexes(rt::TcpConn *c, ProcletHeader *proclet_header) {
       // proclet_header->migrated_wg.Add(num_threads);
 
       auto *waiters = mutex->get_waiters();
-      if (proclet_header->will_be_copied_on_migration(mutex)) {
-        list_head_init(waiters);
-      }
+      list_head_init(waiters);
       for (size_t j = 0; j < num_threads; j++) {
         auto *th = load_one_thread(c, proclet_header);
         auto *th_link = reinterpret_cast<list_node *>(
@@ -709,9 +719,7 @@ void Migrator::load_condvars(rt::TcpConn *c, ProcletHeader *proclet_header) {
       // proclet_header->migrated_wg.Add(num_threads);
 
       auto *waiters = condvar->get_waiters();
-      if (proclet_header->will_be_copied_on_migration(condvar)) {
-        list_head_init(waiters);
-      }
+      list_head_init(waiters);
       for (size_t j = 0; j < num_threads; j++) {
         auto *th = load_one_thread(c, proclet_header);
         auto *th_link = reinterpret_cast<list_node *>(
@@ -793,10 +801,6 @@ std::vector<ProcletMigrationTask> Migrator::load_proclet_migration_tasks(
                        /* poll = */ true) <= 0);
   }
 
-  for (auto &[header, _, __] : tasks) {
-    header->status() = kPending;
-  }
-
   return tasks;
 }
 
@@ -827,9 +831,7 @@ void Migrator::load(rt::TcpConn *c) {
     load_threads(c, proclet_header);
 
     // Wakeup the blocked threads.
-    proclet_header->spin_lock.lock();
     proclet_header->cond_var.signal_all();
-    proclet_header->spin_lock.unlock();
 
     // FIXME
     // rt::Thread([proclet_header, stack_cluster] {

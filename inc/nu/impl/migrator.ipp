@@ -8,15 +8,12 @@ template <typename RetT>
 RPCReturnCode Migrator::load_thread_and_ret_val(
     ProcletHeader *dest_proclet_header, void *raw_dest_ret_val_ptr,
     uint64_t payload_len, uint8_t *payload) {
-retry:
   NonBlockingMigrationDisabledGuard guard(dest_proclet_header);
   if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(dest_proclet_header->status()) > kAbsent)) {
-      ProcletManager::wait_until_present(dest_proclet_header);
-      goto retry;
-    } else {
-      return kErrWrongClient;
+    if (unlikely(rt::access_once(dest_proclet_header->status()) != kAbsent)) {
+      ProcletManager::wait_until(dest_proclet_header, kAbsent);
     }
+    return kErrWrongClient;
   }
 
   size_t nu_state_size;
