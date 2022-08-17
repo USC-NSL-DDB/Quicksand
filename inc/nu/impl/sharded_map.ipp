@@ -61,7 +61,8 @@ std::pair<typename Map<K, V>::Key, Map<K, V>> Map<K, V>::split() {
 
   auto latter_half_l_key = split_it->first;
 
-  std::map<K, V> latter_half_map(split_it, map_.end());
+  std::map<K, V> latter_half_map(std::make_move_iterator(split_it),
+                                 std::make_move_iterator(map_.end()));
   map_.erase(split_it, map_.end());
 
   Map<K, V> latter_half_container(latter_half_map);
