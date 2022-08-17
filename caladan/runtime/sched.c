@@ -516,9 +516,6 @@ static __noreturn __noinline void schedule(void)
 		l->curr_th = NULL;
 	}
 
-	/* clear thread run start time */
-	ACCESS_ONCE(l->q_ptrs->run_start_tsc) = UINT64_MAX;
-
 	/* detect misuse of preempt disable */
 	BUG_ON((preempt_cnt & ~PREEMPT_NOT_PENDING) != 1);
 
@@ -529,7 +526,7 @@ static __noreturn __noinline void schedule(void)
 
 	/* increment the RCU generation number (even is in scheduler) */
 	store_release(&l->rcu_gen, l->rcu_gen + 1);
-	ACCESS_ONCE(l->q_ptrs->rcu_gen) += 1;
+	ACCESS_ONCE(l->q_ptrs->rcu_gen) = l->rcu_gen;
 	assert((l->rcu_gen & 0x1) == 0x0);
 
 	prioritize_local_rcu_readers_locked();
@@ -615,9 +612,10 @@ again:
 #endif
 
 	/* keep trying to find work until the polling timeout expires */
+	end_tsc = rdtsc();
 	if (!preempt_cede_needed() &&
 	    (++iters < RUNTIME_SCHED_POLL_ITERS ||
-	     rdtsc() - start_tsc < cycles_per_us * RUNTIME_SCHED_MIN_POLL_US ||
+	     end_tsc - start_tsc < cycles_per_us * RUNTIME_SCHED_MIN_POLL_US ||
 	     storage_pending_completions(&l->storage_q))) {
 		goto again;
 	}
@@ -626,10 +624,10 @@ again:
 	spin_unlock(&l->lock);
 
 	/* did not find anything to run, park this kthread */
-	STAT(SCHED_CYCLES) += rdtsc() - start_tsc;
+	STAT(SCHED_CYCLES) += end_tsc - start_tsc;
 	/* we may have got a preempt signal before voluntarily yielding */
 	kthread_park(!preempt_cede_needed());
-	start_tsc = rdtsc();
+	start_tsc = end_tsc;
 	iters = 0;
 
 	spin_lock(&l->lock);
@@ -654,19 +652,18 @@ done:
 	/* update exit stat counters */
 	end_tsc = rdtsc();
 	STAT(SCHED_CYCLES) += end_tsc - start_tsc;
-	last_tsc = end_tsc;
 	if (cores_have_affinity(th->last_cpu, l->curr_cpu))
 		STAT(LOCAL_RUNS)++;
 	else
 		STAT(REMOTE_RUNS)++;
 
 	/* update exported thread run start time */
-	th->run_start_tsc = last_tsc;
+	th->run_start_tsc = end_tsc;
 	ACCESS_ONCE(l->q_ptrs->run_start_tsc) = th->run_start_tsc;
 
 	/* increment the RCU generation number (odd is in thread) */
 	store_release(&l->rcu_gen, l->rcu_gen + 1);
-	ACCESS_ONCE(l->q_ptrs->rcu_gen) += 1;
+	ACCESS_ONCE(l->q_ptrs->rcu_gen) = l->rcu_gen;
 	assert((l->rcu_gen & 0x1) == 0x1);
 
 	/* and jump into the next thread */
@@ -728,7 +725,7 @@ static __always_inline void enter_schedule(thread_t *curth)
 
 	/* increment the RCU generation number (odd is in thread) */
 	store_release(&k->rcu_gen, k->rcu_gen + 2);
-	ACCESS_ONCE(k->q_ptrs->rcu_gen) += 2;
+	ACCESS_ONCE(k->q_ptrs->rcu_gen) = k->rcu_gen;
 	assert((k->rcu_gen & 0x1) == 0x1);
 
 	/* check for misuse of preemption disabling */
@@ -920,30 +917,30 @@ static void thread_finish_cede(void)
 {
 	struct kthread *k = myk();
 	thread_t *myth = thread_self();
+	uint64_t tsc = rdtsc();
 
 	/* update stats and scheduler state */
 	myth->thread_running = false;
 	myth->last_cpu = k->curr_cpu;
 	__self = NULL;
-	ACCESS_ONCE(k->q_ptrs->run_start_tsc) = UINT64_MAX;
-	STAT(PROGRAM_CYCLES) += rdtsc() - last_tsc;
+	STAT(PROGRAM_CYCLES) += tsc - last_tsc;
 
 	/* mark ceded thread ready at head of runqueue */
 	thread_ready_head(myth);
 
 	/* increment the RCU generation number (even - pretend in sched) */
 	store_release(&k->rcu_gen, k->rcu_gen + 1);
-	ACCESS_ONCE(k->q_ptrs->rcu_gen) += 1;
+	ACCESS_ONCE(k->q_ptrs->rcu_gen) = k->rcu_gen;
 	assert((k->rcu_gen & 0x1) == 0x0);
 
 	/* cede this kthread to the iokernel */
 	ACCESS_ONCE(k->parked) = true; /* deliberately racy */
 	kthread_park(false);
-	last_tsc = rdtsc();
+	last_tsc = tsc;
 
 	/* increment the RCU generation number (odd - back in thread) */
 	store_release(&k->rcu_gen, k->rcu_gen + 1);
-	ACCESS_ONCE(k->q_ptrs->rcu_gen) += 1;
+	ACCESS_ONCE(k->q_ptrs->rcu_gen) = k->rcu_gen;
 	assert((k->rcu_gen & 0x1) == 0x1);
 
 	/* re-enter the scheduler */
@@ -1010,7 +1007,6 @@ static __always_inline thread_t *__thread_create(void)
 	th->main_thread = false;
 	th->thread_ready = false;
 	th->thread_running = false;
-	th->run_start_tsc = UINT64_MAX;
 	th->wq_spin = false;
 	th->migrated = false;
 	memset(th->rcus, 0, sizeof(th->rcus));
