@@ -448,13 +448,14 @@ struct kthread {
 	/* 10th cache-line, direct path TX queues */
 	struct direct_txq	*directpath_txq[ETH_VLAN_MAX_PCP];
 
-	/* 11th cache-line, direct path RX queues and migration states */
+	/* 11th cache-line, direct path RX queues and others */
 	struct hardware_q	*directpath_rxq;
 	struct list_head        migrating_ths;
 	struct list_head	rq_deprioritized;
 	bool                    pause_req;
 	bool                    prioritize_req;
-	unsigned long		pad4[2];
+	uint64_t                last_softirq_tsc;
+	unsigned long		pad4[1];
 
 	/* 12th cache-line, statistics counters */
 	uint64_t		stats[STAT_NR];
@@ -553,7 +554,7 @@ static inline unsigned int net_get_mtu(void)
  */
 
 extern bool disable_watchdog;
-extern bool softirq_pending(struct kthread *k);
+extern bool softirq_pending(struct kthread *k, uint64_t now_tsc);
 extern bool softirq_run_locked(struct kthread *k);
 extern bool softirq_run(void);
 extern bool softirq_directpath_pending(struct kthread *k);
