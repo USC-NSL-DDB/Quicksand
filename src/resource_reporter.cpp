@@ -15,7 +15,7 @@ namespace nu {
 ResourceReporter::ResourceReporter() : done_(false) {
   th_ = rt::Thread([&] {
     while (!rt::access_once(done_)) {
-      timer_sleep(kReportResourceIntervalMs * kOneMilliSecond);
+      timer_sleep_hp(kReportResourceIntervalMs * kOneMilliSecond);
       report_resource();
     }
   });
