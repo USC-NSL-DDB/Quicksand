@@ -77,7 +77,6 @@ extern struct aligned_cycles *
 thread_start_monitor_cycles(struct aligned_cycles *output);
 extern void thread_end_monitor_cycles(struct aligned_cycles *old_output);
 extern void thread_flush_all_monitor_cycles(void);
-extern struct aligned_cycles *thread_get_monitor_cycles(thread_t *th);
 inline bool thread_monitored(void) {
 	return *(void **)((uint64_t)__self + thread_run_cycles_offset);
 }

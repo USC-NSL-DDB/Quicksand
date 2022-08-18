@@ -1432,11 +1432,6 @@ void thread_flush_all_monitor_cycles(void)
        }
 }
 
-struct aligned_cycles *thread_get_monitor_cycles(thread_t *th)
-{
-       return th->nu_state.run_cycles;
-}
-
 void thread_hold_rcu(void *rcu)
 {
        int i;

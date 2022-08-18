@@ -524,7 +524,6 @@ void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
 
 void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
   rt::Thread([proclet_header] {
-    proclet_header->thread_cnt.reset();
     Runtime::proclet_manager->cleanup(proclet_header);
   }).Detach();
 }
