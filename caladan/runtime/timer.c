@@ -214,12 +214,21 @@ static void timer_finish_sleep(unsigned long arg)
 	thread_ready(th);
 }
 
-static void __timer_sleep(uint64_t deadline_us)
+static void timer_finish_sleep_hp(unsigned long arg)
+{
+	thread_t *th = (thread_t *)arg;
+	thread_ready_head(th);
+}
+
+static void __timer_sleep(uint64_t deadline_us, bool hp)
 {
 	struct kthread *k;
 	struct timer_entry e;
 
-	timer_init(&e, timer_finish_sleep, (unsigned long)thread_self());
+	if (hp)
+		timer_init(&e, timer_finish_sleep_hp, (unsigned long)thread_self());
+	else
+		timer_init(&e, timer_finish_sleep, (unsigned long)thread_self());
 
 	k = getk();
 	spin_lock_np(&k->timer_lock);
@@ -238,7 +247,19 @@ void timer_sleep_until(uint64_t deadline_us)
 	if (unlikely(microtime() >= deadline_us))
 		return;
 
-	__timer_sleep(deadline_us);
+	__timer_sleep(deadline_us, false);
+}
+
+/**
+ * timer_sleep_until_hp - ditto, but with a high priority upon wakeup
+ * @deadline_us: the deadline time in microseconds
+ */
+void timer_sleep_until_hp(uint64_t deadline_us)
+{
+	if (unlikely(microtime() >= deadline_us))
+		return;
+
+	__timer_sleep(deadline_us, true);
 }
 
 /**
@@ -247,7 +268,16 @@ void timer_sleep_until(uint64_t deadline_us)
  */
 void timer_sleep(uint64_t duration_us)
 {
-	__timer_sleep(microtime() + duration_us);
+	__timer_sleep(microtime() + duration_us, false);
+}
+
+/**
+ * timer_sleep_hp - ditto, but with a high prioritity upon wakeup
+ * @duration_us: the duration time in microseconds
+ */
+void timer_sleep_hp(uint64_t duration_us)
+{
+	__timer_sleep(microtime() + duration_us, true);
 }
 
 static void timer_softirq_one(struct kthread *k)

@@ -46,4 +46,6 @@ extern bool timer_cancel(struct timer_entry *e);
  */
 
 extern void timer_sleep_until(uint64_t deadline_us);
+extern void timer_sleep_until_hp(uint64_t deadline_us);
 extern void timer_sleep(uint64_t duration_us);
+extern void timer_sleep_hp(uint64_t duration_us);
