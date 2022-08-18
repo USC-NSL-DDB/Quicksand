@@ -19,8 +19,6 @@
 #define IAS_HT_INTERVAL_US		10
 /* the resource pressure controller's polling interval */
 #define IAS_PS_INTERVAL_US		100
-/* the resource reporting controller's polling interval */
-#define IAS_RP_INTERVAL_US		50
 /* the time sharing controller's polling interval */
 #define IAS_TS_INTERVAL_US		10
 /* the low watermark used to detect memory pressure */
@@ -47,7 +45,6 @@ struct ias_data {
 	struct list_node	all_link;
 	DEFINE_BITMAP(reserved_cores, NCPU);
 	DEFINE_BITMAP(reserved_pressure_handler_cores, NCPU);
-	DEFINE_BITMAP(reserved_report_handler_cores, NCPU);
 
 	/* thread usage limits */
 	int			threads_guaranteed;/* the number promised */
@@ -125,12 +122,6 @@ extern float ias_bw_estimate_multiplier;
  */
 
 extern bool ias_ps_poll(uint64_t now_us);
-
-/*
- * Resource Reporting (RP) subcontroller definitions
- */
-
-extern bool ias_rp_poll(void);
 
 /*
  * Time sharing (TS) subcontroller definitions

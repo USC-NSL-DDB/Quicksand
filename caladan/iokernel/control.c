@@ -168,15 +168,6 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 	memset(p->resource_pressure_info, 0,
                sizeof(*p->resource_pressure_info));
 
-	p->resource_reporting =
-               shmptr_to_ptr(&reg, hdr.resource_reporting,
-			     sizeof(*p->resource_reporting));
-	if (!p->resource_reporting)
-		goto fail;
-	p->resource_reporting->handler = NULL;
-	p->resource_reporting->last_tsc = 0;
-	p->resource_reporting->status = NONE;
-
 	/* initialize the threads */
 	for (i = 0; i < hdr.thread_count; i++) {
 		struct thread *th = &p->threads[i];

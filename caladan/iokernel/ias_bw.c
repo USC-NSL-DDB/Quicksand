@@ -10,7 +10,7 @@
 #include "ksched.h"
 #include "pmc.h"
 #include "ias.h"
-#include "pcm.h"
+/* #include "pcm.h" */
 
 /* statistics */
 uint64_t ias_bw_punish_count;
@@ -185,7 +185,8 @@ static float ias_measure_bw(void)
 	barrier();
 	tsc = rdtsc();
 	barrier();
-	cur_cas = pcm_caladan_get_cas_count(0);
+	/* cur_cas = pcm_caladan_get_cas_count(0); */
+	cur_cas = 0;
 	bw_estimate = (float)(cur_cas - last_cas) / (float)(tsc - last_tsc);
 	last_cas = cur_cas;
 	last_tsc = tsc;
@@ -257,14 +258,16 @@ int ias_bw_init(void)
 	if (cfg.nobw)
 		return 0;
 
-	ret = pcm_caladan_init(0);
+	/* ret = pcm_caladan_init(0); */
+	ret = 0;
 	if (ret)
 		return ret;
 
 	/* We monitor 1 channel, so multiply measurements by nr_channels to estimate real bw */
-	nr_channels = pcm_caladan_get_active_channel_count();
-	if (nr_channels == 0)
-		return -EINVAL;
+	/* nr_channels = pcm_caladan_get_active_channel_count(); */
+	/* if (nr_channels == 0) */
+	/* 	return -EINVAL; */
+	nr_channels = 0;
 
 	/* Use default limit if none supplied */
 	if (!cfg.ias_bw_limit)

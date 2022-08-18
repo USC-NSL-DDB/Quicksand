@@ -1,7 +1,3 @@
-extern "C" {
-#include <runtime/report.h>
-}
-
 #include <thread.h>
 
 namespace nu {
@@ -15,9 +11,8 @@ class ResourceReporter {
 
  private:
   bool done_;
-  rt::Thread voluntary_reporter_;
-  rt::Thread iokernel_forced_reporter_;
+  rt::Thread th_;
 
-  void report_resource(bool forced);
+  void report_resource();
 };
 }  // namespace nu
