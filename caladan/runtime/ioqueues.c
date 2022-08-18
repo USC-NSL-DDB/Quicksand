@@ -32,7 +32,6 @@
 extern struct resource_pressure_info *resource_pressure_info;
 extern uint8_t *num_resource_pressure_handlers;
 extern struct thread **resource_pressure_handlers;
-extern struct resource_reporting *resource_reporting;
 
 /* the egress buffer pool must be large enough to fill all the TXQs entirely */
 static size_t calculate_egress_pool_size(void)
@@ -81,7 +80,6 @@ static size_t estimate_shm_space(void)
 	ret += sizeof(struct resource_pressure_info);
 	ret += sizeof(uint8_t);                   // num_resource_pressure_handlers
 	ret += sizeof(struct thread *) * maxks;   // resource_pressure_handlers
-	ret += sizeof(struct resource_reporting); // resource_reporting
 	ret = align_up(ret, CACHE_LINE_SIZE);
 
 	// Compute congestion signal line
@@ -231,9 +229,6 @@ int ioqueues_init(void)
 	resource_pressure_handlers =
 		iok_shm_alloc(sizeof(struct thread *) * maxks, 0,
 			      &iok.hdr->resource_pressure_handlers);
-	resource_reporting =
-		iok_shm_alloc(sizeof(resource_reporting), 0,
-			      &iok.hdr->resource_reporting);
 
 	for (i = 0; i < maxks; i++) {
 		ts = &iok.threads[i];
