@@ -411,7 +411,6 @@ void Migrator::update_proclet_location(rt::TcpConn *c,
 void Migrator::transmit(rt::TcpConn *c, ProcletHeader *proclet_header,
                         struct list_head *paused_ths_list) {
   transmit_proclet(c, proclet_header);
-  update_proclet_location(c, proclet_header);
 
   std::vector<thread_t *> ready_threads;
   std::vector<Mutex *> mutexes;
@@ -441,6 +440,8 @@ void Migrator::transmit(rt::TcpConn *c, ProcletHeader *proclet_header,
   transmit_condvars(c, condvars);
   transmit_time(c, &proclet_header->time);
   transmit_threads(c, ready_threads);
+
+  update_proclet_location(c, proclet_header);
 }
 
 bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
