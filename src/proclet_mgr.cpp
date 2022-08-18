@@ -35,7 +35,7 @@ ProcletManager::ProcletManager() {
 void ProcletManager::madvise_populate(void *proclet_base,
                                       uint64_t populate_len) {
   populate_len = ((populate_len - 1) / kPageSize + 1) * kPageSize;
-  BUG_ON(madvise(proclet_base, populate_len, MADV_POPULATE_WRITE) != 0);
+  madvise(proclet_base, populate_len, MADV_POPULATE_WRITE);
 }
 
 void ProcletManager::cleanup(void *proclet_base) {
