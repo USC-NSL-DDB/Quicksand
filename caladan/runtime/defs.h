@@ -473,6 +473,7 @@ BUILD_ASSERT(offsetof(struct kthread, directpath_rxq) % CACHE_LINE_SIZE == 0);
 BUILD_ASSERT(offsetof(struct kthread, stats) % CACHE_LINE_SIZE == 0);
 
 extern __thread struct kthread *mykthread;
+extern unsigned int fg_map[NCPU];
 
 /**
  * myk - returns the per-kernel-thread data

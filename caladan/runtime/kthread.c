@@ -42,6 +42,8 @@ __thread unsigned int kthread_idx;
 struct cpu_record cpu_map[NCPU] __attribute__((aligned(CACHE_LINE_SIZE)));
 /* the file descriptor for the ksched module */
 int ksched_fd;
+/* flow steering mapping */
+unsigned int fg_map[NCPU];
 
 static struct kthread *allock(void)
 {
@@ -122,7 +124,6 @@ static void flows_update(void)
 {
 	int i, pos, nrawake;
 	uint64_t start = rdtsc(), cur_gen;
-	unsigned int fg_map[maxks];
 	unsigned int awakeks[maxks];
 	DEFINE_BITMAP(kawake_local, NCPU);
 

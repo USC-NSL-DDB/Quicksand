@@ -27,8 +27,8 @@ static inline void waitq_wait(waitq_t *q, spinlock_t *l)
 }
 
 static inline void waitq_wait_poll(waitq_t *q, spinlock_t *l,
-                                   struct kthread *k,
-                                   void (*fn)(struct kthread *))
+                                   void *args,
+                                   void (*fn)(void *))
 {
 	struct thread *th = thread_self();
 
@@ -38,7 +38,7 @@ static inline void waitq_wait_poll(waitq_t *q, spinlock_t *l,
 	spin_unlock_np(l);
 	while (ACCESS_ONCE(th->wq_spin)) {
 		if (fn)
-			fn(k);
+			fn(args);
 	}
 	spin_lock_np(l);
 }
