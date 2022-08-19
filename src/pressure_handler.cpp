@@ -1,5 +1,6 @@
 #include <iostream>
 #include <limits>
+#include <type_traits>
 
 #include <sync.h>
 #include <thread.h>
@@ -18,7 +19,7 @@ PressureHandler::PressureHandler() : done_(false) {
 
   update_thread_ = rt::Thread([&] {
     while (!rt::access_once(done_)) {
-      timer_sleep(kSortedProcletsUpdateIntervalMs * kOneMilliSecond);
+      timer_sleep_hp(kSortedProcletsUpdateIntervalMs * kOneMilliSecond);
       update_sorted_proclets();
     }
   });
@@ -30,46 +31,43 @@ PressureHandler::~PressureHandler() {
   update_thread_.Join();
 }
 
+Utility::Utility() {}
+
 Utility::Utility(ProcletHeader *proclet_header) {
+  header = proclet_header;
+
   auto proclet_size = proclet_header->size();
   auto stack_size = proclet_header->thread_cnt.get() * kStackSize;
-  auto size = proclet_size + stack_size;
-  auto time = kFixedCostUs + (size / (kNetBwGbps / 8.0f) / 1000.0f);
+  mem_size = proclet_size + stack_size;
+  auto time = kFixedCostUs + (mem_size / (kNetBwGbps / 8.0f) / 1000.0f);
 
-  auto cpu_load = proclet_header->cpu_load.get_load();
+  cpu_load = proclet_header->cpu_load.get_load();
   proclet_header->cpu_load.reset();
-  auto cpu_pressure_alleviated = cpu_load;
-  auto mem_pressure_alleviated = size;
 
-  cpu_pressure_util = cpu_pressure_alleviated / time;
-  mem_pressure_util = mem_pressure_alleviated / time;
+  cpu_pressure_util = cpu_load / time;
+  mem_pressure_util = mem_size / time;
 }
 
 void PressureHandler::update_sorted_proclets() {
   CPULoad::flush_all();
 
   auto new_mem_pressure_sorted_proclets =
-      std::make_shared<std::set<ProcletInfo>>();
+      std::make_shared<decltype(mem_pressure_sorted_proclets_)::element_type>();
   auto new_cpu_pressure_sorted_proclets =
-      std::make_shared<std::set<ProcletInfo>>();
+      std::make_shared<decltype(cpu_pressure_sorted_proclets_)::element_type>();
   auto all_proclets = Runtime::proclet_manager->get_all_proclets();
   for (auto *proclet_base : all_proclets) {
     auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-    float cpu_pressure_utility, mem_pressure_utility;
+    Utility u;
     {
       NonBlockingMigrationDisabledGuard guard(proclet_header);
       if (unlikely(!guard || !proclet_header->migratable)) {
         continue;
       }
-     auto u = Utility(proclet_header);
-     cpu_pressure_utility = u.cpu_pressure_util;
-     mem_pressure_utility = u.mem_pressure_util;
+      u = Utility(proclet_header);
     }
-
-    ProcletInfo cpu{proclet_header, cpu_pressure_utility};
-    new_cpu_pressure_sorted_proclets->insert(cpu);
-    ProcletInfo mem{proclet_header, mem_pressure_utility};
-    new_mem_pressure_sorted_proclets->insert(mem);
+    new_cpu_pressure_sorted_proclets->insert(u);
+    new_mem_pressure_sorted_proclets->insert(u);
   }
 
   std::atomic_exchange(&cpu_pressure_sorted_proclets_,
@@ -191,7 +189,7 @@ PressureHandler::pick_proclets(uint32_t min_num_proclets,
   std::set<ProcletHeader *> picked_proclets;
   Resource resource{.cores = 0, .mem_mbs = 0};
 
-  auto pick_fn = [&](ProcletHeader *header) {
+  auto pick_fn = [&](ProcletHeader *header, uint64_t mem_size, float cpu_load) {
     NonBlockingMigrationDisabledGuard guard(header);
     if (unlikely(!guard || !header->migratable)) {
       return;
@@ -200,33 +198,40 @@ PressureHandler::pick_proclets(uint32_t min_num_proclets,
     if (unlikely(!succeed)) {
       return;
     }
-    auto size_in_mbs = header->size() / static_cast<float>(kOneMB);
+    auto size_in_mbs = mem_size / static_cast<float>(kOneMB);
     picked_num++;
     resource.mem_mbs += size_in_mbs;
-    resource.cores += header->cpu_load.get_load();
+    resource.cores += cpu_load;
     done =
         ((resource.mem_mbs >= min_mem_mbs) && (picked_num >= min_num_proclets));
   };
 
-  bool cpu_pressure = min_num_proclets;
-  auto sorted_proclets = cpu_pressure
-                             ? std::atomic_load(&cpu_pressure_sorted_proclets_)
-                             : std::atomic_load(&mem_pressure_sorted_proclets_);
-  if (sorted_proclets) {
-    auto iter = sorted_proclets->begin();
-    while (iter != sorted_proclets->end() && !done) {
-      auto *header = iter->header;
-      iter = sorted_proclets->erase(iter);
-      pick_fn(header);
+  auto traverse_fn = [&]<typename T>(T &&sorted_proclets) {
+    if (sorted_proclets) {
+      auto iter = sorted_proclets->begin();
+      while (iter != sorted_proclets->end() && !done) {
+        auto *header = iter->header;
+        iter = sorted_proclets->erase(iter);
+        pick_fn(header, iter->mem_size, iter->cpu_load);
+      }
     }
+  };
+  bool cpu_pressure = min_num_proclets;
+  if (cpu_pressure) {
+    traverse_fn(std::atomic_load(&cpu_pressure_sorted_proclets_));
+  } else {
+    traverse_fn(std::atomic_load(&mem_pressure_sorted_proclets_));
   }
 
   if (unlikely(!done)) {
+    CPULoad::flush_all();
     auto all_proclets = Runtime::proclet_manager->get_all_proclets();
     auto iter = all_proclets.begin();
     while (iter != all_proclets.end() && !done) {
       auto *header = reinterpret_cast<ProcletHeader *>(*(iter++));
-      pick_fn(header);
+      auto mem_size = header->size();
+      auto cpu_load = header->cpu_load.get_load();
+      pick_fn(header, mem_size, cpu_load);
     }
   }
 

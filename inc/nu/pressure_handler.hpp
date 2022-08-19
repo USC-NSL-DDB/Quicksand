@@ -23,13 +23,16 @@ struct AuxHandlerState {
 };
 
 struct Utility {
+  Utility();
+  Utility(ProcletHeader *proclet_header);
+
   constexpr static uint32_t kFixedCostUs = 25;
   constexpr static uint32_t kNetBwGbps = 100;
-
-  float cpu_pressure_util;
+  ProcletHeader *header;
   float mem_pressure_util;
-
-  Utility(ProcletHeader *proclet_header);
+  float cpu_pressure_util;
+  uint64_t mem_size;
+  float cpu_load;
 };
 
 class PressureHandler {
@@ -49,21 +52,17 @@ class PressureHandler {
   static bool has_pressure();
 
  private:
-  struct ProcletInfo {
-    ProcletHeader *header;
-    float val;
-
-    bool operator<(const ProcletInfo &o) const {
-      if (val == o.val) {
-        return header > o.header;
-      }
-      return val > o.val;
-    }
+  constexpr static auto kCmpMemUtil = [](Utility x, Utility y) {
+    return x.mem_pressure_util > y.mem_pressure_util;
   };
-
+  constexpr static auto kCmpCpuUtil = [](Utility x, Utility y) {
+    return x.cpu_pressure_util > y.cpu_pressure_util;
+  };
   AuxHandlerState aux_handler_states[kNumAuxHandlers];
-  std::shared_ptr<std::set<ProcletInfo>> mem_pressure_sorted_proclets_;
-  std::shared_ptr<std::set<ProcletInfo>> cpu_pressure_sorted_proclets_;
+  std::shared_ptr<std::multiset<Utility, decltype(kCmpMemUtil)>>
+      mem_pressure_sorted_proclets_;
+  std::shared_ptr<std::multiset<Utility, decltype(kCmpCpuUtil)>>
+      cpu_pressure_sorted_proclets_;
   rt::Thread update_thread_;
   bool done_;
 
