@@ -108,7 +108,9 @@ again:
   }
 
   auto min_num_proclets =
-      rt::RuntimeCpuPressure() ? Migrator::kMaxNumProcletsPerMigration : 0;
+      rt::RuntimeCpuPressure()
+          ? Runtime::migrator->get_max_num_proclets_per_migration()
+          : 0;
   auto min_mem_mbs = rt::RuntimeToReleaseMemMbs();
   auto [proclets, resource] = pick_proclets(min_num_proclets, min_mem_mbs);
   if (!proclets.empty()) {

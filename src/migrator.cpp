@@ -492,12 +492,15 @@ uint32_t Migrator::migrate(Resource resource,
     callback();
   }
 
+  const uint32_t max_num_proclets_per_migration =
+      get_max_num_proclets_per_migration();
   const uint32_t num_total_proclets = proclets.size();
   uint32_t num_migrated_proclets = 0;
   std::vector<ProcletHeader *> choosen_proclets;
+
   while (num_total_proclets - num_migrated_proclets > 0) {
     uint32_t num_choosen_proclets =
-        std::min(kMaxNumProcletsPerMigration,
+        std::min(max_num_proclets_per_migration,
                  num_total_proclets - num_migrated_proclets);
     auto ratio = static_cast<float>(num_choosen_proclets) / num_total_proclets;
     Resource choosen_resource;
@@ -899,6 +902,12 @@ void Migrator::forward_to_client(RPCReqForward &req) {
     req.returner.Return(req.rc);
   }
   Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(req.stack_top));
+}
+
+uint32_t Migrator::get_max_num_proclets_per_migration() const {
+  return Migrator::kMaxPctProcletPerMigration *
+             Runtime::proclet_manager->get_num_present_proclets() +
+         1;
 }
 
 }  // namespace nu
