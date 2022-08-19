@@ -106,7 +106,6 @@ struct thread {
 	};
 	struct timer		timer_heap;
 	struct list_node	idle_link;
-	void                    **preemptor;
 
 	/* useful metrics for scheduling policies */
 	struct thread_metrics	metrics;
@@ -135,8 +134,6 @@ struct proc {
 	unsigned int		       attach_fail:1;
 	struct congestion_info	       *congestion_info;
 	struct resource_pressure_info  *resource_pressure_info;
-	uint8_t                        *num_resource_pressure_handlers;
-	void                           **resource_pressure_handlers;
 	unsigned long		       policy_data;
 	float			       load;
 

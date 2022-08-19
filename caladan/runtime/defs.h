@@ -435,12 +435,12 @@ struct kthread {
 	thread_t		*directpath_softirq;
 	thread_t		*timer_softirq;
 	thread_t		*storage_softirq;
-	thread_t                **preemptor;
 	bool			iokernel_sched;
 	bool			directpath_sched;
 	bool			timer_sched;
 	bool			storage_sched;
 	atomic_t                directpath_busy;
+	uint64_t                last_softirq_tsc;
 
 	/* 9th cache-line, storage nvme queues */
 	struct storage_q	storage_q;
@@ -448,14 +448,13 @@ struct kthread {
 	/* 10th cache-line, direct path TX queues */
 	struct direct_txq	*directpath_txq[ETH_VLAN_MAX_PCP];
 
-	/* 11th cache-line, direct path RX queues and others */
+	/* 11th cache-line, direct path RX queues and migration states */
 	struct hardware_q	*directpath_rxq;
 	struct list_head        migrating_ths;
 	struct list_head	rq_deprioritized;
 	bool                    pause_req;
 	bool                    prioritize_req;
-	uint64_t                last_softirq_tsc;
-	unsigned long		pad4[1];
+	unsigned long		pad4[2];
 
 	/* 12th cache-line, statistics counters */
 	uint64_t		stats[STAT_NR];

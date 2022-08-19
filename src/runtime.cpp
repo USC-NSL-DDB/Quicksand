@@ -12,7 +12,6 @@ extern "C" {
 #include <base/assert.h>
 #include <base/compiler.h>
 #include <net/ip.h>
-#include <runtime/pressure.h>
 #include <runtime/thread.h>
 }
 #include <runtime.h>

@@ -42,19 +42,8 @@ struct congestion_info {
 	uint64_t		delay_us;
 	uint32_t                free_mem_mbs;
 	uint8_t                 idle_num_cores;
-};
-
-enum {
-	NONE = 0,
-	HANDLING,
-	HANDLED,
-};
-
-struct resource_pressure_info {
-	uint32_t                mem_mbs_to_release;
+	uint32_t                to_release_mem_mbs;
 	bool                    cpu_pressure;
-	uint8_t                 status;
-	bool                    mock;
 };
 
 enum {
@@ -86,7 +75,6 @@ struct thread_spec {
 	struct queue_spec	txpktq;
 	struct queue_spec	txcmdq;
 	shmptr_t		q_ptrs;
-	shmptr_t                preemptor;
 	pid_t			tid;
 	int32_t			park_efd;
 
@@ -126,8 +114,6 @@ struct control_hdr {
 	struct sched_spec	sched_cfg;
 	shmptr_t		thread_specs;
 	shmptr_t                resource_pressure_info;
-	shmptr_t                num_resource_pressure_handlers;
-	shmptr_t                resource_pressure_handlers;
 };
 
 /* information shared from iokernel to all runtimes */

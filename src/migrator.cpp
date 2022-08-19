@@ -14,6 +14,7 @@ extern "C" {
 #include <runtime/timer.h>
 }
 #include <thread.h>
+#include <runtime.h>
 
 #include "nu/commons.hpp"
 #include "nu/ctrl_client.hpp"
@@ -537,8 +538,10 @@ void skip_proclet(rt::TcpConn *conn, ProcletHeader *proclet_header) {
 uint32_t Migrator::__migrate(Resource resource,
                              const std::vector<ProcletHeader *> &proclets) {
   auto dest_ip = Runtime::controller_client->get_migration_dest(resource);
-  // FIXME: handle the case of no idle server.
-  BUG_ON(!dest_ip);
+  if (unlikely(!dest_ip)) {
+    return 0;
+  }
+
   auto migration_conn = migrator_conn_mgr_.get(dest_ip);
   auto *conn = migration_conn.get_tcp_conn();
   init_aux_handlers(dest_ip);
@@ -551,7 +554,7 @@ uint32_t Migrator::__migrate(Resource resource,
 
   auto it = proclets.begin();
   while (it != proclets.end()) {
-    if (unlikely(!PressureHandler::has_pressure())) {
+    if (unlikely(!Runtime::pressure_handler->has_pressure())) {
       break;
     }
     auto *proclet_header = *(it++);

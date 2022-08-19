@@ -44,7 +44,6 @@ struct ias_data {
 	uint64_t                quantum_us;
 	struct list_node	all_link;
 	DEFINE_BITMAP(reserved_cores, NCPU);
-	DEFINE_BITMAP(reserved_pressure_handler_cores, NCPU);
 
 	/* thread usage limits */
 	int			threads_guaranteed;/* the number promised */
@@ -121,7 +120,7 @@ extern float ias_bw_estimate_multiplier;
  * Resource Pressure (PS) subcontroller definitions
  */
 
-extern bool ias_ps_poll(uint64_t now_us);
+extern void ias_ps_poll(uint64_t now_us);
 
 /*
  * Time sharing (TS) subcontroller definitions

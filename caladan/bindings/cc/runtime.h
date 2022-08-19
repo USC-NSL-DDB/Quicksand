@@ -42,4 +42,10 @@ inline unsigned int RuntimeGlobalIdleCores() {
 
 inline unsigned int RuntimeSpinningCores() { return runtime_spinning_cores(); }
 
+inline unsigned int RuntimeToReleaseMemMbs() {
+  return runtime_to_release_mem_mbs();
+}
+
+inline bool RuntimeCpuPressure() { return runtime_cpu_pressure(); }
+
 };  // namespace rt
