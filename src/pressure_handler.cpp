@@ -210,9 +210,8 @@ PressureHandler::pick_proclets(uint32_t min_num_proclets,
     if (sorted_proclets) {
       auto iter = sorted_proclets->begin();
       while (iter != sorted_proclets->end() && !done) {
-        auto *header = iter->header;
+        pick_fn(iter->header, iter->mem_size, iter->cpu_load);
         iter = sorted_proclets->erase(iter);
-        pick_fn(header, iter->mem_size, iter->cpu_load);
       }
     }
   };
