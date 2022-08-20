@@ -103,6 +103,11 @@ int preempt_init(void)
 		return -errno;
 	}
 
+	/* block SIGUSR2 when handling SIGUSR1 and SIGUSR2 */
+	if (sigaddset(&act.sa_mask, SIGUSR2) != 0) {
+		log_err("couldn't set signal handler mask");
+		return -errno;
+	}
 	act.sa_sigaction = handle_sigusr2;
 	if (sigaction(SIGUSR2, &act, NULL) == -1) {
 		log_err("couldn't register signal handler");
@@ -111,12 +116,7 @@ int preempt_init(void)
 
 	act.sa_sigaction = handle_sigusr1;
 
-	/* block signals during SIGUSR1 */
-	if (sigaddset(&act.sa_mask, SIGUSR2) != 0) {
-		log_err("couldn't set signal handler mask");
-		return -errno;
-	}
-
+	/* block SIGUSR1 when handling SIGUSR1 */
 	if (sigaddset(&act.sa_mask, SIGUSR1) != 0) {
 		log_err("couldn't set signal handler mask");
 		return -errno;
