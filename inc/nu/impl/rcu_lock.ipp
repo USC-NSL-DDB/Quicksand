@@ -14,6 +14,11 @@ inline void RCULock::reader_lock() {
   put_cpu();
 }
 
+inline void RCULock::reader_unlock() {
+  get_cpu();
+  reader_unlock_np();
+}
+
 inline void RCULock::reader_lock_np() {
   thread_hold_rcu(this);
   if (unlikely(rt::access_once(sync_barrier_))) {

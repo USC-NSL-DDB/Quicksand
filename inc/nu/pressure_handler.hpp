@@ -14,7 +14,7 @@ struct AuxHandlerState {
   std::vector<iovec> tcp_write_task;
   bool pause = false;
   bool task_pending = false;
-  bool done = false;
+  bool done = true;
 };
 
 struct Utility {
@@ -40,7 +40,9 @@ class PressureHandler {
   PressureHandler();
   ~PressureHandler();
   void wait_aux_tasks();
-  void init_aux_handler(uint32_t handler_id, MigratorConn &&conn);
+  void start_aux_handlers();
+  void stop_aux_handlers();
+  void update_aux_handler_state(uint32_t handler_id, MigratorConn &&conn);
   void dispatch_aux_tcp_task(uint32_t handler_id,
                              std::vector<iovec> &&tcp_write_task);
   void dispatch_aux_pause_task(uint32_t handler_id);

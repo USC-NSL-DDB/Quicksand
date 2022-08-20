@@ -454,20 +454,20 @@ bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
   return true;
 }
 
-void Migrator::init_aux_handlers(uint32_t dest_ip) {
+void Migrator::aux_handlers_enable_polling(uint32_t dest_ip) {
   uint8_t type = kEnablePoll;
 
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
     auto aux_migration_conn = migrator_conn_mgr_.get(dest_ip);
-    Runtime::pressure_handler->init_aux_handler(i,
-                                                std::move(aux_migration_conn));
+    Runtime::pressure_handler->update_aux_handler_state(
+        i, std::move(aux_migration_conn));
     std::vector<iovec> task{{&type, sizeof(type)}};
     Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
   }
   Runtime::pressure_handler->wait_aux_tasks();
 }
 
-void Migrator::finish_aux_handlers() {
+void Migrator::aux_handlers_disable_polling() {
   uint8_t type = kDisablePoll;
 
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
@@ -486,7 +486,7 @@ void Migrator::callback() {
 }
 
 uint32_t Migrator::migrate(Resource resource,
-                           std::vector<ProcletHeader *> proclets) {
+                           const std::vector<ProcletHeader *> &proclets) {
   if (!callback_triggered_) {
     callback_triggered_ = true;
     callback();
@@ -548,7 +548,7 @@ uint32_t Migrator::__migrate(Resource resource,
 
   auto migration_conn = migrator_conn_mgr_.get(migration_dest.get_ip());
   auto *conn = migration_conn.get_tcp_conn();
-  init_aux_handlers(migration_dest.get_ip());
+  aux_handlers_enable_polling(migration_dest.get_ip());
 
   uint8_t type = kMigrate;
   BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
@@ -577,7 +577,7 @@ uint32_t Migrator::__migrate(Resource resource,
     auto *proclet_header = *(it++);
     skip_proclet(conn, proclet_header);
   }
-  finish_aux_handlers();
+  aux_handlers_disable_polling();
 
   return num_migrated;
 }

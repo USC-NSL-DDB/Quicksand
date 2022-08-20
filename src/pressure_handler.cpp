@@ -99,6 +99,8 @@ void PressureHandler::update_sorted_proclets() {
 }
 
 void PressureHandler::main_handler() {
+  bool aux_handlers_started = false;
+
 again:
   if (!has_pressure()) {
     return;
@@ -109,6 +111,11 @@ again:
               << rt::RuntimeToReleaseMemMbs()
               << ", .cpu_pressure = " << rt::RuntimeCpuPressure()
               << ", .mock = " << mock_ << " }." << std::endl;
+  }
+
+  if (!aux_handlers_started) {
+    aux_handlers_started = true;
+    start_aux_handlers();
   }
 
   auto min_num_proclets =
@@ -122,9 +129,15 @@ again:
     if constexpr (kEnableLogging) {
       std::cout << "Migrate " << num_migrated << " proclets." << std::endl;
     }
-    goto again;
+    if (num_migrated == proclets.size()) {
+      goto again;
+    }
   }
+
   mock_ = false;
+  if (aux_handlers_started)   {
+    stop_aux_handlers();
+  }
 }
 
 void PressureHandler::wait_aux_tasks() {
@@ -135,9 +148,14 @@ void PressureHandler::wait_aux_tasks() {
   }
 }
 
-void PressureHandler::init_aux_handler(uint32_t handler_id,
-                                       MigratorConn &&conn) {
-  aux_handler_states_[handler_id].conn = std::move(conn);
+void PressureHandler::update_aux_handler_state(uint32_t handler_id,
+                                               MigratorConn &&conn) {
+  auto &state = aux_handler_states_[handler_id];
+  while (rt::access_once(state.task_pending)) {
+    unblock_and_relax();
+  }
+  barrier();
+  state.conn = std::move(conn);
 }
 
 void PressureHandler::dispatch_aux_tcp_task(
@@ -177,7 +195,6 @@ void PressureHandler::aux_handler(AuxHandlerState *state) {
     unblock_and_relax();
   }
   state->conn.release();
-  store_release(&state->done, false);
 }
 
 std::pair<std::vector<ProcletHeader *>, Resource>

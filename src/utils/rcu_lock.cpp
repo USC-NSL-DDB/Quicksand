@@ -98,17 +98,6 @@ void RCULock::__reader_lock_np() {
   aligned_cnts_[core].cnt.data = cnt.data;
 }
 
-void RCULock::reader_unlock() {
-  thread_unhold_rcu(this);
-  int core = get_cpu();
-  Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
-  cnt.data.c--;
-  cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
-  put_cpu();
-}
-
 void RCULock::reader_unlock_np() {
   thread_unhold_rcu(this);
   int core = read_cpu();
