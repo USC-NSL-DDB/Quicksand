@@ -18,6 +18,8 @@ PressureHandler::PressureHandler() : mock_(false), done_(false) {
   main_handler_th_ = rt::Thread([&] {
     while (!rt::access_once(done_)) {
       timer_sleep_hp(kHandlerSleepUs);
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
       main_handler();
     }
   });
@@ -26,6 +28,8 @@ PressureHandler::PressureHandler() : mock_(false), done_(false) {
     aux_handler_ths_[i] = rt::Thread([&, state = &aux_handler_states_[i]] {
       while (!rt::access_once(done_)) {
         timer_sleep_hp(kHandlerSleepUs);
+        rt::Preempt p;
+        rt::PreemptGuard g(&p);
         aux_handler(state);
       }
     });
