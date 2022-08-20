@@ -22,12 +22,9 @@ extern "C" {
 namespace nu {
 
 // This is really a logical node as opposed to the real physical node.
-struct Node {
-  // TODO: add other informations, e.g., free mem size.
-  uint32_t ip;
+struct NodeStatus {
+  bool acquired;
   Resource free_resource;
-
-  bool operator<(const Node &o) const { return ip < o.ip; }
 
   bool has_enough_resource(Resource resource) const {
     return free_resource.cores >= resource.cores &&
@@ -37,11 +34,16 @@ struct Node {
   void update_free_resource(Resource resource);
 };
 
-struct LPInfo {
-  std::set<Node> nodes;
-  std::set<Node>::iterator rr_iter;
+struct Node {
+  NodeIP ip;
+  NodeStatus status;
+};
 
-  LPInfo() : rr_iter(nodes.end()) {}
+struct LPInfo {
+  std::map<NodeIP, NodeStatus> node_statuses;
+  std::map<NodeIP, NodeStatus>::iterator rr_iter;
+
+  LPInfo() : rr_iter(node_statuses.end()) {}
 };
 
 class Controller {
@@ -50,18 +52,19 @@ class Controller {
 
   Controller();
   ~Controller();
-  std::optional<std::pair<lpid_t, VAddrRange>> register_node(Node &node,
+  std::optional<std::pair<lpid_t, VAddrRange>> register_node(NodeIP ip,
                                                              lpid_t lpid,
                                                              MD5Val md5);
   bool verify_md5(lpid_t lpid, MD5Val md5);
-  std::optional<std::pair<ProcletID, uint32_t>> allocate_proclet(
-      uint64_t capacity, lpid_t lpid, uint32_t ip_hint);
+  std::optional<std::pair<ProcletID, NodeIP>> allocate_proclet(
+      uint64_t capacity, lpid_t lpid, NodeIP ip_hint);
   void destroy_proclet(VAddrRange heap_segment);
-  uint32_t resolve_proclet(ProcletID id);
-  uint32_t get_migration_dest(lpid_t lpid, uint32_t requestor_ip,
-                              Resource resource);
-  void update_location(ProcletID id, uint32_t proclet_srv_ip);
-  void report_free_resource(lpid_t lpid, uint32_t ip, Resource free_resource);
+  NodeIP resolve_proclet(ProcletID id);
+  NodeIP acquire_migration_dest(lpid_t lpid, NodeIP requestor_ip,
+                                Resource resource);
+  void release_migration_dest(lpid_t lpid, NodeIP ip);
+  void update_location(ProcletID id, NodeIP proclet_srv_ip);
+  void report_free_resource(lpid_t lpid, NodeIP ip, Resource free_resource);
 
  private:
   constexpr static auto kNumProcletSegmentBuckets =
@@ -71,11 +74,11 @@ class Controller {
   std::set<lpid_t> free_lpids_;
   std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;
   std::unordered_map<lpid_t, LPInfo> lpid_to_info_;
-  std::unordered_map<ProcletID, uint32_t> proclet_id_to_ip_;
+  std::unordered_map<ProcletID, NodeIP> proclet_id_to_ip_;
   bool done_;
   rt::Mutex mutex_;
 
-  std::optional<Node> select_node_for_proclet(lpid_t lpid, uint32_t ip_hint);
+  NodeIP select_node_for_proclet(lpid_t lpid, NodeIP ip_hint);
   bool update_node(std::set<Node>::iterator iter);
 };
 }  // namespace nu

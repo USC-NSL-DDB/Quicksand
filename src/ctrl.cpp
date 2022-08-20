@@ -18,7 +18,7 @@ extern "C" {
 
 namespace nu {
 
-constexpr uint32_t get_proclet_segment_bucket_id(uint64_t capacity) {
+constexpr NodeIP get_proclet_segment_bucket_id(uint64_t capacity) {
   auto bsr_capacity = bsr_64(capacity);
   auto bsr_min = bsr_64(kMinProcletHeapSize);
   BUG_ON(bsr_capacity < bsr_min);
@@ -57,7 +57,7 @@ Controller::~Controller() {
 }
 
 std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
-    Node &node, lpid_t lpid, MD5Val md5) {
+    NodeIP ip, lpid_t lpid, MD5Val md5) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   // TODO: should GC the allocated lpid and stack somehow through heartbeat or
@@ -91,24 +91,24 @@ std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
   auto stack_cluster = free_stack_cluster_segments_.top();
   free_stack_cluster_segments_.pop();
 
-  auto &nodes = lpid_to_info_[lpid].nodes;
-  for (auto old_node : nodes) {
-    auto *client = Runtime::rpc_client_mgr->get_by_ip(old_node.ip);
+  auto &node_statuses = lpid_to_info_[lpid].node_statuses;
+  for (auto [existing_node_ip, _] : node_statuses) {
+    auto *client = Runtime::rpc_client_mgr->get_by_ip(existing_node_ip);
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
-    req.dest_server_ip = node.ip;
+    req.dest_server_ip = ip;
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  auto *client = Runtime::rpc_client_mgr->get_by_ip(node.ip);
-  for (auto old_node : nodes) {
+  auto *client = Runtime::rpc_client_mgr->get_by_ip(ip);
+  for (auto [existing_node_ip, _] : node_statuses) {
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
-    req.dest_server_ip = old_node.ip;
+    req.dest_server_ip = existing_node_ip;
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  auto [iter, success] = nodes.insert(node);
+  auto [iter, success] = node_statuses.try_emplace(ip, /* acquired = */ false);
   BUG_ON(!success);
   return std::make_pair(lpid, stack_cluster);
 }
@@ -121,8 +121,8 @@ bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
   }
 }
 
-std::optional<std::pair<ProcletID, uint32_t>> Controller::allocate_proclet(
-    uint64_t capacity, lpid_t lpid, uint32_t ip_hint) {
+std::optional<std::pair<ProcletID, NodeIP>> Controller::allocate_proclet(
+    uint64_t capacity, lpid_t lpid, NodeIP ip_hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto &bucket =
@@ -144,14 +144,13 @@ std::optional<std::pair<ProcletID, uint32_t>> Controller::allocate_proclet(
   auto start_addr = bucket.top().start;
   auto id = start_addr;
   bucket.pop();
-  auto node_optional = select_node_for_proclet(lpid, ip_hint);
-  if (unlikely(!node_optional)) {
+  auto node_ip = select_node_for_proclet(lpid, ip_hint);
+  if (unlikely(!node_ip)) {
     return std::nullopt;
   }
-  auto &node = *node_optional;
   auto [iter, _] = proclet_id_to_ip_.try_emplace(id);
-  iter->second = node.ip;
-  return std::make_pair(id, node.ip);
+  iter->second = node_ip;
+  return std::make_pair(id, node_ip);
 }
 
 void Controller::destroy_proclet(VAddrRange proclet_segment) {
@@ -170,48 +169,47 @@ void Controller::destroy_proclet(VAddrRange proclet_segment) {
   proclet_id_to_ip_.erase(iter);
 }
 
-uint32_t Controller::resolve_proclet(ProcletID id) {
+NodeIP Controller::resolve_proclet(ProcletID id) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto iter = proclet_id_to_ip_.find(id);
   return iter != proclet_id_to_ip_.end() ? iter->second : 0;
 }
 
-std::optional<Node> Controller::select_node_for_proclet(lpid_t lpid,
-                                                        uint32_t ip_hint) {
-  auto &[nodes, rr_iter] = lpid_to_info_[lpid];
-  BUG_ON(nodes.empty());
+NodeIP Controller::select_node_for_proclet(lpid_t lpid, NodeIP ip_hint) {
+  auto &[node_statuses, rr_iter] = lpid_to_info_[lpid];
+  BUG_ON(node_statuses.empty());
 
   if (ip_hint) {
-    Node n{ip_hint};
-    auto iter = nodes.find(n);
-    if (unlikely(iter == nodes.end())) {
-      return std::nullopt;
+    auto iter = node_statuses.find(ip_hint);
+    if (unlikely(iter == node_statuses.end())) {
+      return 0;
     }
-    return *iter;
+    return ip_hint;
   }
 
   // TODO: adopt a more sophisticated mechanism once we've added more fields.
-  if (unlikely(rr_iter == nodes.end())) {
-    rr_iter = nodes.begin();
+  if (unlikely(rr_iter == node_statuses.end())) {
+    rr_iter = node_statuses.begin();
   }
-  return *rr_iter++;
+  return rr_iter++->first;
 }
 
-uint32_t Controller::get_migration_dest(lpid_t lpid, uint32_t requestor_ip,
-                                        Resource resource) {
+NodeIP Controller::acquire_migration_dest(lpid_t lpid, NodeIP requestor_ip,
+                                          Resource resource) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
-  auto &[nodes, rr_iter] = lpid_to_info_[lpid];
+  auto &[node_statuses, rr_iter] = lpid_to_info_[lpid];
   auto initial_rr_iter = rr_iter;
-  BUG_ON(nodes.empty());
+  BUG_ON(node_statuses.empty());
 
 again:
-  if (unlikely(rr_iter == nodes.end())) {
-    rr_iter = nodes.begin();
+  if (unlikely(rr_iter == node_statuses.end())) {
+    rr_iter = node_statuses.begin();
   }
 
-  if (rr_iter->ip == requestor_ip || !rr_iter->has_enough_resource(resource)) {
+  if (rr_iter->first == requestor_ip || rr_iter->second.acquired ||
+      !rr_iter->second.has_enough_resource(resource)) {
     rr_iter++;
     if (unlikely(rr_iter == initial_rr_iter)) {
       return 0;
@@ -219,10 +217,23 @@ again:
     goto again;
   }
 
-  return rr_iter++->ip;
+  rr_iter->second.acquired = true;
+  return rr_iter++->first;
 }
 
-void Controller::update_location(ProcletID id, uint32_t proclet_srv_ip) {
+void Controller::release_migration_dest(lpid_t lpid, NodeIP ip) {
+  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+
+  auto &[node_statuses, _] = lpid_to_info_[lpid];
+  auto iter = node_statuses.find(ip);
+  if (unlikely(iter == node_statuses.end())) {
+    return;
+  }
+
+  iter->second.acquired = false;
+}
+
+void Controller::update_location(ProcletID id, NodeIP proclet_srv_ip) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);
 
   auto iter = proclet_id_to_ip_.find(id);
@@ -230,17 +241,16 @@ void Controller::update_location(ProcletID id, uint32_t proclet_srv_ip) {
   iter->second = proclet_srv_ip;
 }
 
-void Controller::report_free_resource(lpid_t lpid, uint32_t ip,
+void Controller::report_free_resource(lpid_t lpid, NodeIP ip,
                                       Resource free_resource) {
   auto lp_info_iter = lpid_to_info_.find(lpid);
   BUG_ON(lp_info_iter == lpid_to_info_.end());
 
-  auto &nodes = lp_info_iter->second.nodes;
-  Node node{.ip = ip};
-  auto node_iter = nodes.find(node);
-  BUG_ON(node_iter == nodes.end());
+  auto &node_statuses = lp_info_iter->second.node_statuses;
+  auto iter = node_statuses.find(ip);
+  BUG_ON(iter == node_statuses.end());
 
-  const_cast<Node &>(*node_iter).update_free_resource(free_resource);
+  iter->second.update_free_resource(free_resource);
 }
 
 template <typename T>
@@ -248,7 +258,7 @@ void ewma(double weight, T *result, T new_data) {
   *result = *result * weight + (1 - weight) * new_data;
 }
 
-void Node::update_free_resource(Resource resource) {
+void NodeStatus::update_free_resource(Resource resource) {
   constexpr double kWeight = 0.8;
   ewma(kWeight, &free_resource.cores, resource.cores);
   ewma(kWeight, &free_resource.mem_mbs, resource.mem_mbs);

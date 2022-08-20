@@ -20,7 +20,7 @@ namespace nu {
 
 struct RPCReqRegisterNode {
   RPCReqType rpc_type = kRegisterNode;
-  Node node;
+  NodeIP ip;
   lpid_t lpid;
   MD5Val md5;
 } __attribute__((packed));
@@ -45,13 +45,13 @@ struct RPCReqAllocateProclet {
   RPCReqType rpc_type = kAllocateProclet;
   uint64_t capacity;
   lpid_t lpid;
-  uint32_t ip_hint;
+  NodeIP ip_hint;
 } __attribute__((packed));
 
 struct RPCRespAllocateProclet {
   bool empty;
   ProcletID id;
-  uint32_t server_ip;
+  NodeIP server_ip;
 } __attribute__((packed));
 
 struct RPCReqDestroyProclet {
@@ -69,30 +69,36 @@ struct RPCReqResolveProclet {
 } __attribute__((packed));
 
 struct RPCRespResolveProclet {
-  uint32_t ip;
+  NodeIP ip;
 } __attribute__((packed));
 
 struct RPCReqUpdateLocation {
   RPCReqType rpc_type = kUpdateLocation;
   ProcletID id;
-  uint32_t proclet_srv_ip;
+  NodeIP proclet_srv_ip;
 } __attribute__((packed));
 
-struct RPCReqGetMigrationDest {
-  RPCReqType rpc_type = kGetMigrationDest;
+struct RPCReqAcquireMigrationDest {
+  RPCReqType rpc_type = kAcquireMigrationDest;
   lpid_t lpid;
-  uint32_t src_ip;
+  NodeIP src_ip;
   Resource resource;
 } __attribute__((packed));
 
-struct RPCRespGetMigrationDest {
-  uint32_t ip;
+struct RPCRespAcquireMigrationDest {
+  NodeIP ip;
+} __attribute__((packed));
+
+struct RPCReqReleaseMigrationDest {
+  RPCReqType rpc_type = kReleaseMigrationDest;
+  lpid_t lpid;
+  NodeIP ip;
 } __attribute__((packed));
 
 struct RPCReqReportFreeResource {
   RPCReqType rpc_type = kReportFreeResource;
   lpid_t lpid;
-  uint32_t ip;
+  NodeIP ip;
   Resource resource;
 } __attribute__((packed));
 
@@ -114,7 +120,8 @@ class ControllerServer {
   std::atomic<uint64_t> num_allocate_proclet_;
   std::atomic<uint64_t> num_destroy_proclet_;
   std::atomic<uint64_t> num_resolve_proclet_;
-  std::atomic<uint64_t> num_get_migration_dest_;
+  std::atomic<uint64_t> num_acquire_migration_dest_;
+  std::atomic<uint64_t> num_release_migration_dest_;
   std::atomic<uint64_t> num_update_location_;
   std::atomic<uint64_t> num_report_free_resource_;
   rt::Thread logging_thread_;
@@ -134,8 +141,9 @@ class ControllerServer {
       const RPCReqDestroyProclet &req);
   std::unique_ptr<RPCRespResolveProclet> handle_resolve_proclet(
       const RPCReqResolveProclet &req);
-  std::unique_ptr<RPCRespGetMigrationDest> handle_get_migration_dest(
-      const RPCReqGetMigrationDest &req);
+  std::unique_ptr<RPCRespAcquireMigrationDest> handle_acquire_migration_dest(
+      const RPCReqAcquireMigrationDest &req);
+  void handle_release_migration_dest(const RPCReqReleaseMigrationDest &req);
   void handle_update_location(const RPCReqUpdateLocation &req);
   void handle_report_free_resource(const RPCReqReportFreeResource &req);
   void tcp_loop(rt::TcpConn *c);

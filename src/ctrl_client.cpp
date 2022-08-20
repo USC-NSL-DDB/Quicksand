@@ -11,7 +11,7 @@ extern "C" {
 
 namespace nu {
 
-ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode,
+ControllerClient::ControllerClient(NodeIP ctrl_server_ip, Runtime::Mode mode,
                                    lpid_t lpid)
     : lpid_(lpid),
       rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
@@ -23,8 +23,7 @@ ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode,
   auto md5 = get_self_md5();
 
   if (mode == Runtime::kServer) {
-    Node node{get_cfg_ip()};
-    auto optional = register_node(node, md5);
+    auto optional = register_node(get_cfg_ip(), md5);
     BUG_ON(!optional);
     BUG_ON(lpid_ && lpid_ != optional->first);
     std::tie(lpid_, stack_cluster_) = *optional;
@@ -38,9 +37,9 @@ ControllerClient::ControllerClient(uint32_t ctrl_server_ip, Runtime::Mode mode,
 }
 
 std::optional<std::pair<lpid_t, VAddrRange>> ControllerClient::register_node(
-    const Node &node, MD5Val md5) {
+    NodeIP ip, MD5Val md5) {
   RPCReqRegisterNode req;
-  req.node = node;
+  req.ip = ip;
   req.lpid = lpid_;
   req.md5 = md5;
   RPCReturnBuffer return_buf;
@@ -67,8 +66,8 @@ bool ControllerClient::verify_md5(MD5Val md5) {
   return resp.passed;
 }
 
-std::optional<std::pair<ProcletID, uint32_t>>
-ControllerClient::allocate_proclet(uint64_t capacity, uint32_t ip_hint) {
+std::optional<std::pair<ProcletID, NodeIP>> ControllerClient::allocate_proclet(
+    uint64_t capacity, NodeIP ip_hint) {
   RPCReqAllocateProclet req;
   req.capacity = capacity;
   req.lpid = lpid_;
@@ -92,7 +91,7 @@ void ControllerClient::destroy_proclet(VAddrRange heap_segment) {
   BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
 }
 
-uint32_t ControllerClient::resolve_proclet(ProcletID id) {
+NodeIP ControllerClient::resolve_proclet(ProcletID id) {
   RPCReqResolveProclet req;
   req.id = id;
   RPCReturnBuffer return_buf;
@@ -101,23 +100,23 @@ uint32_t ControllerClient::resolve_proclet(ProcletID id) {
   return resp.ip;
 }
 
-uint32_t ControllerClient::get_migration_dest(Resource resource) {
+MigrationDest ControllerClient::acquire_migration_dest(Resource resource) {
   rt::SpinGuard g(&spin_);
 
-  RPCReqGetMigrationDest req;
+  RPCReqAcquireMigrationDest req;
   req.lpid = lpid_;
   req.src_ip = get_cfg_ip();
   req.resource = resource;
   BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
                               /* poll = */ true) != sizeof(req));
 
-  RPCRespGetMigrationDest resp;
+  RPCRespAcquireMigrationDest resp;
   BUG_ON(tcp_conn_->ReadFull(&resp, sizeof(resp), /* nt = */ false,
                              /* poll = */ true) != sizeof(resp));
-  return resp.ip;
+  return MigrationDest(this, resp.ip);
 }
 
-void ControllerClient::update_location(ProcletID id, uint32_t proclet_srv_ip) {
+void ControllerClient::update_location(ProcletID id, NodeIP proclet_srv_ip) {
   rt::SpinGuard g(&spin_);
 
   RPCReqUpdateLocation req;
@@ -141,5 +140,24 @@ void ControllerClient::report_free_resource(Resource resource) {
   BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
                               /* poll = */ true) != sizeof(req));
 }
+
+void ControllerClient::release_migration_dest(NodeIP ip) {
+  rt::SpinGuard g(&spin_);
+
+  RPCReqReleaseMigrationDest req;
+  req.lpid = lpid_;
+  req.ip = ip;
+  BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
+                              /* poll = */ true) != sizeof(req));
+}
+
+MigrationDest::MigrationDest(ControllerClient *client, NodeIP ip)
+    : client_(client), ip_(ip) {}
+
+MigrationDest::~MigrationDest() { client_->release_migration_dest(ip_); }
+
+MigrationDest::operator bool() const { return ip_; }
+
+NodeIP MigrationDest::get_ip() const { return ip_; }
 
 }  // namespace nu

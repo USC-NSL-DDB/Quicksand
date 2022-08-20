@@ -19,22 +19,24 @@ ControllerServer::ControllerServer()
       num_allocate_proclet_(0),
       num_destroy_proclet_(0),
       num_resolve_proclet_(0),
-      num_get_migration_dest_(0),
+      num_acquire_migration_dest_(0),
+      num_release_migration_dest_(0),
       num_update_location_(0),
       num_report_free_resource_(0),
       done_(false) {
   if constexpr (kEnableLogging) {
     logging_thread_ = rt::Thread([&] {
       std::cout << "time_us register_node verify_md5 allocate_proclet "
-                   "destroy_proclet "
-                   "resolve_proclet get_migration_dest update_location"
+                   "destroy_proclet resolve_proclet acquire_migration_dest "
+                   "release_migration_dest update_location"
                 << std::endl;
       while (!rt::access_once(done_)) {
         timer_sleep(kPrintIntervalUs);
         std::cout << microtime() << " " << num_register_node_ << " "
                   << num_verify_md5_ << " " << num_allocate_proclet_ << " "
                   << num_destroy_proclet_ << " " << num_resolve_proclet_ << " "
-                  << num_get_migration_dest_ << " " << num_update_location_
+                  << num_acquire_migration_dest_ << " "
+                  << num_release_migration_dest_ << " " << num_update_location_
                   << std::endl;
       }
     });
@@ -72,12 +74,19 @@ void ControllerServer::tcp_loop(rt::TcpConn *c) {
   RPCReqType rpc_type;
   while (c->ReadFull(&rpc_type, sizeof(rpc_type)) == sizeof(rpc_type)) {
     switch (rpc_type) {
-      case kGetMigrationDest: {
-        RPCReqGetMigrationDest req;
+      case kAcquireMigrationDest: {
+        RPCReqAcquireMigrationDest req;
         ssize_t data_size = sizeof(req) - sizeof(rpc_type);
         BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
-        auto resp = handle_get_migration_dest(req);
+        auto resp = handle_acquire_migration_dest(req);
         BUG_ON(c->WriteFull(resp.get(), sizeof(*resp)) != sizeof(*resp));
+        break;
+      }
+      case kReleaseMigrationDest: {
+        RPCReqReleaseMigrationDest req;
+        ssize_t data_size = sizeof(req) - sizeof(rpc_type);
+        BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
+        handle_release_migration_dest(req);
         break;
       }
       case kUpdateLocation: {
@@ -107,10 +116,10 @@ std::unique_ptr<RPCRespRegisterNode> ControllerServer::handle_register_node(
   }
 
   auto resp = std::make_unique_for_overwrite<RPCRespRegisterNode>();
-  auto node = req.node;
+  auto ip = req.ip;
   auto lpid = req.lpid;
   auto md5 = req.md5;
-  auto optional = ctrl_.register_node(node, lpid, md5);
+  auto optional = ctrl_.register_node(ip, lpid, md5);
   if (optional) {
     resp->empty = false;
     resp->lpid = optional->first;
@@ -180,15 +189,25 @@ void ControllerServer::handle_update_location(const RPCReqUpdateLocation &req) {
   ctrl_.update_location(req.id, req.proclet_srv_ip);
 }
 
-std::unique_ptr<RPCRespGetMigrationDest>
-ControllerServer::handle_get_migration_dest(const RPCReqGetMigrationDest &req) {
+std::unique_ptr<RPCRespAcquireMigrationDest>
+ControllerServer::handle_acquire_migration_dest(
+    const RPCReqAcquireMigrationDest &req) {
   if constexpr (kEnableLogging) {
-    num_get_migration_dest_++;
+    num_acquire_migration_dest_++;
   }
 
-  auto resp = std::make_unique_for_overwrite<RPCRespGetMigrationDest>();
-  resp->ip = ctrl_.get_migration_dest(req.lpid, req.src_ip, req.resource);
+  auto resp = std::make_unique_for_overwrite<RPCRespAcquireMigrationDest>();
+  resp->ip = ctrl_.acquire_migration_dest(req.lpid, req.src_ip, req.resource);
   return resp;
+}
+
+void ControllerServer::handle_release_migration_dest(
+    const RPCReqReleaseMigrationDest &req) {
+  if constexpr (kEnableLogging) {
+    num_release_migration_dest_++;
+  }
+
+  ctrl_.release_migration_dest(req.lpid, req.ip);
 }
 
 void ControllerServer::handle_report_free_resource(

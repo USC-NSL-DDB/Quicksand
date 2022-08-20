@@ -61,9 +61,9 @@ class PerfResolveObjAdapter : public PerfAdapter {
   ControllerClient *client_;
 };
 
-class PerfGetMigrationDestAdapter : public PerfAdapter {
+class PerfAcquireMigrationDestAdapter : public PerfAdapter {
  public:
-  PerfGetMigrationDestAdapter(ControllerClient *client) : client_(client) {}
+  PerfAcquireMigrationDestAdapter(ControllerClient *client) : client_(client) {}
 
   std::unique_ptr<PerfThreadState> create_thread_state() {
     return std::make_unique<PerfThreadState>();
@@ -75,7 +75,7 @@ class PerfGetMigrationDestAdapter : public PerfAdapter {
 
   bool serve_req(PerfThreadState *state, const PerfRequest *req) {
     Resource resource{0, 0};
-    auto ip = client_->get_migration_dest(resource);
+    auto ip = client_->acquire_migration_dest(resource);
     BUG_ON(!ip);
     return true;
   }
@@ -137,11 +137,11 @@ class Test {
     }
 
     {
-      PerfGetMigrationDestAdapter perf_get_migration_dest_adapter(
+      PerfAcquireMigrationDestAdapter perf_acquire_migration_dest_adapter(
           Runtime::controller_client.get());
-      Perf perf(perf_get_migration_dest_adapter);
+      Perf perf(perf_acquire_migration_dest_adapter);
       perf.run(kNumThreads, kTargetMops, kPerfDurationUs);
-      std::cout << "get_migration_obj() mops = " << perf.get_real_mops()
+      std::cout << "acquire_migration_obj() mops = " << perf.get_real_mops()
                 << std::endl;
     }
 

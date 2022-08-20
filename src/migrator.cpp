@@ -540,14 +540,15 @@ void skip_proclet(rt::TcpConn *conn, ProcletHeader *proclet_header) {
 
 uint32_t Migrator::__migrate(Resource resource,
                              const std::vector<ProcletHeader *> &proclets) {
-  auto dest_ip = Runtime::controller_client->get_migration_dest(resource);
-  if (unlikely(!dest_ip)) {
+  auto migration_dest =
+      Runtime::controller_client->acquire_migration_dest(resource);
+  if (unlikely(!migration_dest)) {
     return 0;
   }
 
-  auto migration_conn = migrator_conn_mgr_.get(dest_ip);
+  auto migration_conn = migrator_conn_mgr_.get(migration_dest.get_ip());
   auto *conn = migration_conn.get_tcp_conn();
-  init_aux_handlers(dest_ip);
+  init_aux_handlers(migration_dest.get_ip());
 
   uint8_t type = kMigrate;
   BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
@@ -570,8 +571,8 @@ uint32_t Migrator::__migrate(Resource resource,
     gc_migrated_threads();
     post_migration_cleanup(proclet_header);
   }
-  auto num_migrated = it - proclets.begin();
 
+  auto num_migrated = it - proclets.begin();
   while (it != proclets.end()) {
     auto *proclet_header = *(it++);
     skip_proclet(conn, proclet_header);
