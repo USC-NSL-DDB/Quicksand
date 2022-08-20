@@ -87,7 +87,6 @@ struct thread {
 	struct lrpc_chan_in	txpktq;
 	struct lrpc_chan_in	txcmdq;
 	pid_t			tid;
-	uint32_t                last_yield_rcu_gen;
 	struct q_ptrs		*q_ptrs;
 	uint32_t		last_rq_head;
 	uint32_t		last_rq_tail;
