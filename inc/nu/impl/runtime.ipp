@@ -53,10 +53,12 @@ __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer"))) void
 __run_within_proclet_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
                          void (*fn)(A0s...), A1s &&... args) {
-  NonBlockingMigrationDisabledGuard guard_on_proclet_stack(std::move(*guard));
-  // auto *proclet_header = guard_on_proclet_stack.get_proclet_header();
+  {
+    NonBlockingMigrationDisabledGuard guard_on_proclet_stack(std::move(*guard));
+    // auto *proclet_header = guard_on_proclet_stack.get_proclet_header();
 
-  fn(*obj_ptr, std::forward<A1s>(args)...);
+    fn(*obj_ptr, std::forward<A1s>(args)...);
+  }
 
   thread_unset_owner_proclet();
   if (unlikely(thread_has_been_migrated())) {
