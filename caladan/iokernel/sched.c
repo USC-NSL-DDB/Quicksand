@@ -244,7 +244,12 @@ int sched_yield_on_core(unsigned int core)
 	if (!th)
 		return -ENOENT;
 
+	/* check to make sure the last yield request finished */
+	if (th->last_yield_rcu_gen == th->metrics.rcu_gen)
+		return 0;
+
 	/* send the yield signal */
+	th->last_yield_rcu_gen = th->metrics.rcu_gen;
 	ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
 	return 0;
 }

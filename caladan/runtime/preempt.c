@@ -21,21 +21,6 @@ static void set_preempt_needed(void)
 	preempt_cnt &= ~PREEMPT_NOT_PENDING;
 }
 
-static void yield_thread_if_needed(void)
-{
-	thread_t *curth = thread_self();
-
-	/*
-	 * If the quantum is not spent fully, don't yield. This catches the
-	 * race condition where the IOKernel requested a yield, but the runtime
-	 * already rescheduled before the signal was delivered.
-	 */
-	if (rdtsc() - curth->run_start_tsc < cycles_per_us * cfg_quantum_us)
-		return;
-
-	thread_yield();
-}
-
 /* handles preemption cede signals from the iokernel */
 static void handle_sigusr1(int s, siginfo_t *si, void *c)
 {
@@ -69,7 +54,7 @@ static void handle_sigusr2(int s, siginfo_t *si, void *c)
 		return;
 	}
 
-	yield_thread_if_needed();
+	thread_yield();
 }
 
 
@@ -82,7 +67,7 @@ void preempt(void)
 	if (preempt_cede)
 		thread_cede();
 	else
-		yield_thread_if_needed();
+		thread_yield();
 }
 
 
@@ -103,11 +88,6 @@ int preempt_init(void)
 		return -errno;
 	}
 
-	/* block SIGUSR2 when handling SIGUSR1 and SIGUSR2 */
-	if (sigaddset(&act.sa_mask, SIGUSR2) != 0) {
-		log_err("couldn't set signal handler mask");
-		return -errno;
-	}
 	act.sa_sigaction = handle_sigusr2;
 	if (sigaction(SIGUSR2, &act, NULL) == -1) {
 		log_err("couldn't register signal handler");
@@ -116,7 +96,12 @@ int preempt_init(void)
 
 	act.sa_sigaction = handle_sigusr1;
 
-	/* block SIGUSR1 when handling SIGUSR1 */
+	/* block signals during SIGUSR1 */
+	if (sigaddset(&act.sa_mask, SIGUSR2) != 0) {
+		log_err("couldn't set signal handler mask");
+		return -errno;
+	}
+
 	if (sigaddset(&act.sa_mask, SIGUSR1) != 0) {
 		log_err("couldn't set signal handler mask");
 		return -errno;
