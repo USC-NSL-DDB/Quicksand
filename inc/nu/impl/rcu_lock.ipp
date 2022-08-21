@@ -20,7 +20,6 @@ inline void RCULock::reader_unlock() {
 }
 
 inline void RCULock::reader_lock_np() {
-  thread_hold_rcu(this);
   if (unlikely(rt::access_once(sync_barrier_))) {
     reader_wait();
   }
@@ -36,9 +35,7 @@ inline bool RCULock::try_reader_lock() {
 }
 
 inline bool RCULock::try_reader_lock_np() {
-  thread_hold_rcu(this);
   if (unlikely(rt::access_once(sync_barrier_))) {
-    thread_unhold_rcu(this);
     return false;
   }
   __reader_lock_np();

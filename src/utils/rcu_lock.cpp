@@ -96,6 +96,7 @@ void RCULock::__reader_lock_np() {
   cnt.data.c++;
   cnt.data.ver++;
   aligned_cnts_[core].cnt.data = cnt.data;
+  thread_hold_rcu(this);
 }
 
 void RCULock::reader_unlock_np() {
