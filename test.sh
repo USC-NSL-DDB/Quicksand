@@ -28,15 +28,15 @@ function prepare {
 }
 
 function run_client {
-    sudo stdbuf -o0 sh -c "$1 -c -l $LPID -i $CLIENT_IP"
+    sudo stdbuf -o0 sh -c "ulimit -c unlimited; $1 -c -l $LPID -i $CLIENT_IP"
 }
 
 function run_server1 {
-    sudo stdbuf -o0 sh -c "$1 -s -l $LPID -i $SERVER1_IP"
+    sudo stdbuf -o0 sh -c "ulimit -c unlimited; $1 -s -l $LPID -i $SERVER1_IP"
 }
 
 function run_server2 {
-    sudo stdbuf -o0 sh -c "$1 -s -l $LPID -i $SERVER2_IP"
+    sudo stdbuf -o0 sh -c "ulimit -c unlimited; $1 -s -l $LPID -i $SERVER2_IP"
 }
 
 function run_test {
@@ -57,9 +57,12 @@ function run_test {
     run_client $BIN 2>/dev/null | grep -q "Passed"
     ret=$?
 
-    kill_controller
     kill_process test_
+    kill_controller
     sleep 5
+
+    sudo mv core core.$1 1>/dev/null 2>&1
+
     return $ret
 }
 
@@ -85,8 +88,8 @@ function cleanup {
 }
 
 function force_cleanup {
-    kill_controller
     kill_process test_
+    kill_controller
     cleanup
     exit 1
 }
