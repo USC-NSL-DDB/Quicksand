@@ -29,6 +29,8 @@ ProcletManager::ProcletManager() {
         mmap(proclet_base, kMaxProcletHeapSize, PROT_READ | PROT_WRITE,
              MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
     BUG_ON(mmap_addr != proclet_base);
+    auto rc = madvise(proclet_base, kMaxProcletHeapSize, MADV_DONTDUMP);
+    BUG_ON(rc == -1);
   }
 }
 
