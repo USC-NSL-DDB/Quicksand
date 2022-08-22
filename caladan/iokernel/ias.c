@@ -65,8 +65,11 @@ static int ias_attach(struct proc *p, struct sched_spec *sched_cfg)
 		return -ENOMEM;
 	memset(sd, 0, sizeof(*sd));
 	sd->p = p;
-	sd->p->congestion_info->to_release_mem_mbs = 0;
-	sd->p->congestion_info->cpu_pressure = false;
+	sd->p->resource_pressure_info->status = NONE;
+	sd->p->resource_pressure_info->mock = false;
+	sd->p->resource_pressure_info->last_preempt_us = 0;
+	sd->p->resource_pressure_info->to_release_mem_mbs = 0;
+	sd->p->resource_pressure_info->cpu_pressure = false;
 	sd->threads_guaranteed = sched_cfg->guaranteed_cores;
 	sd->threads_max = sched_cfg->max_cores;
 	sd->threads_limit = sched_cfg->max_cores;
@@ -500,7 +503,7 @@ static void ias_print_debug_info(void)
 
 static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 {
-	static uint64_t last_bw_us, last_ht_us, last_ps_us, last_ts_us;
+	static uint64_t last_us;
 #ifdef IAS_DEBUG
 	static uint64_t debug_ts;
 #endif
@@ -524,26 +527,18 @@ static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 
 	ias_num_idle_cores = bitmap_popcount(ias_idle_cores, NCPU);
 
-	/* try to run the bandwidth controller */
-	if (!cfg.nobw && now - last_bw_us >= IAS_BW_INTERVAL_US) {
-		last_bw_us = now;
-		ias_bw_poll();
-	}
-
-	/* try to run the hyperthread controller */
-	if (!cfg.noht && now - last_ht_us >= IAS_HT_INTERVAL_US) {
-		last_ht_us = now;
-		ias_ht_poll();
-	}
-
-	if (!cfg.nops && now - last_ps_us >= IAS_PS_INTERVAL_US) {
-		last_ps_us = now;
-		ias_ps_poll(now);
-	}
-
-	if (now - last_ts_us >= IAS_TS_INTERVAL_US) {
-		last_ts_us = now;
+	/* try to run the subcontroller polling stages */
+	if (now - last_us >= IAS_POLL_INTERVAL_US) {
+		last_us = now;
+		if (!cfg.nobw)
+			ias_bw_poll();
+		if (!cfg.noht)
+			ias_ht_poll();
 		ias_ts_poll();
+		if (!cfg.nops)
+			ias_ps_poll(now);
+		if (!cfg.norp)
+			ias_rp_poll();
 	}
 
 #ifdef IAS_DEBUG

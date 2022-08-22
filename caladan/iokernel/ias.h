@@ -13,14 +13,8 @@
 #define IAS_NPROC			32
 /* the memory bandwidth limit */
 #define IAS_BW_LIMIT			25000.0
-/* the bandwidth controller's adjustment interval */
-#define IAS_BW_INTERVAL_US		10
-/* the HT controller's adjustment interval */
-#define IAS_HT_INTERVAL_US		10
-/* the resource pressure controller's polling interval */
-#define IAS_PS_INTERVAL_US		100
-/* the time sharing controller's polling interval */
-#define IAS_TS_INTERVAL_US		10
+/* the interval that each subcontroller polls */
+#define IAS_POLL_INTERVAL_US		10
 /* the low watermark used to detect memory pressure */
 #define IAS_PS_MEM_LOW_MB 		1024
 /* the threshold of cpu pressure duration to trigger migration */
@@ -44,6 +38,8 @@ struct ias_data {
 	uint64_t                quantum_us;
 	struct list_node	all_link;
 	DEFINE_BITMAP(reserved_cores, NCPU);
+	DEFINE_BITMAP(reserved_pressure_handler_cores, NCPU);
+	DEFINE_BITMAP(reserved_report_handler_cores, NCPU);
 
 	/* thread usage limits */
 	int			threads_guaranteed;/* the number promised */
@@ -123,10 +119,16 @@ extern float ias_bw_estimate_multiplier;
 extern void ias_ps_poll(uint64_t now_us);
 
 /*
+ * Resource Reporting (RP) subcontroller definitions
+ */
+
+extern void ias_rp_poll(void);
+
+/*
  * Time sharing (TS) subcontroller definitions
  */
 
- extern void ias_ts_poll(void);
+extern void ias_ts_poll(void);
 
 
 /*

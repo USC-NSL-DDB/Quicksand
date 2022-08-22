@@ -3,18 +3,23 @@
 #include <memory>
 #include <set>
 
+extern "C" {
+#include <runtime/pressure.h>
+}
 #include <net.h>
 
 #include "nu/migrator.hpp"
 
 namespace nu {
 
+using ResourcePressureInfo = struct resource_pressure_info;
+
 struct AuxHandlerState {
   MigratorConn conn;
   std::vector<iovec> tcp_write_task;
   bool pause = false;
   bool task_pending = false;
-  bool done = true;
+  bool done = false;
 };
 
 struct Utility {
@@ -40,8 +45,6 @@ class PressureHandler {
   PressureHandler();
   ~PressureHandler();
   void wait_aux_tasks();
-  void start_aux_handlers();
-  void stop_aux_handlers();
   void update_aux_handler_state(uint32_t handler_id, MigratorConn &&conn);
   void dispatch_aux_tcp_task(uint32_t handler_id,
                              std::vector<iovec> &&tcp_write_task);
@@ -61,8 +64,6 @@ class PressureHandler {
   std::shared_ptr<std::multiset<Utility, decltype(kCmpCpuUtil)>>
       cpu_pressure_sorted_proclets_;
   rt::Thread update_th_;
-  rt::Thread main_handler_th_;
-  rt::Thread aux_handler_ths_[kNumAuxHandlers];
   AuxHandlerState aux_handler_states_[kNumAuxHandlers];
   bool mock_;
   bool done_;
@@ -70,8 +71,11 @@ class PressureHandler {
   std::pair<std::vector<ProcletHeader *>, Resource> pick_proclets(
       uint32_t min_num_proclets, uint32_t min_mem_mbs);
   void update_sorted_proclets();
-  void main_handler();
-  void aux_handler(AuxHandlerState *state);
+  void register_handlers();
+  void __main_handler();
+  void pause_aux_handlers();
+  static void main_handler(void *unused);
+  static void aux_handler(void *args);
 };
 
 }  // namespace nu

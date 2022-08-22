@@ -377,6 +377,19 @@ static bool handle_pending_prioritize_req(struct kthread *k)
 	return handled;
 }
 
+static inline bool handle_preemptor(void)
+{
+	struct kthread *k = myk();
+
+	assert_preempt_disabled();
+	if (unlikely(*k->preemptor)) {
+		thread_ready_head_locked(*k->preemptor);
+		*k->preemptor = NULL;
+		return true;
+	}
+	return false;
+}
+
 static bool steal_work(struct kthread *l, struct kthread *r)
 {
 	thread_t *th;
@@ -517,6 +530,9 @@ static __noreturn __noinline void schedule(void)
 
 	prioritize_local_rcu_readers_locked();
 	pause_local_migrating_threads_locked();
+	if (handle_preemptor()) {
+		goto done;
+	}
 
 #ifdef GC
 	if (unlikely(get_gc_gen() != l->local_gc_gen))
@@ -549,6 +565,9 @@ again:
 	perthread_get(thread_spinning) = true;
 	prioritize_local_rcu_readers_locked();
 	pause_local_migrating_threads_locked();
+	if (handle_preemptor()) {
+		goto done;
+	}
 
 	/* then check for local softirqs */
 	if (softirq_run_locked(l)) {
@@ -670,6 +689,7 @@ static __always_inline void enter_schedule(thread_t *curth)
 
 	prioritize_local_rcu_readers_locked();
 	pause_local_migrating_threads_locked();
+	handle_preemptor();
 
 	/* slow path: switch from the uthread stack to the runtime stack */
 	if (k->rq_head == k->rq_tail ||

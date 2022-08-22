@@ -19,6 +19,8 @@ extern int runtime_init(const char *cfgpath, thread_fn_t main_fn, void *arg);
 
 
 extern struct congestion_info *runtime_congestion;
+/* real-time resource pressure signals (shared with the iokernel) */
+extern struct resource_pressure_info *resource_pressure_info;
 
 extern unsigned int maxks;
 extern unsigned int guaranteedks;
@@ -87,11 +89,10 @@ static inline int runtime_global_idle_cores(void)
 
 static inline bool runtime_to_release_mem_mbs(void)
 {
-	return ACCESS_ONCE(runtime_congestion->to_release_mem_mbs);
+	return ACCESS_ONCE(resource_pressure_info->to_release_mem_mbs);
 }
 
 static inline bool runtime_cpu_pressure(void)
 {
-	return ACCESS_ONCE(runtime_congestion->cpu_pressure);
+	return ACCESS_ONCE(resource_pressure_info->cpu_pressure);
 }
-

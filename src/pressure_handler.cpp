@@ -15,25 +15,7 @@ constexpr static bool kEnableLogging = false;
 namespace nu {
 
 PressureHandler::PressureHandler() : mock_(false), done_(false) {
-  main_handler_th_ = rt::Thread([&] {
-    while (!rt::access_once(done_)) {
-      timer_sleep_hp(kHandlerSleepUs);
-      rt::Preempt p;
-      rt::PreemptGuard g(&p);
-      main_handler();
-    }
-  });
-
-  for (uint32_t i = 0; i < kNumAuxHandlers; i++) {
-    aux_handler_ths_[i] = rt::Thread([&, state = &aux_handler_states_[i]] {
-      while (!rt::access_once(done_)) {
-        timer_sleep_hp(kHandlerSleepUs);
-        rt::Preempt p;
-        rt::PreemptGuard g(&p);
-        aux_handler(state);
-      }
-    });
-  }
+  register_handlers();
 
   update_th_ = rt::Thread([&] {
     while (!rt::access_once(done_)) {
@@ -47,10 +29,6 @@ PressureHandler::~PressureHandler() {
   done_ = true;
   barrier();
   update_th_.Join();
-  main_handler_th_.Join();
-  for (auto &th : aux_handler_ths_) {
-    th.Join();
-  }
 }
 
 Utility::Utility() {}
@@ -98,45 +76,65 @@ void PressureHandler::update_sorted_proclets() {
                        new_mem_pressure_sorted_proclets);
 }
 
-void PressureHandler::main_handler() {
-  bool aux_handlers_started = false;
-
-again:
-  if (!has_pressure()) {
-    return;
+void PressureHandler::register_handlers() {
+  add_resource_pressure_handler(main_handler, nullptr);
+  for (uint32_t i = 0; i < kNumAuxHandlers; i++) {
+    add_resource_pressure_handler(aux_handler, &aux_handler_states_[i]);
   }
+}
 
-  if constexpr (kEnableLogging) {
-    std::cout << "Detect pressure = { .mem_mbs = "
-              << rt::RuntimeToReleaseMemMbs()
-              << ", .cpu_pressure = " << rt::RuntimeCpuPressure()
-              << ", .mock = " << mock_ << " }." << std::endl;
-  }
+void PressureHandler::main_handler(void *unused) {
+  auto *handler = Runtime::pressure_handler.get();
+  handler->__main_handler();
+}
 
-  if (!aux_handlers_started) {
-    aux_handlers_started = true;
-    start_aux_handlers();
-  }
-
-  auto min_num_proclets =
-      rt::RuntimeCpuPressure()
-          ? Runtime::migrator->get_max_num_proclets_per_migration()
-          : 0;
-  auto min_mem_mbs = rt::RuntimeToReleaseMemMbs();
-  auto [proclets, resource] = pick_proclets(min_num_proclets, min_mem_mbs);
-  if (!proclets.empty()) {
-    auto num_migrated = Runtime::migrator->migrate(resource, proclets);
+void PressureHandler::__main_handler() {
+  while (has_pressure()) {
     if constexpr (kEnableLogging) {
-      std::cout << "Migrate " << num_migrated << " proclets." << std::endl;
+      std::cout << "Detect pressure = { .mem_mbs = "
+                << rt::RuntimeToReleaseMemMbs()
+                << ", .cpu_pressure = " << rt::RuntimeCpuPressure()
+                << ", .mock = " << mock_ << " }." << std::endl;
     }
-    if (num_migrated == proclets.size()) {
-      goto again;
+
+    auto min_num_proclets =
+        rt::RuntimeCpuPressure()
+            ? Runtime::migrator->get_max_num_proclets_per_migration()
+            : 0;
+    auto min_mem_mbs = rt::RuntimeToReleaseMemMbs();
+    auto [proclets, resource] = pick_proclets(min_num_proclets, min_mem_mbs);
+    if (likely(!proclets.empty())) {
+      auto num_migrated = Runtime::migrator->migrate(resource, proclets);
+      if constexpr (kEnableLogging) {
+        std::cout << "Migrate " << num_migrated << " proclets." << std::endl;
+      }
+      if (unlikely(num_migrated != proclets.size())) {
+        break;
+      }
+    } else {
+      break;
     }
   }
 
-  mock_ = false;
-  if (aux_handlers_started)   {
-    stop_aux_handlers();
+  pause_aux_handlers();
+
+  // Tell iokernel that the pressure has been handled.
+  auto &pressure = *resource_pressure_info;
+  pressure.mock = false;
+  store_release(&pressure.status, HANDLED);
+}
+
+void PressureHandler::pause_aux_handlers() {
+  // Pause aux pressure handlers.
+  for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
+    rt::access_once(aux_handler_states_[i].done) = true;
+  }
+
+  // Wait for aux pressure handlers to exit.
+  for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
+    while (rt::access_once(aux_handler_states_[i].done)) {
+      unblock_and_relax();
+    }
   }
 }
 
@@ -177,7 +175,9 @@ void PressureHandler::dispatch_aux_pause_task(uint32_t handler_id) {
   store_release(&state.task_pending, true);
 }
 
-void PressureHandler::aux_handler(AuxHandlerState *state) {
+void PressureHandler::aux_handler(void *args) {
+  auto *state = reinterpret_cast<AuxHandlerState *>(args);
+
   // Serve tasks.
   while (!rt::access_once(state->done)) {
     if (unlikely(load_acquire(&state->task_pending))) {
@@ -195,6 +195,8 @@ void PressureHandler::aux_handler(AuxHandlerState *state) {
     unblock_and_relax();
   }
   state->conn.release();
+  // Prepare for the next start.
+  store_release(&state->done, false);
 }
 
 std::pair<std::vector<ProcletHeader *>, Resource>
@@ -255,6 +257,10 @@ PressureHandler::pick_proclets(uint32_t min_num_proclets,
   return std::make_pair(proclets_dedupped, resource);
 }
 
-void PressureHandler::mock_set_pressure() { mock_ = true; }
+void PressureHandler::mock_set_pressure() {
+  ResourcePressureInfo pressure = {
+      .mock = true, .to_release_mem_mbs = std::numeric_limits<uint32_t>::max()};
+  *resource_pressure_info = pressure;
+}
 
 }  // namespace nu

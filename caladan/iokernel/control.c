@@ -153,6 +153,30 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 		goto fail;
 	memset(p->congestion_info, 0, sizeof(*p->congestion_info));
 
+	p->resource_pressure_info = shmptr_to_ptr(&reg, hdr.resource_pressure_info,
+                                                   sizeof(*p->resource_pressure_info));
+	p->num_resource_pressure_handlers =
+		shmptr_to_ptr(&reg, hdr.num_resource_pressure_handlers,
+			      sizeof(*p->num_resource_pressure_handlers));
+	p->resource_pressure_handlers =
+		shmptr_to_ptr(&reg, hdr.resource_pressure_handlers,
+			      sizeof(*p->resource_pressure_handlers) *
+			      hdr.thread_count);
+	if (!p->resource_pressure_info || !p->num_resource_pressure_handlers ||
+	    !p->resource_pressure_handlers)
+		goto fail;
+	memset(p->resource_pressure_info, 0,
+                sizeof(*p->resource_pressure_info));
+
+	p->resource_reporting =
+                shmptr_to_ptr(&reg, hdr.resource_reporting,
+			     sizeof(*p->resource_reporting));
+	if (!p->resource_reporting)
+		goto fail;
+	p->resource_reporting->handler = NULL;
+	p->resource_reporting->last_tsc = 0;
+	p->resource_reporting->status = NONE;
+
 	/* initialize the threads */
 	for (i = 0; i < hdr.thread_count; i++) {
 		struct thread *th = &p->threads[i];
@@ -186,6 +210,10 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 		th->q_ptrs = (struct q_ptrs *) shmptr_to_ptr(&reg, s->q_ptrs,
 				sizeof(struct q_ptrs));
 		if (!th->q_ptrs)
+			goto fail;
+
+		th->preemptor = (void **) shmptr_to_ptr(&reg, s->preemptor, sizeof(void *));
+		if (!th->preemptor)
 			goto fail;
 
 		ret = control_init_hwq(&reg, &s->direct_rxq, &th->directpath_hwq);
