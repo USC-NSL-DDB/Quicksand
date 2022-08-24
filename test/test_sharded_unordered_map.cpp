@@ -21,7 +21,7 @@ std::string random_lowercase_str(uint32_t len) {
 }
 
 bool test_insertion() {
-  auto sm = make_sharded_unordered_map<int, int, false>();
+  auto sm = make_sharded_unordered_map<int, int, std::false_type>();
   for (int i = 0; i < 100'000; i++) {
     sm.emplace(i, i);
   }
@@ -36,7 +36,8 @@ bool test_insertion() {
 bool test_size_and_clear() {
   std::size_t target_size = 200'000;
 
-  auto sm = make_sharded_unordered_map<std::size_t, std::size_t, false>();
+  auto sm =
+      make_sharded_unordered_map<std::size_t, std::size_t, std::false_type>();
   if (sm.size() != 0) return false;
 
   for (std::size_t i = 0; i < target_size; i++) {
@@ -53,7 +54,8 @@ bool test_size_and_clear() {
 bool test_for_all_ul() {
   std::size_t target_size = 200'000;
 
-  auto sm = make_sharded_unordered_map<std::size_t, std::size_t, false>();
+  auto sm =
+      make_sharded_unordered_map<std::size_t, std::size_t, std::false_type>();
   for (std::size_t i = 0; i < target_size; i++) {
     sm.emplace(i, i);
   }
@@ -77,7 +79,8 @@ bool test_for_all_ul() {
 bool test_for_all_str() {
   std::size_t target_size = 50'000;
 
-  auto sm = make_sharded_unordered_map<std::string, std::string, false>();
+  auto sm =
+      make_sharded_unordered_map<std::string, std::string, std::false_type>();
   for (std::size_t i = 0; i < target_size; i++) {
     sm.emplace(std::to_string(i), random_lowercase_str(128));
   }

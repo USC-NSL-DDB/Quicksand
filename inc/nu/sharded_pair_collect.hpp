@@ -1,5 +1,6 @@
 #pragma once
 
+#include <type_traits>
 #include <vector>
 
 #include "nu/sharded_ds.hpp"
@@ -52,8 +53,8 @@ template <typename K, typename V>
 class ShardedPairCollection
     : public ShardedDataStructure<
           PairCollectionContainer<K, V>,
-          /* LowLat = */ false>  // Doesn't make sense to use this data
-                                 // structure for any low-latency purpose.
+          /* LL = */ std::false_type>  // Doesn't make sense to use this data
+                                       // structure for any low-latency purpose.
 {
  public:
   ShardedPairCollection() = default;
@@ -63,7 +64,7 @@ class ShardedPairCollection
   ShardedPairCollection &operator=(ShardedPairCollection &&) noexcept = default;
 
  private:
-  using Base = ShardedDataStructure<PairCollectionContainer<K, V>, false>;
+  using Base = ShardedDataStructure<PairCollectionContainer<K, V>, std::false_type>;
   ShardedPairCollection(std::optional<typename Base::Hint> hint);
   template <typename K1, typename V1>
   friend ShardedPairCollection<K1, V1> make_sharded_pair_collection();

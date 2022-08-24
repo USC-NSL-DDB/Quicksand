@@ -39,9 +39,9 @@ class Vector {
   Key l_key_;
 };
 
-template <typename T, bool LowLat>
+template <typename T, typename LL>
 class ShardedVector
-    : public ShardedDataStructure<GeneralContainer<Vector<T>>, LowLat> {
+    : public ShardedDataStructure<GeneralContainer<Vector<T>>, LL> {
  public:
   ShardedVector();
   ShardedVector(const ShardedVector &);
@@ -57,16 +57,16 @@ class ShardedVector
   void clear();
 
  private:
-  using Base = ShardedDataStructure<GeneralContainer<Vector<T>>, LowLat>;
+  using Base = ShardedDataStructure<GeneralContainer<Vector<T>>, LL>;
   std::size_t size_;
 
   ShardedVector(std::optional<typename Base::Hint> hint);
-  template <typename T1, bool LL1>
+  template <typename T1, typename LL1>
   friend ShardedVector<T1, LL1> make_sharded_vector();
 };
 
-template <typename T, bool LowLat>
-ShardedVector<T, LowLat> make_sharded_vector();
+template <typename T, typename LL>
+ShardedVector<T, LL> make_sharded_vector();
 
 }  // namespace nu
 

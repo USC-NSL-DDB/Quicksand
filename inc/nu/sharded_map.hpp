@@ -36,9 +36,9 @@ class Map {
   std::map<K, V> map_;
 };
 
-template <typename K, typename V, bool LowLat>
+template <typename K, typename V, typename LL>
 class ShardedMap
-    : public ShardedDataStructure<GeneralContainer<Map<K, V>>, LowLat> {
+    : public ShardedDataStructure<GeneralContainer<Map<K, V>>, LL> {
  public:
   ShardedMap() = default;
   ShardedMap(const ShardedMap &) = default;
@@ -49,15 +49,15 @@ class ShardedMap
   V operator[](const K &);
 
  private:
-  using Base = ShardedDataStructure<GeneralContainer<Map<K, V>>, LowLat>;
+  using Base = ShardedDataStructure<GeneralContainer<Map<K, V>>, LL>;
   ShardedMap(std::optional<typename Base::Hint> hint);
 
-  template <typename K1, typename V1, bool LL1>
+  template <typename K1, typename V1, typename LL1>
   friend ShardedMap<K1, V1, LL1> make_sharded_map();
 };
 
-template <typename K, typename V, bool LowLat>
-ShardedMap<K, V, LowLat> make_sharded_map();
+template <typename K, typename V, typename LL>
+ShardedMap<K, V, LL> make_sharded_map();
 }  // namespace nu
 
 #include "nu/impl/sharded_map.ipp"

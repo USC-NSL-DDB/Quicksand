@@ -39,10 +39,10 @@ std::vector<std::string> make_test_str_vec(uint32_t size) {
   return vec;
 }
 
-template <typename T, bool LowLat>
+template <typename T, typename LL>
 bool test_insert_elems_ordering(std::vector<T> &elems) {
   std::set<T> expected_set;
-  auto s = make_sharded_set<T, LowLat>();
+  auto s = make_sharded_set<T, LL>();
 
   for (auto &elem : elems) {
     s.insert(elem);
@@ -64,9 +64,9 @@ bool test_insert_elems_ordering(std::vector<T> &elems) {
   return true;
 }
 
-template <typename T, bool LowLat>
+template <typename T, typename LL>
 bool test_range_insert(T start, T end) {
-  auto s = make_sharded_set<T, LowLat>();
+  auto s = make_sharded_set<T, LL>();
   for (int i = start; i < end; i++) {
     s.insert(i);
   }
@@ -79,9 +79,9 @@ bool test_range_insert(T start, T end) {
   return true;
 }
 
-template <typename T, bool LowLat>
+template <typename T, typename LL>
 bool test_reverse_range_insert(T start, T end) {
-  auto s = make_sharded_set<T, LowLat>();
+  auto s = make_sharded_set<T, LL>();
   for (int i = end; i >= start; i--) {
     s.insert(i);
   }
@@ -94,16 +94,18 @@ bool test_reverse_range_insert(T start, T end) {
   return true;
 }
 
-bool test_insertion() { return test_range_insert<int, false>(0, 1'000'000); }
+bool test_insertion() {
+  return test_range_insert<int, std::false_type>(0, 1'000'000);
+}
 
 bool test_ordering() {
-  return test_reverse_range_insert<int, false>(0, 1'000'000) &&
-         test_insert_elems_ordering<std::string, false>(kTestStrs);
+  return test_reverse_range_insert<int, std::false_type>(0, 1'000'000) &&
+         test_insert_elems_ordering<std::string, std::false_type>(kTestStrs);
 }
 
 bool test_size() {
   std::size_t num_elems = 1'000'000;
-  auto s = make_sharded_set<std::size_t, false>();
+  auto s = make_sharded_set<std::size_t, std::false_type>();
 
   if (s.size() != 0) return false;
 
@@ -122,7 +124,7 @@ bool test_size() {
 
 bool test_clear() {
   std::size_t num_elems = 1'000'000;
-  auto s = make_sharded_set<std::size_t, false>();
+  auto s = make_sharded_set<std::size_t, std::false_type>();
 
   for (std::size_t i = 1; i <= num_elems; i++) {
     s.insert(i);

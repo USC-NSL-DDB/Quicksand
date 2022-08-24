@@ -127,9 +127,11 @@ class GeneralShardingMapping {
   ReaderWriterLock rw_lock_;
 };
 
-template <class Container, bool LowLat>
+template <class Container, class LL>
 class ShardedDataStructure {
   static_assert(is_base_of_template_v<Container, GeneralContainer>);
+  static_assert(std::is_same_v<LL, std::bool_constant<false>> ||
+                std::is_same_v<LL, std::bool_constant<true>>);
 
  public:
   using Key = Container::Key;

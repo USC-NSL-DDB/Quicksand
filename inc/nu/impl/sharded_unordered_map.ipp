@@ -96,8 +96,8 @@ void UnorderedMap<K, V>::load(Archive &ar) {
   ar(map_);
 }
 
-template <typename K, typename V, bool LowLat>
-V ShardedUnorderedMap<K, V, LowLat>::operator[](const K &key) {
+template <typename K, typename V, typename LL>
+V ShardedUnorderedMap<K, V, LL>::operator[](const K &key) {
   auto found = this->find_val(key);
   if (found.has_value()) {
     return found.value();
@@ -108,13 +108,13 @@ V ShardedUnorderedMap<K, V, LowLat>::operator[](const K &key) {
   }
 }
 
-template <typename K, typename V, bool LowLat>
-ShardedUnorderedMap<K, V, LowLat>::ShardedUnorderedMap(
+template <typename K, typename V, typename LL>
+ShardedUnorderedMap<K, V, LL>::ShardedUnorderedMap(
     std::optional<typename Base::Hint> hint)
     : Base(hint) {}
 
-template <typename K, typename V, bool LowLat>
-ShardedUnorderedMap<K, V, LowLat> make_sharded_unordered_map() {
-  return ShardedUnorderedMap<K, V, LowLat>(std::nullopt);
+template <typename K, typename V, typename LL>
+ShardedUnorderedMap<K, V, LL> make_sharded_unordered_map() {
+  return ShardedUnorderedMap<K, V, LL>(std::nullopt);
 }
 }  // namespace nu

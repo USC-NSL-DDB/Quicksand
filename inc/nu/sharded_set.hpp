@@ -35,9 +35,9 @@ class Set {
   std::set<T> set_;
 };
 
-template <typename T, bool LowLat>
+template <typename T, typename LL>
 class ShardedSet
-    : public ShardedDataStructure<GeneralContainer<Set<T>>, LowLat> {
+    : public ShardedDataStructure<GeneralContainer<Set<T>>, LL> {
  public:
   ShardedSet() = default;
   ShardedSet(const ShardedSet &) = default;
@@ -49,15 +49,15 @@ class ShardedSet
   bool empty();
 
  private:
-  using Base = ShardedDataStructure<GeneralContainer<Set<T>>, LowLat>;
+  using Base = ShardedDataStructure<GeneralContainer<Set<T>>, LL>;
   ShardedSet(std::optional<typename Base::Hint> hint);
 
-  template <typename T1, bool LL1>
+  template <typename T1, typename LL1>
   friend ShardedSet<T1, LL1> make_sharded_set();
 };
 
-template <typename T, bool LowLat>
-ShardedSet<T, LowLat> make_sharded_set();
+template <typename T, typename LL>
+ShardedSet<T, LL> make_sharded_set();
 }  // namespace nu
 
 #include "nu/impl/sharded_set.ipp"

@@ -203,7 +203,7 @@ ShardedPairCollection<K, V> make_sharded_pair_collection(
     std::function<void(K &, uint64_t)> key_inc_fn) {
   return ShardedPairCollection<K, V>(
       std::make_optional<typename ShardedDataStructure<
-          PairCollectionContainer<K, V>, false>::Hint>(
+          PairCollectionContainer<K, V>, std::false_type>::Hint>(
           num, std::move(estimated_min_key), std::move(key_inc_fn)));
 }
 

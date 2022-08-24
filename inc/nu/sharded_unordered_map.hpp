@@ -36,10 +36,10 @@ class UnorderedMap {
   std::unordered_map<K, V> map_;
 };
 
-template <typename K, typename V, bool LowLat>
+template <typename K, typename V, typename LL>
 class ShardedUnorderedMap
     : public ShardedDataStructure<GeneralContainer<UnorderedMap<K, V>>,
-                                  LowLat> {
+                                  LL> {
  public:
   ShardedUnorderedMap() = default;
   ShardedUnorderedMap(const ShardedUnorderedMap &) = default;
@@ -51,15 +51,15 @@ class ShardedUnorderedMap
 
  private:
   using Base =
-      ShardedDataStructure<GeneralContainer<UnorderedMap<K, V>>, LowLat>;
+      ShardedDataStructure<GeneralContainer<UnorderedMap<K, V>>, LL>;
   ShardedUnorderedMap(std::optional<typename Base::Hint> hint);
 
-  template <typename K1, typename V1, bool LL1>
+  template <typename K1, typename V1, typename LL1>
   friend ShardedUnorderedMap<K1, V1, LL1> make_sharded_unordered_map();
 };
 
-template <typename K, typename V, bool LowLat>
-ShardedUnorderedMap<K, V, LowLat> make_sharded_unordered_map();
+template <typename K, typename V, typename LL>
+ShardedUnorderedMap<K, V, LL> make_sharded_unordered_map();
 }  // namespace nu
 
 #include "nu/impl/sharded_unordered_map.ipp"

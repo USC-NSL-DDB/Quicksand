@@ -101,23 +101,23 @@ void Set<T>::load(Archive &ar) {
   ar(set_);
 }
 
-template <typename T, bool LowLat>
-void ShardedSet<T, LowLat>::insert(const T &value) {
+template <typename T, typename LL>
+void ShardedSet<T, LL>::insert(const T &value) {
   this->emplace(value, value);
 }
 
-template <typename T, bool LowLat>
-bool ShardedSet<T, LowLat>::empty() {
+template <typename T, typename LL>
+bool ShardedSet<T, LL>::empty() {
   return this->size() == 0;
 }
 
-template <typename T, bool LowLat>
-ShardedSet<T, LowLat>::ShardedSet(std::optional<typename Base::Hint> hint)
+template <typename T, typename LL>
+ShardedSet<T, LL>::ShardedSet(std::optional<typename Base::Hint> hint)
     : Base(hint) {}
 
-template <typename T, bool LowLat>
-ShardedSet<T, LowLat> make_sharded_set() {
-  return ShardedSet<T, LowLat>(std::nullopt);
+template <typename T, typename LL>
+ShardedSet<T, LL> make_sharded_set() {
+  return ShardedSet<T, LL>(std::nullopt);
 }
 
 }  // namespace nu

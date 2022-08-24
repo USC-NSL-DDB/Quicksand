@@ -109,73 +109,73 @@ void Vector<T>::load(Archive &ar) {
   ar(data_, l_key_);
 }
 
-template <typename T, bool LowLat>
-ShardedVector<T, LowLat>::ShardedVector() : size_(0) {}
+template <typename T, typename LL>
+ShardedVector<T, LL>::ShardedVector() : size_(0) {}
 
-template <typename T, bool LowLat>
-ShardedVector<T, LowLat>::ShardedVector(const ShardedVector &o) {
+template <typename T, typename LL>
+ShardedVector<T, LL>::ShardedVector(const ShardedVector &o) {
   *this = o;
 }
 
-template <typename T, bool LowLat>
-ShardedVector<T, LowLat> &ShardedVector<T, LowLat>::operator=(
+template <typename T, typename LL>
+ShardedVector<T, LL> &ShardedVector<T, LL>::operator=(
     const ShardedVector &o) {
   size_ = o.size_;
   return *this;
 }
 
-template <typename T, bool LowLat>
-ShardedVector<T, LowLat>::ShardedVector(ShardedVector &&o) noexcept {
+template <typename T, typename LL>
+ShardedVector<T, LL>::ShardedVector(ShardedVector &&o) noexcept {
   *this = std::move(o);
 }
 
-template <typename T, bool LowLat>
-ShardedVector<T, LowLat> &ShardedVector<T, LowLat>::operator=(
+template <typename T, typename LL>
+ShardedVector<T, LL> &ShardedVector<T, LL>::operator=(
     ShardedVector &&o) noexcept {
   size_ = o.size_;
   return *this;
 }
 
-template <typename T, bool LowLat>
-T ShardedVector<T, LowLat>::operator[](std::size_t index) {
+template <typename T, typename LL>
+T ShardedVector<T, LL>::operator[](std::size_t index) {
   assert(index < size_);
   std::optional<T> r = this->find_val(index);
   return *r;
 }
 
-template <typename T, bool LowLat>
-void ShardedVector<T, LowLat>::push_back(const T &value) {
+template <typename T, typename LL>
+void ShardedVector<T, LL>::push_back(const T &value) {
   this->emplace(size_, value);
   size_++;
 }
 
-template <typename T, bool LowLat>
-void ShardedVector<T, LowLat>::pop_back() {
+template <typename T, typename LL>
+void ShardedVector<T, LL>::pop_back() {
   size_--;
 }
 
-template <typename T, bool LowLat>
-std::size_t ShardedVector<T, LowLat>::size() {
+template <typename T, typename LL>
+std::size_t ShardedVector<T, LL>::size() {
   return size_;
 }
 
-template <typename T, bool LowLat>
-bool ShardedVector<T, LowLat>::empty() {
+template <typename T, typename LL>
+bool ShardedVector<T, LL>::empty() {
   return !size_;
 }
 
-template <typename T, bool LowLat>
-void ShardedVector<T, LowLat>::clear() {
+template <typename T, typename LL>
+void ShardedVector<T, LL>::clear() {
   size_ = 0;
 }
 
-template <typename T, bool LowLat>
-ShardedVector<T, LowLat>::ShardedVector(std::optional<typename Base::Hint> hint)
+template <typename T, typename LL>
+ShardedVector<T, LL>::ShardedVector(std::optional<typename Base::Hint> hint)
     : Base(hint), size_(0) {}
 
-template <typename T, bool LowLat>
-ShardedVector<T, LowLat> make_sharded_vector() {
-  return ShardedVector<T, LowLat>(std::nullopt);
+template <typename T, typename LL>
+ShardedVector<T, LL> make_sharded_vector() {
+  return ShardedVector<T, LL>(std::nullopt);
 }
 
 }  // namespace nu
