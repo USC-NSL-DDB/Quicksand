@@ -80,6 +80,8 @@ test_sharded_pair_collect_src = test/test_sharded_pair_collect.cpp
 test_sharded_pair_collect_obj = $(test_sharded_pair_collect_src:.cpp=.o)
 test_cereal_src = test/test_cereal.cpp
 test_cereal_obj = $(test_cereal_src:.cpp=.o)
+test_iter_src = test/test_iter.cpp
+test_iter_obj = $(test_iter_src:.cpp=.o)
 
 bench_rpc_tput_src = bench/bench_rpc_tput.cpp
 bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
@@ -129,7 +131,7 @@ bin/test_fast_path bin/test_slow_path bin/ctrl_main bin/test_max_num_proclets \
 bin/test_sharded_array bin/test_sharded_pair_collect bin/bench_controller \
 bin/test_sharded_vector bin/bench_sharded_pair_collect bin/test_cereal bin/bench_sharded_vector \
 bin/bench_proclet_call_bw bin/test_sharded_set bin/test_sharded_map \
-bin/test_sharded_unordered_map bin/bench_cpu_overloaded
+bin/test_sharded_unordered_map bin/bench_cpu_overloaded bin/test_iter
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -192,6 +194,8 @@ bin/test_sharded_pair_collect: $(test_sharded_pair_collect_obj) $(librt_libs) $(
 	$(LDXX) -o $@ $(test_sharded_pair_collect_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_cereal: $(test_cereal_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_cereal_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_iter: $(test_iter_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_iter_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
