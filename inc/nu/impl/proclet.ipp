@@ -572,7 +572,7 @@ Proclet<T> make_proclet_with_capacity(uint64_t capacity, As &&... args) {
 template <typename T, typename... As>
 Future<Proclet<T>> make_proclet_async_with_capacity(uint64_t capacity,
                                                     As &&... args) {
-  return nu::async([&, ... args = std::forward<As>(args)]() mutable {
+  return nu::async([&, capacity, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(capacity, /* pinned = */ false, 0,
                                 std::forward<As>(args)...);
   });
