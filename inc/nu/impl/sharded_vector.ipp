@@ -1,6 +1,7 @@
 #include <cereal/types/vector.hpp>
 
 namespace nu {
+
 template <typename T>
 Vector<T>::Vector() : l_key_(0) {}
 
@@ -111,30 +112,6 @@ void Vector<T>::load(Archive &ar) {
 
 template <typename T, typename LL>
 ShardedVector<T, LL>::ShardedVector() : size_(0) {}
-
-template <typename T, typename LL>
-ShardedVector<T, LL>::ShardedVector(const ShardedVector &o) {
-  *this = o;
-}
-
-template <typename T, typename LL>
-ShardedVector<T, LL> &ShardedVector<T, LL>::operator=(
-    const ShardedVector &o) {
-  size_ = o.size_;
-  return *this;
-}
-
-template <typename T, typename LL>
-ShardedVector<T, LL>::ShardedVector(ShardedVector &&o) noexcept {
-  *this = std::move(o);
-}
-
-template <typename T, typename LL>
-ShardedVector<T, LL> &ShardedVector<T, LL>::operator=(
-    ShardedVector &&o) noexcept {
-  size_ = o.size_;
-  return *this;
-}
 
 template <typename T, typename LL>
 T ShardedVector<T, LL>::operator[](std::size_t index) {
