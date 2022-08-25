@@ -66,7 +66,7 @@ UnorderedMap<K, V>::split() {
     keys.push_back(k);
   }
 
-  adaptiveQuickselect(&keys, keys.size() / 2, keys.size());
+  std::sort(keys.begin(), keys.end());
   auto mid_key = keys[keys.size() / 2];
 
   std::unordered_map<K, V> latter_half_map;
