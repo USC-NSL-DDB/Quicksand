@@ -11,28 +11,6 @@ template <typename T>
 Set<T>::Set(std::size_t capacity) {}
 
 template <typename T>
-Set<T>::Set(const Set &o) {
-  *this = o;
-}
-
-template <typename T>
-Set<T> &Set<T>::operator=(const Set &o) {
-  set_ = o.set_;
-  return *this;
-}
-
-template <typename T>
-Set<T>::Set(Set &&o) noexcept {
-  *this = std::move(o);
-}
-
-template <typename T>
-Set<T> &Set<T>::operator=(Set &&o) noexcept {
-  set_ = std::move(o.set_);
-  return *this;
-}
-
-template <typename T>
 std::size_t Set<T>::size() const {
   return set_.size();
 }

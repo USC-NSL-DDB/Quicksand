@@ -44,10 +44,10 @@ class ShardedVector
     : public ShardedDataStructure<GeneralContainer<Vector<T>>, LL> {
  public:
   ShardedVector();
-  ShardedVector(const ShardedVector &);
-  ShardedVector &operator=(const ShardedVector &);
-  ShardedVector(ShardedVector &&) noexcept;
-  ShardedVector &operator=(ShardedVector &&) noexcept;
+  ShardedVector(const ShardedVector &) = default;
+  ShardedVector &operator=(const ShardedVector &) = default;
+  ShardedVector(ShardedVector &&) noexcept = default;
+  ShardedVector &operator=(ShardedVector &&) noexcept = default;
 
   T operator[](std::size_t index);
   void push_back(const T &value);

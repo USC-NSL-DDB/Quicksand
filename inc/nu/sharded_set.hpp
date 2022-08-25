@@ -12,10 +12,10 @@ class Set {
 
   Set();
   Set(std::size_t capacity);
-  Set(const Set &);
-  Set &operator=(const Set &);
-  Set(Set &&) noexcept;
-  Set &operator=(Set &&) noexcept;
+  Set(const Set &) = default;
+  Set &operator=(const Set &) = default;
+  Set(Set &&) noexcept = default;
+  Set &operator=(Set &&) noexcept = default;
 
   std::size_t size() const;
   bool empty() const;
