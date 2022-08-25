@@ -8,6 +8,9 @@ class UnorderedMap {
  public:
   using Key = K;
   using Val = V;
+  // TODO
+  using ConstIterator = std::tuple<>;
+  using ConstReverseIterator = std::tuple<>;
 
   UnorderedMap() = default;
   UnorderedMap(std::size_t capacity);

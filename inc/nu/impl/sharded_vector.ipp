@@ -3,6 +3,36 @@
 namespace nu {
 
 template <typename T>
+VectorConstIterator<T>::VectorConstIterator() {}
+
+template <typename T>
+VectorConstIterator<T>::VectorConstIterator(
+    std::vector<T>::const_iterator &&iter) {
+  std::vector<T>::const_iterator::operator=(std::move(iter));
+}
+
+template <typename T>
+template <class Archive>
+void VectorConstIterator<T>::serialize(Archive &ar) {
+  ar(cereal::binary_data(this, sizeof(*this)));
+}
+
+template <typename T>
+VectorConstReverseIterator<T>::VectorConstReverseIterator() {}
+
+template <typename T>
+VectorConstReverseIterator<T>::VectorConstReverseIterator(
+    std::vector<T>::const_reverse_iterator &&iter) {
+  std::vector<T>::const_reverse_iterator::operator=(std::move(iter));
+}
+
+template <typename T>
+template <class Archive>
+void VectorConstReverseIterator<T>::serialize(Archive &ar) {
+  ar(cereal::binary_data(this, sizeof(*this)));
+}
+
+template <typename T>
 Vector<T>::Vector() : l_key_(0) {}
 
 template <typename T>
@@ -96,6 +126,16 @@ void Vector<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
     auto idx = l_key_ + i;
     fn(idx, data_[i], states...);
   }
+}
+
+template <typename T>
+Vector<T>::ConstIterator Vector<T>::cbegin() const {
+  return data_.cbegin();
+}
+
+template <typename T>
+Vector<T>::ConstIterator Vector<T>::cend() const {
+  return data_.cend();
 }
 
 template <typename T>

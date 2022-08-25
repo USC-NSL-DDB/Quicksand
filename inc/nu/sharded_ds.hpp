@@ -17,6 +17,7 @@
 #include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
+
 template <class Container>
 class GeneralShard;
 
@@ -26,6 +27,8 @@ class GeneralContainer {
   using Key = Impl::Key;
   using Val = Impl::Val;
   using Pair = std::pair<Key, Val>;
+  using ConstIterator = Impl::ConstIterator;
+  using ConstReverseIterator = Impl::ConstReverseIterator;
 
   GeneralContainer() : impl_() {}
   GeneralContainer(std::size_t capacity) : impl_(capacity) {}
@@ -58,6 +61,11 @@ class GeneralContainer {
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states) {
     impl_.for_all(fn, std::forward<S1s>(states)...);
   }
+  Impl &unwrap() { return impl_; }
+  ConstIterator cbegin() const { return impl_.cbegin(); }
+  ConstIterator cend() const { return impl_.cend(); }
+  ConstReverseIterator crbegin() const { return impl_.crbegin(); }
+  ConstReverseIterator crend() const { return impl_.crend(); }
   template <class Archive>
   void save(Archive &ar) const {
     impl_.save(ar);
@@ -66,7 +74,6 @@ class GeneralContainer {
   void load(Archive &ar) {
     impl_.load(ar);
   }
-  Impl &unwrap() { return impl_; }
 
  private:
   Impl impl_;
@@ -84,6 +91,9 @@ class GeneralShard {
   using Val = Container::Val;
   using Pair = Container::Pair;
   using ShardingMapping = GeneralShardingMapping<GeneralShard>;
+  using GeneralContainer = Container;
+  using ConstIterator = Container::ConstIterator;
+  using ConstReverseIterator = Container::ConstReverseIterator;
 
   GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size,
                std::optional<Key> l_key, std::optional<Key> r_key,
@@ -97,6 +107,12 @@ class GeneralShard {
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                          Container container);
   std::pair<bool, std::optional<Val>> find_val(Key k);
+  std::optional<ConstIterator> inc_iter(ConstIterator iter);
+  std::optional<ConstIterator> dec_iter(ConstIterator iter);
+  ConstIterator cbegin();
+  ConstIterator clast();
+  ConstIterator cend();
+  bool empty();
 
  private:
   uint32_t max_shard_size_;
@@ -117,14 +133,23 @@ class GeneralShardingMapping {
  public:
   using Key = Shard::Key;
 
+  GeneralShardingMapping();
+  ~GeneralShardingMapping();
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
   std::optional<WeakProclet<Shard>> get_shard_for_key(std::optional<Key> key);
   void update_mapping(std::optional<Key> k, Proclet<Shard> shard);
+  void inc_ref_cnt();
+  void dec_ref_cnt();
+  void seal();
+  void unseal();
 
  private:
   std::map<std::optional<Key>, Proclet<Shard>> mapping_;
   ReaderWriterLock rw_lock_;
+  uint32_t ref_cnt_;
+  Mutex ref_cnt_mu_;
+  CondVar ref_cnt_cv_;
 };
 
 template <class Container, class LL>
@@ -157,7 +182,9 @@ class ShardedDataStructure {
   void clear();
   void flush();
   template <class Archive>
-  void serialize(Archive &ar);
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
 
  protected:
   ShardedDataStructure();
@@ -193,6 +220,8 @@ class ShardedDataStructure {
   KeyToShardsMapping key_to_shards_;
   Future<std::optional<FlushBatchReq>> flush_future_;
   ReaderWriterLock rw_lock_;
+  template <typename T>
+  friend class SealedDS;
 
   void set_shard_and_batch_size();
   bool flush_one_batch(KeyToShardsMapping::iterator iter);
@@ -200,6 +229,9 @@ class ShardedDataStructure {
   void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key);
   std::pair<std::optional<Key>, std::optional<Key>> get_key_range(
       KeyToShardsMapping::iterator iter);
+  std::vector<WeakProclet<Shard>> get_all_non_empty_shards();
+  void seal();
+  void unseal();
 };
 
 }  // namespace nu

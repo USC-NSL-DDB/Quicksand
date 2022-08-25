@@ -22,6 +22,7 @@ class Proclet {
   Proclet &operator=(Proclet &&) noexcept;
   Proclet();
   ~Proclet();
+  operator bool() const;
   ProcletID get_id() const;
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);

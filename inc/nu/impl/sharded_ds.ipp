@@ -119,6 +119,97 @@ GeneralShard<Container>::find_val(Key k) {
   return std::make_pair(true, container_.find_val(std::move(k)));
 }
 
+template <class Container>
+std::optional<typename GeneralShard<Container>::ConstIterator>
+GeneralShard<Container>::inc_iter(ConstIterator iter) {
+  if (unlikely(iter == container_.cend())) {
+    return std::nullopt;
+  }
+  ++iter;
+  return ConstIterator(iter);
+}
+
+template <class Container>
+std::optional<typename GeneralShard<Container>::ConstIterator>
+GeneralShard<Container>::dec_iter(ConstIterator iter) {
+  if (unlikely(iter == container_.cbegin())) {
+    return std::nullopt;
+  }
+  --iter;
+  return ConstIterator(iter);
+}
+
+template <class Container>
+typename GeneralShard<Container>::ConstIterator
+GeneralShard<Container>::cbegin() {
+  return container_.cbegin();
+}
+
+template <class Container>
+typename GeneralShard<Container>::ConstIterator
+GeneralShard<Container>::clast() {
+  return --container_.cend();
+}
+
+template <class Container>
+typename GeneralShard<Container>::ConstIterator
+GeneralShard<Container>::cend() {
+  return container_.cend();
+}
+
+template <class Container>
+bool GeneralShard<Container>::empty() {
+  return container_.empty();
+}
+
+template <class Shard>
+GeneralShardingMapping<Shard>::GeneralShardingMapping() : ref_cnt_(1) {}
+
+template <class Shard>
+GeneralShardingMapping<Shard>::~GeneralShardingMapping() {
+  BUG_ON(ref_cnt_);
+}
+
+template <class Shard>
+void GeneralShardingMapping<Shard>::seal() {
+  ref_cnt_mu_.lock();
+  BUG_ON(!ref_cnt_);  // Cannot be sealed twice.
+  while (rt::access_once(ref_cnt_) != 1) {  // Wait until there's only one ref.
+    ref_cnt_cv_.wait(&ref_cnt_mu_);
+  }
+  ref_cnt_ = 0;
+  ref_cnt_mu_.unlock();
+}
+
+template <class Shard>
+void GeneralShardingMapping<Shard>::unseal() {
+  ref_cnt_mu_.lock();
+  BUG_ON(ref_cnt_);
+  ref_cnt_ = 1;
+  ref_cnt_mu_.unlock();
+  ref_cnt_cv_.signal();  // unblock inc_ref_cnt().
+}
+
+template <class Shard>
+void GeneralShardingMapping<Shard>::inc_ref_cnt() {
+  ref_cnt_mu_.lock();
+  while (!rt::access_once(ref_cnt_)) {  // Wait until it is unsealed.
+    ref_cnt_cv_.wait(&ref_cnt_mu_);
+  }
+  ref_cnt_++;
+  BUG_ON(!ref_cnt_);
+  ref_cnt_mu_.unlock();
+}
+
+template <class Shard>
+void GeneralShardingMapping<Shard>::dec_ref_cnt() {
+  ref_cnt_mu_.lock();
+  BUG_ON(!ref_cnt_);
+  ref_cnt_--;
+  ref_cnt_mu_.unlock();
+  ref_cnt_cv_.signal();  // unblock seal().
+}
+
 template <class Shard>
 std::vector<std::pair<std::optional<typename Shard::Key>, WeakProclet<Shard>>>
 GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
@@ -215,7 +306,9 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     : mapping_(o.mapping_),
       max_shard_size_(o.max_shard_size_),
       max_batch_size_(o.max_batch_size_),
-      key_to_shards_(o.key_to_shards_) {}
+      key_to_shards_(o.key_to_shards_) {
+  mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
+}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL> &
@@ -226,6 +319,9 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   max_shard_size_ = o.max_shard_size_;
   max_batch_size_ = o.max_batch_size_;
   key_to_shards_ = o.key_to_shards_;
+
+  mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
+
   return *this;
 }
 
@@ -236,7 +332,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       max_shard_size_(o.max_shard_size_),
       max_batch_size_(o.max_batch_size_),
       key_to_shards_(std::move(o.key_to_shards_)),
-      flush_future_(std::move(o.flush_future_)) {}
+      flush_future_(std::move(o.flush_future_)) {
+}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>
@@ -254,7 +351,10 @@ ShardedDataStructure<Container, LL>
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
-  flush();
+  if (mapping_) {
+    flush();
+    mapping_.run(&GeneralShardingMapping<Shard>::dec_ref_cnt);
+  }
 }
 
 template <class Container, class LL>
@@ -470,8 +570,15 @@ void ShardedDataStructure<Container, LL>::clear() {
 
 template <class Container, class LL>
 template <class Archive>
-void ShardedDataStructure<Container, LL>::serialize(Archive &ar) {
+void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
   ar(mapping_, max_shard_size_, max_batch_size_, key_to_shards_);
+}
+
+template <class Container, class LL>
+template <class Archive>
+void ShardedDataStructure<Container, LL>::load(Archive &ar) {
+  ar(mapping_, max_shard_size_, max_batch_size_, key_to_shards_);
+  mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
 }
 
 template <class Container, class LL>
@@ -479,6 +586,43 @@ template <class Archive>
 void ShardedDataStructure<Container, LL>::FlushBatchReq::serialize(
     Archive &ar) {
   ar(l_key, r_key, shard, batch);
+}
+
+template <class Container, class LL>
+std::vector<WeakProclet<typename ShardedDataStructure<Container, LL>::Shard>>
+ShardedDataStructure<Container, LL>::get_all_non_empty_shards() {
+  flush();
+  sync_mapping(std::nullopt, std::nullopt);
+
+  std::vector<WeakProclet<Shard>> all_shards;
+  std::vector<Future<bool>> shards_emptinesses;
+  std::vector<WeakProclet<Shard>> non_empty_shards;
+
+  all_shards.reserve(key_to_shards_.size());
+  shards_emptinesses.reserve(key_to_shards_.size());
+  for (auto &[k, p] : key_to_shards_) {
+    auto &shard = p.first;
+    all_shards.emplace_back(shard);
+    shards_emptinesses.emplace_back(shard.run_async(&Shard::empty));
+  }
+
+  for (uint64_t i = 0; i < all_shards.size(); i++) {
+    if (!shards_emptinesses[i].get()) {
+      non_empty_shards.push_back(all_shards[i]);
+    }
+  }
+
+  return non_empty_shards;
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container, LL>::seal() {
+  mapping_.run(&ShardingMapping::seal);
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container, LL>::unseal() {
+  mapping_.run(&ShardingMapping::unseal);
 }
 
 }  // namespace nu

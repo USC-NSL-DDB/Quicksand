@@ -7,10 +7,29 @@
 namespace nu {
 
 template <typename T>
+struct VectorConstIterator : public std::vector<T>::const_iterator {
+  VectorConstIterator();
+  VectorConstIterator(std::vector<T>::const_iterator &&iter);
+  template <class Archive>
+  void serialize(Archive &ar);
+};
+
+template <typename T>
+struct VectorConstReverseIterator
+    : public std::vector<T>::const_reverse_iterator {
+  VectorConstReverseIterator();
+  VectorConstReverseIterator(std::vector<T>::const_reverse_iterator &&iter);
+  template <class Archive>
+  void serialize(Archive &ar);
+};
+
+template <typename T>
 class Vector {
  public:
   using Key = std::size_t;
   using Val = T;
+  using ConstIterator = VectorConstIterator<T>;
+  using ConstReverseIterator = VectorConstReverseIterator<T>;
 
   Vector();
   Vector(std::size_t capacity);
@@ -29,6 +48,8 @@ class Vector {
   std::pair<Key, Vector> split();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  ConstIterator cbegin() const;
+  ConstIterator cend() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>

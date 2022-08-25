@@ -9,6 +9,9 @@ class Set {
  public:
   using Key = T;
   using Val = T;
+  // TODO
+  using ConstIterator = std::tuple<>;
+  using ConstReverseIterator = std::tuple<>;
 
   Set();
   Set(std::size_t capacity);

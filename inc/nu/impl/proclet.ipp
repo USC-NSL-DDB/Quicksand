@@ -249,6 +249,11 @@ Proclet<T> Proclet<T>::__create(uint64_t capacity, bool pinned, uint32_t ip_hint
 }
 
 template <typename T>
+Proclet<T>::operator bool() const {
+  return id_;
+}
+
+template <typename T>
 ProcletID Proclet<T>::get_id() const {
   return id_;
 }
