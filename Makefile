@@ -111,6 +111,8 @@ bench_controller_src = bench/bench_controller.cpp
 bench_controller_obj = $(bench_controller_src:.cpp=.o)
 bench_sharded_pair_collect_src = bench/bench_sharded_pair_collect.cpp
 bench_sharded_pair_collect_obj = $(bench_sharded_pair_collect_src:.cpp=.o)
+bench_sharded_map_src = bench/bench_sharded_map.cpp
+bench_sharded_map_obj = $(bench_sharded_map_src:.cpp=.o)
 bench_sharded_unordered_map_src = bench/bench_sharded_unordered_map.cpp
 bench_sharded_unordered_map_obj = $(bench_sharded_unordered_map_src:.cpp=.o)
 bench_sharded_vector_src = bench/bench_sharded_vector.cpp
@@ -134,7 +136,7 @@ bin/test_sharded_array bin/test_sharded_pair_collect bin/bench_controller \
 bin/test_sharded_vector bin/bench_sharded_pair_collect bin/test_cereal bin/bench_sharded_vector \
 bin/bench_proclet_call_bw bin/test_sharded_set bin/test_sharded_map \
 bin/test_sharded_unordered_map bin/bench_cpu_overloaded bin/test_iter \
-bin/bench_sharded_unordered_map
+bin/bench_sharded_unordered_map bin/bench_sharded_map
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -226,6 +228,8 @@ bin/bench_controller: $(bench_controller_obj) $(librt_libs) $(RUNTIME_DEPS) $(li
 	$(LDXX) -o $@ $(bench_controller_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_sharded_pair_collect: $(bench_sharded_pair_collect_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_sharded_pair_collect_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_sharded_map: $(bench_sharded_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_sharded_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_sharded_unordered_map: $(bench_sharded_unordered_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_sharded_unordered_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_sharded_vector: $(bench_sharded_vector_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
