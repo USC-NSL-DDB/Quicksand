@@ -15,7 +15,7 @@ static bool ias_ps_preempt_core(struct ias_data *sd)
 {
 	unsigned int num_needed_cores, num_eligible_cores = 0, i, core;
 	void **preemptor_ptr;
-	struct thread *last_th;
+	struct thread *th;
 
 	for (i = 0; i < sd->p->active_thread_count; i++)
 		num_eligible_cores += !(*sd->p->active_threads[i]->preemptor);
@@ -24,15 +24,16 @@ static bool ias_ps_preempt_core(struct ias_data *sd)
 	while (num_eligible_cores < num_needed_cores) {
 		if (unlikely(ias_add_kthread(sd) != 0))
 			return false;
-		last_th = sd->p->active_threads[sd->p->active_thread_count - 1];
-		num_eligible_cores += !(*last_th->preemptor);
+		th = sd->p->active_threads[sd->p->active_thread_count - 1];
+		num_eligible_cores += !(*th->preemptor);
 	}
 
 	/* Preempt the first num_needed_cores cores. */
 	i = 0;
 	while (num_needed_cores) {
 		core = sd->p->active_threads[i]->core;
-		preemptor_ptr = sd->p->active_threads[i++]->preemptor;
+		th = sd->p->active_threads[i++];
+		preemptor_ptr = th->preemptor;
 
 		if (unlikely(*preemptor_ptr))
                         continue;
@@ -43,6 +44,9 @@ static bool ias_ps_preempt_core(struct ias_data *sd)
 			bitmap_set(sd->reserved_pressure_handler_cores, core);
 		}
 		*preemptor_ptr = sd->p->resource_pressure_handlers[--num_needed_cores];
+		barrier();
+		/* Make sure that the kthread won't be parked. */
+		ksched_run(core, th->tid);
 		ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
 	}
 

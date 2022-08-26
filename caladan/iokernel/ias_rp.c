@@ -13,6 +13,7 @@
 static bool ias_rp_preempt_core(struct ias_data *sd)
 {
 	unsigned int i, core;
+	struct thread *th;
 
 	for (i = 0; i < sd->p->active_thread_count; i++)
 		if (!(*sd->p->active_threads[i]->preemptor))
@@ -32,8 +33,10 @@ static bool ias_rp_preempt_core(struct ias_data *sd)
 		bitmap_set(sd->reserved_report_handler_cores, core);
 	}
 
-	*sd->p->active_threads[i]->preemptor =
-		sd->p->resource_reporting->handler;
+	th = sd->p->active_threads[i];
+	*th->preemptor = sd->p->resource_reporting->handler;
+	barrier();
+	ksched_run(core, th->tid);
 	ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
 
 	return true;

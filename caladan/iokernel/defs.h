@@ -75,7 +75,7 @@ struct thread_metrics {
 	uint32_t		uthread_elapsed_us;
 	uint32_t		rcu_gen;
 	bool			work_pending;
- };
+};
 
 struct timer {
 	uint64_t		*next_tsc;
