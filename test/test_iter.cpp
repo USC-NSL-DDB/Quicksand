@@ -7,11 +7,21 @@
 
 using namespace nu;
 
+constexpr uint32_t kNumElements = 1 << 16;
+
 bool run_test() {
   auto vec = make_sharded_vector<int, std::false_type>();
+  for (uint32_t i = 0; i < kNumElements; i++) {
+    vec.push_back(i);
+  }
   auto sealed_vec = to_sealed_ds(std::move(vec));
-  for (auto iter = sealed_vec.cbegin(); iter != sealed_vec.cend(); iter++) {
-    std::cout << *iter << std::endl;
+
+  int idx = 0;
+  for (auto iter = sealed_vec.cbegin(); iter != sealed_vec.cend();
+       iter++, idx++) {
+    if (*iter != idx) {
+      return false;
+    }
   }
   vec = to_unsealed_ds(std::move(sealed_vec));
 
