@@ -102,13 +102,13 @@ void PressureHandler::__main_handler() {
             ? Runtime::migrator->get_max_num_proclets_per_migration()
             : 0;
     auto min_mem_mbs = rt::RuntimeToReleaseMemMbs();
-    auto [proclets, resource] = pick_proclets(min_num_proclets, min_mem_mbs);
-    if (likely(!proclets.empty())) {
-      auto num_migrated = Runtime::migrator->migrate(resource, proclets);
+    auto [tasks, resource] = pick_tasks(min_num_proclets, min_mem_mbs);
+    if (likely(!tasks.empty())) {
+      auto num_migrated = Runtime::migrator->migrate(resource, tasks);
       if constexpr (kEnableLogging) {
         std::cout << "Migrate " << num_migrated << " proclets." << std::endl;
       }
-      if (unlikely(num_migrated != proclets.size())) {
+      if (unlikely(num_migrated != tasks.size())) {
         break;
       }
     } else {
@@ -199,20 +199,23 @@ void PressureHandler::aux_handler(void *args) {
   store_release(&state->done, false);
 }
 
-std::pair<std::vector<ProcletHeader *>, Resource>
-PressureHandler::pick_proclets(uint32_t min_num_proclets,
-                               uint32_t min_mem_mbs) {
+std::pair<std::vector<ProcletMigrationTask>, Resource>
+PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
   uint32_t picked_num = 0;
   bool done = false;
-  std::set<ProcletHeader *> picked_proclets;
   Resource resource{.cores = 0, .mem_mbs = 0};
+  auto comp = [](const ProcletMigrationTask &x, const ProcletMigrationTask &y) {
+    return x.header < y.header;
+  };
+  std::set<ProcletMigrationTask, decltype(comp)> picked_tasks;
 
   auto pick_fn = [&](ProcletHeader *header, uint64_t mem_size, float cpu_load) {
     NonBlockingMigrationDisabledGuard guard(header);
     if (unlikely(!guard || !header->migratable)) {
       return;
     }
-    auto [_, succeed] = picked_proclets.emplace(header);
+    auto [_, succeed] =
+        picked_tasks.emplace(header, header->capacity, header->size());
     if (unlikely(!succeed)) {
       return;
     }
@@ -252,9 +255,9 @@ PressureHandler::pick_proclets(uint32_t min_num_proclets,
     }
   }
 
-  std::vector<ProcletHeader *> proclets_dedupped(picked_proclets.begin(),
-                                                 picked_proclets.end());
-  return std::make_pair(proclets_dedupped, resource);
+  std::vector<ProcletMigrationTask> tasks_dedupped(picked_tasks.begin(),
+                                                   picked_tasks.end());
+  return std::make_pair(tasks_dedupped, resource);
 }
 
 void PressureHandler::mock_set_pressure() {

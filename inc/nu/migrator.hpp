@@ -113,7 +113,7 @@ class Migrator {
   ~Migrator();
   void run_background_loop();
   uint32_t migrate(Resource resource,
-                   const std::vector<ProcletHeader *> &proclets);
+                   const std::vector<ProcletMigrationTask> &tasks);
   void reserve_conns(uint32_t dest_server_ip);
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,
                                   uint64_t payload_len, const void *payload);
@@ -148,8 +148,8 @@ class Migrator {
   void transmit_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header);
   void transmit_proclet_migration_tasks(
-      rt::TcpConn *c, std::vector<ProcletHeader *>::const_iterator begin,
-      std::vector<ProcletHeader *>::const_iterator end);
+      rt::TcpConn *c, std::vector<ProcletMigrationTask>::const_iterator begin,
+      std::vector<ProcletMigrationTask>::const_iterator end);
   void transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes);
   void transmit_condvars(rt::TcpConn *c, std::vector<CondVar *> condvars);
   void transmit_time(rt::TcpConn *c, Time *time);
@@ -170,7 +170,7 @@ class Migrator {
   void aux_handlers_disable_polling();
   void callback();
   uint32_t __migrate(Resource resource,
-                     const std::vector<ProcletHeader *> &proclets);
+                     const std::vector<ProcletMigrationTask> &tasks);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);
   void issue_approval(rt::TcpConn *c, bool approve_migration);

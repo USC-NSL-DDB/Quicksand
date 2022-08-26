@@ -68,7 +68,7 @@ class PressureHandler {
   bool mock_;
   bool done_;
 
-  std::pair<std::vector<ProcletHeader *>, Resource> pick_proclets(
+  std::pair<std::vector<ProcletMigrationTask>, Resource> pick_tasks(
       uint32_t min_num_proclets, uint32_t min_mem_mbs);
   void update_sorted_proclets();
   void register_handlers();
