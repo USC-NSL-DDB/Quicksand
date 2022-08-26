@@ -85,6 +85,10 @@ class SealedDS {
 
   T t_;
   std::shared_ptr<ShardsVec> shards_;
+  ConstIterator cbegin_;
+  ConstIterator cend_;
+  ConstReverseIterator crbegin_;
+  ConstReverseIterator crend_;
 
   SealedDS(T &&t);
   T &&unseal();

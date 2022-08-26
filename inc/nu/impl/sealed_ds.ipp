@@ -66,14 +66,7 @@ GeneralSealedDSConstIterator<T, Fwd>::shards_vec_end() const {
 template <typename T, bool Fwd>
 bool GeneralSealedDSConstIterator<T, Fwd>::operator==(
     const GeneralSealedDSConstIterator &o) const {
-  if (likely(shards_ && o.shards_)) {
-    // *this and o may have shards_ of different addresses but of the same data.
-    return shards_vec_iter_ - shards_vec_begin() ==
-               o.shards_vec_iter_ - o.shards_vec_begin() &&
-           container_iter_ == o.container_iter_;
-  } else {
-    return !shards_ && !o.shards_;
-  }
+  return container_iter_ == o.container_iter_;
 }
 
 template <typename T, bool Fwd>
@@ -174,6 +167,21 @@ template <typename T>
 SealedDS<T>::SealedDS(T &&t) : t_(std::move(t)) {
   t_.seal();
   shards_ = std::make_shared<ShardsVec>(t_.get_all_non_empty_shards());
+  if (shards_->empty()) {
+    cbegin_ = ConstIterator();
+    cend_ = cbegin_;
+    crbegin_ = ConstReverseIterator();
+    crend_ = crbegin_;
+  } else {
+    cbegin_ = ConstIterator(shards_, shards_->begin(),
+                            shards_->front().run(&T::Shard::cbegin));
+    cend_ = ConstIterator(shards_, --shards_->end(),
+                          shards_->back().run(&T::Shard::cend));
+    crbegin_ = ConstReverseIterator(shards_, shards_->rbegin(),
+                                    shards_->back().run(&T::Shard::crbegin));
+    crend_ = ConstReverseIterator(shards_, --shards_->rend(),
+                                  shards_->front().run(&T::Shard::crend));
+  }
 }
 
 template <typename T>
@@ -196,33 +204,22 @@ T &&SealedDS<T>::unseal() {
 
 template <typename T>
 SealedDS<T>::ConstIterator SealedDS<T>::cbegin() {
-  return shards_->empty()
-             ? ConstIterator()
-             : ConstIterator(shards_, shards_->begin(),
-                             shards_->front().run(&T::Shard::cbegin));
+  return cbegin_;
 }
 
 template <typename T>
 SealedDS<T>::ConstIterator SealedDS<T>::cend() {
-  return shards_->empty() ? ConstIterator()
-                          : ConstIterator(shards_, --shards_->end(),
-                                          shards_->back().run(&T::Shard::cend));
+  return cend_;
 }
 
 template <typename T>
 SealedDS<T>::ConstReverseIterator SealedDS<T>::crbegin() {
-  return shards_->empty()
-             ? ConstReverseIterator()
-             : ConstReverseIterator(shards_, shards_->rbegin(),
-                                    shards_->back().run(&T::Shard::crbegin));
+  return crbegin_;
 }
 
 template <typename T>
 SealedDS<T>::ConstReverseIterator SealedDS<T>::crend() {
-  return shards_->empty()
-             ? ConstReverseIterator()
-             : ConstReverseIterator(shards_, --shards_->rend(),
-                                    shards_->front().run(&T::Shard::crend));
+  return crend_;
 }
 
 template <typename T>
