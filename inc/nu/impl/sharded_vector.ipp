@@ -139,6 +139,16 @@ Vector<T>::ConstIterator Vector<T>::cend() const {
 }
 
 template <typename T>
+Vector<T>::ConstReverseIterator Vector<T>::crbegin() const {
+  return data_.crbegin();
+}
+
+template <typename T>
+Vector<T>::ConstReverseIterator Vector<T>::crend() const {
+  return data_.crend();
+}
+
+template <typename T>
 template <class Archive>
 void Vector<T>::save(Archive &ar) const {
   ar(data_, l_key_);

@@ -23,6 +23,14 @@ bool run_test() {
       return false;
     }
   }
+
+  idx--;
+  for (auto iter = sealed_vec.crbegin(); iter != sealed_vec.crend();
+       iter++, idx--) {
+    if (*iter != idx) {
+      return false;
+    }
+  }
   vec = to_unsealed_ds(std::move(sealed_vec));
 
   return true;

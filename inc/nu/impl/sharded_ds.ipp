@@ -130,6 +130,16 @@ GeneralShard<Container>::inc_iter(ConstIterator iter) {
 }
 
 template <class Container>
+std::optional<typename GeneralShard<Container>::ConstReverseIterator>
+GeneralShard<Container>::inc_riter(ConstReverseIterator iter) {
+  if (unlikely(iter == container_.crend())) {
+    return std::nullopt;
+  }
+  ++iter;
+  return ConstReverseIterator(iter);
+}
+
+template <class Container>
 std::optional<typename GeneralShard<Container>::ConstIterator>
 GeneralShard<Container>::dec_iter(ConstIterator iter) {
   if (unlikely(iter == container_.cbegin())) {
@@ -137,6 +147,16 @@ GeneralShard<Container>::dec_iter(ConstIterator iter) {
   }
   --iter;
   return ConstIterator(iter);
+}
+
+template <class Container>
+std::optional<typename GeneralShard<Container>::ConstReverseIterator>
+GeneralShard<Container>::dec_riter(ConstReverseIterator iter) {
+  if (unlikely(iter == container_.crbegin())) {
+    return std::nullopt;
+  }
+  --iter;
+  return ConstReverseIterator(iter);
 }
 
 template <class Container>
@@ -155,6 +175,24 @@ template <class Container>
 typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::cend() {
   return container_.cend();
+}
+
+template <class Container>
+typename GeneralShard<Container>::ConstReverseIterator
+GeneralShard<Container>::crbegin() {
+  return container_.crbegin();
+}
+
+template <class Container>
+typename GeneralShard<Container>::ConstReverseIterator
+GeneralShard<Container>::crlast() {
+  return --container_.crend();
+}
+
+template <class Container>
+typename GeneralShard<Container>::ConstReverseIterator
+GeneralShard<Container>::crend() {
+  return container_.crend();
 }
 
 template <class Container>

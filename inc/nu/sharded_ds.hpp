@@ -109,9 +109,14 @@ class GeneralShard {
   std::pair<bool, std::optional<Val>> find_val(Key k);
   std::optional<ConstIterator> inc_iter(ConstIterator iter);
   std::optional<ConstIterator> dec_iter(ConstIterator iter);
+  std::optional<ConstReverseIterator> inc_riter(ConstReverseIterator iter);
+  std::optional<ConstReverseIterator> dec_riter(ConstReverseIterator iter);
   ConstIterator cbegin();
   ConstIterator clast();
   ConstIterator cend();
+  ConstReverseIterator crbegin();
+  ConstReverseIterator crlast();
+  ConstReverseIterator crend();
   bool empty();
 
  private:

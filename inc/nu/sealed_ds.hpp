@@ -11,25 +11,28 @@
 
 namespace nu {
 
-template <typename T>
-class SealedDSConstIterator {
+template <typename T, bool Fwd>
+class GeneralSealedDSConstIterator {
   static_assert(is_base_of_template_v<T, ShardedDataStructure>);
 
-  using ContainerIter = T::Shard::GeneralContainer::ConstIterator;
+  using ContainerIter = std::conditional_t<
+      Fwd, typename T::Shard::GeneralContainer::ConstIterator,
+      typename T::Shard::GeneralContainer::ConstReverseIterator>;
 
  public:
   using Val = std::remove_reference_t<decltype(*std::declval<ContainerIter>())>;
 
-  SealedDSConstIterator();
-  SealedDSConstIterator(const SealedDSConstIterator &);
-  SealedDSConstIterator &operator=(const SealedDSConstIterator &);
-  SealedDSConstIterator(SealedDSConstIterator &&) noexcept;
-  SealedDSConstIterator &operator=(SealedDSConstIterator &&) noexcept;
-  bool operator==(const SealedDSConstIterator &) const;
-  SealedDSConstIterator &operator++();
-  SealedDSConstIterator operator++(int);
-  SealedDSConstIterator &operator--();
-  SealedDSConstIterator operator--(int);
+  GeneralSealedDSConstIterator();
+  GeneralSealedDSConstIterator(const GeneralSealedDSConstIterator &);
+  GeneralSealedDSConstIterator &operator=(const GeneralSealedDSConstIterator &);
+  GeneralSealedDSConstIterator(GeneralSealedDSConstIterator &&) noexcept;
+  GeneralSealedDSConstIterator &operator=(
+      GeneralSealedDSConstIterator &&) noexcept;
+  bool operator==(const GeneralSealedDSConstIterator &) const;
+  GeneralSealedDSConstIterator &operator++();
+  GeneralSealedDSConstIterator operator++(int);
+  GeneralSealedDSConstIterator &operator--();
+  GeneralSealedDSConstIterator operator--(int);
   Val operator*();
 
   template <class Archive>
@@ -40,31 +43,31 @@ class SealedDSConstIterator {
  private:
   using Shard = T::Shard;
   using ShardsVec = std::vector<WeakProclet<Shard>>;
-  using ShardsVecIter = ShardsVec::iterator;
+  using ShardsVecIter =
+      std::conditional_t<Fwd, typename ShardsVec::iterator,
+                         typename ShardsVec::reverse_iterator>;
 
   std::shared_ptr<ShardsVec> shards_;
   ShardsVecIter shards_vec_iter_;
   ContainerIter container_iter_;
 
   template <typename U>
-
   friend class SealedDS;
 
-  SealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
-                        ShardsVecIter shards_vec_iter,
-                        ContainerIter container_iter);
+  GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
+                               ShardsVecIter shards_vec_iter,
+                               ContainerIter container_iter);
+  ShardsVecIter shards_vec_begin() const;
+  ShardsVecIter shards_vec_end() const;
 };
-
-template <typename T>
-class SealedDSConstReverseIterator {};
 
 template <typename T>
 class SealedDS {
   static_assert(is_base_of_template_v<T, ShardedDataStructure>);
 
  public:
-  using ConstIterator = SealedDSConstIterator<T>;
-  using ConstReverseIterator = SealedDSConstReverseIterator<T>;
+  using ConstIterator = GeneralSealedDSConstIterator<T, true>;
+  using ConstReverseIterator = GeneralSealedDSConstIterator<T, false>;
 
   SealedDS(SealedDS &&);
   SealedDS &operator=(SealedDS &&) = delete;
