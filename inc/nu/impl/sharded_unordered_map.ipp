@@ -5,7 +5,9 @@
 
 namespace nu {
 template <typename K, typename V>
-UnorderedMap<K, V>::UnorderedMap(std::size_t capacity) {}
+UnorderedMap<K, V>::UnorderedMap(std::size_t capacity) {
+  map_.reserve(capacity);
+}
 
 template <typename K, typename V>
 UnorderedMap<K, V>::UnorderedMap(std::unordered_map<K, V> initial_state)
