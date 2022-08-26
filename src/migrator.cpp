@@ -598,7 +598,7 @@ uint32_t Migrator::__migrate(Resource resource,
 
   } while (!loader_approval);
 
-  return it - proclets.end();
+  return it - proclets.begin();
 }
 
 bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
