@@ -8,6 +8,7 @@
 #include "nu/proclet.hpp"
 #include "nu/sharded_ds.hpp"
 #include "nu/type_traits.hpp"
+#include "nu/utils/future.hpp"
 
 namespace nu {
 
@@ -45,15 +46,38 @@ class GeneralSealedDSConstIterator {
   using ContainerIter = std::conditional_t<
       Fwd, typename T::Shard::GeneralContainer::ConstIterator,
       typename T::Shard::GeneralContainer::ConstReverseIterator>;
+  class Block {
+   public:
+    using DataVec = std::vector<Val>;
+    using ConstIterator = DataVec::const_iterator;
+    constexpr static uint32_t kSize = 128 << 10;
 
-  constexpr static uint32_t kBlockSize = 128 << 10;
+    Block();
+    Block(ShardsVecIter shards_vec_iter, ContainerIter block_begin_iter);
+    Block(bool front, ShardsVecIter shards_vec_iter);
+    Block(bool forward, const Block &block);
+    Block(const Block &);
+    Block &operator=(const Block &);
+    Block(Block &&);
+    Block &operator=(Block &&);
+    bool operator==(const Block &o) const;
+    bool empty() const;
+    ConstIterator cbegin() const;
+    ConstIterator cend() const;
+    ShardsVecIter get_shards_iter() const;
+
+   private:
+    ShardsVecIter shards_iter;
+    ContainerIter begin_iter;
+    ContainerIter end_iter;
+    DataVec data;
+  };
 
   std::shared_ptr<ShardsVec> shards_;
-  ShardsVecIter shards_vec_iter_;
-  ContainerIter block_begin_iter_;
-  ContainerIter block_end_iter_;
-  std::vector<Val>::const_iterator block_iter_;
-  std::vector<Val> block_data_;
+  Block block_;
+  Future<Block> prefetched_next_block_;
+  Future<Block> prefetched_prev_block_;
+  Block::ConstIterator block_iter_;
 
   template <typename U>
   friend class SealedDS;
@@ -63,6 +87,8 @@ class GeneralSealedDSConstIterator {
                                ContainerIter begin_iter);
   ShardsVecIter shards_vec_begin() const;
   ShardsVecIter shards_vec_end() const;
+  Block get_next_block(const Block &block);
+  Block get_prev_block(const Block &block);
 };
 
 template <typename T>
