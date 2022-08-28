@@ -1,3 +1,5 @@
+#include <algorithm>
+
 namespace nu {
 
 template <typename T, bool Fwd>
@@ -6,10 +8,19 @@ GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator() {}
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
     std::shared_ptr<ShardsVec> &shards, ShardsVecIter shards_vec_iter,
-    ContainerIter container_iter)
+    ContainerIter block_begin_iter)
     : shards_(shards),
       shards_vec_iter_(shards_vec_iter),
-      container_iter_(container_iter) {}
+      block_begin_iter_(block_begin_iter) {
+  if constexpr (Fwd) {
+    std::tie(block_data_, block_end_iter_) = shards_vec_iter_->run(
+        &Shard::get_block_forward, block_begin_iter_, kBlockSize);
+  } else {
+    std::tie(block_data_, block_end_iter_) = shards_vec_iter_->run(
+        &Shard::get_rblock_forward, block_begin_iter_, kBlockSize);
+  }
+  block_iter_ = block_data_.begin();
+}
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
@@ -23,7 +34,10 @@ GeneralSealedDSConstIterator<T, Fwd>
         const GeneralSealedDSConstIterator &o) {
   shards_ = o.shards_;
   shards_vec_iter_ = o.shards_vec_iter_;
-  container_iter_ = o.container_iter_;
+  block_begin_iter_ = o.block_begin_iter_;
+  block_end_iter_ = o.block_end_iter_;
+  block_data_ = o.block_data_;
+  block_iter_ = block_data_.begin() + (o.block_iter_ - o.block_data_.begin());
   return *this;
 }
 
@@ -37,9 +51,12 @@ template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>
     &GeneralSealedDSConstIterator<T, Fwd>::operator=(
         GeneralSealedDSConstIterator &&o) noexcept {
-  shards_ = o.shards_;
+  shards_ = std::move(o.shards_);
   shards_vec_iter_ = std::move(o.shards_vec_iter_);
-  container_iter_ = std::move(o.container_iter_);
+  block_begin_iter_ = std::move(o.block_begin_iter_);
+  block_end_iter_ = std::move(o.block_end_iter_);
+  block_iter_ = std::move(o.block_iter_);
+  block_data_ = std::move(o.block_data_);
   return *this;
 }
 
@@ -66,107 +83,107 @@ GeneralSealedDSConstIterator<T, Fwd>::shards_vec_end() const {
 template <typename T, bool Fwd>
 bool GeneralSealedDSConstIterator<T, Fwd>::operator==(
     const GeneralSealedDSConstIterator &o) const {
-  return container_iter_ == o.container_iter_;
+  return block_begin_iter_ == o.block_begin_iter_ &&
+         (block_iter_ - block_data_.begin() ==
+          o.block_iter_ - o.block_data_.begin());
 }
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>
     &GeneralSealedDSConstIterator<T, Fwd>::operator++() {
-  std::optional<ContainerIter> optional_new_container_iter;
-
-  if constexpr (Fwd) {
-    optional_new_container_iter =
-        shards_vec_iter_->run(&Shard::inc_iter, container_iter_);
-  } else {
-    optional_new_container_iter =
-        shards_vec_iter_->run(&Shard::inc_riter, container_iter_);
-  }
-
-  if (unlikely(!optional_new_container_iter)) {
-    if (unlikely(++shards_vec_iter_ == shards_vec_end())) {
-      shards_vec_iter_--;
-      return *this;
-    }
+  if (unlikely(++block_iter_ == block_data_.end())) {
+    block_begin_iter_ = block_end_iter_;
     if constexpr (Fwd) {
-      optional_new_container_iter = shards_vec_iter_->run(&Shard::cbegin);
+      std::tie(block_data_, block_end_iter_) = shards_vec_iter_->run(
+          &Shard::get_block_forward, block_end_iter_, kBlockSize);
     } else {
-      optional_new_container_iter = shards_vec_iter_->run(&Shard::crbegin);
+      std::tie(block_data_, block_end_iter_) = shards_vec_iter_->run(
+          &Shard::get_rblock_forward, block_end_iter_, kBlockSize);
     }
+    if (unlikely(block_data_.empty())) {
+      if (unlikely(++shards_vec_iter_ == shards_vec_end())) {
+        shards_vec_iter_--;
+        block_iter_ = block_data_.begin();
+        return *this;
+      }
+      if constexpr (Fwd) {
+        block_begin_iter_ = shards_vec_iter_->run(&Shard::cbegin);
+        std::tie(block_data_, block_end_iter_) = shards_vec_iter_->run(
+            &Shard::get_block_forward, block_begin_iter_, kBlockSize);
+      } else {
+        block_begin_iter_ = shards_vec_iter_->run(&Shard::crbegin);
+        std::tie(block_data_, block_end_iter_) = shards_vec_iter_->run(
+            &Shard::get_rblock_forward, block_begin_iter_, kBlockSize);
+      }
+    }
+    block_iter_ = block_data_.begin();
   }
-
-  container_iter_ = *optional_new_container_iter;
   return *this;
-}
-
-template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::operator++(int) {
-  auto old = *this;
-  ++*this;
-  return old;
 }
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>
     &GeneralSealedDSConstIterator<T, Fwd>::operator--() {
-  std::optional<ContainerIter> optional_new_container_iter;
-
-  if constexpr (Fwd) {
-    optional_new_container_iter =
-        shards_vec_iter_->run(&Shard::dec_iter, container_iter_);
-  } else {
-    optional_new_container_iter =
-        shards_vec_iter_->run(&Shard::dec_riter, container_iter_);
-  }
-
-  if (unlikely(!optional_new_container_iter)) {
-    BUG_ON(shards_vec_iter_ == shards_vec_begin());
-    shards_vec_iter_--;
+  if (unlikely(block_iter_ == block_data_.begin())) {
+    block_end_iter_ = block_begin_iter_;
     if constexpr (Fwd) {
-      optional_new_container_iter = shards_vec_iter_->run(&Shard::clast);
+      std::tie(block_data_, block_begin_iter_) = shards_vec_iter_->run(
+          &Shard::get_block_backward, block_begin_iter_, kBlockSize);
     } else {
-      optional_new_container_iter = shards_vec_iter_->run(&Shard::crlast);
+      std::tie(block_data_, block_begin_iter_) = shards_vec_iter_->run(
+          &Shard::get_rblock_backward, block_begin_iter_, kBlockSize);
     }
+    if (unlikely(block_data_.empty())) {
+      BUG_ON(shards_vec_iter_ == shards_vec_begin());
+      shards_vec_iter_--;
+      if constexpr (Fwd) {
+        block_end_iter_ = shards_vec_iter_->run(&Shard::cend);
+        std::tie(block_data_, block_begin_iter_) = shards_vec_iter_->run(
+            &Shard::get_block_backward, block_end_iter_, kBlockSize);
+      } else {
+        block_end_iter_ = shards_vec_iter_->run(&Shard::crend);
+        std::tie(block_data_, block_begin_iter_) = shards_vec_iter_->run(
+            &Shard::get_rblock_backward, block_end_iter_, kBlockSize);
+      }
+    }
+    std::reverse(block_data_.begin(), block_data_.end());
+    block_iter_ = --block_data_.end();
+  } else {
+    block_iter_--;
   }
-
-  container_iter_ = *optional_new_container_iter;
   return *this;
-}
-
-template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::operator--(int) {
-  auto old = *this;
-  --*this;
-  return old;
 }
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Val
 GeneralSealedDSConstIterator<T, Fwd>::operator*() {
-  return shards_vec_iter_->run(
-      +[](T::Shard &_, ContainerIter iter) { return *iter; }, container_iter_);
+  return *block_iter_;
 }
 
 template <typename T, bool Fwd>
 template <class Archive>
 void GeneralSealedDSConstIterator<T, Fwd>::save(Archive &ar) const {
   uint64_t shards_vec_offset = shards_vec_iter_ - shards_vec_begin();
-  ar(shards_, shards_vec_offset, container_iter_);
+  uint64_t block_offset = block_iter_ - block_data_.begin();
+  ar(shards_, shards_vec_offset, block_begin_iter_, block_end_iter_,
+     block_offset, block_data_);
 }
 
 template <typename T, bool Fwd>
 template <class Archive>
 void GeneralSealedDSConstIterator<T, Fwd>::load(Archive &ar) {
-  uint64_t shards_vec_offset;
-  ar(shards_, shards_vec_offset, container_iter_);
+  uint64_t shards_vec_offset, block_offset;
+  ar(shards_, shards_vec_offset, block_begin_iter_, block_end_iter_,
+     block_offset, block_data_);
   shards_vec_iter_ = shards_vec_begin() + shards_vec_offset;
+  block_iter_ = block_data_.begin() + block_offset;
 }
 
 template <typename T>
 SealedDS<T>::SealedDS(T &&t) : t_(std::move(t)) {
   t_.seal();
   shards_ = std::make_shared<ShardsVec>(t_.get_all_non_empty_shards());
+
   if (shards_->empty()) {
     cbegin_ = ConstIterator();
     cend_ = cbegin_;

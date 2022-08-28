@@ -120,43 +120,85 @@ GeneralShard<Container>::find_val(Key k) {
 }
 
 template <class Container>
-std::optional<typename GeneralShard<Container>::ConstIterator>
-GeneralShard<Container>::inc_iter(ConstIterator iter) {
-  if (unlikely(iter == container_.cend())) {
-    return std::nullopt;
+std::pair<std::vector<typename Container::Val>,
+          typename GeneralShard<Container>::ConstIterator>
+GeneralShard<Container>::get_block_forward(ConstIterator start_iter,
+                                           uint32_t block_size) {
+  std::vector<Val> vals;
+  auto iter = start_iter;
+
+  for (uint32_t i = 0; i < block_size; i++) {
+    if (unlikely(iter == container_.cend())) {
+      break;
+    }
+    vals.push_back(*iter);
+    iter++;
   }
-  ++iter;
-  return ConstIterator(iter);
+  return std::make_pair(std::move(vals), std::move(iter));
 }
 
 template <class Container>
-std::optional<typename GeneralShard<Container>::ConstReverseIterator>
-GeneralShard<Container>::inc_riter(ConstReverseIterator iter) {
-  if (unlikely(iter == container_.crend())) {
-    return std::nullopt;
+std::pair<std::vector<typename Container::Val>,
+          typename GeneralShard<Container>::ConstIterator>
+GeneralShard<Container>::get_block_backward(ConstIterator end_iter,
+                                            uint32_t block_size) {
+  std::vector<Val> vals;
+  auto iter = end_iter;
+
+  if (unlikely(end_iter == container_.cend())) {
+    auto mod = container_.size() % block_size;
+    block_size = mod ? mod : block_size;
   }
-  ++iter;
-  return ConstReverseIterator(iter);
+
+  for (uint32_t i = 0; i < block_size; i++) {
+    if (unlikely(iter == container_.cbegin())) {
+      break;
+    }
+    iter--;
+    vals.push_back(*iter);
+  }
+  return std::make_pair(std::move(vals), std::move(iter));
 }
 
 template <class Container>
-std::optional<typename GeneralShard<Container>::ConstIterator>
-GeneralShard<Container>::dec_iter(ConstIterator iter) {
-  if (unlikely(iter == container_.cbegin())) {
-    return std::nullopt;
+std::pair<std::vector<typename Container::Val>,
+          typename GeneralShard<Container>::ConstReverseIterator>
+GeneralShard<Container>::get_rblock_forward(ConstReverseIterator start_iter,
+                                            uint32_t block_size) {
+  std::vector<Val> vals;
+  auto iter = start_iter;
+
+  for (uint32_t i = 0; i < block_size; i++) {
+    if (unlikely(iter == container_.crend())) {
+      break;
+    }
+    vals.push_back(*iter);
+    iter++;
   }
-  --iter;
-  return ConstIterator(iter);
+  return std::make_pair(std::move(vals), std::move(iter));
 }
 
 template <class Container>
-std::optional<typename GeneralShard<Container>::ConstReverseIterator>
-GeneralShard<Container>::dec_riter(ConstReverseIterator iter) {
-  if (unlikely(iter == container_.crbegin())) {
-    return std::nullopt;
+std::pair<std::vector<typename Container::Val>,
+          typename GeneralShard<Container>::ConstReverseIterator>
+GeneralShard<Container>::get_rblock_backward(ConstReverseIterator end_iter,
+                                             uint32_t block_size) {
+  std::vector<Val> vals;
+  auto iter = end_iter;
+
+  if (unlikely(end_iter == container_.crend())) {
+    auto mod = container_.size() % block_size;
+    block_size = mod ? mod : block_size;
   }
-  --iter;
-  return ConstReverseIterator(iter);
+
+  for (uint32_t i = 0; i < block_size; i++) {
+    if (unlikely(iter == container_.crbegin())) {
+      break;
+    }
+    iter--;
+    vals.push_back(*iter);
+  }
+  return std::make_pair(std::move(vals), std::move(iter));
 }
 
 template <class Container>

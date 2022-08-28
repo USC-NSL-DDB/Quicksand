@@ -15,12 +15,8 @@ template <typename T, bool Fwd>
 class GeneralSealedDSConstIterator {
   static_assert(is_base_of_template_v<T, ShardedDataStructure>);
 
-  using ContainerIter = std::conditional_t<
-      Fwd, typename T::Shard::GeneralContainer::ConstIterator,
-      typename T::Shard::GeneralContainer::ConstReverseIterator>;
-
  public:
-  using Val = std::remove_reference_t<decltype(*std::declval<ContainerIter>())>;
+  using Val = T::Shard::GeneralContainer::Val;
 
   GeneralSealedDSConstIterator();
   GeneralSealedDSConstIterator(const GeneralSealedDSConstIterator &);
@@ -30,9 +26,9 @@ class GeneralSealedDSConstIterator {
       GeneralSealedDSConstIterator &&) noexcept;
   bool operator==(const GeneralSealedDSConstIterator &) const;
   GeneralSealedDSConstIterator &operator++();
-  GeneralSealedDSConstIterator operator++(int);
   GeneralSealedDSConstIterator &operator--();
-  GeneralSealedDSConstIterator operator--(int);
+  GeneralSealedDSConstIterator operator++(int) = delete;
+  GeneralSealedDSConstIterator operator--(int) = delete;
   Val operator*();
 
   template <class Archive>
@@ -46,17 +42,25 @@ class GeneralSealedDSConstIterator {
   using ShardsVecIter =
       std::conditional_t<Fwd, typename ShardsVec::iterator,
                          typename ShardsVec::reverse_iterator>;
+  using ContainerIter = std::conditional_t<
+      Fwd, typename T::Shard::GeneralContainer::ConstIterator,
+      typename T::Shard::GeneralContainer::ConstReverseIterator>;
+
+  constexpr static uint32_t kBlockSize = 128 << 10;
 
   std::shared_ptr<ShardsVec> shards_;
   ShardsVecIter shards_vec_iter_;
-  ContainerIter container_iter_;
+  ContainerIter block_begin_iter_;
+  ContainerIter block_end_iter_;
+  std::vector<Val>::const_iterator block_iter_;
+  std::vector<Val> block_data_;
 
   template <typename U>
   friend class SealedDS;
 
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
                                ShardsVecIter shards_vec_iter,
-                               ContainerIter container_iter);
+                               ContainerIter begin_iter);
   ShardsVecIter shards_vec_begin() const;
   ShardsVecIter shards_vec_end() const;
 };

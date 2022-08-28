@@ -107,10 +107,14 @@ class GeneralShard {
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                          Container container);
   std::pair<bool, std::optional<Val>> find_val(Key k);
-  std::optional<ConstIterator> inc_iter(ConstIterator iter);
-  std::optional<ConstIterator> dec_iter(ConstIterator iter);
-  std::optional<ConstReverseIterator> inc_riter(ConstReverseIterator iter);
-  std::optional<ConstReverseIterator> dec_riter(ConstReverseIterator iter);
+  std::pair<std::vector<Val>, ConstIterator> get_block_forward(
+      ConstIterator start_iter, uint32_t block_size);
+  std::pair<std::vector<Val>, ConstIterator> get_block_backward(
+      ConstIterator end_iter, uint32_t block_size);
+  std::pair<std::vector<Val>, ConstReverseIterator> get_rblock_forward(
+      ConstReverseIterator start_iter, uint32_t block_size);
+  std::pair<std::vector<Val>, ConstReverseIterator> get_rblock_backward(
+      ConstReverseIterator start_iter, uint32_t block_size);
   ConstIterator cbegin();
   ConstIterator clast();
   ConstIterator cend();
