@@ -24,7 +24,8 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(std::move(container)) {}
+      container_(std::move(container)),
+      will_split_(false) {}
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
@@ -36,18 +37,34 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(capacity) {}
+      container_(capacity),
+      will_split_(false) {}
 
 template <class Container>
-Container GeneralShard<Container>::get_container() {
-  ScopedLock<Mutex> guard(&mutex_);
-  return container_;
+GeneralShard<Container>::~GeneralShard() {
+  // flush all reader or writer handles
+  rw_lock_.writer_lock();
+  rw_lock_.writer_unlock();
 }
 
 template <class Container>
-std::pair<ScopedLock<Mutex>, Container *>
+Container GeneralShard<Container>::get_container() {
+  rw_lock_.reader_lock();
+  Container c = container_;
+  rw_lock_.reader_unlock();
+  return c;
+}
+
+template <class Container>
+GeneralShard<Container>::ContainerHandle
 GeneralShard<Container>::get_container_ptr() {
-  return std::make_pair(&mutex_, &container_);
+  return ContainerHandle(&container_, this);
+}
+
+template <class Container>
+GeneralShard<Container>::ConstContainerHandle
+GeneralShard<Container>::get_const_container_ptr() {
+  return ConstContainerHandle(&container_, this);
 }
 
 template <class Container>
@@ -70,18 +87,38 @@ bool GeneralShard<Container>::bad_range(std::optional<Key> l_key,
 template <class Container>
 bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
                                           std::optional<Key> r_key, Pair p) {
-  ScopedLock<Mutex> guard(&mutex_);
+  rw_lock_.reader_lock();
 
   if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
     return false;
   }
 
-  if (unlikely(container_.size() >= max_shard_size_)) {
-    split();
+  container_.lock();
+
+  if (unlikely(container_.size_unsafe() >= max_shard_size_)) {
+    container_.unlock();
+
+    bool expected = false;
+    if (will_split_.compare_exchange_strong(expected, true,
+                                            std::memory_order_seq_cst,
+                                            std::memory_order_seq_cst)) {
+      rw_lock_.reader_unlock();
+      rw_lock_.writer_lock();
+      split();
+      will_split_.store(false);
+      rw_lock_.writer_unlock();
+    } else {
+      rw_lock_.reader_unlock();
+    }
+
     return false;
   }
 
-  container_.emplace(std::move(p.first), std::move(p.second));
+  container_.emplace_unsafe(std::move(p.first), std::move(p.second));
+
+  container_.unlock();
+  rw_lock_.reader_unlock();
 
   return true;
 }
@@ -90,18 +127,38 @@ template <class Container>
 bool GeneralShard<Container>::try_emplace_batch(std::optional<Key> l_key,
                                                 std::optional<Key> r_key,
                                                 Container container) {
-  ScopedLock<Mutex> guard(&mutex_);
+  rw_lock_.reader_lock();
 
   if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
     return false;
   }
 
-  if (unlikely(container_.size() + container.size() > max_shard_size_)) {
-    split();
+  container_.lock();
+
+  if (unlikely(container_.size_unsafe() + container.size_unsafe() >
+               max_shard_size_)) {
+    container_.unlock();
+
+    bool expected = false;
+    if (will_split_.compare_exchange_strong(expected, true,
+                                            std::memory_order_seq_cst,
+                                            std::memory_order_seq_cst)) {
+      rw_lock_.reader_unlock();
+      rw_lock_.writer_lock();
+      split();
+      will_split_.store(false);
+      rw_lock_.writer_unlock();
+    } else {
+      rw_lock_.reader_unlock();
+    }
     return false;
   }
 
-  container_.emplace_batch(std::move(container));
+  container_.emplace_batch_unsafe(std::move(container));
+
+  container_.unlock();
+  rw_lock_.reader_unlock();
 
   return true;
 }
@@ -109,8 +166,6 @@ bool GeneralShard<Container>::try_emplace_batch(std::optional<Key> l_key,
 template <class Container>
 std::pair<bool, std::optional<typename GeneralShard<Container>::Val>>
 GeneralShard<Container>::find_val(Key k) {
-  ScopedLock<Mutex> guard(&mutex_);
-
   bool bad_range = (k < l_key_) || (r_key_ && k > r_key_);
   if (unlikely(bad_range)) {
     return std::make_pair(false, std::nullopt);
@@ -253,7 +308,7 @@ GeneralShardingMapping<Shard>::~GeneralShardingMapping() {
 template <class Shard>
 void GeneralShardingMapping<Shard>::seal() {
   ref_cnt_mu_.lock();
-  BUG_ON(!ref_cnt_);  // Cannot be sealed twice.
+  BUG_ON(!ref_cnt_);                        // Cannot be sealed twice.
   while (rt::access_once(ref_cnt_) != 1) {  // Wait until there's only one ref.
     ref_cnt_cv_.wait(&ref_cnt_mu_);
   }
@@ -412,8 +467,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       max_shard_size_(o.max_shard_size_),
       max_batch_size_(o.max_batch_size_),
       key_to_shards_(std::move(o.key_to_shards_)),
-      flush_future_(std::move(o.flush_future_)) {
-}
+      flush_future_(std::move(o.flush_future_)) {}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>
@@ -570,8 +624,9 @@ void ShardedDataStructure<Container, LL>::sync_mapping(
 
 template <class Container, class LL>
 template <typename... S0s, typename... S1s>
-void ShardedDataStructure<Container, LL>::for_all(
-    void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states) {
+void ShardedDataStructure<Container, LL>::for_all(void (*fn)(const Key &key,
+                                                             Val &val, S0s...),
+                                                  S1s &&... states) {
   flush();
 
   using Fn = decltype(fn);
@@ -582,8 +637,7 @@ void ShardedDataStructure<Container, LL>::for_all(
     futures.emplace_back(p.first.run_async(
         +[](Shard &shard, uintptr_t raw_fn, S1s... states) {
           auto *fn = reinterpret_cast<Fn>(raw_fn);
-          auto pair = shard.get_container_ptr();
-          auto *container_ptr = pair.second;
+          auto container_ptr = shard.get_container_ptr();
           container_ptr->for_all(fn, states...);
         },
         raw_fn, states...));
@@ -621,7 +675,7 @@ std::size_t ShardedDataStructure<Container, LL>::size() {
   std::vector<Future<std::size_t>> futures;
   for (auto &[_, p] : key_to_shards_) {
     futures.emplace_back(p.first.run_async(
-        +[](Shard &s) { return s.get_container_ptr().second->size(); }));
+        +[](Shard &s) { return s.get_container_ptr()->size(); }));
   }
 
   std::size_t size = 0;
@@ -639,8 +693,8 @@ void ShardedDataStructure<Container, LL>::clear() {
   sync_mapping(std::nullopt, std::nullopt);
   std::vector<Future<void>> futures;
   for (auto &[_, p] : key_to_shards_) {
-    futures.emplace_back(p.first.run_async(
-        +[](Shard &s) { s.get_container_ptr().second->clear(); }));
+    futures.emplace_back(
+        p.first.run_async(+[](Shard &s) { s.get_container_ptr()->clear(); }));
   }
 
   for (auto &future : futures) {

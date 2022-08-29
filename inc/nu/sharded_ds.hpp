@@ -22,44 +22,70 @@ template <class Container>
 class GeneralShard;
 
 template <class Impl>
-class GeneralContainer {
+class GeneralContainer;
+
+template <class Impl>
+class GeneralLockedContainer;
+
+template <class Impl, bool Synchronized>
+class GeneralContainerBase {
  public:
   using Key = Impl::Key;
   using Val = Impl::Val;
   using Pair = std::pair<Key, Val>;
   using ConstIterator = Impl::ConstIterator;
   using ConstReverseIterator = Impl::ConstReverseIterator;
+  using ContainerType =
+      std::conditional_t<Synchronized, GeneralLockedContainer<Impl>,
+                         GeneralContainer<Impl>>;
 
-  GeneralContainer() : impl_() {}
-  GeneralContainer(std::size_t capacity) : impl_(capacity) {}
-  GeneralContainer(const GeneralContainer &c) : impl_(c.impl_) {}
-  GeneralContainer &operator=(const GeneralContainer &c) {
+  GeneralContainerBase() : impl_() {}
+  GeneralContainerBase(std::size_t capacity) : impl_(capacity) {}
+  GeneralContainerBase(const GeneralContainerBase &c) : impl_(c.impl_) {}
+  GeneralContainerBase &operator=(const GeneralContainerBase &c) {
     impl_ = c.impl_;
     return *this;
   }
-  GeneralContainer(GeneralContainer &&c) noexcept : impl_(std::move(c.impl_)) {}
-  GeneralContainer &operator=(GeneralContainer &&c) noexcept {
+  GeneralContainerBase(GeneralContainerBase &&c) noexcept
+      : impl_(std::move(c.impl_)) {}
+  GeneralContainerBase &operator=(GeneralContainerBase &&c) noexcept {
     impl_ = std::move(c.impl_);
     return *this;
   }
-  std::size_t size() const { return impl_.size(); }
-  std::size_t capacity() const { return impl_.capacity(); }
-  bool empty() const { return impl_.empty(); };
-  void clear() { impl_.clear(); };
-  void emplace(Key k, Val v) { impl_.emplace(std::move(k), std::move(v)); }
-  void emplace_batch(GeneralContainer &&c) {
-    impl_.emplace_batch(std::move(c.impl_));
+  std::size_t size() {
+    return synchronized<std::size_t>([&]() { return impl_.size(); });
+  }
+  std::size_t capacity() {
+    return synchronized<std::size_t>([&]() { return impl_.capacity(); });
+  }
+  bool empty() {
+    return synchronized<bool>([&]() { return impl_.empty(); });
   };
-  std::optional<Val> find_val(Key k) { return impl_.find_val(std::move(k)); }
-  std::pair<Key, GeneralContainer> split() {
-    auto [k, impl] = impl_.split();
-    GeneralContainer c;
-    c.impl_ = std::move(impl);
-    return std::make_pair(std::move(k), std::move(c));
+  void clear() {
+    return synchronized<void>([&]() { return impl_.clear(); });
+  };
+  void emplace(Key k, Val v) {
+    synchronized<void>([&]() { emplace_unsafe(std::move(k), std::move(v)); });
+  }
+  void emplace_batch(ContainerType &&c) {
+    synchronized<void>([&]() { emplace_batch_unsafe(std::move(c)); });
+  };
+  std::optional<Val> find_val(Key k) {
+    return synchronized<std::optional<Val>>(
+        [&]() { return impl_.find_val(std::move(k)); });
+  }
+  std::pair<Key, ContainerType> split() {
+    return synchronized<std::pair<Key, ContainerType>>([&]() {
+      auto [k, impl] = impl_.split();
+      ContainerType c;
+      c.impl_ = std::move(impl);
+      return std::make_pair(std::move(k), std::move(c));
+    });
   }
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states) {
-    impl_.for_all(fn, std::forward<S1s>(states)...);
+    synchronized<void>(
+        [&]() { impl_.for_all(fn, std::forward<S1s>(states)...); });
   }
   Impl &unwrap() { return impl_; }
   ConstIterator cbegin() const { return impl_.cbegin(); }
@@ -76,7 +102,61 @@ class GeneralContainer {
   }
 
  private:
+  friend GeneralShard<GeneralContainer<Impl>>;
+  friend GeneralShard<GeneralLockedContainer<Impl>>;
+
   Impl impl_;
+  Mutex mutex_;
+
+  void lock() {
+    if constexpr (Synchronized) {
+      mutex_.lock();
+    }
+  }
+  void unlock() {
+    if constexpr (Synchronized) {
+      mutex_.unlock();
+    }
+  }
+  std::size_t size_unsafe() const { return impl_.size(); }
+  void emplace_unsafe(Key k, Val v) {
+    impl_.emplace(std::move(k), std::move(v));
+  }
+  void emplace_batch_unsafe(ContainerType &&c) {
+    impl_.emplace_batch(std::move(c.impl_));
+  }
+
+  template <typename RetT, typename F>
+  inline RetT synchronized(F f) {
+    if constexpr (Synchronized) {
+      ScopedLock<Mutex> guard(&mutex_);
+      return f();
+    } else {
+      return f();
+    }
+  }
+};
+
+template <class Impl>
+class GeneralContainer : public GeneralContainerBase<Impl, false> {
+ public:
+  using Base = GeneralContainerBase<Impl, false>;
+
+  GeneralContainer() : Base() {}
+  GeneralContainer(std::size_t capacity) : Base(capacity) {}
+  GeneralContainer(const GeneralContainer &c) : Base(c) {}
+  GeneralContainer &operator=(const GeneralContainer &c) noexcept {
+    return Base::operator=(static_cast<const Base &>(c));
+  }
+  GeneralContainer(GeneralContainer &&c) noexcept : Base(std::move(c)) {}
+  GeneralContainer &operator=(GeneralContainer &&c) noexcept {
+    return static_cast<GeneralContainer &>(Base::operator=(std::move(c)));
+  }
+};
+
+template <class Impl>
+class GeneralLockedContainer : public GeneralContainerBase<Impl, true> {
+  // TODO
 };
 
 template <class Shard>
@@ -84,7 +164,8 @@ class GeneralShardingMapping;
 
 template <class Container>
 class GeneralShard {
-  static_assert(is_base_of_template_v<Container, GeneralContainer>);
+  static_assert(is_base_of_template_v<Container, GeneralContainer> ||
+                is_base_of_template_v<Container, GeneralLockedContainer>);
 
  public:
   using Key = Container::Key;
@@ -101,8 +182,7 @@ class GeneralShard {
   GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size,
                std::optional<Key> l_key, std::optional<Key> r_key,
                std::size_t capacity);
-  Container get_container();
-  std::pair<ScopedLock<Mutex>, Container *> get_container_ptr();
+  ~GeneralShard();
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                          Container container);
@@ -123,13 +203,49 @@ class GeneralShard {
   ConstReverseIterator crend();
   bool empty();
 
+  class ContainerHandle {
+   public:
+    ContainerHandle(Container *c, GeneralShard *shard) : c_(c), shard_(shard) {
+      shard_->rw_lock_.writer_lock();
+    }
+    ~ContainerHandle() { shard_->rw_lock_.writer_unlock(); }
+
+    Container *operator->() { return c_; }
+    Container &operator*() { return *c_; }
+
+   private:
+    Container *c_;
+    GeneralShard *shard_;
+  };
+
+  class ConstContainerHandle {
+   public:
+    ConstContainerHandle(const Container *c, GeneralShard *shard)
+        : c_(c), shard_(shard) {
+      shard_->rw_lock_.reader_lock();
+    }
+    ~ConstContainerHandle() { shard_->rw_lock_.reader_unlock(); }
+
+    const Container *operator->() { return c_; }
+    const Container &operator*() { return *c_; }
+
+   private:
+    const Container *c_;
+    GeneralShard *shard_;
+  };
+
+  Container get_container();
+  ContainerHandle get_container_ptr();
+  ConstContainerHandle get_const_container_ptr();
+
  private:
   uint32_t max_shard_size_;
   WeakProclet<ShardingMapping> mapping_;
   std::optional<Key> l_key_;
   std::optional<Key> r_key_;
   Container container_;
-  Mutex mutex_;
+  ReaderWriterLock rw_lock_;
+  std::atomic<bool> will_split_;
 
   void split();
   bool bad_range(std::optional<Key> l_key, std::optional<Key> r_key);
@@ -163,7 +279,8 @@ class GeneralShardingMapping {
 
 template <class Container, class LL>
 class ShardedDataStructure {
-  static_assert(is_base_of_template_v<Container, GeneralContainer>);
+  static_assert(is_base_of_template_v<Container, GeneralContainer> ||
+                is_base_of_template_v<Container, GeneralLockedContainer>);
   static_assert(std::is_same_v<LL, std::bool_constant<false>> ||
                 std::is_same_v<LL, std::bool_constant<true>>);
 
