@@ -9,6 +9,7 @@ class Set {
  public:
   using Key = T;
   using Val = T;
+  using IterVal = T;
   // TODO
   using ConstIterator = std::tuple<>;
   using ConstReverseIterator = std::tuple<>;

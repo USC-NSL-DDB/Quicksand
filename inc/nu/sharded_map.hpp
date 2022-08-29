@@ -1,16 +1,34 @@
 #pragma once
 
+#include <map>
+
 #include "sharded_ds.hpp"
 
 namespace nu {
+template <typename K, typename V>
+struct MapConstIterator : public std::map<K, V>::const_iterator {
+  MapConstIterator();
+  MapConstIterator(std::map<K, V>::const_iterator &&iter);
+  template <class Archive>
+  void serialize(Archive &ar);
+};
+
+template <typename K, typename V>
+struct MapConstReverseIterator : public std::map<K, V>::const_reverse_iterator {
+  MapConstReverseIterator();
+  MapConstReverseIterator(std::map<K, V>::const_reverse_iterator &&iter);
+  template <class Archive>
+  void serialize(Archive &ar);
+};
+
 template <typename K, typename V>
 class Map {
  public:
   using Key = K;
   using Val = V;
-  // TODO
-  using ConstIterator = std::tuple<>;
-  using ConstReverseIterator = std::tuple<>;
+  using IterVal = std::pair<Key, Val>;
+  using ConstIterator = MapConstIterator<K, V>;
+  using ConstReverseIterator = MapConstReverseIterator<K, V>;
 
   Map() = default;
   Map(std::size_t capacity);

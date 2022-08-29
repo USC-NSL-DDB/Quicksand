@@ -147,11 +147,11 @@ GeneralShard<Container>::find_val(Key k) {
 }
 
 template <class Container>
-std::pair<std::vector<typename Container::Val>,
+std::pair<std::vector<typename Container::IterVal>,
           typename GeneralShard<Container>::ConstIterator>
 GeneralShard<Container>::get_block_forward(ConstIterator start_iter,
                                            uint32_t block_size) {
-  std::vector<Val> vals;
+  std::vector<IterVal> vals;
   auto iter = start_iter;
 
   for (uint32_t i = 0; i < block_size; i++) {
@@ -165,11 +165,11 @@ GeneralShard<Container>::get_block_forward(ConstIterator start_iter,
 }
 
 template <class Container>
-std::pair<std::vector<typename Container::Val>,
+std::pair<std::vector<typename Container::IterVal>,
           typename GeneralShard<Container>::ConstIterator>
 GeneralShard<Container>::get_block_backward(ConstIterator end_iter,
                                             uint32_t block_size) {
-  std::vector<Val> vals;
+  std::vector<IterVal> vals;
   auto iter = end_iter;
 
   if (unlikely(end_iter == container_.cend())) {
@@ -188,11 +188,11 @@ GeneralShard<Container>::get_block_backward(ConstIterator end_iter,
 }
 
 template <class Container>
-std::pair<std::vector<typename Container::Val>,
+std::pair<std::vector<typename Container::IterVal>,
           typename GeneralShard<Container>::ConstReverseIterator>
 GeneralShard<Container>::get_rblock_forward(ConstReverseIterator start_iter,
                                             uint32_t block_size) {
-  std::vector<Val> vals;
+  std::vector<IterVal> vals;
   auto iter = start_iter;
 
   for (uint32_t i = 0; i < block_size; i++) {
@@ -206,11 +206,11 @@ GeneralShard<Container>::get_rblock_forward(ConstReverseIterator start_iter,
 }
 
 template <class Container>
-std::pair<std::vector<typename Container::Val>,
+std::pair<std::vector<typename Container::IterVal>,
           typename GeneralShard<Container>::ConstReverseIterator>
 GeneralShard<Container>::get_rblock_backward(ConstReverseIterator end_iter,
                                              uint32_t block_size) {
-  std::vector<Val> vals;
+  std::vector<IterVal> vals;
   auto iter = end_iter;
 
   if (unlikely(end_iter == container_.crend())) {

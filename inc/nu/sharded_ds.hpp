@@ -35,6 +35,7 @@ class GeneralContainerBase {
  public:
   using Key = Impl::Key;
   using Val = Impl::Val;
+  using IterVal = Impl::IterVal;
   using Pair = std::pair<Key, Val>;
   using ConstIterator = Impl::ConstIterator;
   using ConstReverseIterator = Impl::ConstReverseIterator;
@@ -168,6 +169,7 @@ class GeneralShard {
  public:
   using Key = Container::Key;
   using Val = Container::Val;
+  using IterVal = Container::IterVal;
   using Pair = Container::Pair;
   using ShardingMapping = GeneralShardingMapping<GeneralShard>;
   using GeneralContainer = Container;
@@ -185,13 +187,13 @@ class GeneralShard {
   bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                          Container container);
   std::pair<bool, std::optional<Val>> find_val(Key k);
-  std::pair<std::vector<Val>, ConstIterator> get_block_forward(
+  std::pair<std::vector<IterVal>, ConstIterator> get_block_forward(
       ConstIterator start_iter, uint32_t block_size);
-  std::pair<std::vector<Val>, ConstIterator> get_block_backward(
+  std::pair<std::vector<IterVal>, ConstIterator> get_block_backward(
       ConstIterator end_iter, uint32_t block_size);
-  std::pair<std::vector<Val>, ConstReverseIterator> get_rblock_forward(
+  std::pair<std::vector<IterVal>, ConstReverseIterator> get_rblock_forward(
       ConstReverseIterator start_iter, uint32_t block_size);
-  std::pair<std::vector<Val>, ConstReverseIterator> get_rblock_backward(
+  std::pair<std::vector<IterVal>, ConstReverseIterator> get_rblock_backward(
       ConstReverseIterator start_iter, uint32_t block_size);
   ConstIterator cbegin();
   ConstIterator clast();

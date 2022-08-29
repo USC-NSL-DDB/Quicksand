@@ -17,7 +17,7 @@ class GeneralSealedDSConstIterator {
   static_assert(is_base_of_template_v<T, ShardedDataStructure>);
 
  public:
-  using Val = T::Shard::GeneralContainer::Val;
+  using Val = T::Shard::GeneralContainer::IterVal;
 
   GeneralSealedDSConstIterator();
   GeneralSealedDSConstIterator(const GeneralSealedDSConstIterator &);

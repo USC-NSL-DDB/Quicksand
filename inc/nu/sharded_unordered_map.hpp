@@ -8,6 +8,7 @@ class UnorderedMap {
  public:
   using Key = K;
   using Val = V;
+  using IterVal = std::pair<K, V>;
   // TODO
   using ConstIterator = std::tuple<>;
   using ConstReverseIterator = std::tuple<>;
