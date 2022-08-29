@@ -27,8 +27,11 @@ class GeneralContainer;
 template <class Impl>
 class GeneralLockedContainer;
 
-template <class Impl, bool Synchronized>
+template <class Impl, class Synchronized>
 class GeneralContainerBase {
+  static_assert(std::is_same_v<Synchronized, std::bool_constant<false>> ||
+                std::is_same_v<Synchronized, std::bool_constant<true>>);
+
  public:
   using Key = Impl::Key;
   using Val = Impl::Val;
@@ -36,7 +39,7 @@ class GeneralContainerBase {
   using ConstIterator = Impl::ConstIterator;
   using ConstReverseIterator = Impl::ConstReverseIterator;
   using ContainerType =
-      std::conditional_t<Synchronized, GeneralLockedContainer<Impl>,
+      std::conditional_t<Synchronized::value, GeneralLockedContainer<Impl>,
                          GeneralContainer<Impl>>;
 
   GeneralContainerBase() : impl_() {}
@@ -110,7 +113,7 @@ class GeneralContainerBase {
 
   template <typename RetT, typename F>
   inline RetT synchronized(F &&f) {
-    if constexpr (Synchronized) {
+    if constexpr (Synchronized::value) {
       ScopedLock<Mutex> guard(&mutex_);
       return f();
     } else {
@@ -120,9 +123,9 @@ class GeneralContainerBase {
 };
 
 template <class Impl>
-class GeneralContainer : public GeneralContainerBase<Impl, false> {
+class GeneralContainer : public GeneralContainerBase<Impl, std::false_type> {
  public:
-  using Base = GeneralContainerBase<Impl, false>;
+  using Base = GeneralContainerBase<Impl, std::false_type>;
 
   GeneralContainer() : Base() {}
   GeneralContainer(std::size_t capacity) : Base(capacity) {}
@@ -137,9 +140,10 @@ class GeneralContainer : public GeneralContainerBase<Impl, false> {
 };
 
 template <class Impl>
-class GeneralLockedContainer : public GeneralContainerBase<Impl, true> {
+class GeneralLockedContainer
+    : public GeneralContainerBase<Impl, std::true_type> {
  public:
-  using Base = GeneralContainerBase<Impl, true>;
+  using Base = GeneralContainerBase<Impl, std::true_type>;
 
   GeneralLockedContainer() : Base() {}
   GeneralLockedContainer(std::size_t capacity) : Base(capacity) {}
@@ -159,8 +163,7 @@ class GeneralShardingMapping;
 
 template <class Container>
 class GeneralShard {
-  static_assert(is_base_of_template_v<Container, GeneralContainer> ||
-                is_base_of_template_v<Container, GeneralLockedContainer>);
+  static_assert(is_base_of_template_v<Container, GeneralContainerBase>);
 
  public:
   using Key = Container::Key;
@@ -273,8 +276,7 @@ class GeneralShardingMapping {
 
 template <class Container, class LL>
 class ShardedDataStructure {
-  static_assert(is_base_of_template_v<Container, GeneralContainer> ||
-                is_base_of_template_v<Container, GeneralLockedContainer>);
+  static_assert(is_base_of_template_v<Container, GeneralContainerBase>);
   static_assert(std::is_same_v<LL, std::bool_constant<false>> ||
                 std::is_same_v<LL, std::bool_constant<true>>);
 
