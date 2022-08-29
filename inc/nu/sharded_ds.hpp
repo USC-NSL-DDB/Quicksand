@@ -65,10 +65,10 @@ class GeneralContainerBase {
     return synchronized<void>([&]() { return impl_.clear(); });
   };
   void emplace(Key k, Val v) {
-    synchronized<void>([&]() { emplace_unsafe(std::move(k), std::move(v)); });
+    synchronized<void>([&]() { impl_.emplace(std::move(k), std::move(v)); });
   }
   void emplace_batch(ContainerType &&c) {
-    synchronized<void>([&]() { emplace_batch_unsafe(std::move(c)); });
+    synchronized<void>([&]() { impl_.emplace_batch(std::move(c.impl_)); });
   };
   std::optional<Val> find_val(Key k) {
     return synchronized<std::optional<Val>>(
@@ -108,26 +108,8 @@ class GeneralContainerBase {
   Impl impl_;
   Mutex mutex_;
 
-  void lock() {
-    if constexpr (Synchronized) {
-      mutex_.lock();
-    }
-  }
-  void unlock() {
-    if constexpr (Synchronized) {
-      mutex_.unlock();
-    }
-  }
-  std::size_t size_unsafe() const { return impl_.size(); }
-  void emplace_unsafe(Key k, Val v) {
-    impl_.emplace(std::move(k), std::move(v));
-  }
-  void emplace_batch_unsafe(ContainerType &&c) {
-    impl_.emplace_batch(std::move(c.impl_));
-  }
-
   template <typename RetT, typename F>
-  inline RetT synchronized(F f) {
+  inline RetT synchronized(F &&f) {
     if constexpr (Synchronized) {
       ScopedLock<Mutex> guard(&mutex_);
       return f();
@@ -258,7 +240,6 @@ class GeneralShard {
   std::optional<Key> r_key_;
   Container container_;
   ReaderWriterLock rw_lock_;
-  std::atomic<bool> will_split_;
 
   void split();
   bool bad_range(std::optional<Key> l_key, std::optional<Key> r_key);

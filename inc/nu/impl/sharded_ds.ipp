@@ -24,8 +24,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(std::move(container)),
-      will_split_(false) {}
+      container_(std::move(container)) {}
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
@@ -37,8 +36,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(capacity),
-      will_split_(false) {}
+      container_(capacity) {}
 
 template <class Container>
 GeneralShard<Container>::~GeneralShard() {
@@ -94,30 +92,17 @@ bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
     return false;
   }
 
-  container_.lock();
-
-  if (unlikely(container_.size_unsafe() >= max_shard_size_)) {
-    container_.unlock();
-
-    bool expected = false;
-    if (will_split_.compare_exchange_strong(expected, true,
-                                            std::memory_order_seq_cst,
-                                            std::memory_order_seq_cst)) {
-      rw_lock_.reader_unlock();
-      rw_lock_.writer_lock();
+  if (unlikely(container_.size() >= max_shard_size_)) {
+    rw_lock_.reader_unlock();
+    rw_lock_.writer_lock();
+    if (container_.size() >= max_shard_size_) {
       split();
-      will_split_.store(false);
-      rw_lock_.writer_unlock();
-    } else {
-      rw_lock_.reader_unlock();
     }
-
+    rw_lock_.writer_unlock();
     return false;
   }
 
-  container_.emplace_unsafe(std::move(p.first), std::move(p.second));
-
-  container_.unlock();
+  container_.emplace(std::move(p.first), std::move(p.second));
   rw_lock_.reader_unlock();
 
   return true;
@@ -134,30 +119,17 @@ bool GeneralShard<Container>::try_emplace_batch(std::optional<Key> l_key,
     return false;
   }
 
-  container_.lock();
-
-  if (unlikely(container_.size_unsafe() + container.size_unsafe() >
-               max_shard_size_)) {
-    container_.unlock();
-
-    bool expected = false;
-    if (will_split_.compare_exchange_strong(expected, true,
-                                            std::memory_order_seq_cst,
-                                            std::memory_order_seq_cst)) {
-      rw_lock_.reader_unlock();
-      rw_lock_.writer_lock();
+  if (unlikely(container_.size() + container.size() > max_shard_size_)) {
+    rw_lock_.reader_unlock();
+    rw_lock_.writer_lock();
+    if (container_.size() + container.size() > max_shard_size_) {
       split();
-      will_split_.store(false);
-      rw_lock_.writer_unlock();
-    } else {
-      rw_lock_.reader_unlock();
     }
+    rw_lock_.writer_unlock();
     return false;
   }
 
-  container_.emplace_batch_unsafe(std::move(container));
-
-  container_.unlock();
+  container_.emplace_batch(std::move(container));
   rw_lock_.reader_unlock();
 
   return true;
