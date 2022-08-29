@@ -156,7 +156,20 @@ class GeneralContainer : public GeneralContainerBase<Impl, false> {
 
 template <class Impl>
 class GeneralLockedContainer : public GeneralContainerBase<Impl, true> {
-  // TODO
+ public:
+  using Base = GeneralContainerBase<Impl, true>;
+
+  GeneralLockedContainer() : Base() {}
+  GeneralLockedContainer(std::size_t capacity) : Base(capacity) {}
+  GeneralLockedContainer(const GeneralLockedContainer &c) : Base(c) {}
+  GeneralLockedContainer &operator=(const GeneralLockedContainer &c) noexcept {
+    return Base::operator=(static_cast<const Base &>(c));
+  }
+  GeneralLockedContainer(GeneralLockedContainer &&c) noexcept
+      : Base(std::move(c)) {}
+  GeneralLockedContainer &operator=(GeneralLockedContainer &&c) noexcept {
+    return static_cast<GeneralLockedContainer &>(Base::operator=(std::move(c)));
+  }
 };
 
 template <class Shard>
