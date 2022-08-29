@@ -4,6 +4,7 @@
 
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
+#include "nu/sealed_ds.hpp"
 #include "nu/sharded_map.hpp"
 
 using namespace nu;
@@ -98,8 +99,32 @@ bool test_for_all_str() {
 
 bool test_for_all() { return test_for_all_ul() && test_for_all_str(); }
 
+bool test_iter() {
+  auto sm = make_sharded_map<int, int, std::false_type>();
+  for (int i = 0; i < 100'000; i++) {
+    sm.emplace(i, i);
+  }
+
+  auto sealed_sm = to_sealed_ds(std::move(sm));
+  int i = 0;
+  for (auto iter = sealed_sm.cbegin(); iter != sealed_sm.cend(); ++iter, ++i) {
+    auto [k, v] = *iter;
+    if (k != i || v != i) return false;
+  }
+
+  --i;
+  for (auto iter = sealed_sm.crbegin(); iter != sealed_sm.crend();
+       ++iter, --i) {
+    auto [k, v] = *iter;
+    if (k != i || v != i) return false;
+  }
+
+  return true;
+}
+
 bool run_test() {
-  return test_insertion() && test_size_and_clear() && test_for_all();
+  return test_insertion() && test_size_and_clear() && test_for_all() &&
+         test_iter();
 }
 
 void do_work() {

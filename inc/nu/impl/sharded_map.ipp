@@ -2,6 +2,36 @@
 
 namespace nu {
 template <typename K, typename V>
+MapConstIterator<K, V>::MapConstIterator() {}
+
+template <typename K, typename V>
+MapConstIterator<K, V>::MapConstIterator(
+    std::map<K, V>::const_iterator &&iter) {
+  std::map<K, V>::const_iterator::operator=(std::move(iter));
+}
+
+template <typename K, typename V>
+template <class Archive>
+void MapConstIterator<K, V>::serialize(Archive &ar) {
+  ar(cereal::binary_data(this, sizeof(*this)));
+}
+
+template <typename K, typename V>
+MapConstReverseIterator<K, V>::MapConstReverseIterator() {}
+
+template <typename K, typename V>
+MapConstReverseIterator<K, V>::MapConstReverseIterator(
+    std::map<K, V>::const_reverse_iterator &&iter) {
+  std::map<K, V>::const_reverse_iterator::operator=(std::move(iter));
+}
+
+template <typename K, typename V>
+template <class Archive>
+void MapConstReverseIterator<K, V>::serialize(Archive &ar) {
+  ar(cereal::binary_data(this, sizeof(*this)));
+}
+
+template <typename K, typename V>
 Map<K, V>::Map(std::size_t capacity) {}
 
 template <typename K, typename V>
@@ -67,6 +97,26 @@ std::pair<typename Map<K, V>::Key, Map<K, V>> Map<K, V>::split() {
 
   Map<K, V> latter_half_container(latter_half_map);
   return std::make_pair(latter_half_l_key, latter_half_container);
+}
+
+template <typename K, typename V>
+Map<K, V>::ConstIterator Map<K, V>::cbegin() const {
+  return map_.cbegin();
+}
+
+template <typename K, typename V>
+Map<K, V>::ConstIterator Map<K, V>::cend() const {
+  return map_.cend();
+}
+
+template <typename K, typename V>
+Map<K, V>::ConstReverseIterator Map<K, V>::crbegin() const {
+  return map_.crbegin();
+}
+
+template <typename K, typename V>
+Map<K, V>::ConstReverseIterator Map<K, V>::crend() const {
+  return map_.crend();
 }
 
 template <typename K, typename V>

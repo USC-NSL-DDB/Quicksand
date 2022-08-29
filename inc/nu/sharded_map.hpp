@@ -46,6 +46,10 @@ class Map {
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   std::optional<Val> find_val(Key k);
   std::pair<Key, Map> split();
+  ConstIterator cbegin() const;
+  ConstIterator cend() const;
+  ConstReverseIterator crbegin() const;
+  ConstReverseIterator crend() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
