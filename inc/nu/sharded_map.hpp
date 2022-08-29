@@ -41,7 +41,7 @@ class Map {
 
 template <typename K, typename V, typename LL>
 class ShardedMap
-    : public ShardedDataStructure<GeneralContainer<Map<K, V>>, LL> {
+    : public ShardedDataStructure<GeneralLockedContainer<Map<K, V>>, LL> {
  public:
   ShardedMap() = default;
   ShardedMap(const ShardedMap &) = default;
@@ -52,7 +52,7 @@ class ShardedMap
   V operator[](const K &);
 
  private:
-  using Base = ShardedDataStructure<GeneralContainer<Map<K, V>>, LL>;
+  using Base = ShardedDataStructure<GeneralLockedContainer<Map<K, V>>, LL>;
   ShardedMap(std::optional<typename Base::Hint> hint);
 
   template <typename K1, typename V1, typename LL1>

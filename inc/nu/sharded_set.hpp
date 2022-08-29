@@ -40,7 +40,7 @@ class Set {
 
 template <typename T, typename LL>
 class ShardedSet
-    : public ShardedDataStructure<GeneralContainer<Set<T>>, LL> {
+    : public ShardedDataStructure<GeneralLockedContainer<Set<T>>, LL> {
  public:
   ShardedSet() = default;
   ShardedSet(const ShardedSet &) = default;
@@ -52,7 +52,7 @@ class ShardedSet
   bool empty();
 
  private:
-  using Base = ShardedDataStructure<GeneralContainer<Set<T>>, LL>;
+  using Base = ShardedDataStructure<GeneralLockedContainer<Set<T>>, LL>;
   ShardedSet(std::optional<typename Base::Hint> hint);
 
   template <typename T1, typename LL1>

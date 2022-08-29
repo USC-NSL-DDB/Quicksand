@@ -50,7 +50,7 @@ class PairCollection {
 };
 
 template <typename K, typename V>
-using PairCollectionContainer = GeneralContainer<PairCollection<K, V>>;
+using PairCollectionContainer = GeneralLockedContainer<PairCollection<K, V>>;
 
 template <typename K, typename V>
 class ShardedPairCollection
@@ -67,7 +67,8 @@ class ShardedPairCollection
   ShardedPairCollection &operator=(ShardedPairCollection &&) noexcept = default;
 
  private:
-  using Base = ShardedDataStructure<PairCollectionContainer<K, V>, std::false_type>;
+  using Base =
+      ShardedDataStructure<PairCollectionContainer<K, V>, std::false_type>;
   ShardedPairCollection(std::optional<typename Base::Hint> hint);
   template <typename K1, typename V1>
   friend ShardedPairCollection<K1, V1> make_sharded_pair_collection();

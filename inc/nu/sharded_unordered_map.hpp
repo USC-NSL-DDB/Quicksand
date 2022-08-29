@@ -41,7 +41,7 @@ class UnorderedMap {
 
 template <typename K, typename V, typename LL>
 class ShardedUnorderedMap
-    : public ShardedDataStructure<GeneralContainer<UnorderedMap<K, V>>,
+    : public ShardedDataStructure<GeneralLockedContainer<UnorderedMap<K, V>>,
                                   LL> {
  public:
   ShardedUnorderedMap() = default;
@@ -54,7 +54,7 @@ class ShardedUnorderedMap
 
  private:
   using Base =
-      ShardedDataStructure<GeneralContainer<UnorderedMap<K, V>>, LL>;
+      ShardedDataStructure<GeneralLockedContainer<UnorderedMap<K, V>>, LL>;
   ShardedUnorderedMap(std::optional<typename Base::Hint> hint);
 
   template <typename K1, typename V1, typename LL1>

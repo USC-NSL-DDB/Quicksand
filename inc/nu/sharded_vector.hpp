@@ -64,7 +64,7 @@ class Vector {
 
 template <typename T, typename LL>
 class ShardedVector
-    : public ShardedDataStructure<GeneralContainer<Vector<T>>, LL> {
+    : public ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL> {
  public:
   ShardedVector();
   ShardedVector(const ShardedVector &) = default;
@@ -80,7 +80,7 @@ class ShardedVector
   void clear();
 
  private:
-  using Base = ShardedDataStructure<GeneralContainer<Vector<T>>, LL>;
+  using Base = ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL>;
   std::size_t size_;
 
   ShardedVector(std::optional<typename Base::Hint> hint);
