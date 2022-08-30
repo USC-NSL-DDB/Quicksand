@@ -54,8 +54,6 @@ class GeneralSealedDSConstIterator {
 
     Block();
     Block(ShardsVecIter shards_vec_iter, ContainerIter block_begin_iter);
-    Block(bool front, ShardsVecIter shards_vec_iter);
-    Block(bool forward, const Block &block);
     Block(const Block &);
     Block &operator=(const Block &);
     Block(Block &&);
@@ -64,7 +62,12 @@ class GeneralSealedDSConstIterator {
     bool empty() const;
     ConstIterator cbegin() const;
     ConstIterator cend() const;
+    Block next_block() const;
+    Block prev_block() const;
     ShardsVecIter get_shards_iter() const;
+
+    static Block shard_head_block(ShardsVecIter shards_vec_iter);
+    static Block shard_tail_block(ShardsVecIter shards_vec_iter);
 
    private:
     ShardsVecIter shards_iter;
