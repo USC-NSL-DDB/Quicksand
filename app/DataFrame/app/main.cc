@@ -233,12 +233,13 @@ void analyze_trip_durations_of_timestamps(StdDataFrame<uint64_t>& df, const char
                               std::make_pair("duration", std::move(copy_key_duration)));
 
     auto med_key_col_name_str = std::string("med") + key_col_name;
+    const auto* med_key_col_name_cstr  = med_key_col_name_str.c_str();
     StdDataFrame<uint64_t> groupby_key = df_key_duration.groupby1<T_Key>(
         key_col_name, LastVisitor<uint64_t, uint64_t>(),
-        std::make_tuple(key_col_name, med_key_col_name_str.c_str(), MedianVisitor<T_Key>()),
-        std::make_tuple("duration", "med_duration", MedianVisitor<uint64_t>()));	
-    auto& key_vec      = groupby_key.get_column<T_Key>(key_col_name);
-    auto& duration_vec = groupby_key.get_column<uint64_t>("duration");
+        std::make_tuple(key_col_name, med_key_col_name_cstr, MedianVisitor<T_Key>()),
+        std::make_tuple("duration", "med_duration", MedianVisitor<uint64_t>()));
+    auto& key_vec      = groupby_key.get_column<T_Key>(med_key_col_name_cstr);
+    auto& duration_vec = groupby_key.get_column<uint64_t>("med_duration");
     for (uint64_t i = 0; i < key_vec.size(); i++) {
         std::cout << static_cast<int>(key_vec[i]) << " " << duration_vec[i] << std::endl;
     }
