@@ -2073,6 +2073,11 @@ struct MedianVisitor  {
 
     DEFINE_VISIT_BASIC_TYPES_2
 
+	inline void operator() (const index_type &idx, const value_type &val)  {
+		indices_.push_back(idx);
+		vals_.push_back(val);
+	}
+
     template <typename K, typename H>
     inline void
     operator() (const K &idx_begin, const K &idx_end,
@@ -2096,15 +2101,26 @@ struct MedianVisitor  {
         }
     }
 
-    inline void pre ()  { result_ = value_type(); }
-    inline void post ()  {   }
-    inline result_type get_result () const  { return (result_); }
+    inline void pre ()  {
+		result_ = value_type();
+	}
+    inline void post ()  {
+		if (!indices_.empty()) {
+			(*this)(indices_.begin(), indices_.end(), vals_.begin(), vals_.end());
+			indices_.clear();
+			vals_.clear();
+		}
+	}
+    inline result_type get_result () const  {
+		return (result_);
+	}
 
     MedianVisitor () = default;
 
 private:
-
     result_type result_ {  };
+	std::vector<index_type> indices_;
+	std::vector<value_type> vals_;
 };
 
 template<typename T, typename I = unsigned long>
