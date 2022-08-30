@@ -1,5 +1,3 @@
-#include <DataFrame/DataFrame.h>
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -10,6 +8,10 @@
 #include <memory>
 #include <string>
 #include <tuple>
+
+#include <nu/runtime.hpp>
+
+#include <DataFrame/DataFrame.h>
 
 using namespace hmdf;
 
@@ -247,7 +249,7 @@ void analyze_trip_durations_of_timestamps(StdDataFrame<uint64_t>& df, const char
     std::cout << std::endl;
 }
 
-int main()
+void do_work()
 {
     std::chrono::time_point<std::chrono::steady_clock> times[10];
     auto df  = load_data();
@@ -280,6 +282,9 @@ int main()
     std::cout << "Total: "
               << std::chrono::duration_cast<std::chrono::microseconds>(times[9] - times[0]).count()
               << " us" << std::endl;
+}
 
-    return 0;
+int main(int argc, char **argv)
+{
+    return nu::runtime_main_init(argc, argv, [](int, char**) { do_work(); });
 }
