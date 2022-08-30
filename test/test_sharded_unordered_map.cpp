@@ -4,6 +4,7 @@
 
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
+#include "nu/sealed_ds.hpp"
 #include "nu/sharded_unordered_map.hpp"
 
 using namespace nu;
@@ -101,8 +102,32 @@ bool test_for_all_str() {
 
 bool test_for_all() { return test_for_all_ul() && test_for_all_str(); }
 
+bool test_iter() {
+  std::size_t target_size = 200'000;
+
+  std::unordered_map<std::size_t, std::size_t> expected;
+  std::unordered_map<std::size_t, std::size_t> iterated;
+
+  auto sm =
+      make_sharded_unordered_map<std::size_t, std::size_t, std::false_type>();
+
+  for (std::size_t i = 0; i < target_size; i++) {
+    sm.emplace(i, i);
+    expected.emplace(i, i);
+  }
+
+  auto sealed_sm = to_sealed_ds(std::move(sm));
+
+  for (auto it = sealed_sm.cbegin(); it != sealed_sm.cend(); ++it) {
+    iterated.emplace(*it);
+  }
+
+  return expected == iterated;
+}
+
 bool run_test() {
-  return test_insertion() && test_size_and_clear() && test_for_all();
+  return test_insertion() && test_size_and_clear() && test_for_all() &&
+         test_iter();
 }
 
 void do_work() {

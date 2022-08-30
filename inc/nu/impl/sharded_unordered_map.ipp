@@ -4,6 +4,22 @@
 #include "nu/utils/bfprt/median_of_ninthers.h"
 
 namespace nu {
+
+template <typename K, typename V>
+UnorderedMapConstIterator<K, V>::UnorderedMapConstIterator() {}
+
+template <typename K, typename V>
+UnorderedMapConstIterator<K, V>::UnorderedMapConstIterator(
+    std::unordered_map<K, V>::const_iterator &&iter) {
+  std::unordered_map<K, V>::const_iterator::operator=(std::move(iter));
+}
+
+template <typename K, typename V>
+template <class Archive>
+void UnorderedMapConstIterator<K, V>::serialize(Archive &ar) {
+  ar(cereal::binary_data(this, sizeof(*this)));
+}
+
 template <typename K, typename V>
 UnorderedMap<K, V>::UnorderedMap(std::size_t capacity) {
   map_.reserve(capacity);
@@ -84,6 +100,26 @@ UnorderedMap<K, V>::split() {
   UnorderedMap<K, V> latter_half_container(latter_half_map);
 
   return std::make_pair(mid_key, latter_half_container);
+}
+
+template <typename K, typename V>
+UnorderedMap<K, V>::ConstIterator UnorderedMap<K, V>::cbegin() const {
+  return map_.cbegin();
+}
+
+template <typename K, typename V>
+UnorderedMap<K, V>::ConstIterator UnorderedMap<K, V>::cend() const {
+  return map_.cend();
+}
+
+template <typename K, typename V>
+UnorderedMap<K, V>::ConstReverseIterator UnorderedMap<K, V>::crbegin() const {
+  return NoopIterator<IterVal>();
+}
+
+template <typename K, typename V>
+UnorderedMap<K, V>::ConstReverseIterator UnorderedMap<K, V>::crend() const {
+  return NoopIterator<IterVal>();
 }
 
 template <typename K, typename V>

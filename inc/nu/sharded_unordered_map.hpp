@@ -4,14 +4,33 @@
 
 namespace nu {
 template <typename K, typename V>
+struct UnorderedMapConstIterator
+    : public std::unordered_map<K, V>::const_iterator {
+  UnorderedMapConstIterator();
+  UnorderedMapConstIterator(std::unordered_map<K, V>::const_iterator &&iter);
+  template <class Archive>
+  void serialize(Archive &ar);
+};
+
+template <typename IterVal>
+struct NoopIterator {
+  NoopIterator(){};
+  IterVal operator*() {
+    BUG();
+    return IterVal();
+  };
+  bool operator==(NoopIterator &rhs) { return true; };
+  void operator++(int incr){};
+};
+
+template <typename K, typename V>
 class UnorderedMap {
  public:
   using Key = K;
   using Val = V;
   using IterVal = std::pair<K, V>;
-  // TODO
-  using ConstIterator = std::tuple<>;
-  using ConstReverseIterator = std::tuple<>;
+  using ConstIterator = UnorderedMapConstIterator<K, V>;
+  using ConstReverseIterator = NoopIterator<IterVal>;
 
   UnorderedMap() = default;
   UnorderedMap(std::size_t capacity);
@@ -29,6 +48,10 @@ class UnorderedMap {
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   std::optional<Val> find_val(Key k);
   std::pair<Key, UnorderedMap> split();
+  ConstIterator cbegin() const;
+  ConstIterator cend() const;
+  ConstReverseIterator crbegin() const;
+  ConstReverseIterator crend() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
