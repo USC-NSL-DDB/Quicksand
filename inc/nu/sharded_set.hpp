@@ -1,8 +1,25 @@
 #pragma once
 
+#include <set>
+
 #include "sharded_ds.hpp"
 
 namespace nu {
+template <typename T>
+struct SetConstIterator : public std::set<T>::const_iterator {
+  SetConstIterator();
+  SetConstIterator(std::set<T>::const_iterator &&iter);
+  template <class Archive>
+  void serialize(Archive &ar);
+};
+
+template <typename T>
+struct SetConstReverseIterator : public std::set<T>::const_reverse_iterator {
+  SetConstReverseIterator();
+  SetConstReverseIterator(std::set<T>::const_reverse_iterator &&iter);
+  template <class Archive>
+  void serialize(Archive &ar);
+};
 
 template <typename T>
 class Set {
@@ -10,9 +27,8 @@ class Set {
   using Key = T;
   using Val = T;
   using IterVal = T;
-  // TODO
-  using ConstIterator = std::tuple<>;
-  using ConstReverseIterator = std::tuple<>;
+  using ConstIterator = SetConstIterator<T>;
+  using ConstReverseIterator = SetConstReverseIterator<T>;
 
   Set();
   Set(std::size_t capacity);
@@ -29,6 +45,10 @@ class Set {
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   std::pair<Key, Set> split();
+  ConstIterator cbegin() const;
+  ConstIterator cend() const;
+  ConstReverseIterator crbegin() const;
+  ConstReverseIterator crend() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>

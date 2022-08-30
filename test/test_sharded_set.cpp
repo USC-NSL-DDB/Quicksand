@@ -11,6 +11,7 @@
 
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
+#include "nu/sealed_ds.hpp"
 #include "nu/sharded_set.hpp"
 
 using namespace nu;
@@ -134,8 +135,37 @@ bool test_clear() {
   return s.size() == 0;
 }
 
+bool test_iter() {
+  std::size_t num_elems = 1'000'000;
+
+  std::set<std::size_t> expected;
+  std::set<std::size_t> iterated;
+  auto s = make_sharded_set<std::size_t, std::false_type>();
+
+  for (std::size_t i = 0; i < num_elems; ++i) {
+    s.insert(i);
+    expected.insert(i);
+  }
+
+  auto sealed_set = to_sealed_ds(std::move(s));
+  for (auto it = sealed_set.cbegin(); it != sealed_set.cend(); ++it) {
+    iterated.insert(*it);
+  }
+  if (iterated != expected) return false;
+
+  iterated.clear();
+
+  for (auto it = sealed_set.crbegin(); it != sealed_set.crend(); ++it) {
+    iterated.insert(*it);
+  }
+  if (iterated != expected) return false;
+
+  return true;
+}
+
 bool run_test() {
-  return test_insertion() && test_ordering() && test_size() && test_clear();
+  return test_insertion() && test_ordering() && test_size() && test_clear() &&
+         test_iter();
 }
 
 void do_work() {

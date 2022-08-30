@@ -5,6 +5,35 @@
 
 namespace nu {
 template <typename T>
+SetConstIterator<T>::SetConstIterator() {}
+
+template <typename T>
+SetConstIterator<T>::SetConstIterator(std::set<T>::const_iterator &&iter) {
+  std::set<T>::const_iterator::operator=(std::move(iter));
+}
+
+template <typename T>
+template <class Archive>
+void SetConstIterator<T>::serialize(Archive &ar) {
+  ar(cereal::binary_data(this, sizeof(*this)));
+}
+
+template <typename T>
+SetConstReverseIterator<T>::SetConstReverseIterator() {}
+
+template <typename T>
+SetConstReverseIterator<T>::SetConstReverseIterator(
+    std::set<T>::const_reverse_iterator &&iter) {
+  std::set<T>::const_reverse_iterator::operator=(std::move(iter));
+}
+
+template <typename T>
+template <class Archive>
+void SetConstReverseIterator<T>::serialize(Archive &ar) {
+  ar(cereal::binary_data(this, sizeof(*this)));
+}
+
+template <typename T>
 Set<T>::Set() {}
 
 template <typename T>
@@ -65,6 +94,26 @@ std::pair<typename Set<T>::Key, Set<T>> Set<T>::split() {
 template <typename T>
 std::set<T> &Set<T>::data() {
   return set_;
+}
+
+template <typename T>
+Set<T>::ConstIterator Set<T>::cbegin() const {
+  return set_.cbegin();
+}
+
+template <typename T>
+Set<T>::ConstIterator Set<T>::cend() const {
+  return set_.cend();
+}
+
+template <typename T>
+Set<T>::ConstReverseIterator Set<T>::crbegin() const {
+  return set_.crbegin();
+}
+
+template <typename T>
+Set<T>::ConstReverseIterator Set<T>::crend() const {
+  return set_.crend();
 }
 
 template <typename T>
