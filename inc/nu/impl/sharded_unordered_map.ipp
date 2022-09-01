@@ -50,7 +50,7 @@ void UnorderedMap<K, V>::emplace(Key k, Val v) {
 }
 
 template <typename K, typename V>
-void UnorderedMap<K, V>::emplace_batch(UnorderedMap &&m) {
+void UnorderedMap<K, V>::emplace_batch(UnorderedMap m) {
   for (auto &[k, v] : m.map_) {
     map_[std::move(k)] = std::move(v);
   }

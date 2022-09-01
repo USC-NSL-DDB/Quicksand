@@ -61,7 +61,7 @@ void Set<T>::emplace(Key k, Val v) {
 }
 
 template <typename T>
-void Set<T>::emplace_batch(Set &&s) {
+void Set<T>::emplace_batch(Set s) {
   set_.insert(std::make_move_iterator(s.set_.begin()),
               std::make_move_iterator(s.set_.end()));
 }

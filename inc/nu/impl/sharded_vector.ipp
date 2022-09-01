@@ -90,7 +90,7 @@ void Vector<T>::emplace(Key k, Val v) {
 }
 
 template <typename T>
-void Vector<T>::emplace_batch(Vector &&vector) {
+void Vector<T>::emplace_batch(Vector vector) {
   data_.insert(data_.end(), std::make_move_iterator(vector.data_.begin()),
                std::make_move_iterator(vector.data_.end()));
 }

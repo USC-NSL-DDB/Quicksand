@@ -74,7 +74,7 @@ class GeneralContainerBase {
   void emplace(Key k, Val v) {
     synchronized<void>([&]() { impl_.emplace(std::move(k), std::move(v)); });
   }
-  void emplace_batch(ContainerType &&c) {
+  void emplace_batch(ContainerType c) {
     synchronized<void>([&]() { impl_.emplace_batch(std::move(c.impl_)); });
   };
   std::optional<Val> find_val(Key k) {
@@ -262,9 +262,8 @@ class ShardedDataStructure {
     std::function<void(Key &, uint64_t)> key_inc_fn;
   };
 
-  template <typename K1, typename V1>
-  void emplace(K1 &&k1, V1 &&v1);
-  void emplace(Pair &&p);
+  void emplace(Key k, Val v);
+  void emplace(Pair p);
   std::optional<Val> find_val(Key k);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);

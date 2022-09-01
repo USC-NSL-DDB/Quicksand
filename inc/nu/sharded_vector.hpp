@@ -44,7 +44,7 @@ class Vector {
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
-  void emplace_batch(Vector &&vector);
+  void emplace_batch(Vector vector);
   std::optional<T> find_val(Key k);
   std::pair<Key, Vector> split();
   template <typename... S0s, typename... S1s>

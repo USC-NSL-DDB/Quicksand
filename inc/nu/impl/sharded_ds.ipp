@@ -464,14 +464,14 @@ ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
 }
 
 template <class Container, class LL>
-template <typename K1, typename V1>
-void ShardedDataStructure<Container, LL>::emplace(K1 &&k, V1 &&v) {
-  emplace({std::forward<K1>(k), std::forward<V1>(v)});
+void ShardedDataStructure<Container, LL>::emplace(Key k, Val v) {
+  emplace({std::move(k), std::move(v)});
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::emplace(Pair &&p) {
-  [[maybe_unused]] retry : auto iter = --key_to_shards_.upper_bound(p.first);
+void ShardedDataStructure<Container, LL>::emplace(Pair p) {
+[[maybe_unused]] retry:
+  auto iter = --key_to_shards_.upper_bound(p.first);
 
   if constexpr (LL::value) {
     auto [l_key, r_key] = get_key_range(iter);

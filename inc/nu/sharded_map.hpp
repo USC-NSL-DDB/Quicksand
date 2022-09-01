@@ -41,7 +41,7 @@ class Map {
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
-  void emplace_batch(Map &&m);
+  void emplace_batch(Map m);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   std::optional<Val> find_val(Key k);
