@@ -68,7 +68,6 @@ class ShardedUnorderedMap
     : public ShardedDataStructure<GeneralLockedContainer<UnorderedMap<K, V>>,
                                   LL> {
  public:
-  ShardedUnorderedMap() = default;
   ShardedUnorderedMap(const ShardedUnorderedMap &) = default;
   ShardedUnorderedMap &operator=(const ShardedUnorderedMap &) = default;
   ShardedUnorderedMap(ShardedUnorderedMap &&) noexcept = default;
@@ -79,8 +78,10 @@ class ShardedUnorderedMap
  private:
   using Base =
       ShardedDataStructure<GeneralLockedContainer<UnorderedMap<K, V>>, LL>;
+  ShardedUnorderedMap() = default;
   ShardedUnorderedMap(std::optional<typename Base::Hint> hint);
 
+  friend class ProcletServer;
   template <typename K1, typename V1, typename LL1>
   friend ShardedUnorderedMap<K1, V1, LL1> make_sharded_unordered_map();
 };

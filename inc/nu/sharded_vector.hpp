@@ -67,7 +67,6 @@ template <typename T, typename LL>
 class ShardedVector
     : public ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL> {
  public:
-  ShardedVector();
   ShardedVector(const ShardedVector &) = default;
   ShardedVector &operator=(const ShardedVector &) = default;
   ShardedVector(ShardedVector &&) noexcept = default;
@@ -84,7 +83,9 @@ class ShardedVector
   using Base = ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL>;
   std::size_t size_;
 
+  ShardedVector();
   ShardedVector(std::optional<typename Base::Hint> hint);
+  friend class ProcletServer;
   template <typename T1, typename LL1>
   friend ShardedVector<T1, LL1> make_sharded_vector();
 };

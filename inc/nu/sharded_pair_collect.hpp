@@ -61,7 +61,6 @@ class ShardedPairCollection
                                        // structure for any low-latency purpose.
 {
  public:
-  ShardedPairCollection() = default;
   ShardedPairCollection(const ShardedPairCollection &) = default;
   ShardedPairCollection &operator=(const ShardedPairCollection &) = default;
   ShardedPairCollection(ShardedPairCollection &&) noexcept = default;
@@ -70,7 +69,11 @@ class ShardedPairCollection
  private:
   using Base =
       ShardedDataStructure<PairCollectionContainer<K, V>, std::false_type>;
+
+  ShardedPairCollection() = default;
   ShardedPairCollection(std::optional<typename Base::Hint> hint);
+
+  friend class ProcletServer;
   template <typename K1, typename V1>
   friend ShardedPairCollection<K1, V1> make_sharded_pair_collection();
   template <typename K1, typename V1>

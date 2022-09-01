@@ -63,7 +63,6 @@ template <typename T, typename LL>
 class ShardedSet
     : public ShardedDataStructure<GeneralLockedContainer<Set<T>>, LL> {
  public:
-  ShardedSet() = default;
   ShardedSet(const ShardedSet &) = default;
   ShardedSet &operator=(const ShardedSet &) = default;
   ShardedSet(ShardedSet &&) noexcept = default;
@@ -74,8 +73,10 @@ class ShardedSet
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Set<T>>, LL>;
+  ShardedSet() = default;
   ShardedSet(std::optional<typename Base::Hint> hint);
 
+  friend class ProcletServer;
   template <typename T1, typename LL1>
   friend ShardedSet<T1, LL1> make_sharded_set();
 };

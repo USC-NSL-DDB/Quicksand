@@ -34,7 +34,6 @@ class ShardedArray {
  public:
   constexpr static uint32_t kDefaultPowerShardSize = 20;
 
-  ShardedArray();
   ShardedArray(const ShardedArray &);
   ShardedArray &operator=(const ShardedArray &);
   ShardedArray(ShardedArray &&);
@@ -54,6 +53,8 @@ class ShardedArray {
   uint32_t size_;
   std::vector<Proclet<ArrayShard<T>>> shards_;
 
+  ShardedArray();
+  friend class ProcletServer;
   template <typename X>
   friend ShardedArray<X> make_sharded_array(uint32_t size,
                                             uint32_t power_shard_sz);

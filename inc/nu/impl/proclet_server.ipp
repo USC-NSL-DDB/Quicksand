@@ -31,7 +31,7 @@ void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
   auto &slab = proclet_header->slab;
   auto obj_space = slab.yield(sizeof(Cls));
 
-  std::tuple<std::decay_t<As>...> args;
+  std::tuple<std::decay_t<As>...> args{std::decay_t<As>()...};
   std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
   std::apply(
       [&](auto &&... args) {
@@ -211,7 +211,7 @@ void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
   // nested RCU locks.
   using States = std::tuple<std::decay_t<S1s>...>;
   auto *states = reinterpret_cast<States *>(alloca(sizeof(States)));
-  std::construct_at(states);
+  std::construct_at(states, std::decay_t<S1s>()...);
   std::apply([&](auto &&... states) { ((ia >> states), ...); }, *states);
 
   if constexpr (std::is_same<RetT, void>::value) {

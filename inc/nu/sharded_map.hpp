@@ -65,7 +65,6 @@ template <typename K, typename V, typename LL>
 class ShardedMap
     : public ShardedDataStructure<GeneralLockedContainer<Map<K, V>>, LL> {
  public:
-  ShardedMap() = default;
   ShardedMap(const ShardedMap &) = default;
   ShardedMap &operator=(const ShardedMap &) = default;
   ShardedMap(ShardedMap &&) noexcept = default;
@@ -75,8 +74,10 @@ class ShardedMap
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Map<K, V>>, LL>;
+  ShardedMap() = default;
   ShardedMap(std::optional<typename Base::Hint> hint);
 
+  friend class ProcletServer;
   template <typename K1, typename V1, typename LL1>
   friend ShardedMap<K1, V1, LL1> make_sharded_map();
 };
