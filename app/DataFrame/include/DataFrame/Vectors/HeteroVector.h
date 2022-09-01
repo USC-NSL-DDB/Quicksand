@@ -38,6 +38,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <unordered_map>
 #include <vector>
 
+extern "C" {
+#include <base/assert.h>
+}
+#include <nu/sharded_vector.hpp>
+
 // ----------------------------------------------------------------------------
 
 namespace hmdf
@@ -61,9 +66,9 @@ struct HeteroVector  {
     HMDF_API HeteroVector &operator= (HeteroVector &&rhs);
 
     template<typename T>
-    std::vector<T> &get_vector();
+    nu::ShardedVector<T> &get_vector();
     template<typename T>
-    const std::vector<T> &get_vector() const;
+    const nu::ShardedVector<T> &get_vector() const;
 
     // It returns a view of the underlying vector.
     // NOTE: One can modify the vector through the view. But the vector
@@ -123,46 +128,45 @@ struct HeteroVector  {
     const T &front() const;
 
     template<typename T>
-    using iterator = typename std::vector<T>::iterator;
+    using iterator = void;
     template<typename T>
-    using const_iterator = typename std::vector<T>::const_iterator;
+    using const_iterator = void;
     template<typename T>
-    using reverse_iterator = typename std::vector<T>::reverse_iterator;
+    using reverse_iterator = void;
     template<typename T>
-    using const_reverse_iterator =
-        typename std::vector<T>::const_reverse_iterator;
+    using const_reverse_iterator = void;
 
     template<typename T>
     inline iterator<T>
-    begin() noexcept { return (get_vector<T>().begin()); }
+    begin() noexcept { BUG(); }
 
     template<typename T>
     inline iterator<T>
-    end() noexcept { return (get_vector<T>().end()); }
+    end() noexcept { BUG(); }
 
     template<typename T>
     inline const_iterator<T>
-    begin () const noexcept { return (get_vector<T>().begin()); }
+    begin () const noexcept { BUG(); }
 
     template<typename T>
     inline const_iterator<T>
-    end () const noexcept { return (get_vector<T>().end()); }
+    end () const noexcept { BUG(); }
 
     template<typename T>
     inline reverse_iterator<T>
-    rbegin() noexcept { return (get_vector<T>().rbegin()); }
+    rbegin() noexcept { BUG(); }
 
     template<typename T>
     inline reverse_iterator<T>
-    rend() noexcept { return (get_vector<T>().rend()); }
+    rend() noexcept { BUG(); }
 
     template<typename T>
     inline const_reverse_iterator<T>
-    rbegin () const noexcept { return (get_vector<T>().rbegin()); }
+    rbegin () const noexcept { BUG(); }
 
     template<typename T>
     inline const_reverse_iterator<T>
-    rend () const noexcept { return (get_vector<T>().rend()); }
+    rend () const noexcept { BUG(); }
 
     template<typename... Ts>
     struct type_list  {   };
@@ -204,7 +208,7 @@ struct HeteroVector  {
 private:
 
     template<typename T>
-    inline static std::unordered_map<const HeteroVector *, std::vector<T>>
+    inline static std::unordered_map<const HeteroVector *, nu::ShardedVector<T>>
         vectors_ {  };
 
     std::vector<std::function<void(HeteroVector &)>>    clear_functions_;

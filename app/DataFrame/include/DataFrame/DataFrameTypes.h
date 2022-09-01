@@ -37,6 +37,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tuple>
 #include <vector>
 
+#include <nu/sharded_vector.hpp>
+
 // ----------------------------------------------------------------------------
 
 namespace hmdf
@@ -457,7 +459,7 @@ template<typename T, typename U>
 struct type_declare;
 
 template<typename U>
-struct type_declare<HeteroVector, U>  { using type = std::vector<U>; };
+struct type_declare<HeteroVector, U>  { using type = nu::ShardedVector<U>; };
 
 template<typename U>
 struct type_declare<HeteroView, U>  { using type = VectorView<U>; };

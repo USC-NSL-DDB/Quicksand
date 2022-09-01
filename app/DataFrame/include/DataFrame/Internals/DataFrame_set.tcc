@@ -31,6 +31,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cstring>
 
+#include <nu/sharded_vector.hpp>
+
 // ----------------------------------------------------------------------------
 
 namespace hmdf
@@ -38,7 +40,7 @@ namespace hmdf
 
 template<typename I, typename  H>
 template<typename T>
-std::vector<T> &DataFrame<I, H>::create_column (const char *name)  {
+nu::ShardedVector<T> &DataFrame<I, H>::create_column (const char *name)  {
 
     static_assert(std::is_base_of<HeteroVector, DataVec>::value,
                   "Only a StdDataFrame can call create_column()");
@@ -418,7 +420,7 @@ template<typename I, typename  H>
 template<typename T>
 typename DataFrame<I, H>::size_type
 DataFrame<I, H>::
-load_column (const char *name, std::vector<T> &&column, nan_policy padding)  {
+load_column (const char *name, nu::ShardedVector<T> &&column, nan_policy padding)  {
 
     const size_type idx_s = indices_.size();
     const size_type data_s = column.size();
@@ -525,7 +527,7 @@ template<typename T>
 typename DataFrame<I, H>::size_type
 DataFrame<I, H>::
 load_column (const char *name,
-             const std::vector<T> &data,
+             const nu::ShardedVector<T> &data,
              nan_policy padding)  {
 
     return (load_column<T>(name, { data.begin(), data.end() }, padding));

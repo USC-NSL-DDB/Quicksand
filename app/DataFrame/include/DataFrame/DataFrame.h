@@ -47,6 +47,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 #include <vector>
 
+#include <nu/sharded_vector.hpp>
+
 // ----------------------------------------------------------------------------
 
 namespace hmdf
@@ -114,7 +116,7 @@ public:  // Load/append/remove interfaces
     //   Type of column being added
     //
     template<typename T>
-    std::vector<T> &
+    nu::ShardedVector<T> &
     create_column(const char *name);
 
     // It removes a column named name.
@@ -225,13 +227,13 @@ public:  // Load/append/remove interfaces
     template<typename T>
     size_type
     load_column(const char *name,
-                std::vector<T> &&data,
+                nu::ShardedVector<T> &&data,
                 nan_policy padding = nan_policy::pad_with_nans);
 
     template<typename T>
     size_type
     load_column(const char *name,
-                const std::vector<T> &data,
+                const nu::ShardedVector<T> &data,
                 nan_policy padding = nan_policy::pad_with_nans);
 
     // This method creates a column similar to above, but assumes data is
@@ -1515,7 +1517,7 @@ public: // Read/access and slicing interfaces
     //   Data type of the named column
     //
     template<typename T>
-    [[nodiscard]] std::vector<T>
+    [[nodiscard]] nu::ShardedVector<T>
     get_col_unique_values(const char *name) const;
 
     // It returns a DataFrame (including the index and data columns)

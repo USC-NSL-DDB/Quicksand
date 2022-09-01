@@ -32,13 +32,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <utility>
 
+#include <nu/sharded_vector.hpp>
+
 // ----------------------------------------------------------------------------
 
 namespace hmdf
 {
 
 template<typename T>
-std::vector<T> &HeteroVector::get_vector()  {
+nu::ShardedVector<T> &HeteroVector::get_vector()  {
 
     auto    iter = vectors_<T>.find (this);
 
@@ -59,7 +61,7 @@ std::vector<T> &HeteroVector::get_vector()  {
                 vectors_<T>[&to] = std::move(vectors_<T>[&from]);
             });
 
-        iter = vectors_<T>.emplace (this, std::vector<T>()).first;
+        iter = vectors_<T>.emplace (this, nu::make_sharded_vector<T>()).first;
     }
 
     return (iter->second);
@@ -70,28 +72,20 @@ std::vector<T> &HeteroVector::get_vector()  {
 template<typename T>
 HeteroView HeteroVector::get_view(size_type begin, size_type end)  {
 
-    std::vector<T>  &vec = get_vector<T>();
-
-    return (HeteroView(
-        &(vec[begin]), end == size_t(-1) ? &(vec.back()) : &(vec[end])));
+	BUG();
 }
 
 // ----------------------------------------------------------------------------
 
 template<typename T>
 HeteroPtrView HeteroVector::get_ptr_view(size_type begin, size_type end)  {
-
-    std::vector<T>  &vec = get_vector<T>();
-
-    return (HeteroPtrView(
-        &(*(vec.begin() + begin)),
-        end == size_type(-1) ? &(*(vec.end())) : &(*(vec.begin() + end))));
+	BUG();
 }
 
 // ----------------------------------------------------------------------------
 
 template<typename T>
-const std::vector<T> &HeteroVector::get_vector() const  {
+const nu::ShardedVector<T> &HeteroVector::get_vector() const  {
 
     return (const_cast<HeteroVector *>(this)->get_vector<T>());
 }

@@ -32,6 +32,26 @@ include(GNUInstallDirs)
 
 include(HmdfTargetDataFiles)
 
+# Define NCORES
+include(ProcessorCount)
+ProcessorCount(N)
+add_definitions(-DNCORES=${N})
+
+# Suppress Warning
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-subobject-linkage")
+
+# Include Nu
+set(NU_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+include_directories(${NU_ROOT}/inc)
+
+# Include Caladan
+set(CALADAN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../caladan)
+include_directories(${CALADAN_ROOT}/inc)
+include_directories(${CALADAN_ROOT}/bindings/cc)
+
+# Include Folly
+include_directories(${CALADAN_ROOT}/deps/folly/include)
+
 # Build DataFrame library
 check_symbol_exists(clock_gettime "time.h" HMDF_HAVE_CLOCK_GETTIME)
 
@@ -91,6 +111,39 @@ target_include_directories(DataFrame
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
+# Link Nu
+link_directories(${NU_ROOT})
+link_libraries(nu)
+
+# Link Caladan
+link_directories(${CALADAN_ROOT}/bindings/cc)
+link_directories(${CALADAN_ROOT})
+link_libraries(rt++ runtime net base)
+set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -T${CALADAN_ROOT}/base/base.ld")
+
+# Link OpenSSL
+find_package(OpenSSL REQUIRED)
+link_libraries(OpenSSL::Crypto)
+
+# Link Pthread
+link_libraries(pthread)
+
+# Link RDMA-core
+link_directories(${CALADAN_ROOT}/rdma-core/build/lib/statics)
+link_directories(${CALADAN_ROOT}/rdma-core/build/util)
+link_directories(${CALADAN_ROOT}/rdma-core/build/ccan)
+link_libraries(mlx5 ibverbs rdmacm rdma_util ccan)
+
+# Link netlink
+link_libraries(nl-3 nl-route-3)
+
+# Link libnuma
+link_libraries(numa)
+
+# Link Boost
+find_package(Boost QUIET REQUIRED COMPONENTS program_options)
+link_libraries(Boost::program_options)
 
 # Installation
 

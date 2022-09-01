@@ -839,7 +839,7 @@ auto read_csv(std::string csv_file_path, Strs... data_col_names)
     using IndexType =
         std::conditional<kUseDefaultIndex, DefaultIndexType, IndicatedIndexType>::type;
     StdDataFrame<IndexType> df;
-    auto vecs = io::parse_csv_to_vectors<ColTypes...>(csv_file_path, data_col_names...);
+    auto vecs = io::parse_csv_to_sharded_vectors<ColTypes...>(csv_file_path, data_col_names...);
     auto seq  = std::index_sequence_for<ColTypes...>{};
     if constexpr (kUseDefaultIndex) {
         IndexType num_rows;

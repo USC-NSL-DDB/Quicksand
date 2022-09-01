@@ -292,42 +292,45 @@ get_row(size_type row_num) const {
 
 template<typename I, typename  H>
 template<typename T>
-std::vector<T> DataFrame<I, H>::
+nu::ShardedVector<T> DataFrame<I, H>::
 get_col_unique_values(const char *name) const  {
 
-    const ColumnVecType<T>  &vec = get_column<T>(name);
-    auto                    hash_func =
-        [](std::reference_wrapper<const T> v) -> std::size_t  {
-            return(std::hash<T>{}(v.get()));
-    };
-    auto                    equal_func =
-        [](std::reference_wrapper<const T> lhs,
-           std::reference_wrapper<const T> rhs) -> bool  {
-            return(lhs.get() == rhs.get());
-    };
+    // const ColumnVecType<T>  &vec = get_column<T>(name);
+    // auto                    hash_func =
+    //     [](std::reference_wrapper<const T> v) -> std::size_t  {
+    //         return(std::hash<T>{}(v.get()));
+    // };
+    // auto                    equal_func =
+    //     [](std::reference_wrapper<const T> lhs,
+    //        std::reference_wrapper<const T> rhs) -> bool  {
+    //         return(lhs.get() == rhs.get());
+    // };
 
-    std::unordered_set<
-        typename std::reference_wrapper<T>::type,
-        decltype(hash_func),
-        decltype(equal_func)>   table(vec.size(), hash_func, equal_func);
-    bool                        counted_nan = false;
-    std::vector<T>              result;
+    // // TODO: use our ShardedUnorderedSet.
+    // std::unordered_set<
+    //     typename std::reference_wrapper<T>::type,
+    //     decltype(hash_func),
+    //     decltype(equal_func)>   table(vec.size(), hash_func, equal_func);
+    // bool                        counted_nan = false;
+    // std::vector<T>              result;
 
-    result.reserve(vec.size());
-    for (const auto &citer : vec)  {
-        if (is_nan<T>(citer) && ! counted_nan)  {
-            counted_nan = true;
-            result.push_back(get_nan<T>());
-            continue;
-        }
+    // result.reserve(vec.size());
+    // for (const auto &citer : vec)  {
+    //     if (is_nan<T>(citer) && ! counted_nan)  {
+    //         counted_nan = true;
+    //         result.push_back(get_nan<T>());
+    //         continue;
+    //     }
 
-        const auto  insert_ret = table.emplace(std::ref(citer));
+    //     const auto  insert_ret = table.emplace(std::ref(citer));
 
-        if (insert_ret.second)
-            result.push_back(citer);
-    }
+    //     if (insert_ret.second)
+    //         result.push_back(citer);
+    // }
 
-    return(result);
+    // return(result);
+
+	BUG();
 }
 
 // ----------------------------------------------------------------------------
