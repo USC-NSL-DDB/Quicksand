@@ -21,11 +21,14 @@ namespace nu {
 template <class Container>
 class GeneralShard;
 
-template <class Impl>
-class GeneralContainer;
+template <class Impl, class Synchronized>
+class GeneralContainerBase;
 
 template <class Impl>
-class GeneralLockedContainer;
+using GeneralContainer = GeneralContainerBase<Impl, std::false_type>;
+
+template <class Impl>
+using GeneralLockedContainer = GeneralContainerBase<Impl, std::true_type>;
 
 template <class Impl, class Synchronized>
 class GeneralContainerBase {
@@ -120,42 +123,6 @@ class GeneralContainerBase {
     } else {
       return f();
     }
-  }
-};
-
-template <class Impl>
-class GeneralContainer : public GeneralContainerBase<Impl, std::false_type> {
- public:
-  using Base = GeneralContainerBase<Impl, std::false_type>;
-
-  GeneralContainer() : Base() {}
-  GeneralContainer(std::size_t capacity) : Base(capacity) {}
-  GeneralContainer(const GeneralContainer &c) : Base(c) {}
-  GeneralContainer &operator=(const GeneralContainer &c) noexcept {
-    return Base::operator=(static_cast<const Base &>(c));
-  }
-  GeneralContainer(GeneralContainer &&c) noexcept : Base(std::move(c)) {}
-  GeneralContainer &operator=(GeneralContainer &&c) noexcept {
-    return static_cast<GeneralContainer &>(Base::operator=(std::move(c)));
-  }
-};
-
-template <class Impl>
-class GeneralLockedContainer
-    : public GeneralContainerBase<Impl, std::true_type> {
- public:
-  using Base = GeneralContainerBase<Impl, std::true_type>;
-
-  GeneralLockedContainer() : Base() {}
-  GeneralLockedContainer(std::size_t capacity) : Base(capacity) {}
-  GeneralLockedContainer(const GeneralLockedContainer &c) : Base(c) {}
-  GeneralLockedContainer &operator=(const GeneralLockedContainer &c) noexcept {
-    return Base::operator=(static_cast<const Base &>(c));
-  }
-  GeneralLockedContainer(GeneralLockedContainer &&c) noexcept
-      : Base(std::move(c)) {}
-  GeneralLockedContainer &operator=(GeneralLockedContainer &&c) noexcept {
-    return static_cast<GeneralLockedContainer &>(Base::operator=(std::move(c)));
   }
 };
 
