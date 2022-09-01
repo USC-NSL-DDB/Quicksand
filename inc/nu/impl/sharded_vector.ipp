@@ -86,9 +86,6 @@ void Vector<T>::clear() {
 
 template <typename T>
 void Vector<T>::emplace(Key k, Val v) {
-  if (unlikely(data_.empty())) {
-    l_key_ = k;
-  }
   data_.emplace_back(std::move(v));
 }
 
