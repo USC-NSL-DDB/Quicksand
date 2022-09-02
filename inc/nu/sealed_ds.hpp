@@ -107,10 +107,15 @@ class SealedDS {
   SealedDS(const SealedDS &) = delete;
   SealedDS &operator=(const SealedDS &) = delete;
   ~SealedDS();
-  ConstIterator cbegin();
-  ConstIterator cend();
-  ConstReverseIterator crbegin();
-  ConstReverseIterator crend();
+  ConstIterator cbegin() const;
+  ConstIterator cend() const;
+  ConstReverseIterator rbegin() const;
+  ConstReverseIterator rend() const;
+  // Useful for implementing range-based for loop.
+  ConstIterator begin() const;
+  ConstIterator end() const;
+  ConstReverseIterator crbegin() const;
+  ConstReverseIterator crend() const;
 
  private:
   using Shard = T::Shard;

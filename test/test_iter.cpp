@@ -17,9 +17,8 @@ bool run_test() {
   auto sealed_vec = to_sealed_ds(std::move(vec));
 
   int idx = 0;
-  for (auto iter = sealed_vec.cbegin(); iter != sealed_vec.cend();
-       ++iter, ++idx) {
-    if (*iter != idx) {
+  for (const auto &val : sealed_vec) {
+    if (val != idx++) {
       return false;
     }
   }
@@ -51,6 +50,7 @@ bool run_test() {
       return false;
     }
   }
+
   vec = to_unsealed_ds(std::move(sealed_vec));
 
   return true;

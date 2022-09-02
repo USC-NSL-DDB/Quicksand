@@ -342,22 +342,42 @@ T &&SealedDS<T>::unseal() {
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::cbegin() {
+SealedDS<T>::ConstIterator SealedDS<T>::begin() const {
   return cbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::cend() {
+SealedDS<T>::ConstIterator SealedDS<T>::cbegin() const {
+  return cbegin_;
+}
+
+template <typename T>
+SealedDS<T>::ConstIterator SealedDS<T>::end() const {
   return cend_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::crbegin() {
+SealedDS<T>::ConstIterator SealedDS<T>::cend() const {
+  return cend_;
+}
+
+template <typename T>
+SealedDS<T>::ConstReverseIterator SealedDS<T>::rbegin() const {
   return crbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::crend() {
+SealedDS<T>::ConstReverseIterator SealedDS<T>::crbegin() const {
+  return crbegin_;
+}
+
+template <typename T>
+SealedDS<T>::ConstReverseIterator SealedDS<T>::rend() const {
+  return crend_;
+}
+
+template <typename T>
+SealedDS<T>::ConstReverseIterator SealedDS<T>::crend() const {
   return crend_;
 }
 
