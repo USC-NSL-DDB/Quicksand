@@ -42,6 +42,8 @@ test_sharded_array_src = test/test_sharded_array.cpp
 test_sharded_array_obj = $(test_sharded_array_src:.cpp=.o)
 test_sharded_set_src = test/test_sharded_set.cpp
 test_sharded_set_obj = $(test_sharded_set_src:.cpp=.o)
+test_sharded_unordered_set_src = test/test_sharded_unordered_set.cpp
+test_sharded_unordered_set_obj = $(test_sharded_unordered_set_src:.cpp=.o)
 test_sharded_map_src = test/test_sharded_map.cpp
 test_sharded_map_obj = $(test_sharded_map_src:.cpp=.o)
 test_sharded_unordered_map_src = test/test_sharded_unordered_map.cpp
@@ -136,7 +138,7 @@ bin/test_sharded_array bin/test_sharded_pair_collect bin/bench_controller \
 bin/test_sharded_vector bin/bench_sharded_pair_collect bin/test_cereal bin/bench_sharded_vector \
 bin/bench_proclet_call_bw bin/test_sharded_set bin/test_sharded_map \
 bin/test_sharded_unordered_map bin/bench_cpu_overloaded bin/test_iter \
-bin/bench_sharded_unordered_map bin/bench_sharded_map
+bin/bench_sharded_unordered_map bin/bench_sharded_map bin/test_sharded_unordered_set
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -163,6 +165,8 @@ bin/test_sharded_array: $(test_sharded_array_obj) $(librt_libs) $(RUNTIME_DEPS) 
 	$(LDXX) -o $@ $(test_sharded_array_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_set: $(test_sharded_set_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_set_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_sharded_unordered_set: $(test_sharded_unordered_set_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_sharded_unordered_set_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_map: $(test_sharded_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_unordered_map: $(test_sharded_unordered_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
