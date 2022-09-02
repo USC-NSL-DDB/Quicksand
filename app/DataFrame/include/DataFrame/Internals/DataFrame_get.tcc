@@ -292,7 +292,7 @@ get_row(size_type row_num) const {
 
 template<typename I, typename  H>
 template<typename T>
-nu::ShardedVector<T> DataFrame<I, H>::
+NuShardedVector<T> DataFrame<I, H>::
 get_col_unique_values(const char *name) const  {
 
     // const ColumnVecType<T>  &vec = get_column<T>(name);

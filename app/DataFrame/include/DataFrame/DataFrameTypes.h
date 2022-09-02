@@ -459,7 +459,7 @@ template<typename T, typename U>
 struct type_declare;
 
 template<typename U>
-struct type_declare<HeteroVector, U>  { using type = nu::ShardedVector<U>; };
+struct type_declare<HeteroVector, U>  { using type = NuShardedVector<U>; };
 
 template<typename U>
 struct type_declare<HeteroView, U>  { using type = VectorView<U>; };

@@ -875,7 +875,7 @@ DataFrame<I, H>::describe_functor_<Ts ...>::operator() (const T &vec)  {
     using VecType = typename std::remove_reference<T>::type;
     using ValueType = typename VecType::value_type;
 
-    nu::ShardedVector<double> col_to_load;
+    NuShardedVector<double> col_to_load;
 
 	//    col_to_load.reserve(describe_index_col.size());
     col_to_load.push_back(double(vec_s));

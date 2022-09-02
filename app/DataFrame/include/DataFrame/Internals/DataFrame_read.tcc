@@ -843,7 +843,7 @@ auto read_csv(std::string csv_file_path, Strs... data_col_names)
     auto seq  = std::index_sequence_for<ColTypes...>{};
     if constexpr (kUseDefaultIndex) {
         IndexType num_rows;
-        std::vector<IndexType> index_vec;
+        auto index_vec = nu::make_sharded_vector<IndexType, std::false_type>();
         [&]<typename T, T... ints>(std::integer_sequence<T, ints...> int_seq)
         {
             num_rows = std::max({std::get<ints>(vecs).size()...});

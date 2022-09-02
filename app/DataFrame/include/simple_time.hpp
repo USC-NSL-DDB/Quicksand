@@ -78,4 +78,10 @@ struct SimpleTime {
         return __builtin_strncmp(reinterpret_cast<const char*>(this),
                                  reinterpret_cast<const char*>(&o), sizeof(o)) == 0;
     }
+
+    template <class Archive>
+    void serialize(Archive &ar)
+    {
+        ar(year_, month_, day_, hour_, min_, second_);
+    }
 };

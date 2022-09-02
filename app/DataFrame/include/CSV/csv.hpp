@@ -1384,14 +1384,15 @@ std::tuple<std::vector<ColTypes>...> parse_csv_to_vectors(std::string csv_file_p
 }
 
 template <typename... ColTypes, typename... Strs>
-std::tuple<nu::ShardedVector<ColTypes>...> parse_csv_to_sharded_vectors(std::string csv_file_path,
-                                                                        Strs... col_names)
+std::tuple<nu::ShardedVector<ColTypes, std::false_type>...> parse_csv_to_sharded_vectors(
+    std::string csv_file_path, Strs... col_names)
 {
     io::CSVReader<sizeof...(col_names), io::trim_chars<' '>, io::double_quote_escape<',', '\"'>> in(
         csv_file_path);
     in.read_header(io::ignore_extra_column, col_names...);
     std::tuple<ColTypes...> col_fields;
-    std::tuple<nu::ShardedVector<ColTypes>...> col_vecs;
+    std::tuple<nu::ShardedVector<ColTypes, std::false_type>...> col_vecs{
+        nu::make_sharded_vector<ColTypes, std::false_type>()...};
     while (std::apply([&](auto&... fields) { return in.read_row(fields...); }, col_fields)) {
         auto seq = std::index_sequence_for<ColTypes...>{};
         [&]<typename T, T... ints>(std::integer_sequence<T, ints...> int_seq)

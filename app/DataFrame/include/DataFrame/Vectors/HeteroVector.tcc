@@ -40,28 +40,39 @@ namespace hmdf
 {
 
 template<typename T>
-nu::ShardedVector<T> &HeteroVector::get_vector()  {
+NuShardedVector<T> &HeteroVector::get_vector()  {
 
     auto    iter = vectors_<T>.find (this);
 
     // don't have it yet, so create functions for copying and destroying
     if (iter == vectors_<T>.end())  {
         clear_functions_.emplace_back (
-            [](HeteroVector &hv) { vectors_<T>.erase(&hv); });
+            [](HeteroVector &hv) {
+				vectors_<T>.erase(&hv);
+				if (vectors_<T>.empty()) {
+					std::decay_t<decltype(vectors_<T>)> empty;
+					vectors_<T>.swap(empty);
+				}
+			});
 
         // if someone copies me, they need to call each
         // copy_function and pass themself
         copy_functions_.emplace_back (
             [](const HeteroVector &from, HeteroVector &to)  {
-                vectors_<T>[&to] = vectors_<T>[&from];
+                auto from_iter = vectors_<T>.find(&from);
+                BUG_ON(from_iter == vectors_<T>.end());
+                vectors_<T>.insert_or_assign(&to, from_iter->second);
             });
 
         move_functions_.emplace_back (
             [](HeteroVector &from, HeteroVector &to)  {
-                vectors_<T>[&to] = std::move(vectors_<T>[&from]);
+                auto from_iter = vectors_<T>.find(&from);
+                BUG_ON(from_iter == vectors_<T>.end());
+                vectors_<T>.insert_or_assign(&to, std::move(from_iter->second));
+                vectors_<T>.erase(from_iter);
             });
 
-        iter = vectors_<T>.emplace (this, nu::make_sharded_vector<T>()).first;
+        iter = vectors_<T>.emplace(this, nu::make_sharded_vector<T, std::false_type>()).first;
     }
 
     return (iter->second);
@@ -85,7 +96,7 @@ HeteroPtrView HeteroVector::get_ptr_view(size_type begin, size_type end)  {
 // ----------------------------------------------------------------------------
 
 template<typename T>
-const nu::ShardedVector<T> &HeteroVector::get_vector() const  {
+const NuShardedVector<T> &HeteroVector::get_vector() const  {
 
     return (const_cast<HeteroVector *>(this)->get_vector<T>());
 }

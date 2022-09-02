@@ -45,6 +45,9 @@ extern "C" {
 
 // ----------------------------------------------------------------------------
 
+template<typename T>
+using NuShardedVector = nu::ShardedVector<T, /* LL = */ std::false_type>;
+
 namespace hmdf
 {
 
@@ -58,17 +61,17 @@ struct HeteroVector  {
 
     HMDF_API HeteroVector();
     HMDF_API HeteroVector(const HeteroVector &that);
-    HMDF_API HeteroVector(HeteroVector &&that);
+    HMDF_API HeteroVector(HeteroVector &&that) noexcept;
 
     ~HeteroVector() { clear(); }
 
     HMDF_API HeteroVector &operator= (const HeteroVector &rhs);
-    HMDF_API HeteroVector &operator= (HeteroVector &&rhs);
+    HMDF_API HeteroVector &operator= (HeteroVector &&rhs) noexcept;
 
     template<typename T>
-    nu::ShardedVector<T> &get_vector();
+    NuShardedVector<T> &get_vector();
     template<typename T>
-    const nu::ShardedVector<T> &get_vector() const;
+    const NuShardedVector<T> &get_vector() const;
 
     // It returns a view of the underlying vector.
     // NOTE: One can modify the vector through the view. But the vector
@@ -208,7 +211,7 @@ struct HeteroVector  {
 private:
 
     template<typename T>
-    inline static std::unordered_map<const HeteroVector *, nu::ShardedVector<T>>
+    inline static std::unordered_map<const HeteroVector *, NuShardedVector<T>>
         vectors_ {  };
 
     std::vector<std::function<void(HeteroVector &)>>    clear_functions_;
@@ -248,7 +251,7 @@ private:
     void change_impl_ (T &&functor, TLIST<TYPES...>) const;
 };
 
-} // namespace hmdf
+}  // namespace hmdf
 
 // ----------------------------------------------------------------------------
 

@@ -40,7 +40,7 @@ namespace hmdf
 
 template<typename I, typename  H>
 template<typename T>
-nu::ShardedVector<T> &DataFrame<I, H>::create_column (const char *name)  {
+NuShardedVector<T> &DataFrame<I, H>::create_column (const char *name)  {
 
     static_assert(std::is_base_of<HeteroVector, DataVec>::value,
                   "Only a StdDataFrame can call create_column()");
@@ -420,7 +420,7 @@ template<typename I, typename  H>
 template<typename T>
 typename DataFrame<I, H>::size_type
 DataFrame<I, H>::
-load_column (const char *name, nu::ShardedVector<T> &&column, nan_policy padding)  {
+load_column (const char *name, NuShardedVector<T> &&column, nan_policy padding)  {
 
     const size_type idx_s = indices_.size();
     const size_type data_s = column.size();
@@ -448,7 +448,7 @@ load_column (const char *name, nu::ShardedVector<T> &&column, nan_policy padding
     }
 
     const auto      iter = column_tb_.find (name);
-    std::vector<T>  *vec_ptr = nullptr;
+    NuShardedVector<T>  *vec_ptr = nullptr;
 
     if (iter == column_tb_.end())
         vec_ptr = &(create_column<T>(name));
@@ -527,7 +527,7 @@ template<typename T>
 typename DataFrame<I, H>::size_type
 DataFrame<I, H>::
 load_column (const char *name,
-             const nu::ShardedVector<T> &data,
+             const NuShardedVector<T> &data,
              nan_policy padding)  {
 
     return (load_column<T>(name, { data.begin(), data.end() }, padding));

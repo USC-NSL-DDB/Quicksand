@@ -116,7 +116,7 @@ public:  // Load/append/remove interfaces
     //   Type of column being added
     //
     template<typename T>
-    nu::ShardedVector<T> &
+    NuShardedVector<T> &
     create_column(const char *name);
 
     // It removes a column named name.
@@ -227,13 +227,13 @@ public:  // Load/append/remove interfaces
     template<typename T>
     size_type
     load_column(const char *name,
-                nu::ShardedVector<T> &&data,
+                NuShardedVector<T> &&data,
                 nan_policy padding = nan_policy::pad_with_nans);
 
     template<typename T>
     size_type
     load_column(const char *name,
-                const nu::ShardedVector<T> &data,
+                const NuShardedVector<T> &data,
                 nan_policy padding = nan_policy::pad_with_nans);
 
     // This method creates a column similar to above, but assumes data is
@@ -1517,7 +1517,7 @@ public: // Read/access and slicing interfaces
     //   Data type of the named column
     //
     template<typename T>
-    [[nodiscard]] nu::ShardedVector<T>
+    [[nodiscard]] NuShardedVector<T>
     get_col_unique_values(const char *name) const;
 
     // It returns a DataFrame (including the index and data columns)
@@ -3571,9 +3571,12 @@ private:
 
     // Data fields
     //
-    DataVecVec      data_ { };       // Vector of Heterogeneous vectors
-    IndexVecType    indices_ { };    // Vector
-    ColNameDict     column_tb_ { };  // Hash table of name -> vector index
+    // Vector of Heterogeneous vectors
+    DataVecVec      data_ { };
+    // Vector
+    IndexVecType    indices_ = nu::make_sharded_vector<IndexType, std::false_type>();
+    // Hash table of name -> vector index
+    ColNameDict     column_tb_ { };
 
     // This is necessary to have a deterministic column order across all
     // implementations

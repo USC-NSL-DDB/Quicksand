@@ -46,7 +46,7 @@ HeteroVector::HeteroVector ()  {
 // ----------------------------------------------------------------------------
 
 HeteroVector::HeteroVector (const HeteroVector &that)  { *this = that; }
-HeteroVector::HeteroVector (HeteroVector &&that)  { *this = that; }
+HeteroVector::HeteroVector (HeteroVector &&that) noexcept  { *this = that; }
 
 // ----------------------------------------------------------------------------
 
@@ -67,7 +67,7 @@ HeteroVector &HeteroVector::operator= (const HeteroVector &rhs)  {
 
 // ----------------------------------------------------------------------------
 
-HeteroVector &HeteroVector::operator= (HeteroVector &&rhs)  {
+HeteroVector &HeteroVector::operator= (HeteroVector &&rhs) noexcept {
 
     if (&rhs != this)  {
         clear();
