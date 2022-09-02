@@ -88,10 +88,15 @@ class ShardedVector
   friend class ProcletServer;
   template <typename T1, typename LL1>
   friend ShardedVector<T1, LL1> make_sharded_vector();
+  template <typename T1, typename LL1>
+  friend ShardedVector<T1, LL1> make_sharded_vector(uint64_t reserved_count);
 };
 
 template <typename T, typename LL>
 ShardedVector<T, LL> make_sharded_vector();
+
+template <typename T, typename LL>
+ShardedVector<T, LL> make_sharded_vector(uint64_t reserved_count);
 
 }  // namespace nu
 

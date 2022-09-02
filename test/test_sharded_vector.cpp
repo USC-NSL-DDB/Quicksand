@@ -224,7 +224,7 @@ bool test_vec_clear() {
 int double_int(int x) { return x * 2; }
 
 bool test_for_all() {
-  auto vec = make_sharded_vector<int, std::false_type>();
+  auto vec = make_sharded_vector<int, std::false_type>(1000);
 
   for (int i = 0; i < 1000; i++) {
     vec.push_back(i);

@@ -202,4 +202,10 @@ ShardedVector<T, LL> make_sharded_vector() {
   return ShardedVector<T, LL>(std::nullopt);
 }
 
+template <typename T, typename LL>
+ShardedVector<T, LL> make_sharded_vector(uint64_t reserved_count) {
+  return ShardedVector<T, LL>(typename ShardedVector<T, LL>::Base::Hint(
+      reserved_count, 0, [](Vector<T>::Key &k, uint64_t off) { k += off; }));
+}
+
 }  // namespace nu
