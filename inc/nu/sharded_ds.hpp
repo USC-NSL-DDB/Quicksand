@@ -309,10 +309,10 @@ class ShardedDataStructure {
   uint32_t max_batch_size_;
   KeyToShardsMapping key_to_shards_;
   Future<std::optional<FlushBatchReq>> flush_future_;
-  ReaderWriterLock rw_lock_;
   template <typename T>
   friend class SealedDS;
 
+  void reset();
   void set_shard_and_batch_size();
   bool flush_one_batch(KeyToShardsMapping::iterator iter);
   void handle_rejected_flush_req(FlushBatchReq &req);

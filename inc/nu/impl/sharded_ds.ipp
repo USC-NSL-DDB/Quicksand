@@ -420,7 +420,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
 template <class Container, class LL>
 ShardedDataStructure<Container, LL> &
 ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
-  flush();
+  reset();
 
   mapping_ = o.mapping_;
   max_shard_size_ = o.max_shard_size_;
@@ -445,7 +445,7 @@ template <class Container, class LL>
 ShardedDataStructure<Container, LL>
     &ShardedDataStructure<Container, LL>::operator=(
         ShardedDataStructure &&o) noexcept {
-  flush();
+  reset();
 
   mapping_ = std::move(o.mapping_);
   max_shard_size_ = o.max_shard_size_;
@@ -456,11 +456,16 @@ ShardedDataStructure<Container, LL>
 }
 
 template <class Container, class LL>
-ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
+void ShardedDataStructure<Container, LL>::reset() {
   if (mapping_) {
     flush();
     mapping_.run(&GeneralShardingMapping<Shard>::dec_ref_cnt);
   }
+}
+
+template <class Container, class LL>
+ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
+  reset();
 }
 
 template <class Container, class LL>
