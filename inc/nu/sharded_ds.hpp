@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <functional>
 #include <list>
 #include <map>
@@ -18,17 +19,39 @@
 
 namespace nu {
 
-template <class Container>
-class GeneralShard;
+template <class T>
+concept BoolIntegral = requires {
+  requires std::is_same_v<T, std::bool_constant<false>> ||
+      std::is_same_v<T, std::bool_constant<true>>;
+};
 
-template <class Impl, class Synchronized>
+template <class Impl, BoolIntegral Synchronized>
 class GeneralContainerBase;
+
+template <class T>
+concept GeneralContainerBased = requires {
+  requires is_base_of_template_v<T, GeneralContainerBase>;
+};
 
 template <class Impl>
 using GeneralContainer = GeneralContainerBase<Impl, std::false_type>;
 
 template <class Impl>
 using GeneralLockedContainer = GeneralContainerBase<Impl, std::true_type>;
+
+template <GeneralContainerBased Container>
+class GeneralShard;
+
+template <class Shard>
+class GeneralShardingMapping;
+
+template <GeneralContainerBased Container, BoolIntegral LL>
+class ShardedDataStructure;
+
+template <class T>
+concept ShardedDataStructureBased = requires {
+  requires is_base_of_template_v<T, ShardedDataStructure>;
+};
 
 enum ContainerReqType { Emplace = 0, EmplaceBack };
 
@@ -42,11 +65,8 @@ struct ContainerReq {
   void serialize(Archive &ar);
 };
 
-template <class Impl, class Synchronized>
+template <class Impl, BoolIntegral Synchronized>
 class GeneralContainerBase {
-  static_assert(std::is_same_v<Synchronized, std::bool_constant<false>> ||
-                std::is_same_v<Synchronized, std::bool_constant<true>>);
-
  public:
   using Key = Impl::Key;
   using Val = Impl::Val;
@@ -125,8 +145,6 @@ class GeneralContainerBase {
   void handle_batch(std::vector<ContainerReq<Key, Val>> reqs);
 
  private:
-  friend GeneralShard<GeneralContainer<Impl>>;
-  friend GeneralShard<GeneralLockedContainer<Impl>>;
   Impl impl_;
   Mutex mutex_;
 
@@ -141,13 +159,8 @@ class GeneralContainerBase {
   }
 };
 
-template <class Shard>
-class GeneralShardingMapping;
-
-template <class Container>
+template <GeneralContainerBased Container>
 class GeneralShard {
-  static_assert(is_base_of_template_v<Container, GeneralContainerBase>);
-
  public:
   using Key = Container::Key;
   using Val = Container::Val;
@@ -236,8 +249,6 @@ class GeneralShard {
 
 template <class Shard>
 class GeneralShardingMapping {
-  static_assert(is_base_of_template_v<Shard, GeneralShard>);
-
  public:
   using Key = Shard::Key;
 
@@ -260,12 +271,8 @@ class GeneralShardingMapping {
   CondVar ref_cnt_cv_;
 };
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 class ShardedDataStructure {
-  static_assert(is_base_of_template_v<Container, GeneralContainerBase>);
-  static_assert(std::is_same_v<LL, std::bool_constant<false>> ||
-                std::is_same_v<LL, std::bool_constant<true>>);
-
  public:
   using Key = Container::Key;
   using Val = Container::Val;
@@ -324,7 +331,7 @@ class ShardedDataStructure {
   uint32_t max_batch_size_;
   KeyToShardsMapping key_to_shards_;
   Future<std::optional<ReqBatch>> flush_future_;
-  template <typename T>
+  template <ShardedDataStructureBased T>
   friend class SealedDS;
 
   std::size_t __size();

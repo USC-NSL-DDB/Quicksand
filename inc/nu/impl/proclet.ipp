@@ -1,6 +1,7 @@
 #include <array>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
+#include <concepts>
 #include <cstdint>
 #include <memory>
 #include <sstream>
@@ -21,7 +22,6 @@ extern "C" {
 #include "nu/rem_unique_ptr.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
-#include "nu/type_traits.hpp"
 #include "nu/utils/future.hpp"
 
 namespace nu {
@@ -258,19 +258,11 @@ ProcletID Proclet<T>::get_id() const {
   return id_;
 }
 
-template <typename... T>
-void assert_valid_invocation_types() {
-  static_assert((!std::is_reference_v<T> && ... && true));
-  static_assert((!std::is_pointer_v<T> && ... && true));
-  static_assert((!is_specialization_of_v<T, std::unique_ptr> && ... && true));
-  static_assert((!is_specialization_of_v<T, std::shared_ptr> && ... && true));
-  static_assert((!is_specialization_of_v<T, std::weak_ptr> && ... && true));
-}
-
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-Future<RetT> Proclet<T>::run_async(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  assert_valid_invocation_types<RetT, S0s...>();
+Future<RetT> Proclet<T>::run_async(
+    RetT (*fn)(T &, S0s...),
+    S1s &&... states) requires ValidInvocationTypes<RetT, S0s...> {
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
 
@@ -288,8 +280,9 @@ Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...),
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-RetT Proclet<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  assert_valid_invocation_types<RetT, S0s...>();
+RetT Proclet<T>::run(
+    RetT (*fn)(T &, S0s...),
+    S1s &&... states) requires ValidInvocationTypes<RetT, S0s...> {
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::move(states)...));
 
@@ -358,8 +351,9 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-Future<RetT> Proclet<T>::run_async(RetT (T::*md)(A0s...), A1s &&... args) {
-  assert_valid_invocation_types<RetT, A0s...>();
+Future<RetT> Proclet<T>::run_async(
+    RetT (T::*md)(A0s...),
+    A1s &&... args) requires ValidInvocationTypes<RetT, A0s...> {
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::move(args)...));
 
@@ -376,8 +370,9 @@ Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-RetT Proclet<T>::run(RetT (T::*md)(A0s...), A1s &&... args) {
-  assert_valid_invocation_types<RetT, A0s...>();
+RetT Proclet<T>::run(
+    RetT (T::*md)(A0s...),
+    A1s &&... args) requires ValidInvocationTypes<RetT, A0s...> {
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
 

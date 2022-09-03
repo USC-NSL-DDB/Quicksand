@@ -1,10 +1,12 @@
-#include "nu/proclet.hpp"
-#include "nu/rem_shared_ptr.hpp"
-#include "nu/rem_unique_ptr.hpp"
-
 namespace nu {
 
 class DistributedMemPool;
+template <typename T>
+class Proclet;
+template <typename T>
+class RemUniquePtr;
+template <typename T>
+class RemSharedPtr;
 
 template <class T>
 T& to_lvalue_ref(T&& t) {

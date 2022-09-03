@@ -6,12 +6,25 @@
 
 #include "nu/commons.hpp"
 #include "nu/runtime_deleter.hpp"
+#include "nu/type_traits.hpp"
 #include "nu/utils/future.hpp"
 
 namespace nu {
 
 template <typename T>
 class WeakProclet;
+
+template <typename T>
+class Proclet;
+
+template <typename... T>
+concept ValidInvocationTypes = requires {
+  requires(!std::is_reference_v<T> && ... && true);
+  requires((!std::is_pointer_v<T> && ... && true));
+  requires((!is_specialization_of_v<T, std::unique_ptr> && ... && true));
+  requires((!is_specialization_of_v<T, std::shared_ptr> && ... && true));
+  requires((!is_specialization_of_v<T, std::weak_ptr> && ... && true));
+};
 
 template <typename T>
 class Proclet {
@@ -25,13 +38,19 @@ class Proclet {
   operator bool() const;
   ProcletID get_id() const;
   template <typename RetT, typename... S0s, typename... S1s>
-  Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
+  Future<RetT> run_async(
+      RetT (*fn)(T &, S0s...),
+      S1s &&... states) requires ValidInvocationTypes<RetT, S0s...>;
   template <typename RetT, typename... S0s, typename... S1s>
-  RetT run(RetT (*fn)(T &, S0s...), S1s &&... states);
+  RetT run(RetT (*fn)(T &, S0s...),
+           S1s &&... states) requires ValidInvocationTypes<RetT, S0s...>;
   template <typename RetT, typename... A0s, typename... A1s>
-  Future<RetT> run_async(RetT (T::*md)(A0s...), A1s &&... args);
+  Future<RetT> run_async(
+      RetT (T::*md)(A0s...),
+      A1s &&... args) requires ValidInvocationTypes<RetT, A0s...>;
   template <typename RetT, typename... A0s, typename... A1s>
-  RetT run(RetT (T::*md)(A0s...), A1s &&... args);
+  RetT run(RetT (T::*md)(A0s...),
+           A1s &&... args) requires ValidInvocationTypes<RetT, A0s...>;
   void reset();
   std::optional<Future<void>> reset_async();
   WeakProclet<T> get_weak();

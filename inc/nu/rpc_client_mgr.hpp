@@ -37,7 +37,7 @@ class RPCClientMgr {
       return *this;
     }
   };
-  static_assert(sizeof(NodeInfo) == sizeof(uint64_t));
+  static_assert(sizeof(NodeInfo) == sizeof(NodeInfo::raw));
 
   uint16_t port_;
   NodeInfo rem_id_to_node_info_[get_max_slab_id() + 1];

@@ -12,10 +12,8 @@
 
 namespace nu {
 
-template <typename T, bool Fwd>
+template <ShardedDataStructureBased T, bool Fwd>
 class GeneralSealedDSConstIterator {
-  static_assert(is_base_of_template_v<T, ShardedDataStructure>);
-
  public:
   using Val = T::Shard::GeneralContainer::IterVal;
 
@@ -82,7 +80,7 @@ class GeneralSealedDSConstIterator {
   Future<Block> prefetched_prev_block_;
   Block::ConstIterator block_iter_;
 
-  template <typename U>
+  template <ShardedDataStructureBased U>
   friend class SealedDS;
 
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
@@ -94,10 +92,8 @@ class GeneralSealedDSConstIterator {
   Block get_prev_block(const Block &block);
 };
 
-template <typename T>
+template <ShardedDataStructureBased T>
 class SealedDS {
-  static_assert(is_base_of_template_v<T, ShardedDataStructure>);
-
  public:
   using ConstIterator = GeneralSealedDSConstIterator<T, true>;
   using ConstReverseIterator = GeneralSealedDSConstIterator<T, false>;

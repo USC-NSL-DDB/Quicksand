@@ -11,6 +11,7 @@ extern "C" {
 #include <thread.h>
 
 #include "nu/commons.hpp"
+#include "nu/ctrl_client.hpp"
 #include "nu/migrator.hpp"
 #include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
