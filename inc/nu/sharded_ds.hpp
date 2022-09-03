@@ -30,6 +30,18 @@ using GeneralContainer = GeneralContainerBase<Impl, std::false_type>;
 template <class Impl>
 using GeneralLockedContainer = GeneralContainerBase<Impl, std::true_type>;
 
+enum ContainerReqType { Emplace = 0, EmplaceBack };
+
+template <typename Key, typename Val>
+struct ContainerReq {
+  ContainerReqType type;
+  Key k;
+  Val v;
+
+  template <class Archive>
+  void serialize(Archive &ar);
+};
+
 template <class Impl, class Synchronized>
 class GeneralContainerBase {
   static_assert(std::is_same_v<Synchronized, std::bool_constant<false>> ||
@@ -60,39 +72,42 @@ class GeneralContainerBase {
     return *this;
   }
   std::size_t size() {
-    return synchronized<std::size_t>([&]() { return impl_.size(); });
+    return synchronized<std::size_t>([&] { return impl_.size(); });
   }
   std::size_t capacity() {
-    return synchronized<std::size_t>([&]() { return impl_.capacity(); });
+    return synchronized<std::size_t>([&] { return impl_.capacity(); });
   }
   bool empty() {
-    return synchronized<bool>([&]() { return impl_.empty(); });
+    return synchronized<bool>([&] { return impl_.empty(); });
   };
   void clear() {
-    return synchronized<void>([&]() { return impl_.clear(); });
+    return synchronized<void>([&] { return impl_.clear(); });
   };
   void emplace(Key k, Val v) {
-    synchronized<void>([&]() { impl_.emplace(std::move(k), std::move(v)); });
+    synchronized<void>([&] { impl_.emplace(std::move(k), std::move(v)); });
   }
-  void emplace_batch(ContainerType c) {
-    synchronized<void>([&]() { impl_.emplace_batch(std::move(c.impl_)); });
-  };
+  void emplace_back(Val v) {
+    synchronized<void>([&] { impl_.emplace_back(std::move(v)); });
+  }
   std::optional<Val> find_val(Key k) {
     return synchronized<std::optional<Val>>(
-        [&]() { return impl_.find_val(std::move(k)); });
+        [&] { return impl_.find_val(std::move(k)); });
   }
   std::pair<Key, ContainerType> split() {
-    return synchronized<std::pair<Key, ContainerType>>([&]() {
+    return synchronized<std::pair<Key, ContainerType>>([&] {
       auto [k, impl] = impl_.split();
       ContainerType c;
       c.impl_ = std::move(impl);
       return std::make_pair(std::move(k), std::move(c));
     });
   }
+  void merge(ContainerType c) {
+    synchronized<void>([&] { impl_.merge(c.impl_); });
+  }
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states) {
     synchronized<void>(
-        [&]() { impl_.for_all(fn, std::forward<S1s>(states)...); });
+        [&] { impl_.for_all(fn, std::forward<S1s>(states)...); });
   }
   Impl &unwrap() { return impl_; }
   ConstIterator cbegin() const { return impl_.cbegin(); }
@@ -107,11 +122,11 @@ class GeneralContainerBase {
   void load(Archive &ar) {
     impl_.load(ar);
   }
+  void handle_batch(std::vector<ContainerReq<Key, Val>> reqs);
 
  private:
   friend GeneralShard<GeneralContainer<Impl>>;
   friend GeneralShard<GeneralLockedContainer<Impl>>;
-
   Impl impl_;
   Mutex mutex_;
 
@@ -151,8 +166,10 @@ class GeneralShard {
                std::size_t capacity);
   ~GeneralShard();
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
-  bool try_emplace_batch(std::optional<Key> l_key, std::optional<Key> r_key,
-                         Container container);
+  bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
+                        Val v);
+  bool try_handle_batch(std::optional<Key> l_key, std::optional<Key> r_key,
+                        std::vector<ContainerReq<Key, Val>> reqs);
   std::pair<bool, std::optional<Val>> find_val(Key k);
   std::pair<std::vector<IterVal>, ConstIterator> get_block_forward(
       ConstIterator start_iter, uint32_t block_size);
@@ -201,9 +218,9 @@ class GeneralShard {
     GeneralShard *shard_;
   };
 
-  Container get_container();
-  ContainerHandle get_container_ptr();
-  ConstContainerHandle get_const_container_ptr();
+  Container get_container_copy();
+  ContainerHandle get_container_handle();
+  ConstContainerHandle get_const_container_handle();
 
  private:
   uint32_t max_shard_size_;
@@ -264,11 +281,12 @@ class ShardedDataStructure {
 
   void emplace(Key k, Val v);
   void emplace(Pair p);
+  void emplace_back(Val v);
   std::optional<Val> find_val(Key k);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   Container collect();
-  std::size_t size();
+  std::size_t size() const;
   void clear();
   void flush();
   template <class Archive>
@@ -291,31 +309,29 @@ class ShardedDataStructure {
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
 
-  using KeyToShardsMapping =
-      std::map<std::optional<Key>, std::pair<WeakProclet<Shard>, Container>>;
-
-  struct FlushBatchReq {
+  using KeyToShardsMapping = std::map<
+      std::optional<Key>,
+      std::pair<WeakProclet<Shard>, std::vector<ContainerReq<Key, Val>>>>;
+  struct ReqBatch {
     std::optional<Key> l_key;
     std::optional<Key> r_key;
     WeakProclet<Shard> shard;
-    Container batch;
-
-    template <class Archive>
-    void serialize(Archive &ar);
+    std::vector<ContainerReq<Key, Val>> reqs;
   };
 
   Proclet<ShardingMapping> mapping_;
   uint32_t max_shard_size_;
   uint32_t max_batch_size_;
   KeyToShardsMapping key_to_shards_;
-  Future<std::optional<FlushBatchReq>> flush_future_;
+  Future<std::optional<ReqBatch>> flush_future_;
   template <typename T>
   friend class SealedDS;
 
+  std::size_t __size();
   void reset();
   void set_shard_and_batch_size();
   bool flush_one_batch(KeyToShardsMapping::iterator iter);
-  void handle_rejected_flush_req(FlushBatchReq &req);
+  void handle_rejected_flush_batch(ReqBatch &batch);
   void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key);
   std::pair<std::optional<Key>, std::optional<Key>> get_key_range(
       KeyToShardsMapping::iterator iter);

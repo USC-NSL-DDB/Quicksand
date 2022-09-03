@@ -29,8 +29,9 @@ class PairCollection {
   bool empty() const;
   void clear();
   void emplace(K k, V v);
-  void emplace_batch(PairCollection pc);
+  void emplace_back(V v);
   std::pair<Key, PairCollection> split();
+  void merge(PairCollection pc);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   template <class Archive>

@@ -58,7 +58,12 @@ void Map<K, V>::emplace(Key k, Val v) {
 }
 
 template <typename K, typename V>
-void Map<K, V>::emplace_batch(Map m) {
+void Map<K, V>::emplace_back(Val v) {
+  BUG();
+}
+
+template <typename K, typename V>
+void Map<K, V>::merge(Map m) {
   for (auto &[k, v] : m.map_) {
     map_[std::move(k)] = std::move(v);
   }

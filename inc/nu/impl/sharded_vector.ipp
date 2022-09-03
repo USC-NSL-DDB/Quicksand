@@ -86,11 +86,16 @@ void Vector<T>::clear() {
 
 template <typename T>
 void Vector<T>::emplace(Key k, Val v) {
+  BUG();
+}
+
+template <typename T>
+void Vector<T>::emplace_back(Val v) {
   data_.emplace_back(std::move(v));
 }
 
 template <typename T>
-void Vector<T>::emplace_batch(Vector vector) {
+void Vector<T>::merge(Vector vector) {
   data_.insert(data_.end(), std::make_move_iterator(vector.data_.begin()),
                std::make_move_iterator(vector.data_.end()));
 }
@@ -169,7 +174,14 @@ T ShardedVector<T, LL>::operator[](std::size_t index) {
 
 template <typename T, typename LL>
 void ShardedVector<T, LL>::push_back(const T &value) {
-  this->emplace(size_, value);
+  auto copy = value;
+  Base::emplace_back(std::move(copy));
+  size_++;
+}
+
+template <typename T, typename LL>
+void ShardedVector<T, LL>::emplace_back(T &&value) {
+  Base::emplace_back(std::move(value));
   size_++;
 }
 
@@ -179,7 +191,7 @@ void ShardedVector<T, LL>::pop_back() {
 }
 
 template <typename T, typename LL>
-std::size_t ShardedVector<T, LL>::size() {
+std::size_t ShardedVector<T, LL>::size() const {
   return size_;
 }
 

@@ -41,10 +41,11 @@ class Set {
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
-  void emplace_batch(Set s);
+  void emplace_back(Val v);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   std::pair<Key, Set> split();
+  void merge(Set s);
   ConstIterator cbegin() const;
   ConstIterator cend() const;
   ConstReverseIterator crbegin() const;

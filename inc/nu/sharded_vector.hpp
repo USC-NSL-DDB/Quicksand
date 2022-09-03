@@ -44,9 +44,10 @@ class Vector {
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
-  void emplace_batch(Vector vector);
+  void emplace_back(Val v);
   std::optional<T> find_val(Key k);
   std::pair<Key, Vector> split();
+  void merge(Vector vector);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   ConstIterator cbegin() const;
@@ -74,8 +75,9 @@ class ShardedVector
 
   T operator[](std::size_t index);
   void push_back(const T &value);
+  void emplace_back(T &&value);
   void pop_back();
-  std::size_t size();
+  std::size_t size() const;
   bool empty();
   void clear();
 
