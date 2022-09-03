@@ -662,28 +662,27 @@ template<typename T, typename F, typename ... Ts>
 DataFrame<I, H> DataFrame<I, H>::
 get_data_by_sel (const char *name, F &sel_functor) const  {
 
-    const ColumnVecType<T>  &vec = get_column<T>(name);
-    const size_type         idx_s = indices_.size();
-    const size_type         col_s = vec.size();
-    std::vector<size_type>  col_indices;
+    ColumnVecType<T>            &vec = const_cast<DataFrame<I, H> *>(this)->get_column<T>(name);
+    const size_type             idx_s = indices_.size();
+    const size_type             col_s = vec.size();
+    auto                        col_indices = nu_make_sharded_vector<size_type>(idx_s / 2);
 
-    col_indices.reserve(idx_s / 2);
     for (size_type i = 0; i < col_s; ++i)
         if (sel_functor (indices_[i], vec[i]))
             col_indices.push_back(i);
 
     DataFrame       df;
-    IndexVecType    new_index;
+    IndexVecType    new_index = nu_make_sharded_vector<IndexType>(col_indices.size());
 
-    new_index.reserve(col_indices.size());
-    for (auto citer: col_indices)
+    auto sealed_col_indices = nu::to_sealed_ds(std::move(col_indices));
+    for (auto citer: sealed_col_indices)
         new_index.push_back(indices_[citer]);
     df.load_index(std::move(new_index));
 
     for (const auto &col_citer : column_list_)  {
         sel_load_functor_<size_type, Ts ...>    functor (
             col_citer.first.c_str(),
-            col_indices,
+            sealed_col_indices,
             idx_s,
             df);
         const SpinGuard                         guard(lock_);

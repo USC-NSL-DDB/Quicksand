@@ -185,7 +185,7 @@ void ShardedDataStructure<Container, LL>::emplace_back(
 
 template <class Container, class LL>
 std::optional<typename ShardedDataStructure<Container, LL>::Val>
-ShardedDataStructure<Container, LL>::find_val(Key k) {
+ShardedDataStructure<Container, LL>::__find_val(Key k) {
   flush();
 
 retry:
@@ -200,6 +200,12 @@ retry:
   }
 
   return val;
+}
+
+template <class Container, class LL>
+std::optional<typename ShardedDataStructure<Container, LL>::Val>
+ShardedDataStructure<Container, LL>::find_val(Key k) const {
+  return const_cast<ShardedDataStructure *>(this)->__find_val(k);
 }
 
 template <class Container, class LL>
@@ -359,7 +365,7 @@ std::size_t ShardedDataStructure<Container, LL>::__size() {
 
 template <class Container, class LL>
 std::size_t ShardedDataStructure<Container, LL>::size() const {
-  return const_cast<ShardedDataStructure<Container, LL> *>(this)->__size();
+  return const_cast<ShardedDataStructure *>(this)->__size();
 }
 
 template <class Container, class LL>

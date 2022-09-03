@@ -590,12 +590,12 @@ sel_load_functor_<IT, Ts ...>::
 operator() (const T &vec)  {
 
     using VecType = typename std::remove_reference<T>::type;
-    using ValueType = typename VecType::value_type;
+    using ValueType = typename VecType::Val;
 
-    std::vector<ValueType>  new_col;
     const size_type         vec_size = vec.size();
+    auto                    reserved_count = std::min(sel_indices.size(), vec_size);
+    auto                    new_col = nu_make_sharded_vector<ValueType>(reserved_count);
 
-    new_col.reserve(std::min(sel_indices.size(), vec_size));
     for (auto citer : sel_indices)  {
         const size_type index =
             citer >= 0 ? citer : static_cast<IT>(indices_size) + citer;

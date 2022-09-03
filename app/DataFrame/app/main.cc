@@ -57,27 +57,29 @@ void print_number_vendor_ids_and_unique(StdDataFrame<uint64_t>& df)
     std::cout << std::endl;
 }
 
-// void print_passage_counts_by_vendor_id(StdDataFrame<uint64_t>& df, int vendor_id)
-// {
-//     std::cout << "print_passage_counts_by_vendor_id(vendor_id), vendor_id = " << vendor_id
-//               << std::endl;
+void print_passage_counts_by_vendor_id(StdDataFrame<uint64_t>& df, int vendor_id)
+{
+    std::cout << "print_passage_counts_by_vendor_id(vendor_id), vendor_id = " << vendor_id
+              << std::endl;
 
-//     auto sel_vendor_functor = [&](const uint64_t&, const int& vid) -> bool {
-//         return vid == vendor_id;
-//     };
-//     auto sel_df =
-//         df.get_data_by_sel<int, decltype(sel_vendor_functor), int, SimpleTime, double, char>(
-//             "VendorID", sel_vendor_functor);
-//     auto& passage_count_vec = sel_df.get_column<int>("passenger_count");
-//     std::map<int, int> passage_count_map;
-//     for (auto passage_count : passage_count_vec) {
-//         passage_count_map[passage_count]++;
-//     }
-//     for (auto& [passage_count, cnt] : passage_count_map) {
-//         std::cout << "passage_count= " << passage_count << ", cnt = " << cnt << std::endl;
-//     }
-//     std::cout << std::endl;
-// }
+    auto sel_vendor_functor = [&](const uint64_t&, const int& vid) -> bool {
+        return vid == vendor_id;
+    };
+    auto sel_df =
+        df.get_data_by_sel<int, decltype(sel_vendor_functor), int, SimpleTime, double, char>(
+            "VendorID", sel_vendor_functor);
+    auto& passage_count_vec = sel_df.get_column<int>("passenger_count");
+    auto sealed_passage_count_vec = nu::to_sealed_ds(std::move(passage_count_vec));
+    std::map<int, int> passage_count_map;
+    for (auto passage_count : sealed_passage_count_vec) {
+        passage_count_map[passage_count]++;
+    }
+    passage_count_vec = nu::to_unsealed_ds(std::move(sealed_passage_count_vec));
+    for (auto& [passage_count, cnt] : passage_count_map) {
+        std::cout << "passage_count= " << passage_count << ", cnt = " << cnt << std::endl;
+    }
+    std::cout << std::endl;
+}
 
 // void calculate_trip_duration(StdDataFrame<uint64_t>& df)
 // {
@@ -257,10 +259,10 @@ void do_work()
     times[0] = std::chrono::steady_clock::now();
     print_number_vendor_ids_and_unique(df);
     times[1] = std::chrono::steady_clock::now();
-    // print_passage_counts_by_vendor_id(df, 1);
-    // times[2] = std::chrono::steady_clock::now();
-    // print_passage_counts_by_vendor_id(df, 2);
-    // times[3] = std::chrono::steady_clock::now();
+    print_passage_counts_by_vendor_id(df, 1);
+    times[2] = std::chrono::steady_clock::now();
+    print_passage_counts_by_vendor_id(df, 2);
+    times[3] = std::chrono::steady_clock::now();
     // calculate_trip_duration(df);
     // times[4] = std::chrono::steady_clock::now();
     // calculate_distribution_store_and_fwd_flag(df);

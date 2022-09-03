@@ -72,7 +72,7 @@ class ShardedVector
   ShardedVector(ShardedVector &&) noexcept = default;
   ShardedVector &operator=(ShardedVector &&) noexcept = default;
 
-  T operator[](std::size_t index);
+  T operator[](std::size_t index) const;
   void push_back(const T &value);
   void emplace_back(T &&value);
   void pop_back();

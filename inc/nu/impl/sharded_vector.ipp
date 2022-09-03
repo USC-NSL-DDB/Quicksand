@@ -166,7 +166,7 @@ template <typename T, typename LL>
 ShardedVector<T, LL>::ShardedVector() {}
 
 template <typename T, typename LL>
-T ShardedVector<T, LL>::operator[](std::size_t index) {
+T ShardedVector<T, LL>::operator[](std::size_t index) const {
   std::optional<T> r = this->find_val(index);
   return *r;
 }

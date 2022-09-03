@@ -47,7 +47,7 @@ class ShardedDataStructure {
   void emplace(Key k, Val v);
   void emplace(Pair p);
   void emplace_back(Val v) requires EmplaceBackAble<Container>;
-  std::optional<Val> find_val(Key k);
+  std::optional<Val> find_val(Key k) const;
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   Container collect();
@@ -94,6 +94,7 @@ class ShardedDataStructure {
   friend class SealedDS;
 
   std::size_t __size();
+  std::optional<Val> __find_val(Key k);
   void reset();
   void set_shard_and_batch_size();
   bool flush_one_batch(KeyToShardsMapping::iterator iter);

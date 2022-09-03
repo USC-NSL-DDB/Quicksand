@@ -47,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 #include <vector>
 
+#include <nu/sealed_ds.hpp>
 #include <nu/sharded_vector.hpp>
 
 // ----------------------------------------------------------------------------

@@ -116,6 +116,7 @@ class SealedDS {
       requires ConstReverseIterable<typename T::Shard>;
   ConstReverseIterator crend() const
       requires ConstReverseIterable<typename T::Shard>;
+  std::size_t size() const;
 
  private:
   using Shard = T::Shard;

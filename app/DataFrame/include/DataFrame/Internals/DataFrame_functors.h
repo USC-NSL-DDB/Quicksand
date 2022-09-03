@@ -445,15 +445,15 @@ template<typename IT, typename ... Ts>
 struct sel_load_functor_ : DataVec::template visitor_base<Ts ...>  {
 
     inline sel_load_functor_ (const char *n,
-                              const std::vector<IT> &si,
+                              const nu::SealedDS<NuShardedVector<IT>> &si,
                               size_type is,
                               DataFrame &d)
         : name (n), sel_indices (si), indices_size(is), df(d)  {   }
 
-    const char              *name;
-    const std::vector<IT>   &sel_indices;
-    const size_type         indices_size;
-    DataFrame               &df;
+    const char                                *name;
+    const nu::SealedDS<NuShardedVector<IT>>   &sel_indices;
+    const size_type                           indices_size;
+    DataFrame                                 &df;
 
     template<typename T>
     void operator() (const T &vec);
