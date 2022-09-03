@@ -12,25 +12,12 @@ struct UnorderedMapConstIterator
   void serialize(Archive &ar);
 };
 
-template <typename IterVal>
-struct NoopIterator {
-  NoopIterator(){};
-  IterVal operator*() {
-    BUG();
-    return IterVal();
-  };
-  bool operator==(NoopIterator &rhs) { return true; };
-  void operator++(int incr){};
-};
-
 template <typename K, typename V>
 class UnorderedMap {
  public:
   using Key = K;
   using Val = V;
-  using IterVal = std::pair<K, V>;
   using ConstIterator = UnorderedMapConstIterator<K, V>;
-  using ConstReverseIterator = NoopIterator<IterVal>;
 
   UnorderedMap() = default;
   UnorderedMap(std::size_t capacity);
@@ -50,8 +37,6 @@ class UnorderedMap {
   void merge(UnorderedMap m);
   ConstIterator cbegin() const;
   ConstIterator cend() const;
-  ConstReverseIterator crbegin() const;
-  ConstReverseIterator crend() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>

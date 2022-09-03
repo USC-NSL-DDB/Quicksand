@@ -19,7 +19,6 @@ class UnorderedSet {
  public:
   using Key = T;
   using Val = T;
-  using IterVal = T;
   using ConstIterator = UnorderedSetConstIterator<T>;
 
   UnorderedSet();

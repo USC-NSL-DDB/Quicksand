@@ -113,16 +113,6 @@ UnorderedMap<K, V>::ConstIterator UnorderedMap<K, V>::cend() const {
 }
 
 template <typename K, typename V>
-UnorderedMap<K, V>::ConstReverseIterator UnorderedMap<K, V>::crbegin() const {
-  return NoopIterator<IterVal>();
-}
-
-template <typename K, typename V>
-UnorderedMap<K, V>::ConstReverseIterator UnorderedMap<K, V>::crend() const {
-  return NoopIterator<IterVal>();
-}
-
-template <typename K, typename V>
 template <class Archive>
 void UnorderedMap<K, V>::save(Archive &ar) const {
   ar(map_);

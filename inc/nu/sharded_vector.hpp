@@ -28,7 +28,6 @@ class Vector {
  public:
   using Key = std::size_t;
   using Val = T;
-  using IterVal = T;
   using ConstIterator = VectorConstIterator<T>;
   using ConstReverseIterator = VectorConstReverseIterator<T>;
 

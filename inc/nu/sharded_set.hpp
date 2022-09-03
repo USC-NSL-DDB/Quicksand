@@ -26,7 +26,6 @@ class Set {
  public:
   using Key = T;
   using Val = T;
-  using IterVal = T;
   using ConstIterator = SetConstIterator<T>;
   using ConstReverseIterator = SetConstReverseIterator<T>;
 

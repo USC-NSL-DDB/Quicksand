@@ -212,7 +212,6 @@ GeneralShard<Container>::find_val(Key k) {
 
 template <class Container>
 std::pair<std::vector<typename Container::IterVal>,
-
           typename GeneralShard<Container>::ConstIterator>
 GeneralShard<Container>::get_block_forward(
     ConstIterator start_iter,

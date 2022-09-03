@@ -64,22 +64,22 @@ class GeneralContainerBase {
  public:
   using Key = Impl::Key;
   using Val = Impl::Val;
-  using IterVal = Impl::IterVal;
   using Pair = std::pair<Key, Val>;
   using ConstIterator = decltype([] {
     if constexpr (ConstIterable<Impl>) {
       return typename Impl::ConstIterator();
     } else {
-      return ErasedType();
+      return new ErasedType();
     }
   }());
   using ConstReverseIterator = decltype([] {
     if constexpr (ConstReverseIterable<Impl>) {
       return typename Impl::ConstReverseIterator();
     } else {
-      return ErasedType();
+      return new ErasedType();
     }
   }());
+  using IterVal = DeepDecay_t<decltype(*std::declval<ConstIterator>())>;
   using ContainerType =
       std::conditional_t<Synchronized::value, GeneralLockedContainer<Impl>,
                          GeneralContainer<Impl>>;

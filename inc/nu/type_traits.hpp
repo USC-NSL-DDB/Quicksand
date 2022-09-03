@@ -30,6 +30,24 @@ using is_base_of_template =
 template <typename T, template <typename...> class C>
 inline constexpr bool is_base_of_template_v = is_base_of_template<T, C>::value;
 
+template <typename T>
+struct DeepDecay {
+  template <typename U>
+  struct DecayInner {
+    using type = U;
+  };
+
+  template <template <typename...> class U, typename... Args>
+  struct DecayInner<U<Args...>> {
+    using type = U<std::decay_t<Args>...>;
+  };
+
+  using type = DecayInner<std::decay_t<T>>::type;
+};
+
+template <typename T>
+using DeepDecay_t = typename DeepDecay<T>::type;
+
 }  // namespace nu
 
 #include "nu/impl/type_traits.ipp"

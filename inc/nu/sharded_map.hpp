@@ -26,7 +26,6 @@ class Map {
  public:
   using Key = K;
   using Val = V;
-  using IterVal = std::pair<Key, Val>;
   using ConstIterator = MapConstIterator<K, V>;
   using ConstReverseIterator = MapConstReverseIterator<K, V>;
 
