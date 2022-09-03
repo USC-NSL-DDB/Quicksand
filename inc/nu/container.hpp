@@ -1,0 +1,134 @@
+#pragma once
+
+#include <concepts>
+#include <optional>
+#include <utility>
+#include <vector>
+
+#include "nu/type_traits.hpp"
+#include "nu/utils/mutex.hpp"
+
+namespace nu {
+
+template <class T>
+concept BoolIntegral = requires {
+  requires std::is_same_v<T, std::bool_constant<false>> ||
+      std::is_same_v<T, std::bool_constant<true>>;
+};
+
+template <class Impl, BoolIntegral Synchronized>
+class GeneralContainerBase;
+
+template <class T>
+concept GeneralContainerBased = requires {
+  requires is_base_of_template_v<T, GeneralContainerBase>;
+};
+
+template <class Impl>
+using GeneralContainer = GeneralContainerBase<Impl, std::false_type>;
+
+template <class Impl>
+using GeneralLockedContainer = GeneralContainerBase<Impl, std::true_type>;
+
+enum ContainerReqType { Emplace = 0, EmplaceBack };
+
+template <typename Key, typename Val>
+struct ContainerReq {
+  ContainerReqType type;
+  Key k;
+  Val v;
+
+  template <class Archive>
+  void serialize(Archive &ar);
+};
+
+template <class Impl, BoolIntegral Synchronized>
+class GeneralContainerBase {
+ public:
+  using Key = Impl::Key;
+  using Val = Impl::Val;
+  using IterVal = Impl::IterVal;
+  using Pair = std::pair<Key, Val>;
+  using ConstIterator = Impl::ConstIterator;
+  using ConstReverseIterator = Impl::ConstReverseIterator;
+  using ContainerType =
+      std::conditional_t<Synchronized::value, GeneralLockedContainer<Impl>,
+                         GeneralContainer<Impl>>;
+
+  GeneralContainerBase() : impl_() {}
+  GeneralContainerBase(std::size_t capacity) : impl_(capacity) {}
+  GeneralContainerBase(const GeneralContainerBase &c) : impl_(c.impl_) {}
+  GeneralContainerBase &operator=(const GeneralContainerBase &c) {
+    impl_ = c.impl_;
+    return *this;
+  }
+  GeneralContainerBase(GeneralContainerBase &&c) noexcept
+      : impl_(std::move(c.impl_)) {}
+  GeneralContainerBase &operator=(GeneralContainerBase &&c) noexcept {
+    impl_ = std::move(c.impl_);
+    return *this;
+  }
+  std::size_t size() {
+    return synchronized<std::size_t>([&] { return impl_.size(); });
+  }
+  std::size_t capacity() {
+    return synchronized<std::size_t>([&] { return impl_.capacity(); });
+  }
+  bool empty() {
+    return synchronized<bool>([&] { return impl_.empty(); });
+  };
+  void clear() {
+    return synchronized<void>([&] { return impl_.clear(); });
+  };
+  void emplace(Key k, Val v) {
+    synchronized<void>([&] { impl_.emplace(std::move(k), std::move(v)); });
+  }
+  void emplace_back(Val v) {
+    synchronized<void>([&] { impl_.emplace_back(std::move(v)); });
+  }
+  std::optional<Val> find_val(Key k) {
+    return synchronized<std::optional<Val>>(
+        [&] { return impl_.find_val(std::move(k)); });
+  }
+  std::pair<Key, ContainerType> split() {
+    return synchronized<std::pair<Key, ContainerType>>([&] {
+      auto [k, impl] = impl_.split();
+      ContainerType c;
+      c.impl_ = std::move(impl);
+      return std::make_pair(std::move(k), std::move(c));
+    });
+  }
+  void merge(ContainerType c) {
+    synchronized<void>([&] { impl_.merge(c.impl_); });
+  }
+  template <typename... S0s, typename... S1s>
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states) {
+    synchronized<void>(
+        [&] { impl_.for_all(fn, std::forward<S1s>(states)...); });
+  }
+  Impl &unwrap() { return impl_; }
+  ConstIterator cbegin() const { return impl_.cbegin(); }
+  ConstIterator cend() const { return impl_.cend(); }
+  ConstReverseIterator crbegin() const { return impl_.crbegin(); }
+  ConstReverseIterator crend() const { return impl_.crend(); }
+  template <class Archive>
+  void save(Archive &ar) const {
+    impl_.save(ar);
+  }
+  template <class Archive>
+  void load(Archive &ar) {
+    impl_.load(ar);
+  }
+  void handle_batch(std::vector<ContainerReq<Key, Val>> reqs);
+
+ private:
+  Impl impl_;
+  Mutex mutex_;
+
+  template <typename RetT, typename F>
+  RetT synchronized(F &&f);
+};
+
+}  // namespace nu
+
+#include "nu/impl/container.ipp"
