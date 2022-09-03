@@ -51,6 +51,7 @@ class ShardedDataStructure {
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   Container collect();
+  bool empty() const;
   std::size_t size() const;
   void clear();
   void flush();

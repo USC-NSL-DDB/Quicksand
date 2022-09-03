@@ -67,7 +67,7 @@ std::vector<int> make_int_range_vec(int start_incl, int end_excl) {
 }
 
 template <typename T>
-bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
+bool test_push(std::vector<T> expected, uint32_t power_shard_sz) {
   size_t len = expected.size();
 
   auto vec = make_sharded_vector<T, std::false_type>();
@@ -89,23 +89,23 @@ bool test_push_and_pop(std::vector<T> expected, uint32_t power_shard_sz) {
   // }
 
   TEST(!vec.empty());
-  for (size_t i = 0; i < len; i++) {
-    vec.pop_back();
-    TEST(vec.size() == (len - i - 1));
-  }
-  TEST(vec.empty());
+  // for (size_t i = 0; i < len; i++) {
+  //   vec.pop_back();
+  //   TEST(vec.size() == (len - i - 1));
+  // }
+  // TEST(vec.empty());
 
   return true;
 }
 
-bool test_push_pop() {
+bool test_push() {
   uint32_t test_data_sz = 1 << 16;
 
   auto expected_ints = make_int_range_vec(0, test_data_sz);
-  ABORT_IF_FAILED(test_push_and_pop<int>(expected_ints, kShardBytes));
+  ABORT_IF_FAILED(test_push<int>(expected_ints, kShardBytes));
 
   auto test_strs = make_test_str_vec(test_data_sz);
-  ABORT_IF_FAILED(test_push_and_pop<std::string>(test_strs, kShardBytes));
+  ABORT_IF_FAILED(test_push<std::string>(test_strs, kShardBytes));
 
   return true;
 }
@@ -295,7 +295,7 @@ bool test_for_all() {
 // }
 
 bool run_test() {
-  ABORT_IF_FAILED(test_push_pop());
+  ABORT_IF_FAILED(test_push());
   // ABORT_IF_FAILED(test_apply());
   ABORT_IF_FAILED(test_vec_clear());
   // ABORT_IF_FAILED(test_capacity());

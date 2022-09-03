@@ -163,11 +163,10 @@ void Vector<T>::load(Archive &ar) {
 }
 
 template <typename T, typename LL>
-ShardedVector<T, LL>::ShardedVector() : size_(0) {}
+ShardedVector<T, LL>::ShardedVector() {}
 
 template <typename T, typename LL>
 T ShardedVector<T, LL>::operator[](std::size_t index) {
-  assert(index < size_);
   std::optional<T> r = this->find_val(index);
   return *r;
 }
@@ -176,38 +175,16 @@ template <typename T, typename LL>
 void ShardedVector<T, LL>::push_back(const T &value) {
   auto copy = value;
   Base::emplace_back(std::move(copy));
-  size_++;
 }
 
 template <typename T, typename LL>
 void ShardedVector<T, LL>::emplace_back(T &&value) {
   Base::emplace_back(std::move(value));
-  size_++;
-}
-
-template <typename T, typename LL>
-void ShardedVector<T, LL>::pop_back() {
-  size_--;
-}
-
-template <typename T, typename LL>
-std::size_t ShardedVector<T, LL>::size() const {
-  return size_;
-}
-
-template <typename T, typename LL>
-bool ShardedVector<T, LL>::empty() {
-  return !size_;
-}
-
-template <typename T, typename LL>
-void ShardedVector<T, LL>::clear() {
-  size_ = 0;
 }
 
 template <typename T, typename LL>
 ShardedVector<T, LL>::ShardedVector(std::optional<typename Base::Hint> hint)
-    : Base(hint), size_(0) {}
+    : Base(hint) {}
 
 template <typename T, typename LL>
 ShardedVector<T, LL> make_sharded_vector() {

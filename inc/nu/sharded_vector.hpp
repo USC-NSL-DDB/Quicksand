@@ -77,13 +77,9 @@ class ShardedVector
   void push_back(const T &value);
   void emplace_back(T &&value);
   void pop_back();
-  std::size_t size() const;
-  bool empty();
-  void clear();
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL>;
-  std::size_t size_;
 
   ShardedVector();
   ShardedVector(std::optional<typename Base::Hint> hint);

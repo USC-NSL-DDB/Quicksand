@@ -363,6 +363,11 @@ std::size_t ShardedDataStructure<Container, LL>::size() const {
 }
 
 template <class Container, class LL>
+bool ShardedDataStructure<Container, LL>::empty() const {
+  return !size();
+}
+
+template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::clear() {
   flush();
 
