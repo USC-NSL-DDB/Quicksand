@@ -94,16 +94,6 @@ UnorderedSet<T>::ConstIterator UnorderedSet<T>::cend() const {
 }
 
 template <typename T>
-UnorderedSet<T>::ConstReverseIterator UnorderedSet<T>::crbegin() const {
-  return NoopIterator<T>();
-}
-
-template <typename T>
-UnorderedSet<T>::ConstReverseIterator UnorderedSet<T>::crend() const {
-  return NoopIterator<T>();
-}
-
-template <typename T>
 template <class Archive>
 void UnorderedSet<T>::save(Archive &ar) const {
   ar(set_);

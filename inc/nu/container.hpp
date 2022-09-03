@@ -26,8 +26,19 @@ concept GeneralContainerBased = requires {
 
 template <class T>
 concept EmplaceBackAble = requires(T t) {
-  typename T::Val;
-  { t.emplace_back(std::declval<typename T::Val>()) } ->std::same_as<void>;
+  { t.emplace_back(std::declval<typename T::Val>()) } -> std::same_as<void>;
+};
+
+template <class T>
+concept ConstIterable = requires(T t) {
+  { t.cbegin() } -> std::same_as<typename T::ConstIterator>;
+  { t.cend() } -> std::same_as<typename T::ConstIterator>;
+};
+
+template <class T>
+concept ConstReverseIterable = requires(T t) {
+  { t.crbegin() } -> std::same_as<typename T::ConstReverseIterator>;
+  { t.crend() } -> std::same_as<typename T::ConstReverseIterator>;
 };
 
 template <class Impl>
@@ -55,8 +66,20 @@ class GeneralContainerBase {
   using Val = Impl::Val;
   using IterVal = Impl::IterVal;
   using Pair = std::pair<Key, Val>;
-  using ConstIterator = Impl::ConstIterator;
-  using ConstReverseIterator = Impl::ConstReverseIterator;
+  using ConstIterator = decltype([] {
+    if constexpr (ConstIterable<Impl>) {
+      return typename Impl::ConstIterator();
+    } else {
+      return ErasedType();
+    }
+  }());
+  using ConstReverseIterator = decltype([] {
+    if constexpr (ConstReverseIterable<Impl>) {
+      return typename Impl::ConstReverseIterator();
+    } else {
+      return ErasedType();
+    }
+  }());
   using ContainerType =
       std::conditional_t<Synchronized::value, GeneralLockedContainer<Impl>,
                          GeneralContainer<Impl>>;
@@ -113,10 +136,18 @@ class GeneralContainerBase {
         [&] { impl_.for_all(fn, std::forward<S1s>(states)...); });
   }
   Impl &unwrap() { return impl_; }
-  ConstIterator cbegin() const { return impl_.cbegin(); }
-  ConstIterator cend() const { return impl_.cend(); }
-  ConstReverseIterator crbegin() const { return impl_.crbegin(); }
-  ConstReverseIterator crend() const { return impl_.crend(); }
+  ConstIterator cbegin() const requires ConstIterable<Impl> {
+    return impl_.cbegin();
+  }
+  ConstIterator cend() const requires ConstIterable<Impl> {
+    return impl_.cend();
+  }
+  ConstReverseIterator crbegin() const requires ConstReverseIterable<Impl> {
+    return impl_.crbegin();
+  }
+  ConstReverseIterator crend() const requires ConstReverseIterable<Impl> {
+    return impl_.crend();
+  }
   template <class Archive>
   void save(Archive &ar) const {
     impl_.save(ar);

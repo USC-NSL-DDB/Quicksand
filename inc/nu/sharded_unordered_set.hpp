@@ -14,17 +14,6 @@ struct UnorderedSetConstIterator
   void serialize(Archive &ar);
 };
 
-template <typename IterVal>
-struct NoopIterator {
-  NoopIterator(){};
-  IterVal operator*() {
-    BUG();
-    return IterVal();
-  };
-  bool operator==(NoopIterator &rhs) { return true; };
-  void operator++(int incr){};
-};
-
 template <typename T>
 class UnorderedSet {
  public:
@@ -32,7 +21,6 @@ class UnorderedSet {
   using Val = T;
   using IterVal = T;
   using ConstIterator = UnorderedSetConstIterator<T>;
-  using ConstReverseIterator = NoopIterator<T>;
 
   UnorderedSet();
   UnorderedSet(std::size_t capacity);
@@ -51,8 +39,6 @@ class UnorderedSet {
   void merge(UnorderedSet s);
   ConstIterator cbegin() const;
   ConstIterator cend() const;
-  ConstReverseIterator crbegin() const;
-  ConstReverseIterator crend() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>

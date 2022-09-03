@@ -66,19 +66,23 @@ class GeneralShard {
                         std::vector<ContainerReq<Key, Val>> reqs);
   std::pair<bool, std::optional<Val>> find_val(Key k);
   std::pair<std::vector<IterVal>, ConstIterator> get_block_forward(
-      ConstIterator start_iter, uint32_t block_size);
+      ConstIterator start_iter,
+      uint32_t block_size) requires ConstIterable<Container>;
   std::pair<std::vector<IterVal>, ConstIterator> get_block_backward(
-      ConstIterator end_iter, uint32_t block_size);
+      ConstIterator end_iter,
+      uint32_t block_size) requires ConstIterable<Container>;
   std::pair<std::vector<IterVal>, ConstReverseIterator> get_rblock_forward(
-      ConstReverseIterator start_iter, uint32_t block_size);
+      ConstReverseIterator start_iter,
+      uint32_t block_size) requires ConstReverseIterable<Container>;
   std::pair<std::vector<IterVal>, ConstReverseIterator> get_rblock_backward(
-      ConstReverseIterator start_iter, uint32_t block_size);
-  ConstIterator cbegin();
-  ConstIterator clast();
-  ConstIterator cend();
-  ConstReverseIterator crbegin();
-  ConstReverseIterator crlast();
-  ConstReverseIterator crend();
+      ConstReverseIterator start_iter,
+      uint32_t block_size) requires ConstReverseIterable<Container>;
+  ConstIterator cbegin() requires ConstIterable<Container>;
+  ConstIterator clast() requires ConstIterable<Container>;
+  ConstIterator cend() requires ConstIterable<Container>;
+  ConstReverseIterator crbegin() requires ConstReverseIterable<Container>;
+  ConstReverseIterator crlast() requires ConstReverseIterable<Container>;
+  ConstReverseIterator crend() requires ConstReverseIterable<Container>;
   bool empty();
   Container get_container_copy();
   ContainerHandle<Container> get_container_handle();

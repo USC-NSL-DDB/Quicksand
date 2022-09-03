@@ -307,19 +307,27 @@ SealedDS<T>::SealedDS(T &&t) : t_(std::move(t)) {
   shards_ = std::make_shared<ShardsVec>(t_.get_all_non_empty_shards());
 
   if (shards_->empty()) {
-    cbegin_ = ConstIterator();
-    cend_ = cbegin_;
-    crbegin_ = ConstReverseIterator();
-    crend_ = crbegin_;
+    if constexpr (ConstIterable<typename T::Shard>) {
+      cbegin_ = ConstIterator();
+      cend_ = cbegin_;
+    }
+    if constexpr (ConstReverseIterable<typename T::Shard>) {
+      crbegin_ = ConstReverseIterator();
+      crend_ = crbegin_;
+    }
   } else {
-    cbegin_ = ConstIterator(shards_, shards_->begin(),
-                            shards_->front().run(&T::Shard::cbegin));
-    cend_ = ConstIterator(shards_, --shards_->end(),
-                          shards_->back().run(&T::Shard::cend));
-    crbegin_ = ConstReverseIterator(shards_, shards_->rbegin(),
-                                    shards_->back().run(&T::Shard::crbegin));
-    crend_ = ConstReverseIterator(shards_, --shards_->rend(),
-                                  shards_->front().run(&T::Shard::crend));
+    if constexpr (ConstIterable<typename T::Shard>) {
+      cbegin_ = ConstIterator(shards_, shards_->begin(),
+                              shards_->front().run(&T::Shard::cbegin));
+      cend_ = ConstIterator(shards_, --shards_->end(),
+                            shards_->back().run(&T::Shard::cend));
+    }
+    if constexpr (ConstReverseIterable<typename T::Shard>) {
+      crbegin_ = ConstReverseIterator(shards_, shards_->rbegin(),
+                                      shards_->back().run(&T::Shard::crbegin));
+      crend_ = ConstReverseIterator(shards_, --shards_->rend(),
+                                    shards_->front().run(&T::Shard::crend));
+    }
   }
 }
 
@@ -342,42 +350,50 @@ T &&SealedDS<T>::unseal() {
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::begin() const {
+SealedDS<T>::ConstIterator SealedDS<T>::begin() const
+    requires ConstIterable<typename T::Shard> {
   return cbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::cbegin() const {
+SealedDS<T>::ConstIterator SealedDS<T>::cbegin() const
+    requires ConstIterable<typename T::Shard> {
   return cbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::end() const {
+SealedDS<T>::ConstIterator SealedDS<T>::end() const
+    requires ConstIterable<typename T::Shard> {
   return cend_;
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::cend() const {
+SealedDS<T>::ConstIterator SealedDS<T>::cend() const
+    requires ConstIterable<typename T::Shard> {
   return cend_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::rbegin() const {
+SealedDS<T>::ConstReverseIterator SealedDS<T>::rbegin() const
+    requires ConstReverseIterable<typename T::Shard> {
   return crbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::crbegin() const {
+SealedDS<T>::ConstReverseIterator SealedDS<T>::crbegin() const
+    requires ConstReverseIterable<typename T::Shard> {
   return crbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::rend() const {
+SealedDS<T>::ConstReverseIterator SealedDS<T>::rend() const
+    requires ConstReverseIterable<typename T::Shard> {
   return crend_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::crend() const {
+SealedDS<T>::ConstReverseIterator SealedDS<T>::crend() const
+    requires ConstReverseIterable<typename T::Shard> {
   return crend_;
 }
 
