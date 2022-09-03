@@ -3574,7 +3574,7 @@ private:
     // Vector of Heterogeneous vectors
     DataVecVec      data_ { };
     // Vector
-    IndexVecType    indices_ = nu::make_sharded_vector<IndexType, std::false_type>();
+    IndexVecType    indices_ = nu_make_sharded_vector<IndexType>();
     // Hash table of name -> vector index
     ColNameDict     column_tb_ { };
 

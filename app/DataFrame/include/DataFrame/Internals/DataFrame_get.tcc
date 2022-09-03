@@ -35,6 +35,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <random>
 #include <unordered_set>
 
+#include <nu/sealed_ds.hpp>
+#include <nu/sharded_unordered_set.hpp>
+
 // ----------------------------------------------------------------------------
 
 namespace hmdf
@@ -294,43 +297,32 @@ template<typename I, typename  H>
 template<typename T>
 NuShardedVector<T> DataFrame<I, H>::
 get_col_unique_values(const char *name) const  {
+    ColumnVecType<T>  &vec = const_cast<DataFrame *>(this)->get_column<T>(name);
 
-    // const ColumnVecType<T>  &vec = get_column<T>(name);
-    // auto                    hash_func =
-    //     [](std::reference_wrapper<const T> v) -> std::size_t  {
-    //         return(std::hash<T>{}(v.get()));
-    // };
-    // auto                    equal_func =
-    //     [](std::reference_wrapper<const T> lhs,
-    //        std::reference_wrapper<const T> rhs) -> bool  {
-    //         return(lhs.get() == rhs.get());
-    // };
+    auto hashset =
+        nu::make_sharded_unordered_set<typename std::reference_wrapper<T>::type, std::false_type>();
+    bool                        counted_nan = false;
+    auto                        result = nu_make_sharded_vector<T>(vec.size());
 
-    // // TODO: use our ShardedUnorderedSet.
-    // std::unordered_set<
-    //     typename std::reference_wrapper<T>::type,
-    //     decltype(hash_func),
-    //     decltype(equal_func)>   table(vec.size(), hash_func, equal_func);
-    // bool                        counted_nan = false;
-    // std::vector<T>              result;
+    auto                        sealed_vec = nu::to_sealed_ds(std::move(vec));
+    for (const auto &citer : sealed_vec)  {
+        if (is_nan<T>(citer) && ! counted_nan)  {
+            counted_nan = true;
+            result.push_back(get_nan<T>());
+            continue;
+        }
 
-    // result.reserve(vec.size());
-    // for (const auto &citer : vec)  {
-    //     if (is_nan<T>(citer) && ! counted_nan)  {
-    //         counted_nan = true;
-    //         result.push_back(get_nan<T>());
-    //         continue;
-    //     }
+        hashset.insert(citer);
+    }
 
-    //     const auto  insert_ret = table.emplace(std::ref(citer));
+    auto sealed_hashset = nu::to_sealed_ds(std::move(hashset));
+    for (const auto &uniq : sealed_hashset) {
+        result.push_back(uniq);
+    }
 
-    //     if (insert_ret.second)
-    //         result.push_back(citer);
-    // }
+    vec = nu::to_unsealed_ds(std::move(sealed_vec));
 
-    // return(result);
-
-	BUG();
+    return(result);
 }
 
 // ----------------------------------------------------------------------------

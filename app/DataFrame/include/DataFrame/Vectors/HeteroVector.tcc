@@ -72,7 +72,7 @@ NuShardedVector<T> &HeteroVector::get_vector()  {
                 vectors_<T>.erase(from_iter);
             });
 
-        iter = vectors_<T>.emplace(this, nu::make_sharded_vector<T, std::false_type>()).first;
+        iter = vectors_<T>.emplace(this, nu_make_sharded_vector<T>()).first;
     }
 
     return (iter->second);

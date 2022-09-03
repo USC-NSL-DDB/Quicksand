@@ -74,7 +74,7 @@ DataFrame<I, H>::operator= (DataFrame &&that)  {
 
     if (this != &that)  {
         indices_ = std::exchange(that.indices_,
-                                 nu::make_sharded_vector<IndexType, std::false_type>());
+                                 nu_make_sharded_vector<IndexType>());
         column_tb_ = std::exchange(that.column_tb_, ColNameDict { });
         column_list_ = std::exchange(that.column_list_, ColNameList { });
 

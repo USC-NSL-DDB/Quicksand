@@ -48,6 +48,18 @@ extern "C" {
 template<typename T>
 using NuShardedVector = nu::ShardedVector<T, /* LL = */ std::false_type>;
 
+template <typename T>
+NuShardedVector<T> nu_make_sharded_vector()
+{
+    return nu::make_sharded_vector<T, std::false_type>();
+}
+
+template <typename T>
+NuShardedVector<T> nu_make_sharded_vector(uint64_t reserved_count)
+{
+    return nu::make_sharded_vector<T, std::false_type>(reserved_count);
+}
+
 namespace hmdf
 {
 

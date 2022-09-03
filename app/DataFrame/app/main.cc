@@ -47,15 +47,15 @@ StdDataFrame<uint64_t> load_data()
         "total_amount");
 }
 
-// void print_number_vendor_ids_and_unique(StdDataFrame<uint64_t>& df)
-// {
-//     std::cout << "print_number_vendor_ids_and_unique()" << std::endl;
-//     std::cout << "Number of vendor_ids in the train dataset: "
-//               << df.get_column<int>("VendorID").size() << std::endl;
-//     std::cout << "Number of unique vendor_ids in the train dataset:"
-//               << df.get_col_unique_values<int>("VendorID").size() << std::endl;
-//     std::cout << std::endl;
-// }
+void print_number_vendor_ids_and_unique(StdDataFrame<uint64_t>& df)
+{
+    std::cout << "print_number_vendor_ids_and_unique()" << std::endl;
+    std::cout << "Number of vendor_ids in the train dataset: "
+              << df.get_column<int>("VendorID").size() << std::endl;
+    std::cout << "Number of unique vendor_ids in the train dataset:"
+              << df.get_col_unique_values<int>("VendorID").size() << std::endl;
+    std::cout << std::endl;
+}
 
 // void print_passage_counts_by_vendor_id(StdDataFrame<uint64_t>& df, int vendor_id)
 // {
@@ -254,9 +254,9 @@ void do_work()
 {
     std::chrono::time_point<std::chrono::steady_clock> times[10];
     auto df  = load_data();
-    // times[0] = std::chrono::steady_clock::now();
-    // print_number_vendor_ids_and_unique(df);
-    // times[1] = std::chrono::steady_clock::now();
+    times[0] = std::chrono::steady_clock::now();
+    print_number_vendor_ids_and_unique(df);
+    times[1] = std::chrono::steady_clock::now();
     // print_passage_counts_by_vendor_id(df, 1);
     // times[2] = std::chrono::steady_clock::now();
     // print_passage_counts_by_vendor_id(df, 2);
