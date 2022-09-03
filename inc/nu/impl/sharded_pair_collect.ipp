@@ -130,11 +130,6 @@ void PairCollection<K, V>::emplace(K k, V v) {
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::emplace_back(V v) {
-  BUG();
-}
-
-template <typename K, typename V>
 void PairCollection<K, V>::merge(PairCollection pc) {
   for (std::size_t i = 0; i < pc.size_; i++) {
     data_[size_++] = std::move(pc.data_[i]);

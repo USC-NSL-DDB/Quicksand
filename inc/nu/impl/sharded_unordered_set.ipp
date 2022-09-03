@@ -47,11 +47,6 @@ void UnorderedSet<T>::emplace(Key k, Val v) {
 }
 
 template <typename T>
-void UnorderedSet<T>::emplace_back(Val v) {
-  BUG();
-}
-
-template <typename T>
 void UnorderedSet<T>::merge(UnorderedSet s) {
   set_.insert(std::make_move_iterator(s.set_.begin()),
               std::make_move_iterator(s.set_.end()));

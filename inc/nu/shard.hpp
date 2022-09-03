@@ -61,7 +61,7 @@ class GeneralShard {
   ~GeneralShard();
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
-                        Val v);
+                        Val v) requires EmplaceBackAble<Container>;
   bool try_handle_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                         std::vector<ContainerReq<Key, Val>> reqs);
   std::pair<bool, std::optional<Val>> find_val(Key k);

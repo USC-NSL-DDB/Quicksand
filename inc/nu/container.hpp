@@ -24,6 +24,12 @@ concept GeneralContainerBased = requires {
   requires is_base_of_template_v<T, GeneralContainerBase>;
 };
 
+template <class T>
+concept EmplaceBackAble = requires(T t) {
+  typename T::Val;
+  { t.emplace_back(std::declval<typename T::Val>()) } ->std::same_as<void>;
+};
+
 template <class Impl>
 using GeneralContainer = GeneralContainerBase<Impl, std::false_type>;
 
@@ -83,7 +89,7 @@ class GeneralContainerBase {
   void emplace(Key k, Val v) {
     synchronized<void>([&] { impl_.emplace(std::move(k), std::move(v)); });
   }
-  void emplace_back(Val v) {
+  void emplace_back(Val v) requires EmplaceBackAble<Impl> {
     synchronized<void>([&] { impl_.emplace_back(std::move(v)); });
   }
   std::optional<Val> find_val(Key k) {

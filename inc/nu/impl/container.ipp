@@ -27,7 +27,9 @@ void GeneralContainerBase<Impl, Synchronized>::handle_batch(
       if (req.type == Emplace) {
         impl_.emplace(std::move(req.k), std::move(req.v));
       } else if (req.type == EmplaceBack) {
-        impl_.emplace_back(std::move(req.v));
+        if constexpr (EmplaceBackAble<Impl>) {
+          impl_.emplace_back(std::move(req.v));
+        }
       } else {
         BUG();
       }

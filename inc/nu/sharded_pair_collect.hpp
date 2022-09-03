@@ -29,7 +29,6 @@ class PairCollection {
   bool empty() const;
   void clear();
   void emplace(K k, V v);
-  void emplace_back(V v);
   std::pair<Key, PairCollection> split();
   void merge(PairCollection pc);
   template <typename... S0s, typename... S1s>

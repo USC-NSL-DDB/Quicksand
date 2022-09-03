@@ -145,9 +145,9 @@ bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
 }
 
 template <class Container>
-bool GeneralShard<Container>::try_emplace_back(std::optional<Key> l_key,
-                                               std::optional<Key> r_key,
-                                               Val v) {
+bool GeneralShard<Container>::try_emplace_back(
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    Val v) requires EmplaceBackAble<Container> {
   rw_lock_.reader_lock();
 
   if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {

@@ -156,10 +156,11 @@ void ShardedDataStructure<Container, LL>::emplace(Pair p) {
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::emplace_back(Val v) {
-[[maybe_unused]] retry:
-  // rbegin() is O(1) which is much faster than the O(logn) of --end().
-  auto iter = key_to_shards_.rbegin();
+void ShardedDataStructure<Container, LL>::emplace_back(
+    Val v) requires EmplaceBackAble<Container> {
+  [[maybe_unused]] retry :
+      // rbegin() is O(1) which is much faster than the O(logn) of --end().
+      auto iter = key_to_shards_.rbegin();
 
   if constexpr (LL::value) {
     auto l_key = iter->first;
@@ -249,8 +250,11 @@ void ShardedDataStructure<Container, LL>::handle_rejected_flush_batch(
     if (req.type == Emplace) {
       emplace(std::move(req.k), std::move(req.v));
     } else if (req.type == EmplaceBack) {
-      emplace_back(std::move(req.v));
-    } else {
+      if constexpr (EmplaceBackAble<Container>) {
+        emplace_back(std::move(req.v));
+      }
+    }
+    else {
       BUG();
     }
   }

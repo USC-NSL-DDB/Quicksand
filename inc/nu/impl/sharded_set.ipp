@@ -61,11 +61,6 @@ void Set<T>::emplace(Key k, Val v) {
 }
 
 template <typename T>
-void Set<T>::emplace_back(Val v) {
-  BUG();
-}
-
-template <typename T>
 void Set<T>::merge(Set s) {
   set_.insert(std::make_move_iterator(s.set_.begin()),
               std::make_move_iterator(s.set_.end()));

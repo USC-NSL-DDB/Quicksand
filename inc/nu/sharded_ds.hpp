@@ -46,7 +46,7 @@ class ShardedDataStructure {
 
   void emplace(Key k, Val v);
   void emplace(Pair p);
-  void emplace_back(Val v);
+  void emplace_back(Val v) requires EmplaceBackAble<Container>;
   std::optional<Val> find_val(Key k);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
