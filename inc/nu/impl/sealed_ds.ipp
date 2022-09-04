@@ -277,9 +277,15 @@ GeneralSealedDSConstIterator<T, Fwd>
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Val
-GeneralSealedDSConstIterator<T, Fwd>::operator*() {
+const GeneralSealedDSConstIterator<T, Fwd>::Val &
+GeneralSealedDSConstIterator<T, Fwd>::operator*() const {
   return *block_iter_;
+}
+
+template <typename T, bool Fwd>
+const GeneralSealedDSConstIterator<T, Fwd>::Val *
+GeneralSealedDSConstIterator<T, Fwd>::operator->() const {
+  return &*block_iter_;
 }
 
 template <typename T, bool Fwd>
@@ -399,7 +405,15 @@ SealedDS<T>::ConstReverseIterator SealedDS<T>::crend() const
 
 template <typename T>
 std::size_t SealedDS<T>::size() const {
-  return t_.size();
+  return const_cast<SealedDS *>(this)->__size();
+}
+
+template <typename T>
+std::size_t SealedDS<T>::__size() {
+  if (unlikely(!size_)) {
+    size_ = t_.size();
+  }
+  return *size_;
 }
 
 template <typename T>

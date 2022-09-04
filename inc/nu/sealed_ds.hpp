@@ -28,7 +28,8 @@ class GeneralSealedDSConstIterator {
   GeneralSealedDSConstIterator &operator--();
   GeneralSealedDSConstIterator operator++(int) = delete;
   GeneralSealedDSConstIterator operator--(int) = delete;
-  Val operator*();
+  const Val &operator*() const;
+  const Val *operator->() const;
 
   template <class Archive>
   void save(Archive &ar) const;
@@ -123,6 +124,7 @@ class SealedDS {
   using ShardsVec = std::vector<WeakProclet<Shard>>;
 
   T t_;
+  std::optional<std::size_t> size_;
   std::shared_ptr<ShardsVec> shards_;
   ConstIterator cbegin_;
   ConstIterator cend_;
@@ -130,6 +132,7 @@ class SealedDS {
   ConstReverseIterator crend_;
 
   SealedDS(T &&t);
+  std::size_t __size();
   T &&unseal();
   template <typename U>
   friend SealedDS<U> to_sealed_ds(U &&u);
