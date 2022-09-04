@@ -1,3 +1,4 @@
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -101,6 +102,8 @@ void calculate_trip_duration(StdDataFrame<uint64_t>& df)
         ++dropoff_iter;
         duration_vec.push_back(dropoff_time_second - pickup_time_second);
     }
+    pickup_time_vec = nu::to_unsealed_ds(std::move(sealed_pickup_time_vec));
+    dropoff_time_vec = nu::to_unsealed_ds(std::move(sealed_dropoff_time_vec));
     df.load_column("duration", std::move(duration_vec), nan_policy::dont_pad_with_nans);
     MaxVisitor<uint64_t> max_visitor;
     MinVisitor<uint64_t> min_visitor;
@@ -114,33 +117,33 @@ void calculate_trip_duration(StdDataFrame<uint64_t>& df)
     std::cout << std::endl;
 }
 
-// void calculate_distribution_store_and_fwd_flag(StdDataFrame<uint64_t>& df)
-// {
-//     std::cout << "calculate_distribution_store_and_fwd_flag()" << std::endl;
+void calculate_distribution_store_and_fwd_flag(StdDataFrame<uint64_t>& df)
+{
+    std::cout << "calculate_distribution_store_and_fwd_flag()" << std::endl;
 
-//     auto sel_N_saff_functor = [&](const uint64_t&, const char& saff) -> bool {
-//         return saff == 'N';
-//     };
-//     auto N_df =
-//         df.get_data_by_sel<char, decltype(sel_N_saff_functor), int, SimpleTime, double, char>(
-//             "store_and_fwd_flag", sel_N_saff_functor);
-//     std::cout << static_cast<double>(N_df.get_index().size()) / df.get_index().size() << std::endl;
+    auto sel_N_saff_functor = [&](const uint64_t&, const char& saff) -> bool {
+        return saff == 'N';
+    };
+    auto N_df =
+        df.get_data_by_sel<char, decltype(sel_N_saff_functor), int, SimpleTime, double, char>(
+            "store_and_fwd_flag", sel_N_saff_functor);
+    std::cout << static_cast<double>(N_df.get_index().size()) / df.get_index().size() << std::endl;
 
-//     auto sel_Y_saff_functor = [&](const uint64_t&, const char& saff) -> bool {
-//         return saff == 'Y';
-//     };
-//     auto Y_df =
-//         df.get_data_by_sel<char, decltype(sel_Y_saff_functor), int, SimpleTime, double, char>(
-//             "store_and_fwd_flag", sel_Y_saff_functor);
-//     auto unique_vendor_id_vec = Y_df.get_col_unique_values<int>("VendorID");
-//     std::cout << '{';
-//     for (auto& vector_id : unique_vendor_id_vec) {
-//         std::cout << vector_id << ", ";
-//     }
-//     std::cout << '}' << std::endl;
+    auto sel_Y_saff_functor = [&](const uint64_t&, const char& saff) -> bool {
+        return saff == 'Y';
+    };
+    auto Y_df =
+        df.get_data_by_sel<char, decltype(sel_Y_saff_functor), int, SimpleTime, double, char>(
+            "store_and_fwd_flag", sel_Y_saff_functor);
+    auto sealed_unique_vendor_id_vec = nu::to_sealed_ds(Y_df.get_col_unique_values<int>("VendorID"));
+    std::cout << '{';
+    for (auto& vector_id : sealed_unique_vendor_id_vec) {
+        std::cout << vector_id << ", ";
+    }
+    std::cout << '}' << std::endl;
 
-//     std::cout << std::endl;
-// }
+    std::cout << std::endl;
+}
 
 // void calculate_haversine_distance_column(StdDataFrame<uint64_t>& df)
 // {
@@ -271,8 +274,8 @@ void do_work()
     times[3] = std::chrono::steady_clock::now();
     calculate_trip_duration(df);
     times[4] = std::chrono::steady_clock::now();
-    // calculate_distribution_store_and_fwd_flag(df);
-    // times[5] = std::chrono::steady_clock::now();
+    calculate_distribution_store_and_fwd_flag(df);
+    times[5] = std::chrono::steady_clock::now();
     // calculate_haversine_distance_column(df);
     // times[6] = std::chrono::steady_clock::now();
     // analyze_trip_timestamp(df);
