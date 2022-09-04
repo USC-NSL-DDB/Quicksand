@@ -1,4 +1,3 @@
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -20,22 +19,22 @@ using namespace hmdf;
 // // Download dataset at https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page.
 // // The following code is implemented based on the format of 2016 datasets.
 
-// static double haversine(double lat1, double lon1, double lat2, double lon2)
-// {
-//     // Distance between latitudes and longitudes
-//     double dLat = (lat2 - lat1) * M_PI / 180.0;
-//     double dLon = (lon2 - lon1) * M_PI / 180.0;
+static double haversine(double lat1, double lon1, double lat2, double lon2)
+{
+    // Distance between latitudes and longitudes
+    double dLat = (lat2 - lat1) * M_PI / 180.0;
+    double dLon = (lon2 - lon1) * M_PI / 180.0;
 
-//     // Convert to radians.
-//     lat1 = lat1 * M_PI / 180.0;
-//     lat2 = lat2 * M_PI / 180.0;
+    // Convert to radians.
+    lat1 = lat1 * M_PI / 180.0;
+    lat2 = lat2 * M_PI / 180.0;
 
-//     // Apply formulae.
-//     double a   = pow(sin(dLat / 2), 2) + pow(sin(dLon / 2), 2) * cos(lat1) * cos(lat2);
-//     double rad = 6371;
-//     double c   = 2 * asin(sqrt(a));
-//     return rad * c;
-// }
+    // Apply formulae.
+    double a   = pow(sin(dLat / 2), 2) + pow(sin(dLon / 2), 2) * cos(lat1) * cos(lat2);
+    double rad = 6371;
+    double c   = 2 * asin(sqrt(a));
+    return rad * c;
+}
 
 StdDataFrame<uint64_t> load_data()
 {
@@ -145,33 +144,50 @@ void calculate_distribution_store_and_fwd_flag(StdDataFrame<uint64_t>& df)
     std::cout << std::endl;
 }
 
-// void calculate_haversine_distance_column(StdDataFrame<uint64_t>& df)
-// {
-//     std::cout << "calculate_haversine_distance_column()" << std::endl;
+void calculate_haversine_distance_column(StdDataFrame<uint64_t>& df)
+{
+    std::cout << "calculate_haversine_distance_column()" << std::endl;
 
-//     auto& pickup_longitude_vec  = df.get_column<double>("pickup_longitude");
-//     auto& pickup_latitude_vec   = df.get_column<double>("pickup_latitude");
-//     auto& dropoff_longitude_vec = df.get_column<double>("dropoff_longitude");
-//     auto& dropoff_latitude_vec  = df.get_column<double>("dropoff_latitude");
-//     assert(pickup_longitude_vec.size() == pickup_latitude_vec.size());
-//     assert(pickup_longitude_vec.size() == dropoff_longitude_vec.size());
-//     assert(pickup_longitude_vec.size() == dropoff_latitude_vec.size());
-//     std::vector<double> haversine_distance_vec;
-//     for (uint64_t i = 0; i < pickup_longitude_vec.size(); i++) {
-//         haversine_distance_vec.push_back(haversine(pickup_latitude_vec[i], pickup_longitude_vec[i],
-//                                                    dropoff_latitude_vec[i],
-//                                                    dropoff_longitude_vec[i]));
-//     }
-//     df.load_column("haversine_distance", std::move(haversine_distance_vec),
-//                    nan_policy::dont_pad_with_nans);
-//     auto sel_functor = [&](const uint64_t&, const double& dist) -> bool { return dist > 100; };
-//     auto sel_df = df.get_data_by_sel<double, decltype(sel_functor), int, SimpleTime, double, char>(
-//         "haversine_distance", sel_functor);
-//     std::cout << "Number of rows that have haversine_distance > 100 KM = "
-//               << sel_df.get_index().size() << std::endl;
+    auto& pickup_longitude_vec        = df.get_column<double>("pickup_longitude");
+    auto sealed_pickup_longitude_vec  = nu::to_sealed_ds(std::move(pickup_longitude_vec));
+    auto& pickup_latitude_vec         = df.get_column<double>("pickup_latitude");
+    auto sealed_pickup_latitude_vec   = nu::to_sealed_ds(std::move(pickup_latitude_vec));
+    auto& dropoff_longitude_vec       = df.get_column<double>("dropoff_longitude");
+    auto sealed_dropoff_longitude_vec = nu::to_sealed_ds(std::move(dropoff_longitude_vec));
+    auto& dropoff_latitude_vec        = df.get_column<double>("dropoff_latitude");
+    auto sealed_dropoff_latitude_vec  = nu::to_sealed_ds(std::move(dropoff_latitude_vec));
+    assert(sealed_pickup_longitude_vec.size() == sealed_pickup_latitude_vec.size());
+    assert(sealed_pickup_longitude_vec.size() == sealed_dropoff_longitude_vec.size());
+    assert(sealed_pickup_longitude_vec.size() == sealed_dropoff_latitude_vec.size());
+    auto haversine_distance_vec =
+        nu_make_sharded_vector<double>(sealed_pickup_longitude_vec.size());
+    auto pickup_latitude_iter = sealed_pickup_longitude_vec.cbegin();
+    auto pickup_longitude_iter = sealed_pickup_latitude_vec.cbegin();
+    auto dropoff_longitude_iter = sealed_dropoff_longitude_vec.cbegin();
+    auto dropoff_latitude_iter = sealed_dropoff_latitude_vec.cbegin();
+    for (uint64_t i = 0; i < sealed_pickup_longitude_vec.size(); i++) {
+        haversine_distance_vec.push_back(haversine(*pickup_latitude_iter, *pickup_longitude_iter,
+                                                   *dropoff_longitude_iter,
+                                                   *dropoff_longitude_iter));
+        ++pickup_latitude_iter;
+	++pickup_longitude_iter;
+	++dropoff_longitude_iter;
+	++dropoff_latitude_iter;
+    }
+    pickup_longitude_vec = nu::to_unsealed_ds(std::move(sealed_pickup_longitude_vec));
+    pickup_latitude_vec = nu::to_unsealed_ds(std::move(sealed_pickup_latitude_vec));
+    dropoff_longitude_vec = nu::to_unsealed_ds(std::move(sealed_dropoff_longitude_vec));
+    dropoff_latitude_vec = nu::to_unsealed_ds(std::move(sealed_dropoff_latitude_vec));
+    df.load_column("haversine_distance", std::move(haversine_distance_vec),
+                   nan_policy::dont_pad_with_nans);
+    auto sel_functor = [&](const uint64_t&, const double& dist) -> bool { return dist > 100; };
+    auto sel_df = df.get_data_by_sel<double, decltype(sel_functor), int, SimpleTime, double, char>(
+        "haversine_distance", sel_functor);
+    std::cout << "Number of rows that have haversine_distance > 100 KM = "
+              << sel_df.get_index().size() << std::endl;
 
-//     std::cout << std::endl;
-// }
+    std::cout << std::endl;
+}
 
 // void analyze_trip_timestamp(StdDataFrame<uint64_t>& df)
 // {
@@ -276,8 +292,8 @@ void do_work()
     times[4] = std::chrono::steady_clock::now();
     calculate_distribution_store_and_fwd_flag(df);
     times[5] = std::chrono::steady_clock::now();
-    // calculate_haversine_distance_column(df);
-    // times[6] = std::chrono::steady_clock::now();
+    calculate_haversine_distance_column(df);
+    times[6] = std::chrono::steady_clock::now();
     // analyze_trip_timestamp(df);
     // times[7] = std::chrono::steady_clock::now();
     // analyze_trip_durations_of_timestamps<char>(df, "pickup_day");
