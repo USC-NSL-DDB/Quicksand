@@ -81,32 +81,38 @@ void print_passage_counts_by_vendor_id(StdDataFrame<uint64_t>& df, int vendor_id
     std::cout << std::endl;
 }
 
-// void calculate_trip_duration(StdDataFrame<uint64_t>& df)
-// {
-//     std::cout << "calculate_trip_duration()" << std::endl;
+void calculate_trip_duration(StdDataFrame<uint64_t>& df)
+{
+    std::cout << "calculate_trip_duration()" << std::endl;
 
-//     auto& pickup_time_vec  = df.get_column<SimpleTime>("tpep_pickup_datetime");
-//     auto& dropoff_time_vec = df.get_column<SimpleTime>("tpep_dropoff_datetime");
-//     assert(pickup_time_vec.size() == dropoff_time_vec.size());
+    auto& pickup_time_vec  = df.get_column<SimpleTime>("tpep_pickup_datetime");
+    auto sealed_pickup_time_vec = nu::to_sealed_ds(std::move(pickup_time_vec));
+    auto& dropoff_time_vec = df.get_column<SimpleTime>("tpep_dropoff_datetime");
+    auto sealed_dropoff_time_vec = nu::to_sealed_ds(std::move(dropoff_time_vec));
+    assert(sealed_pickup_time_vec.size() == sealed_dropoff_time_vec.size());
 
-//     std::vector<uint64_t> duration_vec;
-//     for (uint64_t i = 0; i < pickup_time_vec.size(); i++) {
-//         auto pickup_time_second  = pickup_time_vec[i].to_second();
-//         auto dropoff_time_second = dropoff_time_vec[i].to_second();
-//         duration_vec.push_back(dropoff_time_second - pickup_time_second);
-//     }
-//     df.load_column("duration", std::move(duration_vec), nan_policy::dont_pad_with_nans);
-//     MaxVisitor<uint64_t> max_visitor;
-//     MinVisitor<uint64_t> min_visitor;
-//     MeanVisitor<uint64_t> mean_visitor;
-//     df.multi_visit(std::make_pair("duration", &max_visitor),
-//                    std::make_pair("duration", &min_visitor),
-//                    std::make_pair("duration", &mean_visitor));
-//     std::cout << "Mean duration = " << mean_visitor.get_result() << " seconds" << std::endl;
-//     std::cout << "Min duration = " << min_visitor.get_result() << " seconds" << std::endl;
-//     std::cout << "Max duration = " << max_visitor.get_result() << " seconds" << std::endl;
-//     std::cout << std::endl;
-// }
+    auto duration_vec = nu_make_sharded_vector<uint64_t>(sealed_pickup_time_vec.size());
+    auto pickup_iter = sealed_pickup_time_vec.cbegin();
+    auto dropoff_iter = sealed_dropoff_time_vec.cbegin();
+    for (uint64_t i = 0; i < sealed_pickup_time_vec.size(); i++) {
+        auto pickup_time_second  = pickup_iter->to_second();
+        ++pickup_iter;
+        auto dropoff_time_second = dropoff_iter->to_second();
+        ++dropoff_iter;
+        duration_vec.push_back(dropoff_time_second - pickup_time_second);
+    }
+    df.load_column("duration", std::move(duration_vec), nan_policy::dont_pad_with_nans);
+    MaxVisitor<uint64_t> max_visitor;
+    MinVisitor<uint64_t> min_visitor;
+    MeanVisitor<uint64_t> mean_visitor;
+    df.multi_visit(std::make_pair("duration", &max_visitor),
+                   std::make_pair("duration", &min_visitor),
+                   std::make_pair("duration", &mean_visitor));
+    std::cout << "Mean duration = " << mean_visitor.get_result() << " seconds" << std::endl;
+    std::cout << "Min duration = " << min_visitor.get_result() << " seconds" << std::endl;
+    std::cout << "Max duration = " << max_visitor.get_result() << " seconds" << std::endl;
+    std::cout << std::endl;
+}
 
 // void calculate_distribution_store_and_fwd_flag(StdDataFrame<uint64_t>& df)
 // {
@@ -263,8 +269,8 @@ void do_work()
     times[2] = std::chrono::steady_clock::now();
     print_passage_counts_by_vendor_id(df, 2);
     times[3] = std::chrono::steady_clock::now();
-    // calculate_trip_duration(df);
-    // times[4] = std::chrono::steady_clock::now();
+    calculate_trip_duration(df);
+    times[4] = std::chrono::steady_clock::now();
     // calculate_distribution_store_and_fwd_flag(df);
     // times[5] = std::chrono::steady_clock::now();
     // calculate_haversine_distance_column(df);
