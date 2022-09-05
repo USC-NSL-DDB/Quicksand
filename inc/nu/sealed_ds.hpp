@@ -47,32 +47,32 @@ class GeneralSealedDSConstIterator {
       typename T::Shard::GeneralContainer::ConstReverseIterator>;
   class Block {
    public:
-    using DataVec = std::vector<Val>;
-    using ConstIterator = DataVec::const_iterator;
-    constexpr static uint32_t kSize = 128 << 10;
+    using PrefetchedVec = std::vector<std::pair<Val, ContainerIter>>;
+    using ConstIterator = PrefetchedVec::const_iterator;
+    using ConstReverseIterator = PrefetchedVec::const_reverse_iterator;
+    constexpr static uint32_t kSize =
+        (256 << 10) / sizeof(std::pair<Val, ContainerIter>);
 
     Block();
-    Block(ShardsVecIter shards_vec_iter, ContainerIter block_begin_iter);
     Block(const Block &);
     Block &operator=(const Block &);
     Block(Block &&);
     Block &operator=(Block &&);
-    bool operator==(const Block &o) const;
     bool empty() const;
     ConstIterator cbegin() const;
+    ConstReverseIterator crbegin() const;
     ConstIterator cend() const;
     Block next_block() const;
     Block prev_block() const;
     ShardsVecIter get_shards_iter() const;
 
-    static Block shard_head_block(ShardsVecIter shards_vec_iter);
-    static Block shard_tail_block(ShardsVecIter shards_vec_iter);
+    static Block shard_front_block(ShardsVecIter shards_vec_iter);
+    static Block shard_back_block(ShardsVecIter shards_vec_iter);
+    static Block shard_end_block(ShardsVecIter shards_vec_iter);
 
-   private:
+  public:
     ShardsVecIter shards_iter;
-    ContainerIter begin_iter;
-    ContainerIter end_iter;
-    DataVec data;
+    PrefetchedVec prefetched;
   };
 
   std::shared_ptr<ShardsVec> shards_;
@@ -85,8 +85,7 @@ class GeneralSealedDSConstIterator {
   friend class SealedDS;
 
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
-                               ShardsVecIter shards_vec_iter,
-                               ContainerIter begin_iter);
+                               bool is_begin);
   ShardsVecIter shards_vec_begin() const;
   ShardsVecIter shards_vec_end() const;
   Block get_next_block(const Block &block);

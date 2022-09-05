@@ -65,16 +65,24 @@ class GeneralShard {
   bool try_handle_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                         std::vector<ContainerReq<Key, Val>> reqs);
   std::pair<bool, std::optional<Val>> find_val(Key k);
-  std::pair<std::vector<IterVal>, ConstIterator> get_block_forward(
+  std::vector<std::pair<IterVal, ConstIterator>> get_front_block(
+      uint32_t block_size) requires ConstIterable<Container>;
+  std::vector<std::pair<IterVal, ConstReverseIterator>> get_rfront_block(
+      uint32_t block_size) requires ConstReverseIterable<Container>;
+  std::vector<std::pair<IterVal, ConstIterator>> get_back_block(
+      uint32_t block_size) requires ConstIterable<Container>;
+  std::vector<std::pair<IterVal, ConstReverseIterator>> get_rback_block(
+      uint32_t block_size) requires ConstReverseIterable<Container>;
+  std::vector<std::pair<IterVal, ConstIterator>> get_block_forward(
       ConstIterator start_iter,
       uint32_t block_size) requires ConstIterable<Container>;
-  std::pair<std::vector<IterVal>, ConstIterator> get_block_backward(
+  std::vector<std::pair<IterVal, ConstIterator>> get_block_backward(
       ConstIterator end_iter,
       uint32_t block_size) requires ConstIterable<Container>;
-  std::pair<std::vector<IterVal>, ConstReverseIterator> get_rblock_forward(
+  std::vector<std::pair<IterVal, ConstReverseIterator>> get_rblock_forward(
       ConstReverseIterator start_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
-  std::pair<std::vector<IterVal>, ConstReverseIterator> get_rblock_backward(
+  std::vector<std::pair<IterVal, ConstReverseIterator>> get_rblock_backward(
       ConstReverseIterator start_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
   ConstIterator cbegin() requires ConstIterable<Container>;
