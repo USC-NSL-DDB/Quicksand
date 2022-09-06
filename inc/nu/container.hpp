@@ -30,6 +30,12 @@ concept EmplaceBackAble = requires(T t) {
 };
 
 template <class T>
+concept Findable = requires(T t) {
+  { t.find(std::declval<typename T::Key>()) } ->
+    std::same_as<typename T::ConstIterator>;
+};
+
+template <class T>
 concept ConstIterable = requires(T t) {
   { t.cbegin() } -> std::same_as<typename T::ConstIterator>;
   { t.cend() } -> std::same_as<typename T::ConstIterator>;
@@ -115,9 +121,9 @@ class GeneralContainerBase {
   void emplace_back(Val v) requires EmplaceBackAble<Impl> {
     synchronized<void>([&] { impl_.emplace_back(std::move(v)); });
   }
-  std::optional<Val> find_val(Key k) {
-    return synchronized<std::optional<Val>>(
-        [&] { return impl_.find_val(std::move(k)); });
+  ConstIterator find(Key k) requires Findable<Impl> {
+    return synchronized<ConstIterator>(
+        [&] { return impl_.find(std::move(k)); });
   }
   std::pair<Key, ContainerType> split() {
     return synchronized<std::pair<Key, ContainerType>>([&] {

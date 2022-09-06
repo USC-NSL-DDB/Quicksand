@@ -184,8 +184,9 @@ void ShardedDataStructure<Container, LL>::emplace_back(
 }
 
 template <class Container, class LL>
-std::optional<typename ShardedDataStructure<Container, LL>::Val>
-ShardedDataStructure<Container, LL>::__find_val(Key k) {
+std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
+ShardedDataStructure<Container, LL>::__find_val(
+    Key k) requires Findable<Container> {
   flush();
 
 retry:
@@ -203,8 +204,9 @@ retry:
 }
 
 template <class Container, class LL>
-std::optional<typename ShardedDataStructure<Container, LL>::Val>
-ShardedDataStructure<Container, LL>::find_val(Key k) const {
+std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
+ShardedDataStructure<Container, LL>::find_val(Key k) const
+    requires Findable<Container> {
   return const_cast<ShardedDataStructure *>(this)->__find_val(k);
 }
 
@@ -403,30 +405,37 @@ void ShardedDataStructure<Container, LL>::load(Archive &ar) {
 }
 
 template <class Container, class LL>
-std::vector<WeakProclet<typename ShardedDataStructure<Container, LL>::Shard>>
+std::pair<std::vector<
+              std::optional<typename ShardedDataStructure<Container, LL>::Key>>,
+          std::vector<
+              WeakProclet<typename ShardedDataStructure<Container, LL>::Shard>>>
 ShardedDataStructure<Container, LL>::get_all_non_empty_shards() {
   flush();
   sync_mapping(std::nullopt, std::nullopt);
 
+  std::vector<std::optional<Key>> all_keys;
   std::vector<WeakProclet<Shard>> all_shards;
   std::vector<Future<bool>> shards_emptinesses;
+  std::vector<std::optional<Key>> non_empty_keys;
   std::vector<WeakProclet<Shard>> non_empty_shards;
 
   all_shards.reserve(key_to_shards_.size());
   shards_emptinesses.reserve(key_to_shards_.size());
   for (auto &[k, p] : key_to_shards_) {
     auto &shard = p.first;
+    all_keys.emplace_back(k);
     all_shards.emplace_back(shard);
     shards_emptinesses.emplace_back(shard.run_async(&Shard::empty));
   }
 
   for (uint64_t i = 0; i < all_shards.size(); i++) {
     if (!shards_emptinesses[i].get()) {
+      non_empty_keys.push_back(all_keys[i]);
       non_empty_shards.push_back(all_shards[i]);
     }
   }
 
-  return non_empty_shards;
+  return std::make_pair(std::move(non_empty_keys), std::move(non_empty_shards));
 }
 
 template <class Container, class LL>

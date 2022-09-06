@@ -10,6 +10,12 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::Block() {
 }
 
 template <typename T, bool Fwd>
+GeneralSealedDSConstIterator<T, Fwd>::Block::Block(
+    ShardsVecIter shards_vec_iter, Val v, ContainerIter container_iter)
+    : shards_iter(shards_vec_iter),
+      prefetched{std::make_pair(std::move(v), container_iter)} {}
+
+template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block::Block(const Block &o) {
   *this = o;
 }
@@ -154,6 +160,14 @@ GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
   block_ = is_begin ? Block::shard_front_block(shards_iter)
                     : Block::shard_end_block(shards_iter);
   block_iter_ = is_begin ? block_.cbegin() : block_.cend();
+}
+
+template <typename T, bool Fwd>
+GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
+    std::shared_ptr<ShardsVec> &shards, ShardsVecIter shards_iter, Val val,
+    ContainerIter iter)
+    : shards_(shards), block_(shards_iter, std::move(val), iter) {
+  block_iter_ = block_.cbegin();
 }
 
 template <typename T, bool Fwd>
@@ -316,7 +330,10 @@ void GeneralSealedDSConstIterator<T, Fwd>::load(Archive &ar) {
 template <typename T>
 SealedDS<T>::SealedDS(T &&t) : t_(std::move(t)) {
   t_.seal();
-  shards_ = std::make_shared<ShardsVec>(t_.get_all_non_empty_shards());
+
+  ShardsVec shards;
+  std::tie(keys_, shards) = t_.get_all_non_empty_shards();
+  shards_ = std::make_shared<ShardsVec>(shards);
 
   if constexpr (ConstIterable<typename T::Shard>) {
     cbegin_ = ConstIterator(shards_, true);
@@ -397,6 +414,27 @@ SealedDS<T>::ConstReverseIterator SealedDS<T>::crend() const
 template <typename T>
 std::size_t SealedDS<T>::size() const {
   return const_cast<SealedDS *>(this)->__size();
+}
+
+template <typename T>
+SealedDS<T>::ConstIterator SealedDS<T>::find_iter(T::Key k) const {
+  return const_cast<SealedDS *>(this)->__find_iter(std::move(k));
+}
+
+template <typename T>
+SealedDS<T>::ShardsVec::iterator SealedDS<T>::search_shard(T::Key k) {
+  auto idx =
+      std::upper_bound(keys_.begin(), keys_.end(), k) - keys_.begin() - 1;
+  return shards_->begin() + idx;
+}
+
+template <typename T>
+SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(T::Key k) {
+  auto shard_iter = search_shard(k);
+  auto tuple = shard_iter->run(&Shard::find, k);
+  BUG_ON(!std::get<0>(tuple));
+  return ConstIterator(shards_, shard_iter, std::move(std::get<1>(tuple)),
+                       std::move(std::get<2>(tuple)));
 }
 
 template <typename T>

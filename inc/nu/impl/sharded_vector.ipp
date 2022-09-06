@@ -6,6 +6,11 @@ template <typename T>
 VectorConstIterator<T>::VectorConstIterator() {}
 
 template <typename T>
+VectorConstIterator<T>::VectorConstIterator(std::vector<T>::iterator &&iter) {
+  std::vector<T>::const_iterator::operator=(std::move(iter));
+}
+
+template <typename T>
 VectorConstIterator<T>::VectorConstIterator(
     std::vector<T>::const_iterator &&iter) {
   std::vector<T>::const_iterator::operator=(std::move(iter));
@@ -19,6 +24,12 @@ void VectorConstIterator<T>::serialize(Archive &ar) {
 
 template <typename T>
 VectorConstReverseIterator<T>::VectorConstReverseIterator() {}
+
+template <typename T>
+VectorConstReverseIterator<T>::VectorConstReverseIterator(
+    std::vector<T>::reverse_iterator &&iter) {
+  std::vector<T>::const_reverse_iterator::operator=(std::move(iter));
+}
 
 template <typename T>
 VectorConstReverseIterator<T>::VectorConstReverseIterator(
@@ -101,15 +112,15 @@ void Vector<T>::merge(Vector vector) {
 }
 
 template <typename T>
-std::optional<T> Vector<T>::find_val(Key k) {
+Vector<T>::ConstIterator Vector<T>::find(Key k) {
   auto l_key = l_key_;
   auto r_key = l_key_ + data_.size();
 
   if (k < l_key || k >= r_key) {
-    return std::nullopt;
+    return data_.cend();
   }
 
-  return data_[k - l_key];
+  return data_.cbegin() + (k - l_key);
 }
 
 template <typename T>

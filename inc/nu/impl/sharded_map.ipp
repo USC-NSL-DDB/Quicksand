@@ -6,6 +6,12 @@ MapConstIterator<K, V>::MapConstIterator() {}
 
 template <typename K, typename V>
 MapConstIterator<K, V>::MapConstIterator(
+    std::map<K, V>::iterator &&iter) {
+  std::map<K, V>::const_iterator::operator=(std::move(iter));
+}
+
+template <typename K, typename V>
+MapConstIterator<K, V>::MapConstIterator(
     std::map<K, V>::const_iterator &&iter) {
   std::map<K, V>::const_iterator::operator=(std::move(iter));
 }
@@ -18,6 +24,12 @@ void MapConstIterator<K, V>::serialize(Archive &ar) {
 
 template <typename K, typename V>
 MapConstReverseIterator<K, V>::MapConstReverseIterator() {}
+
+template <typename K, typename V>
+MapConstReverseIterator<K, V>::MapConstReverseIterator(
+    std::map<K, V>::reverse_iterator &&iter) {
+  std::map<K, V>::const_reverse_iterator::operator=(std::move(iter));
+}
 
 template <typename K, typename V>
 MapConstReverseIterator<K, V>::MapConstReverseIterator(
@@ -73,12 +85,8 @@ void Map<K, V>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
   }
 }
 template <typename K, typename V>
-std::optional<V> Map<K, V>::find_val(K k) {
-  auto it = map_.find(std::move(k));
-  if (it == map_.end()) {
-    return std::nullopt;
-  }
-  return it->second;
+Map<K, V>::ConstIterator Map<K, V>::find(K k) {
+  return map_.find(std::move(k));
 }
 
 template <typename K, typename V>
@@ -135,7 +143,7 @@ template <typename K, typename V, typename LL>
 V ShardedMap<K, V, LL>::operator[](const K &key) {
   auto found = this->find_val(key);
   if (found.has_value()) {
-    return found.value();
+    return found->second;
   } else {
     auto default_val = V();
     this->emplace(key, default_val);

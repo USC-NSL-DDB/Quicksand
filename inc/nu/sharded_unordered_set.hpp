@@ -9,6 +9,7 @@ template <typename T>
 struct UnorderedSetConstIterator
     : public std::unordered_set<T>::const_iterator {
   UnorderedSetConstIterator();
+  UnorderedSetConstIterator(std::unordered_set<T>::iterator &&iter);
   UnorderedSetConstIterator(std::unordered_set<T>::const_iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
@@ -32,6 +33,7 @@ class UnorderedSet {
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
+  ConstIterator find(Key k);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   std::pair<Key, UnorderedSet> split();

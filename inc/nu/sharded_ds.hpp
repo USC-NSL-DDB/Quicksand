@@ -34,6 +34,7 @@ class ShardedDataStructure {
  public:
   using Key = Container::Key;
   using Val = Container::Val;
+  using IterVal = Container::IterVal;
   using Pair = Container::Pair;
   using Shard = GeneralShard<Container>;
   using ShardingMapping = GeneralShardingMapping<Shard>;
@@ -47,7 +48,7 @@ class ShardedDataStructure {
   void emplace(Key k, Val v);
   void emplace(Pair p);
   void emplace_back(Val v) requires EmplaceBackAble<Container>;
-  std::optional<Val> find_val(Key k) const;
+  std::optional<IterVal> find_val(Key k) const requires Findable<Container>;
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   Container collect();
@@ -94,7 +95,7 @@ class ShardedDataStructure {
   friend class SealedDS;
 
   std::size_t __size();
-  std::optional<Val> __find_val(Key k);
+  std::optional<IterVal> __find_val(Key k) requires Findable<Container>;
   void reset();
   void set_shard_and_batch_size();
   bool flush_one_batch(KeyToShardsMapping::iterator iter);
@@ -102,7 +103,8 @@ class ShardedDataStructure {
   void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key);
   std::pair<std::optional<Key>, std::optional<Key>> get_key_range(
       KeyToShardsMapping::iterator iter);
-  std::vector<WeakProclet<Shard>> get_all_non_empty_shards();
+  std::pair<std::vector<std::optional<Key>>, std::vector<WeakProclet<Shard>>>
+  get_all_non_empty_shards();
   void seal();
   void unseal();
 };

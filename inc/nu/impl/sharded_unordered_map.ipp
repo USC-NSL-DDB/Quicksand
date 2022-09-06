@@ -10,6 +10,12 @@ UnorderedMapConstIterator<K, V>::UnorderedMapConstIterator() {}
 
 template <typename K, typename V>
 UnorderedMapConstIterator<K, V>::UnorderedMapConstIterator(
+    std::unordered_map<K, V>::iterator &&iter) {
+  std::unordered_map<K, V>::const_iterator::operator=(std::move(iter));
+}
+
+template <typename K, typename V>
+UnorderedMapConstIterator<K, V>::UnorderedMapConstIterator(
     std::unordered_map<K, V>::const_iterator &&iter) {
   std::unordered_map<K, V>::const_iterator::operator=(std::move(iter));
 }
@@ -65,12 +71,8 @@ void UnorderedMap<K, V>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
   }
 }
 template <typename K, typename V>
-std::optional<V> UnorderedMap<K, V>::find_val(K k) {
-  auto it = map_.find(std::move(k));
-  if (it == map_.end()) {
-    return std::nullopt;
-  }
-  return it->second;
+UnorderedMap<K, V>::ConstIterator UnorderedMap<K, V>::find(K k) {
+  return map_.find(std::move(k));
 }
 
 template <typename K, typename V>
@@ -128,7 +130,7 @@ template <typename K, typename V, typename LL>
 V ShardedUnorderedMap<K, V, LL>::operator[](const K &key) {
   auto found = this->find_val(key);
   if (found.has_value()) {
-    return found.value();
+    return found->second;
   } else {
     auto default_val = V();
     this->emplace(key, default_val);

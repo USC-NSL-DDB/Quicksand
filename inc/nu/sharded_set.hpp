@@ -8,7 +8,7 @@ namespace nu {
 template <typename T>
 struct SetConstIterator : public std::set<T>::const_iterator {
   SetConstIterator();
-  SetConstIterator(std::set<T>::const_iterator &&iter);
+  SetConstIterator(std::set<T>::iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
 };
@@ -16,7 +16,7 @@ struct SetConstIterator : public std::set<T>::const_iterator {
 template <typename T>
 struct SetConstReverseIterator : public std::set<T>::const_reverse_iterator {
   SetConstReverseIterator();
-  SetConstReverseIterator(std::set<T>::const_reverse_iterator &&iter);
+  SetConstReverseIterator(std::set<T>::reverse_iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
 };
@@ -40,6 +40,7 @@ class Set {
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
+  ConstIterator find(Key k);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   std::pair<Key, Set> split();

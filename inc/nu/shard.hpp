@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cereal/types/tuple.hpp>
 #include <optional>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -64,7 +66,9 @@ class GeneralShard {
                         Val v) requires EmplaceBackAble<Container>;
   bool try_handle_batch(std::optional<Key> l_key, std::optional<Key> r_key,
                         std::vector<ContainerReq<Key, Val>> reqs);
-  std::pair<bool, std::optional<Val>> find_val(Key k);
+  std::pair<bool, std::optional<IterVal>> find_val(
+      Key k) requires Findable<Container>;
+  std::tuple<bool, Val, ConstIterator> find(Key k) requires Findable<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_front_block(
       uint32_t block_size) requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>> get_rfront_block(

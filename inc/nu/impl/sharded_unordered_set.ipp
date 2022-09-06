@@ -9,6 +9,12 @@ UnorderedSetConstIterator<T>::UnorderedSetConstIterator() {}
 
 template <typename T>
 UnorderedSetConstIterator<T>::UnorderedSetConstIterator(
+    std::unordered_set<T>::iterator &&iter) {
+  std::unordered_set<T>::const_iterator::operator=(std::move(iter));
+}
+
+template <typename T>
+UnorderedSetConstIterator<T>::UnorderedSetConstIterator(
     std::unordered_set<T>::const_iterator &&iter) {
   std::unordered_set<T>::const_iterator::operator=(std::move(iter));
 }
@@ -44,6 +50,11 @@ template <typename T>
 void UnorderedSet<T>::emplace(Key k, Val v) {
   assert(k == v);
   set_.insert(std::move(k));
+}
+
+template <typename T>
+UnorderedSet<T>::ConstIterator UnorderedSet<T>::find(Key k) {
+  return set_.find(std::move(k));
 }
 
 template <typename T>

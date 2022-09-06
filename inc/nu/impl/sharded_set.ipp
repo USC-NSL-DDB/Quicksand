@@ -8,7 +8,7 @@ template <typename T>
 SetConstIterator<T>::SetConstIterator() {}
 
 template <typename T>
-SetConstIterator<T>::SetConstIterator(std::set<T>::const_iterator &&iter) {
+SetConstIterator<T>::SetConstIterator(std::set<T>::iterator &&iter) {
   std::set<T>::const_iterator::operator=(std::move(iter));
 }
 
@@ -23,7 +23,7 @@ SetConstReverseIterator<T>::SetConstReverseIterator() {}
 
 template <typename T>
 SetConstReverseIterator<T>::SetConstReverseIterator(
-    std::set<T>::const_reverse_iterator &&iter) {
+    std::set<T>::reverse_iterator &&iter) {
   std::set<T>::const_reverse_iterator::operator=(std::move(iter));
 }
 
@@ -58,6 +58,11 @@ template <typename T>
 void Set<T>::emplace(Key k, Val v) {
   assert(k == v);
   set_.insert(std::move(k));
+}
+
+template <typename T>
+Set<T>::ConstIterator Set<T>::find(Key k) {
+  return set_.find(std::move(k));
 }
 
 template <typename T>

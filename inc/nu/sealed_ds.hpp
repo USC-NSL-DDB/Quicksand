@@ -54,6 +54,7 @@ class GeneralSealedDSConstIterator {
         (256 << 10) / sizeof(std::pair<Val, ContainerIter>);
 
     Block();
+    Block(ShardsVecIter shards_vec_iter, Val v, ContainerIter container_iter);
     Block(const Block &);
     Block &operator=(const Block &);
     Block(Block &&);
@@ -87,6 +88,9 @@ class GeneralSealedDSConstIterator {
 
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
                                bool is_begin);
+  GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
+                               ShardsVecIter shards_iter, Val val,
+                               ContainerIter container_iter);
   ShardsVecIter shards_vec_begin() const;
   ShardsVecIter shards_vec_end() const;
   Block get_next_block(const Block &block);
@@ -110,6 +114,7 @@ class SealedDS {
       requires ConstReverseIterable<typename T::Shard>;
   ConstReverseIterator rend() const
       requires ConstReverseIterable<typename T::Shard>;
+
   // Useful for implementing range-based for loop.
   ConstIterator begin() const requires ConstIterable<typename T::Shard>;
   ConstIterator end() const requires ConstIterable<typename T::Shard>;
@@ -117,7 +122,9 @@ class SealedDS {
       requires ConstReverseIterable<typename T::Shard>;
   ConstReverseIterator crend() const
       requires ConstReverseIterable<typename T::Shard>;
+
   std::size_t size() const;
+  ConstIterator find_iter(T::Key k) const;
 
  private:
   using Shard = T::Shard;
@@ -125,6 +132,7 @@ class SealedDS {
 
   T t_;
   std::optional<std::size_t> size_;
+  std::vector<std::optional<typename T::Key>> keys_;
   std::shared_ptr<ShardsVec> shards_;
   ConstIterator cbegin_;
   ConstIterator cend_;
@@ -133,7 +141,9 @@ class SealedDS {
 
   SealedDS(T &&t);
   std::size_t __size();
+  ConstIterator __find_iter(T::Key k);
   T &&unseal();
+  ShardsVec::iterator search_shard(T::Key k);
   template <typename U>
   friend SealedDS<U> to_sealed_ds(U &&u);
   template <typename U>

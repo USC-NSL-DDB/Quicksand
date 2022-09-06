@@ -7,6 +7,7 @@ template <typename K, typename V>
 struct UnorderedMapConstIterator
     : public std::unordered_map<K, V>::const_iterator {
   UnorderedMapConstIterator();
+  UnorderedMapConstIterator(std::unordered_map<K, V>::iterator &&iter);
   UnorderedMapConstIterator(std::unordered_map<K, V>::const_iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
@@ -32,7 +33,7 @@ class UnorderedMap {
   void emplace(Key k, Val v);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
-  std::optional<Val> find_val(Key k);
+  ConstIterator find(Key k);
   std::pair<Key, UnorderedMap> split();
   void merge(UnorderedMap m);
   ConstIterator cbegin() const;

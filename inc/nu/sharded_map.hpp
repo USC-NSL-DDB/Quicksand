@@ -8,6 +8,7 @@ namespace nu {
 template <typename K, typename V>
 struct MapConstIterator : public std::map<K, V>::const_iterator {
   MapConstIterator();
+  MapConstIterator(std::map<K, V>::iterator &&iter);
   MapConstIterator(std::map<K, V>::const_iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
@@ -16,6 +17,7 @@ struct MapConstIterator : public std::map<K, V>::const_iterator {
 template <typename K, typename V>
 struct MapConstReverseIterator : public std::map<K, V>::const_reverse_iterator {
   MapConstReverseIterator();
+  MapConstReverseIterator(std::map<K, V>::reverse_iterator &&iter);
   MapConstReverseIterator(std::map<K, V>::const_reverse_iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
@@ -42,7 +44,7 @@ class Map {
   void emplace(Key k, Val v);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
-  std::optional<Val> find_val(Key k);
+  ConstIterator find(Key k);
   std::pair<Key, Map> split();
   void merge(Map m);
   ConstIterator cbegin() const;

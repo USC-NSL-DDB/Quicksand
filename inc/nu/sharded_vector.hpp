@@ -9,6 +9,7 @@ namespace nu {
 template <typename T>
 struct VectorConstIterator : public std::vector<T>::const_iterator {
   VectorConstIterator();
+  VectorConstIterator(std::vector<T>::iterator &&iter);
   VectorConstIterator(std::vector<T>::const_iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
@@ -18,6 +19,7 @@ template <typename T>
 struct VectorConstReverseIterator
     : public std::vector<T>::const_reverse_iterator {
   VectorConstReverseIterator();
+  VectorConstReverseIterator(std::vector<T>::reverse_iterator &&iter);
   VectorConstReverseIterator(std::vector<T>::const_reverse_iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
@@ -44,7 +46,7 @@ class Vector {
   void clear();
   void emplace(Key k, Val v);
   void emplace_back(Val v);
-  std::optional<T> find_val(Key k);
+  ConstIterator find(Key k);
   std::pair<Key, Vector> split();
   void merge(Vector vector);
   template <typename... S0s, typename... S1s>
