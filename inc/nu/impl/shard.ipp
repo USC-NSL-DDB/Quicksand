@@ -214,37 +214,43 @@ template <class Container>
 std::vector<std::pair<typename Container::IterVal,
                       typename GeneralShard<Container>::ConstIterator>>
 GeneralShard<Container>::get_block_forward(
-    ConstIterator start_iter,
+    ConstIterator prev_iter,
     uint32_t block_size) requires ConstIterable<Container> {
   std::vector<std::pair<IterVal, ConstIterator>> block;
-  auto iter = start_iter;
+  block.reserve(block_size);
+  __get_block_forward(&block, prev_iter, block_size);
+  return block;
+}
+
+template <class Container>
+void GeneralShard<Container>::__get_block_forward(
+    std::vector<std::pair<IterVal, ConstIterator>> *block,
+    ConstIterator prev_iter,
+    uint32_t block_size) requires ConstIterable<Container> {
+  auto iter = prev_iter;
 
   for (uint32_t i = 0; i < block_size; i++) {
-    if (unlikely(iter == container_.cend())) {
+    if (unlikely(++iter == container_.cend())) {
       break;
     }
-    block.emplace_back(*iter, iter);
-    ++iter;
+    block->emplace_back(*iter, iter);
   }
-  block.emplace_back(IterVal(), iter);
-  return block;
 }
 
 template <class Container>
 std::vector<std::pair<typename Container::IterVal,
                       typename GeneralShard<Container>::ConstIterator>>
 GeneralShard<Container>::get_block_backward(
-    ConstIterator end_iter,
+    ConstIterator succ_iter,
     uint32_t block_size) requires ConstIterable<Container> {
   std::vector<std::pair<IterVal, ConstIterator>> block;
-  auto iter = end_iter;
+  block.reserve(block_size);
+  auto iter = succ_iter;
 
-  block.emplace_back(IterVal(), iter);
   for (uint32_t i = 0; i < block_size; i++) {
-    if (unlikely(iter == container_.cbegin())) {
+    if (unlikely(iter-- == container_.cbegin())) {
       break;
     }
-    --iter;
     block.emplace_back(*iter, iter);
   }
   std::reverse(block.begin(), block.end());
@@ -255,37 +261,43 @@ template <class Container>
 std::vector<std::pair<typename Container::IterVal,
                       typename GeneralShard<Container>::ConstReverseIterator>>
 GeneralShard<Container>::get_rblock_forward(
-    ConstReverseIterator start_iter,
+    ConstReverseIterator prev_iter,
     uint32_t block_size) requires ConstReverseIterable<Container> {
   std::vector<std::pair<IterVal, ConstReverseIterator>> block;
-  auto iter = start_iter;
+  block.reserve(block_size);
+  __get_rblock_forward(&block, prev_iter, block_size);
+  return block;
+}
+
+template <class Container>
+void GeneralShard<Container>::__get_rblock_forward(
+    std::vector<std::pair<IterVal, ConstReverseIterator>> *block,
+    ConstReverseIterator prev_iter,
+    uint32_t block_size) requires ConstReverseIterable<Container> {
+  auto iter = prev_iter;
 
   for (uint32_t i = 0; i < block_size; i++) {
-    if (unlikely(iter == container_.crend())) {
+    if (unlikely(++iter == container_.crend())) {
       break;
     }
-    block.emplace_back(*iter, iter);
-    ++iter;
+    block->emplace_back(*iter, iter);
   }
-  block.emplace_back(IterVal(), iter);
-  return block;
 }
 
 template <class Container>
 std::vector<std::pair<typename Container::IterVal,
                       typename GeneralShard<Container>::ConstReverseIterator>>
 GeneralShard<Container>::get_rblock_backward(
-    ConstReverseIterator end_iter,
+    ConstReverseIterator succ_iter,
     uint32_t block_size) requires ConstReverseIterable<Container> {
   std::vector<std::pair<IterVal, ConstReverseIterator>> block;
-  auto iter = end_iter;
+  block.reserve(block_size);
+  auto iter = succ_iter;
 
-  block.emplace_back(IterVal(), iter);
   for (uint32_t i = 0; i < block_size; i++) {
-    if (unlikely(iter == container_.crbegin())) {
+    if (unlikely(iter-- == container_.crbegin())) {
       break;
     }
-    --iter;
     block.emplace_back(*iter, iter);
   }
   std::reverse(block.begin(), block.end());
@@ -297,7 +309,11 @@ std::vector<std::pair<typename Container::IterVal,
                       typename GeneralShard<Container>::ConstIterator>>
 GeneralShard<Container>::get_front_block(
     uint32_t block_size) requires ConstIterable<Container> {
-  return get_block_forward(container_.cbegin(), block_size);
+  std::vector<std::pair<IterVal, ConstIterator>> block;
+  block.reserve(block_size);
+  block.emplace_back(*container_.cbegin(), container_.cbegin());
+  __get_block_forward(&block, container_.cbegin(), block_size);
+  return block;
 }
 
 template <class Container>
@@ -305,7 +321,11 @@ std::vector<std::pair<typename Container::IterVal,
                       typename GeneralShard<Container>::ConstReverseIterator>>
 GeneralShard<Container>::get_rfront_block(
     uint32_t block_size) requires ConstReverseIterable<Container> {
-  return get_rblock_forward(container_.crbegin(), block_size);
+  std::vector<std::pair<IterVal, ConstReverseIterator>> block;
+  block.reserve(block_size);
+  block.emplace_back(*container_.crbegin(), container_.crbegin());
+  __get_rblock_forward(&block, container_.crbegin(), block_size);
+  return block;
 }
 
 template <class Container>

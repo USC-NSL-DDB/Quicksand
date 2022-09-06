@@ -7,7 +7,7 @@
 
 using namespace nu;
 
-constexpr uint32_t kNumElements = 1 << 20;
+constexpr uint32_t kNumElements = (1 << 20) + 1;
 
 bool run_test() {
   auto vec = make_sharded_vector<int, std::false_type>();

@@ -4,7 +4,9 @@ namespace nu {
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block::Block() {
+  static ContainerIter iter;
   prefetched.reserve(1);
+  prefetched.data()->second = iter;
 }
 
 template <typename T, bool Fwd>
@@ -31,6 +33,11 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::operator=(Block &&o) {
   shards_iter = std::move(o.shards_iter);
   prefetched = std::move(o.prefetched);
   return *this;
+}
+
+template <typename T, bool Fwd>
+GeneralSealedDSConstIterator<T, Fwd>::Block::operator bool() const {
+  return !prefetched.empty();
 }
 
 template <typename T, bool Fwd>
@@ -96,13 +103,6 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::shard_end_block(
     ShardsVecIter shards_vec_iter) {
   Block b;
   b.shards_iter = shards_vec_iter;
-  ContainerIter container_iter;
-  if constexpr (Fwd) {
-    container_iter = b.shards_iter->run(&Shard::cend);
-  } else {
-    container_iter = b.shards_iter->run(&Shard::crend);
-  }
-  b.prefetched.emplace_back(Val(), container_iter);
   return b;
 }
 
@@ -147,13 +147,13 @@ GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
     : shards_(shards) {
   ShardsVecIter shards_iter;
   if constexpr (Fwd) {
-    shards_iter = is_begin ? shards->begin() : --shards->end();
+    shards_iter = is_begin ? shards->begin() : shards->end();
   } else {
-    shards_iter = is_begin ? shards->rbegin() : --shards->rend();
+    shards_iter = is_begin ? shards->rbegin() : shards->rend();
   }
   block_ = is_begin ? Block::shard_front_block(shards_iter)
                     : Block::shard_end_block(shards_iter);
-  block_iter_ = is_begin ? block_.cbegin() : --block_.cend();
+  block_iter_ = is_begin ? block_.cbegin() : block_.cend();
 }
 
 template <typename T, bool Fwd>
@@ -219,8 +219,10 @@ GeneralSealedDSConstIterator<T, Fwd>::Block
 GeneralSealedDSConstIterator<T, Fwd>::get_next_block(const Block &block) {
   Block new_block = block.next_block();
   if (unlikely(new_block.empty())) {
-    auto new_shards_iter = ++new_block.get_shards_iter();
-    if (likely(new_shards_iter != shards_vec_end())) {
+    auto new_shards_iter = new_block.get_shards_iter();
+    if (unlikely(++new_shards_iter == shards_vec_end())) {
+      return Block();
+    } else {
       return Block::shard_front_block(new_shards_iter);
     }
   }
@@ -230,11 +232,12 @@ GeneralSealedDSConstIterator<T, Fwd>::get_next_block(const Block &block) {
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block
 GeneralSealedDSConstIterator<T, Fwd>::get_prev_block(const Block &block) {
-  Block new_block = block.prev_block();
+  Block new_block = block ? block.prev_block() : block;
   if (unlikely(new_block.empty())) {
     auto new_shards_iter = new_block.get_shards_iter();
-    if (likely(new_shards_iter != shards_vec_begin())) {
-      --new_shards_iter;
+    if (unlikely(new_shards_iter-- == shards_vec_begin())) {
+      return Block();
+    } else {
       return Block::shard_back_block(new_shards_iter);
     }
   }
@@ -244,13 +247,16 @@ GeneralSealedDSConstIterator<T, Fwd>::get_prev_block(const Block &block) {
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>
     &GeneralSealedDSConstIterator<T, Fwd>::operator++() {
-  if (unlikely(&*++block_iter_ == &*block_.crbegin())) {
+  if (unlikely(++block_iter_ == block_.cend())) {
     if (likely(prefetched_next_block_)) {
       block_ = std::move(prefetched_next_block_.get());
     } else {
       block_ = get_next_block(block_);
     }
-    prefetched_next_block_ = nu::async([&] { return get_next_block(block_); });
+    if (block_) {
+      prefetched_next_block_ =
+          nu::async([&] { return get_next_block(block_); });
+    }
     block_iter_ = block_.cbegin();
   }
   return *this;
@@ -265,8 +271,11 @@ GeneralSealedDSConstIterator<T, Fwd>
     } else {
       block_ = get_prev_block(block_);
     }
-    prefetched_prev_block_ = nu::async([&] { return get_prev_block(block_); });
-    block_iter_ = --(--block_.cend());
+    if (block_) {
+      prefetched_prev_block_ =
+          nu::async([&] { return get_prev_block(block_); });
+    }
+    block_iter_ = --block_.cend();
   } else {
     block_iter_--;
   }
@@ -309,24 +318,13 @@ SealedDS<T>::SealedDS(T &&t) : t_(std::move(t)) {
   t_.seal();
   shards_ = std::make_shared<ShardsVec>(t_.get_all_non_empty_shards());
 
-  if (shards_->empty()) {
-    if constexpr (ConstIterable<typename T::Shard>) {
-      cbegin_ = ConstIterator();
-      cend_ = cbegin_;
-    }
-    if constexpr (ConstReverseIterable<typename T::Shard>) {
-      crbegin_ = ConstReverseIterator();
-      crend_ = crbegin_;
-    }
-  } else {
-    if constexpr (ConstIterable<typename T::Shard>) {
-      cbegin_ = ConstIterator(shards_, true);
-      cend_ = ConstIterator(shards_, false);
-    }
-    if constexpr (ConstReverseIterable<typename T::Shard>) {
-      crbegin_ = ConstReverseIterator(shards_, true);
-      crend_ = ConstReverseIterator(shards_, false);
-    }
+  if constexpr (ConstIterable<typename T::Shard>) {
+    cbegin_ = ConstIterator(shards_, true);
+    cend_ = ConstIterator(shards_, false);
+  }
+  if constexpr (ConstReverseIterable<typename T::Shard>) {
+    crbegin_ = ConstReverseIterator(shards_, true);
+    crend_ = ConstReverseIterator(shards_, false);
   }
 }
 

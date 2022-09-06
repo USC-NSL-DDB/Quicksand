@@ -68,22 +68,22 @@ class GeneralShard {
   std::vector<std::pair<IterVal, ConstIterator>> get_front_block(
       uint32_t block_size) requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>> get_rfront_block(
-      uint32_t block_size) requires ConstReverseIterable<Container>;
+     uint32_t block_size) requires ConstReverseIterable<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_back_block(
       uint32_t block_size) requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>> get_rback_block(
       uint32_t block_size) requires ConstReverseIterable<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_block_forward(
-      ConstIterator start_iter,
+      ConstIterator prev_iter,
       uint32_t block_size) requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_block_backward(
-      ConstIterator end_iter,
+      ConstIterator succ_iter,
       uint32_t block_size) requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>> get_rblock_forward(
-      ConstReverseIterator start_iter,
+      ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>> get_rblock_backward(
-      ConstReverseIterator start_iter,
+      ConstReverseIterator succ_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
   ConstIterator cbegin() requires ConstIterable<Container>;
   ConstIterator clast() requires ConstIterable<Container>;
@@ -108,6 +108,14 @@ class GeneralShard {
 
   void split();
   bool bad_range(std::optional<Key> l_key, std::optional<Key> r_key);
+  void __get_block_forward(
+      std::vector<std::pair<IterVal, ConstIterator>> *block,
+      ConstIterator prev_iter,
+      uint32_t block_size) requires ConstIterable<Container>;
+  void __get_rblock_forward(
+      std::vector<std::pair<IterVal, ConstReverseIterator>> *block,
+      ConstReverseIterator prev_iter,
+      uint32_t block_size) requires ConstReverseIterable<Container>;
 };
 
 }  // namespace nu

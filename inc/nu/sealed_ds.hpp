@@ -58,6 +58,7 @@ class GeneralSealedDSConstIterator {
     Block &operator=(const Block &);
     Block(Block &&);
     Block &operator=(Block &&);
+    operator bool() const;
     bool empty() const;
     ConstIterator cbegin() const;
     ConstReverseIterator crbegin() const;
@@ -70,7 +71,7 @@ class GeneralSealedDSConstIterator {
     static Block shard_back_block(ShardsVecIter shards_vec_iter);
     static Block shard_end_block(ShardsVecIter shards_vec_iter);
 
-  public:
+   public:
     ShardsVecIter shards_iter;
     PrefetchedVec prefetched;
   };
