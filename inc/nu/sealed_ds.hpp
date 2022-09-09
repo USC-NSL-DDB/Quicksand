@@ -123,6 +123,7 @@ class SealedDS {
   ConstReverseIterator crend() const
       requires ConstReverseIterable<typename T::Shard>;
 
+  bool empty() const;
   std::size_t size() const;
   ConstIterator find_iter(T::Key k) const;
 

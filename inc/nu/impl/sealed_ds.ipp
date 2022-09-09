@@ -412,6 +412,11 @@ SealedDS<T>::ConstReverseIterator SealedDS<T>::crend() const
 }
 
 template <typename T>
+bool SealedDS<T>::empty() const {
+  return !size();
+}
+
+template <typename T>
 std::size_t SealedDS<T>::size() const {
   return const_cast<SealedDS *>(this)->__size();
 }
