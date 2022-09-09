@@ -498,18 +498,21 @@ template<typename I, typename  H>
 template<typename ... Ts>
 DataFrame<I, H>
 DataFrame<I, H>::get_data_by_loc (Index2D<long> range) const  {
+    auto &mut_indices = const_cast<DataFrame *>(this)->indices_;;
+    auto sealed_indices = nu::to_sealed_ds(std::move(mut_indices));
 
     if (range.begin < 0)
-        range.begin = static_cast<long>(indices_.size()) + range.begin;
+        range.begin = static_cast<long>(sealed_indices.size()) + range.begin;
     if (range.end < 0)
-        range.end = static_cast<long>(indices_.size()) + range.end + 1;
+        range.end = static_cast<long>(sealed_indices.size()) + range.end + 1;
 
-    if (range.end <= static_cast<long>(indices_.size()) &&
+    if (range.end <= static_cast<long>(sealed_indices.size()) &&
         range.begin <= range.end && range.begin >= 0)  {
         DataFrame   df;
 
-        df.load_index(indices_.begin() + static_cast<size_type>(range.begin),
-                      indices_.begin() + static_cast<size_type>(range.end));
+        auto iter_begin = sealed_indices.find_iter(range.begin);
+        auto iter_end = sealed_indices.find_iter(range.end);
+        df.load_index(iter_begin, iter_end);
 
         for (const auto &iter : column_list_)  {
             load_functor_<DataFrame, Ts ...>    functor (
@@ -522,6 +525,7 @@ DataFrame<I, H>::get_data_by_loc (Index2D<long> range) const  {
             data_[iter.second].change(functor);
         }
 
+        mut_indices = nu::to_unsealed_ds(std::move(sealed_indices));
         return (df);
     }
 
@@ -531,6 +535,8 @@ DataFrame<I, H>::get_data_by_loc (Index2D<long> range) const  {
              "DataFrame::get_data_by_loc(): ERROR: "
              "Bad begin, end range: %ld, %ld",
              range.begin, range.end);
+
+    mut_indices = nu::to_unsealed_ds(std::move(sealed_indices));
     throw BadRange (buffer);
 }
 

@@ -91,16 +91,20 @@ template<typename LHS, typename ... Ts>
 template<typename T>
 void
 DataFrame<I, H>::load_functor_<LHS, Ts ...>::operator() (const T &vec)  {
-
     using VecType = typename std::remove_reference<T>::type;
-    using ValueType = typename VecType::value_type;
+    using ValueType = typename VecType::Val;
 
-    const size_type col_s = vec.size() >= end ? end : vec.size();
+    auto &mut_vec = const_cast<T &>(vec);
+    auto sealed_vec = nu::to_sealed_ds(std::move(mut_vec));
 
-    df.template load_column<ValueType>(
-        name,
-        { vec.begin() + begin, vec.begin() + col_s },
-        nan_p);
+    const size_type col_s = sealed_vec.size() >= end ? end : sealed_vec.size();
+    auto begin_iter = sealed_vec.find_iter(begin);
+    auto end_iter = sealed_vec.find_iter(col_s);
+    auto range = Index2D<const decltype(begin_iter) &>(begin_iter, end_iter);
+
+    df.template load_column<ValueType>(name, range, nan_p);
+
+    mut_vec = nu::to_unsealed_ds(std::move(sealed_vec));
 }
 
 // ----------------------------------------------------------------------------
@@ -173,13 +177,15 @@ template<typename ... Ts>
 template<typename T>
 void
 DataFrame<I, H>::print_csv_functor_<Ts ...>::operator() (const T &vec)  {
+    auto &mut_vec = const_cast<T &>(vec);
+    auto sealed_vec = nu::to_sealed_ds(std::move(mut_vec));
 
-    if (vec.empty())  return;
+    if (sealed_vec.empty())  goto done;
 
     using VecType = typename std::remove_reference<T>::type;
-    using ValueType = typename VecType::value_type;
+    using ValueType = typename VecType::Val;
 
-    os << name << ':' << vec.size() << ':';
+    os << name << ':' << sealed_vec.size() << ':';
     if (typeid(ValueType) == typeid(float))
         os << "<float>:";
     else if (typeid(ValueType) == typeid(double))
@@ -209,10 +215,12 @@ DataFrame<I, H>::print_csv_functor_<Ts ...>::operator() (const T &vec)  {
     else
         os << "<N/A>:";
 
-    for (const auto &citer : vec)
+    for (const auto &citer : sealed_vec)
         os << citer << ',';
     os << '\n';
 
+done:
+    mut_vec = nu::to_unsealed_ds(std::move(sealed_vec));
     return;
 }
 
@@ -227,7 +235,7 @@ DataFrame<I, H>::print_json_functor_<Ts ...>::operator() (const T &vec)  {
     if (vec.empty())  return;
 
     using VecType = typename std::remove_reference<T>::type;
-    using ValueType = typename VecType::value_type;
+    using ValueType = typename VecType::Val;
 
     if (need_pre_comma)
         os << ",\n";
@@ -284,7 +292,7 @@ void DataFrame<I, H>::
 print_csv2_header_functor_<S, Ts ...>::operator() (const T &vec)  {
 
     using VecType = typename std::remove_reference<T>::type;
-    using ValueType = typename VecType::value_type;
+    using ValueType = typename VecType::Val;
 
     _write_csv2_df_header_<S, ValueType>(os, name, vec.size());
     return;

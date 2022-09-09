@@ -213,7 +213,9 @@ DataFrame<I, H>::load_index(const ITR &begin, const ITR &end)  {
                   "Only a StdDataFrame can call load_index()");
 
     indices_.clear();
-    indices_.insert (indices_.end(), begin, end);
+    for (auto iter = begin; iter != end; ++iter) {
+        indices_.push_back(*iter);
+    }
     return (indices_.size());
 }
 
@@ -344,9 +346,25 @@ DataFrame<I, H>::
 load_column (const char *name,
              Index2D<const ITR &> range,
              nan_policy padding)  {
-
-    size_type       s = std::distance(range.begin, range.end);
+    size_type       s = 0;
     const size_type idx_s = indices_.size();
+
+    const auto      iter = column_tb_.find (name);
+    NuShardedVector<T>  *vec_ptr = nullptr;
+
+    if (iter == column_tb_.end())
+        vec_ptr = &(create_column<T>(name));
+    else  {
+        const SpinGuard guard(lock_);
+        DataVec         &hv = data_[iter->second];
+
+        vec_ptr = &(hv.template get_vector<T>());
+    }
+
+    vec_ptr->clear();
+    for (auto iter = range.begin; iter != range.end; ++iter, ++s) {
+        vec_ptr->push_back(*iter);
+    }
 
     if (s > idx_s)  {
         char buffer [512];
@@ -360,21 +378,6 @@ load_column (const char *name,
                  s, idx_s);
         throw InconsistentData (buffer);
     }
-
-    const auto      iter = column_tb_.find (name);
-    std::vector<T>  *vec_ptr = nullptr;
-
-    if (iter == column_tb_.end())
-        vec_ptr = &(create_column<T>(name));
-    else  {
-        const SpinGuard guard(lock_);
-        DataVec         &hv = data_[iter->second];
-
-        vec_ptr = &(hv.template get_vector<T>());
-    }
-
-    vec_ptr->clear();
-    vec_ptr->insert (vec_ptr->end(), range.begin, range.end);
 
     size_type   ret_cnt = s;
 
