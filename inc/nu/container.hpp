@@ -10,12 +10,6 @@
 
 namespace nu {
 
-template <class T>
-concept BoolIntegral = requires {
-  requires std::is_same_v<T, std::bool_constant<false>> ||
-      std::is_same_v<T, std::bool_constant<true>>;
-};
-
 template <class Impl, BoolIntegral Synchronized>
 class GeneralContainerBase;
 

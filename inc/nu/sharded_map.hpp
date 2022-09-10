@@ -1,42 +1,45 @@
 #pragma once
 
 #include <map>
+#include <type_traits>
 
 #include "sharded_ds.hpp"
 
 namespace nu {
-template <typename K, typename V>
-struct MapConstIterator : public std::map<K, V>::const_iterator {
+
+template <class Map>
+struct MapConstIterator : public Map::const_iterator {
   MapConstIterator();
-  MapConstIterator(std::map<K, V>::iterator &&iter);
-  MapConstIterator(std::map<K, V>::const_iterator &&iter);
+  MapConstIterator(Map::iterator &&iter);
+  MapConstIterator(Map::const_iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
 };
 
-template <typename K, typename V>
-struct MapConstReverseIterator : public std::map<K, V>::const_reverse_iterator {
+template <class Map>
+struct MapConstReverseIterator : public Map::const_reverse_iterator {
   MapConstReverseIterator();
-  MapConstReverseIterator(std::map<K, V>::reverse_iterator &&iter);
-  MapConstReverseIterator(std::map<K, V>::const_reverse_iterator &&iter);
+  MapConstReverseIterator(Map::reverse_iterator &&iter);
+  MapConstReverseIterator(Map::const_reverse_iterator &&iter);
   template <class Archive>
   void serialize(Archive &ar);
 };
 
-template <typename K, typename V>
-class Map {
+template <typename K, typename V, BoolIntegral M>
+class GeneralMap {
  public:
   using Key = K;
   using Val = V;
-  using ConstIterator = MapConstIterator<K, V>;
-  using ConstReverseIterator = MapConstReverseIterator<K, V>;
+  using Map = std::conditional_t<M::value, std::multimap<K, V>, std::map<K, V>>;
+  using ConstIterator = MapConstIterator<Map>;
+  using ConstReverseIterator = MapConstReverseIterator<Map>;
 
-  Map() = default;
-  Map(std::size_t capacity);
-  Map(const Map &) = default;
-  Map &operator=(const Map &) = default;
-  Map(Map &&) noexcept = default;
-  Map &operator=(Map &&) noexcept = default;
+  GeneralMap() = default;
+  GeneralMap(std::size_t capacity);
+  GeneralMap(const GeneralMap &) = default;
+  GeneralMap &operator=(const GeneralMap &) = default;
+  GeneralMap(GeneralMap &&) noexcept = default;
+  GeneralMap &operator=(GeneralMap &&) noexcept = default;
 
   std::size_t size() const;
   bool empty() const;
@@ -45,8 +48,8 @@ class Map {
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   ConstIterator find(Key k);
-  std::pair<Key, Map> split();
-  void merge(Map m);
+  std::pair<Key, GeneralMap> split();
+  void merge(GeneralMap m);
   ConstIterator cbegin() const;
   ConstIterator cend() const;
   ConstReverseIterator crbegin() const;
@@ -57,34 +60,51 @@ class Map {
   void load(Archive &ar);
 
  private:
-  Map(std::map<K, V> initial_state);
+  GeneralMap(Map initial_state);
 
-  std::map<K, V> map_;
+  Map map_;
 };
 
+template <typename K, typename V, BoolIntegral M, typename LL>
+class GeneralShardedMap;
+
 template <typename K, typename V, typename LL>
-class ShardedMap
-    : public ShardedDataStructure<GeneralLockedContainer<Map<K, V>>, LL> {
+using ShardedMap = GeneralShardedMap<K, V, std::false_type, LL>;
+
+template <typename K, typename V, typename LL>
+using ShardedMultiMap = GeneralShardedMap<K, V, std::true_type, LL>;
+
+template <typename K, typename V, BoolIntegral M, typename LL>
+class GeneralShardedMap
+    : public ShardedDataStructure<GeneralLockedContainer<GeneralMap<K, V, M>>,
+                                  LL> {
  public:
-  ShardedMap(const ShardedMap &) = default;
-  ShardedMap &operator=(const ShardedMap &) = default;
-  ShardedMap(ShardedMap &&) noexcept = default;
-  ShardedMap &operator=(ShardedMap &&) noexcept = default;
+  GeneralShardedMap(const GeneralShardedMap &) = default;
+  GeneralShardedMap &operator=(const GeneralShardedMap &) = default;
+  GeneralShardedMap(GeneralShardedMap &&) noexcept = default;
+  GeneralShardedMap &operator=(GeneralShardedMap &&) noexcept = default;
 
   V operator[](const K &);
 
  private:
-  using Base = ShardedDataStructure<GeneralLockedContainer<Map<K, V>>, LL>;
-  ShardedMap() = default;
-  ShardedMap(std::optional<typename Base::Hint> hint);
+  using Base =
+      ShardedDataStructure<GeneralLockedContainer<GeneralMap<K, V, M>>, LL>;
+  GeneralShardedMap() = default;
+  GeneralShardedMap(std::optional<typename Base::Hint> hint);
 
   friend class ProcletServer;
   template <typename K1, typename V1, typename LL1>
   friend ShardedMap<K1, V1, LL1> make_sharded_map();
+  template <typename K1, typename V1, typename LL1>
+  friend ShardedMultiMap<K1, V1, LL1> make_sharded_multi_map();
 };
 
 template <typename K, typename V, typename LL>
 ShardedMap<K, V, LL> make_sharded_map();
+
+template <typename K, typename V, typename LL>
+ShardedMultiMap<K, V, LL> make_sharded_multi_map();
+
 }  // namespace nu
 
 #include "nu/impl/sharded_map.ipp"

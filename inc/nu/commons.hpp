@@ -98,6 +98,12 @@ template <typename T>
 constexpr T div_round_up_unchecked(T dividend, T divisor);
 constexpr uint64_t round_up_to_power2(uint64_t x);
 
+template <class T>
+concept BoolIntegral = requires {
+  requires std::is_same_v<T, std::bool_constant<false>> ||
+      std::is_same_v<T, std::bool_constant<true>>;
+};
+
 #define Aligned(type, alignment)            \
   struct alignas(alignment) Aligned##type { \
     type d;                                 \
