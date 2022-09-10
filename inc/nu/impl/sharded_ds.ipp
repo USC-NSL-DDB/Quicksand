@@ -78,6 +78,7 @@ template <class Container, class LL>
 ShardedDataStructure<Container, LL> &
 ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   reset();
+  const_cast<ShardedDataStructure &>(o).flush();
 
   mapping_ = o.mapping_;
   max_shard_size_ = o.max_shard_size_;
