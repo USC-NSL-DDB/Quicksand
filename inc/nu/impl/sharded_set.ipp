@@ -4,82 +4,89 @@
 #include <utility>
 
 namespace nu {
-template <typename T>
-SetConstIterator<T>::SetConstIterator() {}
 
-template <typename T>
-SetConstIterator<T>::SetConstIterator(std::set<T>::iterator &&iter) {
-  std::set<T>::const_iterator::operator=(std::move(iter));
+template <class Set>
+SetConstIterator<Set>::SetConstIterator() {}
+
+template <class Set>
+SetConstIterator<Set>::SetConstIterator(Set::iterator &&iter) {
+  Set::const_iterator::operator=(std::move(iter));
 }
 
-template <typename T>
+template <class Set>
 template <class Archive>
-void SetConstIterator<T>::serialize(Archive &ar) {
+void SetConstIterator<Set>::serialize(Archive &ar) {
   ar(cereal::binary_data(this, sizeof(*this)));
 }
 
-template <typename T>
-SetConstReverseIterator<T>::SetConstReverseIterator() {}
+template <class Set>
+SetConstReverseIterator<Set>::SetConstReverseIterator() {}
 
-template <typename T>
-SetConstReverseIterator<T>::SetConstReverseIterator(
-    std::set<T>::reverse_iterator &&iter) {
-  std::set<T>::const_reverse_iterator::operator=(std::move(iter));
+template <class Set>
+SetConstReverseIterator<Set>::SetConstReverseIterator(
+    Set::reverse_iterator &&iter) {
+  Set::const_reverse_iterator::operator=(std::move(iter));
 }
 
-template <typename T>
+template <class Set>
 template <class Archive>
-void SetConstReverseIterator<T>::serialize(Archive &ar) {
+void SetConstReverseIterator<Set>::serialize(Archive &ar) {
   ar(cereal::binary_data(this, sizeof(*this)));
 }
 
-template <typename T>
-Set<T>::Set() {}
+template <typename T, typename M>
+GeneralSet<T, M>::GeneralSet() {}
 
-template <typename T>
-Set<T>::Set(std::size_t capacity) {}
+template <typename T, typename M>
+GeneralSet<T, M>::GeneralSet(std::size_t capacity) {}
 
-template <typename T>
-std::size_t Set<T>::size() const {
+template <typename T, typename M>
+std::size_t GeneralSet<T, M>::size() const {
   return set_.size();
 }
 
-template <typename T>
-bool Set<T>::empty() const {
+template <typename T, typename M>
+bool GeneralSet<T, M>::empty() const {
   return set_.empty();
 }
 
-template <typename T>
-void Set<T>::clear() {
+template <typename T, typename M>
+void GeneralSet<T, M>::clear() {
   set_.clear();
 }
 
-template <typename T>
-void Set<T>::emplace(Key k, Val v) {
+template <typename T, typename M>
+void GeneralSet<T, M>::emplace(Key k, Val v) {
   assert(k == v);
   set_.insert(std::move(k));
 }
 
-template <typename T>
-Set<T>::ConstIterator Set<T>::find(Key k) {
+template <typename T, typename M>
+GeneralSet<T, M>::ConstIterator GeneralSet<T, M>::find(Key k) {
   return set_.find(std::move(k));
 }
 
-template <typename T>
-void Set<T>::merge(Set s) {
+template <typename T, typename M>
+void GeneralSet<T, M>::merge(GeneralSet s) {
   set_.insert(std::make_move_iterator(s.set_.begin()),
               std::make_move_iterator(s.set_.end()));
 }
 
-template <typename T>
+template <typename T, typename M>
 template <typename... S0s, typename... S1s>
-void Set<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
-                     S1s &&... states) {
+void GeneralSet<T, M>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
+                               S1s &&... states) {
   assert(false /* not implemented */);
 }
 
-template <typename T>
-std::pair<typename Set<T>::Key, Set<T>> Set<T>::split() {
+template <typename T, typename M>
+GeneralSet<T, M>::GeneralSet(Set initial_state) {
+  set_ = std::move(initial_state);
+}
+
+template <typename T, typename M>
+std::pair<typename GeneralSet<T, M>::Key, GeneralSet<T, M>>
+GeneralSet<T, M>::split() {
   assert(set_.size() > 0);
   auto mid = set_.size() / 2;
 
@@ -87,69 +94,74 @@ std::pair<typename Set<T>::Key, Set<T>> Set<T>::split() {
   std::advance(latter_half_begin_itr, mid);
   auto latter_half_l_key = *latter_half_begin_itr;
 
-  std::set<T> latter_half_set(latter_half_begin_itr, set_.end());
+  Set latter_half_set(latter_half_begin_itr, set_.end());
   set_.erase(latter_half_begin_itr, set_.end());
 
-  Set latter_half_container;
-  latter_half_container.set_ = std::move(latter_half_set);
+  GeneralSet latter_half_container(std::move(latter_half_set));
 
   return std::make_pair(latter_half_l_key, std::move(latter_half_container));
 }
 
-template <typename T>
-std::set<T> &Set<T>::data() {
+template <typename T, typename M>
+GeneralSet<T, M>::Set &GeneralSet<T, M>::data() {
   return set_;
 }
 
-template <typename T>
-Set<T>::ConstIterator Set<T>::cbegin() const {
+template <typename T, typename M>
+GeneralSet<T, M>::ConstIterator GeneralSet<T, M>::cbegin() const {
   return set_.cbegin();
 }
 
-template <typename T>
-Set<T>::ConstIterator Set<T>::cend() const {
+template <typename T, typename M>
+GeneralSet<T, M>::ConstIterator GeneralSet<T, M>::cend() const {
   return set_.cend();
 }
 
-template <typename T>
-Set<T>::ConstReverseIterator Set<T>::crbegin() const {
+template <typename T, typename M>
+GeneralSet<T, M>::ConstReverseIterator GeneralSet<T, M>::crbegin() const {
   return set_.crbegin();
 }
 
-template <typename T>
-Set<T>::ConstReverseIterator Set<T>::crend() const {
+template <typename T, typename M>
+GeneralSet<T, M>::ConstReverseIterator GeneralSet<T, M>::crend() const {
   return set_.crend();
 }
 
-template <typename T>
+template <typename T, typename M>
 template <class Archive>
-void Set<T>::save(Archive &ar) const {
+void GeneralSet<T, M>::save(Archive &ar) const {
   ar(set_);
 }
 
-template <typename T>
+template <typename T, typename M>
 template <class Archive>
-void Set<T>::load(Archive &ar) {
+void GeneralSet<T, M>::load(Archive &ar) {
   ar(set_);
 }
 
-template <typename T, typename LL>
-void ShardedSet<T, LL>::insert(const T &value) {
+template <typename T, typename M, typename LL>
+void GeneralShardedSet<T, M, LL>::insert(const T &value) {
   this->emplace(value, value);
 }
 
-template <typename T, typename LL>
-bool ShardedSet<T, LL>::empty() {
+template <typename T, typename M, typename LL>
+bool GeneralShardedSet<T, M, LL>::empty() {
   return this->size() == 0;
 }
 
-template <typename T, typename LL>
-ShardedSet<T, LL>::ShardedSet(std::optional<typename Base::Hint> hint)
+template <typename T, typename M, typename LL>
+GeneralShardedSet<T, M, LL>::GeneralShardedSet(
+    std::optional<typename Base::Hint> hint)
     : Base(hint) {}
 
 template <typename T, typename LL>
 ShardedSet<T, LL> make_sharded_set() {
   return ShardedSet<T, LL>(std::nullopt);
+}
+
+template <typename T, typename LL>
+ShardedMultiSet<T, LL> make_sharded_mutli_set() {
+  return ShardedMultiSet<T, LL>(std::nullopt);
 }
 
 }  // namespace nu
