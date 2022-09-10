@@ -346,10 +346,6 @@ SealedDS<T>::SealedDS(T &&t) : t_(std::move(t)) {
 }
 
 template <typename T>
-SealedDS<T>::SealedDS(SealedDS &&o)
-    : t_(std::move(o.t_)), shards_(std::move(o.shards_)) {}
-
-template <typename T>
 SealedDS<T>::~SealedDS() {
   if (shards_) {
     t_.unseal();

@@ -103,7 +103,7 @@ class SealedDS {
   using ConstIterator = GeneralSealedDSConstIterator<T, true>;
   using ConstReverseIterator = GeneralSealedDSConstIterator<T, false>;
 
-  SealedDS(SealedDS &&);
+  SealedDS(SealedDS &&) = default;
   SealedDS &operator=(SealedDS &&) = delete;
   SealedDS(const SealedDS &) = delete;
   SealedDS &operator=(const SealedDS &) = delete;
@@ -114,7 +114,6 @@ class SealedDS {
       requires ConstReverseIterable<typename T::Shard>;
   ConstReverseIterator rend() const
       requires ConstReverseIterable<typename T::Shard>;
-
   // Useful for implementing range-based for loop.
   ConstIterator begin() const requires ConstIterable<typename T::Shard>;
   ConstIterator end() const requires ConstIterable<typename T::Shard>;
