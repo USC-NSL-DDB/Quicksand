@@ -242,33 +242,21 @@ void analyze_trip_timestamp(StdDataFrame<uint64_t>& df)
     std::cout << std::endl;
 }
 
-// template <typename T_Key>
-// void analyze_trip_durations_of_timestamps(StdDataFrame<uint64_t>& df, const char* key_col_name)
-// {
-//     std::cout << "analyze_trip_durations_of_timestamps() on key = " << key_col_name << std::endl;
+template <typename T_Key>
+void analyze_trip_durations_of_timestamps(StdDataFrame<uint64_t>& df, const char* key_col_name)
+{
+    std::cout << "analyze_trip_durations_of_timestamps() on key = " << key_col_name << std::endl;
+    StdDataFrame<uint64_t> groupby_key = df.groupby1<T_Key>(
+        key_col_name, LastVisitor<uint64_t, uint64_t>(),
+        std::make_tuple("duration", "med_duration", GroupbyMedianVisitor<uint64_t>()));
+    auto& key_vec      = groupby_key.get_column<T_Key>(key_col_name);
+    auto& duration_vec = groupby_key.get_column<uint64_t>("med_duration");
+    for (uint64_t i = 0; i < key_vec.size(); i++) {
+        std::cout << static_cast<int>(key_vec[i]) << " " << duration_vec[i] << std::endl;
+    }
 
-//     StdDataFrame<uint64_t> df_key_duration;
-//     auto copy_index        = df.get_index();
-//     auto copy_key_col      = df.get_column<T_Key>(key_col_name);
-//     auto copy_key_duration = df.get_column<uint64_t>("duration");
-//     df_key_duration.load_data(std::move(copy_index),
-//                               std::make_pair(key_col_name, std::move(copy_key_col)),
-//                               std::make_pair("duration", std::move(copy_key_duration)));
-
-//     auto med_key_col_name_str = std::string("med") + key_col_name;
-//     const auto* med_key_col_name_cstr  = med_key_col_name_str.c_str();
-//     StdDataFrame<uint64_t> groupby_key = df_key_duration.groupby1<T_Key>(
-//         key_col_name, LastVisitor<uint64_t, uint64_t>(),
-//         std::make_tuple(key_col_name, med_key_col_name_cstr, MedianVisitor<T_Key>()),
-//         std::make_tuple("duration", "med_duration", MedianVisitor<uint64_t>()));
-//     auto& key_vec      = groupby_key.get_column<T_Key>(med_key_col_name_cstr);
-//     auto& duration_vec = groupby_key.get_column<uint64_t>("med_duration");
-//     for (uint64_t i = 0; i < key_vec.size(); i++) {
-//         std::cout << static_cast<int>(key_vec[i]) << " " << duration_vec[i] << std::endl;
-//     }
-
-//     std::cout << std::endl;
-// }
+    std::cout << std::endl;
+}
 
 void do_work()
 {
@@ -289,20 +277,20 @@ void do_work()
     times[6] = std::chrono::steady_clock::now();
     analyze_trip_timestamp(df);
     times[7] = std::chrono::steady_clock::now();
-    // analyze_trip_durations_of_timestamps<char>(df, "pickup_day");
-    // times[8] = std::chrono::steady_clock::now();
-    // analyze_trip_durations_of_timestamps<char>(df, "pickup_month");
-    // times[9] = std::chrono::steady_clock::now();
+    analyze_trip_durations_of_timestamps<char>(df, "pickup_day");
+    times[8] = std::chrono::steady_clock::now();
+    analyze_trip_durations_of_timestamps<char>(df, "pickup_month");
+    times[9] = std::chrono::steady_clock::now();
 
-    // for (uint32_t i = 1; i < std::size(times); i++) {
-    //     std::cout << "Step " << i << ": "
-    //               << std::chrono::duration_cast<std::chrono::microseconds>(times[i] - times[i - 1])
-    //                      .count()
-    //               << " us" << std::endl;
-    // }
-    // std::cout << "Total: "
-    //           << std::chrono::duration_cast<std::chrono::microseconds>(times[9] - times[0]).count()
-    //           << " us" << std::endl;
+    for (uint32_t i = 1; i < std::size(times); i++) {
+        std::cout << "Step " << i << ": "
+                  << std::chrono::duration_cast<std::chrono::microseconds>(times[i] - times[i - 1])
+                         .count()
+                  << " us" << std::endl;
+    }
+    std::cout << "Total: "
+              << std::chrono::duration_cast<std::chrono::microseconds>(times[9] - times[0]).count()
+              << " us" << std::endl;
 }
 
 int main(int argc, char **argv)

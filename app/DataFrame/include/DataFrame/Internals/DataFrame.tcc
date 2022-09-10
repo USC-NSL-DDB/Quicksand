@@ -35,6 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <future>
 #include <random>
 
+#include <nu/sharded_map.hpp>
+
 // ----------------------------------------------------------------------------
 
 namespace hmdf
@@ -1139,41 +1141,88 @@ template<typename I, typename H>
 template<typename T, typename I_V, typename ... Ts>
 DataFrame<I, H> DataFrame<I, H>::
 groupby1(const char *col_name, I_V &&idx_visitor, Ts&& ... args) const  {
+    using MapKey = T;
+    using MapVal = std::tuple<IndexType, typename std::tuple_element<2, Ts>::type::value_type...>;
+    auto sharded_multi_map = nu::make_sharded_multi_map<MapKey, MapVal, std::false_type>();
 
-    const ColumnVecType<T>  *gb_vec { nullptr };
+    auto &index       = const_cast<NuShardedVector<IndexType>&>(get_index());
+    auto &key         = const_cast<NuShardedVector<T>&>(get_column<T>(col_name));
+    auto agg_cols     = std::forward_as_tuple(
+        const_cast<NuShardedVector<typename std::tuple_element<2, Ts>::type::value_type>&>(
+            get_column<typename std::tuple_element<2, Ts>::type::value_type>(
+                std::get<0>(args)))...);
+    auto sealed_index    = nu::to_sealed_ds(std::move(index));
+    auto sealed_key      = nu::to_sealed_ds(std::move(key));
+    auto sealed_agg_cols = std::apply(
+        [&](auto&... col) { return std::make_tuple(nu::to_sealed_ds(std::move(col))...); },
+        agg_cols);
+    auto index_iter    = sealed_index.cbegin();
+    auto key_iter      = sealed_key.cbegin();
+    auto agg_col_iters = std::apply(
+        [&](auto&... sealed_col) { return std::make_tuple(sealed_col.cbegin()...); },
+        sealed_agg_cols);
 
-    if (! ::strcmp(col_name, DF_INDEX_COL_NAME))
-        gb_vec = (const ColumnVecType<T> *) &(get_index());
-    else
-        gb_vec = (const ColumnVecType<T> *) &(get_column<T>(col_name));
+    while (index_iter != sealed_index.cend()) {
+        auto idx = *index_iter;
+        auto k   = *key_iter;
+        auto v   = std::apply([&](auto&... iter) { return std::make_tuple(idx, (*iter)...); },
+                            agg_col_iters);
+        sharded_multi_map.emplace(std::move(k), std::move(v));
+        ++index_iter;
+        ++key_iter;
+        std::apply([&](auto&... iter) { ((++iter), ...); }, agg_col_iters);
+    }
 
-    std::vector<std::size_t>    sort_v (gb_vec->size(), 0);
+    DataFrame res;
+    auto &dst_idx = res.get_index();
+    auto *dst_key = ::strcmp(col_name, DF_INDEX_COL_NAME)
+                        ? &(res.template create_column<T>(col_name))
+                        : nullptr;
+    auto dst_cols = std::make_tuple(
+        (&(res.template create_column<typename std::tuple_element<2, Ts>::type::value_type>(
+            std::get<1>(args))))...);
+    auto sealed_sharded_multi_map = nu::to_sealed_ds(std::move(sharded_multi_map));
+    auto iter                     = sealed_sharded_multi_map.cbegin();
+    T marker                      = iter->first;
 
-    std::iota(sort_v.begin(), sort_v.end(), 0);
-    std::sort(sort_v.begin(), sort_v.end(),
-              [gb_vec](std::size_t i, std::size_t j) -> bool  {
-                  return (gb_vec->at(i) < gb_vec->at(j));
-              });
+    idx_visitor.pre();
+    ((std::get<2>(args).pre()), ...);
+    for (;iter != sealed_sharded_multi_map.cend(); ++iter) {
+        auto [k, v] = *iter;
+        auto idx    = std::get<0>(v);
+        if (k != marker) {
+            idx_visitor.post();
+            ((std::get<2>(args).post()), ...);
+            dst_idx.push_back(idx_visitor.get_result());
+            std::apply(
+                [&](auto&... col) { ((col->push_back(std::get<2>(args).get_result())), ...); },
+                dst_cols);
+            if (dst_key) dst_key->push_back(k);
+            marker = k;
+            idx_visitor.pre();
+            ((std::get<2>(args).pre()), ...);
+        }
+        idx_visitor(idx, idx);
+        std::apply([&](auto idx, auto&... col_vals) { ((std::get<2>(args)(idx, col_vals)), ...); },
+                   v);
+    }
+    if (sealed_sharded_multi_map.size()) {
+        idx_visitor.post();
+        ((std::get<2>(args).post()), ...);
+        dst_idx.push_back(idx_visitor.get_result());
+        std::apply([&](auto&... col) { ((col->push_back(std::get<2>(args).get_result())), ...); },
+                   dst_cols);
+        if (dst_key) dst_key->push_back(marker);
+    }
 
-    DataFrame   res;
-    auto        args_tuple = std::tuple<Ts ...>(args ...);
-    auto        func =
-        [this,
-         &res,
-         gb_vec,
-         &sort_v,
-         idx_visitor = std::forward<I_V>(idx_visitor),
-         col_name](auto &triple) mutable -> void {
-            _load_groupby_data_1_(*this,
-                                  res,
-                                  triple,
-                                  idx_visitor,
-                                  *gb_vec,
-                                  sort_v,
-                                  col_name);
-        };
-
-    for_each_in_tuple (args_tuple, func);
+    index = nu::to_unsealed_ds(std::move(sealed_index));
+    std::apply(
+        [&](auto&... sealed_cols) {
+            std::apply(
+                [&](auto&... cols) { ((cols = nu::to_unsealed_ds(std::move(sealed_cols))), ...); },
+                agg_cols);
+        },
+        sealed_agg_cols);
 
     return (res);
 }

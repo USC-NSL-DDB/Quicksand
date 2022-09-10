@@ -2073,11 +2073,6 @@ struct MedianVisitor  {
 
     DEFINE_VISIT_BASIC_TYPES_2
 
-	inline void operator() (const index_type &idx, const value_type &val)  {
-		indices_.push_back(idx);
-		vals_.push_back(val);
-	}
-
     template <typename K, typename H>
     inline void
     operator() (const K &idx_begin, const K &idx_end,
@@ -2101,30 +2096,50 @@ struct MedianVisitor  {
         }
     }
 
-    inline void pre ()  {
-		result_ = value_type();
-	}
-    inline void post ()  {
-		if (!indices_.empty()) {
-			(*this)(indices_.begin(), indices_.end(), vals_.begin(), vals_.end());
-			indices_.clear();
-			vals_.clear();
-		}
-	}
-    inline result_type get_result () const  {
-		return (result_);
-	}
+    inline void pre ()  { result_ = value_type(); }
+    inline void post ()  {   }
+    inline result_type get_result () const  { return (result_); }
 
     MedianVisitor () = default;
 
 private:
+
     result_type result_ {  };
-	std::vector<index_type> indices_;
-	std::vector<value_type> vals_;
 };
 
 template<typename T, typename I = unsigned long>
 using med_v = MedianVisitor<T, I>;
+
+template<typename T, typename I = unsigned long>
+struct GroupbyMedianVisitor  {
+
+    DEFINE_VISIT_BASIC_TYPES_2
+
+    inline void operator()(const index_type& idx, const value_type& val) {
+        size_++;
+        vals_.push_back(val);
+    }
+    inline void pre() {
+        size_ = 0;
+        vals_.clear();
+    }
+    inline void post() {
+        if (size_ % 2) {
+            result_ = *vals_.find_val(size_ / 2);
+        } else {
+            result_ = (*vals_.find_val(size_ / 2 - 1) + *vals_.find_val(size_ / 2)) / 2;
+        }
+    }
+    inline result_type get_result() const{
+        return result_;
+    }
+    GroupbyMedianVisitor() : vals_(nu_make_sharded_vector<value_type>()) {}
+
+private:
+    result_type result_ {  };
+    NuShardedVector<value_type> vals_;
+    size_t size_;
+};
 
 // ----------------------------------------------------------------------------
 

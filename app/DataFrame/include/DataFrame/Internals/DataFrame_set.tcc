@@ -543,7 +543,7 @@ template<typename T1, typename T2>
 typename DataFrame<I, H>::size_type
 DataFrame<I, H>::load_pair_(std::pair<T1, T2> &col_name_data)  {
 
-    return (load_column<typename decltype(col_name_data.second)::value_type>(
+    return (load_column<typename decltype(col_name_data.second)::Val>(
                 col_name_data.first, // column name
                 std::forward<T2>(col_name_data.second),
                 nan_policy::pad_with_nans));
