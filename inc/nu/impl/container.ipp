@@ -1,4 +1,5 @@
 #include <nu/utils/scoped_lock.hpp>
+#include <utility>
 
 namespace nu {
 
@@ -35,6 +36,24 @@ void GeneralContainerBase<Impl, Synchronized>::handle_batch(
       }
     }
   });
+}
+
+template <class Impl, class Synchronized>
+void GeneralContainerBase<Impl, Synchronized>::on_key_range_updated(
+    std::optional<Key> l_key, std::optional<Key> r_key) {
+  constexpr bool has_key_range_update_hook = requires(Impl t) {
+    {
+      t.on_key_range_updated(std::declval<std::optional<typename Impl::Key>>(),
+                             std::declval<std::optional<typename Impl::Key>>())
+    }
+    ->std::same_as<void>;
+  };
+
+  if constexpr (has_key_range_update_hook) {
+    synchronized<void>([&]() {
+      impl_.on_key_range_updated(std::move(l_key), std::move(r_key));
+    });
+  }
 }
 
 }  // namespace nu

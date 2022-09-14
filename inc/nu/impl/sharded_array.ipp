@@ -5,110 +5,188 @@
 
 namespace nu {
 template <typename T>
-ArrayShard<T>::ArrayShard(uint32_t capacity) : size_(capacity) {
-  data_.reserve(capacity);
+ArrayConstIterator<T>::ArrayConstIterator() {}
+
+template <typename T>
+ArrayConstIterator<T>::ArrayConstIterator(std::vector<T>::iterator &&iter) {
+  std::vector<T>::const_iterator::operator=(std::move(iter));
 }
 
 template <typename T>
-T ArrayShard<T>::operator[](uint32_t index) {
-  return data_[index];
-}
-
-template <typename T>
-void ArrayShard<T>::set(uint32_t index, T value) {
-  data_[index] = value;
-}
-
-template <typename T>
-ShardedArray<T>::ShardedArray(const ShardedArray& o) {
-  *this = o;
-}
-
-template <typename T>
-ShardedArray<T>& ShardedArray<T>::operator=(const ShardedArray& o) {
-  power_shard_sz_ = o.power_shard_sz_;
-  shard_sz_ = o.shard_sz_;
-  shards_ = o.shards_;
-  elems_per_shard_ = o.elems_per_shard_;
-  size_ = o.size_;
-  return *this;
-}
-
-template <typename T>
-ShardedArray<T>::ShardedArray(ShardedArray&& o) {
-  *this = std::move(o);
-}
-
-template <typename T>
-ShardedArray<T>& ShardedArray<T>::operator=(ShardedArray&& o) {
-  power_shard_sz_ = o.power_shard_sz_;
-  shard_sz_ = o.shard_sz_;
-  elems_per_shard_ = o.elems_per_shard_;
-  size_ = o.size_;
-  for (uint32_t i = 0; i < o.shards_.size(); i++) {
-    shards_.emplace_back(std::move(o.shards_[i]));
-  }
-  return *this;
-}
-
-template <typename T>
-ShardedArray<T>::ShardedArray()
-    : power_shard_sz_(0), shard_sz_(0), elems_per_shard_(0), size_(0) {}
-
-template <typename T>
-T ShardedArray<T>::operator[](uint32_t index) {
-  uint32_t shard_idx = index / elems_per_shard_;
-  uint32_t idx_in_shard = index % elems_per_shard_;
-  auto& shard = shards_[shard_idx];
-  return shard.run(
-      +[](ArrayShard<T>& shard, uint32_t idx) { return shard[idx]; },
-      idx_in_shard);
-}
-
-template <typename T>
-void ShardedArray<T>::set(uint32_t index, T value) {
-  if (index >= size_) return;
-  uint32_t shard_idx = index / elems_per_shard_;
-  uint32_t idx_in_shard = index % elems_per_shard_;
-  auto& shard = shards_[shard_idx];
-  shard.run(
-      +[](ArrayShard<T>& shard, uint32_t idx, T value) {
-        shard.set(idx, value);
-      },
-      idx_in_shard, value);
+ArrayConstIterator<T>::ArrayConstIterator(
+    std::vector<T>::const_iterator &&iter) {
+  std::vector<T>::const_iterator::operator=(std::move(iter));
 }
 
 template <typename T>
 template <class Archive>
-void ShardedArray<T>::serialize(Archive& ar) {
-  ar(power_shard_sz_);
-  ar(shard_sz_);
-  ar(elems_per_shard_);
-  ar(size_);
-  ar(shards_);
+void ArrayConstIterator<T>::serialize(Archive &ar) {
+  ar(cereal::binary_data(this, sizeof(*this)));
 }
 
 template <typename T>
-ShardedArray<T> make_sharded_array(uint32_t size, uint32_t power_shard_sz) {
-  ShardedArray<T> arr;
+ArrayConstReverseIterator<T>::ArrayConstReverseIterator() {}
 
-  arr.power_shard_sz_ = power_shard_sz;
-  arr.shard_sz_ = (1 << power_shard_sz);
-  arr.size_ = size;
+template <typename T>
+ArrayConstReverseIterator<T>::ArrayConstReverseIterator(
+    std::vector<T>::reverse_iterator &&iter) {
+  std::vector<T>::const_reverse_iterator::operator=(std::move(iter));
+}
 
-  BUG_ON(arr.shard_sz_ < sizeof(T));
+template <typename T>
+ArrayConstReverseIterator<T>::ArrayConstReverseIterator(
+    std::vector<T>::const_reverse_iterator &&iter) {
+  std::vector<T>::const_reverse_iterator::operator=(std::move(iter));
+}
 
-  uint32_t num_shards =
-      ((sizeof(T) * size) + arr.shard_sz_ - 1) / arr.shard_sz_;
-  arr.elems_per_shard_ = arr.shard_sz_ / sizeof(T);
+template <typename T>
+template <class Archive>
+void ArrayConstReverseIterator<T>::serialize(Archive &ar) {
+  ar(cereal::binary_data(this, sizeof(*this)));
+}
 
-  for (uint32_t i = 0; i < num_shards - 1; i++) {
-    arr.shards_.emplace_back(make_proclet<ArrayShard<T>>(arr.elems_per_shard_));
+template <typename T>
+Array<T>::Array() : l_key_(0) {}
+
+template <typename T>
+Array<T>::Array(std::size_t size) : data_(size, T()), l_key_(0) {}
+
+template <typename T>
+Array<T>::Array(const Array &o) {
+  *this = o;
+}
+
+template <typename T>
+Array<T> &Array<T>::operator=(const Array &o) {
+  data_ = o.data_;
+  l_key_ = o.l_key_;
+  return *this;
+}
+
+template <typename T>
+Array<T>::Array(Array &&o) noexcept {
+  *this = std::move(o);
+}
+
+template <typename T>
+Array<T> &Array<T>::operator=(Array &&o) noexcept {
+  data_ = std::move(o.data_);
+  l_key_ = o.l_key_;
+  return *this;
+}
+
+template <typename T>
+std::size_t Array<T>::size() const {
+  return data_.size();
+}
+
+template <typename T>
+bool Array<T>::empty() const {
+  return data_.empty();
+}
+
+template <typename T>
+void Array<T>::emplace(Key k, Val v) {
+  auto idx = k - l_key_;
+  assert(idx < data_.size());
+  data_[idx] = v;
+}
+
+template <typename T>
+void Array<T>::merge(Array arr) {
+  data_.insert(data_.end(), std::make_move_iterator(arr.data_.begin()),
+               std::make_move_iterator(arr.data_.end()));
+}
+
+template <typename T>
+std::pair<typename Array<T>::Key, Array<T>> Array<T>::split() {
+  BUG();
+}
+
+template <typename T>
+Array<T>::ConstIterator Array<T>::find(Key k) {
+  auto l_key = l_key_;
+  auto r_key = l_key_ + data_.size();
+
+  if (k < l_key || k >= r_key) {
+    return data_.cend();
   }
 
-  arr.shards_.emplace_back(make_proclet<ArrayShard<T>>(
-      size - arr.elems_per_shard_ * (num_shards - 1)));
-
-  return arr;
+  return data_.cbegin() + (k - l_key);
 }
+
+template <typename T>
+Array<T>::ConstIterator Array<T>::cbegin() const {
+  return data_.cbegin();
+}
+
+template <typename T>
+Array<T>::ConstIterator Array<T>::cend() const {
+  return data_.cend();
+}
+
+template <typename T>
+Array<T>::ConstReverseIterator Array<T>::crbegin() const {
+  return data_.crbegin();
+}
+
+template <typename T>
+Array<T>::ConstReverseIterator Array<T>::crend() const {
+  return data_.crend();
+}
+
+template <typename T>
+void Array<T>::on_key_range_updated(std::optional<Key> l_key,
+                                    std::optional<Key> r_key) {
+  if (likely(l_key.has_value())) {
+    l_key_ = l_key.value();
+  } else {
+    // l_key wouldn't contain value for the shard that's responsible for
+    // [-neg, 0). Remove this shard's default-initialized elements.
+    data_.clear();
+  }
+}
+
+template <typename T>
+template <class Archive>
+void Array<T>::save(Archive &ar) const {
+  ar(data_, l_key_);
+}
+
+template <typename T>
+template <class Archive>
+void Array<T>::load(Archive &ar) {
+  ar(data_, l_key_);
+}
+
+template <typename T, typename LL>
+ShardedArray<T, LL>::ShardedArray() {}
+
+template <typename T, typename LL>
+T ShardedArray<T, LL>::operator[](std::size_t index) const {
+  std::optional<T> r = this->find_val(index);
+  return *r;
+}
+
+template <typename T, typename LL>
+void ShardedArray<T, LL>::set(std::size_t index, const T &value) {
+  auto copy = value;
+  Base::emplace(index, std::move(copy));
+}
+
+template <typename T, typename LL>
+void ShardedArray<T, LL>::set(std::size_t index, T &&value) {
+  Base::emplace(index, std::move(value));
+}
+
+template <typename T, typename LL>
+ShardedArray<T, LL>::ShardedArray(std::optional<typename Base::Hint> hint)
+    : Base(hint) {}
+
+template <typename T, typename LL>
+ShardedArray<T, LL> make_sharded_array(std::size_t size) {
+  return ShardedArray<T, LL>(typename ShardedArray<T, LL>::Base::Hint(
+      size, 0, [](Array<T>::Key &k, uint64_t shard_size) { k += shard_size; }));
+}
+
 }  // namespace nu

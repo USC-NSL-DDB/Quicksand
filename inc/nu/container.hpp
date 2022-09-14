@@ -20,25 +20,30 @@ concept GeneralContainerBased = requires {
 
 template <class T>
 concept EmplaceBackAble = requires(T t) {
-  { t.emplace_back(std::declval<typename T::Val>()) } -> std::same_as<void>;
+  { t.emplace_back(std::declval<typename T::Val>()) }
+  ->std::same_as<void>;
 };
 
 template <class T>
 concept Findable = requires(T t) {
-  { t.find(std::declval<typename T::Key>()) } ->
-    std::same_as<typename T::ConstIterator>;
+  { t.find(std::declval<typename T::Key>()) }
+  ->std::same_as<typename T::ConstIterator>;
 };
 
 template <class T>
 concept ConstIterable = requires(T t) {
-  { t.cbegin() } -> std::same_as<typename T::ConstIterator>;
-  { t.cend() } -> std::same_as<typename T::ConstIterator>;
+  { t.cbegin() }
+  ->std::same_as<typename T::ConstIterator>;
+  { t.cend() }
+  ->std::same_as<typename T::ConstIterator>;
 };
 
 template <class T>
 concept ConstReverseIterable = requires(T t) {
-  { t.crbegin() } -> std::same_as<typename T::ConstReverseIterator>;
-  { t.crend() } -> std::same_as<typename T::ConstReverseIterator>;
+  { t.crbegin() }
+  ->std::same_as<typename T::ConstReverseIterator>;
+  { t.crend() }
+  ->std::same_as<typename T::ConstReverseIterator>;
 };
 
 template <class Impl>
@@ -157,6 +162,7 @@ class GeneralContainerBase {
     impl_.load(ar);
   }
   void handle_batch(std::vector<ContainerReq<Key, Val>> reqs);
+  void on_key_range_updated(std::optional<Key> l_key, std::optional<Key> r_key);
 
  private:
   Impl impl_;

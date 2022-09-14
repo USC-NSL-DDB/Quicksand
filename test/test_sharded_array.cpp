@@ -22,6 +22,7 @@ extern "C" {
 
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
+#include "nu/sealed_ds.hpp"
 #include "nu/sharded_array.hpp"
 #include "nu/utils/farmhash.hpp"
 
@@ -122,6 +123,32 @@ std::vector<std::unordered_map<int, std::string>> make_int_to_str_maps(
   return vec;
 }
 
+bool test_iter() {
+  auto target_size = 10'000'000;
+  auto arr = make_sharded_array<int, std::false_type>(target_size);
+
+  for (auto i = 0; i < target_size; ++i) {
+    arr.set(i, i);
+  }
+
+  auto sealed_arr = to_sealed_ds(std::move(arr));
+  auto expected = 0;
+  for (auto elem : sealed_arr) {
+    if (elem != expected++) {
+      return false;
+    }
+  }
+
+  expected--;
+  for (auto it = sealed_arr.crbegin(); it != sealed_arr.crend(); ++it) {
+    if (*it != expected--) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 bool run_test() {
   uint32_t power_shard_sz = 10;
   uint32_t test_arr_sz = 14243;
@@ -140,6 +167,8 @@ bool run_test() {
   using Map = std::unordered_map<int, std::string>;
   auto maps = make_int_to_str_maps(10, 10);
   ABORT_IF_FAILED(test_sharded_array<Map>(maps, power_shard_sz));
+
+  // ABORT_IF_FAILED(test_iter());
 
   return true;
 }
