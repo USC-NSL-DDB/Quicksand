@@ -10,6 +10,7 @@
 #include <numeric>
 #include <random>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -48,9 +49,9 @@ std::string random_str(uint32_t len) {
 }
 
 template <typename T>
-bool test_dis_array(std::vector<T> expected, uint32_t power_shard_sz) {
+bool test_sharded_array(std::vector<T> expected, uint32_t power_shard_sz) {
   uint32_t arr_sz = expected.size();
-  auto arr = make_sharded_array<T>(arr_sz, power_shard_sz);
+  auto arr = make_sharded_array<T, std::false_type>(arr_sz);
 
   for (uint32_t i = 0; i < arr_sz; i++) {
     arr.set(i, expected[i]);
@@ -64,8 +65,8 @@ bool test_dis_array(std::vector<T> expected, uint32_t power_shard_sz) {
 
   auto proclet = make_proclet<ErasedType>();
   if (!proclet.run(
-          +[](ErasedType &, ShardedArray<T> arr, uint32_t arr_sz,
-              std::vector<T> expected) {
+          +[](ErasedType &, ShardedArray<T, std::false_type> arr,
+              uint32_t arr_sz, std::vector<T> expected) {
             for (uint32_t i = 0; i < arr_sz; i++) {
               if (arr[i] != expected[i]) {
                 return false;
@@ -126,18 +127,19 @@ bool run_test() {
   uint32_t test_arr_sz = 14243;
 
   auto int_test_data = make_int_range_vec(0, test_arr_sz);
-  ABORT_IF_FAILED(test_dis_array<int>(int_test_data, power_shard_sz));
+  ABORT_IF_FAILED(test_sharded_array<int>(int_test_data, power_shard_sz));
 
   auto str_test_data = make_test_str_vec(test_arr_sz);
-  ABORT_IF_FAILED(test_dis_array<std::string>(str_test_data, power_shard_sz));
+  ABORT_IF_FAILED(
+      test_sharded_array<std::string>(str_test_data, power_shard_sz));
 
   auto str_vecs = make_nested_str_vec(test_arr_sz);
   ABORT_IF_FAILED(
-      test_dis_array<std::vector<std::string>>(str_vecs, power_shard_sz));
+      test_sharded_array<std::vector<std::string>>(str_vecs, power_shard_sz));
 
   using Map = std::unordered_map<int, std::string>;
   auto maps = make_int_to_str_maps(10, 10);
-  ABORT_IF_FAILED(test_dis_array<Map>(maps, power_shard_sz));
+  ABORT_IF_FAILED(test_sharded_array<Map>(maps, power_shard_sz));
 
   return true;
 }
