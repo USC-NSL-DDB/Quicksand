@@ -166,7 +166,7 @@ void calculate_haversine_distance_column(StdDataFrame<uint64_t>& df)
     auto dropoff_longitude_iter = sealed_dropoff_longitude_vec.cbegin();
     auto dropoff_latitude_iter = sealed_dropoff_latitude_vec.cbegin();
     for (uint64_t i = 0; i < sealed_pickup_longitude_vec.size(); i++) {
-        haversine_distance_vec.push_back(haversine(*pickup_latitude_iter, *pickup_longitude_iter,
+        haversine_distance_vec.emplace_back(haversine(*pickup_latitude_iter, *pickup_longitude_iter,
                                                    *dropoff_longitude_iter,
                                                    *dropoff_longitude_iter));
         ++pickup_latitude_iter;
