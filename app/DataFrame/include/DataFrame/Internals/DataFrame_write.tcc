@@ -31,6 +31,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <sstream>
 
+#include <nu/sealed_ds.hpp>
+
 // ----------------------------------------------------------------------------
 
 namespace hmdf
@@ -87,8 +89,12 @@ write (S &o,
         iof != io_format::csv2)
         throw NotImplemented("write(): This io_format is not implemented");
 
+    auto& mut_indices   = const_cast<std::remove_const_t<decltype(indices_)>&>(indices_);
+    auto sealed_indices = nu::to_sealed_ds(std::move(mut_indices));
+    auto iter_indices   = sealed_indices.cbegin();
+
     bool            need_pre_comma = false;
-    const size_type index_s = indices_.size();
+    const size_type index_s = sealed_indices.size();
 
     o.precision(precision);
     if (iof == io_format::json)  {
@@ -98,10 +104,11 @@ write (S &o,
 
             o << "\"D\":[";
             if (index_s != 0)  {
-                _write_json_df_index_(o, indices_[0]);
-                for (size_type i = 1; i < index_s; ++i)  {
+                _write_json_df_index_(o, *iter_indices);
+                ++iter_indices;
+                for (; iter_indices != sealed_indices.cend(); ++iter_indices) {
                     o << ',';
-                    _write_json_df_index_(o, indices_[i]);
+                    _write_json_df_index_(o, *iter_indices);
                 }
             }
             o << "]}";
@@ -173,6 +180,8 @@ write (S &o,
             o << '\n';
         }
     }
+
+    mut_indices = nu::to_unsealed_ds(std::move(sealed_indices));
 
     if (iof == io_format::json)
         o << "\n}";

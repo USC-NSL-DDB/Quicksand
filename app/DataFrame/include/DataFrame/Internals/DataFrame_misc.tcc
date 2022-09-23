@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <random>
 
 #include <nu/sharded_vector.hpp>
+#include <nu/sealed_ds.hpp>
 
 // ----------------------------------------------------------------------------
 
@@ -231,8 +232,10 @@ template<typename ... Ts>
 template<typename T>
 void
 DataFrame<I, H>::print_json_functor_<Ts ...>::operator() (const T &vec)  {
+    auto& mut_vec   = const_cast<T&>(vec);
+    auto sealed_vec = nu::to_sealed_ds(std::move(mut_vec));
 
-    if (vec.empty())  return;
+    if (sealed_vec.empty())  goto done;
 
     using VecType = typename std::remove_reference<T>::type;
     using ValueType = typename VecType::Val;
@@ -240,7 +243,7 @@ DataFrame<I, H>::print_json_functor_<Ts ...>::operator() (const T &vec)  {
     if (need_pre_comma)
         os << ",\n";
 
-    os << '"' << name << "\":{\"N\":" << vec.size() << ',';
+    os << '"' << name << "\":{\"N\":" << sealed_vec.size() << ',';
     if (typeid(ValueType) == typeid(float))
         os << "\"T\":\"float\",";
     else if (typeid(ValueType) == typeid(double))
@@ -271,14 +274,19 @@ DataFrame<I, H>::print_json_functor_<Ts ...>::operator() (const T &vec)  {
         os << "\"T\":\"N/A\",";
 
     os << "\"D\":[";
-    if (! vec.empty())  {
-        _write_json_df_index_(os, vec[0]);
-        for (std::size_t i = 1; i < vec.size(); ++i)  {
+    if (!sealed_vec.empty()) {
+        auto iter = sealed_vec.cbegin();
+        _write_json_df_index_(os, *iter);
+        ++iter;
+        for (; iter != sealed_vec.cend(); ++iter) {
             os << ',';
-            _write_json_df_index_(os, vec[i]);
+            _write_json_df_index_(os, *iter);
         }
     }
     os << "]}";
+
+done:
+    mut_vec = nu::to_unsealed_ds(std::move(sealed_vec));
 
     return;
 }
