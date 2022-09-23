@@ -251,9 +251,17 @@ void analyze_trip_durations_of_timestamps(StdDataFrame<uint64_t>& df, const char
         std::make_tuple("duration", "med_duration", GroupbyMedianVisitor<uint64_t>()));
     auto& key_vec      = groupby_key.get_column<T_Key>(key_col_name);
     auto& duration_vec = groupby_key.get_column<uint64_t>("med_duration");
-    for (uint64_t i = 0; i < key_vec.size(); i++) {
-        std::cout << static_cast<int>(key_vec[i]) << " " << duration_vec[i] << std::endl;
+    auto sealed_key_vec = nu::to_sealed_ds(std::move(key_vec));
+    auto sealed_duration_vec = nu::to_sealed_ds(std::move(duration_vec));
+
+    auto iter_key = sealed_key_vec.cbegin();
+    auto iter_duration = sealed_duration_vec.cbegin();
+    for (; iter_key != sealed_key_vec.cend(); ++iter_key, ++iter_duration) {
+        std::cout << static_cast<int>(*iter_key) << " " << *iter_duration << std::endl;
     }
+
+    key_vec      = nu::to_unsealed_ds(std::move(sealed_key_vec));
+    duration_vec = nu::to_unsealed_ds(std::move(sealed_duration_vec));
 
     std::cout << std::endl;
 }

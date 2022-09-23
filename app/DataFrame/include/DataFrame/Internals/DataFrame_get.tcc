@@ -498,7 +498,7 @@ template<typename I, typename  H>
 template<typename ... Ts>
 DataFrame<I, H>
 DataFrame<I, H>::get_data_by_loc (Index2D<long> range) const  {
-    auto &mut_indices = const_cast<DataFrame *>(this)->indices_;;
+    auto &mut_indices = const_cast<DataFrame *>(this)->indices_;
     auto sealed_indices = nu::to_sealed_ds(std::move(mut_indices));
 
     if (range.begin < 0)
