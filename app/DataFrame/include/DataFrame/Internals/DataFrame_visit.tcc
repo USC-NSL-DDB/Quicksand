@@ -71,30 +71,38 @@ void DataFrame<I, H>::multi_visit(Ts ... args) const  {
 template<typename I, typename  H>
 template<typename T, typename V>
 V &DataFrame<I, H>::visit (const char *name, V &visitor, bool in_reverse)  {
+    auto& vec           = get_column<T>(name);
+    auto sealed_indices = nu::to_sealed_ds(std::move(indices_));
+    auto sealed_vec     = nu::to_sealed_ds(std::move(vec));
 
-    auto            &vec = get_column<T>(name);
-    const size_type idx_s = indices_.size();
-    const size_type min_s = std::min<size_type>(vec.size(), idx_s);
-    size_type       i = 0;
-    T               nan_val = get_nan<T>();
+    T nan_val    = get_nan<T>();
 
     visitor.pre();
     if (! in_reverse)  {
-        for (; i < min_s; ++i)
-            visitor (indices_[i], vec[i]);
-        for (; i < idx_s; ++i)
-            visitor (indices_[i], nan_val);
+        auto iter_indices = sealed_indices.cbegin();
+        auto iter_vec     = sealed_vec.cbegin();
+        for (; iter_vec != sealed_vec.cend(); ++iter_vec, ++iter_indices) {
+            visitor(*iter_indices, *iter_vec);
+        }
+        for (; iter_indices != sealed_indices.cend(); ++iter_indices) {
+            visitor(*iter_indices, nan_val);
+        }
     }
     else  {
-        const size_type diff = idx_s - min_s;
-        const size_type idx_s_1 = idx_s - 1;
+        auto iter_indices = sealed_indices.crbegin();
+        auto iter_vec     = sealed_vec.crbegin();
 
-        for (; i < diff; ++i)
-            visitor (indices_[idx_s_1 - i], nan_val);
-        for (; i < min_s; ++i)
-            visitor (indices_[idx_s_1 - i], vec[idx_s_1 - i]);
+        for (; iter_vec != sealed_vec.crend(); ++iter_vec, ++iter_indices) {
+            visitor(*iter_indices, *iter_vec);
+        }
+        for (; iter_indices != sealed_indices.crend(); ++iter_indices) {
+            visitor(*iter_indices, nan_val);
+        }
     }
     visitor.post();
+
+    indices_ = nu::to_unsealed_ds(std::move(sealed_indices));
+    vec      = nu::to_unsealed_ds(std::move(sealed_vec));
 
     return (visitor);
 }
