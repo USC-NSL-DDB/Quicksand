@@ -663,40 +663,104 @@ DataFrame<I, H>::get_view_by_loc (const std::vector<long> &locations)  {
 
 // ----------------------------------------------------------------------------
 
-template<typename I, typename  H>
-template<typename T, typename F, typename ... Ts>
-DataFrame<I, H> DataFrame<I, H>::
-get_data_by_sel (const char *name, F &sel_functor) const  {
+template <typename I, typename H>
+template <typename T, typename F, typename... Ts>
+DataFrame<I, H> DataFrame<I, H>::get_data_by_sel(const char* name, F& sel_functor) const
+{
+    auto& mut_indices   = const_cast<std::remove_const_t<decltype(indices_)>&>(indices_);
+    auto sealed_indices = nu::to_sealed_ds(std::move(mut_indices));
+    auto sealed_named_vec =
+        nu::to_sealed_ds(std::move(const_cast<DataFrame*>(this)->get_column<T>(name)));
 
-    ColumnVecType<T>            &vec = const_cast<DataFrame<I, H> *>(this)->get_column<T>(name);
-    const size_type             idx_s = indices_.size();
-    const size_type             col_s = vec.size();
-    auto                        col_indices = nu_make_sharded_vector<size_type>(idx_s / 2);
+    std::tuple<std::vector<std::tuple<
+        const char*, NuShardedVector<Ts>*, nu::SealedDS<NuShardedVector<Ts>>,
+        typename nu::SealedDS<NuShardedVector<Ts>>::ConstIterator, NuShardedVector<Ts>>>...>
+        col_vecs;
 
-    for (size_type i = 0; i < col_s; ++i)
-        if (sel_functor (indices_[i], vec[i]))
-            col_indices.push_back(i);
-
-    DataFrame       df;
-    IndexVecType    new_index = nu_make_sharded_vector<IndexType>(col_indices.size());
-
-    auto sealed_col_indices = nu::to_sealed_ds(std::move(col_indices));
-    for (auto citer: sealed_col_indices)
-        new_index.push_back(indices_[citer]);
-    df.load_index(std::move(new_index));
-
-    for (const auto &col_citer : column_list_)  {
-        sel_load_functor_<size_type, Ts ...>    functor (
-            col_citer.first.c_str(),
-            sealed_col_indices,
-            idx_s,
-            df);
-        const SpinGuard                         guard(lock_);
-
-        data_[col_citer.second].change(functor);
+    for (const auto& col_citer : column_list_) {
+        auto functor = [&]<typename NuVec>(NuVec& nu_vec) {
+            std::apply(
+                [&](auto&... col_vec) {
+                    auto pusher = [&]<typename ColVec>(ColVec& col_vec) {
+                        using ColNuVec = std::tuple_element_t<4, typename ColVec::value_type>;
+                        if constexpr (std::is_same_v<ColNuVec, NuVec>) {
+                            bool is_name_vec = (std::is_same_v<NuVec, NuShardedVector<T>> &&
+                                                col_citer.first.compare(name) == 0);
+                            if (!is_name_vec) {
+                                auto sealed_nu_vec = nu::to_sealed_ds(std::move(nu_vec));
+                                auto iter          = sealed_nu_vec.cbegin();
+                                auto new_nu_vec    = nu_make_sharded_vector<typename NuVec::Val>(
+                                    sealed_indices.size() / 2);
+                                col_vec.emplace_back(std::make_tuple(
+                                    col_citer.first.c_str(), &nu_vec, std::move(sealed_nu_vec),
+                                    iter, std::move(new_nu_vec)));
+                            }
+                        }
+                    };
+                    ((pusher(col_vec)), ...);
+                },
+                col_vecs);
+        };
+        data_[col_citer.second].change(LambdaWrapper<decltype(functor), Ts...>(std::move(functor)));
     }
 
-    return (df);
+    IndexVecType new_index = nu_make_sharded_vector<IndexType>(sealed_indices.size() / 2);
+    auto new_name_vec      = nu_make_sharded_vector<T>(sealed_indices.size() / 2);
+    auto idx_iter          = sealed_indices.cbegin();
+    auto name_iter         = sealed_named_vec.cbegin();
+
+    for (; name_iter != sealed_named_vec.cend(); ++name_iter, ++idx_iter) {
+        if (sel_functor(*idx_iter, *name_iter)) {
+            new_index.push_back(*idx_iter);
+            new_name_vec.push_back(*name_iter);
+            std::apply(
+                [&](auto&... col_vec) {
+                    auto emplacer = [&](auto& col_vec) {
+                        for (auto& p : col_vec) {
+                            auto& iter       = std::get<3>(p);
+                            auto& new_nu_vec = std::get<4>(p);
+                            new_nu_vec.push_back(*iter);
+                            ++iter;
+                        }
+                    };
+                    ((emplacer(col_vec)), ...);
+                },
+                col_vecs);
+        }
+    }
+
+    DataFrame df;
+    df.load_index(std::move(new_index));
+    std::apply(
+        [&](auto&... col_vec) {
+            auto loader = [&](auto& col_vec) {
+                for (auto& p : col_vec) {
+                    auto* cstr       = std::get<0>(p);
+                    auto& new_nu_vec = std::get<4>(p);
+                    df.load_column(cstr, std::move(new_nu_vec));
+                }
+            };
+            ((loader(col_vec)), ...);
+        },
+        col_vecs);
+
+    const_cast<DataFrame*>(this)->get_column<T>(name) =
+        nu::to_unsealed_ds(std::move(sealed_named_vec));
+    mut_indices = nu::to_unsealed_ds(std::move(sealed_indices));
+    std::apply(
+        [&](auto&... col_vec) {
+            auto unsealer = [&](auto& col_vec) {
+                for (auto& p : col_vec) {
+                    auto* nu_vec_ptr    = std::get<1>(p);
+                    auto& sealed_nu_vec = std::get<2>(p);
+                    *nu_vec_ptr         = nu::to_unsealed_ds(std::move(sealed_nu_vec));
+                }
+            };
+            ((unsealer(col_vec)), ...);
+        },
+        col_vecs);
+
+    return df;
 }
 
 // ----------------------------------------------------------------------------

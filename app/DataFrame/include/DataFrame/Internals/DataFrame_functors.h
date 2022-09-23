@@ -461,6 +461,21 @@ struct sel_load_functor_ : DataVec::template visitor_base<Ts ...>  {
 
 // ----------------------------------------------------------------------------
 
+template <typename F, typename... Ts>
+struct LambdaWrapper : DataVec::template visitor_base<Ts ...> {
+    LambdaWrapper(F&& func) : f(std::move(func)) {}
+
+    template <typename NuVec>
+    void operator() (NuVec &nu_vec)
+    {
+        f(nu_vec);
+    }
+
+    F f;
+};
+
+// ----------------------------------------------------------------------------
+
 template<typename IT, typename ... Ts>
 struct sel_load_view_functor_ : DataVec::template visitor_base<Ts ...>  {
 
