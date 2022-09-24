@@ -61,9 +61,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(std::move(container)) {
-  container_.on_key_range_updated(l_key, r_key);
-}
+      container_(std::move(container)) {}
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
@@ -75,9 +73,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(capacity) {
-  container_.on_key_range_updated(l_key, r_key);
-}
+      container_(l_key, capacity) {}
 
 template <class Container>
 GeneralShard<Container>::~GeneralShard() {
@@ -113,7 +109,6 @@ void GeneralShard<Container>::split() {
       proclet_capacity, mapping_, max_shard_size_, mid_k, r_key_,
       latter_half_container);
   r_key_ = mid_k;
-  container_.on_key_range_updated(l_key_, r_key_);
   mapping_.run(&ShardingMapping::update_mapping, mid_k, std::move(new_shard));
 }
 
@@ -133,17 +128,17 @@ bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
     return false;
   }
 
-  if (unlikely(container_.size() >= max_shard_size_)) {
+  container_.emplace(std::move(p.first), std::move(p.second));
+  if (unlikely(container_.size() > max_shard_size_)) {
     rw_lock_.reader_unlock();
     rw_lock_.writer_lock();
-    if (container_.size() >= max_shard_size_) {
+    if (container_.size() > max_shard_size_) {
       split();
     }
     rw_lock_.writer_unlock();
-    return false;
+    return true;
   }
 
-  container_.emplace(std::move(p.first), std::move(p.second));
   rw_lock_.reader_unlock();
 
   return true;
@@ -160,17 +155,17 @@ bool GeneralShard<Container>::try_emplace_back(
     return false;
   }
 
-  if (unlikely(container_.size() >= max_shard_size_)) {
+  container_.emplace_back(std::move(v));
+  if (unlikely(container_.size() > max_shard_size_)) {
     rw_lock_.reader_unlock();
     rw_lock_.writer_lock();
-    if (container_.size() >= max_shard_size_) {
+    if (container_.size() > max_shard_size_) {
       split();
     }
     rw_lock_.writer_unlock();
-    return false;
+    return true;
   }
 
-  container_.emplace_back(std::move(v));
   rw_lock_.reader_unlock();
 
   return true;

@@ -46,10 +46,14 @@ void ArrayConstReverseIterator<T>::serialize(Archive &ar) {
 }
 
 template <typename T>
-Array<T>::Array() : l_key_(0) {}
+Array<T>::Array() {}
 
 template <typename T>
-Array<T>::Array(std::size_t size) : data_(size, T()), l_key_(0) {}
+Array<T>::Array(std::optional<Key> l_key) : l_key_(l_key.value_or(0)) {}
+
+template <typename T>
+Array<T>::Array(std::optional<Key> l_key, std::size_t size)
+    : l_key_(l_key.value_or(0)), data_(size, T()) {}
 
 template <typename T>
 Array<T>::Array(const Array &o) {
@@ -133,18 +137,6 @@ Array<T>::ConstReverseIterator Array<T>::crbegin() const {
 template <typename T>
 Array<T>::ConstReverseIterator Array<T>::crend() const {
   return data_.crend();
-}
-
-template <typename T>
-void Array<T>::on_key_range_updated(std::optional<Key> l_key,
-                                    std::optional<Key> r_key) {
-  if (likely(l_key.has_value())) {
-    l_key_ = l_key.value();
-  } else {
-    // l_key wouldn't contain value for the shard that's responsible for
-    // [-neg, 0). Remove this shard's default-initialized elements.
-    data_.clear();
-  }
 }
 
 template <typename T>

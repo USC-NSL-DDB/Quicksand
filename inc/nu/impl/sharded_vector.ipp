@@ -44,10 +44,14 @@ void VectorConstReverseIterator<T>::serialize(Archive &ar) {
 }
 
 template <typename T>
-Vector<T>::Vector() : l_key_(0) {}
+Vector<T>::Vector() {}
 
 template <typename T>
-Vector<T>::Vector(std::size_t capacity) : l_key_(0) {
+Vector<T>::Vector(std::optional<Key> l_key) : l_key_(l_key.value_or(0)) {}
+
+template <typename T>
+Vector<T>::Vector(std::optional<Key> l_key, std::size_t capacity)
+    : l_key_(l_key.value_or(0)) {
   data_.reserve(capacity);
 }
 

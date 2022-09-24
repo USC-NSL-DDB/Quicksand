@@ -27,10 +27,11 @@ void UnorderedSetConstIterator<USet>::serialize(Archive &ar) {
 }
 
 template <typename T, typename M>
-GeneralUnorderedSet<T, M>::GeneralUnorderedSet() {}
+GeneralUnorderedSet<T, M>::GeneralUnorderedSet(std::optional<Key> l_key) {}
 
 template <typename T, typename M>
-GeneralUnorderedSet<T, M>::GeneralUnorderedSet(std::size_t capacity) {}
+GeneralUnorderedSet<T, M>::GeneralUnorderedSet(std::optional<Key> l_key,
+                                               std::size_t capacity) {}
 
 template <typename T, typename M>
 std::size_t GeneralUnorderedSet<T, M>::size() const {

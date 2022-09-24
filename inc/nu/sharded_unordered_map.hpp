@@ -25,7 +25,8 @@ class GeneralUnorderedMap {
   using ConstIterator = UnorderedMapConstIterator<UMap>;
 
   GeneralUnorderedMap() = default;
-  GeneralUnorderedMap(std::size_t capacity);
+  GeneralUnorderedMap(std::optional<Key> l_key);
+  GeneralUnorderedMap(std::optional<Key> l_key, std::size_t capacity);
   GeneralUnorderedMap(const GeneralUnorderedMap &) = default;
   GeneralUnorderedMap &operator=(const GeneralUnorderedMap &) = default;
   GeneralUnorderedMap(GeneralUnorderedMap &&) noexcept = default;

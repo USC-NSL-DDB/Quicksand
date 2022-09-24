@@ -159,9 +159,9 @@ void ShardedDataStructure<Container, LL>::emplace(Pair p) {
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
-  [[maybe_unused]] retry :
-      // rbegin() is O(1) which is much faster than the O(logn) of --end().
-      auto iter = key_to_shards_.rbegin();
+[[maybe_unused]] retry :
+  // rbegin() is O(1) which is much faster than the O(logn) of --end().
+  auto iter = key_to_shards_.rbegin();
 
   if constexpr (LL::value) {
     auto l_key = iter->first;
@@ -339,7 +339,7 @@ Container ShardedDataStructure<Container, LL>::collect() {
     size += future.get().size();
   }
 
-  Container all(size);
+  Container all(std::make_optional<Key>(), size);
   for (auto &future : futures) {
     all.merge(std::move(future.get()));
   }

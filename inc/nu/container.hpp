@@ -90,7 +90,9 @@ class GeneralContainerBase {
                          GeneralContainer<Impl>>;
 
   GeneralContainerBase() : impl_() {}
-  GeneralContainerBase(std::size_t capacity) : impl_(capacity) {}
+  GeneralContainerBase(std::optional<Key> l_key) : impl_(l_key) {}
+  GeneralContainerBase(std::optional<Key> l_key, std::size_t capacity)
+      : impl_(l_key, capacity) {}
   GeneralContainerBase(const GeneralContainerBase &c) : impl_(c.impl_) {}
   GeneralContainerBase &operator=(const GeneralContainerBase &c) {
     impl_ = c.impl_;
@@ -162,7 +164,6 @@ class GeneralContainerBase {
     impl_.load(ar);
   }
   void handle_batch(std::vector<ContainerReq<Key, Val>> reqs);
-  void on_key_range_updated(std::optional<Key> l_key, std::optional<Key> r_key);
 
  private:
   Impl impl_;

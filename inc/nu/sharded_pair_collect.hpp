@@ -1,6 +1,5 @@
 #pragma once
 
-#include <type_traits>
 #include <vector>
 
 #include "nu/sharded_ds.hpp"
@@ -14,7 +13,8 @@ class PairCollection {
   using Val = V;
 
   PairCollection();
-  PairCollection(std::size_t capacity);
+  PairCollection(std::optional<Key> l_key);
+  PairCollection(std::optional<Key> l_key, std::size_t capacity);
   PairCollection(const PairCollection &);
   PairCollection &operator=(const PairCollection &);
   PairCollection(PairCollection &&) noexcept;

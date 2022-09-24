@@ -24,8 +24,9 @@ class GeneralUnorderedSet {
                                   std::unordered_set<T>>;
   using ConstIterator = UnorderedSetConstIterator<USet>;
 
-  GeneralUnorderedSet();
-  GeneralUnorderedSet(std::size_t capacity);
+  GeneralUnorderedSet() = default;
+  GeneralUnorderedSet(std::optional<Key> l_key);
+  GeneralUnorderedSet(std::optional<Key> l_key, std::size_t capacity);
   GeneralUnorderedSet(const GeneralUnorderedSet &) = default;
   GeneralUnorderedSet &operator=(const GeneralUnorderedSet &) = default;
   GeneralUnorderedSet(GeneralUnorderedSet &&) noexcept = default;

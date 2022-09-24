@@ -25,7 +25,11 @@ void UnorderedMapConstIterator<USet>::serialize(Archive &ar) {
 }
 
 template <typename K, typename V, typename M>
-GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(std::size_t capacity) {
+GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(std::optional<Key> l_key) {}
+
+template <typename K, typename V, typename M>
+GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(std::optional<Key> l_key,
+                                                  std::size_t capacity) {
   map_.reserve(capacity);
 }
 

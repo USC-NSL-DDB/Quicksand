@@ -34,7 +34,8 @@ class Vector {
   using ConstReverseIterator = VectorConstReverseIterator<T>;
 
   Vector();
-  Vector(std::size_t capacity);
+  Vector(std::optional<Key> l_key);
+  Vector(std::optional<Key> l_key, std::size_t capacity);
   Vector(const Vector &);
   Vector &operator=(const Vector &);
   Vector(Vector &&) noexcept;

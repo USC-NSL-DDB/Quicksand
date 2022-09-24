@@ -1,20 +1,7 @@
 #pragma once
 
-#include <thread.h>
-
-#include <array>
-#include <cereal/types/vector.hpp>
-#include <memory>
-#include <utility>
 #include <vector>
 
-extern "C" {
-#include <runtime/net.h>
-}
-
-#include "nu/proclet.hpp"
-#include "nu/utils/mutex.hpp"
-#include "nu/utils/spin_lock.hpp"
 #include "sharded_ds.hpp"
 
 namespace nu {
@@ -46,7 +33,8 @@ class Array {
   using ConstReverseIterator = ArrayConstReverseIterator<T>;
 
   Array();
-  Array(std::size_t size);
+  Array(std::optional<Key> l_key);
+  Array(std::optional<Key> l_key, std::size_t size);
   Array(const Array &);
   Array &operator=(const Array &);
   Array(Array &&) noexcept;
@@ -61,7 +49,6 @@ class Array {
   void merge(Array arr);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
-  void on_key_range_updated(std::optional<Key> l_key, std::optional<Key> r_key);
   ConstIterator cbegin() const;
   ConstIterator cend() const;
   ConstReverseIterator crbegin() const;
@@ -72,8 +59,8 @@ class Array {
   void load(Archive &ar);
 
  private:
-  std::vector<T> data_;
   std::size_t l_key_;
+  std::vector<T> data_;
 };
 
 template <typename T, typename LL>

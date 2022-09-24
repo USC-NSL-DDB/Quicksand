@@ -43,7 +43,11 @@ void MapConstReverseIterator<Map>::serialize(Archive &ar) {
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::GeneralMap(std::size_t capacity) {}
+GeneralMap<K, V, M>::GeneralMap(std::optional<Key> l_key) {}
+
+template <typename K, typename V, typename M>
+GeneralMap<K, V, M>::GeneralMap(std::optional<Key> l_key,
+                                std::size_t capacity) {}
 
 template <typename K, typename V, typename M>
 GeneralMap<K, V, M>::GeneralMap(Map initial_state)

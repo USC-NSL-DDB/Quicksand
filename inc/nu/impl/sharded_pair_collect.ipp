@@ -5,11 +5,15 @@
 namespace nu {
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection()
+PairCollection<K, V>::PairCollection() {}
+
+template <typename K, typename V>
+PairCollection<K, V>::PairCollection(std::optional<Key> l_key)
     : data_(nullptr), size_(0), capacity_(0), ownership_(false) {}
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection(std::size_t capacity) {
+PairCollection<K, V>::PairCollection(std::optional<Key> l_key,
+                                     std::size_t capacity) {
   data_ = new std::pair<K, V>[capacity];
   size_ = 0;
   capacity_ = capacity;
