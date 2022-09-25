@@ -246,11 +246,15 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
     rejected_batch = std::move(flush_future_.get());
   }
 
-  flush_future_ = nu::async([batch = std::move(batch)]() mutable {
-    bool success = batch.shard.run(&Shard::try_handle_batch, batch.l_key,
-                                   batch.r_key, batch.reqs);
-    return success ? std::optional<ReqBatch>() : batch;
-  });
+  if (!batch.reqs.empty()) {
+    flush_future_ = nu::async([batch = std::move(batch)]() mutable {
+      bool success = batch.shard.run(&Shard::try_handle_batch, batch.l_key,
+                                     batch.r_key, batch.reqs);
+      return success ? std::optional<ReqBatch>() : batch;
+    });
+  } else {
+    flush_future_ = Future<std::optional<ReqBatch>>();
+  }
 
   if (rejected_batch) {
     handle_rejected_flush_batch(*rejected_batch);
