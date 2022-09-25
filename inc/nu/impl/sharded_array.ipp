@@ -161,13 +161,7 @@ T ShardedArray<T, LL>::operator[](std::size_t index) const {
 }
 
 template <typename T, typename LL>
-void ShardedArray<T, LL>::set(std::size_t index, const T &value) {
-  auto copy = value;
-  Base::emplace(index, std::move(copy));
-}
-
-template <typename T, typename LL>
-void ShardedArray<T, LL>::set(std::size_t index, T &&value) {
+void ShardedArray<T, LL>::set(std::size_t index, T value) {
   Base::emplace(index, std::move(value));
 }
 

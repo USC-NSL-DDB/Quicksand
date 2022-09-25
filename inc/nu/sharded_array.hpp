@@ -73,8 +73,7 @@ class ShardedArray
   ShardedArray &operator=(ShardedArray &&) noexcept = default;
 
   T operator[](std::size_t index) const;
-  void set(std::size_t index, const T &value);
-  void set(std::size_t index, T &&value);
+  void set(std::size_t index, T value);
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Array<T>>, LL>;

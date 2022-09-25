@@ -101,7 +101,7 @@ void Vector<T>::clear() {
 
 template <typename T>
 void Vector<T>::emplace(Key k, Val v) {
-  BUG();
+  data_[k - l_key_] = std::move(v);
 }
 
 template <typename T>
@@ -187,9 +187,13 @@ T ShardedVector<T, LL>::operator[](std::size_t index) const {
 }
 
 template <typename T, typename LL>
+void ShardedVector<T, LL>::set(std::size_t index, T value) {
+  Base::emplace(index, std::move(value));
+}
+
+template <typename T, typename LL>
 void ShardedVector<T, LL>::push_back(const T &value) {
-  auto copy = value;
-  Base::emplace_back(std::move(copy));
+  Base::emplace_back(value);
 }
 
 template <typename T, typename LL>

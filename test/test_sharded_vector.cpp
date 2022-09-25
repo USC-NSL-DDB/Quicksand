@@ -9,7 +9,7 @@
 
 using namespace nu;
 
-bool test_push() {
+bool test_push_and_set() {
   constexpr uint32_t kSize = 50 << 20;
   auto vec = make_sharded_vector<int, std::false_type>(40 << 20);
 
@@ -17,11 +17,28 @@ bool test_push() {
     vec.push_back(i);
   }
 
-  auto sealed_vec = nu::to_sealed_ds(std::move(vec));
-  int i = 0;
-  for (auto it = sealed_vec.cbegin(); it != sealed_vec.cend(); ++it, ++i) {
-    if (*it != i) {
-      return false;
+  {
+    auto sealed_vec = nu::to_sealed_ds(std::move(vec));
+    int i = 0;
+    for (auto it = sealed_vec.cbegin(); it != sealed_vec.cend(); ++it, ++i) {
+      if (*it != i) {
+        return false;
+      }
+    }
+    vec = nu::to_unsealed_ds(std::move(sealed_vec));
+  }
+
+  for (size_t i = 0; i < kSize; i++) {
+    vec.set(i, 2 * i);
+  }
+
+  {
+    auto sealed_vec = nu::to_sealed_ds(std::move(vec));
+    int i = 0;
+    for (auto it = sealed_vec.cbegin(); it != sealed_vec.cend(); ++it, ++i) {
+      if (*it != 2 * i) {
+        return false;
+      }
     }
   }
 
@@ -69,7 +86,7 @@ bool test_for_all() {
 }
 
 bool run_test() {
-  if (!test_push()) {
+  if (!test_push_and_set()) {
     return false;
   }
   if (!test_vec_clear()) {
