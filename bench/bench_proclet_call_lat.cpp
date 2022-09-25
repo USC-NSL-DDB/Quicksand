@@ -18,7 +18,6 @@ using namespace nu;
 using namespace std;
 
 constexpr static uint32_t kNumRuns = 100000;
-Runtime::Mode mode;
 
 class Obj {
  public:

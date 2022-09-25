@@ -1,41 +1,15 @@
-#include <math.h>
-
-#include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 #include <cereal/types/unordered_map.hpp>
-#include <cereal/types/utility.hpp>
-#include <cstdint>
 #include <iostream>
-#include <memory>
-#include <numeric>
 #include <random>
 #include <string>
-#include <type_traits>
-#include <utility>
 #include <vector>
 
-extern "C" {
-#include <net/ip.h>
-#include <runtime/runtime.h>
-}
-#include <runtime.h>
-
-#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sealed_ds.hpp"
 #include "nu/sharded_array.hpp"
-#include "nu/utils/farmhash.hpp"
 
 using namespace nu;
-
-Runtime::Mode mode;
-
-#define ABORT_IF_FAILED(passed) \
-  do {                          \
-    if (!passed) {              \
-      return false;             \
-    }                           \
-  } while (0);
 
 std::random_device rd;
 std::mt19937 mt(rd());
@@ -154,21 +128,29 @@ bool run_test() {
   uint32_t test_arr_sz = 14243;
 
   auto int_test_data = make_int_range_vec(0, test_arr_sz);
-  ABORT_IF_FAILED(test_sharded_array<int>(int_test_data, power_shard_sz));
+  if (!test_sharded_array<int>(int_test_data, power_shard_sz)) {
+    return false;
+  }
 
   auto str_test_data = make_test_str_vec(test_arr_sz);
-  ABORT_IF_FAILED(
-      test_sharded_array<std::string>(str_test_data, power_shard_sz));
+  if (!test_sharded_array<std::string>(str_test_data, power_shard_sz)) {
+    return false;
+  }
 
   auto str_vecs = make_nested_str_vec(test_arr_sz);
-  ABORT_IF_FAILED(
-      test_sharded_array<std::vector<std::string>>(str_vecs, power_shard_sz));
+  if (!test_sharded_array<std::vector<std::string>>(str_vecs, power_shard_sz)) {
+    return false;
+  }
 
   using Map = std::unordered_map<int, std::string>;
   auto maps = make_int_to_str_maps(10, 10);
-  ABORT_IF_FAILED(test_sharded_array<Map>(maps, power_shard_sz));
+  if (!test_sharded_array<Map>(maps, power_shard_sz)) {
+    return false;
+  }
 
-  // ABORT_IF_FAILED(test_iter());
+  if (!test_iter()) {
+    return false;
+  }
 
   return true;
 }

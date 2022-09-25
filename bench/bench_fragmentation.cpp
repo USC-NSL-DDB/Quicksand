@@ -33,7 +33,6 @@ constexpr uint32_t kDeletePercentage = 10;
 
 constexpr auto kIPServer = MAKE_IP_ADDR(18, 18, 1, 4);
 
-Runtime::Mode mode;
 bool use_local;
 
 struct Key {

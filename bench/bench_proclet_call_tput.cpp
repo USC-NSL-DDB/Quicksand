@@ -19,7 +19,6 @@ using namespace nu;
 using namespace std;
 
 constexpr static uint32_t kNumThreads = 2000;
-Runtime::Mode mode;
 
 struct AlignedCnt {
   uint32_t cnt;

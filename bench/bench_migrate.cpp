@@ -17,8 +17,6 @@ extern "C" {
 
 using namespace nu;
 
-Runtime::Mode mode;
-
 constexpr uint32_t kObjSize = 128 << 10;
 constexpr uint32_t kNumRuns = 5;
 

@@ -42,7 +42,6 @@ constexpr auto kIPServer0 =
     MAKE_IP_ADDR(18, 18, 1, 2);  // The migration source.
 constexpr auto kIPServer1 = MAKE_IP_ADDR(18, 18, 1, 5);  // The migration dest.
 
-Runtime::Mode mode;
 std::unique_ptr<TraceLogger> trace_loggers[2];
 bool done = false;
 
@@ -100,12 +99,8 @@ void client_cleanup() {
 }
 
 void sigint_handler(int sig) {
-  if (mode != Runtime::Mode::kClient) {
-    std::cout << "Force exiting..." << std::endl;
-    exit(0);
-  } else {
-    client_cleanup();
-  }
+  std::cout << "Force exiting..." << std::endl;
+  exit(0);
 }
 
 void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
