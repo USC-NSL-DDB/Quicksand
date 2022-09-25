@@ -29,13 +29,14 @@ bool test_push() {
 }
 
 bool test_vec_clear() {
+  constexpr uint32_t kSize = 10 << 20;
   auto vec = make_sharded_vector<int, std::false_type>();
 
   if (!vec.empty()) {
     return false;
   }
 
-  for (size_t i = 0; i < 10; i++) {
+  for (size_t i = 0; i < kSize; i++) {
     vec.push_back(i);
   }
 
@@ -51,13 +52,14 @@ bool test_vec_clear() {
 }
 
 bool test_for_all() {
-  auto vec = make_sharded_vector<int, std::false_type>(1000);
+  constexpr int kSize = 10 << 20;
+  auto vec = make_sharded_vector<int, std::false_type>();
 
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < kSize; i++) {
     vec.push_back(i);
   }
   vec.for_all(+[](const std::size_t &idx, int &val) { val *= 2; });
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < kSize; i++) {
     if (vec[i] != i * 2) {
       return false;
     }
