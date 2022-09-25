@@ -28,7 +28,6 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<Hint> hint)
     : mapping_(make_proclet<ShardingMapping>()) {
   set_shard_and_batch_size();
-  auto container_capacity = max_shard_size_;
 
   std::vector<std::optional<Key>> keys;
   std::vector<Future<Proclet<Shard>>> shard_futures;
@@ -47,6 +46,16 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   for (auto it = keys.begin(); it != keys.end(); it++) {
     auto curr_key = *it;
     auto next_key = (it + 1) == keys.end() ? std::optional<Key>() : *(it + 1);
+
+    uint64_t container_capacity;
+    if (likely(curr_key && next_key)) {
+      container_capacity = max_shard_size_;
+    } else if (!curr_key) {
+      container_capacity = 0;
+    } else if (!next_key) {
+      container_capacity = ((hint->num - 1) % max_shard_size_ + 1);
+    }
+
     shard_futures.emplace_back(make_proclet_async_with_capacity<Shard>(
         proclet_capacity, mapping_.get_weak(), max_shard_size_, curr_key,
         next_key, container_capacity));
