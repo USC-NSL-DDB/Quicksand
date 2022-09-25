@@ -25,12 +25,15 @@ void ShardedDataStructure<Container, LL>::set_shard_and_batch_size() {
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
-    std::optional<Hint> hint)
-    : mapping_(make_proclet<ShardingMapping>()) {
+    std::optional<Hint> hint) {
   set_shard_and_batch_size();
 
+  auto proclet_capacity = get_proclet_capacity<Pair>(max_shard_size_);
+  mapping_ = make_proclet<ShardingMapping>(proclet_capacity, max_shard_size_);
+
   std::vector<std::optional<Key>> keys;
-  std::vector<Future<Proclet<Shard>>> shard_futures;
+  std::vector<Future<WeakProclet<Shard>>> shard_futures;
+  std::vector<Future<void>> reserve_futures;
 
   keys.push_back(std::nullopt);
   if (hint) {
@@ -42,31 +45,36 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     }
   }
 
-  auto proclet_capacity = get_proclet_capacity<Pair>(max_shard_size_);
   for (auto it = keys.begin(); it != keys.end(); it++) {
     auto curr_key = *it;
     auto next_key = (it + 1) == keys.end() ? std::optional<Key>() : *(it + 1);
 
-    uint64_t container_capacity;
-    if (likely(curr_key && next_key)) {
-      container_capacity = max_shard_size_;
-    } else if (!curr_key) {
-      container_capacity = 0;
-    } else if (!next_key) {
-      container_capacity = ((hint->num - 1) % max_shard_size_ + 1);
-    }
+    if (!curr_key || !EmplaceBackAble<Container>) {
+      if constexpr (EmplaceBackAble<Container>) {
+        next_key = std::nullopt;
+      }
 
-    shard_futures.emplace_back(make_proclet_async_with_capacity<Shard>(
-        proclet_capacity, mapping_.get_weak(), max_shard_size_, curr_key,
-        next_key, container_capacity));
+      uint64_t container_capacity;
+      if (likely(curr_key && next_key)) {
+        container_capacity = max_shard_size_;
+      } else if (!curr_key) {
+        container_capacity = 0;
+      } else if (!next_key) {
+        container_capacity = ((hint->num - 1) % max_shard_size_ + 1);
+      }
+
+      shard_futures.emplace_back(mapping_.run_async(
+          &ShardingMapping::create_new_shard, std::move(curr_key),
+          std::move(next_key), container_capacity));
+    } else {
+      reserve_futures.emplace_back(
+          mapping_.run_async(&ShardingMapping::reserve_new_shard));
+    }
   }
 
-  for (std::size_t i = 0; i < keys.size(); i++) {
-    auto &shard = shard_futures[i].get();
-    auto weak_shard = shard.get_weak();
+  for (std::size_t i = 0; i < shard_futures.size(); i++) {
+    auto &weak_shard = shard_futures[i].get();
     auto &key = keys[i];
-    auto update_future = mapping_.run_async(&ShardingMapping::update_mapping,
-                                            key, std::move(shard));
     auto ret = key_to_shards_.try_emplace(
         key, std::make_pair(weak_shard, std::vector<ContainerReq<Key, Val>>()));
     BUG_ON(!ret.second);

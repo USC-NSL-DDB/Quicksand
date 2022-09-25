@@ -1,7 +1,12 @@
 namespace nu {
 
 template <class Shard>
-GeneralShardingMapping<Shard>::GeneralShardingMapping() : ref_cnt_(1) {}
+GeneralShardingMapping<Shard>::GeneralShardingMapping(uint64_t proclet_capacity,
+                                                      uint32_t max_shard_size)
+    : self_(Runtime::get_current_weak_proclet<GeneralShardingMapping>()),
+      proclet_capacity_(proclet_capacity),
+      max_shard_size_(max_shard_size),
+      ref_cnt_(1) {}
 
 template <class Shard>
 GeneralShardingMapping<Shard>::~GeneralShardingMapping() {
@@ -10,41 +15,41 @@ GeneralShardingMapping<Shard>::~GeneralShardingMapping() {
 
 template <class Shard>
 void GeneralShardingMapping<Shard>::seal() {
-  ref_cnt_mu_.lock();
+  mutex_.lock();
   BUG_ON(!ref_cnt_);                        // Cannot be sealed twice.
   while (rt::access_once(ref_cnt_) != 1) {  // Wait until there's only one ref.
-    ref_cnt_cv_.wait(&ref_cnt_mu_);
+    ref_cnt_cv_.wait(&mutex_);
   }
   ref_cnt_ = 0;
-  ref_cnt_mu_.unlock();
+  mutex_.unlock();
 }
 
 template <class Shard>
 void GeneralShardingMapping<Shard>::unseal() {
-  ref_cnt_mu_.lock();
+  mutex_.lock();
   BUG_ON(ref_cnt_);
   ref_cnt_ = 1;
-  ref_cnt_mu_.unlock();
+  mutex_.unlock();
   ref_cnt_cv_.signal();  // unblock inc_ref_cnt().
 }
 
 template <class Shard>
 void GeneralShardingMapping<Shard>::inc_ref_cnt() {
-  ref_cnt_mu_.lock();
+  mutex_.lock();
   while (!rt::access_once(ref_cnt_)) {  // Wait until it is unsealed.
-    ref_cnt_cv_.wait(&ref_cnt_mu_);
+    ref_cnt_cv_.wait(&mutex_);
   }
   ref_cnt_++;
   BUG_ON(!ref_cnt_);
-  ref_cnt_mu_.unlock();
+  mutex_.unlock();
 }
 
 template <class Shard>
 void GeneralShardingMapping<Shard>::dec_ref_cnt() {
-  ref_cnt_mu_.lock();
+  mutex_.lock();
   BUG_ON(!ref_cnt_);
   ref_cnt_--;
-  ref_cnt_mu_.unlock();
+  mutex_.unlock();
   ref_cnt_cv_.signal();  // unblock seal().
 }
 
@@ -76,12 +81,39 @@ GeneralShardingMapping<Shard>::get_shard_for_key(std::optional<Key> key) {
 }
 
 template <class Shard>
-void GeneralShardingMapping<Shard>::update_mapping(std::optional<Key> k,
-                                                   Proclet<Shard> shard) {
+void GeneralShardingMapping<Shard>::reserve_new_shard() {
+  auto new_shard = make_proclet_with_capacity<Shard>(proclet_capacity_, self_,
+                                                     max_shard_size_);
+  reserved_shards_.emplace(std::move(new_shard));
+}
+
+template <class Shard>
+WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    uint64_t container_capacity) {
+  Proclet<Shard> new_shard;
+
+  if (!reserved_shards_.empty()) {
+    mutex_.lock();
+    if (likely(!reserved_shards_.empty())) {
+      new_shard = std::move(reserved_shards_.top());
+      reserved_shards_.pop();
+    }
+    mutex_.unlock();
+  } else {
+    new_shard = make_proclet_with_capacity<Shard>(proclet_capacity_, self_,
+                                                  max_shard_size_, l_key, r_key,
+                                                  container_capacity);
+  }
+
+  auto new_weak_shard = new_shard.get_weak();
+
   rw_lock_.writer_lock();
-  auto ret = mapping_.try_emplace(k, std::move(shard));
+  auto ret = mapping_.try_emplace(l_key, std::move(new_shard));
   rw_lock_.writer_unlock();
   BUG_ON(!ret.second);
+
+  return new_weak_shard;
 }
 
 }  // namespace nu

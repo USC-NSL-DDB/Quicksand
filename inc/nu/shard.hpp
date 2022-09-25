@@ -54,13 +54,13 @@ class GeneralShard {
   using ConstIterator = Container::ConstIterator;
   using ConstReverseIterator = Container::ConstReverseIterator;
 
-  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size,
-               std::optional<Key> l_key, std::optional<Key> r_key,
-               Container container);
+  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size);
   GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size,
                std::optional<Key> l_key, std::optional<Key> r_key,
                std::size_t capacity);
   ~GeneralShard();
+  void set_range_and_data(std::optional<Key> l_key, std::optional<Key> r_key,
+                          Container container);
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;

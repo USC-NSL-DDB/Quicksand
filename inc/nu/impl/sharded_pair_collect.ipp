@@ -5,7 +5,7 @@
 namespace nu {
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection() {}
+PairCollection<K, V>::PairCollection() : data_(nullptr) {}
 
 template <typename K, typename V>
 PairCollection<K, V>::PairCollection(std::optional<Key> l_key)

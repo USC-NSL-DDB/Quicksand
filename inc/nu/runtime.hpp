@@ -33,6 +33,8 @@ template <typename T>
 class RuntimeAllocator;
 template <typename T>
 class RuntimeDeleter;
+template <typename T>
+class WeakProclet;
 
 struct RPCReqReserveConns {
   RPCReqType rpc_type = kReserveConns;
@@ -94,6 +96,8 @@ class Runtime {
   friend class RemUniquePtr;
   template <typename T>
   friend class RemSharedPtr;
+  template <typename T>
+  friend class GeneralShardingMapping;
 
   Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid);
   static void common_init();
@@ -116,6 +120,8 @@ class Runtime {
   static T *get_current_root_obj();
   template <typename T>
   static T *get_root_obj(ProcletID id);
+  template <typename T>
+  static WeakProclet<T> get_current_weak_proclet();
 };
 
 class RuntimeSlabGuard {

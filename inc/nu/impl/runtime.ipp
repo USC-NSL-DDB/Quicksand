@@ -116,6 +116,11 @@ void Runtime::delete_on_runtime_heap(T *ptr) {
   Runtime::runtime_slab.free(ptr);
 }
 
+template <typename T>
+WeakProclet<T> Runtime::get_current_weak_proclet() {
+  return WeakProclet<T>(to_proclet_id(get_current_proclet_header()));
+}
+
 inline RuntimeSlabGuard::RuntimeSlabGuard() {
   original_slab_ = Runtime::switch_to_runtime_slab();
 }

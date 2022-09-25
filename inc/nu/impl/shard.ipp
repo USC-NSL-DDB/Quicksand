@@ -53,15 +53,8 @@ inline constexpr uint64_t get_proclet_capacity(uint32_t max_shard_size) {
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
-                                      uint32_t max_shard_size,
-                                      std::optional<Key> l_key,
-                                      std::optional<Key> r_key,
-                                      Container container)
-    : max_shard_size_(max_shard_size),
-      mapping_(std::move(mapping)),
-      l_key_(l_key),
-      r_key_(r_key),
-      container_(std::move(container)) {}
+                                      uint32_t max_shard_size)
+    : max_shard_size_(max_shard_size), mapping_(std::move(mapping)) {}
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
@@ -80,6 +73,15 @@ GeneralShard<Container>::~GeneralShard() {
   // flush all reader or writer handles
   rw_lock_.writer_lock();
   rw_lock_.writer_unlock();
+}
+
+template <class Container>
+void GeneralShard<Container>::set_range_and_data(std::optional<Key> l_key,
+                                                 std::optional<Key> r_key,
+                                                 Container container) {
+  l_key_ = l_key;
+  r_key_ = r_key;
+  container_ = std::move(container);
 }
 
 template <class Container>
@@ -104,12 +106,11 @@ GeneralShard<Container>::get_const_container_handle() {
 template <class Container>
 void GeneralShard<Container>::split() {
   auto [mid_k, latter_half_container] = container_.split();
-  auto proclet_capacity = get_proclet_capacity<Pair>(max_shard_size_);
-  auto new_shard = make_proclet_with_capacity<GeneralShard>(
-      proclet_capacity, mapping_, max_shard_size_, mid_k, r_key_,
-      latter_half_container);
+  auto new_shard =
+      mapping_.run(&ShardingMapping::create_new_shard, mid_k, r_key_, 0);
+  new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
+                latter_half_container);
   r_key_ = mid_k;
-  mapping_.run(&ShardingMapping::update_mapping, mid_k, std::move(new_shard));
 }
 
 template <class Container>

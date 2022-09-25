@@ -135,6 +135,7 @@ class WeakProclet : public Proclet<T> {
  private:
   template <typename U>
   friend class RemPtr;
+  friend class Runtime;
 
   WeakProclet(ProcletID id);
 };
