@@ -111,6 +111,8 @@ void GeneralShard<Container>::split() {
   new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
                 latter_half_container);
   r_key_ = mid_k;
+  max_shard_size_ =
+      std::max(max_shard_size_, static_cast<uint32_t>(container_.size()));
 }
 
 template <class Container>
