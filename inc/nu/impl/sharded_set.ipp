@@ -163,7 +163,7 @@ ShardedSet<T, LL> make_sharded_set() {
 }
 
 template <typename T, typename LL>
-ShardedMultiSet<T, LL> make_sharded_mutli_set() {
+ShardedMultiSet<T, LL> make_sharded_multi_set() {
   return ShardedMultiSet<T, LL>(std::nullopt);
 }
 

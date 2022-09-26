@@ -156,9 +156,28 @@ bool test_iter() {
   return true;
 }
 
+bool test_multi_set() {
+  std::size_t num_elems = 40'000'000;
+
+  auto s = make_sharded_multi_set<std::size_t, std::false_type>();
+  for (std::size_t i = 0; i < num_elems; i++) {
+    s.insert(0);
+  }
+
+  auto sealed_set = to_sealed_ds(std::move(s));
+  for (auto it = sealed_set.cbegin(); it != sealed_set.cend();
+       ++it, --num_elems) {
+    if (*it != 0) {
+      return false;
+    }
+  }
+
+  return !num_elems;
+}
+
 bool run_test() {
   return test_insertion() && test_ordering() && test_size() && test_clear() &&
-         test_iter();
+         test_iter() && test_multi_set();
 }
 
 void do_work() {
