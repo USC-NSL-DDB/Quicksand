@@ -75,10 +75,16 @@ bool test_for_all() {
   for (int i = 0; i < kSize; i++) {
     vec.push_back(i);
   }
+
   vec.for_all(+[](const std::size_t &idx, int &val) { val *= 2; });
-  for (int i = 0; i < kSize; i++) {
-    if (vec[i] != i * 2) {
-      return false;
+
+  {
+    auto sealed_vec = nu::to_sealed_ds(std::move(vec));
+    int i = 0;
+    for (auto it = sealed_vec.cbegin(); it != sealed_vec.cend(); ++it, ++i) {
+      if (*it != 2 * i) {
+        return false;
+      }
     }
   }
 
