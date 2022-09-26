@@ -60,7 +60,7 @@ GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
 
   rw_lock_.reader_lock();
-  auto iter = --mapping_.upper_bound(l_key);
+  auto iter = mapping_.upper_bound(l_key);
   while (iter != mapping_.end() && (!r_key || iter->first < r_key)) {
     shards.emplace_back(iter->first, iter->second.get_weak());
     iter++;
@@ -109,9 +109,8 @@ WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
   auto new_weak_shard = new_shard.get_weak();
 
   rw_lock_.writer_lock();
-  auto ret = mapping_.try_emplace(l_key, std::move(new_shard));
+  mapping_.emplace(l_key, std::move(new_shard));
   rw_lock_.writer_unlock();
-  BUG_ON(!ret.second);
 
   return new_weak_shard;
 }

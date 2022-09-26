@@ -76,7 +76,7 @@ class ShardedDataStructure {
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
 
-  using KeyToShardsMapping = std::map<
+  using KeyToShardsMapping = std::multimap<
       std::optional<Key>,
       std::pair<WeakProclet<Shard>, std::vector<ContainerReq<Key, Val>>>>;
   struct ReqBatch {
@@ -101,6 +101,7 @@ class ShardedDataStructure {
   bool flush_one_batch(KeyToShardsMapping::iterator iter);
   void handle_rejected_flush_batch(ReqBatch &batch);
   void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key);
+  void flush_and_sync_mapping();
   std::pair<std::optional<Key>, std::optional<Key>> get_key_range(
       KeyToShardsMapping::iterator iter);
   std::pair<std::vector<std::optional<Key>>, std::vector<WeakProclet<Shard>>>

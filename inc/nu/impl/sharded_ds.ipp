@@ -75,9 +75,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   for (std::size_t i = 0; i < shard_futures.size(); i++) {
     auto &weak_shard = shard_futures[i].get();
     auto &key = keys[i];
-    auto ret = key_to_shards_.try_emplace(
+    key_to_shards_.emplace(
         key, std::make_pair(weak_shard, std::vector<ContainerReq<Key, Val>>()));
-    BUG_ON(!ret.second);
   }
 }
 
@@ -318,7 +317,20 @@ void ShardedDataStructure<Container, LL>::sync_mapping(
   auto latest_mapping =
       mapping_.run(&ShardingMapping::get_shards_in_range, l_key, r_key);
   for (auto &[k, s] : latest_mapping) {
-    key_to_shards_.try_emplace(
+    key_to_shards_.emplace(
+        k, std::make_pair(s, std::vector<ContainerReq<Key, Val>>()));
+  }
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container, LL>::flush_and_sync_mapping() {
+  flush();
+  auto latest_mapping =
+      mapping_.run(&ShardingMapping::get_shards_in_range, std::optional<Key>(),
+                   std::optional<Key>());
+  key_to_shards_.erase(++key_to_shards_.begin(), key_to_shards_.end());
+  for (auto &[k, s] : latest_mapping) {
+    key_to_shards_.emplace(
         k, std::make_pair(s, std::vector<ContainerReq<Key, Val>>()));
   }
 }
@@ -328,11 +340,10 @@ template <typename... S0s, typename... S1s>
 void ShardedDataStructure<Container, LL>::for_all(void (*fn)(const Key &key,
                                                              Val &val, S0s...),
                                                   S1s &&... states) {
-  flush();
+  flush_and_sync_mapping();
 
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
-  sync_mapping(std::nullopt, std::nullopt);
   std::vector<Future<void>> futures;
   for (auto &[_, p] : key_to_shards_) {
     futures.emplace_back(p.first.run_async(
@@ -347,9 +358,8 @@ void ShardedDataStructure<Container, LL>::for_all(void (*fn)(const Key &key,
 
 template <class Container, class LL>
 Container ShardedDataStructure<Container, LL>::collect() {
-  flush();
+  flush_and_sync_mapping();
 
-  sync_mapping(std::nullopt, std::nullopt);
   std::vector<Future<Container>> futures;
   for (auto &[_, p] : key_to_shards_) {
     futures.emplace_back(p.first.run_async(&Shard::get_container_copy));
@@ -370,9 +380,8 @@ Container ShardedDataStructure<Container, LL>::collect() {
 
 template <class Container, class LL>
 std::size_t ShardedDataStructure<Container, LL>::__size() {
-  flush();
+  flush_and_sync_mapping();
 
-  sync_mapping(std::nullopt, std::nullopt);
   std::vector<Future<std::size_t>> futures;
   for (auto &[_, p] : key_to_shards_) {
     futures.emplace_back(p.first.run_async(
@@ -399,9 +408,8 @@ bool ShardedDataStructure<Container, LL>::empty() const {
 
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::clear() {
-  flush();
+  flush_and_sync_mapping();
 
-  sync_mapping(std::nullopt, std::nullopt);
   std::vector<Future<void>> futures;
   for (auto &[_, p] : key_to_shards_) {
     futures.emplace_back(
@@ -432,8 +440,7 @@ std::pair<std::vector<
           std::vector<
               WeakProclet<typename ShardedDataStructure<Container, LL>::Shard>>>
 ShardedDataStructure<Container, LL>::get_all_non_empty_shards() {
-  flush();
-  sync_mapping(std::nullopt, std::nullopt);
+  flush_and_sync_mapping();
 
   std::vector<std::optional<Key>> all_keys;
   std::vector<WeakProclet<Shard>> all_shards;

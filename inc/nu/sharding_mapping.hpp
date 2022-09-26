@@ -19,6 +19,7 @@ class GeneralShardingMapping {
 
   GeneralShardingMapping(uint64_t proclet_capacity, uint32_t max_shard_size);
   ~GeneralShardingMapping();
+  // Both l_key and r_key are noninclusive.
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
   std::optional<WeakProclet<Shard>> get_shard_for_key(std::optional<Key> key);
@@ -35,7 +36,7 @@ class GeneralShardingMapping {
   WeakProclet<GeneralShardingMapping> self_;
   uint64_t proclet_capacity_;
   uint32_t max_shard_size_;
-  std::map<std::optional<Key>, Proclet<Shard>> mapping_;
+  std::multimap<std::optional<Key>, Proclet<Shard>> mapping_;
   ReaderWriterLock rw_lock_;
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;
