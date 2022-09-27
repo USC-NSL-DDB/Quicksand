@@ -35,8 +35,12 @@ struct Key {
     return std::memcmp(data, o.data, kKeyLen) > 0;
   }
 
-  bool operator>=(const Key &o) const {
-    return std::memcmp(data, o.data, kKeyLen) >= 0;
+  bool operator==(const Key &o) const {
+    return std::memcmp(data, o.data, kKeyLen) == 0;
+  }
+
+  bool operator<=(const Key &o) const {
+    return std::memcmp(data, o.data, kKeyLen) <= 0;
   }
 
   Key &operator+=(const uint64_t offset) {

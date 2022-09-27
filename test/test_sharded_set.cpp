@@ -157,7 +157,7 @@ bool test_iter() {
 }
 
 bool test_multi_set() {
-  std::size_t num_elems = 40'000'000;
+  std::size_t num_elems = 20'000'000;
 
   auto s = make_sharded_multi_set<std::size_t, std::false_type>();
   for (std::size_t i = 0; i < num_elems; i++) {

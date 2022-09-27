@@ -36,6 +36,7 @@ class Proclet {
   Proclet();
   ~Proclet();
   operator bool() const;
+  bool operator==(const Proclet &) const;
   ProcletID get_id() const;
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(

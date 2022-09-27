@@ -254,6 +254,11 @@ Proclet<T>::operator bool() const {
 }
 
 template <typename T>
+bool Proclet<T>::operator==(const Proclet &o) const {
+  return id_ == o.id_;
+}
+
+template <typename T>
 ProcletID Proclet<T>::get_id() const {
   return id_;
 }

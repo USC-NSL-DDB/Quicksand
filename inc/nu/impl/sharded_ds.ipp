@@ -155,10 +155,10 @@ void ShardedDataStructure<Container, LL>::emplace(Pair p) {
   if constexpr (LL::value) {
     auto [l_key, r_key] = get_key_range(iter);
     auto shard = iter->second.first;
-    auto right_shard = shard.run(&Shard::try_emplace, l_key, r_key, p);
+    auto succeed = shard.run(&Shard::try_emplace, l_key, r_key, p);
 
-    if (unlikely(!right_shard)) {
-      sync_mapping(l_key, r_key);
+    if (unlikely(!succeed)) {
+      sync_mapping(l_key, r_key, shard);
       goto retry;
     }
   } else {
@@ -183,10 +183,10 @@ void ShardedDataStructure<Container, LL>::emplace_back(
     auto l_key = iter->first;
     auto r_key = std::optional<Key>();
     auto shard = iter->second.first;
-    auto right_shard = shard.run(&Shard::try_emplace_back, l_key, r_key, v);
+    auto succeed = shard.run(&Shard::try_emplace_back, l_key, r_key, v);
 
-    if (unlikely(!right_shard)) {
-      sync_mapping(l_key, r_key);
+    if (unlikely(!succeed)) {
+      sync_mapping(l_key, r_key, shard);
       goto retry;
     }
   } else {
@@ -209,11 +209,11 @@ ShardedDataStructure<Container, LL>::__find_val(
 retry:
   auto iter = --key_to_shards_.upper_bound(k);
   auto shard = iter->second.first;
-  auto [right_shard, val] = shard.run(&Shard::find_val, k);
+  auto [succeed, val] = shard.run(&Shard::find_val, k);
 
-  if (unlikely(!right_shard)) {
+  if (unlikely(!succeed)) {
     auto [l_key, r_key] = get_key_range(iter);
-    sync_mapping(l_key, r_key);
+    sync_mapping(l_key, r_key, shard);
     goto retry;
   }
 
@@ -273,7 +273,7 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::handle_rejected_flush_batch(
     ReqBatch &batch) {
-  sync_mapping(batch.l_key, batch.r_key);
+  sync_mapping(batch.l_key, batch.r_key, batch.shard);
 
   for (auto &req : batch.reqs) {
     if (req.type == Emplace) {
@@ -313,10 +313,26 @@ void ShardedDataStructure<Container, LL>::flush() {
 
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::sync_mapping(
-    std::optional<Key> l_key, std::optional<Key> r_key) {
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    WeakProclet<Shard> shard) {
+  auto range = r_key
+                   ? key_to_shards_.equal_range(r_key)
+                   : std::make_pair(key_to_shards_.end(), key_to_shards_.end());
+  auto kts_iter = (l_key != r_key) ? range.first : range.second;
+  auto current_shard = (--kts_iter)->second.first;
+  // We've already got a newer mapping.
+  if (unlikely(shard != current_shard)) {
+    return;
+  }
+
   auto latest_mapping =
       mapping_.run(&ShardingMapping::get_shards_in_range, l_key, r_key);
-  for (auto &[k, s] : latest_mapping) {
+
+  auto lm_iter = latest_mapping.begin();
+  for (; lm_iter->second != shard; ++lm_iter)
+    ;
+  for (++lm_iter; lm_iter != latest_mapping.end(); ++lm_iter) {
+    auto &[k, s] = *lm_iter;
     key_to_shards_.emplace(
         k, std::make_pair(s, std::vector<ContainerReq<Key, Val>>()));
   }
@@ -325,10 +341,9 @@ void ShardedDataStructure<Container, LL>::sync_mapping(
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::flush_and_sync_mapping() {
   flush();
-  auto latest_mapping =
-      mapping_.run(&ShardingMapping::get_shards_in_range, std::optional<Key>(),
-                   std::optional<Key>());
-  key_to_shards_.erase(++key_to_shards_.begin(), key_to_shards_.end());
+
+  auto latest_mapping = mapping_.run(&ShardingMapping::get_all_shards);
+  key_to_shards_.clear();
   for (auto &[k, s] : latest_mapping) {
     key_to_shards_.emplace(
         k, std::make_pair(s, std::vector<ContainerReq<Key, Val>>()));

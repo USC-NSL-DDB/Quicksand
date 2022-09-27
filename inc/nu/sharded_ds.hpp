@@ -100,7 +100,8 @@ class ShardedDataStructure {
   void set_shard_and_batch_size();
   bool flush_one_batch(KeyToShardsMapping::iterator iter);
   void handle_rejected_flush_batch(ReqBatch &batch);
-  void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key);
+  void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key,
+                    WeakProclet<Shard> shard);
   void flush_and_sync_mapping();
   std::pair<std::optional<Key>, std::optional<Key>> get_key_range(
       KeyToShardsMapping::iterator iter);

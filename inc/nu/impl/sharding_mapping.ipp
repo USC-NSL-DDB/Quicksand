@@ -58,12 +58,33 @@ std::vector<std::pair<std::optional<typename Shard::Key>, WeakProclet<Shard>>>
 GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
                                                    std::optional<Key> r_key) {
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
+  bool normal_range = (l_key != r_key);
 
   rw_lock_.reader_lock();
-  auto iter = mapping_.upper_bound(l_key);
-  while (iter != mapping_.end() && (!r_key || iter->first < r_key)) {
+  for (auto iter = mapping_.lower_bound(l_key); iter != mapping_.end();
+       ++iter) {
+    bool in_range =
+        r_key ? (normal_range ? iter->first < r_key : iter->first <= r_key)
+              : true;
+    if (!in_range) {
+      break;
+    }
+
     shards.emplace_back(iter->first, iter->second.get_weak());
-    iter++;
+  }
+  rw_lock_.reader_unlock();
+
+  return shards;
+}
+
+template <class Shard>
+std::vector<std::pair<std::optional<typename Shard::Key>, WeakProclet<Shard>>>
+GeneralShardingMapping<Shard>::get_all_shards() {
+  std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
+
+  rw_lock_.reader_lock();
+  for (auto &[k, s] : mapping_) {
+    shards.emplace_back(k, s.get_weak());
   }
   rw_lock_.reader_unlock();
 
