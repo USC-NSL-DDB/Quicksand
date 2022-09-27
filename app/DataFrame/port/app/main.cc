@@ -94,7 +94,7 @@ void calculate_trip_duration(StdDataFrame<uint64_t>& df)
     auto duration_vec = nu_make_sharded_vector<uint64_t>(sealed_pickup_time_vec.size());
     auto pickup_iter = sealed_pickup_time_vec.cbegin();
     auto dropoff_iter = sealed_dropoff_time_vec.cbegin();
-    for (; pickup_iter != sealed_pickup_time_vec.cend()l ++pickup_iter, ++dropoff_iter) {
+    for (; pickup_iter != sealed_pickup_time_vec.cend(); ++pickup_iter, ++dropoff_iter) {
         auto pickup_time_second  = pickup_iter->to_second();
         auto dropoff_time_second = dropoff_iter->to_second();
         duration_vec.push_back(dropoff_time_second - pickup_time_second);

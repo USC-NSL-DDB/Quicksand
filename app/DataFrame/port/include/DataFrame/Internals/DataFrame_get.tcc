@@ -710,23 +710,26 @@ DataFrame<I, H> DataFrame<I, H>::get_data_by_sel(const char* name, F& sel_functo
     auto name_iter         = sealed_named_vec.cbegin();
 
     for (; name_iter != sealed_named_vec.cend(); ++name_iter, ++idx_iter) {
-        if (sel_functor(*idx_iter, *name_iter)) {
+        bool selected;
+        if ((selected = sel_functor(*idx_iter, *name_iter))) {
             new_index.push_back(*idx_iter);
             new_name_vec.push_back(*name_iter);
-            std::apply(
-                [&](auto&... col_vec) {
-                    auto emplacer = [&](auto& col_vec) {
-                        for (auto& p : col_vec) {
-                            auto& iter       = std::get<3>(p);
+        }
+        std::apply(
+            [&](auto&... col_vec) {
+                auto emplacer = [&](auto& col_vec) {
+                    for (auto& p : col_vec) {
+                        auto& iter       = std::get<3>(p);
+                        if (selected) {
                             auto& new_nu_vec = std::get<4>(p);
                             new_nu_vec.push_back(*iter);
-                            ++iter;
                         }
-                    };
-                    ((emplacer(col_vec)), ...);
-                },
-                col_vecs);
-        }
+                        ++iter;
+                    }
+                };
+                ((emplacer(col_vec)), ...);
+            },
+            col_vecs);
     }
 
     DataFrame df;
