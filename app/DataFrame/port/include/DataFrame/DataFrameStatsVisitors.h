@@ -56,6 +56,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 #include <vector>
 
+#include <nu/sharded_set.hpp>
+#include <nu/sealed_ds.hpp>
+
 // ----------------------------------------------------------------------------
 
 namespace hmdf
@@ -2068,78 +2071,56 @@ using kthv_v = KthValueVisitor<T, I>;
 
 // ----------------------------------------------------------------------------
 
-template<typename T, typename I = unsigned long>
-struct MedianVisitor  {
-
+template <typename T, typename I = unsigned long>
+struct MedianVisitor {
     DEFINE_VISIT_BASIC_TYPES_2
 
-    template <typename K, typename H>
-    inline void
-    operator() (const K &idx_begin, const K &idx_end,
-                const H &column_begin, const H &column_end)  {
+    inline void operator()(const index_type& idx, const value_type& val)
+    {
+        size_++;
+        vals_.push_back(val);
+    }
 
-        GET_COL_SIZE
-        KthValueVisitor<value_type, index_type> kv_visitor (col_s >> 1);
+    inline void pre()
+    {
+        size_ = 0;
+    }
 
+    inline void post()
+    {
+        auto set         = nu::make_sharded_multi_set<value_type, std::false_type>();
+        auto sealed_vals = nu::to_sealed_ds(std::move(vals_));
+        for (auto& v : sealed_vals) {
+            set.insert(v);
+        }
 
-        kv_visitor.pre();
-        kv_visitor(idx_begin, idx_end, column_begin, column_end);
-        kv_visitor.post();
-        result_ = kv_visitor.get_result();
-        if (! (col_s & 0x0001))  { // even
-            KthValueVisitor<value_type, I>   kv_visitor2 ((col_s >> 1) + 1);
-
-            kv_visitor2.pre();
-            kv_visitor2(idx_begin, idx_end, column_begin, column_end);
-            kv_visitor2.post();
-            result_ = (result_ + kv_visitor2.get_result()) / value_type(2);
+        auto sealed_set = nu::to_sealed_ds(std::move(set));
+        int idx         = 0;
+        for (auto& v : sealed_set) {
+			if (idx == size_ / 2 - 1) {
+				result_ = v;
+			} else if (idx == size_ / 2 && size_ % 2 == 0) {
+				result_ = (result_ + v) / 2;
+			}
+            idx++;
         }
     }
 
-    inline void pre ()  { result_ = value_type(); }
-    inline void post ()  {   }
-    inline result_type get_result () const  { return (result_); }
+    inline result_type get_result() const
+    {
+        return (result_);
+    }
 
-    MedianVisitor () = default;
+    MedianVisitor() : vals_(nu_make_sharded_vector<value_type>()) {}
 
 private:
-
-    result_type result_ {  };
+    result_type result_{};
+    NuShardedVector<value_type> vals_;
+    size_t size_;
 };
 
 template<typename T, typename I = unsigned long>
 using med_v = MedianVisitor<T, I>;
-
-template<typename T, typename I = unsigned long>
-struct GroupbyMedianVisitor  {
-
-    DEFINE_VISIT_BASIC_TYPES_2
-
-    inline void operator()(const index_type& idx, const value_type& val) {
-        size_++;
-        vals_.push_back(val);
-    }
-    inline void pre() {
-        size_ = 0;
-        vals_.clear();
-    }
-    inline void post() {
-        if (size_ % 2) {
-            result_ = *vals_.find_val(size_ / 2);
-        } else {
-            result_ = (*vals_.find_val(size_ / 2 - 1) + *vals_.find_val(size_ / 2)) / 2;
-        }
-    }
-    inline result_type get_result() const{
-        return result_;
-    }
-    GroupbyMedianVisitor() : vals_(nu_make_sharded_vector<value_type>()) {}
-
-private:
-    result_type result_ {  };
-    NuShardedVector<value_type> vals_;
-    size_t size_;
-};
 
 // ----------------------------------------------------------------------------
 

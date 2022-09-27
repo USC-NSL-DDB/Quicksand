@@ -224,9 +224,9 @@ template <typename T_Key>
 void analyze_trip_durations_of_timestamps(StdDataFrame<uint64_t>& df, const char* key_col_name)
 {
     std::cout << "analyze_trip_durations_of_timestamps() on key = " << key_col_name << std::endl;
-    StdDataFrame<uint64_t> groupby_key = df.groupby1<T_Key>(
-        key_col_name, LastVisitor<uint64_t, uint64_t>(),
-        std::make_tuple("duration", "med_duration", GroupbyMedianVisitor<uint64_t>()));
+    StdDataFrame<uint64_t> groupby_key =
+        df.groupby1<T_Key>(key_col_name, LastVisitor<uint64_t, uint64_t>(),
+                           std::make_tuple("duration", "med_duration", MedianVisitor<uint64_t>()));
     auto& key_vec      = groupby_key.get_column<T_Key>(key_col_name);
     auto& duration_vec = groupby_key.get_column<uint64_t>("med_duration");
 

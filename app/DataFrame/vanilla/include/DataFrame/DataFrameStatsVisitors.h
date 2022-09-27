@@ -2086,7 +2086,6 @@ struct MedianVisitor  {
         GET_COL_SIZE
         KthValueVisitor<value_type, index_type> kv_visitor (col_s >> 1);
 
-
         kv_visitor.pre();
         kv_visitor(idx_begin, idx_end, column_begin, column_end);
         kv_visitor.post();
@@ -2125,37 +2124,6 @@ private:
 
 template<typename T, typename I = unsigned long>
 using med_v = MedianVisitor<T, I>;
-
-template<typename T, typename I = unsigned long>
-struct GroupbyMedianVisitor  {
-
-    DEFINE_VISIT_BASIC_TYPES_2
-
-    inline void operator()(const index_type& idx, const value_type& val) {
-        size_++;
-        vals_.push_back(val);
-    }
-    inline void pre() {
-        size_ = 0;
-        vals_.clear();
-    }
-    inline void post() {
-        if (size_ % 2) {
-            result_ = vals_[size_ / 2];
-        } else {
-            result_ = (vals_[size_ / 2 - 1] + vals_[size_ / 2]) / 2;
-        }
-    }
-    inline result_type get_result() const{
-        return result_;
-    }
-    GroupbyMedianVisitor() {}
-
-private:
-    result_type result_ {  };
-	std::vector<value_type> vals_;
-    size_t size_;
-};
 
 // ----------------------------------------------------------------------------
 
