@@ -202,8 +202,7 @@ void analyze_trip_timestamp(StdDataFrame<uint64_t>& df)
     df.load_column("pickup_month", std::move(pickup_month_vec), nan_policy::dont_pad_with_nans);
 
     std::cout << "Print top 10 rows." << std::endl;
-    auto top_10_df = df.get_data_by_idx<int, SimpleTime, double, char>(
-        Index2D<StdDataFrame<uint64_t>::IndexType>{0, 9});
+    auto top_10_df = df.get_data_by_loc<int, SimpleTime, double, char>(Index2D<long>{0, 9});
     top_10_df.write<std::ostream, int, SimpleTime, double, char>(std::cout, io_format::json);
     std::cout << std::endl;
 
