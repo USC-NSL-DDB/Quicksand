@@ -159,15 +159,15 @@ void calculate_haversine_distance_column(StdDataFrame<uint64_t>& df)
     assert(sealed_pickup_longitude_vec.size() == sealed_dropoff_latitude_vec.size());
     auto haversine_distance_vec =
         nu_make_sharded_vector<double>(sealed_pickup_longitude_vec.size());
-    auto pickup_longitude_iter  = sealed_pickup_latitude_vec.cbegin();
-    auto pickup_latitude_iter = sealed_pickup_longitude_vec.cbegin();
+    auto pickup_longitude_iter  = sealed_pickup_longitude_vec.cbegin();
+    auto pickup_latitude_iter = sealed_pickup_latitude_vec.cbegin();
     auto dropoff_longitude_iter = sealed_dropoff_longitude_vec.cbegin();
     auto dropoff_latitude_iter = sealed_dropoff_latitude_vec.cbegin();
     for (; pickup_longitude_iter != sealed_pickup_longitude_vec.cend();
          ++pickup_longitude_iter, ++pickup_latitude_iter, ++dropoff_longitude_iter,
          ++dropoff_latitude_iter) {
         haversine_distance_vec.emplace_back(haversine(*pickup_latitude_iter, *pickup_longitude_iter,
-                                                      *dropoff_longitude_iter,
+                                                      *dropoff_latitude_iter,
                                                       *dropoff_longitude_iter));
     }
     pickup_longitude_vec = nu::to_unsealed_ds(std::move(sealed_pickup_longitude_vec));
