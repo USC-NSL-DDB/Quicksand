@@ -3,10 +3,10 @@
 #include <functional>
 #include <iostream>
 
-#include "bench/utils/time.hpp"
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sharded_unordered_map.hpp"
+#include "utils.hpp"
 
 constexpr uint32_t kRunTimes = 1;
 
@@ -15,7 +15,7 @@ void bench_insert_ints() {
   {
     auto m = nu::make_sharded_unordered_map<int, int, std::false_type>();
 
-    auto insertion_time = bench::time([&] {
+    auto insertion_time = time([&] {
       for (int i = 0; i < num_pairs; i++) {
         m.emplace(i, i);
       }
@@ -30,7 +30,7 @@ void bench_insert_ints() {
     nu::RuntimeSlabGuard slab;
     std::unordered_map<int, int> m;
 
-    auto insertion_time = bench::time([&] {
+    auto insertion_time = time([&] {
       for (int i = 0; i < num_pairs; i++) {
         m[i] = i;
       }
