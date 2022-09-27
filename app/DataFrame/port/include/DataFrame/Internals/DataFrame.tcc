@@ -1197,7 +1197,7 @@ groupby1(const char *col_name, I_V &&idx_visitor, Ts&& ... args) const  {
             std::apply(
                 [&](auto&... col) { ((col->push_back(std::get<2>(args).get_result())), ...); },
                 dst_cols);
-            if (dst_key) dst_key->push_back(k);
+            if (dst_key) dst_key->push_back(marker);
             marker = k;
             idx_visitor.pre();
             ((std::get<2>(args).pre()), ...);
