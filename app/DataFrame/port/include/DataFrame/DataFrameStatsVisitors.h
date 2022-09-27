@@ -2084,6 +2084,7 @@ struct MedianVisitor {
     inline void pre()
     {
         size_ = 0;
+        vals_.clear();
     }
 
     inline void post()
@@ -2104,6 +2105,7 @@ struct MedianVisitor {
 			}
             idx++;
         }
+        vals_ = nu::to_unsealed_ds(std::move(sealed_vals));
     }
 
     inline result_type get_result() const
