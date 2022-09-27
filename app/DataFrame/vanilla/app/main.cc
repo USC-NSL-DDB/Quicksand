@@ -10,14 +10,13 @@
 #include <tuple>
 
 #include <nu/runtime.hpp>
-#include <cereal/types/string.hpp>
 
 #include <DataFrame/DataFrame.h>
 
 using namespace hmdf;
 
-// // Download dataset at https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page.
-// // The following code is implemented based on the format of 2016 datasets.
+// Download dataset at https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page.
+// The following code is implemented based on the format of 2016 datasets.
 
 static double haversine(double lat1, double lon1, double lat2, double lon2)
 {
@@ -69,12 +68,10 @@ void print_passage_counts_by_vendor_id(StdDataFrame<uint64_t>& df, int vendor_id
         df.get_data_by_sel<int, decltype(sel_vendor_functor), int, SimpleTime, double, char>(
             "VendorID", sel_vendor_functor);
     auto& passage_count_vec = sel_df.get_column<int>("passenger_count");
-    auto sealed_passage_count_vec = nu::to_sealed_ds(std::move(passage_count_vec));
     std::map<int, int> passage_count_map;
-    for (auto passage_count : sealed_passage_count_vec) {
+    for (auto passage_count : passage_count_vec) {
         passage_count_map[passage_count]++;
     }
-    passage_count_vec = nu::to_unsealed_ds(std::move(sealed_passage_count_vec));
     for (auto& [passage_count, cnt] : passage_count_map) {
         std::cout << "passage_count= " << passage_count << ", cnt = " << cnt << std::endl;
     }
@@ -86,23 +83,15 @@ void calculate_trip_duration(StdDataFrame<uint64_t>& df)
     std::cout << "calculate_trip_duration()" << std::endl;
 
     auto& pickup_time_vec  = df.get_column<SimpleTime>("tpep_pickup_datetime");
-    auto sealed_pickup_time_vec = nu::to_sealed_ds(std::move(pickup_time_vec));
     auto& dropoff_time_vec = df.get_column<SimpleTime>("tpep_dropoff_datetime");
-    auto sealed_dropoff_time_vec = nu::to_sealed_ds(std::move(dropoff_time_vec));
-    assert(sealed_pickup_time_vec.size() == sealed_dropoff_time_vec.size());
+    assert(pickup_time_vec.size() == dropoff_time_vec.size());
 
-    auto duration_vec = nu_make_sharded_vector<uint64_t>(sealed_pickup_time_vec.size());
-    auto pickup_iter = sealed_pickup_time_vec.cbegin();
-    auto dropoff_iter = sealed_dropoff_time_vec.cbegin();
-    for (uint64_t i = 0; i < sealed_pickup_time_vec.size(); i++) {
-        auto pickup_time_second  = pickup_iter->to_second();
-        ++pickup_iter;
-        auto dropoff_time_second = dropoff_iter->to_second();
-        ++dropoff_iter;
+    std::vector<uint64_t> duration_vec;
+    for (uint64_t i = 0; i < pickup_time_vec.size(); i++) {
+        auto pickup_time_second  = pickup_time_vec[i].to_second();
+        auto dropoff_time_second = dropoff_time_vec[i].to_second();
         duration_vec.push_back(dropoff_time_second - pickup_time_second);
     }
-    pickup_time_vec = nu::to_unsealed_ds(std::move(sealed_pickup_time_vec));
-    dropoff_time_vec = nu::to_unsealed_ds(std::move(sealed_dropoff_time_vec));
     df.load_column("duration", std::move(duration_vec), nan_policy::dont_pad_with_nans);
     MaxVisitor<uint64_t> max_visitor;
     MinVisitor<uint64_t> min_visitor;
@@ -134,9 +123,9 @@ void calculate_distribution_store_and_fwd_flag(StdDataFrame<uint64_t>& df)
     auto Y_df =
         df.get_data_by_sel<char, decltype(sel_Y_saff_functor), int, SimpleTime, double, char>(
             "store_and_fwd_flag", sel_Y_saff_functor);
-    auto sealed_unique_vendor_id_vec = nu::to_sealed_ds(Y_df.get_col_unique_values<int>("VendorID"));
+    auto unique_vendor_id_vec = Y_df.get_col_unique_values<int>("VendorID");
     std::cout << '{';
-    for (auto& vector_id : sealed_unique_vendor_id_vec) {
+    for (auto& vector_id : unique_vendor_id_vec) {
         std::cout << vector_id << ", ";
     }
     std::cout << '}' << std::endl;
@@ -148,36 +137,19 @@ void calculate_haversine_distance_column(StdDataFrame<uint64_t>& df)
 {
     std::cout << "calculate_haversine_distance_column()" << std::endl;
 
-    auto& pickup_longitude_vec        = df.get_column<double>("pickup_longitude");
-    auto sealed_pickup_longitude_vec  = nu::to_sealed_ds(std::move(pickup_longitude_vec));
-    auto& pickup_latitude_vec         = df.get_column<double>("pickup_latitude");
-    auto sealed_pickup_latitude_vec   = nu::to_sealed_ds(std::move(pickup_latitude_vec));
-    auto& dropoff_longitude_vec       = df.get_column<double>("dropoff_longitude");
-    auto sealed_dropoff_longitude_vec = nu::to_sealed_ds(std::move(dropoff_longitude_vec));
-    auto& dropoff_latitude_vec        = df.get_column<double>("dropoff_latitude");
-    auto sealed_dropoff_latitude_vec  = nu::to_sealed_ds(std::move(dropoff_latitude_vec));
-    assert(sealed_pickup_longitude_vec.size() == sealed_pickup_latitude_vec.size());
-    assert(sealed_pickup_longitude_vec.size() == sealed_dropoff_longitude_vec.size());
-    assert(sealed_pickup_longitude_vec.size() == sealed_dropoff_latitude_vec.size());
-    auto haversine_distance_vec =
-        nu_make_sharded_vector<double>(sealed_pickup_longitude_vec.size());
-    auto pickup_latitude_iter = sealed_pickup_longitude_vec.cbegin();
-    auto pickup_longitude_iter = sealed_pickup_latitude_vec.cbegin();
-    auto dropoff_longitude_iter = sealed_dropoff_longitude_vec.cbegin();
-    auto dropoff_latitude_iter = sealed_dropoff_latitude_vec.cbegin();
-    for (uint64_t i = 0; i < sealed_pickup_longitude_vec.size(); i++) {
-        haversine_distance_vec.emplace_back(haversine(*pickup_latitude_iter, *pickup_longitude_iter,
-                                                   *dropoff_longitude_iter,
-                                                   *dropoff_longitude_iter));
-        ++pickup_latitude_iter;
-	++pickup_longitude_iter;
-	++dropoff_longitude_iter;
-	++dropoff_latitude_iter;
+    auto& pickup_longitude_vec  = df.get_column<double>("pickup_longitude");
+    auto& pickup_latitude_vec   = df.get_column<double>("pickup_latitude");
+    auto& dropoff_longitude_vec = df.get_column<double>("dropoff_longitude");
+    auto& dropoff_latitude_vec  = df.get_column<double>("dropoff_latitude");
+    assert(pickup_longitude_vec.size() == pickup_latitude_vec.size());
+    assert(pickup_longitude_vec.size() == dropoff_longitude_vec.size());
+    assert(pickup_longitude_vec.size() == dropoff_latitude_vec.size());
+    std::vector<double> haversine_distance_vec;
+    for (uint64_t i = 0; i < pickup_longitude_vec.size(); i++) {
+        haversine_distance_vec.push_back(haversine(pickup_latitude_vec[i], pickup_longitude_vec[i],
+                                                   dropoff_latitude_vec[i],
+                                                   dropoff_longitude_vec[i]));
     }
-    pickup_longitude_vec = nu::to_unsealed_ds(std::move(sealed_pickup_longitude_vec));
-    pickup_latitude_vec = nu::to_unsealed_ds(std::move(sealed_pickup_latitude_vec));
-    dropoff_longitude_vec = nu::to_unsealed_ds(std::move(sealed_dropoff_longitude_vec));
-    dropoff_latitude_vec = nu::to_unsealed_ds(std::move(sealed_dropoff_latitude_vec));
     df.load_column("haversine_distance", std::move(haversine_distance_vec),
                    nan_policy::dont_pad_with_nans);
     auto sel_functor = [&](const uint64_t&, const double& dist) -> bool { return dist > 100; };
@@ -201,30 +173,37 @@ void analyze_trip_timestamp(StdDataFrame<uint64_t>& df)
     std::cout << min_visitor.get_result() << std::endl;
 
     auto& pickup_time_vec = df.get_column<SimpleTime>("tpep_pickup_datetime");
-    auto sealed_pickup_time_vec = nu::to_sealed_ds(std::move(pickup_time_vec));
-
-    auto pickup_hour_vec  = nu_make_sharded_vector<char>(sealed_pickup_time_vec.size());
-    auto pickup_day_vec   = nu_make_sharded_vector<char>(sealed_pickup_time_vec.size());
-    auto pickup_month_vec = nu_make_sharded_vector<char>(sealed_pickup_time_vec.size());
+    std::vector<char> pickup_hour_vec;
+    std::vector<char> pickup_day_vec;
+    std::vector<char> pickup_month_vec;
     std::map<char, int> pickup_hour_map;
     std::map<char, int> pickup_day_map;
     std::map<char, int> pickup_month_map;
+    pickup_hour_vec.resize(pickup_time_vec.size());
+    pickup_day_vec.resize(pickup_time_vec.size());
+    pickup_month_vec.resize(pickup_time_vec.size());
+    auto hour_it  = pickup_hour_vec.begin();
+    auto day_it   = pickup_day_vec.begin();
+    auto month_it = pickup_month_vec.begin();
+    auto time_it  = pickup_time_vec.cbegin();
 
-    for (const auto &time : sealed_pickup_time_vec) {
+    for (uint64_t i = 0; i < pickup_time_vec.size();
+         ++i, ++hour_it, ++day_it, ++month_it, ++time_it) {
+        auto time = *time_it;
         pickup_hour_map[time.hour_]++;
-        pickup_hour_vec.push_back(time.hour_);
+        *hour_it = time.hour_;
         pickup_day_map[time.day_]++;
-        pickup_day_vec.push_back(time.day_);
+        *day_it = time.day_;
         pickup_month_map[time.month_]++;
-        pickup_month_vec.push_back(time.month_);
+        *month_it = time.month_;
     }
-    pickup_time_vec = nu::to_unsealed_ds(std::move(sealed_pickup_time_vec));
     df.load_column("pickup_hour", std::move(pickup_hour_vec), nan_policy::dont_pad_with_nans);
     df.load_column("pickup_day", std::move(pickup_day_vec), nan_policy::dont_pad_with_nans);
     df.load_column("pickup_month", std::move(pickup_month_vec), nan_policy::dont_pad_with_nans);
 
     std::cout << "Print top 10 rows." << std::endl;
-    auto top_10_df = df.get_data_by_loc<int, SimpleTime, double, char>(Index2D<long>{0, 9});
+    auto top_10_df = df.get_data_by_idx<int, SimpleTime, double, char>(
+        Index2D<StdDataFrame<uint64_t>::IndexType>{0, 9});
     top_10_df.write<std::ostream, int, SimpleTime, double, char>(std::cout, io_format::json);
     std::cout << std::endl;
 
@@ -251,17 +230,10 @@ void analyze_trip_durations_of_timestamps(StdDataFrame<uint64_t>& df, const char
         std::make_tuple("duration", "med_duration", GroupbyMedianVisitor<uint64_t>()));
     auto& key_vec      = groupby_key.get_column<T_Key>(key_col_name);
     auto& duration_vec = groupby_key.get_column<uint64_t>("med_duration");
-    auto sealed_key_vec = nu::to_sealed_ds(std::move(key_vec));
-    auto sealed_duration_vec = nu::to_sealed_ds(std::move(duration_vec));
 
-    auto iter_key = sealed_key_vec.cbegin();
-    auto iter_duration = sealed_duration_vec.cbegin();
-    for (; iter_key != sealed_key_vec.cend(); ++iter_key, ++iter_duration) {
-        std::cout << static_cast<int>(*iter_key) << " " << *iter_duration << std::endl;
+    for (uint64_t i = 0; i < key_vec.size(); i++) {
+        std::cout << static_cast<int>(key_vec[i]) << " " << duration_vec[i] << std::endl;
     }
-
-    key_vec      = nu::to_unsealed_ds(std::move(sealed_key_vec));
-    duration_vec = nu::to_unsealed_ds(std::move(sealed_duration_vec));
 
     std::cout << std::endl;
 }

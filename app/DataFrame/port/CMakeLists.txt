@@ -41,11 +41,11 @@ add_definitions(-DNCORES=${N})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-subobject-linkage")
 
 # Include Nu
-set(NU_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+set(NU_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
 include_directories(${NU_ROOT}/inc)
 
 # Include Caladan
-set(CALADAN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../caladan)
+set(CALADAN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../caladan)
 include_directories(${CALADAN_ROOT}/inc)
 include_directories(${CALADAN_ROOT}/bindings/cc)
 
