@@ -301,13 +301,15 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 
   if (caller_proclet_header) {
     auto callee_proclet_header = to_proclet_header(id_);
-    void *caller_slab = nullptr;
+    bool fast_path = false;
+    void *caller_slab;
     using StatesTuple = std::tuple<std::decay_t<S1s>...>;
     std::optional<StatesTuple> copied_states;
 
     {
       NonBlockingMigrationDisabledGuard callee_guard(callee_proclet_header);
       if (callee_guard) {
+        fast_path = true;
         caller_slab = Runtime::switch_slab(&callee_proclet_header->slab);
         thread_set_owner_proclet(thread_self(), callee_proclet_header);
         // Do copy for the most cases and only do move when we are sure it's
@@ -316,7 +318,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
       }
     }
 
-    if (caller_slab) {
+    if (fast_path) {
       // Fast path: the callee proclet is actually local, use function call.
       if constexpr (!std::is_same<RetT, void>::value) {
         RetT ret;
