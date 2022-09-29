@@ -75,7 +75,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   for (std::size_t i = 0; i < shard_futures.size(); i++) {
     auto &weak_shard = shard_futures[i].get();
     auto &key = keys[i];
-    key_to_shards_.emplace(key, ShardAndData{weak_shard});
+    key_to_shards_.emplace(key, ShardAndReqs{weak_shard});
   }
 }
 
@@ -174,10 +174,9 @@ template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
 [[maybe_unused]] retry :
-  // rbegin() is O(1) which is much faster than the O(logn) of --end().
-  auto iter = key_to_shards_.rbegin();
-
   if constexpr (LL::value) {
+    // rbegin() is O(1) which is much faster than the O(logn) of --end().
+    auto iter = key_to_shards_.rbegin();
     auto l_key = iter->first;
     auto r_key = std::optional<Key>();
     auto shard = iter->second.shard;
@@ -188,10 +187,9 @@ void ShardedDataStructure<Container, LL>::emplace_back(
       goto retry;
     }
   } else {
-    auto &reqs = iter->second.emplace_back_reqs;
-    reqs.emplace_back(std::move(v));
+    emplace_back_reqs_.emplace_back(std::move(v));
 
-    if (unlikely(reqs.size() >= max_batch_size_)) {
+    if (unlikely(emplace_back_reqs_.size() >= max_batch_size_)) {
       auto iter = --key_to_shards_.end();
       flush_one_batch(iter);
     }
@@ -237,14 +235,9 @@ ShardedDataStructure<Container, LL>::get_key_range(
 }
 
 template <class Container, class LL>
-bool ShardedDataStructure<Container, LL>::ShardAndData::empty() const {
-  return emplace_back_reqs.empty() && emplace_reqs.empty();
-}
-
-template <class Container, class LL>
 template <class Archive>
-void ShardedDataStructure<Container, LL>::ShardAndData::serialize(Archive &ar) {
-  ar(shard, emplace_back_reqs, emplace_reqs);
+void ShardedDataStructure<Container, LL>::ShardAndReqs::serialize(Archive &ar) {
+  ar(shard, emplace_reqs);
 }
 
 template <class Container, class LL>
@@ -252,11 +245,14 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
     KeyToShardsMapping::iterator iter) {
   ReqBatch batch;
 
-  auto &shard_and_data = iter->second;
-  batch.shard_and_data = std::move(shard_and_data);
-  shard_and_data.shard = batch.shard_and_data.shard;
-  shard_and_data.emplace_back_reqs.clear();
-  shard_and_data.emplace_reqs.clear();
+  auto &shard_and_reqs = iter->second;
+  batch.shard = shard_and_reqs.shard;
+  if (iter == --key_to_shards_.end()) {
+    batch.emplace_back_reqs = std::move(emplace_back_reqs_);
+    emplace_back_reqs_.clear();
+  }
+  batch.emplace_reqs = std::move(shard_and_reqs.emplace_reqs);
+  shard_and_reqs.emplace_reqs.clear();
   std::tie(batch.l_key, batch.r_key) = get_key_range(iter);
 
   bool last_batch_succeed = true;
@@ -265,16 +261,11 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
     rejected_batch = std::move(flush_future_.get());
   }
 
-  if (!batch.shard_and_data.empty()) {
+  if (!batch.emplace_back_reqs.empty() || !batch.emplace_reqs.empty()) {
     flush_future_ = nu::async([batch = std::move(batch)]() mutable {
-      auto &l_key = batch.l_key;
-      auto &r_key = batch.r_key;
-      auto &shard_and_data = batch.shard_and_data;
-      auto &shard = shard_and_data.shard;
-      auto &emplace_back_reqs = shard_and_data.emplace_back_reqs;
-      auto &emplace_reqs = shard_and_data.emplace_reqs;
-      bool success = shard.run(&Shard::try_handle_batch, l_key, r_key,
-                               emplace_back_reqs, emplace_reqs);
+      bool success =
+          batch.shard.run(&Shard::try_handle_batch, batch.l_key, batch.r_key,
+                          batch.emplace_back_reqs, batch.emplace_reqs);
       return success ? std::optional<ReqBatch>() : batch;
     });
   } else {
@@ -291,14 +282,14 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::handle_rejected_flush_batch(
     ReqBatch &batch) {
-  sync_mapping(batch.l_key, batch.r_key, batch.shard_and_data.shard);
+  sync_mapping(batch.l_key, batch.r_key, batch.shard);
 
-  for (auto &req : batch.shard_and_data.emplace_back_reqs) {
+  for (auto &req : batch.emplace_back_reqs) {
     if constexpr (EmplaceBackAble<Container>) {
       emplace_back(std::move(req));
     }
   }
-  for (auto &req : batch.shard_and_data.emplace_reqs) {
+  for (auto &req : batch.emplace_reqs) {
     emplace(std::move(req));
   }
 }
@@ -310,10 +301,7 @@ void ShardedDataStructure<Container, LL>::flush() {
     bool succeed = true;
     for (auto iter = key_to_shards_.begin(); iter != key_to_shards_.end();
          iter++) {
-      auto &shard_and_data = iter->second;
-      if (!shard_and_data.empty()) {
-        succeed &= flush_one_batch(iter);
-      }
+      succeed &= flush_one_batch(iter);
     }
     if (!key_to_shards_.empty()) {
       succeed &= flush_one_batch(key_to_shards_.begin());
@@ -347,7 +335,7 @@ void ShardedDataStructure<Container, LL>::sync_mapping(
     ;
   for (++lm_iter; lm_iter != latest_mapping.end(); ++lm_iter) {
     auto &[k, s] = *lm_iter;
-    key_to_shards_.emplace(k, ShardAndData{s});
+    key_to_shards_.emplace(k, ShardAndReqs{s});
   }
 }
 
@@ -358,7 +346,7 @@ void ShardedDataStructure<Container, LL>::flush_and_sync_mapping() {
   auto latest_mapping = mapping_.run(&ShardingMapping::get_all_shards);
   key_to_shards_.clear();
   for (auto &[k, s] : latest_mapping) {
-    key_to_shards_.emplace(k, ShardAndData{s});
+    key_to_shards_.emplace(k, ShardAndReqs{s});
   }
 }
 
@@ -372,8 +360,8 @@ void ShardedDataStructure<Container, LL>::for_all(void (*fn)(const Key &key,
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
   std::vector<Future<void>> futures;
-  for (auto &[_, shard_and_data] : key_to_shards_) {
-    futures.emplace_back(shard_and_data.shard.run_async(
+  for (auto &[_, shard_and_reqs] : key_to_shards_) {
+    futures.emplace_back(shard_and_reqs.shard.run_async(
         +[](Shard &shard, uintptr_t raw_fn, S1s... states) {
           auto *fn = reinterpret_cast<Fn>(raw_fn);
           auto container_ptr = shard.get_container_handle();
@@ -388,9 +376,9 @@ Container ShardedDataStructure<Container, LL>::collect() {
   flush_and_sync_mapping();
 
   std::vector<Future<Container>> futures;
-  for (auto &[_, shard_and_data] : key_to_shards_) {
+  for (auto &[_, shard_and_reqs] : key_to_shards_) {
     futures.emplace_back(
-        shard_and_data.shard.run_async(&Shard::get_container_copy));
+        shard_and_reqs.shard.run_async(&Shard::get_container_copy));
   }
 
   std::size_t size = 0;
@@ -411,8 +399,8 @@ std::size_t ShardedDataStructure<Container, LL>::__size() {
   flush_and_sync_mapping();
 
   std::vector<Future<std::size_t>> futures;
-  for (auto &[_, shard_and_data] : key_to_shards_) {
-    futures.emplace_back(shard_and_data.shard.run_async(
+  for (auto &[_, shard_and_reqs] : key_to_shards_) {
+    futures.emplace_back(shard_and_reqs.shard.run_async(
         +[](Shard &s) { return s.get_container_handle()->size(); }));
   }
 
@@ -439,8 +427,8 @@ void ShardedDataStructure<Container, LL>::clear() {
   flush_and_sync_mapping();
 
   std::vector<Future<void>> futures;
-  for (auto &[_, shard_and_data] : key_to_shards_) {
-    futures.emplace_back(shard_and_data.shard.run_async(
+  for (auto &[_, shard_and_reqs] : key_to_shards_) {
+    futures.emplace_back(shard_and_reqs.shard.run_async(
         +[](Shard &s) { s.get_container_handle()->clear(); }));
   }
 
@@ -478,8 +466,8 @@ ShardedDataStructure<Container, LL>::get_all_non_empty_shards() {
 
   all_shards.reserve(key_to_shards_.size());
   shards_emptinesses.reserve(key_to_shards_.size());
-  for (auto &[k, shard_and_data] : key_to_shards_) {
-    auto &shard = shard_and_data.shard;
+  for (auto &[k, shard_and_reqs] : key_to_shards_) {
+    auto &shard = shard_and_reqs.shard;
     all_keys.emplace_back(k);
     all_shards.emplace_back(shard);
     shards_emptinesses.emplace_back(shard.run_async(&Shard::empty));
