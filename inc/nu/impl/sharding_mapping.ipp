@@ -103,9 +103,11 @@ GeneralShardingMapping<Shard>::get_shard_for_key(std::optional<Key> key) {
 
 template <class Shard>
 void GeneralShardingMapping<Shard>::reserve_new_shard() {
+  mutex_.lock();
   auto new_shard = make_proclet_with_capacity<Shard>(proclet_capacity_, self_,
                                                      max_shard_size_);
   reserved_shards_.emplace(std::move(new_shard));
+  mutex_.unlock();
 }
 
 template <class Shard>
