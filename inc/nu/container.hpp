@@ -52,18 +52,6 @@ using GeneralContainer = GeneralContainerBase<Impl, std::false_type>;
 template <class Impl>
 using GeneralLockedContainer = GeneralContainerBase<Impl, std::true_type>;
 
-enum ContainerReqType { Emplace = 0, EmplaceBack };
-
-template <typename Key, typename Val>
-struct ContainerReq {
-  ContainerReqType type;
-  Key k;
-  Val v;
-
-  template <class Archive>
-  void serialize(Archive &ar);
-};
-
 template <class Impl, BoolIntegral Synchronized>
 class GeneralContainerBase {
  public:
@@ -163,7 +151,8 @@ class GeneralContainerBase {
   void load(Archive &ar) {
     impl_.load(ar);
   }
-  void handle_batch(std::vector<ContainerReq<Key, Val>> reqs);
+  void emplace_batch(std::vector<std::pair<Key, Val>> reqs);
+  void emplace_back_batch(std::vector<Val> reqs);
 
  private:
   Impl impl_;

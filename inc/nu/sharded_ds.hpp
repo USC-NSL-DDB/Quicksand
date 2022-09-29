@@ -76,14 +76,20 @@ class ShardedDataStructure {
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
 
-  using KeyToShardsMapping = std::multimap<
-      std::optional<Key>,
-      std::pair<WeakProclet<Shard>, std::vector<ContainerReq<Key, Val>>>>;
+  struct ShardAndData {
+    WeakProclet<Shard> shard;
+    std::vector<Val> emplace_back_reqs;
+    std::vector<std::pair<Key, Val>> emplace_reqs;
+
+    bool empty() const;
+    template <class Archive>
+    void serialize(Archive &ar);
+  };
+  using KeyToShardsMapping = std::multimap<std::optional<Key>, ShardAndData>;
   struct ReqBatch {
     std::optional<Key> l_key;
     std::optional<Key> r_key;
-    WeakProclet<Shard> shard;
-    std::vector<ContainerReq<Key, Val>> reqs;
+    ShardAndData shard_and_data;
   };
 
   Proclet<ShardingMapping> mapping_;

@@ -65,7 +65,8 @@ class GeneralShard {
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
   bool try_handle_batch(std::optional<Key> l_key, std::optional<Key> r_key,
-                        std::vector<ContainerReq<Key, Val>> reqs);
+                        std::vector<Val> emplace_back_reqs,
+                        std::vector<std::pair<Key, Val>> emplace_reqs);
   std::pair<bool, std::optional<IterVal>> find_val(
       Key k) requires Findable<Container>;
   std::tuple<bool, Val, ConstIterator> find(Key k) requires Findable<Container>;

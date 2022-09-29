@@ -3,12 +3,6 @@
 
 namespace nu {
 
-template <typename Key, typename Val>
-template <class Archive>
-void ContainerReq<Key, Val>::serialize(Archive &ar) {
-  ar(type, k, v);
-}
-
 template <class Impl, class Synchronized>
 template <typename RetT, typename F>
 RetT GeneralContainerBase<Impl, Synchronized>::synchronized(F &&f) {
@@ -21,18 +15,22 @@ RetT GeneralContainerBase<Impl, Synchronized>::synchronized(F &&f) {
 }
 
 template <class Impl, class Synchronized>
-void GeneralContainerBase<Impl, Synchronized>::handle_batch(
-    std::vector<ContainerReq<Key, Val>> reqs) {
+void GeneralContainerBase<Impl, Synchronized>::emplace_batch(
+    std::vector<std::pair<Key, Val>> reqs) {
   synchronized<void>([&]() {
     for (auto &req : reqs) {
-      if (req.type == Emplace) {
-        impl_.emplace(std::move(req.k), std::move(req.v));
-      } else if (req.type == EmplaceBack) {
-        if constexpr (EmplaceBackAble<Impl>) {
-          impl_.emplace_back(std::move(req.v));
-        }
-      } else {
-        BUG();
+      impl_.emplace(std::move(req.first), std::move(req.second));
+    }
+  });
+}
+
+template <class Impl, class Synchronized>
+void GeneralContainerBase<Impl, Synchronized>::emplace_back_batch(
+    std::vector<Val> reqs) {
+  synchronized<void>([&]() {
+    for (auto &req : reqs) {
+      if constexpr (EmplaceBackAble<Impl>) {
+        impl_.emplace_back(std::move(req));
       }
     }
   });

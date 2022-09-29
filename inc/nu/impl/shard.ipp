@@ -177,7 +177,8 @@ bool GeneralShard<Container>::try_emplace_back(
 template <class Container>
 bool GeneralShard<Container>::try_handle_batch(
     std::optional<Key> l_key, std::optional<Key> r_key,
-    std::vector<ContainerReq<Key, Val>> reqs) {
+    std::vector<Val> emplace_back_reqs,
+    std::vector<std::pair<Key, Val>> emplace_reqs) {
   rw_lock_.reader_lock();
 
   if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
@@ -185,7 +186,8 @@ bool GeneralShard<Container>::try_handle_batch(
     return false;
   }
 
-  container_.handle_batch(std::move(reqs));
+  container_.emplace_back_batch(std::move(emplace_back_reqs));
+  container_.emplace_batch(std::move(emplace_reqs));
   if (unlikely(container_.size() > max_shard_size_)) {
     rw_lock_.reader_unlock();
     rw_lock_.writer_lock();
