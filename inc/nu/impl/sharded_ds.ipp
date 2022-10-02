@@ -112,6 +112,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       max_shard_size_(o.max_shard_size_),
       max_batch_size_(o.max_batch_size_),
       key_to_shards_(std::move(o.key_to_shards_)),
+      emplace_back_reqs_(std::move(o.emplace_back_reqs_)),
       flush_futures_(std::move(o.flush_futures_)) {}
 
 template <class Container, class LL>
@@ -124,6 +125,7 @@ ShardedDataStructure<Container, LL>
   max_shard_size_ = o.max_shard_size_;
   max_batch_size_ = o.max_batch_size_;
   key_to_shards_ = std::move(o.key_to_shards_);
+  emplace_back_reqs_ = std::move(o.emplace_back_reqs_);
   flush_futures_ = std::move(o.flush_futures_);
   return *this;
 }
