@@ -71,7 +71,7 @@ class GeneralShard {
                std::size_t capacity);
   ~GeneralShard();
   void set_range_and_data(std::optional<Key> l_key, std::optional<Key> r_key,
-                          Container container);
+                          Container container, uint32_t max_shard_size);
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;

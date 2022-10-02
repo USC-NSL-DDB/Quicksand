@@ -85,10 +85,14 @@ GeneralShard<Container>::~GeneralShard() {
 template <class Container>
 void GeneralShard<Container>::set_range_and_data(std::optional<Key> l_key,
                                                  std::optional<Key> r_key,
-                                                 Container container) {
+                                                 Container container,
+                                                 uint32_t max_shard_size) {
   l_key_ = l_key;
   r_key_ = r_key;
-  container_.merge(std::move(container));
+  container_ = std::move(container);
+  if constexpr (Reservable<Container>) {
+    container_.reserve(max_shard_size);
+  }
 }
 
 template <class Container>
@@ -116,9 +120,9 @@ void GeneralShard<Container>::split() {
   max_shard_size_ =
       std::max(max_shard_size_, static_cast<uint32_t>(container_.size()));
   auto new_shard = mapping_.run(&ShardingMapping::create_new_shard, mid_k,
-                                r_key_, max_shard_size_);
+                                r_key_, 0);
   new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
-                latter_half_container);
+                latter_half_container, max_shard_size_);
   r_key_ = mid_k;
 }
 
@@ -245,7 +249,7 @@ GeneralShard<Container>::try_handle_batch(ReqBatch batch, uint32_t seq,
   }
 
   if (drain) {
-    auto optional_batches = rob_executor->wait_all();
+    auto optional_batches = rob_executor->wait_all(seq + 1);
     for (auto &optional_batch : optional_batches) {
       if (optional_batch) {
         rejected_batches.emplace_back(std::move(*optional_batch));

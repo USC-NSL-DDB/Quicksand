@@ -289,13 +289,17 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
 
   auto pop_flush_futures = [&] {
     auto &batches = flush_futures_.front().get();
-    rejected_batches.insert(rejected_batches.end(),
-                            std::make_move_iterator(batches.begin()),
-                            std::make_move_iterator(batches.end()));
+    if (!batches.empty()) {
+      drain = true;
+      rejected_batches.insert(rejected_batches.end(),
+                              std::make_move_iterator(batches.begin()),
+                              std::make_move_iterator(batches.end()));
+    }
     flush_futures_.pop();
   };
 
-  if (flush_futures_.size() == kMaxNumInflightFlushes) {
+  while (flush_futures_.size() == kMaxNumInflightFlushes ||
+         (drain && !flush_futures_.empty())) {
     pop_flush_futures();
   }
 
@@ -303,7 +307,7 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
       &Shard::try_handle_batch, std::move(batch), shard_and_reqs.seq++,
       shard_and_reqs.flush_executor_addr, drain));
 
-  while (drain && !flush_futures_.empty()) {
+  if (drain) {
     pop_flush_futures();
   }
 
