@@ -86,7 +86,7 @@ std::size_t Vector<T>::size() const {
 
 template <typename T>
 std::size_t Vector<T>::capacity() const {
-  return data_.capacity_;
+  return data_.capacity();
 }
 
 template <typename T>
