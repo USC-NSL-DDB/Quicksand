@@ -85,6 +85,11 @@ std::size_t Array<T>::size() const {
 }
 
 template <typename T>
+std::size_t Array<T>::capacity() const {
+  return data_.size();
+}
+
+template <typename T>
 bool Array<T>::empty() const {
   return data_.empty();
 }

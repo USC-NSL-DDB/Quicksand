@@ -90,6 +90,11 @@ std::size_t Vector<T>::capacity() const {
 }
 
 template <typename T>
+void Vector<T>::reserve(std::size_t size) {
+  return data_.reserve(size);
+}
+
+template <typename T>
 bool Vector<T>::empty() const {
   return data_.empty();
 }

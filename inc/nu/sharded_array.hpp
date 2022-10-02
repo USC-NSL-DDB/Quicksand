@@ -41,6 +41,7 @@ class Array {
   Array &operator=(Array &&) noexcept;
 
   std::size_t size() const;
+  std::size_t capacity() const;
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);

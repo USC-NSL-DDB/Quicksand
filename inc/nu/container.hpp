@@ -31,6 +31,18 @@ concept Findable = requires(T t) {
 };
 
 template <class T>
+concept HasCapacity = requires(T t) {
+  { t.capacity() }
+  ->std::same_as<std::size_t>;
+};
+
+template <class T>
+concept Reservable = requires(T t) {
+  { t.reserve(std::declval<std::size_t>()) }
+  ->std::same_as<void>;
+};
+
+template <class T>
 concept ConstIterable = requires(T t) {
   { t.cbegin() }
   ->std::same_as<typename T::ConstIterator>;
@@ -78,7 +90,6 @@ class GeneralContainerBase {
                          GeneralContainer<Impl>>;
 
   GeneralContainerBase() : impl_() {}
-  GeneralContainerBase(std::optional<Key> l_key) : impl_(l_key) {}
   GeneralContainerBase(std::optional<Key> l_key, std::size_t capacity)
       : impl_(l_key, capacity) {}
   GeneralContainerBase(const GeneralContainerBase &c) : impl_(c.impl_) {}
@@ -95,8 +106,11 @@ class GeneralContainerBase {
   std::size_t size() {
     return synchronized<std::size_t>([&] { return impl_.size(); });
   }
-  std::size_t capacity() {
+  std::size_t capacity() requires HasCapacity<Impl> {
     return synchronized<std::size_t>([&] { return impl_.capacity(); });
+  }
+  void reserve(std::size_t size) requires Reservable<Impl> {
+    synchronized<void>([&] { impl_.reserve(size); });
   }
   bool empty() {
     return synchronized<bool>([&] { return impl_.empty(); });

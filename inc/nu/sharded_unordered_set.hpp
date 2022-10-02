@@ -33,6 +33,7 @@ class GeneralUnorderedSet {
   GeneralUnorderedSet &operator=(GeneralUnorderedSet &&) noexcept = default;
 
   std::size_t size() const;
+  void reserve(std::size_t size);
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);

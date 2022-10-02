@@ -43,6 +43,11 @@ std::size_t GeneralUnorderedMap<K, V, M>::size() const {
 }
 
 template <typename K, typename V, typename M>
+void GeneralUnorderedMap<K, V, M>::reserve(std::size_t size) {
+  return map_.reserve(size);
+}
+
+template <typename K, typename V, typename M>
 bool GeneralUnorderedMap<K, V, M>::empty() const {
   return map_.empty();
 }
