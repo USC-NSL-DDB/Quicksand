@@ -110,6 +110,12 @@ void Vector<T>::emplace_back(Val v) {
 }
 
 template <typename T>
+void Vector<T>::emplace_back_batch(std::vector<Val> v) {
+  data_.insert(data_.end(), make_move_iterator(v.begin()),
+               make_move_iterator(v.end()));
+}
+
+template <typename T>
 void Vector<T>::merge(Vector vector) {
   data_.insert(data_.end(), std::make_move_iterator(vector.data_.begin()),
                std::make_move_iterator(vector.data_.end()));

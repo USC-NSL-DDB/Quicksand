@@ -24,16 +24,4 @@ void GeneralContainerBase<Impl, Synchronized>::emplace_batch(
   });
 }
 
-template <class Impl, class Synchronized>
-void GeneralContainerBase<Impl, Synchronized>::emplace_back_batch(
-    std::vector<Val> reqs) {
-  synchronized<void>([&]() {
-    for (auto &req : reqs) {
-      if constexpr (EmplaceBackAble<Impl>) {
-        impl_.emplace_back(std::move(req));
-      }
-    }
-  });
-}
-
 }  // namespace nu

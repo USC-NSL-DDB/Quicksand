@@ -47,6 +47,7 @@ class Vector {
   void clear();
   void emplace(Key k, Val v);
   void emplace_back(Val v);
+  void emplace_back_batch(std::vector<Val> v);
   ConstIterator find(Key k);
   std::pair<Key, Vector> split();
   void merge(Vector vector);

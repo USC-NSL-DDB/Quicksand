@@ -110,6 +110,9 @@ class GeneralContainerBase {
   void emplace_back(Val v) requires EmplaceBackAble<Impl> {
     synchronized<void>([&] { impl_.emplace_back(std::move(v)); });
   }
+  void emplace_back_batch(std::vector<Val> v) requires EmplaceBackAble<Impl> {
+    synchronized<void>([&] { impl_.emplace_back_batch(std::move(v)); });
+  }
   ConstIterator find(Key k) requires Findable<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
@@ -152,7 +155,6 @@ class GeneralContainerBase {
     impl_.load(ar);
   }
   void emplace_batch(std::vector<std::pair<Key, Val>> reqs);
-  void emplace_back_batch(std::vector<Val> reqs);
 
  private:
   Impl impl_;
