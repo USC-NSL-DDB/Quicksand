@@ -1,4 +1,5 @@
 #include "nu/sharding_mapping.hpp"
+#include "nu/utils/rob_executor.hpp"
 
 namespace nu {
 
@@ -52,6 +53,12 @@ inline constexpr uint64_t get_proclet_capacity(uint32_t max_shard_size) {
 }
 
 template <class Container>
+template <class Archive>
+void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
+  ar(l_key, r_key, shard, emplace_back_reqs, emplace_reqs);
+}
+
+template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
                                       uint32_t max_shard_size)
     : max_shard_size_(max_shard_size), mapping_(std::move(mapping)) {}
@@ -81,7 +88,7 @@ void GeneralShard<Container>::set_range_and_data(std::optional<Key> l_key,
                                                  Container container) {
   l_key_ = l_key;
   r_key_ = r_key;
-  container_ = std::move(container);
+  container_.merge(std::move(container));
 }
 
 template <class Container>
@@ -106,13 +113,13 @@ GeneralShard<Container>::get_const_container_handle() {
 template <class Container>
 void GeneralShard<Container>::split() {
   auto [mid_k, latter_half_container] = container_.split();
-  auto new_shard =
-      mapping_.run(&ShardingMapping::create_new_shard, mid_k, r_key_, 0);
+  max_shard_size_ =
+      std::max(max_shard_size_, static_cast<uint32_t>(container_.size()));
+  auto new_shard = mapping_.run(&ShardingMapping::create_new_shard, mid_k,
+                                r_key_, max_shard_size_);
   new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
                 latter_half_container);
   r_key_ = mid_k;
-  max_shard_size_ =
-      std::max(max_shard_size_, static_cast<uint32_t>(container_.size()));
 }
 
 template <class Container>
@@ -175,19 +182,23 @@ bool GeneralShard<Container>::try_emplace_back(
 }
 
 template <class Container>
-bool GeneralShard<Container>::try_handle_batch(
-    std::optional<Key> l_key, std::optional<Key> r_key,
-    std::vector<Val> emplace_back_reqs,
-    std::vector<std::pair<Key, Val>> emplace_reqs) {
+std::optional<typename GeneralShard<Container>::ReqBatch>
+GeneralShard<Container>::__try_handle_batch(const ReqBatch &batch) {
   rw_lock_.reader_lock();
 
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(bad_range(std::move(batch.l_key), std::move(batch.r_key)))) {
     rw_lock_.reader_unlock();
-    return false;
+    return std::move(batch);
   }
 
-  container_.emplace_back_batch(std::move(emplace_back_reqs));
-  container_.emplace_batch(std::move(emplace_reqs));
+  if constexpr (EmplaceBackAble<Container>) {
+    if (!batch.emplace_back_reqs.empty()) {
+      container_.emplace_back_batch(std::move(batch.emplace_back_reqs));
+    }
+  }
+  if (!batch.emplace_reqs.empty()) {
+    container_.emplace_batch(std::move(batch.emplace_reqs));
+  }
   if (unlikely(container_.size() > max_shard_size_)) {
     rw_lock_.reader_unlock();
     rw_lock_.writer_lock();
@@ -195,11 +206,54 @@ bool GeneralShard<Container>::try_handle_batch(
       split();
     }
     rw_lock_.writer_unlock();
-    return true;
+    return std::nullopt;
   }
 
   rw_lock_.reader_unlock();
-  return true;
+  return std::nullopt;
+}
+
+template <class Container>
+uintptr_t GeneralShard<Container>::new_flush_executor(uint32_t queue_depth) {
+  auto *rob_executor = new RobExecutor<ReqBatch, std::optional<ReqBatch>>(
+      [&](const ReqBatch &batch) { return __try_handle_batch(batch); },
+      queue_depth);
+  auto addr = reinterpret_cast<uintptr_t>(rob_executor);
+  return addr;
+}
+
+template <class Container>
+void GeneralShard<Container>::delete_flush_executor(uintptr_t addr) {
+  auto *rob_executor =
+      reinterpret_cast<RobExecutor<ReqBatch, std::optional<ReqBatch>> *>(addr);
+  delete rob_executor;
+}
+
+template <class Container>
+std::vector<typename GeneralShard<Container>::ReqBatch>
+GeneralShard<Container>::try_handle_batch(ReqBatch batch, uint32_t seq,
+                                          uintptr_t rob_executor_addr,
+                                          bool drain) {
+  std::vector<ReqBatch> rejected_batches;
+  auto *rob_executor =
+      reinterpret_cast<RobExecutor<ReqBatch, std::optional<ReqBatch>> *>(
+          rob_executor_addr);
+
+  auto optional_batch = rob_executor->submit_and_get(seq, std::move(batch));
+  if (optional_batch && *optional_batch) {
+    rejected_batches.emplace_back(std::move(**optional_batch));
+  }
+
+  if (drain) {
+    auto optional_batches = rob_executor->wait_all();
+    for (auto &optional_batch : optional_batches) {
+      if (optional_batch) {
+        rejected_batches.emplace_back(std::move(*optional_batch));
+      }
+    }
+  }
+
+  return rejected_batches;
 }
 
 template <class Container>

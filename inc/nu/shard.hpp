@@ -54,6 +54,17 @@ class GeneralShard {
   using ConstIterator = Container::ConstIterator;
   using ConstReverseIterator = Container::ConstReverseIterator;
 
+  struct ReqBatch {
+    std::optional<Key> l_key;
+    std::optional<Key> r_key;
+    WeakProclet<GeneralShard> shard;
+    std::vector<Val> emplace_back_reqs;
+    std::vector<std::pair<Key, Val>> emplace_reqs;
+
+    template <class Archive>
+    void serialize(Archive &ar);
+  };
+
   GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size);
   GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size,
                std::optional<Key> l_key, std::optional<Key> r_key,
@@ -64,9 +75,11 @@ class GeneralShard {
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
-  bool try_handle_batch(std::optional<Key> l_key, std::optional<Key> r_key,
-                        std::vector<Val> emplace_back_reqs,
-                        std::vector<std::pair<Key, Val>> emplace_reqs);
+  std::vector<ReqBatch> try_handle_batch(ReqBatch batch, uint32_t seq,
+                                         uintptr_t rob_executor_addr,
+                                         bool drain);
+  uintptr_t new_flush_executor(uint32_t queue_depth);
+  void delete_flush_executor(uintptr_t addr);
   std::pair<bool, std::optional<IterVal>> find_val(
       Key k) requires Findable<Container>;
   std::tuple<bool, Val, ConstIterator> find(Key k) requires Findable<Container>;
@@ -121,6 +134,7 @@ class GeneralShard {
       std::vector<std::pair<IterVal, ConstReverseIterator>> *block,
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
+  std::optional<ReqBatch> __try_handle_batch(const ReqBatch &batch);
 };
 
 }  // namespace nu

@@ -72,32 +72,37 @@ class ShardedDataStructure {
 
  private:
   constexpr static uint32_t kBatchingMaxShardBytes = 128 << 20;
-  constexpr static uint32_t kBatchingMaxBatchBytes = 16 << 10;
+  constexpr static uint32_t kBatchingMaxBatchBytes = 64 << 10;
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
+  constexpr static uint32_t kMaxNumInflightFlushes = 2;
 
   struct ShardAndReqs {
     WeakProclet<Shard> shard;
+    uint32_t seq;
+    uintptr_t flush_executor_addr;
     std::vector<std::pair<Key, Val>> emplace_reqs;
 
+    ShardAndReqs() = default;
+    ShardAndReqs(WeakProclet<Shard> s);
+    ShardAndReqs(const ShardAndReqs &);
+    ShardAndReqs(ShardAndReqs &&) = default;
+    ~ShardAndReqs();
+
     template <class Archive>
-    void serialize(Archive &ar);
+    void save(Archive &ar) const;
+    template <class Archive>
+    void load(Archive &ar);
   };
   using KeyToShardsMapping = std::multimap<std::optional<Key>, ShardAndReqs>;
-  struct ReqBatch {
-    std::optional<Key> l_key;
-    std::optional<Key> r_key;
-    WeakProclet<Shard> shard;
-    std::vector<Val> emplace_back_reqs;
-    std::vector<std::pair<Key, Val>> emplace_reqs;
-  };
+  using ReqBatch = Shard::ReqBatch;
 
   Proclet<ShardingMapping> mapping_;
   uint32_t max_shard_size_;
   uint32_t max_batch_size_;
   KeyToShardsMapping key_to_shards_;
   std::vector<Val> emplace_back_reqs_;
-  Future<std::optional<ReqBatch>> flush_future_;
+  std::queue<Future<std::vector<typename Shard::ReqBatch>>> flush_futures_;
   template <ShardedDataStructureBased T>
   friend class SealedDS;
 
@@ -105,7 +110,7 @@ class ShardedDataStructure {
   std::optional<IterVal> __find_val(Key k) requires Findable<Container>;
   void reset();
   void set_shard_and_batch_size();
-  bool flush_one_batch(KeyToShardsMapping::iterator iter);
+  bool flush_one_batch(KeyToShardsMapping::iterator iter, bool drain);
   void handle_rejected_flush_batch(ReqBatch &batch);
   void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key,
                     WeakProclet<Shard> shard);
