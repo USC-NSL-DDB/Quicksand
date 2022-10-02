@@ -63,6 +63,7 @@ void RobExecutor<Arg, Ret>::executor_fn() {
       entry.spin.lock();
       while (!entry.arg) {
         if (unlikely(rt::access_once(done_))) {
+          entry.spin.unlock();
           return;
         }
         sleeping_ = true;
