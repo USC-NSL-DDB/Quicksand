@@ -40,8 +40,8 @@ function prune_fdb_table {
 	xargs -d '\n' -I {} bash -c "sudo bridge fdb delete {}"
 }
 
-get_nic_dev
 setup_caladan
+get_nic_dev
 setup_jumbo_frame
 setup_trust_dscp
 #setup_pfc
