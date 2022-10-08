@@ -134,6 +134,7 @@ template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::reset() {
   if (mapping_) {
     flush();
+    key_to_shards_.clear();
     mapping_.run(&GeneralShardingMapping<Shard>::dec_ref_cnt);
   }
 }
