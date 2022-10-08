@@ -1,7 +1,9 @@
 #pragma once
 
 #include <concepts>
+#include <cstdint>
 #include <optional>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -43,7 +45,14 @@ concept Reservable = requires(T t) {
 };
 
 template <class T>
+concept UInt64Convertable = requires(T t) {
+  requires sizeof(T) == sizeof(uint64_t);
+  requires std::is_trivially_copy_assignable_v<T>;
+};
+
+template <class T>
 concept ConstIterable = requires(T t) {
+  requires UInt64Convertable<typename T::ConstIterator>;
   { t.cbegin() }
   ->std::same_as<typename T::ConstIterator>;
   { t.cend() }
@@ -52,6 +61,7 @@ concept ConstIterable = requires(T t) {
 
 template <class T>
 concept ConstReverseIterable = requires(T t) {
+  requires UInt64Convertable<typename T::ConstReverseIterator>;
   { t.crbegin() }
   ->std::same_as<typename T::ConstReverseIterator>;
   { t.crend() }

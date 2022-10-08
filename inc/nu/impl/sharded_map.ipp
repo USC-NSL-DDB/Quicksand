@@ -16,12 +16,6 @@ MapConstIterator<Map>::MapConstIterator(Map::const_iterator &&iter) {
 }
 
 template <class Map>
-template <class Archive>
-void MapConstIterator<Map>::serialize(Archive &ar) {
-  ar(cereal::binary_data(this, sizeof(*this)));
-}
-
-template <class Map>
 MapConstReverseIterator<Map>::MapConstReverseIterator() {}
 
 template <class Map>
@@ -34,12 +28,6 @@ template <class Map>
 MapConstReverseIterator<Map>::MapConstReverseIterator(
     Map::const_reverse_iterator &&iter) {
   Map::const_reverse_iterator::operator=(std::move(iter));
-}
-
-template <class Map>
-template <class Archive>
-void MapConstReverseIterator<Map>::serialize(Archive &ar) {
-  ar(cereal::binary_data(this, sizeof(*this)));
 }
 
 template <typename K, typename V, typename M>

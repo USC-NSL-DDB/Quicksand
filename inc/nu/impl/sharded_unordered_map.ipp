@@ -18,12 +18,6 @@ UnorderedMapConstIterator<USet>::UnorderedMapConstIterator(
   USet::const_iterator::operator=(std::move(iter));
 }
 
-template <class USet>
-template <class Archive>
-void UnorderedMapConstIterator<USet>::serialize(Archive &ar) {
-  ar(cereal::binary_data(this, sizeof(*this)));
-}
-
 template <typename K, typename V, typename M>
 GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(std::optional<Key> l_key) {}
 

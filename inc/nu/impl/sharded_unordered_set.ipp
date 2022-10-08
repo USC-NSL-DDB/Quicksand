@@ -20,12 +20,6 @@ UnorderedSetConstIterator<USet>::UnorderedSetConstIterator(
   USet::const_iterator::operator=(std::move(iter));
 }
 
-template <class USet>
-template <class Archive>
-void UnorderedSetConstIterator<USet>::serialize(Archive &ar) {
-  ar(cereal::binary_data(this, sizeof(*this)));
-}
-
 template <typename T, typename M>
 GeneralUnorderedSet<T, M>::GeneralUnorderedSet(std::optional<Key> l_key) {}
 

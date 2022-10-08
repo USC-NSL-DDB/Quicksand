@@ -14,24 +14,12 @@ SetConstIterator<Set>::SetConstIterator(Set::iterator &&iter) {
 }
 
 template <class Set>
-template <class Archive>
-void SetConstIterator<Set>::serialize(Archive &ar) {
-  ar(cereal::binary_data(this, sizeof(*this)));
-}
-
-template <class Set>
 SetConstReverseIterator<Set>::SetConstReverseIterator() {}
 
 template <class Set>
 SetConstReverseIterator<Set>::SetConstReverseIterator(
     Set::reverse_iterator &&iter) {
   Set::const_reverse_iterator::operator=(std::move(iter));
-}
-
-template <class Set>
-template <class Archive>
-void SetConstReverseIterator<Set>::serialize(Archive &ar) {
-  ar(cereal::binary_data(this, sizeof(*this)));
 }
 
 template <typename T, typename M>

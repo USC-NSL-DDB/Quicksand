@@ -9,16 +9,12 @@ template <class Set>
 struct SetConstIterator : public Set::const_iterator {
   SetConstIterator();
   SetConstIterator(Set::iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <class Set>
 struct SetConstReverseIterator : public Set::const_reverse_iterator {
   SetConstReverseIterator();
   SetConstReverseIterator(Set::reverse_iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <typename T, BoolIntegral M>

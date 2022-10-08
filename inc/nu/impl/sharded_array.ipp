@@ -19,12 +19,6 @@ ArrayConstIterator<T>::ArrayConstIterator(
 }
 
 template <typename T>
-template <class Archive>
-void ArrayConstIterator<T>::serialize(Archive &ar) {
-  ar(cereal::binary_data(this, sizeof(*this)));
-}
-
-template <typename T>
 ArrayConstReverseIterator<T>::ArrayConstReverseIterator() {}
 
 template <typename T>
@@ -37,12 +31,6 @@ template <typename T>
 ArrayConstReverseIterator<T>::ArrayConstReverseIterator(
     std::vector<T>::const_reverse_iterator &&iter) {
   std::vector<T>::const_reverse_iterator::operator=(std::move(iter));
-}
-
-template <typename T>
-template <class Archive>
-void ArrayConstReverseIterator<T>::serialize(Archive &ar) {
-  ar(cereal::binary_data(this, sizeof(*this)));
 }
 
 template <typename T>

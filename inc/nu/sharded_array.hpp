@@ -5,13 +5,12 @@
 #include "sharded_ds.hpp"
 
 namespace nu {
+
 template <typename T>
 struct ArrayConstIterator : public std::vector<T>::const_iterator {
   ArrayConstIterator();
   ArrayConstIterator(std::vector<T>::iterator &&iter);
   ArrayConstIterator(std::vector<T>::const_iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <typename T>
@@ -20,8 +19,6 @@ struct ArrayConstReverseIterator
   ArrayConstReverseIterator();
   ArrayConstReverseIterator(std::vector<T>::reverse_iterator &&iter);
   ArrayConstReverseIterator(std::vector<T>::const_reverse_iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <typename T>
@@ -88,6 +85,7 @@ class ShardedArray
 
 template <typename T, typename LL>
 ShardedArray<T, LL> make_sharded_array(std::size_t size);
+
 }  // namespace nu
 
 #include "nu/impl/sharded_array.ipp"

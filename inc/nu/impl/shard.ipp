@@ -1,3 +1,5 @@
+#include <cereal/archives/binary.hpp>
+
 #include "nu/sharding_mapping.hpp"
 #include "nu/utils/rob_executor.hpp"
 
@@ -459,6 +461,41 @@ GeneralShard<Container>::crend() requires ConstReverseIterable<Container> {
 template <class Container>
 bool GeneralShard<Container>::empty() {
   return container_.empty();
+}
+
+template <class Archive, typename T>
+void save(Archive &ar, T const &t) requires(nu::UInt64Convertable<T> &&
+                                            !std::is_pointer_v<T>) {
+  ar(cereal::binary_data(&t, sizeof(T)));
+}
+
+template <class Archive, typename T>
+void load(Archive &ar,
+          T &t) requires(nu::UInt64Convertable<T> && !std::is_pointer_v<T>) {
+  ar(cereal::binary_data(&t, sizeof(T)));
+}
+
+template <class Archive, typename V, typename I, typename A>
+void save(Archive &ar, std::vector<std::pair<V, I>, A> const &v) requires(
+    std::is_arithmetic_v<V> &&nu::UInt64Convertable<I>) {
+  ar(v.size());
+  ar(cereal::binary_data(v.data(), v.size() * sizeof(std::pair<V, I>)));
+}
+
+template <class Archive, typename V, typename I, typename A>
+void save_move(Archive &ar, std::vector<std::pair<V, I>, A> &&v) requires(
+    std::is_arithmetic_v<V> &&nu::UInt64Convertable<I>) {
+  ar(v.size());
+  ar(cereal::binary_data(v.data(), v.size() * sizeof(std::pair<V, I>)));
+}
+
+template <class Archive, typename V, typename I, typename A>
+void load(Archive &ar, std::vector<std::pair<V, I>, A> &v) requires(
+    std::is_arithmetic_v<V> &&nu::UInt64Convertable<I>) {
+  decltype(v.size()) size;
+  ar(size);
+  v.resize(size);
+  ar(cereal::binary_data(v.data(), size * sizeof(std::pair<V, I>)));
 }
 
 }  // namespace nu

@@ -11,8 +11,6 @@ struct VectorConstIterator : public std::vector<T>::const_iterator {
   VectorConstIterator();
   VectorConstIterator(std::vector<T>::iterator &&iter);
   VectorConstIterator(std::vector<T>::const_iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <typename T>
@@ -21,8 +19,6 @@ struct VectorConstReverseIterator
   VectorConstReverseIterator();
   VectorConstReverseIterator(std::vector<T>::reverse_iterator &&iter);
   VectorConstReverseIterator(std::vector<T>::const_reverse_iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <typename T>

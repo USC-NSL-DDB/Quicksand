@@ -11,8 +11,6 @@ struct UnorderedSetConstIterator : public USet::const_iterator {
   UnorderedSetConstIterator();
   UnorderedSetConstIterator(USet::iterator &&iter);
   UnorderedSetConstIterator(USet::const_iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <typename T, BoolIntegral M>

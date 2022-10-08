@@ -11,8 +11,6 @@ struct UnorderedMapConstIterator : public UMap::const_iterator {
   UnorderedMapConstIterator();
   UnorderedMapConstIterator(UMap::iterator &&iter);
   UnorderedMapConstIterator(UMap::const_iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <typename K, typename V, BoolIntegral M>

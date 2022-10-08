@@ -11,8 +11,6 @@ struct MapConstIterator : public Map::const_iterator {
   MapConstIterator();
   MapConstIterator(Map::iterator &&iter);
   MapConstIterator(Map::const_iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <class Map>
@@ -20,8 +18,6 @@ struct MapConstReverseIterator : public Map::const_reverse_iterator {
   MapConstReverseIterator();
   MapConstReverseIterator(Map::reverse_iterator &&iter);
   MapConstReverseIterator(Map::const_reverse_iterator &&iter);
-  template <class Archive>
-  void serialize(Archive &ar);
 };
 
 template <typename K, typename V, BoolIntegral M>
