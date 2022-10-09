@@ -360,49 +360,49 @@ T &&SealedDS<T>::unseal() {
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::begin() const
+const SealedDS<T>::ConstIterator &SealedDS<T>::begin() const
     requires ConstIterable<typename T::Shard> {
   return cbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::cbegin() const
+const SealedDS<T>::ConstIterator &SealedDS<T>::cbegin() const
     requires ConstIterable<typename T::Shard> {
   return cbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::end() const
+const SealedDS<T>::ConstIterator &SealedDS<T>::end() const
     requires ConstIterable<typename T::Shard> {
   return cend_;
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::cend() const
+const SealedDS<T>::ConstIterator &SealedDS<T>::cend() const
     requires ConstIterable<typename T::Shard> {
   return cend_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::rbegin() const
+const SealedDS<T>::ConstReverseIterator &SealedDS<T>::rbegin() const
     requires ConstReverseIterable<typename T::Shard> {
   return crbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::crbegin() const
+const SealedDS<T>::ConstReverseIterator &SealedDS<T>::crbegin() const
     requires ConstReverseIterable<typename T::Shard> {
   return crbegin_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::rend() const
+const SealedDS<T>::ConstReverseIterator &SealedDS<T>::rend() const
     requires ConstReverseIterable<typename T::Shard> {
   return crend_;
 }
 
 template <typename T>
-SealedDS<T>::ConstReverseIterator SealedDS<T>::crend() const
+const SealedDS<T>::ConstReverseIterator &SealedDS<T>::crend() const
     requires ConstReverseIterable<typename T::Shard> {
   return crend_;
 }

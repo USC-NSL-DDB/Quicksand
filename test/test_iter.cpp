@@ -24,30 +24,38 @@ bool run_test() {
   }
 
   --idx;
-  for (auto iter = --sealed_vec.cend(); iter != sealed_vec.cbegin();
-       --iter, --idx) {
-    if (*iter != idx) {
+  {
+    auto iter = sealed_vec.cend();
+    --iter;
+    for (; iter != sealed_vec.cbegin(); --iter, --idx) {
+      if (*iter != idx) {
+        return false;
+      }
+    }
+    if (*sealed_vec.cbegin() != idx) {
       return false;
     }
   }
-  if (*sealed_vec.cbegin() != idx) {
-    return false;
-  }
 
-  for (auto iter = --sealed_vec.crend(); iter != sealed_vec.crbegin();
-       --iter, ++idx) {
-    if (*iter != idx) {
+  {
+    auto iter = sealed_vec.crend();
+    --iter;
+    for (; iter != sealed_vec.crbegin(); --iter, ++idx) {
+      if (*iter != idx) {
+        return false;
+      }
+    }
+    if (*sealed_vec.crbegin() != idx) {
       return false;
     }
   }
-  if (*sealed_vec.crbegin() != idx) {
-    return false;
-  }
 
-  for (auto iter = sealed_vec.crbegin(); iter != sealed_vec.crend();
-       ++iter, --idx) {
-    if (*iter != idx) {
-      return false;
+  {
+    for (auto iter = sealed_vec.crbegin(); iter != sealed_vec.crend();
+         ++iter, --idx) {
+      if (*iter != idx) {
+        return false;
+      }
     }
   }
 
