@@ -72,7 +72,7 @@ class GeneralSealedDSConstIterator {
     static Block shard_back_block(ShardsVecIter shards_vec_iter);
     static Block shard_end_block(ShardsVecIter shards_vec_iter);
 
-   public:
+   private:
     ShardsVecIter shards_iter;
     PrefetchedVec prefetched;
   };

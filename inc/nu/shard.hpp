@@ -126,12 +126,13 @@ class GeneralShard {
 
   void split();
   bool bad_range(std::optional<Key> l_key, std::optional<Key> r_key);
-  void __get_block_forward(
-      std::vector<std::pair<IterVal, ConstIterator>> *block,
+  uint32_t __get_block_forward(
+      std::vector<std::pair<IterVal, ConstIterator>>::iterator block_iter,
       ConstIterator prev_iter,
       uint32_t block_size) requires ConstIterable<Container>;
-  void __get_rblock_forward(
-      std::vector<std::pair<IterVal, ConstReverseIterator>> *block,
+  uint32_t __get_rblock_forward(
+      std::vector<std::pair<IterVal, ConstReverseIterator>>::iterator
+          block_iter,
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
   std::optional<ReqBatch> __try_handle_batch(const ReqBatch &batch);
