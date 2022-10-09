@@ -138,28 +138,6 @@ class GeneralShard {
   std::optional<ReqBatch> __try_handle_batch(const ReqBatch &batch);
 };
 
-template <class Archive, typename T>
-inline void save(Archive &ar, T const &t) requires(nu::UInt64Convertable<T> &&
-                                                   !std::is_pointer_v<T>);
-
-template <class Archive, typename T>
-inline void load(Archive &ar, T &t) requires(nu::UInt64Convertable<T> &&
-                                             !std::is_pointer_v<T>);
-
-template <class Archive, typename V, typename I, typename A>
-inline void
-save(Archive &ar, std::vector<std::pair<V, I>, A> const &v) requires(
-    std::is_arithmetic_v<V> &&nu::UInt64Convertable<I>);
-
-template <class Archive, typename V, typename I, typename A>
-inline void
-save_move(Archive &ar, std::vector<std::pair<V, I>, A> &&v) requires(
-    std::is_arithmetic_v<V> &&nu::UInt64Convertable<I>);
-
-template <class Archive, typename V, typename I, typename A>
-inline void load(Archive &ar, std::vector<std::pair<V, I>, A> &v) requires(
-    std::is_arithmetic_v<V> &&nu::UInt64Convertable<I>);
-
 }  // namespace nu
 
 #include "nu/impl/shard.ipp"
