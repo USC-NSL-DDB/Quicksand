@@ -416,7 +416,7 @@ std::vector<std::pair<typename Container::IterVal,
 GeneralShard<Container>::get_rfront_block(
     uint32_t block_size) requires ConstReverseIterable<Container> {
   std::vector<std::pair<IterVal, ConstReverseIterator>> block;
-  block.resize(block_size);
+  block.resize(block_size + 1);
   block[0] = std::pair(*container_.crbegin(), container_.crbegin());
   auto size =
       __get_rblock_forward(++block.begin(), container_.crbegin(), block_size);
