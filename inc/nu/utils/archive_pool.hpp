@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cereal/archives/binary.hpp>
 #include <memory>
 #include <sstream>
 #include <utility>

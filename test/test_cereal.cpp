@@ -1,4 +1,3 @@
-#include <cereal/archives/binary.hpp>
 #include <iostream>
 #include <sstream>
 

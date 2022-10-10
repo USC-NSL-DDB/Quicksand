@@ -1,6 +1,4 @@
 #include <algorithm>
-#include <cereal/archives/binary.hpp>
-#include <cereal/types/string.hpp>
 #include <cstring>
 #include <functional>
 #include <iostream>
@@ -49,11 +47,6 @@ struct Key {
     std::reverse(data, data + sizeof(offset));
     return *this;
   }
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(data);
-  }
 };
 
 struct Val {
@@ -69,11 +62,6 @@ struct Val {
   }
 
   bool operator<(const Val &) const { return false; }
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(data);
-  }
 };
 
 class Worker {

@@ -1,8 +1,5 @@
 #pragma once
 
-#include <thread.h>
-
-#include <cereal/types/vector.hpp>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -10,6 +7,7 @@
 extern "C" {
 #include <runtime/net.h>
 }
+#include <thread.h>
 
 #include "nu/proclet.hpp"
 #include "nu/utils/mutex.hpp"

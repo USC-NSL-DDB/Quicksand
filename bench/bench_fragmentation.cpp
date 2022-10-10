@@ -1,6 +1,4 @@
 #include <algorithm>
-#include <cereal/types/optional.hpp>
-#include <cereal/types/string.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -50,20 +48,10 @@ struct Key {
     }
     return false;
   }
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(data);
-  }
 };
 
 struct Val {
   char data[kValLen];
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(data);
-  }
 };
 
 constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {

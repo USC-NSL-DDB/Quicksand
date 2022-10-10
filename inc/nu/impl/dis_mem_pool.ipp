@@ -1,5 +1,3 @@
-#include <cereal/types/deque.hpp>
-
 extern "C" {
 #include <base/compiler.h>
 }

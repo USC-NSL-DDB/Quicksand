@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cereal/types/tuple.hpp>
 #include <optional>
 #include <tuple>
 #include <utility>

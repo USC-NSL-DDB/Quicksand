@@ -1,5 +1,3 @@
-#include <cereal/types/map.hpp>
-
 namespace nu {
 
 template <class Map>

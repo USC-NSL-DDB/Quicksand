@@ -1,4 +1,3 @@
-#include <cereal/types/unordered_map.hpp>
 #include <utility>
 
 namespace nu {

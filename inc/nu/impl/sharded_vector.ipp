@@ -1,5 +1,3 @@
-#include <cereal/types/vector.hpp>
-
 namespace nu {
 
 template <typename T>

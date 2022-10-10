@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstddef>
+#include <span>
+#include <string>
+
 extern "C" {
 #include <runtime/thread.h>
 }
 
-#include <cstddef>
-#include <span>
-#include <string>
+#include "nu/cereal.hpp"
 
 namespace nu {
 
@@ -40,11 +42,6 @@ template <typename T>
 union MethodPtr {
   T ptr;
   uint8_t raw[sizeof(T)];
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(raw);
-  }
 };
 
 constexpr static uint64_t kNumCores = NCORES;

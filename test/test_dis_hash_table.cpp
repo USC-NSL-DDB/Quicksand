@@ -1,9 +1,4 @@
 #include <algorithm>
-#include <cereal/types/optional.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/string.hpp>
-#include <cereal/types/unordered_map.hpp>
-#include <cereal/types/utility.hpp>
 #include <cstdint>
 #include <iostream>
 #include <memory>

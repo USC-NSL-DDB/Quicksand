@@ -2,8 +2,6 @@ extern "C" {
 #include <base/assert.h>
 }
 
-#include <cereal/archives/binary.hpp>
-
 namespace nu {
 
 template <typename T>

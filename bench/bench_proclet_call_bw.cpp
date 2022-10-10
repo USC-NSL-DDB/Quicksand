@@ -15,11 +15,6 @@ constexpr static uint32_t kNumInvocationsPerThread = 1000;
 
 struct Obj {
   uint8_t data[kObjSize];
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(data);
-  }
 };
 
 using Buf = std::vector<Obj>;

@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cereal/types/utility.hpp>
 #include <cstdint>
 #include <iostream>
 #include <numeric>

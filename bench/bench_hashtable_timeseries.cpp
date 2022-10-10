@@ -1,8 +1,6 @@
 #include <signal.h>
 
 #include <algorithm>
-#include <cereal/types/optional.hpp>
-#include <cereal/types/string.hpp>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -51,20 +49,10 @@ struct Key {
   bool operator==(const Key &o) const {
     return __builtin_memcmp(data, o.data, kKeyLen) == 0;
   }
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(cereal::binary_data(data, sizeof(data)));
-  }
 };
 
 struct Val {
   char data[kValLen];
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(cereal::binary_data(data, sizeof(data)));
-  }
 };
 
 namespace nu {

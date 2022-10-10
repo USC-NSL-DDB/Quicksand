@@ -1,4 +1,3 @@
-#include <cereal/types/set.hpp>
 #include <iterator>
 #include <optional>
 #include <utility>

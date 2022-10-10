@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cereal/types/string.hpp>
 #include <functional>
 #include <iostream>
 

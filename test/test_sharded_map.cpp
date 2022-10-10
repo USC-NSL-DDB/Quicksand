@@ -1,4 +1,3 @@
-#include <cereal/types/string.hpp>
 #include <iostream>
 #include <random>
 #include <string>

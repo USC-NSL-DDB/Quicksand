@@ -1,4 +1,3 @@
-#include <cereal/types/unordered_set.hpp>
 #include <iterator>
 #include <optional>
 #include <utility>
