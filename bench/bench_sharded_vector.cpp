@@ -12,15 +12,15 @@ struct Bench {
   void run_sharded_vector() {
     std::cout << "run_sharded_vector()..." << std::endl;
 
-    auto vec = nu::make_sharded_vector<int, std::false_type>();
+    auto vec = nu::make_sharded_vector<uint64_t, std::false_type>();
 
     auto t0 = microtime();
-    for (uint32_t i = 0; i < kNumElements; i++) {
-      vec.emplace_back(i);
+    for (uint64_t i = 0; i < kNumElements; i++) {
+      vec.push_back(i);
     }
     auto t1 = microtime();
     auto sealed_vec = nu::to_sealed_ds(std::move(vec));
-    uint32_t sum = 0;
+    uint64_t sum = 0;
     for (const auto &v : sealed_vec) {
       sum += v;
     }
@@ -33,14 +33,14 @@ struct Bench {
   void run_std_vector() {
     std::cout << "run_std_vector()..." << std::endl;
 
-    std::vector<int> vec;
+    std::vector<uint64_t> vec;
 
     auto t0 = microtime();
-    for (uint32_t i = 0; i < kNumElements; i++) {
-      vec.emplace_back(i);
+    for (uint64_t i = 0; i < kNumElements; i++) {
+      vec.push_back(i);
     }
     auto t1 = microtime();
-    uint32_t sum = 0;
+    uint64_t sum = 0;
     for (const auto &v : vec) {
       sum += v;
     }
