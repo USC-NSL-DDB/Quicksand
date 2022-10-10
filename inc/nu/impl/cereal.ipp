@@ -26,30 +26,27 @@ void load(Archive &ar, T &t) requires(
   ar(cereal::binary_data(&t, sizeof(T)));
 }
 
-template <class Archive, typename V, typename I, typename A>
-void save(Archive &ar, std::vector<std::pair<V, I>, A> const &v) requires(
-    std::is_trivially_copy_assignable_v<V> &&
-    std::is_trivially_copy_assignable_v<I>) {
+template <class Archive, typename P, typename A>
+void save(Archive &ar, std::vector<P, A> const &v) requires(
+    is_memcpy_safe<P>()) {
   ar(v.size());
-  ar(cereal::binary_data(v.data(), v.size() * sizeof(std::pair<V, I>)));
+  ar(cereal::binary_data(v.data(), v.size() * sizeof(P)));
 }
 
-template <class Archive, typename V, typename I, typename A>
-void save_move(Archive &ar, std::vector<std::pair<V, I>, A> &&v) requires(
-    std::is_trivially_copy_assignable_v<V> &&
-    std::is_trivially_copy_assignable_v<I>) {
+template <class Archive, typename P, typename A>
+void save_move(Archive &ar, std::vector<P, A> &&v) requires(
+    is_memcpy_safe<P>()) {
   ar(v.size());
-  ar(cereal::binary_data(v.data(), v.size() * sizeof(std::pair<V, I>)));
+  ar(cereal::binary_data(v.data(), v.size() * sizeof(P)));
 }
 
-template <class Archive, typename V, typename I, typename A>
-void load(Archive &ar, std::vector<std::pair<V, I>, A> &v) requires(
-    std::is_trivially_copy_assignable_v<V> &&
-    std::is_trivially_copy_assignable_v<I>) {
+template <class Archive, typename P, typename A>
+void load(Archive &ar, std::vector<P, A> &v) requires(
+    is_memcpy_safe<P>()) {
   decltype(v.size()) size;
   ar(size);
   v.resize(size);
-  ar(cereal::binary_data(v.data(), size * sizeof(std::pair<V, I>)));
+  ar(cereal::binary_data(v.data(), size * sizeof(P)));
 }
 
 }

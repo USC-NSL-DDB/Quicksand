@@ -31,6 +31,23 @@ concept HasBuiltinLoad = requires(Archive ar, T t) {
     { t.load(ar) };
 };
 
+template <class T>
+consteval bool is_memcpy_safe() {
+  if constexpr (std::is_trivially_copy_assignable_v<T>) {
+    return true;
+  } else if constexpr (nu::is_specialization_of_v<T, std::pair>) {
+    return is_memcpy_safe<typename T::first_type>() &&
+           is_memcpy_safe<typename T::second_type>();
+  } else if constexpr (nu::is_specialization_of_v<T, std::tuple>) {
+    return std::apply(
+        []<typename... Args>(Args... _) {
+          return (is_memcpy_safe<Args>() && ...);
+        },
+        T{});
+  }
+  return false;
+}
+
 template <class Archive, typename T>
 void save(Archive &ar, T const &t) requires(
     std::is_trivially_copy_assignable_v<T> &&
@@ -53,20 +70,17 @@ void load(Archive &ar, T &t) requires(
     !nu::is_specialization_of_v<T, std::optional> &&
     !nu::is_specialization_of_v<T, cereal::BinaryData>);
 
-template <class Archive, typename V, typename I, typename A>
-void save(Archive &ar, std::vector<std::pair<V, I>, A> const &v) requires(
-    std::is_trivially_copy_assignable_v<V> &&
-    std::is_trivially_copy_assignable_v<I>);
+template <class Archive, typename P, typename A>
+void save(Archive &ar, std::vector<P, A> const &v) requires(
+    is_memcpy_safe<P>());
 
-template <class Archive, typename V, typename I, typename A>
-void save_move(Archive &ar, std::vector<std::pair<V, I>, A> &&v) requires(
-    std::is_trivially_copy_assignable_v<V> &&
-    std::is_trivially_copy_assignable_v<I>);
+template <class Archive, typename P, typename A>
+void save_move(Archive &ar, std::vector<P, A> &&v) requires(
+    is_memcpy_safe<P>());
 
-template <class Archive, typename V, typename I, typename A>
-void load(Archive &ar, std::vector<std::pair<V, I>, A> &v) requires(
-    std::is_trivially_copy_assignable_v<V> &&
-    std::is_trivially_copy_assignable_v<I>);
+template <class Archive, typename P, typename A>
+void load(Archive &ar, std::vector<P, A> &v) requires(
+    is_memcpy_safe<P>());
 
 }  // namespace cereal
 
