@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <utility>
 
 namespace nu {
@@ -85,16 +86,16 @@ GeneralUnorderedMap<K, V, M>::split() {
 
   std::vector<K> keys;
   keys.reserve(map_.size());
-  for (auto &[k, v] : map_) {
+  for (const auto &[k, v] : map_) {
     keys.push_back(k);
   }
 
-  std::sort(keys.begin(), keys.end());
+  std::nth_element(keys.begin(), keys.begin() + keys.size() / 2, keys.end());
   auto mid_key = keys[keys.size() / 2];
 
   UMap latter_half_map;
   for (auto it = map_.cbegin(); it != map_.cend();) {
-    if (it->second >= mid_key) {
+    if (it->first >= mid_key) {
       latter_half_map.emplace(std::move(it->first), std::move(it->second));
       map_.erase(it++);
     } else {
