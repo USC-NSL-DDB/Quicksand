@@ -27,8 +27,7 @@ class GeneralSet {
   using ConstReverseIterator = SetConstReverseIterator<Set>;
 
   GeneralSet();
-  GeneralSet(std::optional<Key> l_key);
-  GeneralSet(std::optional<Key> l_key, std::size_t capacity);
+  GeneralSet(std::size_t capacity);
   GeneralSet(const GeneralSet &) = default;
   GeneralSet &operator=(const GeneralSet &) = default;
   GeneralSet(GeneralSet &&) noexcept = default;

@@ -47,11 +47,6 @@ const Container &ConstContainerHandle<Container>::operator*() {
   return *c_;
 }
 
-template <typename Pair>
-inline constexpr uint64_t get_proclet_capacity(uint32_t max_shard_size) {
-  return 8 * max_shard_size * sizeof(Pair);
-}
-
 template <class Container>
 template <class Archive>
 void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
@@ -60,20 +55,28 @@ void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
-                                      uint32_t max_shard_size)
-    : max_shard_size_(max_shard_size), mapping_(std::move(mapping)) {}
+                                      uint32_t max_shard_bytes)
+    : GeneralShard(mapping, max_shard_bytes, std::nullopt, std::nullopt, 0) {}
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
-                                      uint32_t max_shard_size,
+                                      uint32_t max_shard_bytes,
                                       std::optional<Key> l_key,
                                       std::optional<Key> r_key,
                                       std::size_t capacity)
-    : max_shard_size_(max_shard_size),
+    : max_shard_bytes_(max_shard_bytes),
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(l_key, capacity) {}
+      container_(capacity),
+      slab_(Runtime::get_current_proclet_slab()) {
+  if constexpr (Reservable<Container>) {
+    max_growth_factor_fn_ = [&] {
+      return static_cast<float>(max_shard_bytes_) / slab_->get_usage();
+    };
+    container_.set_max_growth_factor_fn(max_growth_factor_fn_);
+  }
+}
 
 template <class Container>
 GeneralShard<Container>::~GeneralShard() {
@@ -86,17 +89,24 @@ template <class Container>
 void GeneralShard<Container>::set_range_and_data(std::optional<Key> l_key,
                                                  std::optional<Key> r_key,
                                                  Container container,
-                                                 uint32_t max_shard_size) {
+                                                 uint32_t container_capacity) {
+  // TODO: avoid the copy overheads.
+  if constexpr (Reservable<Container>) {
+    container.reserve(container_capacity);
+  }
   l_key_ = l_key;
   r_key_ = r_key;
   container_ = std::move(container);
   if constexpr (Reservable<Container>) {
-    container_.reserve(max_shard_size);
+    container_.set_max_growth_factor_fn(max_growth_factor_fn_);
   }
 }
 
 template <class Container>
 Container GeneralShard<Container>::get_container_copy() {
+  // FIXME: be migration-safe.
+  RuntimeSlabGuard slab_guard;
+
   rw_lock_.reader_lock();
   Container c = container_;
   rw_lock_.reader_unlock();
@@ -116,20 +126,30 @@ GeneralShard<Container>::get_const_container_handle() {
 
 template <class Container>
 void GeneralShard<Container>::split() {
+  // FIXME: be migration-safe.
+  RuntimeSlabGuard slab_guard;
+
+  BUG_ON(container_.empty());
   auto [mid_k, latter_half_container] = container_.split();
-  max_shard_size_ =
-      std::max(max_shard_size_, static_cast<uint32_t>(container_.size()));
-  auto new_shard = mapping_.run(&ShardingMapping::create_new_shard, mid_k,
-                                r_key_, 0);
+  auto new_shard =
+      mapping_.run(&ShardingMapping::create_new_shard, mid_k, r_key_, 0);
   new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
-                latter_half_container, max_shard_size_);
+                std::move(latter_half_container), container_.size());
   r_key_ = mid_k;
+  // Grant slightly more memory to incorporate fragmentations in our slab
+  // allocator.
+  max_shard_bytes_ = static_cast<uint32_t>(slab_->get_usage()) + (2 << 20);
 }
 
 template <class Container>
 bool GeneralShard<Container>::bad_range(std::optional<Key> l_key,
                                         std::optional<Key> r_key) {
   return (l_key < l_key_) || (r_key_ && (r_key > r_key_ || !r_key));
+}
+
+template <class Container>
+bool GeneralShard<Container>::should_split() const {
+  return slab_->get_usage() > max_shard_bytes_;
 }
 
 template <class Container>
@@ -143,10 +163,11 @@ bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
   }
 
   container_.emplace(std::move(p.first), std::move(p.second));
-  if (unlikely(container_.size() > max_shard_size_)) {
+
+  if (unlikely(should_split())) {
     rw_lock_.reader_unlock();
     rw_lock_.writer_lock();
-    if (container_.size() > max_shard_size_) {
+    if (should_split()) {
       split();
     }
     rw_lock_.writer_unlock();
@@ -170,10 +191,10 @@ bool GeneralShard<Container>::try_emplace_back(
   }
 
   container_.emplace_back(std::move(v));
-  if (unlikely(container_.size() > max_shard_size_)) {
+  if (unlikely(should_split())) {
     rw_lock_.reader_unlock();
     rw_lock_.writer_lock();
-    if (container_.size() > max_shard_size_) {
+    if (should_split()) {
       split();
     }
     rw_lock_.writer_unlock();
@@ -203,10 +224,11 @@ GeneralShard<Container>::__try_handle_batch(const ReqBatch &batch) {
   if (!batch.emplace_reqs.empty()) {
     container_.emplace_batch(std::move(batch.emplace_reqs));
   }
-  if (unlikely(container_.size() > max_shard_size_)) {
+
+  if (unlikely(should_split())) {
     rw_lock_.reader_unlock();
     rw_lock_.writer_lock();
-    if (container_.size() > max_shard_size_) {
+    if (should_split()) {
       split();
     }
     rw_lock_.writer_unlock();

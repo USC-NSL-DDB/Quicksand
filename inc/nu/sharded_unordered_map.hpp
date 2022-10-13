@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <unordered_map>
 
 #include "sharded_ds.hpp"
@@ -22,9 +23,10 @@ class GeneralUnorderedMap {
                                   std::unordered_map<K, V>>;
   using ConstIterator = UnorderedMapConstIterator<UMap>;
 
+  constexpr static float kDefaultGrowthFactor = 2.0;
+
   GeneralUnorderedMap() = default;
-  GeneralUnorderedMap(std::optional<Key> l_key);
-  GeneralUnorderedMap(std::optional<Key> l_key, std::size_t capacity);
+  GeneralUnorderedMap(std::size_t capacity);
   GeneralUnorderedMap(const GeneralUnorderedMap &) = default;
   GeneralUnorderedMap &operator=(const GeneralUnorderedMap &) = default;
   GeneralUnorderedMap(GeneralUnorderedMap &&) noexcept = default;
@@ -32,6 +34,7 @@ class GeneralUnorderedMap {
 
   std::size_t size() const;
   void reserve(std::size_t size);
+  void set_max_growth_factor_fn(const std::function<float()> &fn);
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
@@ -51,6 +54,7 @@ class GeneralUnorderedMap {
   GeneralUnorderedMap(UMap initial_state);
 
   UMap map_;
+  std::function<float()> max_growth_factor_fn_;
 };
 
 template <typename K, typename V, typename M, typename LL>

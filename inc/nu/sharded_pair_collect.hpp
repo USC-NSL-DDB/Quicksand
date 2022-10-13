@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 
 #include "nu/sharded_ds.hpp"
@@ -12,9 +13,10 @@ class PairCollection {
   using Key = K;
   using Val = V;
 
+  constexpr static float kDefaultGrowthFactor = 2.0;
+
   PairCollection();
-  PairCollection(std::optional<Key> l_key);
-  PairCollection(std::optional<Key> l_key, std::size_t capacity);
+  PairCollection(std::size_t capacity);
   PairCollection(const PairCollection &);
   PairCollection &operator=(const PairCollection &);
   PairCollection(PairCollection &&) noexcept;
@@ -22,6 +24,8 @@ class PairCollection {
   ~PairCollection();
   std::size_t size() const;
   std::size_t capacity() const;
+  void reserve(std::size_t capacity);
+  void set_max_growth_factor_fn(const std::function<float()> &fn);
   bool empty() const;
   void clear();
   void emplace(K k, V v);
@@ -41,6 +45,7 @@ class PairCollection {
   std::size_t size_;
   std::size_t capacity_;
   bool ownership_;
+  std::function<float()> max_growth_factor_fn_;
 
   void expand();
   void destroy();

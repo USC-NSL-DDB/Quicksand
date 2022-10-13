@@ -8,24 +8,28 @@ namespace nu {
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure() {}
 
-// TODO: need improvements.
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::set_shard_and_batch_size() {
-  constexpr auto max_shard_bytes =
+void ShardedDataStructure<Container, LL>::set_shard_and_batch_size(
+    uint32_t *max_shard_bytes, uint32_t *max_shard_size,
+    uint32_t *max_batch_size) {
+  *max_shard_bytes =
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
-  constexpr auto max_batch_bytes =
+  auto max_batch_bytes =
       LL::value ? kLowLatencyMaxBatchBytes : kBatchingMaxBatchBytes;
-  max_shard_size_ = max_shard_bytes / sizeof(Pair);
-  max_batch_size_ = max_batch_bytes / sizeof(Pair);
+  // It's ok to be inaccurate, as it's only used for initial partitioning.
+  *max_shard_size = *max_shard_bytes / sizeof(Pair);
+  // Ditto, as it's only used as the local batch size.
+  *max_batch_size = max_batch_bytes / sizeof(Pair);
 }
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<Hint> hint) {
-  set_shard_and_batch_size();
+  uint32_t max_shard_bytes, max_shard_size;
+  set_shard_and_batch_size(&max_shard_bytes, &max_shard_size,
+                           &max_batch_size_);
 
-  auto proclet_capacity = get_proclet_capacity<Pair>(max_shard_size_);
-  mapping_ = make_proclet<ShardingMapping>(proclet_capacity, max_shard_size_);
+  mapping_ = make_proclet<ShardingMapping>(max_shard_bytes);
 
   std::vector<std::optional<Key>> keys;
   std::vector<Future<WeakProclet<Shard>>> shard_futures;
@@ -34,10 +38,10 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   keys.push_back(std::nullopt);
   if (hint) {
     auto k = hint->estimated_min_key;
-    auto num_shards = (hint->num - 1) / max_shard_size_ + 1;
+    auto num_shards = (hint->num - 1) / max_shard_size + 1;
     for (std::size_t i = 0; i < num_shards; i++) {
       keys.push_back(k);
-      hint->key_inc_fn(k, max_shard_size_);
+      hint->key_inc_fn(k, max_shard_size);
     }
   }
 
@@ -50,19 +54,11 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
         next_key = std::nullopt;
       }
 
-      uint64_t container_capacity;
-      if (likely(curr_key && next_key)) {
-        container_capacity = max_shard_size_;
-      } else if (!curr_key) {
-        container_capacity = 0;
-      } else if (!next_key) {
-        container_capacity = ((hint->num - 1) % max_shard_size_ + 1);
-      }
-
-      shard_futures.emplace_back(mapping_.run_async(
-          &ShardingMapping::create_new_shard, std::move(curr_key),
-          std::move(next_key), container_capacity));
+      shard_futures.emplace_back(
+          mapping_.run_async(&ShardingMapping::create_new_shard,
+                             std::move(curr_key), std::move(next_key), 0));
     } else {
+      // TODO: review it to see if it's necessary.
       reserve_futures.emplace_back(
           mapping_.run_async(&ShardingMapping::reserve_new_shard));
     }
@@ -79,7 +75,6 @@ template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     const ShardedDataStructure &o)
     : mapping_(o.mapping_),
-      max_shard_size_(o.max_shard_size_),
       max_batch_size_(o.max_batch_size_),
       key_to_shards_(o.key_to_shards_) {
   mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
@@ -92,7 +87,6 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   const_cast<ShardedDataStructure &>(o).flush();
 
   mapping_ = o.mapping_;
-  max_shard_size_ = o.max_shard_size_;
   max_batch_size_ = o.max_batch_size_;
   key_to_shards_ = o.key_to_shards_;
 
@@ -105,7 +99,6 @@ template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     ShardedDataStructure &&o) noexcept
     : mapping_(std::move(o.mapping_)),
-      max_shard_size_(o.max_shard_size_),
       max_batch_size_(o.max_batch_size_),
       key_to_shards_(std::move(o.key_to_shards_)),
       emplace_back_reqs_(std::move(o.emplace_back_reqs_)),
@@ -118,7 +111,6 @@ ShardedDataStructure<Container, LL>
   reset();
 
   mapping_ = std::move(o.mapping_);
-  max_shard_size_ = o.max_shard_size_;
   max_batch_size_ = o.max_batch_size_;
   key_to_shards_ = std::move(o.key_to_shards_);
   emplace_back_reqs_ = std::move(o.emplace_back_reqs_);
@@ -416,7 +408,7 @@ Container ShardedDataStructure<Container, LL>::collect() {
     size += future.get().size();
   }
 
-  Container all(std::make_optional<Key>(), size);
+  Container all(size);
   for (auto &future : futures) {
     all.merge(std::move(future.get()));
   }
@@ -471,13 +463,13 @@ template <class Container, class LL>
 template <class Archive>
 void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
   const_cast<ShardedDataStructure *>(this)->flush();
-  ar(mapping_, max_shard_size_, max_batch_size_, key_to_shards_);
+  ar(mapping_, max_batch_size_, key_to_shards_);
 }
 
 template <class Container, class LL>
 template <class Archive>
 void ShardedDataStructure<Container, LL>::load(Archive &ar) {
-  ar(mapping_, max_shard_size_, max_batch_size_, key_to_shards_);
+  ar(mapping_, max_batch_size_, key_to_shards_);
   mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
 }
 

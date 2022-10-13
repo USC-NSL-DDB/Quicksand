@@ -29,11 +29,7 @@ MapConstReverseIterator<Map>::MapConstReverseIterator(
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::GeneralMap(std::optional<Key> l_key) {}
-
-template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::GeneralMap(std::optional<Key> l_key,
-                                std::size_t capacity) {}
+GeneralMap<K, V, M>::GeneralMap(std::size_t capacity) {}
 
 template <typename K, typename V, typename M>
 GeneralMap<K, V, M>::GeneralMap(Map initial_state)
@@ -82,8 +78,6 @@ GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::find(K k) {
 
 template <typename K, typename V, typename M>
 std::pair<K, GeneralMap<K, V, M>> GeneralMap<K, V, M>::split() {
-  assert(!map_.empty());
-
   auto mid = map_.size() / 2;
   auto split_it = map_.begin();
   std::advance(split_it, mid);

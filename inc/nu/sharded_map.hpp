@@ -30,8 +30,7 @@ class GeneralMap {
   using ConstReverseIterator = MapConstReverseIterator<Map>;
 
   GeneralMap() = default;
-  GeneralMap(std::optional<Key> l_key);
-  GeneralMap(std::optional<Key> l_key, std::size_t capacity);
+  GeneralMap(std::size_t capacity);
   GeneralMap(const GeneralMap &) = default;
   GeneralMap &operator=(const GeneralMap &) = default;
   GeneralMap(GeneralMap &&) noexcept = default;

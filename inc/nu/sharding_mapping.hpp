@@ -17,7 +17,7 @@ class GeneralShardingMapping {
  public:
   using Key = Shard::Key;
 
-  GeneralShardingMapping(uint64_t proclet_capacity, uint32_t max_shard_size);
+  GeneralShardingMapping(uint32_t max_shard_bytes);
   ~GeneralShardingMapping();
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
@@ -34,9 +34,11 @@ class GeneralShardingMapping {
   void unseal();
 
  private:
+  constexpr static double kProcletOverprovisionFactor = 2;
+
   WeakProclet<GeneralShardingMapping> self_;
-  uint64_t proclet_capacity_;
-  uint32_t max_shard_size_;
+  uint32_t max_shard_bytes_;
+  uint32_t proclet_capacity_;
   std::multimap<std::optional<Key>, Proclet<Shard>> mapping_;
   ReaderWriterLock rw_lock_;
   uint32_t ref_cnt_;

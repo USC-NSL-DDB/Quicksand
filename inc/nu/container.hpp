@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <type_traits>
 #include <utility>
@@ -100,8 +101,7 @@ class GeneralContainerBase {
                          GeneralContainer<Impl>>;
 
   GeneralContainerBase() : impl_() {}
-  GeneralContainerBase(std::optional<Key> l_key, std::size_t capacity)
-      : impl_(l_key, capacity) {}
+  GeneralContainerBase(std::size_t capacity) : impl_(capacity) {}
   GeneralContainerBase(const GeneralContainerBase &c) : impl_(c.impl_) {}
   GeneralContainerBase &operator=(const GeneralContainerBase &c) {
     impl_ = c.impl_;
@@ -169,6 +169,10 @@ class GeneralContainerBase {
   }
   ConstReverseIterator crend() const requires ConstReverseIterable<Impl> {
     return impl_.crend();
+  }
+  void set_max_growth_factor_fn(
+      const std::function<float()> &fn) requires Reservable<Impl> {
+    impl_.set_max_growth_factor_fn(fn);
   }
   template <class Archive>
   void save(Archive &ar) const {

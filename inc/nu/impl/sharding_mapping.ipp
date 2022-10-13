@@ -1,11 +1,10 @@
 namespace nu {
 
 template <class Shard>
-GeneralShardingMapping<Shard>::GeneralShardingMapping(uint64_t proclet_capacity,
-                                                      uint32_t max_shard_size)
+GeneralShardingMapping<Shard>::GeneralShardingMapping(uint32_t max_shard_bytes)
     : self_(Runtime::get_current_weak_proclet<GeneralShardingMapping>()),
-      proclet_capacity_(proclet_capacity),
-      max_shard_size_(max_shard_size),
+      max_shard_bytes_(max_shard_bytes),
+      proclet_capacity_(max_shard_bytes_ * kProcletOverprovisionFactor),
       ref_cnt_(1) {}
 
 template <class Shard>
@@ -105,7 +104,7 @@ template <class Shard>
 void GeneralShardingMapping<Shard>::reserve_new_shard() {
   mutex_.lock();
   auto new_shard = make_proclet_with_capacity<Shard>(proclet_capacity_, self_,
-                                                     max_shard_size_);
+                                                     max_shard_bytes_);
   reserved_shards_.emplace(std::move(new_shard));
   mutex_.unlock();
 }
@@ -125,7 +124,7 @@ WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
     mutex_.unlock();
   } else {
     new_shard = make_proclet_with_capacity<Shard>(proclet_capacity_, self_,
-                                                  max_shard_size_, l_key, r_key,
+                                                  max_shard_bytes_, l_key, r_key,
                                                   container_capacity);
   }
 

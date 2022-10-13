@@ -19,11 +19,7 @@ UnorderedMapConstIterator<USet>::UnorderedMapConstIterator(
 }
 
 template <typename K, typename V, typename M>
-GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(std::optional<Key> l_key) {}
-
-template <typename K, typename V, typename M>
-GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(std::optional<Key> l_key,
-                                                  std::size_t capacity) {
+GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(std::size_t capacity) {
   map_.reserve(capacity);
 }
 
@@ -42,6 +38,12 @@ void GeneralUnorderedMap<K, V, M>::reserve(std::size_t size) {
 }
 
 template <typename K, typename V, typename M>
+void GeneralUnorderedMap<K, V, M>::set_max_growth_factor_fn(
+    const std::function<float()> &fn) {
+  max_growth_factor_fn_ = fn;
+}
+
+template <typename K, typename V, typename M>
 bool GeneralUnorderedMap<K, V, M>::empty() const {
   return map_.empty();
 }
@@ -53,6 +55,11 @@ void GeneralUnorderedMap<K, V, M>::clear() {
 
 template <typename K, typename V, typename M>
 void GeneralUnorderedMap<K, V, M>::emplace(Key k, Val v) {
+  if (unlikely(map_.size() == map_.bucket_count())) {
+    std::size_t new_capacity =
+        size() * std::min(max_growth_factor_fn_(), kDefaultGrowthFactor);
+    reserve(std::max(static_cast<std::size_t>(1), new_capacity));
+  }
   map_.emplace(std::move(k), std::move(v));
 }
 
@@ -82,8 +89,6 @@ GeneralUnorderedMap<K, V, M>::ConstIterator GeneralUnorderedMap<K, V, M>::find(
 template <typename K, typename V, typename M>
 std::pair<K, GeneralUnorderedMap<K, V, M>>
 GeneralUnorderedMap<K, V, M>::split() {
-  assert(!map_.empty());
-
   std::vector<K> keys;
   keys.reserve(map_.size());
   for (const auto &[k, v] : map_) {
@@ -97,7 +102,7 @@ GeneralUnorderedMap<K, V, M>::split() {
   for (auto it = map_.cbegin(); it != map_.cend();) {
     if (it->first >= mid_key) {
       latter_half_map.emplace(std::move(it->first), std::move(it->second));
-      map_.erase(it++);
+      it = map_.erase(it);
     } else {
       ++it;
     }

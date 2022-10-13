@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <optional>
 #include <tuple>
 #include <utility>
@@ -64,13 +65,13 @@ class GeneralShard {
     void serialize(Archive &ar);
   };
 
-  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size);
-  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_size,
+  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_bytes);
+  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_bytes,
                std::optional<Key> l_key, std::optional<Key> r_key,
                std::size_t capacity);
   ~GeneralShard();
   void set_range_and_data(std::optional<Key> l_key, std::optional<Key> r_key,
-                          Container container, uint32_t max_shard_size);
+                          Container container, uint32_t container_capacity);
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
@@ -114,16 +115,20 @@ class GeneralShard {
   ConstContainerHandle<Container> get_const_container_handle();
 
  private:
-  uint32_t max_shard_size_;
+  uint32_t max_shard_bytes_;
   WeakProclet<ShardingMapping> mapping_;
   std::optional<Key> l_key_;
   std::optional<Key> r_key_;
   Container container_;
   ReaderWriterLock rw_lock_;
+  SlabAllocator *slab_;
+  std::function<float()> max_growth_factor_fn_;
+
   friend class ContainerHandle<Container>;
   friend class ConstContainerHandle<Container>;
 
   void split();
+  bool should_split() const;
   bool bad_range(std::optional<Key> l_key, std::optional<Key> r_key);
   uint32_t __get_block_forward(
       std::vector<std::pair<IterVal, ConstIterator>>::iterator block_iter,

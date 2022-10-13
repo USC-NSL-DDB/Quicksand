@@ -25,10 +25,7 @@ template <typename T, typename M>
 GeneralSet<T, M>::GeneralSet() {}
 
 template <typename T, typename M>
-GeneralSet<T, M>::GeneralSet(std::optional<Key> l_key) {}
-
-template <typename T, typename M>
-GeneralSet<T, M>::GeneralSet(std::optional<Key> l_key, std::size_t capacity) {}
+GeneralSet<T, M>::GeneralSet(std::size_t capacity) {}
 
 template <typename T, typename M>
 std::size_t GeneralSet<T, M>::size() const {
@@ -77,7 +74,6 @@ GeneralSet<T, M>::GeneralSet(Set initial_state) {
 template <typename T, typename M>
 std::pair<typename GeneralSet<T, M>::Key, GeneralSet<T, M>>
 GeneralSet<T, M>::split() {
-  assert(set_.size() > 0);
   auto mid = set_.size() / 2;
 
   auto latter_half_begin_itr = set_.begin();

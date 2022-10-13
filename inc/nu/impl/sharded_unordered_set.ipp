@@ -20,11 +20,7 @@ UnorderedSetConstIterator<USet>::UnorderedSetConstIterator(
 }
 
 template <typename T, typename M>
-GeneralUnorderedSet<T, M>::GeneralUnorderedSet(std::optional<Key> l_key) {}
-
-template <typename T, typename M>
-GeneralUnorderedSet<T, M>::GeneralUnorderedSet(std::optional<Key> l_key,
-                                               std::size_t capacity) {}
+GeneralUnorderedSet<T, M>::GeneralUnorderedSet(std::size_t capacity) {}
 
 template <typename T, typename M>
 std::size_t GeneralUnorderedSet<T, M>::size() const {
@@ -34,6 +30,12 @@ std::size_t GeneralUnorderedSet<T, M>::size() const {
 template <typename T, typename M>
 void GeneralUnorderedSet<T, M>::reserve(std::size_t size) {
   return set_.reserve(size);
+}
+
+template <typename T, typename M>
+void GeneralUnorderedSet<T, M>::set_max_growth_factor_fn(
+    const std::function<float()> &fn) {
+  max_growth_factor_fn_ = fn;
 }
 
 template <typename T, typename M>
@@ -48,6 +50,12 @@ void GeneralUnorderedSet<T, M>::clear() {
 
 template <typename T, typename M>
 void GeneralUnorderedSet<T, M>::emplace(Key k, Val v) {
+  if (unlikely(set_.size() == set_.bucket_count())) {
+    std::size_t new_capacity =
+        size() * std::min(max_growth_factor_fn_(), kDefaultGrowthFactor);
+    reserve(std::max(static_cast<std::size_t>(1), new_capacity));
+  }
+
   assert(k == v);
   set_.insert(std::move(k));
 }

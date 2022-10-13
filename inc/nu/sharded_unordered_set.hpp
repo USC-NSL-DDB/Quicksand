@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <unordered_set>
 
 #include "sharded_ds.hpp"
@@ -22,9 +23,10 @@ class GeneralUnorderedSet {
                                   std::unordered_set<T>>;
   using ConstIterator = UnorderedSetConstIterator<USet>;
 
+  constexpr static float kDefaultGrowthFactor = 2.0;
+
   GeneralUnorderedSet() = default;
-  GeneralUnorderedSet(std::optional<Key> l_key);
-  GeneralUnorderedSet(std::optional<Key> l_key, std::size_t capacity);
+  GeneralUnorderedSet(std::size_t capacity);
   GeneralUnorderedSet(const GeneralUnorderedSet &) = default;
   GeneralUnorderedSet &operator=(const GeneralUnorderedSet &) = default;
   GeneralUnorderedSet(GeneralUnorderedSet &&) noexcept = default;
@@ -32,6 +34,7 @@ class GeneralUnorderedSet {
 
   std::size_t size() const;
   void reserve(std::size_t size);
+  void set_max_growth_factor_fn(const std::function<float()> &fn);
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
@@ -50,7 +53,9 @@ class GeneralUnorderedSet {
 
  private:
   GeneralUnorderedSet(USet initial_state);
+
   USet set_;
+  std::function<float()> max_growth_factor_fn_;
 };
 
 template <typename T, BoolIntegral M, typename LL>

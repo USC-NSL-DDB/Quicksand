@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 
 #include "sharded_ds.hpp"
@@ -29,9 +30,10 @@ class Vector {
   using ConstIterator = VectorConstIterator<T>;
   using ConstReverseIterator = VectorConstReverseIterator<T>;
 
+  constexpr static float kDefaultGrowthFactor = 2.0;
+
   Vector();
-  Vector(std::optional<Key> l_key);
-  Vector(std::optional<Key> l_key, std::size_t capacity);
+  Vector(std::size_t capacity);
   Vector(const Vector &);
   Vector &operator=(const Vector &);
   Vector(Vector &&) noexcept;
@@ -40,6 +42,7 @@ class Vector {
   std::size_t size() const;
   std::size_t capacity() const;
   void reserve(std::size_t size);
+  void set_max_growth_factor_fn(const std::function<float()> &fn);
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
@@ -62,6 +65,7 @@ class Vector {
  private:
   std::vector<T> data_;
   Key l_key_;
+  std::function<float()> max_growth_factor_fn_;
 };
 
 template <typename T, typename LL>

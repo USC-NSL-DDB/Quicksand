@@ -30,14 +30,10 @@ VectorConstReverseIterator<T>::VectorConstReverseIterator(
 }
 
 template <typename T>
-Vector<T>::Vector() {}
+Vector<T>::Vector() : l_key_(0) {}
 
 template <typename T>
-Vector<T>::Vector(std::optional<Key> l_key) : l_key_(l_key.value_or(0)) {}
-
-template <typename T>
-Vector<T>::Vector(std::optional<Key> l_key, std::size_t capacity)
-    : l_key_(l_key.value_or(0)) {
+Vector<T>::Vector(std::size_t capacity) : l_key_(0) {
   data_.reserve(capacity);
 }
 
@@ -81,6 +77,11 @@ void Vector<T>::reserve(std::size_t size) {
 }
 
 template <typename T>
+void Vector<T>::set_max_growth_factor_fn(const std::function<float()> &fn) {
+  max_growth_factor_fn_ = fn;
+}
+
+template <typename T>
 bool Vector<T>::empty() const {
   return data_.empty();
 }
@@ -97,11 +98,24 @@ void Vector<T>::emplace(Key k, Val v) {
 
 template <typename T>
 void Vector<T>::emplace_back(Val v) {
+  // TODO: remove redundant checks.
+  if (unlikely(size() + 1 > capacity())) {
+    std::size_t new_capacity =
+        size() * std::min(max_growth_factor_fn_(), kDefaultGrowthFactor);
+    reserve(std::max(static_cast<std::size_t>(1), new_capacity));
+  }
   data_.emplace_back(std::move(v));
 }
 
 template <typename T>
 void Vector<T>::emplace_back_batch(std::vector<Val> v) {
+  // TODO: remove redundant checks.
+  if (unlikely(size() + v.size() > capacity())) {
+    std::size_t new_capacity =
+        size() * std::min(max_growth_factor_fn_(), kDefaultGrowthFactor);
+    reserve(
+        std::max(static_cast<std::size_t>(size() + v.size()), new_capacity));
+  }
   data_.insert(data_.end(), make_move_iterator(v.begin()),
                make_move_iterator(v.end()));
 }
@@ -126,10 +140,18 @@ Vector<T>::ConstIterator Vector<T>::find(Key k) {
 
 template <typename T>
 std::pair<typename Vector<T>::Key, Vector<T>> Vector<T>::split() {
-  auto new_shard_l_key = l_key_ + data_.size();
+  auto new_shard_size = data_.size() / 2;
+  auto old_shard_size = data_.size() - new_shard_size;
+
   Vector<T> new_vec;
-  new_vec.l_key_ = new_shard_l_key;
-  return std::make_pair(new_shard_l_key, std::move(new_vec));
+  new_vec.data_.insert(new_vec.data_.end(),
+                       std::make_move_iterator(data_.end() - new_shard_size),
+                       std::make_move_iterator(data_.end()));
+
+  new_vec.l_key_ = l_key_ + old_shard_size;
+  data_.resize(old_shard_size);
+
+  return std::make_pair(new_vec.l_key_, std::move(new_vec));
 }
 
 template <typename T>

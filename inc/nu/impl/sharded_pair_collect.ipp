@@ -8,12 +8,7 @@ template <typename K, typename V>
 PairCollection<K, V>::PairCollection() : data_(nullptr) {}
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection(std::optional<Key> l_key)
-    : data_(nullptr), size_(0), capacity_(0), ownership_(false) {}
-
-template <typename K, typename V>
-PairCollection<K, V>::PairCollection(std::optional<Key> l_key,
-                                     std::size_t capacity) {
+PairCollection<K, V>::PairCollection(std::size_t capacity) {
   data_ = new std::pair<K, V>[capacity];
   size_ = 0;
   capacity_ = capacity;
@@ -104,13 +99,13 @@ void PairCollection<K, V>::clear() {
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::expand() {
-  if (!capacity_) {
-    capacity_ = 1;
-    ownership_ = true;
-  } else {
-    capacity_ *= 2;
+void PairCollection<K, V>::reserve(std::size_t capacity) {
+  if (unlikely(capacity <= capacity_)) {
+    return;
   }
+
+  capacity_ = capacity;
+  ownership_ = true;
   auto *new_data = new std::pair<K, V>[capacity_];
 
   if (size_) {
@@ -124,10 +119,19 @@ void PairCollection<K, V>::expand() {
 }
 
 template <typename K, typename V>
+void PairCollection<K, V>::set_max_growth_factor_fn(
+    const std::function<float()> &fn) {
+  max_growth_factor_fn_ = fn;
+}
+
+template <typename K, typename V>
 void PairCollection<K, V>::emplace(K k, V v) {
   if (unlikely(size_ == capacity_)) {
-    expand();
+    std::size_t new_capacity =
+        size_ * std::min(max_growth_factor_fn_(), kDefaultGrowthFactor);
+    reserve(std::max(static_cast<std::size_t>(1), new_capacity));
   }
+
   data_[size_++] = std::pair<K, V>(std::move(k), std::move(v));
   assert(size_ <= capacity_);
   assert(ownership_);
@@ -149,7 +153,8 @@ std::pair<K, PairCollection<K, V>> PairCollection<K, V>::split() {
   PairCollection latter_half;
   latter_half.data_ = data_ + size_ / 2;
   latter_half.size_ = size_ - size_ / 2;
-  latter_half.capacity_ = capacity_;
+  // TODO: review it.
+  latter_half.capacity_ = latter_half.size_;
   latter_half.ownership_ = false;
   size_ /= 2;
   return std::make_pair(std::move(mid_k), std::move(latter_half));

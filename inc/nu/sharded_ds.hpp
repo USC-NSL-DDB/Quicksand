@@ -98,7 +98,6 @@ class ShardedDataStructure {
   using ReqBatch = Shard::ReqBatch;
 
   Proclet<ShardingMapping> mapping_;
-  uint32_t max_shard_size_;
   uint32_t max_batch_size_;
   KeyToShardsMapping key_to_shards_;
   std::vector<Val> emplace_back_reqs_;
@@ -109,7 +108,9 @@ class ShardedDataStructure {
   std::size_t __size();
   std::optional<IterVal> __find_val(Key k) requires Findable<Container>;
   void reset();
-  void set_shard_and_batch_size();
+  void set_shard_and_batch_size(uint32_t *max_shard_bytes,
+                                uint32_t *max_shard_size,
+                                uint32_t *max_batch_size);
   bool flush_one_batch(KeyToShardsMapping::iterator iter, bool drain);
   void handle_rejected_flush_batch(ReqBatch &batch);
   void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key,
