@@ -34,7 +34,7 @@ class GeneralShardingMapping {
   void unseal();
 
  private:
-  constexpr static double kProcletOverprovisionFactor = 2;
+  constexpr static double kProcletOverprovisionFactor = 3;
 
   WeakProclet<GeneralShardingMapping> self_;
   uint32_t max_shard_bytes_;

@@ -69,14 +69,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       l_key_(l_key),
       r_key_(r_key),
       container_(capacity),
-      slab_(Runtime::get_current_proclet_slab()) {
-  if constexpr (Reservable<Container>) {
-    max_growth_factor_fn_ = [&] {
-      return static_cast<float>(max_shard_bytes_) / slab_->get_usage();
-    };
-    container_.set_max_growth_factor_fn(max_growth_factor_fn_);
-  }
-}
+      slab_(Runtime::get_current_proclet_slab()) {}
 
 template <class Container>
 GeneralShard<Container>::~GeneralShard() {
@@ -97,9 +90,6 @@ void GeneralShard<Container>::set_range_and_data(std::optional<Key> l_key,
   l_key_ = l_key;
   r_key_ = r_key;
   container_ = std::move(container);
-  if constexpr (Reservable<Container>) {
-    container_.set_max_growth_factor_fn(max_growth_factor_fn_);
-  }
 }
 
 template <class Container>

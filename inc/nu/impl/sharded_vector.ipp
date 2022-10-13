@@ -77,11 +77,6 @@ void Vector<T>::reserve(std::size_t size) {
 }
 
 template <typename T>
-void Vector<T>::set_max_growth_factor_fn(const std::function<float()> &fn) {
-  max_growth_factor_fn_ = fn;
-}
-
-template <typename T>
 bool Vector<T>::empty() const {
   return data_.empty();
 }
@@ -98,24 +93,11 @@ void Vector<T>::emplace(Key k, Val v) {
 
 template <typename T>
 void Vector<T>::emplace_back(Val v) {
-  // TODO: remove redundant checks.
-  if (unlikely(size() + 1 > capacity())) {
-    std::size_t new_capacity =
-        size() * std::min(max_growth_factor_fn_(), kDefaultGrowthFactor);
-    reserve(std::max(static_cast<std::size_t>(1), new_capacity));
-  }
   data_.emplace_back(std::move(v));
 }
 
 template <typename T>
 void Vector<T>::emplace_back_batch(std::vector<Val> v) {
-  // TODO: remove redundant checks.
-  if (unlikely(size() + v.size() > capacity())) {
-    std::size_t new_capacity =
-        size() * std::min(max_growth_factor_fn_(), kDefaultGrowthFactor);
-    reserve(
-        std::max(static_cast<std::size_t>(size() + v.size()), new_capacity));
-  }
   data_.insert(data_.end(), make_move_iterator(v.begin()),
                make_move_iterator(v.end()));
 }

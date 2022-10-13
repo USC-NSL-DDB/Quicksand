@@ -122,7 +122,6 @@ class GeneralShard {
   Container container_;
   ReaderWriterLock rw_lock_;
   SlabAllocator *slab_;
-  std::function<float()> max_growth_factor_fn_;
 
   friend class ContainerHandle<Container>;
   friend class ConstContainerHandle<Container>;

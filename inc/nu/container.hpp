@@ -170,10 +170,6 @@ class GeneralContainerBase {
   ConstReverseIterator crend() const requires ConstReverseIterable<Impl> {
     return impl_.crend();
   }
-  void set_max_growth_factor_fn(
-      const std::function<float()> &fn) requires Reservable<Impl> {
-    impl_.set_max_growth_factor_fn(fn);
-  }
   template <class Archive>
   void save(Archive &ar) const {
     impl_.save(ar);

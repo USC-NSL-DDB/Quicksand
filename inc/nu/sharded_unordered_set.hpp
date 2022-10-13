@@ -23,8 +23,6 @@ class GeneralUnorderedSet {
                                   std::unordered_set<T>>;
   using ConstIterator = UnorderedSetConstIterator<USet>;
 
-  constexpr static float kDefaultGrowthFactor = 2.0;
-
   GeneralUnorderedSet() = default;
   GeneralUnorderedSet(std::size_t capacity);
   GeneralUnorderedSet(const GeneralUnorderedSet &) = default;
@@ -34,7 +32,6 @@ class GeneralUnorderedSet {
 
   std::size_t size() const;
   void reserve(std::size_t size);
-  void set_max_growth_factor_fn(const std::function<float()> &fn);
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
@@ -55,7 +52,6 @@ class GeneralUnorderedSet {
   GeneralUnorderedSet(USet initial_state);
 
   USet set_;
-  std::function<float()> max_growth_factor_fn_;
 };
 
 template <typename T, BoolIntegral M, typename LL>

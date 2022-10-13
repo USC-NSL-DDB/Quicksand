@@ -38,12 +38,6 @@ void GeneralUnorderedMap<K, V, M>::reserve(std::size_t size) {
 }
 
 template <typename K, typename V, typename M>
-void GeneralUnorderedMap<K, V, M>::set_max_growth_factor_fn(
-    const std::function<float()> &fn) {
-  max_growth_factor_fn_ = fn;
-}
-
-template <typename K, typename V, typename M>
 bool GeneralUnorderedMap<K, V, M>::empty() const {
   return map_.empty();
 }
@@ -55,11 +49,6 @@ void GeneralUnorderedMap<K, V, M>::clear() {
 
 template <typename K, typename V, typename M>
 void GeneralUnorderedMap<K, V, M>::emplace(Key k, Val v) {
-  if (unlikely(map_.size() == map_.bucket_count())) {
-    std::size_t new_capacity =
-        size() * std::min(max_growth_factor_fn_(), kDefaultGrowthFactor);
-    reserve(std::max(static_cast<std::size_t>(1), new_capacity));
-  }
   map_.emplace(std::move(k), std::move(v));
 }
 

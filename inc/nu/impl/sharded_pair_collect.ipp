@@ -119,17 +119,9 @@ void PairCollection<K, V>::reserve(std::size_t capacity) {
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::set_max_growth_factor_fn(
-    const std::function<float()> &fn) {
-  max_growth_factor_fn_ = fn;
-}
-
-template <typename K, typename V>
 void PairCollection<K, V>::emplace(K k, V v) {
   if (unlikely(size_ == capacity_)) {
-    std::size_t new_capacity =
-        size_ * std::min(max_growth_factor_fn_(), kDefaultGrowthFactor);
-    reserve(std::max(static_cast<std::size_t>(1), new_capacity));
+    reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));
   }
 
   data_[size_++] = std::pair<K, V>(std::move(k), std::move(v));
@@ -139,6 +131,11 @@ void PairCollection<K, V>::emplace(K k, V v) {
 
 template <typename K, typename V>
 void PairCollection<K, V>::merge(PairCollection pc) {
+  if (unlikely(size_ + pc.size_ > capacity_)) {
+    reserve(
+        std::max(static_cast<std::size_t>(size_ + pc.size_), 2 * capacity_));
+  }
+
   for (std::size_t i = 0; i < pc.size_; i++) {
     data_[size_++] = std::move(pc.data_[i]);
   }
