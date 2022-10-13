@@ -9,7 +9,7 @@
 using namespace nu;
 
 std::vector<std::string> make_test_str_vec(uint32_t size);
-std::vector<std::string> kTestStrs = make_test_str_vec(100'000);
+std::vector<std::string> kTestStrs = make_test_str_vec(500'000);
 
 std::random_device rd;
 std::mt19937 mt(rd());
@@ -88,38 +88,40 @@ bool test_reverse_range_insert(T start, T end) {
 }
 
 bool test_insertion() {
-  return test_range_insert<int, std::false_type>(0, 1'000'000);
+  return test_range_insert<int, std::false_type>(0, 5'000'000);
 }
 
 bool test_ordering() {
-  return test_reverse_range_insert<int, std::false_type>(0, 1'000'000) &&
+  return test_reverse_range_insert<int, std::false_type>(0, 5'000'000) &&
          test_insert_elems_ordering<std::string, std::false_type>(kTestStrs);
 }
 
 bool test_size() {
-  std::size_t num_elems = 1'000'000;
+  std::size_t num_elems = 5'000'000;
   auto s = make_sharded_set<std::size_t, std::false_type>();
 
   if (s.size() != 0) return false;
 
-  for (std::size_t i = 1; i <= num_elems; i++) {
+  for (std::size_t i = 0; i < num_elems; i++) {
     s.insert(i);
   }
+
   if (s.size() != num_elems) return false;
 
-  for (std::size_t i = 1; i <= num_elems; i++) {
+  for (std::size_t i = 0; i < num_elems; i++) {
     s.insert(i);
   }
+
   if (s.size() != num_elems) return false;
 
   return true;
 }
 
 bool test_clear() {
-  std::size_t num_elems = 1'000'000;
+  std::size_t num_elems = 5'000'000;
   auto s = make_sharded_set<std::size_t, std::false_type>();
 
-  for (std::size_t i = 1; i <= num_elems; i++) {
+  for (std::size_t i = 0; i < num_elems; i++) {
     s.insert(i);
   }
   s.clear();
@@ -128,7 +130,7 @@ bool test_clear() {
 }
 
 bool test_iter() {
-  std::size_t num_elems = 1'000'000;
+  std::size_t num_elems = 5'000'000;
 
   std::set<std::size_t> expected;
   std::set<std::size_t> iterated;
@@ -151,12 +153,11 @@ bool test_iter() {
     iterated.insert(*it);
   }
   if (iterated != expected) return false;
-
   return true;
 }
 
 bool test_multi_set() {
-  std::size_t num_elems = 20'000'000;
+  std::size_t num_elems = 5'000'000;
 
   auto s = make_sharded_multi_set<std::size_t, std::false_type>();
   for (std::size_t i = 0; i < num_elems; i++) {

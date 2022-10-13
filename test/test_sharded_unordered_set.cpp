@@ -9,38 +9,14 @@
 
 using namespace nu;
 
-std::vector<std::string> make_test_str_vec(uint32_t size);
-std::vector<std::string> kTestStrs = make_test_str_vec(100'000);
-
-std::random_device rd;
-std::mt19937 mt(rd());
-std::uniform_int_distribution<int> dist('A', 'z');
-
-std::string random_str(uint32_t len) {
-  std::string str = "";
-  for (uint32_t i = 0; i < len; i++) {
-    str += dist(mt);
-  }
-  return str;
-}
-
-std::vector<std::string> make_test_str_vec(uint32_t size) {
-  int test_str_len = 35;
-  std::vector<std::string> vec(size);
-  for (uint32_t i = 0; i < size; i++) {
-    vec[i] = random_str(test_str_len);
-  }
-  return vec;
-}
+constexpr static std::size_t kNumElements = 4'000'000;
 
 bool test_insertion() {
-  std::size_t num_elems = 1'000'000;
-
   std::unordered_set<std::size_t> expected;
   std::unordered_set<std::size_t> iterated;
   auto s = make_sharded_unordered_set<std::size_t, std::false_type>();
 
-  for (std::size_t i = 0; i < num_elems; ++i) {
+  for (std::size_t i = 0; i < kNumElements; ++i) {
     s.insert(i);
     expected.insert(i);
   }
@@ -54,29 +30,27 @@ bool test_insertion() {
 }
 
 bool test_size() {
-  std::size_t num_elems = 1'000'000;
   auto s = make_sharded_unordered_set<std::size_t, std::false_type>();
 
   if (s.size() != 0) return false;
 
-  for (std::size_t i = 1; i <= num_elems; i++) {
+  for (std::size_t i = 0; i < kNumElements; i++) {
     s.insert(i);
   }
-  if (s.size() != num_elems) return false;
+  if (s.size() != kNumElements) return false;
 
-  for (std::size_t i = 1; i <= num_elems; i++) {
+  for (std::size_t i = 0; i < kNumElements; i++) {
     s.insert(i);
   }
-  if (s.size() != num_elems) return false;
+  if (s.size() != kNumElements) return false;
 
   return true;
 }
 
 bool test_clear() {
-  std::size_t num_elems = 1'000'000;
   auto s = make_sharded_unordered_set<std::size_t, std::false_type>();
 
-  for (std::size_t i = 1; i <= num_elems; i++) {
+  for (std::size_t i = 0; i < kNumElements; i++) {
     s.insert(i);
   }
   s.clear();
