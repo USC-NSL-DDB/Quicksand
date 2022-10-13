@@ -79,19 +79,28 @@ GeneralUnorderedSet<T, M>::GeneralUnorderedSet(USet initial_state)
 
 template <typename T, typename M>
 std::pair<T, GeneralUnorderedSet<T, M>> GeneralUnorderedSet<T, M>::split() {
-  assert(set_.size() > 0);
-  auto mid = set_.size() / 2;
+  std::vector<T> keys;
+  keys.reserve(set_.size());
+  for (const auto &k : set_) {
+    keys.push_back(k);
+  }
 
-  auto latter_half_begin_itr = set_.begin();
-  std::advance(latter_half_begin_itr, mid);
-  auto latter_half_l_key = *latter_half_begin_itr;
+  std::nth_element(keys.begin(), keys.begin() + keys.size() / 2, keys.end());
+  auto mid_key = keys[keys.size() / 2];
 
-  USet latter_half_set(latter_half_begin_itr, set_.end());
-  set_.erase(latter_half_begin_itr, set_.end());
+  USet latter_half_set;
+  for (auto it = set_.cbegin(); it != set_.cend();) {
+    if (*it >= mid_key) {
+      latter_half_set.emplace(std::move(*it));
+      it = set_.erase(it);
+    } else {
+      ++it;
+    }
+  }
 
   GeneralUnorderedSet latter_half_container(std::move(latter_half_set));
 
-  return std::make_pair(latter_half_l_key, std::move(latter_half_container));
+  return std::make_pair(mid_key, std::move(latter_half_container));
 }
 
 template <typename T, typename M>
