@@ -52,54 +52,6 @@ class Runtime {
                                        lpid_t lpid);
   static NodeIP get_ip_by_proclet_id(ProcletID id);
   static void reserve_conns(uint32_t ip);
-
- private:
-  static RCULock rcu_lock;
-  static std::unique_ptr<ProcletServer> proclet_server;
-  static std::unique_ptr<ControllerClient> controller_client;
-  static std::unique_ptr<ControllerServer> controller_server;
-  static std::unique_ptr<ProcletManager> proclet_manager;
-  static std::unique_ptr<StackManager> stack_manager;
-  static std::unique_ptr<RPCClientMgr> rpc_client_mgr;
-  static std::unique_ptr<Migrator> migrator;
-  static std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> archive_pool;
-  static std::unique_ptr<RPCServer> rpc_server;
-  static std::unique_ptr<PressureHandler> pressure_handler;
-  static std::unique_ptr<ResourceReporter> resource_reporter;
-
-  friend class Test;
-  friend class ProcletServer;
-  friend class RPCClientMgr;
-  friend class Migrator;
-  friend class Mutex;
-  friend class CondVar;
-  friend class Time;
-  friend class Thread;
-  friend class CPULoad;
-  friend class ProcletManager;
-  friend class RPCServer;
-  friend class Controller;
-  friend class ControllerClient;
-  friend class PressureHandler;
-  friend class ResourceReporter;
-  friend class DistributedMemPool;
-  friend class RuntimeSlabGuard;
-  friend class ProcletSlabGuard;
-  friend class MigrationEnabledGuard;
-  friend class MigrationDisabledGuard;
-  friend class NonBlockingMigrationDisabledGuard;
-  template <typename T>
-  friend class Proclet;
-  template <typename T>
-  friend class RemRawPtr;
-  template <typename T>
-  friend class RemUniquePtr;
-  template <typename T>
-  friend class RemSharedPtr;
-  template <typename T>
-  friend class GeneralShardingMapping;
-
-  Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid);
   static void common_init();
   static void init_runtime_heap();
   static void init_as_controller();
@@ -122,6 +74,38 @@ class Runtime {
   static T *get_root_obj(ProcletID id);
   template <typename T>
   static WeakProclet<T> get_current_weak_proclet();
+
+ private:
+  static RCULock rcu_lock;
+  static std::unique_ptr<ProcletServer> proclet_server;
+  static std::unique_ptr<ControllerClient> controller_client;
+  static std::unique_ptr<ControllerServer> controller_server;
+  static std::unique_ptr<ProcletManager> proclet_manager;
+  static std::unique_ptr<StackManager> stack_manager;
+  static std::unique_ptr<RPCClientMgr> rpc_client_mgr;
+  static std::unique_ptr<Migrator> migrator;
+  static std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> archive_pool;
+  static std::unique_ptr<RPCServer> rpc_server;
+  static std::unique_ptr<PressureHandler> pressure_handler;
+  static std::unique_ptr<ResourceReporter> resource_reporter;
+
+  friend class Test;
+  friend class ProcletServer;
+  friend class RPCClientMgr;
+  friend class Migrator;
+  friend class Thread;
+  friend class RPCServer;
+  friend class Controller;
+  friend class ControllerClient;
+  friend class PressureHandler;
+  friend class ResourceReporter;
+  friend class MigrationEnabledGuard;
+  friend class MigrationDisabledGuard;
+  friend class NonBlockingMigrationDisabledGuard;
+  template <typename T>
+  friend class Proclet;
+
+  Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid);
 };
 
 class RuntimeSlabGuard {
