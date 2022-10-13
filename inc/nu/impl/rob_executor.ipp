@@ -51,11 +51,10 @@ std::vector<Ret> RobExecutor<Arg, Ret>::wait_all(uint32_t start_seq) {
       barrier();
     }
     entry.mutex.unlock();
-    if (!entry.ret) {
-      break;
+    if (entry.ret) {
+      rets.emplace_back(std::move(*entry.ret));
+      entry.ret.reset();
     }
-    rets.emplace_back(std::move(*entry.ret));
-    entry.ret.reset();
   }
   return rets;
 }
