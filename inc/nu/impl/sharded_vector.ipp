@@ -30,10 +30,10 @@ VectorConstReverseIterator<T>::VectorConstReverseIterator(
 }
 
 template <typename T>
-Vector<T>::Vector() : l_key_(0) {}
+Vector<T>::Vector() : l_key_(0), has_split_(false) {}
 
 template <typename T>
-Vector<T>::Vector(std::size_t capacity) : l_key_(0) {
+Vector<T>::Vector(std::size_t capacity) : l_key_(0), has_split_(false) {
   data_.reserve(capacity);
 }
 
@@ -140,8 +140,9 @@ Vector<T>::ConstIterator Vector<T>::find(Key k) {
 
 template <typename T>
 std::pair<typename Vector<T>::Key, Vector<T>> Vector<T>::split() {
-  auto new_shard_size = data_.size() / 2;
+  auto new_shard_size = has_split_ ? data_.size() / 2 : 0;
   auto old_shard_size = data_.size() - new_shard_size;
+  has_split_ = true;
 
   Vector<T> new_vec;
   new_vec.data_.insert(new_vec.data_.end(),
@@ -194,6 +195,7 @@ template <typename T>
 template <class Archive>
 void Vector<T>::load(Archive &ar) {
   ar(data_, l_key_);
+  has_split_ = false;
 }
 
 template <typename T, typename LL>

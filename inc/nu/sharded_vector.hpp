@@ -66,6 +66,7 @@ class Vector {
   std::vector<T> data_;
   Key l_key_;
   std::function<float()> max_growth_factor_fn_;
+  bool has_split_;
 };
 
 template <typename T, typename LL>
