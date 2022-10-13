@@ -38,8 +38,6 @@ test_time_src = test/test_time.cpp
 test_time_obj = $(test_time_src:.cpp=.o)
 test_sync_hash_map_src = test/test_sync_hash_map.cpp
 test_sync_hash_map_obj = $(test_sync_hash_map_src:.cpp=.o)
-test_sharded_array_src = test/test_sharded_array.cpp
-test_sharded_array_obj = $(test_sharded_array_src:.cpp=.o)
 test_sharded_set_src = test/test_sharded_set.cpp
 test_sharded_set_obj = $(test_sharded_set_src:.cpp=.o)
 test_sharded_unordered_set_src = test/test_sharded_unordered_set.cpp
@@ -134,7 +132,7 @@ bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
 bin/test_fast_path bin/test_slow_path bin/ctrl_main bin/test_max_num_proclets \
-bin/test_sharded_array bin/test_sharded_pair_collect bin/bench_controller \
+bin/test_sharded_pair_collect bin/bench_controller \
 bin/test_sharded_vector bin/bench_sharded_pair_collect bin/test_cereal bin/bench_sharded_vector \
 bin/bench_proclet_call_bw bin/test_sharded_set bin/test_sharded_map \
 bin/test_sharded_unordered_map bin/bench_cpu_overloaded bin/test_iter \
@@ -161,8 +159,6 @@ bin/test_time: $(test_time_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_time_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sync_hash_map: $(test_sync_hash_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sync_hash_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/test_sharded_array: $(test_sharded_array_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(test_sharded_array_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_set: $(test_sharded_set_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_set_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_unordered_set: $(test_sharded_unordered_set_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
