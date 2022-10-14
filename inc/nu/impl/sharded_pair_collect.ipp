@@ -108,7 +108,7 @@ void PairCollection<K, V>::reserve(std::size_t capacity) {
   ownership_ = true;
   auto *new_data = new std::pair<K, V>[capacity_];
 
-  if (size_) {
+  if (data_) {
     for (std::size_t i = 0; i < size_; i++) {
       new_data[i] = std::move(data_[i]);
     }

@@ -42,6 +42,18 @@ class ConstContainerHandle {
   GeneralShard<Container> *shard_;
 };
 
+template <class Container>
+struct ContainerWithCapacity {
+  Container container;
+  std::size_t capacity;
+
+  template <class Archive>
+  void save(Archive &ar) const;
+
+  template <class Archive>
+  void load(Archive &ar);
+};
+
 template <GeneralContainerBased Container>
 class GeneralShard {
  public:
@@ -70,8 +82,9 @@ class GeneralShard {
                std::optional<Key> l_key, std::optional<Key> r_key,
                std::size_t capacity);
   ~GeneralShard();
-  void set_range_and_data(std::optional<Key> l_key, std::optional<Key> r_key,
-                          Container container, uint32_t container_capacity);
+  void set_range_and_data(
+      std::optional<Key> l_key, std::optional<Key> r_key,
+      ContainerWithCapacity<Container> container_with_capacity);
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;

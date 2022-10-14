@@ -49,6 +49,22 @@ const Container &ConstContainerHandle<Container>::operator*() {
 
 template <class Container>
 template <class Archive>
+void ContainerWithCapacity<Container>::save(Archive &ar) const {
+  ar(capacity, container);
+}
+
+template <class Container>
+template <class Archive>
+void ContainerWithCapacity<Container>::load(Archive &ar) {
+  ar(capacity);
+  if constexpr (Reservable<Container>) {
+    container.reserve(capacity);
+  }
+  ar(container);
+}
+
+template <class Container>
+template <class Archive>
 void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
   ar(l_key, r_key, shard, emplace_back_reqs, emplace_reqs);
 }
@@ -79,17 +95,12 @@ GeneralShard<Container>::~GeneralShard() {
 }
 
 template <class Container>
-void GeneralShard<Container>::set_range_and_data(std::optional<Key> l_key,
-                                                 std::optional<Key> r_key,
-                                                 Container container,
-                                                 uint32_t container_capacity) {
-  // TODO: avoid the copy overheads.
-  if constexpr (Reservable<Container>) {
-    container.reserve(container_capacity);
-  }
+void GeneralShard<Container>::set_range_and_data(
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    ContainerWithCapacity<Container> container_with_capacity) {
   l_key_ = l_key;
   r_key_ = r_key;
-  container_ = std::move(container);
+  container_ = std::move(container_with_capacity.container);
 }
 
 template <class Container>
@@ -123,8 +134,10 @@ void GeneralShard<Container>::split() {
   auto [mid_k, latter_half_container] = container_.split();
   auto new_shard =
       mapping_.run(&ShardingMapping::create_new_shard, mid_k, r_key_, 0);
+  ContainerWithCapacity container_with_capacity{
+      std::move(latter_half_container), container_.size()};
   new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
-                std::move(latter_half_container), container_.size());
+                container_with_capacity);
   r_key_ = mid_k;
   // Grant slightly more memory to incorporate fragmentations in our slab
   // allocator.
