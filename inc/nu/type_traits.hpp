@@ -15,7 +15,7 @@ constexpr bool is_specialization_of_v =
     is_specialization_of<T, Template>::value;
 
 template <typename T>
-auto move_if_safe(T &&t);
+auto &&move_if_safe(T &&t);
 
 template <template <typename...> class C, typename... Ts>
 std::true_type is_base_of_template_impl(const C<Ts...> *);
