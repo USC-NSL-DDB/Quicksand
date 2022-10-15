@@ -54,9 +54,7 @@ void GeneralMap<K, V, M>::emplace(Key k, Val v) {
 
 template <typename K, typename V, typename M>
 void GeneralMap<K, V, M>::merge(GeneralMap m) {
-  for (auto &[k, v] : m.map_) {
-    map_.try_emplace(std::move(k), std::move(v));
-  }
+  map_.merge(std::move(m.map_));
 }
 
 template <typename K, typename V, typename M>

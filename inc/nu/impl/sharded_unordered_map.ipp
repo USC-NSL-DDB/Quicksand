@@ -49,9 +49,7 @@ void GeneralUnorderedMap<K, V, M>::emplace(Key k, Val v) {
 
 template <typename K, typename V, typename M>
 void GeneralUnorderedMap<K, V, M>::merge(GeneralUnorderedMap m) {
-  for (auto &[k, v] : m.map_) {
-    map_.try_emplace(std::move(k), std::move(v));
-  }
+  map_.merge(std::move(m.map_));
 }
 
 template <typename K, typename V, typename M>

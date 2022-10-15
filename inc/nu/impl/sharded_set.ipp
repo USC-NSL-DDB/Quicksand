@@ -52,8 +52,7 @@ GeneralSet<T, M>::ConstIterator GeneralSet<T, M>::find(Key k) const {
 
 template <typename T, typename M>
 void GeneralSet<T, M>::merge(GeneralSet s) {
-  set_.insert(std::make_move_iterator(s.set_.begin()),
-              std::make_move_iterator(s.set_.end()));
+  set_.merge(std::move(s.set_));
 }
 
 template <typename T, typename M>

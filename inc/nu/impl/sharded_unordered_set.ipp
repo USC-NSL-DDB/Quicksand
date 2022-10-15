@@ -53,8 +53,7 @@ GeneralUnorderedSet<T, M>::ConstIterator GeneralUnorderedSet<T, M>::find(
 
 template <typename T, typename M>
 void GeneralUnorderedSet<T, M>::merge(GeneralUnorderedSet s) {
-  set_.insert(std::make_move_iterator(s.set_.begin()),
-              std::make_move_iterator(s.set_.end()));
+  set_.merge(std::move(s.set_));
 }
 
 template <typename T, typename M>
