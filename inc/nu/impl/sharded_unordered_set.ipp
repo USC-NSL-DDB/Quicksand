@@ -73,22 +73,21 @@ GeneralUnorderedSet<T, M>::GeneralUnorderedSet(USet initial_state)
 template <typename T, typename M>
 void GeneralUnorderedSet<T, M>::split(Key *mid_k,
                                       GeneralUnorderedSet *latter_half) {
-  std::vector<T> keys;
+  using Pair = std::pair<T, typename USet::iterator>;
+
+  std::vector<Pair> keys;
   keys.reserve(set_.size());
-  for (const auto &k : set_) {
-    keys.push_back(k);
+  for (auto iter = set_.begin(); iter != set_.end(); ++iter) {
+    keys.emplace_back(*iter, iter);
   }
+  std::nth_element(
+      keys.begin(), keys.begin() + keys.size() / 2, keys.end(),
+      [](const Pair &x, const Pair &y) { return x.first < y.first; });
+  *mid_k = keys[keys.size() / 2].first;
 
-  std::nth_element(keys.begin(), keys.begin() + keys.size() / 2, keys.end());
-  *mid_k = keys[keys.size() / 2];
-
-  for (auto it = set_.cbegin(); it != set_.cend();) {
-    if (*it >= *mid_k) {
-      latter_half->set_.emplace(std::move(*it));
-      it = set_.erase(it);
-    } else {
-      ++it;
-    }
+  for (std::size_t i = keys.size() / 2; i < keys.size(); i++) {
+    auto node = set_.extract(keys[i].second);
+    latter_half->set_.insert(std::move(node));
   }
 }
 

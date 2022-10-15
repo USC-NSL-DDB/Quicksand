@@ -73,22 +73,21 @@ GeneralUnorderedMap<K, V, M>::ConstIterator GeneralUnorderedMap<K, V, M>::find(
 template <typename K, typename V, typename M>
 void GeneralUnorderedMap<K, V, M>::split(Key *mid_k,
                                          GeneralUnorderedMap *latter_half) {
-  std::vector<K> keys;
+  using Pair = std::pair<K, typename UMap::iterator>;
+
+  std::vector<Pair> keys;
   keys.reserve(map_.size());
-  for (const auto &[k, v] : map_) {
-    keys.push_back(k);
+  for (auto iter = map_.begin(); iter != map_.end(); ++iter) {
+    keys.emplace_back(iter->first, iter);
   }
+  std::nth_element(
+      keys.begin(), keys.begin() + keys.size() / 2, keys.end(),
+      [](const Pair &x, const Pair &y) { return x.first < y.first; });
+  *mid_k = keys[keys.size() / 2].first;
 
-  std::nth_element(keys.begin(), keys.begin() + keys.size() / 2, keys.end());
-  *mid_k = keys[keys.size() / 2];
-
-  for (auto it = map_.cbegin(); it != map_.cend();) {
-    if (it->first >= *mid_k) {
-      latter_half->map_.emplace(std::move(it->first), std::move(it->second));
-      it = map_.erase(it);
-    } else {
-      ++it;
-    }
+  for (std::size_t i = keys.size() / 2; i < keys.size(); i++) {
+    auto node = map_.extract(keys[i].second);
+    latter_half->map_.insert(std::move(node));
   }
 }
 
