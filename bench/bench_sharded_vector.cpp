@@ -14,19 +14,27 @@ struct Bench {
 
     auto vec = nu::make_sharded_vector<uint64_t, std::false_type>();
 
+    barrier();
     auto t0 = microtime();
+    barrier();
+
     for (uint64_t i = 0; i < kNumElements; i++) {
       vec.push_back(i);
     }
-    auto t1 = microtime();
-    auto sealed_vec = nu::to_sealed_ds(std::move(vec));
-    uint64_t sum = 0;
-    for (const auto &v : sealed_vec) {
-      sum += v;
-    }
-    auto t2 = microtime();
 
-    std::cout << "\tsum: " << sum << std::endl;
+    barrier();
+    auto t1 = microtime();
+    barrier();
+
+    auto sealed_vec = nu::to_sealed_ds(std::move(vec));
+    for (const auto &v : sealed_vec) {
+      ACCESS_ONCE(v);
+    }
+
+    barrier();
+    auto t2 = microtime();
+    barrier();
+
     std::cout << "\ttime: " << t1 - t0 << " " << t2 - t1 << std::endl;
   }
 
@@ -35,18 +43,26 @@ struct Bench {
 
     std::vector<uint64_t> vec;
 
+    barrier();
     auto t0 = microtime();
+    barrier();
+
     for (uint64_t i = 0; i < kNumElements; i++) {
       vec.push_back(i);
     }
-    auto t1 = microtime();
-    uint64_t sum = 0;
-    for (const auto &v : vec) {
-      sum += v;
-    }
-    auto t2 = microtime();
 
-    std::cout << "\tsum: " << sum << std::endl;
+    barrier();
+    auto t1 = microtime();
+    barrier();
+
+    for (const auto &v : vec) {
+      ACCESS_ONCE(v);
+    }
+
+    barrier();
+    auto t2 = microtime();
+    barrier();
+
     std::cout << "\ttime: " << t1 - t0 << " " << t2 - t1 << std::endl;
   }
 };
@@ -58,4 +74,3 @@ int main(int argc, char **argv) {
     b.run_sharded_vector();
   });
 }
- 
