@@ -207,8 +207,6 @@ void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
   FnPtr fn;
   ia >> fn;
 
-  // TODO: refactor this. States part looks ugly since for now we want to avoid
-  // nested RCU locks.
   using States = std::tuple<std::decay_t<S1s>...>;
   auto *states = reinterpret_cast<States *>(alloca(sizeof(States)));
   std::construct_at(states, std::decay_t<S1s>()...);

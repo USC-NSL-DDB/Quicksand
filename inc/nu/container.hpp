@@ -101,7 +101,6 @@ class GeneralContainerBase {
                          GeneralContainer<Impl>>;
 
   GeneralContainerBase() : impl_() {}
-  GeneralContainerBase(std::size_t capacity) : impl_(capacity) {}
   GeneralContainerBase(const GeneralContainerBase &c) : impl_(c.impl_) {}
   GeneralContainerBase &operator=(const GeneralContainerBase &c) {
     impl_ = c.impl_;
@@ -113,16 +112,16 @@ class GeneralContainerBase {
     impl_ = std::move(c.impl_);
     return *this;
   }
-  std::size_t size() {
+  std::size_t size() const {
     return synchronized<std::size_t>([&] { return impl_.size(); });
   }
-  std::size_t capacity() requires HasCapacity<Impl> {
+  std::size_t capacity() const requires HasCapacity<Impl> {
     return synchronized<std::size_t>([&] { return impl_.capacity(); });
   }
   void reserve(std::size_t size) requires Reservable<Impl> {
     synchronized<void>([&] { impl_.reserve(size); });
   }
-  bool empty() {
+  bool empty() const {
     return synchronized<bool>([&] { return impl_.empty(); });
   };
   void clear() {
@@ -137,20 +136,15 @@ class GeneralContainerBase {
   void emplace_back_batch(std::vector<Val> v) requires EmplaceBackAble<Impl> {
     synchronized<void>([&] { impl_.emplace_back_batch(std::move(v)); });
   }
-  ConstIterator find(Key k) requires Findable<Impl> {
+  ConstIterator find(Key k) const requires Findable<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
   }
-  std::pair<Key, ContainerType> split() {
-    return synchronized<std::pair<Key, ContainerType>>([&] {
-      auto [k, impl] = impl_.split();
-      ContainerType c;
-      c.impl_ = std::move(impl);
-      return std::make_pair(std::move(k), std::move(c));
-    });
+  void split(Key *mid_k, ContainerType *latter_half) {
+    return synchronized<void>([&] { impl_.split(mid_k, &latter_half->impl_); });
   }
   void merge(ContainerType c) {
-    synchronized<void>([&] { impl_.merge(c.impl_); });
+    synchronized<void>([&] { impl_.merge(std::move(c.impl_)); });
   }
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states) {
@@ -185,7 +179,7 @@ class GeneralContainerBase {
   Mutex mutex_;
 
   template <typename RetT, typename F>
-  RetT synchronized(F &&f);
+  RetT synchronized(F &&f) const;
 };
 
 }  // namespace nu

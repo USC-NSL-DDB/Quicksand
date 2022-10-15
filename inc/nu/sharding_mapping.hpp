@@ -27,7 +27,7 @@ class GeneralShardingMapping {
   void reserve_new_shard();
   WeakProclet<Shard> create_new_shard(std::optional<Key> l_key,
                                       std::optional<Key> r_key,
-                                      uint64_t container_capacity);
+                                      bool reserve_space);
   void inc_ref_cnt();
   void dec_ref_cnt();
   void seal();

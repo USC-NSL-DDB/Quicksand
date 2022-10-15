@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "nu/sharding_mapping.hpp"
 #include "nu/utils/rob_executor.hpp"
 
@@ -49,18 +51,28 @@ const Container &ConstContainerHandle<Container>::operator*() {
 
 template <class Container>
 template <class Archive>
-void ContainerWithCapacity<Container>::save(Archive &ar) const {
-  ar(capacity, container);
+void ContainerAndMetadata<Container>::save(Archive &ar) const {
+  ar(capacity, container, container_bucket_size);
 }
 
 template <class Container>
 template <class Archive>
-void ContainerWithCapacity<Container>::load(Archive &ar) {
+void ContainerAndMetadata<Container>::load(Archive &ar) {
   ar(capacity);
   if constexpr (Reservable<Container>) {
     container.reserve(capacity);
   }
-  ar(container);
+  ar(container, container_bucket_size);
+}
+
+template <class Container>
+ContainerAndMetadata<Container>::ContainerAndMetadata(
+    const ContainerAndMetadata &o)
+    : capacity(o.capacity), container_bucket_size(o.container_bucket_size) {
+  if constexpr (Reservable<Container>) {
+    container.reserve(capacity);
+  }
+  container = o.container;
 }
 
 template <class Container>
@@ -72,20 +84,38 @@ void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
                                       uint32_t max_shard_bytes)
-    : GeneralShard(mapping, max_shard_bytes, std::nullopt, std::nullopt, 0) {}
+    : GeneralShard(mapping, max_shard_bytes, std::nullopt, std::nullopt,
+                   false) {}
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
                                       uint32_t max_shard_bytes,
                                       std::optional<Key> l_key,
                                       std::optional<Key> r_key,
-                                      std::size_t capacity)
+                                      bool reserve_space)
     : max_shard_bytes_(max_shard_bytes),
+      real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(capacity),
-      slab_(Runtime::get_current_proclet_slab()) {}
+      slab_(Runtime::get_current_proclet_slab()) {
+  if constexpr (Reservable<Container>) {
+    if (reserve_space) {
+      auto old_slab_usage = slab_->get_usage();
+      container_.reserve(kReserveProbeSize);
+      auto new_slab_usage = slab_->get_usage();
+      container_bucket_size_ =
+          std::ceil(static_cast<float>(new_slab_usage - old_slab_usage) /
+                    kReserveProbeSize);
+      auto reserve_size =
+          max_shard_bytes * kReserveContainerSizeRatio / container_bucket_size_;
+      container_.reserve(reserve_size);
+      initial_slab_usage_ = slab_->get_usage();
+      initial_size_ = 0;
+      size_thresh_ = kAlmostFullThresh * reserve_size;
+    }
+  }
+}
 
 template <class Container>
 GeneralShard<Container>::~GeneralShard() {
@@ -97,10 +127,14 @@ GeneralShard<Container>::~GeneralShard() {
 template <class Container>
 void GeneralShard<Container>::set_range_and_data(
     std::optional<Key> l_key, std::optional<Key> r_key,
-    ContainerWithCapacity<Container> container_with_capacity) {
+    ContainerAndMetadata<Container> container_and_metadata) {
   l_key_ = l_key;
   r_key_ = r_key;
-  container_ = std::move(container_with_capacity.container);
+  container_ = std::move(container_and_metadata.container);
+  initial_slab_usage_ = slab_->get_usage();
+  initial_size_ = container_.size();
+  container_bucket_size_ = container_and_metadata.container_bucket_size;
+  size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
 }
 
 template <class Container>
@@ -130,18 +164,44 @@ void GeneralShard<Container>::split() {
   // FIXME: be migration-safe.
   RuntimeSlabGuard slab_guard;
 
+  Key mid_k;
+  Container latter_half_container;
+  std::size_t new_container_capacity = 0;
+  auto cur_slab_usage = slab_->get_usage();
+
+  if constexpr (Reservable<Container>) {
+    auto diff_data_size = cur_slab_usage - initial_slab_usage_;
+    auto diff_size = container_.size() - initial_size_;
+    auto data_size = static_cast<float>(diff_data_size) / diff_size;
+    new_container_capacity =
+        max_shard_bytes_ / (data_size + container_bucket_size_);
+  }
+
   BUG_ON(container_.empty());
-  auto [mid_k, latter_half_container] = container_.split();
-  auto new_shard =
-      mapping_.run(&ShardingMapping::create_new_shard, mid_k, r_key_, 0);
-  ContainerWithCapacity container_with_capacity{
-      std::move(latter_half_container), container_.size()};
+  container_.split(&mid_k, &latter_half_container);
+
+  auto new_shard = mapping_.run(&ShardingMapping::create_new_shard, mid_k,
+                                r_key_, /* reserve_space = */ false);
+  ContainerAndMetadata<Container> container_and_metadata;
+  container_and_metadata.container = std::move(latter_half_container);
+  container_and_metadata.capacity =
+      std::max(new_container_capacity, latter_half_container.size());
+  container_and_metadata.container_bucket_size = container_bucket_size_;
   new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
-                container_with_capacity);
+                container_and_metadata);
+
   r_key_ = mid_k;
-  // Grant slightly more memory to incorporate fragmentations in our slab
-  // allocator.
-  max_shard_bytes_ = static_cast<uint32_t>(slab_->get_usage()) + (2 << 20);
+
+  if (cur_slab_usage > real_max_shard_bytes_) {
+    // Grant slightly more memory to incorporate fragmentations in our slab
+    // allocator.
+    real_max_shard_bytes_ = cur_slab_usage + kSlabFragmentationHeadroom;
+  } else if constexpr (Reservable<Container>) {
+    auto size = container_.size();
+    if (size > size_thresh_) {
+      size_thresh_ = size;
+    }
+  }
 }
 
 template <class Container>
@@ -152,7 +212,15 @@ bool GeneralShard<Container>::bad_range(std::optional<Key> l_key,
 
 template <class Container>
 bool GeneralShard<Container>::should_split() const {
-  return slab_->get_usage() > max_shard_bytes_;
+  bool over_container_size = false;
+  bool over_slab_size = false;
+
+  if constexpr (Reservable<Container>) {
+    over_container_size = (container_.size() > size_thresh_);
+  }
+  over_slab_size = (slab_->get_usage() > real_max_shard_bytes_);
+
+  return over_container_size || over_slab_size;
 }
 
 template <class Container>

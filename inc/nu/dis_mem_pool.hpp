@@ -25,7 +25,6 @@ class RemUniquePtr;
 template <typename T>
 class RemSharedPtr;
 
-// TODO: add batch interface.
 class DistributedMemPool {
  public:
   constexpr static uint32_t kFullShardProbingIntervalMs = 400;

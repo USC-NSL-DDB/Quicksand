@@ -27,7 +27,6 @@ class GeneralSet {
   using ConstReverseIterator = SetConstReverseIterator<Set>;
 
   GeneralSet();
-  GeneralSet(std::size_t capacity);
   GeneralSet(const GeneralSet &) = default;
   GeneralSet &operator=(const GeneralSet &) = default;
   GeneralSet(GeneralSet &&) noexcept = default;
@@ -37,10 +36,10 @@ class GeneralSet {
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
-  ConstIterator find(Key k);
+  ConstIterator find(Key k) const;
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
-  std::pair<Key, GeneralSet> split();
+  void split(Key *mid_k, GeneralSet *latter_half);
   void merge(GeneralSet s);
   ConstIterator cbegin() const;
   ConstIterator cend() const;

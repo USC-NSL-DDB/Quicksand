@@ -19,11 +19,6 @@ UnorderedMapConstIterator<USet>::UnorderedMapConstIterator(
 }
 
 template <typename K, typename V, typename M>
-GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(std::size_t capacity) {
-  map_.reserve(capacity);
-}
-
-template <typename K, typename V, typename M>
 GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(UMap initial_state)
     : map_(std::move(initial_state)) {}
 
@@ -55,7 +50,7 @@ void GeneralUnorderedMap<K, V, M>::emplace(Key k, Val v) {
 template <typename K, typename V, typename M>
 void GeneralUnorderedMap<K, V, M>::merge(GeneralUnorderedMap m) {
   for (auto &[k, v] : m.map_) {
-    map_[std::move(k)] = std::move(v);
+    map_.try_emplace(std::move(k), std::move(v));
   }
 }
 
@@ -71,13 +66,13 @@ void GeneralUnorderedMap<K, V, M>::for_all(void (*fn)(const Key &key, Val &val,
 
 template <typename K, typename V, typename M>
 GeneralUnorderedMap<K, V, M>::ConstIterator GeneralUnorderedMap<K, V, M>::find(
-    K k) {
+    K k) const {
   return map_.find(std::move(k));
 }
 
 template <typename K, typename V, typename M>
-std::pair<K, GeneralUnorderedMap<K, V, M>>
-GeneralUnorderedMap<K, V, M>::split() {
+void GeneralUnorderedMap<K, V, M>::split(Key *mid_k,
+                                         GeneralUnorderedMap *latter_half) {
   std::vector<K> keys;
   keys.reserve(map_.size());
   for (const auto &[k, v] : map_) {
@@ -85,21 +80,16 @@ GeneralUnorderedMap<K, V, M>::split() {
   }
 
   std::nth_element(keys.begin(), keys.begin() + keys.size() / 2, keys.end());
-  auto mid_key = keys[keys.size() / 2];
+  *mid_k = keys[keys.size() / 2];
 
-  UMap latter_half_map;
   for (auto it = map_.cbegin(); it != map_.cend();) {
-    if (it->first >= mid_key) {
-      latter_half_map.emplace(std::move(it->first), std::move(it->second));
+    if (it->first >= *mid_k) {
+      latter_half->map_.emplace(std::move(it->first), std::move(it->second));
       it = map_.erase(it);
     } else {
       ++it;
     }
   }
-
-  GeneralUnorderedMap latter_half_container(std::move(latter_half_map));
-
-  return std::make_pair(mid_key, std::move(latter_half_container));
 }
 
 template <typename K, typename V, typename M>

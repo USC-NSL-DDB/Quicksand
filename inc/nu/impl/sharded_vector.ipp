@@ -33,11 +33,6 @@ template <typename T>
 Vector<T>::Vector() : l_key_(0), has_split_(false) {}
 
 template <typename T>
-Vector<T>::Vector(std::size_t capacity) : l_key_(0), has_split_(false) {
-  data_.reserve(capacity);
-}
-
-template <typename T>
 Vector<T>::Vector(const Vector &o) {
   *this = o;
 }
@@ -109,7 +104,7 @@ void Vector<T>::merge(Vector vector) {
 }
 
 template <typename T>
-Vector<T>::ConstIterator Vector<T>::find(Key k) {
+Vector<T>::ConstIterator Vector<T>::find(Key k) const {
   auto l_key = l_key_;
   auto r_key = l_key_ + data_.size();
 
@@ -121,20 +116,19 @@ Vector<T>::ConstIterator Vector<T>::find(Key k) {
 }
 
 template <typename T>
-std::pair<typename Vector<T>::Key, Vector<T>> Vector<T>::split() {
+void Vector<T>::split(Key *mid_k, Vector *latter_half) {
   auto new_shard_size = has_split_ ? data_.size() / 2 : 0;
   auto old_shard_size = data_.size() - new_shard_size;
   has_split_ = true;
 
-  Vector<T> new_vec;
-  new_vec.data_.insert(new_vec.data_.end(),
-                       std::make_move_iterator(data_.end() - new_shard_size),
-                       std::make_move_iterator(data_.end()));
+  latter_half->data_.insert(
+      latter_half->data_.end(),
+      std::make_move_iterator(data_.end() - new_shard_size),
+      std::make_move_iterator(data_.end()));
 
-  new_vec.l_key_ = l_key_ + old_shard_size;
+  latter_half->l_key_ = l_key_ + old_shard_size;
+  *mid_k = latter_half->l_key_;
   data_.resize(old_shard_size);
-
-  return std::make_pair(new_vec.l_key_, std::move(new_vec));
 }
 
 template <typename T>

@@ -5,9 +5,9 @@ namespace nu {
 
 template <class Impl, class Synchronized>
 template <typename RetT, typename F>
-RetT GeneralContainerBase<Impl, Synchronized>::synchronized(F &&f) {
+RetT GeneralContainerBase<Impl, Synchronized>::synchronized(F &&f) const {
   if constexpr (Synchronized::value) {
-    ScopedLock<Mutex> guard(&mutex_);
+    ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
     return f();
   } else {
     return f();

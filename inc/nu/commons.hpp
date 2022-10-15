@@ -53,7 +53,6 @@ constexpr static uint64_t kPageSize = 4096;
 
 constexpr static ProcletID kNullProcletID = 0;
 
-// TODO: double check.
 constexpr static uint64_t kMinProcletHeapVAddr = 0x300000000000ULL;
 constexpr static uint64_t kMaxProcletHeapVAddr = 0x400000000000ULL;
 constexpr static uint64_t kMinProcletHeapSize = 1ULL << 25;

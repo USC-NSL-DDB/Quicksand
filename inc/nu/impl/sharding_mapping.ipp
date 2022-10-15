@@ -111,8 +111,7 @@ void GeneralShardingMapping<Shard>::reserve_new_shard() {
 
 template <class Shard>
 WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
-    std::optional<Key> l_key, std::optional<Key> r_key,
-    uint64_t container_capacity) {
+    std::optional<Key> l_key, std::optional<Key> r_key, bool reserve_space) {
   Proclet<Shard> new_shard;
 
   if (!reserved_shards_.empty()) {
@@ -124,8 +123,8 @@ WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
     mutex_.unlock();
   } else {
     new_shard = make_proclet_with_capacity<Shard>(proclet_capacity_, self_,
-                                                  max_shard_bytes_, l_key, r_key,
-                                                  container_capacity);
+                                                  max_shard_bytes_, l_key,
+                                                  r_key, reserve_space);
   }
 
   auto new_weak_shard = new_shard.get_weak();

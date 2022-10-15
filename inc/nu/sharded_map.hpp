@@ -30,7 +30,6 @@ class GeneralMap {
   using ConstReverseIterator = MapConstReverseIterator<Map>;
 
   GeneralMap() = default;
-  GeneralMap(std::size_t capacity);
   GeneralMap(const GeneralMap &) = default;
   GeneralMap &operator=(const GeneralMap &) = default;
   GeneralMap(GeneralMap &&) noexcept = default;
@@ -42,8 +41,8 @@ class GeneralMap {
   void emplace(Key k, Val v);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
-  ConstIterator find(Key k);
-  std::pair<Key, GeneralMap> split();
+  ConstIterator find(Key k) const;
+  void split(Key *mid_k, GeneralMap *latter_half);
   void merge(GeneralMap m);
   ConstIterator cbegin() const;
   ConstIterator cend() const;

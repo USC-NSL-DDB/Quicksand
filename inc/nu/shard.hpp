@@ -43,9 +43,15 @@ class ConstContainerHandle {
 };
 
 template <class Container>
-struct ContainerWithCapacity {
+struct ContainerAndMetadata {
   Container container;
   std::size_t capacity;
+  uint64_t container_bucket_size;
+
+  ContainerAndMetadata() = default;
+  ContainerAndMetadata(const ContainerAndMetadata &);
+  ContainerAndMetadata(ContainerAndMetadata &&) = default;
+  ContainerAndMetadata &operator=(ContainerAndMetadata &&) = default;
 
   template <class Archive>
   void save(Archive &ar) const;
@@ -80,11 +86,11 @@ class GeneralShard {
   GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_bytes);
   GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_bytes,
                std::optional<Key> l_key, std::optional<Key> r_key,
-               std::size_t capacity);
+               bool reserve_space);
   ~GeneralShard();
   void set_range_and_data(
       std::optional<Key> l_key, std::optional<Key> r_key,
-      ContainerWithCapacity<Container> container_with_capacity);
+      ContainerAndMetadata<Container> container_and_metadata);
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
@@ -128,13 +134,23 @@ class GeneralShard {
   ConstContainerHandle<Container> get_const_container_handle();
 
  private:
-  uint32_t max_shard_bytes_;
+  constexpr static uint32_t kReserveProbeSize = 8192;
+  constexpr static float kReserveContainerSizeRatio = 0.5;
+  constexpr static float kAlmostFullThresh = 0.95;
+  constexpr static uint32_t kSlabFragmentationHeadroom = (2 << 20);
+
+  const uint32_t max_shard_bytes_;
+  uint32_t real_max_shard_bytes_;
   WeakProclet<ShardingMapping> mapping_;
   std::optional<Key> l_key_;
   std::optional<Key> r_key_;
   Container container_;
   ReaderWriterLock rw_lock_;
   SlabAllocator *slab_;
+  uint64_t container_bucket_size_;
+  uint64_t initial_slab_usage_;
+  std::size_t initial_size_;
+  std::size_t size_thresh_;
 
   friend class ContainerHandle<Container>;
   friend class ConstContainerHandle<Container>;

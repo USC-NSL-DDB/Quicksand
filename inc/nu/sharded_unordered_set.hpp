@@ -24,7 +24,6 @@ class GeneralUnorderedSet {
   using ConstIterator = UnorderedSetConstIterator<USet>;
 
   GeneralUnorderedSet() = default;
-  GeneralUnorderedSet(std::size_t capacity);
   GeneralUnorderedSet(const GeneralUnorderedSet &) = default;
   GeneralUnorderedSet &operator=(const GeneralUnorderedSet &) = default;
   GeneralUnorderedSet(GeneralUnorderedSet &&) noexcept = default;
@@ -35,10 +34,10 @@ class GeneralUnorderedSet {
   bool empty() const;
   void clear();
   void emplace(Key k, Val v);
-  ConstIterator find(Key k);
+  ConstIterator find(Key k) const;
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
-  std::pair<Key, GeneralUnorderedSet> split();
+  void split(Key *mid_k, GeneralUnorderedSet *latter_half);
   void merge(GeneralUnorderedSet s);
   ConstIterator cbegin() const;
   ConstIterator cend() const;

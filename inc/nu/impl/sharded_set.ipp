@@ -25,9 +25,6 @@ template <typename T, typename M>
 GeneralSet<T, M>::GeneralSet() {}
 
 template <typename T, typename M>
-GeneralSet<T, M>::GeneralSet(std::size_t capacity) {}
-
-template <typename T, typename M>
 std::size_t GeneralSet<T, M>::size() const {
   return set_.size();
 }
@@ -49,7 +46,7 @@ void GeneralSet<T, M>::emplace(Key k, Val v) {
 }
 
 template <typename T, typename M>
-GeneralSet<T, M>::ConstIterator GeneralSet<T, M>::find(Key k) {
+GeneralSet<T, M>::ConstIterator GeneralSet<T, M>::find(Key k) const {
   return set_.find(std::move(k));
 }
 
@@ -72,20 +69,16 @@ GeneralSet<T, M>::GeneralSet(Set initial_state) {
 }
 
 template <typename T, typename M>
-std::pair<typename GeneralSet<T, M>::Key, GeneralSet<T, M>>
-GeneralSet<T, M>::split() {
+void GeneralSet<T, M>::split(Key *mid_k, GeneralSet *latter_half) {
   auto mid = set_.size() / 2;
 
   auto latter_half_begin_itr = set_.begin();
   std::advance(latter_half_begin_itr, mid);
-  auto latter_half_l_key = *latter_half_begin_itr;
+  *mid_k = *latter_half_begin_itr;
 
-  Set latter_half_set(latter_half_begin_itr, set_.end());
+  latter_half->set_.insert(std::make_move_iterator(latter_half_begin_itr),
+                           std::make_move_iterator(set_.end()));
   set_.erase(latter_half_begin_itr, set_.end());
-
-  GeneralSet latter_half_container(std::move(latter_half_set));
-
-  return std::make_pair(latter_half_l_key, std::move(latter_half_container));
 }
 
 template <typename T, typename M>

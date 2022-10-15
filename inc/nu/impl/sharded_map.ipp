@@ -29,9 +29,6 @@ MapConstReverseIterator<Map>::MapConstReverseIterator(
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::GeneralMap(std::size_t capacity) {}
-
-template <typename K, typename V, typename M>
 GeneralMap<K, V, M>::GeneralMap(Map initial_state)
     : map_(std::move(initial_state)) {}
 
@@ -58,7 +55,7 @@ void GeneralMap<K, V, M>::emplace(Key k, Val v) {
 template <typename K, typename V, typename M>
 void GeneralMap<K, V, M>::merge(GeneralMap m) {
   for (auto &[k, v] : m.map_) {
-    map_[std::move(k)] = std::move(v);
+    map_.try_emplace(std::move(k), std::move(v));
   }
 }
 
@@ -72,24 +69,20 @@ void GeneralMap<K, V, M>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::find(K k) {
+GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::find(K k) const {
   return map_.find(std::move(k));
 }
 
 template <typename K, typename V, typename M>
-std::pair<K, GeneralMap<K, V, M>> GeneralMap<K, V, M>::split() {
+void GeneralMap<K, V, M>::split(Key *mid_k, GeneralMap *latter_half) {
   auto mid = map_.size() / 2;
   auto split_it = map_.begin();
   std::advance(split_it, mid);
 
-  auto latter_half_l_key = split_it->first;
-
-  Map latter_half_map(std::make_move_iterator(split_it),
-                      std::make_move_iterator(map_.end()));
+  *mid_k = split_it->first;
+  latter_half->map_.insert(std::make_move_iterator(split_it),
+                           std::make_move_iterator(map_.end()));
   map_.erase(split_it, map_.end());
-
-  GeneralMap latter_half_container(std::move(latter_half_map));
-  return std::make_pair(latter_half_l_key, std::move(latter_half_container));
 }
 
 template <typename K, typename V, typename M>

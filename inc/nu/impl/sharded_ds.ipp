@@ -54,11 +54,10 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
         next_key = std::nullopt;
       }
 
-      shard_futures.emplace_back(
-          mapping_.run_async(&ShardingMapping::create_new_shard,
-                             std::move(curr_key), std::move(next_key), 0));
+      shard_futures.emplace_back(mapping_.run_async(
+          &ShardingMapping::create_new_shard, std::move(curr_key),
+          std::move(next_key), /* reserve_space = */ true));
     } else {
-      // TODO: review it to see if it's necessary.
       reserve_futures.emplace_back(
           mapping_.run_async(&ShardingMapping::reserve_new_shard));
     }
@@ -408,7 +407,10 @@ Container ShardedDataStructure<Container, LL>::collect() {
     size += future.get().size();
   }
 
-  Container all(size);
+  Container all;
+  if constexpr (Reservable<Container>) {
+    all.reserve(size);
+  }
   for (auto &future : futures) {
     all.merge(std::move(future.get()));
   }

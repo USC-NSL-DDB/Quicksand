@@ -5,34 +5,22 @@
 namespace nu {
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection() : data_(nullptr) {}
-
-template <typename K, typename V>
-PairCollection<K, V>::PairCollection(std::size_t capacity) {
-  data_ = new std::pair<K, V>[capacity];
-  size_ = 0;
-  capacity_ = capacity;
-  ownership_ = true;
-}
+PairCollection<K, V>::PairCollection()
+    : data_(nullptr), size_(0), capacity_(0), ownership_(false) {}
 
 template <typename K, typename V>
 PairCollection<K, V>::PairCollection(const PairCollection &o)
-    : data_(new std::pair<K, V>[o.capacity_]),
-      size_(o.size_),
-      capacity_(o.capacity_),
-      ownership_(true) {
+    : data_(nullptr), capacity_(0) {
+  size_ = o.size_;
+  reserve(o.size_);
   std::copy(o.data_, o.data_ + size_, data_);
 }
 
 template <typename K, typename V>
 PairCollection<K, V> &PairCollection<K, V>::operator=(const PairCollection &o) {
-  destroy();
-
   size_ = o.size_;
-  capacity_ = o.capacity_;
-  data_ = new std::pair<K, V>[capacity_];
+  reserve(o.size_);
   std::copy(o.data_, o.data_ + size_, data_);
-  ownership_ = true;
   return *this;
 }
 
@@ -92,7 +80,7 @@ void PairCollection<K, V>::clear() {
       std::destroy_at(&data_[i]);
     }
   } else {
-    // Moved. Reset it back into a specified sate.
+    // Moved. Reset it back into a clean state.
     capacity_ = 0;
   }
   size_ = 0;
@@ -144,17 +132,13 @@ void PairCollection<K, V>::merge(PairCollection pc) {
 }
 
 template <typename K, typename V>
-std::pair<K, PairCollection<K, V>> PairCollection<K, V>::split() {
+void PairCollection<K, V>::split(K *mid_k, PairCollection<K, V> *latter_half) {
   adaptiveQuickselect(data_, size_ / 2, size_);
-  auto mid_k = data_[size_ / 2].first;
-  PairCollection latter_half;
-  latter_half.data_ = data_ + size_ / 2;
-  latter_half.size_ = size_ - size_ / 2;
-  // TODO: review it.
-  latter_half.capacity_ = latter_half.size_;
-  latter_half.ownership_ = false;
+  *mid_k = data_[size_ / 2].first;
+  latter_half->data_ = data_ + size_ / 2;
+  latter_half->size_ = size_ - size_ / 2;
+  latter_half->ownership_ = false;
   size_ /= 2;
-  return std::make_pair(std::move(mid_k), std::move(latter_half));
 }
 
 template <typename K, typename V>
@@ -169,7 +153,7 @@ void PairCollection<K, V>::for_all(void (*fn)(const K &key, V &val, S0s...),
 template <typename K, typename V>
 template <class Archive>
 void PairCollection<K, V>::save(Archive &ar) const {
-  ar(size_, capacity_);
+  ar(size_);
   for (std::size_t i = 0; i < size_; i++) {
     ar(data_[i]);
   }
@@ -178,12 +162,11 @@ void PairCollection<K, V>::save(Archive &ar) const {
 template <typename K, typename V>
 template <class Archive>
 void PairCollection<K, V>::load(Archive &ar) {
-  ar(size_, capacity_);
-  data_ = new std::pair<K, V>[capacity_];
+  ar(size_);
+  reserve(size_);
   for (std::size_t i = 0; i < size_; i++) {
     ar(data_[i]);
   }
-  ownership_ = true;
 }
 
 template <typename K, typename V>

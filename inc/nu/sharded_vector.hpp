@@ -31,7 +31,6 @@ class Vector {
   using ConstReverseIterator = VectorConstReverseIterator<T>;
 
   Vector();
-  Vector(std::size_t capacity);
   Vector(const Vector &);
   Vector &operator=(const Vector &);
   Vector(Vector &&) noexcept;
@@ -45,8 +44,8 @@ class Vector {
   void emplace(Key k, Val v);
   void emplace_back(Val v);
   void emplace_back_batch(std::vector<Val> v);
-  ConstIterator find(Key k);
-  std::pair<Key, Vector> split();
+  ConstIterator find(Key k) const;
+  void split(Key *mid_k, Vector *latter_half);
   void merge(Vector vector);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);

@@ -20,9 +20,6 @@ UnorderedSetConstIterator<USet>::UnorderedSetConstIterator(
 }
 
 template <typename T, typename M>
-GeneralUnorderedSet<T, M>::GeneralUnorderedSet(std::size_t capacity) {}
-
-template <typename T, typename M>
 std::size_t GeneralUnorderedSet<T, M>::size() const {
   return set_.size();
 }
@@ -50,7 +47,7 @@ void GeneralUnorderedSet<T, M>::emplace(Key k, Val v) {
 
 template <typename T, typename M>
 GeneralUnorderedSet<T, M>::ConstIterator GeneralUnorderedSet<T, M>::find(
-    Key k) {
+    Key k) const {
   return set_.find(std::move(k));
 }
 
@@ -74,7 +71,8 @@ GeneralUnorderedSet<T, M>::GeneralUnorderedSet(USet initial_state)
     : set_(std::move(initial_state)) {}
 
 template <typename T, typename M>
-std::pair<T, GeneralUnorderedSet<T, M>> GeneralUnorderedSet<T, M>::split() {
+void GeneralUnorderedSet<T, M>::split(Key *mid_k,
+                                      GeneralUnorderedSet *latter_half) {
   std::vector<T> keys;
   keys.reserve(set_.size());
   for (const auto &k : set_) {
@@ -82,21 +80,16 @@ std::pair<T, GeneralUnorderedSet<T, M>> GeneralUnorderedSet<T, M>::split() {
   }
 
   std::nth_element(keys.begin(), keys.begin() + keys.size() / 2, keys.end());
-  auto mid_key = keys[keys.size() / 2];
+  *mid_k = keys[keys.size() / 2];
 
-  USet latter_half_set;
   for (auto it = set_.cbegin(); it != set_.cend();) {
-    if (*it >= mid_key) {
-      latter_half_set.emplace(std::move(*it));
+    if (*it >= *mid_k) {
+      latter_half->set_.emplace(std::move(*it));
       it = set_.erase(it);
     } else {
       ++it;
     }
   }
-
-  GeneralUnorderedSet latter_half_container(std::move(latter_half_set));
-
-  return std::make_pair(mid_key, std::move(latter_half_container));
 }
 
 template <typename T, typename M>

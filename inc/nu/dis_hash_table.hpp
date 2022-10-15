@@ -16,8 +16,6 @@ extern "C" {
 
 namespace nu {
 
-// TODO: support batch interface.
-// TODO: support dynamic upsharding/downsharding.
 template <typename K, typename V, typename Hash = std::hash<K>,
           typename KeyEqual = std::equal_to<K>, uint64_t NumBuckets = 32768>
 class DistributedHashTable {

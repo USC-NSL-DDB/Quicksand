@@ -24,7 +24,6 @@ class GeneralUnorderedMap {
   using ConstIterator = UnorderedMapConstIterator<UMap>;
 
   GeneralUnorderedMap() = default;
-  GeneralUnorderedMap(std::size_t capacity);
   GeneralUnorderedMap(const GeneralUnorderedMap &) = default;
   GeneralUnorderedMap &operator=(const GeneralUnorderedMap &) = default;
   GeneralUnorderedMap(GeneralUnorderedMap &&) noexcept = default;
@@ -37,8 +36,8 @@ class GeneralUnorderedMap {
   void emplace(Key k, Val v);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
-  ConstIterator find(Key k);
-  std::pair<Key, GeneralUnorderedMap> split();
+  ConstIterator find(Key k) const;
+  void split(Key *mid_k, GeneralUnorderedMap *latter_half);
   void merge(GeneralUnorderedMap m);
   ConstIterator cbegin() const;
   ConstIterator cend() const;

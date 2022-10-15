@@ -14,7 +14,6 @@ class PairCollection {
   using Val = V;
 
   PairCollection();
-  PairCollection(std::size_t capacity);
   PairCollection(const PairCollection &);
   PairCollection &operator=(const PairCollection &);
   PairCollection(PairCollection &&) noexcept;
@@ -26,7 +25,7 @@ class PairCollection {
   bool empty() const;
   void clear();
   void emplace(K k, V v);
-  std::pair<Key, PairCollection> split();
+  void split(Key *mid_k, PairCollection *latter_half);
   void merge(PairCollection pc);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
