@@ -88,17 +88,6 @@ class GeneralContainerBase {
       return new ErasedType();
     }
   }());
-  using ConstReverseIterator = decltype([] {
-    if constexpr (ConstReverseIterable<Impl>) {
-      return typename Impl::ConstReverseIterator();
-    } else {
-      return new ErasedType();
-    }
-  }());
-  using IterVal = DeepDecay_t<decltype(*std::declval<ConstIterator>())>;
-  using ContainerType =
-      std::conditional_t<Synchronized::value, GeneralLockedContainer<Impl>,
-                         GeneralContainer<Impl>>;
   constexpr static bool kContiguousIterator = [] {
     if constexpr (ConstIterable<Impl>) {
       return Impl::ConstIterator::kContiguous;
@@ -106,6 +95,24 @@ class GeneralContainerBase {
       return false;
     }
   }();
+  using ConstReverseIterator = decltype([] {
+    if constexpr (ConstReverseIterable<Impl>) {
+      return typename Impl::ConstReverseIterator();
+    } else {
+      return new ErasedType();
+    }
+  }());
+  constexpr static bool kContiguousReverseIterator = [] {
+    if constexpr (ConstReverseIterable<Impl>) {
+      return Impl::ConstReverseIterator::kContiguous;
+    } else {
+      return false;
+    }
+  }();
+  using IterVal = DeepDecay_t<decltype(*std::declval<ConstIterator>())>;
+  using ContainerType =
+      std::conditional_t<Synchronized::value, GeneralLockedContainer<Impl>,
+                         GeneralContainer<Impl>>;
 
   GeneralContainerBase() : impl_() {}
   GeneralContainerBase(const GeneralContainerBase &c) : impl_(c.impl_) {}

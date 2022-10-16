@@ -42,14 +42,29 @@ class GeneralSealedDSConstIterator {
   using ShardsVecIter =
       std::conditional_t<Fwd, typename ShardsVec::iterator,
                          typename ShardsVec::reverse_iterator>;
-  using ContainerIter = std::conditional_t<
-      Fwd, typename T::Shard::GeneralContainer::ConstIterator,
-      typename T::Shard::GeneralContainer::ConstReverseIterator>;
+  using Container = T::Shard::GeneralContainer;
+  using ContainerIter =
+      std::conditional_t<Fwd, typename Container::ConstIterator,
+                         typename Container::ConstReverseIterator>;
+  constexpr static bool kContiguous =
+      Fwd ? Container::kContiguousIterator
+          : Container::kContiguousReverseIterator;
+
   class Block {
    public:
-    using PrefetchedVec = std::vector<std::pair<Val, ContainerIter>>;
-    using ConstIterator = PrefetchedVec::const_iterator;
-    using ConstReverseIterator = PrefetchedVec::const_reverse_iterator;
+    using PrefetchedVec =
+        std::conditional_t<kContiguous, std::vector<Val>,
+                           std::vector<std::pair<Val, ContainerIter>>>;
+    using Prefetched =
+        std::conditional_t<kContiguous, std::pair<PrefetchedVec, ContainerIter>,
+                           PrefetchedVec>;
+    using ConstIterator =
+        std::conditional_t<kContiguous, typename PrefetchedVec::const_iterator,
+                           typename PrefetchedVec::const_iterator>;
+    using ConstReverseIterator =
+        std::conditional_t<kContiguous,
+                           typename PrefetchedVec::const_reverse_iterator,
+                           typename PrefetchedVec::const_reverse_iterator>;
     constexpr static uint32_t kSize =
         (256 << 10) / sizeof(std::pair<Val, ContainerIter>);
 
@@ -67,6 +82,8 @@ class GeneralSealedDSConstIterator {
     Block next_block() const;
     Block prev_block() const;
     ShardsVecIter get_shards_iter() const;
+    auto to_gid(ConstIterator iter) const;
+    auto to_gid(ConstReverseIterator iter) const;
 
     static Block shard_front_block(ShardsVecIter shards_vec_iter);
     static Block shard_back_block(ShardsVecIter shards_vec_iter);
@@ -74,7 +91,7 @@ class GeneralSealedDSConstIterator {
 
    private:
     ShardsVecIter shards_iter;
-    PrefetchedVec prefetched;
+    Prefetched prefetched;
   };
 
   std::shared_ptr<ShardsVec> shards_;
