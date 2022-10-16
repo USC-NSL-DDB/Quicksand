@@ -8,6 +8,8 @@ namespace nu {
 
 template <class Map>
 struct MapConstIterator : public Map::const_iterator {
+  constexpr static bool kContiguous = false;
+
   MapConstIterator();
   MapConstIterator(Map::iterator &&iter);
   MapConstIterator(Map::const_iterator &&iter);
@@ -15,6 +17,8 @@ struct MapConstIterator : public Map::const_iterator {
 
 template <class Map>
 struct MapConstReverseIterator : public Map::const_reverse_iterator {
+  constexpr static bool kContiguous = false;
+
   MapConstReverseIterator();
   MapConstReverseIterator(Map::reverse_iterator &&iter);
   MapConstReverseIterator(Map::const_reverse_iterator &&iter);

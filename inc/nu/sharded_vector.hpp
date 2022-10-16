@@ -9,6 +9,8 @@ namespace nu {
 
 template <typename T>
 struct VectorConstIterator : public std::vector<T>::const_iterator {
+  constexpr static bool kContiguous = true;
+
   VectorConstIterator();
   VectorConstIterator(std::vector<T>::iterator &&iter);
   VectorConstIterator(std::vector<T>::const_iterator &&iter);
@@ -17,6 +19,8 @@ struct VectorConstIterator : public std::vector<T>::const_iterator {
 template <typename T>
 struct VectorConstReverseIterator
     : public std::vector<T>::const_reverse_iterator {
+  constexpr static bool kContiguous = true;
+
   VectorConstReverseIterator();
   VectorConstReverseIterator(std::vector<T>::reverse_iterator &&iter);
   VectorConstReverseIterator(std::vector<T>::const_reverse_iterator &&iter);

@@ -99,6 +99,13 @@ class GeneralContainerBase {
   using ContainerType =
       std::conditional_t<Synchronized::value, GeneralLockedContainer<Impl>,
                          GeneralContainer<Impl>>;
+  constexpr static bool kContiguousIterator = [] {
+    if constexpr (ConstIterable<Impl>) {
+      return Impl::ConstIterator::kContiguous;
+    } else {
+      return false;
+    }
+  }();
 
   GeneralContainerBase() : impl_() {}
   GeneralContainerBase(const GeneralContainerBase &c) : impl_(c.impl_) {}

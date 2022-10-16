@@ -7,12 +7,16 @@
 namespace nu {
 template <class Set>
 struct SetConstIterator : public Set::const_iterator {
+  constexpr static bool kContiguous = false;
+
   SetConstIterator();
   SetConstIterator(Set::iterator &&iter);
 };
 
 template <class Set>
 struct SetConstReverseIterator : public Set::const_reverse_iterator {
+  constexpr static bool kContiguous = false;
+
   SetConstReverseIterator();
   SetConstReverseIterator(Set::reverse_iterator &&iter);
 };

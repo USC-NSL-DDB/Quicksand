@@ -9,6 +9,8 @@ namespace nu {
 
 template <class USet>
 struct UnorderedSetConstIterator : public USet::const_iterator {
+  constexpr static bool kContiguous = false;
+
   UnorderedSetConstIterator();
   UnorderedSetConstIterator(USet::iterator &&iter);
   UnorderedSetConstIterator(USet::const_iterator &&iter);

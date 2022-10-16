@@ -9,6 +9,8 @@ namespace nu {
 
 template <class UMap>
 struct UnorderedMapConstIterator : public UMap::const_iterator {
+  constexpr static bool kContiguous = false;
+
   UnorderedMapConstIterator();
   UnorderedMapConstIterator(UMap::iterator &&iter);
   UnorderedMapConstIterator(UMap::const_iterator &&iter);
