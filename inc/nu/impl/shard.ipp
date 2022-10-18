@@ -327,30 +327,15 @@ void GeneralShard<Container>::delete_flush_executor(uintptr_t addr) {
 }
 
 template <class Container>
-std::vector<typename GeneralShard<Container>::ReqBatch>
+std::optional<typename GeneralShard<Container>::ReqBatch>
 GeneralShard<Container>::try_handle_batch(ReqBatch batch, uint32_t seq,
-                                          uintptr_t rob_executor_addr,
-                                          bool drain) {
+                                          uintptr_t rob_executor_addr) {
   std::vector<ReqBatch> rejected_batches;
   auto *rob_executor =
       reinterpret_cast<RobExecutor<ReqBatch, std::optional<ReqBatch>> *>(
           rob_executor_addr);
 
-  auto optional_batch = rob_executor->submit_and_get(seq, std::move(batch));
-  if (optional_batch && *optional_batch) {
-    rejected_batches.emplace_back(std::move(**optional_batch));
-  }
-
-  if (drain) {
-    auto optional_batches = rob_executor->wait_all(seq + 1);
-    for (auto &optional_batch : optional_batches) {
-      if (optional_batch) {
-        rejected_batches.emplace_back(std::move(*optional_batch));
-      }
-    }
-  }
-
-  return rejected_batches;
+  return rob_executor->submit(seq, std::move(batch));
 }
 
 template <class Container>

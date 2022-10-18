@@ -16,8 +16,7 @@ class RobExecutor {
  public:
   RobExecutor(std::function<Ret(const Arg &)> fn, uint32_t rob_size);
   ~RobExecutor();
-  std::optional<Ret> submit_and_get(uint32_t seq, Arg &&arg);
-  std::vector<Ret> wait_all(uint32_t start_seq);
+  Ret submit(uint32_t seq, Arg &&arg);
   void executor_fn();
 
  private:

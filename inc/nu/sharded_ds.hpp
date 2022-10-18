@@ -101,7 +101,7 @@ class ShardedDataStructure {
   uint32_t max_batch_size_;
   KeyToShardsMapping key_to_shards_;
   std::vector<Val> emplace_back_reqs_;
-  std::queue<Future<std::vector<typename Shard::ReqBatch>>> flush_futures_;
+  std::queue<Future<std::optional<typename Shard::ReqBatch>>> flush_futures_;
   template <ShardedDataStructureBased T>
   friend class SealedDS;
 

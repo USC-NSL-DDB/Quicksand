@@ -94,9 +94,8 @@ class GeneralShard {
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
-  std::vector<ReqBatch> try_handle_batch(ReqBatch batch, uint32_t seq,
-                                         uintptr_t rob_executor_addr,
-                                         bool drain);
+  std::optional<ReqBatch> try_handle_batch(ReqBatch batch, uint32_t seq,
+                                           uintptr_t rob_executor_addr);
   uintptr_t new_flush_executor(uint32_t queue_depth);
   void delete_flush_executor(uintptr_t addr);
   std::pair<bool, std::optional<IterVal>> find_val(

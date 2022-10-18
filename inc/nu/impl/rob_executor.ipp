@@ -21,42 +21,21 @@ RobExecutor<Arg, Ret>::~RobExecutor() {
 }
 
 template <typename Arg, typename Ret>
-std::optional<Ret> RobExecutor<Arg, Ret>::submit_and_get(uint32_t seq,
-                                                         Arg &&arg) {
+Ret RobExecutor<Arg, Ret>::submit(uint32_t seq, Arg &&arg) {
   auto &entry = rob_[seq % rob_.size()];
   entry.mutex.lock();
-  while (entry.arg) {
+  BUG_ON(entry.arg);
+  auto arg_ptr = std::make_unique<Arg>(std::move(arg));
+  entry.arg = std::move(arg_ptr);
+  entry.cond_var.signal();
+  while (!entry.ret) {
     entry.cond_var.wait(&entry.mutex);
     barrier();
   }
   auto ret_ptr = std::move(entry.ret);
-  auto arg_ptr = std::make_unique<Arg>(std::move(arg));
-  entry.arg = std::move(arg_ptr);
   entry.mutex.unlock();
-  entry.cond_var.signal();
 
-  return ret_ptr ? std::move(*ret_ptr) : std::nullopt;
-}
-
-template <typename Arg, typename Ret>
-std::vector<Ret> RobExecutor<Arg, Ret>::wait_all(uint32_t start_seq) {
-  std::vector<Ret> rets;
-
-  for (uint32_t i = 0; i < rob_.size(); i++) {
-    auto idx = (start_seq + i) % rob_.size();
-    auto &entry = rob_[idx];
-    entry.mutex.lock();
-    while (entry.arg) {
-      entry.cond_var.wait(&entry.mutex);
-      barrier();
-    }
-    entry.mutex.unlock();
-    if (entry.ret) {
-      rets.emplace_back(std::move(*entry.ret));
-      entry.ret.reset();
-    }
-  }
-  return rets;
+  return std::move(*ret_ptr);
 }
 
 template <typename Arg, typename Ret>
