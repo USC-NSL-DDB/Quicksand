@@ -12,6 +12,7 @@
 #include "nu/commons.hpp"
 #include "nu/container.hpp"
 #include "nu/proclet.hpp"
+#include "nu/rem_unique_ptr.hpp"
 #include "nu/shard.hpp"
 #include "nu/type_traits.hpp"
 #include "nu/utils/future.hpp"
@@ -77,17 +78,17 @@ class ShardedDataStructure {
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
   constexpr static uint32_t kMaxNumInflightFlushes = 2;
 
+  using ReqBatch = Shard::ReqBatch;
   struct ShardAndReqs {
     WeakProclet<Shard> shard;
     uint32_t seq;
-    uintptr_t flush_executor_addr;
+    RemUniquePtr<RobExecutor<ReqBatch, std::optional<ReqBatch>>> flush_executor;
     std::vector<std::pair<Key, Val>> emplace_reqs;
 
     ShardAndReqs() = default;
     ShardAndReqs(WeakProclet<Shard> s);
     ShardAndReqs(const ShardAndReqs &);
     ShardAndReqs(ShardAndReqs &&) = default;
-    ~ShardAndReqs();
 
     template <class Archive>
     void save(Archive &ar) const;
@@ -95,7 +96,6 @@ class ShardedDataStructure {
     void load(Archive &ar);
   };
   using KeyToShardsMapping = std::multimap<std::optional<Key>, ShardAndReqs>;
-  using ReqBatch = Shard::ReqBatch;
 
   Proclet<ShardingMapping> mapping_;
   uint32_t max_batch_size_;

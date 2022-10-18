@@ -7,6 +7,8 @@
 #include <vector>
 
 #include "nu/container.hpp"
+#include "nu/rem_unique_ptr.hpp"
+#include "nu/utils/rob_executor.hpp"
 
 namespace nu {
 
@@ -94,10 +96,7 @@ class GeneralShard {
   bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
-  std::optional<ReqBatch> try_handle_batch(ReqBatch batch, uint32_t seq,
-                                           uintptr_t rob_executor_addr);
-  uintptr_t new_flush_executor(uint32_t queue_depth);
-  void delete_flush_executor(uintptr_t addr);
+  std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);
   std::pair<bool, std::optional<IterVal>> find_val(
       Key k) requires Findable<Container>;
   std::tuple<bool, Val, ConstIterator> find(Key k) requires Findable<Container>;
@@ -195,7 +194,6 @@ class GeneralShard {
   uint32_t __get_rblock_forward(
       std::vector<IterVal>::iterator block_iter, ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
-  std::optional<ReqBatch> __try_handle_batch(const ReqBatch &batch);
 };
 
 }  // namespace nu

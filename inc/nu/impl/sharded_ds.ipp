@@ -227,17 +227,12 @@ ShardedDataStructure<Container, LL>::get_key_range(
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
     WeakProclet<Shard> s)
-    : shard(s), seq(0), flush_executor_addr(0) {}
+    : shard(s), seq(0) {}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
     const ShardAndReqs &o)
-    : shard(o.shard), seq(0), flush_executor_addr(0) {}
-
-template <class Container, class LL>
-ShardedDataStructure<Container, LL>::ShardAndReqs::~ShardAndReqs() {
-  shard.run(&Shard::delete_flush_executor, flush_executor_addr);
-}
+    : shard(o.shard), seq(0) {}
 
 template <class Container, class LL>
 template <class Archive>
@@ -251,7 +246,6 @@ template <class Archive>
 void ShardedDataStructure<Container, LL>::ShardAndReqs::load(Archive &ar) {
   ar(shard);
   seq = 0;
-  flush_executor_addr = 0;
 }
 
 template <class Container, class LL>
@@ -270,9 +264,12 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
   shard_and_reqs.emplace_reqs.clear();
   std::tie(batch.l_key, batch.r_key) = get_key_range(iter);
 
-  if (unlikely(!shard_and_reqs.flush_executor_addr)) {
-    shard_and_reqs.flush_executor_addr =
-        batch.shard.run(&Shard::new_flush_executor, kMaxNumInflightFlushes);
+  if (unlikely(!shard_and_reqs.flush_executor)) {
+    shard_and_reqs.flush_executor = batch.shard.run(+[](Shard &s) {
+      return make_rem_unique<RobExecutor<ReqBatch, std::optional<ReqBatch>>>(
+          [&](const ReqBatch &batch) { return s.try_handle_batch(batch); },
+          kMaxNumInflightFlushes);
+    });
   }
 
   std::vector<ReqBatch> rejected_batches;
@@ -290,9 +287,12 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
     pop_flush_futures();
   }
 
-  flush_futures_.emplace(shard_and_reqs.shard.run_async(
-      &Shard::try_handle_batch, std::move(batch), shard_and_reqs.seq++,
-      shard_and_reqs.flush_executor_addr));
+  flush_futures_.emplace(shard_and_reqs.flush_executor.run_async(
+      +[](RobExecutor<ReqBatch, std::optional<ReqBatch>> &rob_executor,
+          uint32_t seq, ReqBatch batch) {
+        return rob_executor.submit(seq, std::move(batch));
+      },
+      shard_and_reqs.seq++, std::move(batch)));
 
   while (drain && !flush_futures_.empty()) {
     pop_flush_futures();

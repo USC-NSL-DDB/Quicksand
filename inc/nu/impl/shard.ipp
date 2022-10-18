@@ -279,7 +279,7 @@ bool GeneralShard<Container>::try_emplace_back(
 
 template <class Container>
 std::optional<typename GeneralShard<Container>::ReqBatch>
-GeneralShard<Container>::__try_handle_batch(const ReqBatch &batch) {
+GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
   rw_lock_.reader_lock();
 
   if (unlikely(bad_range(std::move(batch.l_key), std::move(batch.r_key)))) {
@@ -308,34 +308,6 @@ GeneralShard<Container>::__try_handle_batch(const ReqBatch &batch) {
 
   rw_lock_.reader_unlock();
   return std::nullopt;
-}
-
-template <class Container>
-uintptr_t GeneralShard<Container>::new_flush_executor(uint32_t queue_depth) {
-  auto *rob_executor = new RobExecutor<ReqBatch, std::optional<ReqBatch>>(
-      [&](const ReqBatch &batch) { return __try_handle_batch(batch); },
-      queue_depth);
-  auto addr = reinterpret_cast<uintptr_t>(rob_executor);
-  return addr;
-}
-
-template <class Container>
-void GeneralShard<Container>::delete_flush_executor(uintptr_t addr) {
-  auto *rob_executor =
-      reinterpret_cast<RobExecutor<ReqBatch, std::optional<ReqBatch>> *>(addr);
-  delete rob_executor;
-}
-
-template <class Container>
-std::optional<typename GeneralShard<Container>::ReqBatch>
-GeneralShard<Container>::try_handle_batch(ReqBatch batch, uint32_t seq,
-                                          uintptr_t rob_executor_addr) {
-  std::vector<ReqBatch> rejected_batches;
-  auto *rob_executor =
-      reinterpret_cast<RobExecutor<ReqBatch, std::optional<ReqBatch>> *>(
-          rob_executor_addr);
-
-  return rob_executor->submit(seq, std::move(batch));
 }
 
 template <class Container>
