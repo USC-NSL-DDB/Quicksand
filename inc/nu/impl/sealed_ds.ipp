@@ -208,12 +208,16 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::shard_end_block(
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator()
-    : block_iter_(block_.cbegin()) {}
+    : block_iter_(block_.cbegin()),
+      prefetched_next_blocks_(kMaxNumInflightPrefetches),
+      prefetched_prev_blocks_(kMaxNumInflightPrefetches) {}
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
     std::shared_ptr<ShardsVec> &shards, bool is_begin)
-    : shards_(shards) {
+    : shards_(shards),
+      prefetched_next_blocks_(kMaxNumInflightPrefetches),
+      prefetched_prev_blocks_(kMaxNumInflightPrefetches) {
   if constexpr (Fwd) {
     shards_iter_ = is_begin ? shards->begin() : shards->end();
   } else {
@@ -231,11 +235,15 @@ GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
     : shards_(shards),
       shards_iter_(shards_iter),
       block_(std::move(val), iter),
-      block_iter_(block_.cbegin()) {}
+      block_iter_(block_.cbegin()),
+      prefetched_next_blocks_(kMaxNumInflightPrefetches),
+      prefetched_prev_blocks_(kMaxNumInflightPrefetches) {}
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
-    const GeneralSealedDSConstIterator &o) {
+    const GeneralSealedDSConstIterator &o)
+    : prefetched_next_blocks_(kMaxNumInflightPrefetches),
+      prefetched_prev_blocks_(kMaxNumInflightPrefetches) {
   *this = o;
 }
 
@@ -252,7 +260,9 @@ GeneralSealedDSConstIterator<T, Fwd>
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
-    GeneralSealedDSConstIterator &&o) noexcept {
+    GeneralSealedDSConstIterator &&o) noexcept
+    : prefetched_next_blocks_(kMaxNumInflightPrefetches),
+      prefetched_prev_blocks_(kMaxNumInflightPrefetches) {
   *this = std::move(o);
 }
 
@@ -264,7 +274,10 @@ GeneralSealedDSConstIterator<T, Fwd>
   shards_iter_ = std::move(o.shards_iter_);
   block_ = std::move(o.block_);
   block_iter_ = std::move(o.block_iter_);
+  prefetched_next_blocks_ = std::move(o.prefetched_next_blocks_);
+  prefetched_prev_blocks_ = std::move(prefetched_prev_blocks_);
   prefetch_executor_ = std::move(o.prefetch_executor_);
+  prefetch_seq_ = o.prefetch_seq_;
   return *this;
 }
 
@@ -430,23 +443,19 @@ GeneralSealedDSConstIterator<T, Fwd> &GeneralSealedDSConstIterator<
     }
 
     if (unlikely(prefetch_seq_ < 0)) {
-      prefetched_next_blocks_.clear();
       prefetch_seq_ = 0;
-      prefetched_next_blocks_.emplace_back(submit_prefetch_req(
+      prefetched_next_blocks_.push_back(submit_prefetch_req(
           PrefetchReq{block_.get_back_container_iter(), true}));
       while (prefetched_next_blocks_.size() < kMaxNumInflightPrefetches) {
-        prefetched_next_blocks_.emplace_back(
+        prefetched_next_blocks_.push_back(
             submit_prefetch_req(PrefetchReq{std::nullopt, true}));
       }
     }
 
-    if (prefetched_prev_blocks_.size() == kMaxNumInflightPrefetches) {
-      prefetched_prev_blocks_.pop_front();
-    }
-    prefetched_prev_blocks_.emplace_back(std::move(block_));
+    prefetched_prev_blocks_.push_back(std::move(block_));
     block_ = unwrap_block_variant(&prefetched_next_blocks_.front());
     prefetched_next_blocks_.pop_front();
-    prefetched_next_blocks_.emplace_back(
+    prefetched_next_blocks_.push_back(
         submit_prefetch_req(PrefetchReq{std::nullopt, true}));
 
     if (unlikely(!block_)) {
@@ -469,40 +478,38 @@ template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd> &GeneralSealedDSConstIterator<
     T, Fwd>::operator--() requires PreDecrementable<ContainerIter> {
   if (unlikely(block_iter_ == block_.cbegin())) {
+    if (unlikely(shards_iter_ == shards_vec_end())) {
+      goto go_prev_shard;
+    }
+
     if (unlikely(!prefetch_executor_)) {
       allocate_prefetch_executor();
       prefetch_seq_ = 1;
     }
 
     if (unlikely(prefetch_seq_ > 0)) {
-      prefetched_prev_blocks_.clear();
       prefetch_seq_ = 0;
-      prefetched_prev_blocks_.emplace_front(submit_prefetch_req(
+      prefetched_prev_blocks_.push_front(submit_prefetch_req(
           PrefetchReq{block_.get_front_container_iter(), false}));
       while (prefetched_prev_blocks_.size() < kMaxNumInflightPrefetches) {
-        prefetched_prev_blocks_.emplace_back(
+        prefetched_prev_blocks_.push_front(
             submit_prefetch_req(PrefetchReq{std::nullopt, false}));
       }
     }
 
-    if (prefetched_next_blocks_.size() == kMaxNumInflightPrefetches) {
-      prefetched_next_blocks_.pop_back();
-    }
-    prefetched_next_blocks_.emplace_front(std::move(block_));
+    prefetched_next_blocks_.push_front(std::move(block_));
     block_ = unwrap_block_variant(&prefetched_prev_blocks_.back());
     prefetched_prev_blocks_.pop_back();
-    prefetched_prev_blocks_.emplace_back(
+    prefetched_prev_blocks_.push_front(
         submit_prefetch_req(PrefetchReq{std::nullopt, false}));
 
+  go_prev_shard:
     if (unlikely(!block_)) {
       prefetched_prev_blocks_.clear();
       prefetched_next_blocks_.clear();
       prefetch_executor_.reset();
-      if (likely(shards_iter_-- != shards_vec_begin())) {
-        block_ = Block::shard_back_block(shards_iter_);
-      } else {
-        block_ = Block();
-      }
+      BUG_ON(shards_iter_-- == shards_vec_begin());
+      block_ = Block::shard_back_block(shards_iter_);
     }
 
     block_iter_ = --block_.cend();

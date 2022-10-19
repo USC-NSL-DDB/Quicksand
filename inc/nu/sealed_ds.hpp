@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/circular_buffer.hpp>
 #include <cmath>
 #include <deque>
 #include <memory>
@@ -119,8 +120,10 @@ public:
   ShardsVecIter shards_iter_;
   Block block_;
   Block::ConstIterator block_iter_;
-  std::deque<std::variant<Future<Block>, Block>> prefetched_next_blocks_;
-  std::deque<std::variant<Future<Block>, Block>> prefetched_prev_blocks_;
+  boost::circular_buffer<std::variant<Future<Block>, Block>>
+      prefetched_next_blocks_;
+  boost::circular_buffer<std::variant<Future<Block>, Block>>
+      prefetched_prev_blocks_;
   RemUniquePtr<RobExecutor<PrefetchReq, typename Block::Prefetched>>
       prefetch_executor_;
   int32_t prefetch_seq_;
