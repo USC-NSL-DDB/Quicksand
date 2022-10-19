@@ -120,12 +120,12 @@ public:
   ShardsVecIter shards_iter_;
   Block block_;
   Block::ConstIterator block_iter_;
+  RemUniquePtr<RobExecutor<PrefetchReq, typename Block::Prefetched>>
+      prefetch_executor_;
   boost::circular_buffer<std::variant<Future<Block>, Block>>
       prefetched_next_blocks_;
   boost::circular_buffer<std::variant<Future<Block>, Block>>
       prefetched_prev_blocks_;
-  RemUniquePtr<RobExecutor<PrefetchReq, typename Block::Prefetched>>
-      prefetch_executor_;
   int32_t prefetch_seq_;
 
   template <ShardedDataStructureBased U>
