@@ -48,6 +48,16 @@ struct DeepDecay {
 template <typename T>
 using DeepDecay_t = typename DeepDecay<T>::type;
 
+template <class T>
+concept PreIncrementable = requires(T t) {
+  {++t};
+};
+
+template <class T>
+concept PreDecrementable = requires(T t) {
+  {--t};
+};
+
 }  // namespace nu
 
 #include "nu/impl/type_traits.ipp"

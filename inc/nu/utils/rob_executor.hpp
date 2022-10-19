@@ -1,5 +1,6 @@
 #pragma once
 
+#include <folly/Function.h>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -14,7 +15,7 @@ namespace nu {
 template <typename Arg, typename Ret>
 class RobExecutor {
  public:
-  RobExecutor(std::function<Ret(const Arg &)> fn, uint32_t rob_size);
+  RobExecutor(folly::Function<Ret(const Arg &)> fn, uint32_t rob_size);
   ~RobExecutor();
   Ret submit(uint32_t seq, Arg &&arg);
   void executor_fn();
@@ -27,7 +28,7 @@ class RobExecutor {
     CondVar cond_var;
   };
 
-  std::function<Ret(const Arg &)> fn_;
+  folly::Function<Ret(const Arg &)> fn_;
   std::vector<RobEntry> rob_;
   Thread th_;
   bool done_;

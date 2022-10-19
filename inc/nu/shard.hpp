@@ -118,30 +118,30 @@ class GeneralShard {
       uint32_t block_size) requires ConstReverseIterable<Container>;
   std::pair<std::vector<IterVal>, ConstReverseIterator> get_rback_block(
       uint32_t block_size) requires ConstReverseIterable<Container>;
-  std::vector<std::pair<IterVal, ConstIterator>> get_block_forward_with_iters(
+  std::vector<std::pair<IterVal, ConstIterator>> get_next_block_with_iters(
       ConstIterator prev_iter,
       uint32_t block_size) requires ConstIterable<Container>;
-  std::vector<IterVal> get_block_forward(
+  std::vector<IterVal> get_next_block(
       ConstIterator prev_iter,
       uint32_t block_size) requires ConstIterable<Container>;
-  std::vector<std::pair<IterVal, ConstIterator>> get_block_backward_with_iters(
+  std::vector<std::pair<IterVal, ConstIterator>> get_prev_block_with_iters(
       ConstIterator succ_iter,
       uint32_t block_size) requires ConstIterable<Container>;
-  std::vector<IterVal> get_block_backward(
+  std::vector<IterVal> get_prev_block(
       ConstIterator succ_iter,
       uint32_t block_size) requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>>
-  get_rblock_forward_with_iters(
+  get_next_rblock_with_iters(
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
-  std::vector<IterVal> get_rblock_forward(
+  std::vector<IterVal> get_next_rblock(
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>>
-  get_rblock_backward_with_iters(
+  get_prev_rblock_with_iters(
       ConstReverseIterator succ_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
-  std::vector<IterVal> get_rblock_backward(
+  std::vector<IterVal> get_prev_rblock(
       ConstReverseIterator succ_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
   ConstIterator cbegin() requires ConstIterable<Container>;
@@ -180,18 +180,18 @@ class GeneralShard {
   void split();
   bool should_split() const;
   bool bad_range(std::optional<Key> l_key, std::optional<Key> r_key);
-  uint32_t __get_block_forward_with_iters(
+  uint32_t __get_next_block_with_iters(
       std::vector<std::pair<IterVal, ConstIterator>>::iterator block_iter,
       ConstIterator prev_iter,
       uint32_t block_size) requires ConstIterable<Container>;
-  uint32_t __get_block_forward(
+  uint32_t __get_next_block(
       std::vector<IterVal>::iterator block_iter, ConstIterator prev_iter,
       uint32_t block_size) requires ConstIterable<Container>;
-  uint32_t __get_rblock_forward_with_iters(
+  uint32_t __get_next_rblock_with_iters(
       std::vector<std::pair<IterVal, ConstReverseIterator>>::iterator block_it,
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
-  uint32_t __get_rblock_forward(
+  uint32_t __get_next_rblock(
       std::vector<IterVal>::iterator block_iter, ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
 };

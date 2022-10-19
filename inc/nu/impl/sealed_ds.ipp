@@ -3,6 +3,12 @@
 namespace nu {
 
 template <typename T, bool Fwd>
+template <class Archive>
+void GeneralSealedDSConstIterator<T, Fwd>::PrefetchReq::serialize(Archive &ar) {
+  ar(iter_update, next);
+}
+
+template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block::Block() {
   static ContainerIter iter;
 
@@ -15,9 +21,12 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::Block() {
 }
 
 template <typename T, bool Fwd>
+GeneralSealedDSConstIterator<T, Fwd>::Block::Block(Prefetched &&data)
+    : prefetched(std::move(data)) {}
+
+template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block::Block(
-    ShardsVecIter shards_vec_iter, Val v, ContainerIter container_iter)
-    : shards_iter(shards_vec_iter) {
+    Val v, ContainerIter container_iter) {
   if constexpr (kContiguous) {
     prefetched.first.emplace_back(v);
     prefetched.second = container_iter;
@@ -34,7 +43,6 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::Block(const Block &o) {
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block &
 GeneralSealedDSConstIterator<T, Fwd>::Block::operator=(const Block &o) {
-  shards_iter = o.shards_iter;
   prefetched = o.prefetched;
   return *this;
 }
@@ -47,7 +55,6 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::Block(Block &&o) {
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block &
 GeneralSealedDSConstIterator<T, Fwd>::Block::operator=(Block &&o) {
-  shards_iter = std::move(o.shards_iter);
   prefetched = std::move(o.prefetched);
   return *this;
 }
@@ -101,9 +108,23 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::cend() const {
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::ShardsVecIter
-GeneralSealedDSConstIterator<T, Fwd>::Block::get_shards_iter() const {
-  return shards_iter;
+GeneralSealedDSConstIterator<T, Fwd>::ContainerIter
+GeneralSealedDSConstIterator<T, Fwd>::Block::get_front_container_iter() const {
+  if constexpr (kContiguous) {
+    return prefetched.second;
+  } else {
+    return prefetched.front().second;
+  }
+}
+
+template <typename T, bool Fwd>
+GeneralSealedDSConstIterator<T, Fwd>::ContainerIter
+GeneralSealedDSConstIterator<T, Fwd>::Block::get_back_container_iter() const {
+  if constexpr (kContiguous) {
+    return prefetched.second + prefetched.first.size() - 1;
+  } else {
+    return prefetched.back().second;
+  }
 }
 
 template <typename T, bool Fwd>
@@ -131,22 +152,23 @@ auto GeneralSealedDSConstIterator<T, Fwd>::Block::to_gid(
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block
 GeneralSealedDSConstIterator<T, Fwd>::Block::shard_front_block(
-    ShardsVecIter shards_vec_iter) {
+    ShardsVecIter shards_iter) {
   Block b;
-  b.shards_iter = shards_vec_iter;
   if constexpr (Fwd) {
     if constexpr (kContiguous) {
-      b.prefetched = b.shards_iter->run(&Shard::get_front_block, kSize);
-    } else {
       b.prefetched =
-          b.shards_iter->run(&Shard::get_front_block_with_iters, kSize);
+          shards_iter->run(&Shard::get_front_block, kPrefetchSizePerThread);
+    } else {
+      b.prefetched = shards_iter->run(&Shard::get_front_block_with_iters,
+                                      kPrefetchSizePerThread);
     }
   } else {
     if constexpr (kContiguous) {
-      b.prefetched = b.shards_iter->run(&Shard::get_rfront_block, kSize);
-    } else {
       b.prefetched =
-          b.shards_iter->run(&Shard::get_rfront_block_with_iters, kSize);
+          shards_iter->run(&Shard::get_rfront_block, kPrefetchSizePerThread);
+    } else {
+      b.prefetched = shards_iter->run(&Shard::get_rfront_block_with_iters,
+                                      kPrefetchSizePerThread);
     }
   }
   return b;
@@ -155,22 +177,23 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::shard_front_block(
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block
 GeneralSealedDSConstIterator<T, Fwd>::Block::shard_back_block(
-    ShardsVecIter shards_vec_iter) {
+    ShardsVecIter shards_iter) {
   Block b;
-  b.shards_iter = shards_vec_iter;
   if constexpr (Fwd) {
     if constexpr (kContiguous) {
-      b.prefetched = b.shards_iter->run(&Shard::get_back_block, kSize);
-    } else {
       b.prefetched =
-          b.shards_iter->run(&Shard::get_back_block_with_iters, kSize);
+          shards_iter->run(&Shard::get_back_block, kPrefetchSizePerThread);
+    } else {
+      b.prefetched = shards_iter->run(&Shard::get_back_block_with_iters,
+                                      kPrefetchSizePerThread);
     }
   } else {
     if constexpr (kContiguous) {
-      b.prefetched = b.shards_iter->run(&Shard::get_rback_block, kSize);
-    } else {
       b.prefetched =
-          b.shards_iter->run(&Shard::get_rback_block_with_iters, kSize);
+          shards_iter->run(&Shard::get_rback_block, kPrefetchSizePerThread);
+    } else {
+      b.prefetched = shards_iter->run(&Shard::get_rback_block_with_iters,
+                                      kPrefetchSizePerThread);
     }
   }
   return b;
@@ -179,83 +202,25 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::shard_back_block(
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block
 GeneralSealedDSConstIterator<T, Fwd>::Block::shard_end_block(
-    ShardsVecIter shards_vec_iter) {
-  Block b;
-  b.shards_iter = shards_vec_iter;
-  return b;
+    ShardsVecIter shards_iter) {
+  return Block();
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block
-GeneralSealedDSConstIterator<T, Fwd>::Block::next_block() const {
-  Block b;
-  b.shards_iter = shards_iter;
-  if constexpr (Fwd) {
-    if constexpr (kContiguous) {
-      b.prefetched.second = prefetched.second + prefetched.first.size();
-      b.prefetched.first = shards_iter->run(&Shard::get_block_forward,
-                                            b.prefetched.second - 1, kSize);
-    } else {
-      b.prefetched = shards_iter->run(&Shard::get_block_forward_with_iters,
-                                      prefetched.back().second, kSize);
-    }
-  } else {
-    if constexpr (kContiguous) {
-      b.prefetched.second = prefetched.second + prefetched.first.size();
-      b.prefetched.first = shards_iter->run(&Shard::get_rblock_forward,
-                                            b.prefetched.second - 1, kSize);
-    } else {
-      b.prefetched = shards_iter->run(&Shard::get_rblock_forward_with_iters,
-                                      prefetched.back().second, kSize);
-    }
-  }
-  return b;
-}
-
-template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block
-GeneralSealedDSConstIterator<T, Fwd>::Block::prev_block() const {
-  Block b;
-  b.shards_iter = shards_iter;
-  if constexpr (Fwd) {
-    if constexpr (kContiguous) {
-      b.prefetched.first = shards_iter->run(&Shard::get_block_backward,
-                                            prefetched.second, kSize);
-      b.prefetched.second = prefetched.second - b.prefetched.first.size();
-    } else {
-      b.prefetched = shards_iter->run(&Shard::get_block_backward_with_iters,
-                                      prefetched.front().second, kSize);
-    }
-  } else {
-    if constexpr (kContiguous) {
-      b.prefetched.first = shards_iter->run(&Shard::get_rblock_backward,
-                                            prefetched.second, kSize);
-      b.prefetched.second = prefetched.second - b.prefetched.first.size();
-    } else {
-      b.prefetched = shards_iter->run(&Shard::get_rblock_backward_with_iters,
-                                      prefetched.front().second, kSize);
-    }
-  }
-  return b;
-}
-
-template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator() {
-  block_iter_ = block_.cbegin();
-}
+GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator()
+    : block_iter_(block_.cbegin()) {}
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
     std::shared_ptr<ShardsVec> &shards, bool is_begin)
     : shards_(shards) {
-  ShardsVecIter shards_iter;
   if constexpr (Fwd) {
-    shards_iter = is_begin ? shards->begin() : shards->end();
+    shards_iter_ = is_begin ? shards->begin() : shards->end();
   } else {
-    shards_iter = is_begin ? shards->rbegin() : shards->rend();
+    shards_iter_ = is_begin ? shards->rbegin() : shards->rend();
   }
-  block_ = is_begin ? Block::shard_front_block(shards_iter)
-                    : Block::shard_end_block(shards_iter);
+  block_ = is_begin ? Block::shard_front_block(shards_iter_)
+                    : Block::shard_end_block(shards_iter_);
   block_iter_ = is_begin ? block_.cbegin() : block_.cend();
 }
 
@@ -263,9 +228,10 @@ template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
     std::shared_ptr<ShardsVec> &shards, ShardsVecIter shards_iter, Val val,
     ContainerIter iter)
-    : shards_(shards), block_(shards_iter, std::move(val), iter) {
-  block_iter_ = block_.cbegin();
-}
+    : shards_(shards),
+      shards_iter_(shards_iter),
+      block_(std::move(val), iter),
+      block_iter_(block_.cbegin()) {}
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
@@ -278,6 +244,7 @@ GeneralSealedDSConstIterator<T, Fwd>
     &GeneralSealedDSConstIterator<T, Fwd>::operator=(
         const GeneralSealedDSConstIterator &o) {
   shards_ = o.shards_;
+  shards_iter_ = o.shards_iter_;
   block_ = o.block_;
   block_iter_ = block_.cbegin() + (o.block_iter_ - o.block_.cbegin());
   return *this;
@@ -294,8 +261,10 @@ GeneralSealedDSConstIterator<T, Fwd>
     &GeneralSealedDSConstIterator<T, Fwd>::operator=(
         GeneralSealedDSConstIterator &&o) noexcept {
   shards_ = std::move(o.shards_);
+  shards_iter_ = std::move(o.shards_iter_);
   block_ = std::move(o.block_);
   block_iter_ = std::move(o.block_iter_);
+  prefetch_executor_ = std::move(o.prefetch_executor_);
   return *this;
 }
 
@@ -327,65 +296,215 @@ bool GeneralSealedDSConstIterator<T, Fwd>::operator==(
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::Block
-GeneralSealedDSConstIterator<T, Fwd>::get_next_block(const Block &block) {
-  Block new_block = block.next_block();
-  if (unlikely(new_block.empty())) {
-    auto new_shards_iter = new_block.get_shards_iter();
-    if (unlikely(++new_shards_iter == shards_vec_end())) {
-      return Block();
-    } else {
-      return Block::shard_front_block(new_shards_iter);
-    }
-  }
-  return new_block;
+GeneralSealedDSConstIterator<T, Fwd>::unwrap_block_variant(
+    std::variant<Future<Block>, Block> *variant) {
+  return std::visit(
+      []<typename Arg>(Arg &arg) {
+        if constexpr (std::is_same_v<Arg, Block>) {
+          return std::move(arg);
+        } else {
+          return std::move(arg.get());
+        }
+      },
+      *variant);
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block
-GeneralSealedDSConstIterator<T, Fwd>::get_prev_block(const Block &block) {
-  Block new_block = block ? block.prev_block() : block;
-  if (unlikely(new_block.empty())) {
-    auto new_shards_iter = new_block.get_shards_iter();
-    if (unlikely(new_shards_iter-- == shards_vec_begin())) {
-      return Block();
+GeneralSealedDSConstIterator<T, Fwd>::Block::Prefetched
+GeneralSealedDSConstIterator<T, Fwd>::prefetch_next_block(
+    Shard *shard, ContainerIter *container_iter) {
+  typename Block::Prefetched prefetched;
+
+  if constexpr (kContiguous) {
+    if constexpr (Fwd) {
+      prefetched.first =
+          shard->get_next_block(*container_iter, kPrefetchSizePerThread);
     } else {
-      return Block::shard_back_block(new_shards_iter);
+      prefetched.first =
+          shard->get_next_rblock(*container_iter, kPrefetchSizePerThread);
+    }
+    prefetched.second = *container_iter + 1;
+    *container_iter += prefetched.first.size();
+  } else {
+    if constexpr (Fwd) {
+      prefetched = shard->get_next_block_with_iters(*container_iter,
+                                                    kPrefetchSizePerThread);
+    } else {
+      prefetched = shard->get_next_rblock_with_iters(*container_iter,
+                                                     kPrefetchSizePerThread);
+    }
+    if (!prefetched.empty()) {
+      *container_iter = prefetched.back().second;
     }
   }
-  return new_block;
+  return prefetched;
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>
-    &GeneralSealedDSConstIterator<T, Fwd>::operator++() {
+GeneralSealedDSConstIterator<T, Fwd>::Block::Prefetched
+GeneralSealedDSConstIterator<T, Fwd>::prefetch_prev_block(
+    Shard *shard, ContainerIter *container_iter) {
+  typename Block::Prefetched prefetched;
+
+  if constexpr (kContiguous) {
+    if constexpr (Fwd) {
+      prefetched.first =
+          shard->get_prev_block(*container_iter, kPrefetchSizePerThread);
+    } else {
+      prefetched.first =
+          shard->get_prev_rblock(*container_iter, kPrefetchSizePerThread);
+    }
+    *container_iter -= prefetched.first.size();
+    prefetched.second = *container_iter;
+  } else {
+    if constexpr (Fwd) {
+      prefetched = shard->get_prev_block_with_iters(
+          *container_iter, kPrefetchSizePerThread);
+    } else {
+      prefetched = shard->get_prev_rblock_with_iters(
+          *container_iter, kPrefetchSizePerThread);
+    }
+    if (!prefetched.empty()) {
+      *container_iter = prefetched.front().second;
+    }
+  }
+  return prefetched;
+}
+
+template <typename T, bool Fwd>
+void GeneralSealedDSConstIterator<T, Fwd>::allocate_prefetch_executor() {
+  prefetch_executor_ = shards_iter_->run(+[](Shard &shard) {
+    auto states = std::make_unique<std::pair<Shard *const, ContainerIter>>(
+        &shard, ContainerIter());
+    return make_rem_unique<
+        RobExecutor<PrefetchReq, typename Block::Prefetched>>(
+        [states = std::move(states)](const PrefetchReq &req) {
+          if (req.iter_update) {
+            states->second = *req.iter_update;
+          }
+          if (req.next) {
+            if constexpr (PreIncrementable<ContainerIter>) {
+              return prefetch_next_block(states->first, &states->second);
+            }
+            BUG();
+          } else {
+            if constexpr (PreDecrementable<ContainerIter>) {
+              return prefetch_prev_block(states->first, &states->second);
+            }
+	    BUG();
+          }
+        },
+        kMaxNumInflightPrefetches);
+  });
+}
+
+template <typename T, bool Fwd>
+Future<typename GeneralSealedDSConstIterator<T, Fwd>::Block>
+GeneralSealedDSConstIterator<T, Fwd>::submit_prefetch_req(
+    PrefetchReq prefetch_req) {
+  uint32_t seq;
+
+  if (prefetch_req.next) {
+    seq = prefetch_seq_++;
+  } else {
+    seq = -prefetch_seq_--;
+  }
+
+  return nu::async([&, seq, prefetch_req = std::move(prefetch_req)] {
+    return Block(prefetch_executor_.run(
+        +[](RobExecutor<PrefetchReq, typename Block::Prefetched> &rob_executor,
+            uint32_t seq, PrefetchReq prefetch_req) {
+          return rob_executor.submit(seq, std::move(prefetch_req));
+        },
+        seq, prefetch_req));
+  });
+}
+
+template <typename T, bool Fwd>
+GeneralSealedDSConstIterator<T, Fwd> &GeneralSealedDSConstIterator<
+    T, Fwd>::operator++() requires PreIncrementable<ContainerIter> {
   if (unlikely(++block_iter_ == block_.cend())) {
-    if (likely(prefetched_next_block_)) {
-      block_ = std::move(prefetched_next_block_.get());
-    } else {
-      block_ = get_next_block(block_);
+    if (unlikely(!prefetch_executor_)) {
+      allocate_prefetch_executor();
+      prefetch_seq_ = -1;
     }
-    if (block_) {
-      prefetched_next_block_ =
-          nu::async([&] { return get_next_block(block_); });
+
+    if (unlikely(prefetch_seq_ < 0)) {
+      prefetched_next_blocks_.clear();
+      prefetch_seq_ = 0;
+      prefetched_next_blocks_.emplace_back(submit_prefetch_req(
+          PrefetchReq{block_.get_back_container_iter(), true}));
+      while (prefetched_next_blocks_.size() < kMaxNumInflightPrefetches) {
+        prefetched_next_blocks_.emplace_back(
+            submit_prefetch_req(PrefetchReq{std::nullopt, true}));
+      }
     }
+
+    if (prefetched_prev_blocks_.size() == kMaxNumInflightPrefetches) {
+      prefetched_prev_blocks_.pop_front();
+    }
+    prefetched_prev_blocks_.emplace_back(std::move(block_));
+    block_ = unwrap_block_variant(&prefetched_next_blocks_.front());
+    prefetched_next_blocks_.pop_front();
+    prefetched_next_blocks_.emplace_back(
+        submit_prefetch_req(PrefetchReq{std::nullopt, true}));
+
+    if (unlikely(!block_)) {
+      prefetched_next_blocks_.clear();
+      prefetched_prev_blocks_.clear();
+      prefetch_executor_.reset();
+      if (likely(++shards_iter_ != shards_vec_end())) {
+        block_ = Block::shard_front_block(shards_iter_);
+      } else {
+        block_ = Block();
+      }
+    }
+
     block_iter_ = block_.cbegin();
   }
   return *this;
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>
-    &GeneralSealedDSConstIterator<T, Fwd>::operator--() {
+GeneralSealedDSConstIterator<T, Fwd> &GeneralSealedDSConstIterator<
+    T, Fwd>::operator--() requires PreDecrementable<ContainerIter> {
   if (unlikely(block_iter_ == block_.cbegin())) {
-    if (likely(prefetched_prev_block_)) {
-      block_ = std::move(prefetched_prev_block_.get());
-    } else {
-      block_ = get_prev_block(block_);
+    if (unlikely(!prefetch_executor_)) {
+      allocate_prefetch_executor();
+      prefetch_seq_ = 1;
     }
-    if (block_) {
-      prefetched_prev_block_ =
-          nu::async([&] { return get_prev_block(block_); });
+
+    if (unlikely(prefetch_seq_ > 0)) {
+      prefetched_prev_blocks_.clear();
+      prefetch_seq_ = 0;
+      prefetched_prev_blocks_.emplace_front(submit_prefetch_req(
+          PrefetchReq{block_.get_front_container_iter(), false}));
+      while (prefetched_prev_blocks_.size() < kMaxNumInflightPrefetches) {
+        prefetched_prev_blocks_.emplace_back(
+            submit_prefetch_req(PrefetchReq{std::nullopt, false}));
+      }
     }
+
+    if (prefetched_next_blocks_.size() == kMaxNumInflightPrefetches) {
+      prefetched_next_blocks_.pop_back();
+    }
+    prefetched_next_blocks_.emplace_front(std::move(block_));
+    block_ = unwrap_block_variant(&prefetched_prev_blocks_.back());
+    prefetched_prev_blocks_.pop_back();
+    prefetched_prev_blocks_.emplace_back(
+        submit_prefetch_req(PrefetchReq{std::nullopt, false}));
+
+    if (unlikely(!block_)) {
+      prefetched_prev_blocks_.clear();
+      prefetched_next_blocks_.clear();
+      prefetch_executor_.reset();
+      if (likely(shards_iter_-- != shards_vec_begin())) {
+        block_ = Block::shard_back_block(shards_iter_);
+      } else {
+        block_ = Block();
+      }
+    }
+
     block_iter_ = --block_.cend();
   } else {
     block_iter_--;
@@ -416,19 +535,28 @@ GeneralSealedDSConstIterator<T, Fwd>::operator->() const {
 template <typename T, bool Fwd>
 template <class Archive>
 void GeneralSealedDSConstIterator<T, Fwd>::save(Archive &ar) const {
-  uint64_t shards_offset = block_.shards_iter - shards_vec_begin();
+  uint64_t shards_offset = shards_iter_ - shards_vec_begin();
   uint64_t block_offset = block_iter_ - block_.cbegin();
-  ar(shards_, shards_offset, block_.begin_iter, block_.end_iter, block_.data,
-     block_offset);
+  ar(shards_, shards_offset, block_.prefetched, block_offset,
+     decltype(prefetch_executor_)(), prefetch_seq_);
+}
+
+template <typename T, bool Fwd>
+template <class Archive>
+void GeneralSealedDSConstIterator<T, Fwd>::save_move(Archive &ar) {
+  uint64_t shards_offset = shards_iter_ - shards_vec_begin();
+  uint64_t block_offset = block_iter_ - block_.cbegin();
+  ar(shards_, shards_offset, block_.prefetched, block_offset,
+     std::move(prefetch_executor_), prefetch_seq_);
 }
 
 template <typename T, bool Fwd>
 template <class Archive>
 void GeneralSealedDSConstIterator<T, Fwd>::load(Archive &ar) {
   uint64_t shards_offset, block_offset;
-  ar(shards_, shards_offset, block_.begin_iter, block_.end_iter, block_.data,
-     block_offset);
-  block_.shards_iter = shards_vec_begin() + shards_offset;
+  ar(shards_, shards_offset, block_.prefetched, block_offset,
+     prefetch_executor_, prefetch_seq_);
+  shards_iter_ = shards_vec_begin() + shards_offset;
   block_iter_ = block_.cbegin() + block_offset;
 }
 

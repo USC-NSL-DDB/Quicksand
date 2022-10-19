@@ -1,22 +1,32 @@
 #pragma once
 
+#include <cmath>
+#include <deque>
 #include <memory>
 #include <optional>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 #include "nu/proclet.hpp"
+#include "nu/rem_unique_ptr.hpp"
 #include "nu/sharded_ds.hpp"
 #include "nu/type_traits.hpp"
 #include "nu/utils/future.hpp"
+#include "nu/utils/rob_executor.hpp"
 
 namespace nu {
 
 template <ShardedDataStructureBased T, bool Fwd>
 class GeneralSealedDSConstIterator {
- public:
+private:
   using Val = T::Shard::GeneralContainer::IterVal;
+  using Container = T::Shard::GeneralContainer;
+  using ContainerIter =
+      std::conditional_t<Fwd, typename Container::ConstIterator,
+                         typename Container::ConstReverseIterator>;
 
+public:
   GeneralSealedDSConstIterator();
   GeneralSealedDSConstIterator(const GeneralSealedDSConstIterator &);
   GeneralSealedDSConstIterator &operator=(const GeneralSealedDSConstIterator &);
@@ -24,8 +34,10 @@ class GeneralSealedDSConstIterator {
   GeneralSealedDSConstIterator &operator=(
       GeneralSealedDSConstIterator &&) noexcept;
   bool operator==(const GeneralSealedDSConstIterator &) const;
-  GeneralSealedDSConstIterator &operator++();
-  GeneralSealedDSConstIterator &operator--();
+  GeneralSealedDSConstIterator &
+  operator++() requires PreIncrementable<ContainerIter>;
+  GeneralSealedDSConstIterator &
+  operator--() requires PreDecrementable<ContainerIter>;
   GeneralSealedDSConstIterator operator++(int) = delete;
   GeneralSealedDSConstIterator operator--(int) = delete;
   const Val &operator*() const;
@@ -33,6 +45,8 @@ class GeneralSealedDSConstIterator {
 
   template <class Archive>
   void save(Archive &ar) const;
+  template <class Archive>
+  void save_move(Archive &ar);
   template <class Archive>
   void load(Archive &ar);
 
@@ -42,10 +56,6 @@ class GeneralSealedDSConstIterator {
   using ShardsVecIter =
       std::conditional_t<Fwd, typename ShardsVec::iterator,
                          typename ShardsVec::reverse_iterator>;
-  using Container = T::Shard::GeneralContainer;
-  using ContainerIter =
-      std::conditional_t<Fwd, typename Container::ConstIterator,
-                         typename Container::ConstReverseIterator>;
   constexpr static bool kContiguous =
       Fwd ? Container::kContiguousIterator
           : Container::kContiguousReverseIterator;
@@ -65,11 +75,10 @@ class GeneralSealedDSConstIterator {
         std::conditional_t<kContiguous,
                            typename PrefetchedVec::const_reverse_iterator,
                            typename PrefetchedVec::const_reverse_iterator>;
-    constexpr static uint32_t kSize =
-        (256 << 10) / sizeof(std::pair<Val, ContainerIter>);
 
     Block();
-    Block(ShardsVecIter shards_vec_iter, Val v, ContainerIter container_iter);
+    Block(Prefetched &&prefetched);
+    Block(Val v, ContainerIter container_iter);
     Block(const Block &);
     Block &operator=(const Block &);
     Block(Block &&);
@@ -79,26 +88,42 @@ class GeneralSealedDSConstIterator {
     ConstIterator cbegin() const;
     ConstReverseIterator crbegin() const;
     ConstIterator cend() const;
-    Block next_block() const;
-    Block prev_block() const;
-    ShardsVecIter get_shards_iter() const;
+    ContainerIter get_front_container_iter() const;
+    ContainerIter get_back_container_iter() const;
     auto to_gid(ConstIterator iter) const;
     auto to_gid(ConstReverseIterator iter) const;
 
-    static Block shard_front_block(ShardsVecIter shards_vec_iter);
-    static Block shard_back_block(ShardsVecIter shards_vec_iter);
-    static Block shard_end_block(ShardsVecIter shards_vec_iter);
+    static Block shard_front_block(ShardsVecIter shards_iter);
+    static Block shard_back_block(ShardsVecIter shards_iter);
+    static Block shard_end_block(ShardsVecIter shards_iter);
 
    private:
-    ShardsVecIter shards_iter;
     Prefetched prefetched;
   };
 
+  struct PrefetchReq {
+    std::optional<ContainerIter> iter_update;
+    bool next;
+
+    template <class Archive>
+    void serialize(Archive &ar);
+  };
+
+  constexpr static uint32_t kMaxNumInflightPrefetches = 4;
+  constexpr static uint32_t kPrefetchEntrySize =
+      kContiguous ? sizeof(Val) : sizeof(std::pair<Val, ContainerIter>);
+  constexpr static uint32_t kPrefetchSizePerThread =
+      (64 << 10) / kPrefetchEntrySize;
+
   std::shared_ptr<ShardsVec> shards_;
+  ShardsVecIter shards_iter_;
   Block block_;
-  Future<Block> prefetched_next_block_;
-  Future<Block> prefetched_prev_block_;
   Block::ConstIterator block_iter_;
+  std::deque<std::variant<Future<Block>, Block>> prefetched_next_blocks_;
+  std::deque<std::variant<Future<Block>, Block>> prefetched_prev_blocks_;
+  RemUniquePtr<RobExecutor<PrefetchReq, typename Block::Prefetched>>
+      prefetch_executor_;
+  int32_t prefetch_seq_;
 
   template <ShardedDataStructureBased U>
   friend class SealedDS;
@@ -110,8 +135,14 @@ class GeneralSealedDSConstIterator {
                                ContainerIter container_iter);
   ShardsVecIter shards_vec_begin() const;
   ShardsVecIter shards_vec_end() const;
-  Block get_next_block(const Block &block);
-  Block get_prev_block(const Block &block);
+  void allocate_prefetch_executor();
+  Future<Block> submit_prefetch_req(PrefetchReq prefetch_req);
+  static Block::Prefetched prefetch_next_block(Shard *shard,
+                                               ContainerIter *container_iter);
+  static Block::Prefetched prefetch_prev_block(Shard *shard,
+                                               ContainerIter *container_iter);
+  static Block unwrap_block_variant(
+      std::variant<Future<Block>, Block> *variant);
 };
 
 template <ShardedDataStructureBased T>

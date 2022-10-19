@@ -1,7 +1,7 @@
 namespace nu {
 
 template <typename Arg, typename Ret>
-RobExecutor<Arg, Ret>::RobExecutor(std::function<Ret(const Arg &)> fn,
+RobExecutor<Arg, Ret>::RobExecutor(folly::Function<Ret(const Arg &)> fn,
                                    uint32_t rob_size)
     : fn_(std::move(fn)),
       rob_(rob_size),
