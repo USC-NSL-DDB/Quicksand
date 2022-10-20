@@ -132,12 +132,14 @@ ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::emplace(Key k, Val v) {
+[[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
+    Key k, Val v) {
   emplace({std::move(k), std::move(v)});
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::emplace(Pair p) {
+[[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
+    Pair p) {
 [[maybe_unused]] retry:
   auto iter = --key_to_shards_.upper_bound(p.first);
 
@@ -161,9 +163,11 @@ void ShardedDataStructure<Container, LL>::emplace(Pair p) {
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::emplace_back(
+[[gnu::always_inline]] inline void
+ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
-  [[maybe_unused]] retry : if constexpr (LL::value) {
+[[maybe_unused]] retry:
+  if constexpr (LL::value) {
     // rbegin() is O(1) which is much faster than the O(logn) of --end().
     auto iter = key_to_shards_.rbegin();
     auto l_key = iter->first;
