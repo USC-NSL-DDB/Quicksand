@@ -140,6 +140,8 @@ public:
   ShardsVecIter shards_vec_end() const;
   void allocate_prefetch_executor();
   Future<Block> submit_prefetch_req(PrefetchReq prefetch_req);
+  void inc_slow_path();
+  void dec_slow_path();
   static Block::Prefetched prefetch_next_block(Shard *shard,
                                                ContainerIter *container_iter);
   static Block::Prefetched prefetch_prev_block(Shard *shard,

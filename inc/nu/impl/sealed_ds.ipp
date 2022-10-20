@@ -434,89 +434,101 @@ GeneralSealedDSConstIterator<T, Fwd>::submit_prefetch_req(
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd> &GeneralSealedDSConstIterator<
-    T, Fwd>::operator++() requires PreIncrementable<ContainerIter> {
+[[gnu::always_inline]] inline GeneralSealedDSConstIterator<T, Fwd>
+    &GeneralSealedDSConstIterator<
+        T, Fwd>::operator++() requires PreIncrementable<ContainerIter> {
   if (unlikely(++block_iter_ == block_.cend())) {
-    if (unlikely(!prefetch_executor_)) {
-      allocate_prefetch_executor();
-      prefetch_seq_ = -1;
-    }
-
-    if (unlikely(prefetch_seq_ < 0)) {
-      prefetch_seq_ = 0;
-      prefetched_next_blocks_.push_back(submit_prefetch_req(
-          PrefetchReq{block_.get_back_container_iter(), true}));
-      while (prefetched_next_blocks_.size() < kMaxNumInflightPrefetches) {
-        prefetched_next_blocks_.push_back(
-            submit_prefetch_req(PrefetchReq{std::nullopt, true}));
-      }
-    }
-
-    prefetched_prev_blocks_.push_back(std::move(block_));
-    block_ = unwrap_block_variant(&prefetched_next_blocks_.front());
-    prefetched_next_blocks_.pop_front();
-    prefetched_next_blocks_.push_back(
-        submit_prefetch_req(PrefetchReq{std::nullopt, true}));
-
-    if (unlikely(!block_)) {
-      prefetched_next_blocks_.clear();
-      prefetched_prev_blocks_.clear();
-      prefetch_executor_.reset();
-      if (likely(++shards_iter_ != shards_vec_end())) {
-        block_ = Block::shard_front_block(shards_iter_);
-      } else {
-        block_ = Block();
-      }
-    }
-
-    block_iter_ = block_.cbegin();
+    inc_slow_path();
   }
   return *this;
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd> &GeneralSealedDSConstIterator<
-    T, Fwd>::operator--() requires PreDecrementable<ContainerIter> {
+void GeneralSealedDSConstIterator<T, Fwd>::inc_slow_path() {
+  if (unlikely(!prefetch_executor_)) {
+    allocate_prefetch_executor();
+    prefetch_seq_ = -1;
+  }
+
+  if (unlikely(prefetch_seq_ < 0)) {
+    prefetch_seq_ = 0;
+    prefetched_next_blocks_.push_back(submit_prefetch_req(
+        PrefetchReq{block_.get_back_container_iter(), true}));
+    while (prefetched_next_blocks_.size() < kMaxNumInflightPrefetches) {
+      prefetched_next_blocks_.push_back(
+          submit_prefetch_req(PrefetchReq{std::nullopt, true}));
+    }
+  }
+
+  prefetched_prev_blocks_.push_back(std::move(block_));
+  block_ = unwrap_block_variant(&prefetched_next_blocks_.front());
+  prefetched_next_blocks_.pop_front();
+  prefetched_next_blocks_.push_back(
+      submit_prefetch_req(PrefetchReq{std::nullopt, true}));
+
+  if (unlikely(!block_)) {
+    prefetched_next_blocks_.clear();
+    prefetched_prev_blocks_.clear();
+    prefetch_executor_.reset();
+    if (likely(++shards_iter_ != shards_vec_end())) {
+      block_ = Block::shard_front_block(shards_iter_);
+    } else {
+      block_ = Block();
+    }
+  }
+
+  block_iter_ = block_.cbegin();
+}
+
+template <typename T, bool Fwd>
+[[gnu::always_inline]] inline GeneralSealedDSConstIterator<T, Fwd>
+    &GeneralSealedDSConstIterator<
+        T, Fwd>::operator--() requires PreDecrementable<ContainerIter> {
   if (unlikely(block_iter_ == block_.cbegin())) {
-    if (unlikely(shards_iter_ == shards_vec_end())) {
-      goto go_prev_shard;
-    }
-
-    if (unlikely(!prefetch_executor_)) {
-      allocate_prefetch_executor();
-      prefetch_seq_ = 1;
-    }
-
-    if (unlikely(prefetch_seq_ > 0)) {
-      prefetch_seq_ = 0;
-      prefetched_prev_blocks_.push_front(submit_prefetch_req(
-          PrefetchReq{block_.get_front_container_iter(), false}));
-      while (prefetched_prev_blocks_.size() < kMaxNumInflightPrefetches) {
-        prefetched_prev_blocks_.push_front(
-            submit_prefetch_req(PrefetchReq{std::nullopt, false}));
-      }
-    }
-
-    prefetched_next_blocks_.push_front(std::move(block_));
-    block_ = unwrap_block_variant(&prefetched_prev_blocks_.back());
-    prefetched_prev_blocks_.pop_back();
-    prefetched_prev_blocks_.push_front(
-        submit_prefetch_req(PrefetchReq{std::nullopt, false}));
-
-  go_prev_shard:
-    if (unlikely(!block_)) {
-      prefetched_prev_blocks_.clear();
-      prefetched_next_blocks_.clear();
-      prefetch_executor_.reset();
-      BUG_ON(shards_iter_-- == shards_vec_begin());
-      block_ = Block::shard_back_block(shards_iter_);
-    }
-
-    block_iter_ = --block_.cend();
+    dec_slow_path();
   } else {
     block_iter_--;
   }
   return *this;
+}
+
+template <typename T, bool Fwd>
+void GeneralSealedDSConstIterator<T, Fwd>::dec_slow_path() {
+  if (unlikely(shards_iter_ == shards_vec_end())) {
+    goto go_prev_shard;
+  }
+
+  if (unlikely(!prefetch_executor_)) {
+    allocate_prefetch_executor();
+    prefetch_seq_ = 1;
+  }
+
+  if (unlikely(prefetch_seq_ > 0)) {
+    prefetch_seq_ = 0;
+    prefetched_prev_blocks_.push_front(submit_prefetch_req(
+        PrefetchReq{block_.get_front_container_iter(), false}));
+    while (prefetched_prev_blocks_.size() < kMaxNumInflightPrefetches) {
+      prefetched_prev_blocks_.push_front(
+          submit_prefetch_req(PrefetchReq{std::nullopt, false}));
+    }
+  }
+
+  prefetched_next_blocks_.push_front(std::move(block_));
+  block_ = unwrap_block_variant(&prefetched_prev_blocks_.back());
+  prefetched_prev_blocks_.pop_back();
+  prefetched_prev_blocks_.push_front(
+      submit_prefetch_req(PrefetchReq{std::nullopt, false}));
+
+go_prev_shard:
+  if (unlikely(!block_)) {
+    prefetched_prev_blocks_.clear();
+    prefetched_next_blocks_.clear();
+    prefetch_executor_.reset();
+    BUG_ON(shards_iter_-- == shards_vec_begin());
+    block_ = Block::shard_back_block(shards_iter_);
+  }
+
+  block_iter_ = --block_.cend();
 }
 
 template <typename T, bool Fwd>
