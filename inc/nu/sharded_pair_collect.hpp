@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <span>
 #include <vector>
 
 #include "nu/sharded_ds.hpp"
@@ -8,10 +9,32 @@
 namespace nu {
 
 template <typename K, typename V>
+struct PairCollectionConstIterator
+    : public std::span<const std::pair<K, V>>::iterator {
+  constexpr static bool kContiguous = true;
+
+  PairCollectionConstIterator();
+  PairCollectionConstIterator(
+      std::span<const std::pair<K, V>>::iterator &&iter);
+};
+
+template <typename K, typename V>
+struct PairCollectionConstReverseIterator
+    : public std::span<const std::pair<K, V>>::reverse_iterator {
+  constexpr static bool kContiguous = true;
+
+  PairCollectionConstReverseIterator();
+  PairCollectionConstReverseIterator(
+      std::span<const std::pair<K, V>>::reverse_iterator &&iter);
+};
+
+template <typename K, typename V>
 class PairCollection {
  public:
   using Key = K;
   using Val = V;
+  using ConstIterator = PairCollectionConstIterator<K, V>;
+  using ConstReverseIterator = PairCollectionConstReverseIterator<K, V>;
 
   PairCollection();
   PairCollection(const PairCollection &);
@@ -29,6 +52,10 @@ class PairCollection {
   void merge(PairCollection pc);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  ConstIterator cbegin() const;
+  ConstIterator cend() const;
+  ConstReverseIterator crbegin() const;
+  ConstReverseIterator crend() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>

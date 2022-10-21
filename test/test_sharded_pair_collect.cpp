@@ -1,8 +1,10 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <vector>
 
 #include "nu/runtime.hpp"
+#include "nu/sealed_ds.hpp"
 #include "nu/sharded_pair_collect.hpp"
 
 constexpr uint32_t kNumElements = 16 << 20;
@@ -30,18 +32,20 @@ class Worker {
 };
 
 bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
-  auto p0 = make_proclet<Worker>(*sc);
-  auto p1 = make_proclet<Worker>(*sc);
+  {
+    auto p0 = make_proclet<Worker>(*sc);
+    auto p1 = make_proclet<Worker>(*sc);
 
-  auto f0 = p0.run_async(&Worker::emplace, 0, kNumElements / 2);
-  auto f1 = p1.run_async(&Worker::emplace, kNumElements / 2, kNumElements);
-  f0.get();
-  f1.get();
+    auto f0 = p0.run_async(&Worker::emplace, 0, kNumElements / 2);
+    auto f1 = p1.run_async(&Worker::emplace, kNumElements / 2, kNumElements);
+    f0.get();
+    f1.get();
 
-  auto f2 = p0.run_async(&Worker::mutate);
-  auto f3 = p1.run_async(&Worker::mutate);
-  f2.get();
-  f3.get();
+    auto f2 = p0.run_async(&Worker::mutate);
+    auto f3 = p1.run_async(&Worker::mutate);
+    f2.get();
+    f3.get();
+  }
 
   nu::RuntimeSlabGuard g;
 
@@ -55,7 +59,30 @@ bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
     expected_v.emplace_back(i, std::string(std::to_string(i) + "  "));
   }
 
-  return v == expected_v;
+  if (v != expected_v) {
+    return false;
+  }
+
+  auto sealed = nu::to_sealed_ds(std::move(*sc));
+  v.clear();
+  for (const auto &s : sealed) {
+    v.emplace_back(s);
+  }
+  sort(v.begin(), v.end());
+  if (v != expected_v) {
+    return false;
+  }
+
+  v.clear();
+  for (auto it = sealed.crbegin(); it != sealed.crend(); ++it) {
+    v.emplace_back(*it);
+  }
+  sort(v.begin(), v.end());
+  if (v != expected_v) {
+    return false;
+  }
+
+  return true;
 }
 
 bool run_test_no_hint() {

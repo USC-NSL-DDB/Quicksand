@@ -5,6 +5,24 @@
 namespace nu {
 
 template <typename K, typename V>
+inline PairCollectionConstIterator<K, V>::PairCollectionConstIterator() {}
+
+template <typename K, typename V>
+inline PairCollectionConstIterator<K, V>::PairCollectionConstIterator(
+    std::span<const std::pair<K, V>>::iterator &&iter)
+    : std::span<const std::pair<K, V>>::iterator(std::move(iter)) {}
+
+template <typename K, typename V>
+inline PairCollectionConstReverseIterator<
+    K, V>::PairCollectionConstReverseIterator() {}
+
+template <typename K, typename V>
+inline PairCollectionConstReverseIterator<K, V>::
+    PairCollectionConstReverseIterator(
+        std::span<const std::pair<K, V>>::reverse_iterator &&iter)
+    : std::span<const std::pair<K, V>>::reverse_iterator(std::move(iter)) {}
+
+template <typename K, typename V>
 inline PairCollection<K, V>::PairCollection()
     : data_(nullptr), size_(0), capacity_(0), ownership_(false) {}
 
@@ -150,6 +168,29 @@ inline void PairCollection<K, V>::for_all(void (*fn)(const K &key, V &val,
   for (std::size_t i = 0; i < size_; i++) {
     fn(data_[i].first, data_[i].second, states...);
   }
+}
+
+template <typename K, typename V>
+PairCollection<K, V>::ConstIterator PairCollection<K, V>::cbegin() const {
+  return ConstIterator(std::span<const std::pair<K, V>>(data_, size_).begin());
+}
+
+template <typename K, typename V>
+PairCollection<K, V>::ConstIterator PairCollection<K, V>::cend() const {
+  return ConstIterator(std::span<const std::pair<K, V>>(data_, size_).end());
+}
+
+template <typename K, typename V>
+PairCollection<K, V>::ConstReverseIterator PairCollection<K, V>::crbegin()
+    const {
+  return ConstReverseIterator(
+      std::span<const std::pair<K, V>>(data_, size_).rbegin());
+}
+
+template <typename K, typename V>
+PairCollection<K, V>::ConstReverseIterator PairCollection<K, V>::crend() const {
+  return ConstReverseIterator(
+      std::span<const std::pair<K, V>>(data_, size_).rend());
 }
 
 template <typename K, typename V>
