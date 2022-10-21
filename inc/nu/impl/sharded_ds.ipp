@@ -378,6 +378,26 @@ void ShardedDataStructure<Container, LL>::for_all(void (*fn)(const Key &key,
 }
 
 template <class Container, class LL>
+template <typename... S0s, typename... S1s>
+void ShardedDataStructure<Container, LL>::for_all_shards(
+    void (*fn)(ContainerImpl &container_impl, S0s...), S1s &&... states) {
+  flush_and_sync_mapping();
+
+  using Fn = decltype(fn);
+  auto raw_fn = reinterpret_cast<uintptr_t>(fn);
+  std::vector<Future<void>> futures;
+  for (auto &[_, shard_and_reqs] : key_to_shards_) {
+    futures.emplace_back(shard_and_reqs.shard.run_async(
+        +[](Shard &shard, uintptr_t raw_fn, S1s... states) {
+          auto *fn = reinterpret_cast<Fn>(raw_fn);
+          auto container_ptr = shard.get_container_handle();
+	  container_ptr->pass_through(fn, states...);
+        },
+        raw_fn, states...));
+  }
+}
+
+template <class Container, class LL>
 Container ShardedDataStructure<Container, LL>::collect() {
   flush_and_sync_mapping();
 

@@ -37,6 +37,7 @@ class ShardedDataStructure {
   using Val = Container::Val;
   using IterVal = Container::IterVal;
   using Pair = Container::Pair;
+  using ContainerImpl = Container::Implementation;
   using Shard = GeneralShard<Container>;
   using ShardingMapping = GeneralShardingMapping<Shard>;
 
@@ -52,6 +53,9 @@ class ShardedDataStructure {
   std::optional<IterVal> find_val(Key k) const requires Findable<Container>;
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  template <typename... S0s, typename... S1s>
+  void for_all_shards(void (*fn)(ContainerImpl &container_impl, S0s...),
+                      S1s &&... states);
   Container collect();
   bool empty() const;
   std::size_t size() const;
