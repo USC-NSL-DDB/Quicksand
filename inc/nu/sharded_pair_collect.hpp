@@ -56,6 +56,7 @@ class PairCollection {
   ConstIterator cend() const;
   ConstReverseIterator crbegin() const;
   ConstReverseIterator crend() const;
+  void sort();
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>

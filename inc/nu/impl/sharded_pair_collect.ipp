@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <memory>
 
 #include "nu/utils/bfprt/median_of_ninthers.h"
@@ -191,6 +192,11 @@ template <typename K, typename V>
 PairCollection<K, V>::ConstReverseIterator PairCollection<K, V>::crend() const {
   return ConstReverseIterator(
       std::span<const std::pair<K, V>>(data_, size_).rend());
+}
+
+template <typename K, typename V>
+void PairCollection<K, V>::sort() {
+  std::sort(data_, data_ + size_);
 }
 
 template <typename K, typename V>
