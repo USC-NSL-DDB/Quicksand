@@ -32,21 +32,7 @@ concept HasBuiltinLoad = requires(Archive ar, T t) {
 };
 
 template <class T>
-consteval bool is_memcpy_safe() {
-  if constexpr (std::is_trivially_copy_assignable_v<T>) {
-    return true;
-  } else if constexpr (nu::is_specialization_of_v<T, std::pair>) {
-    return is_memcpy_safe<typename T::first_type>() &&
-           is_memcpy_safe<typename T::second_type>();
-  } else if constexpr (nu::is_specialization_of_v<T, std::tuple>) {
-    return std::apply(
-        []<typename... Args>(Args... _) {
-          return (is_memcpy_safe<Args>() && ...);
-        },
-        T{});
-  }
-  return false;
-}
+consteval bool is_memcpy_safe();
 
 template <class Archive, typename T>
 void save(Archive &ar, T const &t) requires(

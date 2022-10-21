@@ -10,7 +10,7 @@ namespace nu {
 
 template <typename K, typename Allocator>
 template <typename K1>
-void RCUHashSet<K, Allocator>::put(K1 &&k) {
+inline void RCUHashSet<K, Allocator>::put(K1 &&k) {
   lock_.writer_lock();
   set_.emplace(std::forward<K1>(k));
   lock_.writer_unlock();
@@ -18,7 +18,7 @@ void RCUHashSet<K, Allocator>::put(K1 &&k) {
 
 template <typename K, typename Allocator>
 template <typename K1>
-bool RCUHashSet<K, Allocator>::remove(K1 &&k) {
+inline bool RCUHashSet<K, Allocator>::remove(K1 &&k) {
   lock_.writer_lock();
   auto ret = set_.erase(std::forward<K1>(k));
   lock_.writer_unlock();
@@ -27,7 +27,7 @@ bool RCUHashSet<K, Allocator>::remove(K1 &&k) {
 
 template <typename K, typename Allocator>
 template <typename K1>
-bool RCUHashSet<K, Allocator>::contains(K1 &&k) {
+inline bool RCUHashSet<K, Allocator>::contains(K1 &&k) {
   lock_.reader_lock();
   auto ret = set_.contains(std::forward<K1>(k));
   lock_.reader_unlock();

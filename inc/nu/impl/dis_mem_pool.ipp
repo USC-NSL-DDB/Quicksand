@@ -15,22 +15,22 @@ inline DistributedMemPool::Heap::Heap(uint32_t shard_size) {
 }
 
 template <typename T, typename... As>
-RemRawPtr<T> DistributedMemPool::Heap::allocate_raw(As... args) {
+inline RemRawPtr<T> DistributedMemPool::Heap::allocate_raw(As... args) {
   return RemRawPtr(new T(std::move(args)...));
 }
 
 template <typename T, typename... As>
-RemUniquePtr<T> DistributedMemPool::Heap::allocate_unique(As... args) {
+inline RemUniquePtr<T> DistributedMemPool::Heap::allocate_unique(As... args) {
   return make_rem_unique<T>(std::move(args)...);
 }
 
 template <typename T, typename... As>
-RemSharedPtr<T> DistributedMemPool::Heap::allocate_shared(As... args) {
+inline RemSharedPtr<T> DistributedMemPool::Heap::allocate_shared(As... args) {
   return make_rem_shared<T>(std::move(args)...);
 }
 
 template <typename T>
-void DistributedMemPool::Heap::free_raw(T *raw_ptr) {
+inline void DistributedMemPool::Heap::free_raw(T *raw_ptr) {
   delete raw_ptr;
 }
 
@@ -91,20 +91,21 @@ inline void DistributedMemPool::halt_probing() {
 }
 
 template <typename T, typename... As>
-RemRawPtr<T> DistributedMemPool::allocate_raw(As &&... args) {
+inline RemRawPtr<T> DistributedMemPool::allocate_raw(As &&... args) {
   return __allocate<T>(&Heap::allocate_raw<T, std::decay_t<As>...>,
                        std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
-Future<RemRawPtr<T>> DistributedMemPool::allocate_raw_async(As &&... args) {
+inline Future<RemRawPtr<T>> DistributedMemPool::allocate_raw_async(
+    As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_raw(std::forward<As>(args)...);
   });
 }
 
 template <typename T>
-void DistributedMemPool::free_raw(const RemRawPtr<T> &ptr) {
+inline void DistributedMemPool::free_raw(const RemRawPtr<T> &ptr) {
   auto &proclet = const_cast<WeakProclet<ErasedType> &>(ptr.proclet_);
   proclet.__run(
       +[](ErasedType &raw_obj, T *raw_ptr) {
@@ -115,7 +116,8 @@ void DistributedMemPool::free_raw(const RemRawPtr<T> &ptr) {
 }
 
 template <typename T>
-Future<void> DistributedMemPool::free_raw_async(const RemRawPtr<T> &ptr) {
+inline Future<void> DistributedMemPool::free_raw_async(
+    const RemRawPtr<T> &ptr) {
   return nu::async([&] { free_raw(ptr); });
 }
 
@@ -148,13 +150,13 @@ void DistributedMemPool::load(Archive &ar) {
 }
 
 template <typename T, typename... As>
-RemUniquePtr<T> DistributedMemPool::allocate_unique(As &&... args) {
+inline RemUniquePtr<T> DistributedMemPool::allocate_unique(As &&... args) {
   return __allocate<T>(&Heap::allocate_unique<T, std::decay_t<As>...>,
                        std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
-Future<RemUniquePtr<T>> DistributedMemPool::allocate_unique_async(
+inline Future<RemUniquePtr<T>> DistributedMemPool::allocate_unique_async(
     As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_unique(std::forward<As>(args)...);
@@ -162,13 +164,13 @@ Future<RemUniquePtr<T>> DistributedMemPool::allocate_unique_async(
 }
 
 template <typename T, typename... As>
-RemSharedPtr<T> DistributedMemPool::allocate_shared(As &&... args) {
+inline RemSharedPtr<T> DistributedMemPool::allocate_shared(As &&... args) {
   return __allocate<T>(&Heap::allocate_shared<T, std::decay_t<As>...>,
                        std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
-Future<RemSharedPtr<T>> DistributedMemPool::allocate_shared_async(
+inline Future<RemSharedPtr<T>> DistributedMemPool::allocate_shared_async(
     As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_shared(std::forward<As>(args)...);

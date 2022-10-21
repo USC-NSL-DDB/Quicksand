@@ -1,73 +1,74 @@
 namespace nu {
 
 template <class Map>
-MapConstIterator<Map>::MapConstIterator() {}
+inline MapConstIterator<Map>::MapConstIterator() {}
 
 template <class Map>
-MapConstIterator<Map>::MapConstIterator(Map::iterator &&iter) {
+inline MapConstIterator<Map>::MapConstIterator(Map::iterator &&iter) {
   Map::const_iterator::operator=(std::move(iter));
 }
 
 template <class Map>
-MapConstIterator<Map>::MapConstIterator(Map::const_iterator &&iter) {
+inline MapConstIterator<Map>::MapConstIterator(Map::const_iterator &&iter) {
   Map::const_iterator::operator=(std::move(iter));
 }
 
 template <class Map>
-MapConstReverseIterator<Map>::MapConstReverseIterator() {}
+inline MapConstReverseIterator<Map>::MapConstReverseIterator() {}
 
 template <class Map>
-MapConstReverseIterator<Map>::MapConstReverseIterator(
+inline MapConstReverseIterator<Map>::MapConstReverseIterator(
     Map::reverse_iterator &&iter) {
   Map::const_reverse_iterator::operator=(std::move(iter));
 }
 
 template <class Map>
-MapConstReverseIterator<Map>::MapConstReverseIterator(
+inline MapConstReverseIterator<Map>::MapConstReverseIterator(
     Map::const_reverse_iterator &&iter) {
   Map::const_reverse_iterator::operator=(std::move(iter));
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::GeneralMap(Map initial_state)
+inline GeneralMap<K, V, M>::GeneralMap(Map initial_state)
     : map_(std::move(initial_state)) {}
 
 template <typename K, typename V, typename M>
-std::size_t GeneralMap<K, V, M>::size() const {
+inline std::size_t GeneralMap<K, V, M>::size() const {
   return map_.size();
 }
 
 template <typename K, typename V, typename M>
-bool GeneralMap<K, V, M>::empty() const {
+inline bool GeneralMap<K, V, M>::empty() const {
   return map_.empty();
 }
 
 template <typename K, typename V, typename M>
-void GeneralMap<K, V, M>::clear() {
+inline void GeneralMap<K, V, M>::clear() {
   map_.clear();
 }
 
 template <typename K, typename V, typename M>
-void GeneralMap<K, V, M>::emplace(Key k, Val v) {
+inline void GeneralMap<K, V, M>::emplace(Key k, Val v) {
   map_.emplace(std::move(k), std::move(v));
 }
 
 template <typename K, typename V, typename M>
-void GeneralMap<K, V, M>::merge(GeneralMap m) {
+inline void GeneralMap<K, V, M>::merge(GeneralMap m) {
   map_.merge(std::move(m.map_));
 }
 
 template <typename K, typename V, typename M>
 template <typename... S0s, typename... S1s>
-void GeneralMap<K, V, M>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
-                                  S1s &&... states) {
+inline void GeneralMap<K, V, M>::for_all(void (*fn)(const Key &key, Val &val,
+                                                    S0s...),
+                                         S1s &&... states) {
   for (auto &[k, v] : map_) {
     fn(k, v, states...);
   }
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::find(K k) const {
+inline GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::find(K k) const {
   return map_.find(std::move(k));
 }
 
@@ -84,39 +85,41 @@ void GeneralMap<K, V, M>::split(Key *mid_k, GeneralMap *latter_half) {
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::cbegin() const {
+inline GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::cbegin() const {
   return map_.cbegin();
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::cend() const {
+inline GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::cend() const {
   return map_.cend();
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::ConstReverseIterator GeneralMap<K, V, M>::crbegin() const {
+inline GeneralMap<K, V, M>::ConstReverseIterator GeneralMap<K, V, M>::crbegin()
+    const {
   return map_.crbegin();
 }
 
 template <typename K, typename V, typename M>
-GeneralMap<K, V, M>::ConstReverseIterator GeneralMap<K, V, M>::crend() const {
+inline GeneralMap<K, V, M>::ConstReverseIterator GeneralMap<K, V, M>::crend()
+    const {
   return map_.crend();
 }
 
 template <typename K, typename V, typename M>
 template <class Archive>
-void GeneralMap<K, V, M>::save(Archive &ar) const {
+inline void GeneralMap<K, V, M>::save(Archive &ar) const {
   ar(map_);
 }
 
 template <typename K, typename V, typename M>
 template <class Archive>
-void GeneralMap<K, V, M>::load(Archive &ar) {
+inline void GeneralMap<K, V, M>::load(Archive &ar) {
   ar(map_);
 }
 
 template <typename K, typename V, typename M, typename LL>
-V GeneralShardedMap<K, V, M, LL>::operator[](const K &key) {
+inline V GeneralShardedMap<K, V, M, LL>::operator[](const K &key) {
   auto found = this->find_val(key);
   if (found.has_value()) {
     return found->second;
@@ -128,17 +131,17 @@ V GeneralShardedMap<K, V, M, LL>::operator[](const K &key) {
 }
 
 template <typename K, typename V, typename M, typename LL>
-GeneralShardedMap<K, V, M, LL>::GeneralShardedMap(
+inline GeneralShardedMap<K, V, M, LL>::GeneralShardedMap(
     std::optional<typename Base::Hint> hint)
     : Base(hint) {}
 
 template <typename K, typename V, typename LL>
-ShardedMap<K, V, LL> make_sharded_map() {
+inline ShardedMap<K, V, LL> make_sharded_map() {
   return ShardedMap<K, V, LL>(std::nullopt);
 }
 
 template <typename K, typename V, typename LL>
-ShardedMultiMap<K, V, LL> make_sharded_multi_map() {
+inline ShardedMultiMap<K, V, LL> make_sharded_multi_map() {
   return ShardedMultiMap<K, V, LL>(std::nullopt);
 }
 

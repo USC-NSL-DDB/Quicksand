@@ -9,12 +9,12 @@ template <typename T>
 class RemSharedPtr;
 
 template <class T>
-T& to_lvalue_ref(T&& t) {
+inline T &to_lvalue_ref(T &&t) {
   return t;
 }
 
 template <typename T>
-auto &&move_if_safe(T &&t) {
+inline auto &&move_if_safe(T &&t) {
   if constexpr (std::is_rvalue_reference_v<T &&> &&
                 // TODO: add more safe-to-move types.
                 (is_specialization_of_v<std::decay_t<T>, Proclet> ||

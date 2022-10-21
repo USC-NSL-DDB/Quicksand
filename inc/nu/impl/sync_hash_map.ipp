@@ -2,7 +2,8 @@ namespace nu {
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
-SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::SyncHashMap() {
+inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+                   Lock>::SyncHashMap() {
   for (size_t i = 0; i < NBuckets; i++) {
     buckets_[i].pair = buckets_[i].next = nullptr;
   }
@@ -11,7 +12,8 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::SyncHashMap() {
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1>
-V *SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get(K1 &&k) {
+inline V *SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get(
+    K1 &&k) {
   auto hasher = Hash();
   auto key_hash = hasher(k);
   return get_with_hash(std::forward<K1>(k), key_hash);
@@ -46,8 +48,8 @@ V *SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_with_hash(
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1, typename V1>
-void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::put(K1 k,
-                                                                       V1 v) {
+inline void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::put(
+    K1 k, V1 v) {
   auto hasher = Hash();
   auto key_hash = hasher(k);
   put_with_hash(std::move(k), std::move(v), key_hash);
@@ -100,8 +102,8 @@ void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1, typename... Args>
-bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::try_emplace(
-    K1 k, Args... args) {
+inline bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+                        Lock>::try_emplace(K1 k, Args... args) {
   auto hasher = Hash();
   auto key_hash = hasher(k);
   return try_emplace_with_hash(k, key_hash, std::move(args)...);
@@ -155,8 +157,8 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1>
-bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::remove(
-    K1 &&k) {
+inline bool
+SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::remove(K1 &&k) {
   auto hasher = Hash();
   auto key_hash = hasher(k);
   return remove_with_hash(std::forward<K1>(k), key_hash);
@@ -208,7 +210,7 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1, typename RetT, typename... A0s, typename... A1s>
-RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::apply(
+inline RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::apply(
     K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
   auto hasher = Hash();
   auto key_hash = hasher(k);
@@ -317,7 +319,7 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
-std::vector<std::pair<K, V>>
+inline std::vector<std::pair<K, V>>
 SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
   return associative_reduce(
       /* clear = */ false, /* init_val = */ std::vector<std::pair<K, V>>(),

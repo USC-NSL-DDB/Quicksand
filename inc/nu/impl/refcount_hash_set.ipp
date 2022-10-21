@@ -10,7 +10,7 @@ namespace nu {
 
 template <typename K>
 template <typename K1>
-void RefcountHashSet<K>::put(K1 &&k) {
+inline void RefcountHashSet<K>::put(K1 &&k) {
   int cpu = get_cpu();
   auto &map = ref_counts_[cpu];
   auto iter = map.try_emplace(k, 0).first;
@@ -22,7 +22,7 @@ void RefcountHashSet<K>::put(K1 &&k) {
 
 template <typename K>
 template <typename K1>
-void RefcountHashSet<K>::remove(K1 &&k) {
+inline void RefcountHashSet<K>::remove(K1 &&k) {
   int cpu = get_cpu();
   auto &map = ref_counts_[cpu];
   auto iter = map.try_emplace(k, 0).first;

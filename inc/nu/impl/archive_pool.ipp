@@ -34,34 +34,41 @@ ArchivePool<Allocator>::ArchivePool(uint32_t per_core_cache_size)
           per_core_cache_size) {}
 
 template <typename Allocator>
-ArchivePool<Allocator>::IASStream *ArchivePool<Allocator>::get_ia_sstream() {
+inline ArchivePool<Allocator>::IASStream *
+ArchivePool<Allocator>::get_ia_sstream() {
   return ia_pool_.get();
 }
 
 template <typename Allocator>
-ArchivePool<Allocator>::OASStream *ArchivePool<Allocator>::get_oa_sstream() {
+inline ArchivePool<Allocator>::OASStream *
+ArchivePool<Allocator>::get_oa_sstream() {
   return oa_pool_.get();
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
-#pragma GCC diagnostic ignored "-Wstringop-overread"
-
 template <typename Allocator>
-void ArchivePool<Allocator>::put_ia_sstream(IASStream *ia_sstream) {
+inline void ArchivePool<Allocator>::put_ia_sstream(IASStream *ia_sstream) {
   ia_sstream->ss.seekg(0);
   return ia_pool_.put(ia_sstream);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+
 template <typename Allocator>
-void ArchivePool<Allocator>::put_oa_sstream(OASStream *oa_sstream) {
+void ArchivePool<Allocator>::release_oa_sstream_space(OASStream *oa_sstream) {
+  // It triggers a bogus warning in g++-11 (bug confirmed).
+  oa_sstream->ss.str(String(kOAStreamPreallocBufSize, '\0'));
+}
+
+#pragma GCC diagnostic pop
+
+template <typename Allocator>
+inline void ArchivePool<Allocator>::put_oa_sstream(OASStream *oa_sstream) {
   if (unlikely(oa_sstream->ss.tellp() >= kOAStreamMaxBufSize)) {
-    oa_sstream->ss.str(String(kOAStreamPreallocBufSize, '\0'));
+    release_oa_sstream_space(oa_sstream);
   }
   oa_sstream->ss.seekp(0);
   return oa_pool_.put(oa_sstream);
 }
-
-#pragma GCC diagnostic pop
 
 }  // namespace nu

@@ -5,7 +5,8 @@ namespace nu {
 
 template <class Impl, class Synchronized>
 template <typename RetT, typename F>
-RetT GeneralContainerBase<Impl, Synchronized>::synchronized(F &&f) const {
+inline RetT GeneralContainerBase<Impl, Synchronized>::synchronized(
+    F &&f) const {
   if constexpr (Synchronized::value) {
     ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
     return f();
@@ -15,7 +16,7 @@ RetT GeneralContainerBase<Impl, Synchronized>::synchronized(F &&f) const {
 }
 
 template <class Impl, class Synchronized>
-void GeneralContainerBase<Impl, Synchronized>::emplace_batch(
+inline void GeneralContainerBase<Impl, Synchronized>::emplace_batch(
     std::vector<std::pair<Key, Val>> reqs) {
   synchronized<void>([&]() {
     for (auto &req : reqs) {

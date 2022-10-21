@@ -4,14 +4,14 @@ namespace nu {
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
-    const DistributedHashTable &o) {
+inline DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::
+    DistributedHashTable(const DistributedHashTable &o) {
   *this = o;
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
+inline DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
     &DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
         const DistributedHashTable &o) {
   power_num_shards_ = o.power_num_shards_;
@@ -22,8 +22,8 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable(
-    DistributedHashTable &&o) {
+inline DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::
+    DistributedHashTable(DistributedHashTable &&o) {
   *this = std::move(o);
 }
 
@@ -42,12 +42,14 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::DistributedHashTable()
+inline DistributedHashTable<K, V, Hash, KeyEqual,
+                            NumBuckets>::DistributedHashTable()
     : power_num_shards_(0), num_shards_(0) {}
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-uint32_t DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
+inline uint32_t
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
     uint64_t key_hash) {
   return key_hash / (std::numeric_limits<uint64_t>::max() >> power_num_shards_);
 }
@@ -55,7 +57,8 @@ uint32_t DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
-uint32_t DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
+inline uint32_t
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
     K1 &&k, uint32_t power_num_shards) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
@@ -64,7 +67,7 @@ uint32_t DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_idx(
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-ProcletID
+inline ProcletID
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_proclet_id(
     uint32_t shard_id) {
   return shards_[shard_id].id_;
@@ -73,8 +76,8 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_shard_proclet_id(
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
-std::optional<V> DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(
-    K1 &&k) {
+inline std::optional<V>
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
@@ -90,8 +93,9 @@ std::optional<V> DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
-std::optional<V> DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(
-    K1 &&k, bool *is_local) {
+inline std::optional<V>
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k,
+                                                            bool *is_local) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
@@ -108,7 +112,7 @@ std::optional<V> DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
-std::pair<std::optional<V>, uint32_t>
+inline std::pair<std::optional<V>, uint32_t>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_with_ip(K1 &&k) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
@@ -126,8 +130,8 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_with_ip(K1 &&k) {
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1, typename V1>
-void DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::put(K1 &&k,
-                                                                 V1 &&v) {
+inline void DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::put(
+    K1 &&k, V1 &&v) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
@@ -139,7 +143,8 @@ void DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::put(K1 &&k,
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
-bool DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::remove(K1 &&k) {
+inline bool DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::remove(
+    K1 &&k) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
@@ -154,7 +159,7 @@ bool DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::remove(K1 &&k) {
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1, typename RetT, typename... A0s, typename... A1s>
-RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::apply(
+inline RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::apply(
     K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
@@ -172,7 +177,7 @@ RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::apply(
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
-Future<std::optional<V>>
+inline Future<std::optional<V>>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_async(K1 &&k) {
   return nu::async([&, k] { return get(std::move(k)); });
 }
@@ -180,15 +185,16 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_async(K1 &&k) {
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1, typename V1>
-Future<void> DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::put_async(
-    K1 &&k, V1 &&v) {
+inline Future<void>
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::put_async(K1 &&k,
+                                                                  V1 &&v) {
   return nu::async([&, k, v] { return put(std::move(k), std::move(v)); });
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1>
-Future<bool>
+inline Future<bool>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::remove_async(K1 &&k) {
   return nu::async([&, k] { return remove(std::move(k)); });
 }
@@ -196,7 +202,7 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::remove_async(K1 &&k) {
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1, typename RetT, typename... A0s, typename... A1s>
-Future<RetT>
+inline Future<RetT>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::apply_async(
     K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
   return nu::async([&, k, fn, ... args = std::forward<A1s>(args)]() mutable {
@@ -273,7 +279,7 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::associative_reduce(
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <class Archive>
-void DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::serialize(
+inline void DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::serialize(
     Archive &ar) {
   ar(power_num_shards_);
   ar(num_shards_);

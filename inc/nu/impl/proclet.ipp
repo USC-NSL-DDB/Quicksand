@@ -25,7 +25,7 @@ extern "C" {
 namespace nu {
 
 template <typename... S1s>
-void serialize(auto *oa_sstream, S1s &&... states) {
+inline void serialize(auto *oa_sstream, S1s &&... states) {
   RuntimeSlabGuard slab_guard;
 
   auto &ss = oa_sstream->ss;
@@ -145,10 +145,10 @@ retry:
 }
 
 template <typename T>
-Proclet<T>::Proclet() : id_(kNullProcletID) {}
+inline Proclet<T>::Proclet() : id_(kNullProcletID) {}
 
 template <typename T>
-Proclet<T>::~Proclet() {
+inline Proclet<T>::~Proclet() {
   reset();
 }
 
@@ -177,12 +177,12 @@ Proclet<T> &Proclet<T>::operator=(const Proclet<T> &o) {
 }
 
 template <typename T>
-Proclet<T>::Proclet(Proclet<T> &&o) noexcept : id_(o.id_) {
+inline Proclet<T>::Proclet(Proclet<T> &&o) noexcept : id_(o.id_) {
   o.id_ = kNullProcletID;
 }
 
 template <typename T>
-Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) noexcept {
+inline Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) noexcept {
   reset();
   id_ = o.id_;
   o.id_ = kNullProcletID;
@@ -193,6 +193,7 @@ template <typename T>
 template <typename... As>
 Proclet<T> Proclet<T>::__create(uint64_t capacity, bool pinned, uint32_t ip_hint,
                                 As &&... args) {
+
   ProcletID id;
   uint32_t server_ip;
   ProcletHeader *proclet_header;
@@ -247,23 +248,23 @@ Proclet<T> Proclet<T>::__create(uint64_t capacity, bool pinned, uint32_t ip_hint
 }
 
 template <typename T>
-Proclet<T>::operator bool() const {
+inline Proclet<T>::operator bool() const {
   return id_;
 }
 
 template <typename T>
-bool Proclet<T>::operator==(const Proclet &o) const {
+inline bool Proclet<T>::operator==(const Proclet &o) const {
   return id_ == o.id_;
 }
 
 template <typename T>
-ProcletID Proclet<T>::get_id() const {
+inline ProcletID Proclet<T>::get_id() const {
   return id_;
 }
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-Future<RetT> Proclet<T>::run_async(
+inline Future<RetT> Proclet<T>::run_async(
     RetT (*fn)(T &, S0s...),
     S1s &&... states) requires ValidInvocationTypes<RetT, S0s...> {
   using fn_states_checker [[maybe_unused]] =
@@ -274,8 +275,8 @@ Future<RetT> Proclet<T>::run_async(
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...),
-                                     S1s &&... states) {
+inline Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...),
+                                            S1s &&... states) {
   return nu::async([&, fn, ... states = std::forward<S1s>(states)]() mutable {
     return __run(fn, std::forward<S1s>(states)...);
   });
@@ -283,7 +284,7 @@ Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...),
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-RetT Proclet<T>::run(
+inline RetT Proclet<T>::run(
     RetT (*fn)(T &, S0s...),
     S1s &&... states) requires ValidInvocationTypes<RetT, S0s...> {
   using fn_states_checker [[maybe_unused]] =
@@ -356,7 +357,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-Future<RetT> Proclet<T>::run_async(
+inline Future<RetT> Proclet<T>::run_async(
     RetT (T::*md)(A0s...),
     A1s &&... args) requires ValidInvocationTypes<RetT, A0s...> {
   using md_args_checker [[maybe_unused]] =
@@ -367,7 +368,7 @@ Future<RetT> Proclet<T>::run_async(
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
+inline Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
   return nu::async([&, md, ... args = std::forward<A1s>(args)]() mutable {
     return __run(md, std::forward<A1s>(args)...);
   });
@@ -375,7 +376,7 @@ Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...), A1s &&... args) {
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-RetT Proclet<T>::run(
+inline RetT Proclet<T>::run(
     RetT (T::*md)(A0s...),
     A1s &&... args) requires ValidInvocationTypes<RetT, A0s...> {
   using md_args_checker [[maybe_unused]] =
@@ -386,7 +387,7 @@ RetT Proclet<T>::run(
 
 template <typename T>
 template <typename RetT, typename... A0s, typename... A1s>
-RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
+inline RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
   return __run(
@@ -440,85 +441,87 @@ std::optional<Future<void>> Proclet<T>::reset_async() {
 
 template <typename T>
 template <class Archive>
-void Proclet<T>::save(Archive &ar) const {
+inline void Proclet<T>::save(Archive &ar) const {
   auto copy(*this);
   copy.save_move(ar);
 }
 
 template <typename T>
 template <class Archive>
-void Proclet<T>::save_move(Archive &ar) {
+inline void Proclet<T>::save_move(Archive &ar) {
   ar(id_);
   id_ = kNullProcletID;
 }
 
 template <typename T>
 template <class Archive>
-void Proclet<T>::load(Archive &ar) {
+inline void Proclet<T>::load(Archive &ar) {
   ar(id_);
 }
 
 template <typename T>
-WeakProclet<T> Proclet<T>::get_weak() {
+inline WeakProclet<T> Proclet<T>::get_weak() {
   return WeakProclet<T>(*this);
 }
 
 template <typename T>
-WeakProclet<T>::WeakProclet() {}
+inline WeakProclet<T>::WeakProclet() {}
 
 template <typename T>
-WeakProclet<T>::~WeakProclet() {
+inline WeakProclet<T>::~WeakProclet() {
   this->id_ = kNullProcletID;
 }
 
 template <typename T>
-WeakProclet<T>::WeakProclet(const Proclet<T> &proclet) : Proclet<T>() {
+inline WeakProclet<T>::WeakProclet(const Proclet<T> &proclet) : Proclet<T>() {
   this->id_ = proclet.id_;
 }
 
 template <typename T>
-WeakProclet<T>::WeakProclet(const WeakProclet<T> &proclet) : Proclet<T>() {
+inline WeakProclet<T>::WeakProclet(const WeakProclet<T> &proclet)
+    : Proclet<T>() {
   this->id_ = proclet.id_;
 }
 
 template <typename T>
-WeakProclet<T> &WeakProclet<T>::operator=(const WeakProclet<T> &proclet) {
+inline WeakProclet<T> &WeakProclet<T>::operator=(
+    const WeakProclet<T> &proclet) {
   this->id_ = proclet.id_;
   return *this;
 }
 
 template <typename T>
-WeakProclet<T>::WeakProclet(ProcletID id) {
+inline WeakProclet<T>::WeakProclet(ProcletID id) {
   this->id_ = id;
 }
 
 template <typename T>
 template <class Archive>
-void WeakProclet<T>::save(Archive &ar) const {
+inline void WeakProclet<T>::save(Archive &ar) const {
   ar(this->id_);
 }
 
 template <typename T>
 template <class Archive>
-void WeakProclet<T>::save_move(Archive &ar) {
+inline void WeakProclet<T>::save_move(Archive &ar) {
   ar(this->id_);
   this->id_ = kNullProcletID;
 }
 
 template <typename T>
 template <class Archive>
-void WeakProclet<T>::load(Archive &ar) {
+inline void WeakProclet<T>::load(Archive &ar) {
   ar(this->id_);
 }
 
 template <typename T, typename... As>
-Proclet<T> make_proclet(As &&... args) {
+inline Proclet<T> make_proclet(As &&... args) {
   return Proclet<T>::__create(kMaxProcletHeapSize, /* pinned = */ false, 0,
                               std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_async(As &&... args) {
+inline Future<Proclet<T>> make_proclet_async(As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(kMaxProcletHeapSize, /* pinned = */ false, 0,
                                 std::forward<As>(args)...);
@@ -526,13 +529,14 @@ Future<Proclet<T>> make_proclet_async(As &&... args) {
 }
 
 template <typename T, typename... As>
-Proclet<T> make_proclet_at(uint32_t ip_hint, As &&... args) {
+inline Proclet<T> make_proclet_at(uint32_t ip_hint, As &&... args) {
   return Proclet<T>::__create(kMaxProcletHeapSize, /* pinned = */ false,
                               ip_hint, std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_async_at(uint32_t ip_hint, As &&... args) {
+inline Future<Proclet<T>> make_proclet_async_at(uint32_t ip_hint,
+                                                As &&... args) {
   return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(kMaxProcletHeapSize, /* pinned = */ false,
                                 ip_hint, std::forward<As>(args)...);
@@ -540,13 +544,13 @@ Future<Proclet<T>> make_proclet_async_at(uint32_t ip_hint, As &&... args) {
 }
 
 template <typename T, typename... As>
-Proclet<T> make_proclet_pinned(As &&... args) {
+inline Proclet<T> make_proclet_pinned(As &&... args) {
   return Proclet<T>::__create(kMaxProcletHeapSize, /* pinned = */ true, 0,
                               std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_pinned_async(As &&... args) {
+inline Future<Proclet<T>> make_proclet_pinned_async(As &&... args) {
   return nu::async([&, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(kMaxProcletHeapSize, /* pinned = */ true, 0,
                                 std::forward<As>(args)...);
@@ -554,14 +558,14 @@ Future<Proclet<T>> make_proclet_pinned_async(As &&... args) {
 }
 
 template <typename T, typename... As>
-Proclet<T> make_proclet_pinned_at(uint32_t ip_hint, As &&... args) {
+inline Proclet<T> make_proclet_pinned_at(uint32_t ip_hint, As &&... args) {
   return Proclet<T>::__create(kMaxProcletHeapSize, /* pinned = */ true, ip_hint,
                               std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip_hint,
-                                                As &&... args) {
+inline Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip_hint,
+                                                       As &&... args) {
   return nu::async([&, ip_hint, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(kMaxProcletHeapSize, /* pinned = */ true,
                                 ip_hint, std::forward<As>(args)...);
@@ -569,14 +573,14 @@ Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip_hint,
 }
 
 template <typename T, typename... As>
-Proclet<T> make_proclet_with_capacity(uint64_t capacity, As &&... args) {
+inline Proclet<T> make_proclet_with_capacity(uint64_t capacity, As &&... args) {
   return Proclet<T>::__create(capacity, /* pinned = */ false, 0,
                               std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_async_with_capacity(uint64_t capacity,
-                                                    As &&... args) {
+inline Future<Proclet<T>> make_proclet_async_with_capacity(uint64_t capacity,
+                                                           As &&... args) {
   return nu::async([&, capacity, ... args = std::forward<As>(args)]() mutable {
     return Proclet<T>::__create(capacity, /* pinned = */ false, 0,
                                 std::forward<As>(args)...);

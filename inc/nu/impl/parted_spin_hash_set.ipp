@@ -9,13 +9,13 @@ namespace nu {
 
 template <typename K, typename Allocator, size_t NPartitions>
 template <typename K1>
-size_t SpinlockHashSet<K, Allocator, NPartitions>::partitioner(K1 &&k) {
+inline size_t SpinlockHashSet<K, Allocator, NPartitions>::partitioner(K1 &&k) {
   return std::hash<K>{}(std::forward<K1>(k)) % NPartitions;
 }
 
 template <typename K, typename Allocator, size_t NPartitions>
 template <typename K1>
-void SpinlockHashSet<K, Allocator, NPartitions>::put(K1 &&k) {
+inline void SpinlockHashSet<K, Allocator, NPartitions>::put(K1 &&k) {
   auto idx = partitioner(std::forward<K1>(k));
   rt::ScopedLock<rt::Spin> lock(&spins_[idx].spin);
   sets_[idx].emplace(std::forward<K1>(k));
@@ -23,7 +23,7 @@ void SpinlockHashSet<K, Allocator, NPartitions>::put(K1 &&k) {
 
 template <typename K, typename Allocator, size_t NPartitions>
 template <typename K1>
-bool SpinlockHashSet<K, Allocator, NPartitions>::remove(K1 &&k) {
+inline bool SpinlockHashSet<K, Allocator, NPartitions>::remove(K1 &&k) {
   auto idx = partitioner(std::forward<K1>(k));
   rt::ScopedLock<rt::Spin> lock(&spins_[idx].spin);
   return sets_[idx].erase(std::forward<K1>(k));
@@ -31,7 +31,7 @@ bool SpinlockHashSet<K, Allocator, NPartitions>::remove(K1 &&k) {
 
 template <typename K, typename Allocator, size_t NPartitions>
 template <typename K1>
-bool SpinlockHashSet<K, Allocator, NPartitions>::contains(K1 &&k) {
+inline bool SpinlockHashSet<K, Allocator, NPartitions>::contains(K1 &&k) {
   auto idx = partitioner(std::forward<K1>(k));
   rt::ScopedLock<rt::Spin> lock(&spins_[idx].spin);
   return sets_[idx].contains(std::forward<K1>(k));

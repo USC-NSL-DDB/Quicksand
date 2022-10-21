@@ -1,110 +1,111 @@
 namespace nu {
 
 template <typename T>
-VectorConstIterator<T>::VectorConstIterator() {}
+inline VectorConstIterator<T>::VectorConstIterator() {}
 
 template <typename T>
-VectorConstIterator<T>::VectorConstIterator(std::vector<T>::iterator &&iter) {
+inline VectorConstIterator<T>::VectorConstIterator(
+    std::vector<T>::iterator &&iter) {
   std::vector<T>::const_iterator::operator=(std::move(iter));
 }
 
 template <typename T>
-VectorConstIterator<T>::VectorConstIterator(
+inline VectorConstIterator<T>::VectorConstIterator(
     std::vector<T>::const_iterator &&iter) {
   std::vector<T>::const_iterator::operator=(std::move(iter));
 }
 
 template <typename T>
-VectorConstReverseIterator<T>::VectorConstReverseIterator() {}
+inline VectorConstReverseIterator<T>::VectorConstReverseIterator() {}
 
 template <typename T>
-VectorConstReverseIterator<T>::VectorConstReverseIterator(
+inline VectorConstReverseIterator<T>::VectorConstReverseIterator(
     std::vector<T>::reverse_iterator &&iter) {
   std::vector<T>::const_reverse_iterator::operator=(std::move(iter));
 }
 
 template <typename T>
-VectorConstReverseIterator<T>::VectorConstReverseIterator(
+inline VectorConstReverseIterator<T>::VectorConstReverseIterator(
     std::vector<T>::const_reverse_iterator &&iter) {
   std::vector<T>::const_reverse_iterator::operator=(std::move(iter));
 }
 
 template <typename T>
-Vector<T>::Vector() : l_key_(0), has_split_(false) {}
+inline Vector<T>::Vector() : l_key_(0), has_split_(false) {}
 
 template <typename T>
-Vector<T>::Vector(const Vector &o) {
+inline Vector<T>::Vector(const Vector &o) {
   *this = o;
 }
 
 template <typename T>
-Vector<T> &Vector<T>::operator=(const Vector &o) {
+inline Vector<T> &Vector<T>::operator=(const Vector &o) {
   data_ = o.data_;
   l_key_ = o.l_key_;
   return *this;
 }
 
 template <typename T>
-Vector<T>::Vector(Vector &&o) noexcept {
+inline Vector<T>::Vector(Vector &&o) noexcept {
   *this = std::move(o);
 }
 
 template <typename T>
-Vector<T> &Vector<T>::operator=(Vector &&o) noexcept {
+inline Vector<T> &Vector<T>::operator=(Vector &&o) noexcept {
   data_ = std::move(o.data_);
   l_key_ = o.l_key_;
   return *this;
 }
 
 template <typename T>
-std::size_t Vector<T>::size() const {
+inline std::size_t Vector<T>::size() const {
   return data_.size();
 }
 
 template <typename T>
-std::size_t Vector<T>::capacity() const {
+inline std::size_t Vector<T>::capacity() const {
   return data_.capacity();
 }
 
 template <typename T>
-void Vector<T>::reserve(std::size_t size) {
+inline void Vector<T>::reserve(std::size_t size) {
   return data_.reserve(size);
 }
 
 template <typename T>
-bool Vector<T>::empty() const {
+inline bool Vector<T>::empty() const {
   return data_.empty();
 }
 
 template <typename T>
-void Vector<T>::clear() {
+inline void Vector<T>::clear() {
   data_.clear();
 }
 
 template <typename T>
-void Vector<T>::emplace(Key k, Val v) {
+inline void Vector<T>::emplace(Key k, Val v) {
   data_[k - l_key_] = std::move(v);
 }
 
 template <typename T>
-void Vector<T>::emplace_back(Val v) {
+inline void Vector<T>::emplace_back(Val v) {
   data_.emplace_back(std::move(v));
 }
 
 template <typename T>
-void Vector<T>::emplace_back_batch(std::vector<Val> v) {
+inline void Vector<T>::emplace_back_batch(std::vector<Val> v) {
   data_.insert(data_.end(), make_move_iterator(v.begin()),
                make_move_iterator(v.end()));
 }
 
 template <typename T>
-void Vector<T>::merge(Vector vector) {
+inline void Vector<T>::merge(Vector vector) {
   data_.insert(data_.end(), std::make_move_iterator(vector.data_.begin()),
                std::make_move_iterator(vector.data_.end()));
 }
 
 template <typename T>
-Vector<T>::ConstIterator Vector<T>::find(Key k) const {
+inline Vector<T>::ConstIterator Vector<T>::find(Key k) const {
   auto l_key = l_key_;
   auto r_key = l_key_ + data_.size();
 
@@ -133,8 +134,8 @@ void Vector<T>::split(Key *mid_k, Vector *latter_half) {
 
 template <typename T>
 template <typename... S0s, typename... S1s>
-void Vector<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
-                        S1s &&... states) {
+inline void Vector<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
+                               S1s &&... states) {
   for (std::size_t i = 0; i < data_.size(); i++) {
     auto idx = l_key_ + i;
     fn(idx, data_[i], states...);
@@ -142,73 +143,74 @@ void Vector<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
 }
 
 template <typename T>
-Vector<T>::ConstIterator Vector<T>::cbegin() const {
+inline Vector<T>::ConstIterator Vector<T>::cbegin() const {
   return data_.cbegin();
 }
 
 template <typename T>
-Vector<T>::ConstIterator Vector<T>::cend() const {
+inline Vector<T>::ConstIterator Vector<T>::cend() const {
   return data_.cend();
 }
 
 template <typename T>
-Vector<T>::ConstReverseIterator Vector<T>::crbegin() const {
+inline Vector<T>::ConstReverseIterator Vector<T>::crbegin() const {
   return data_.crbegin();
 }
 
 template <typename T>
-Vector<T>::ConstReverseIterator Vector<T>::crend() const {
+inline Vector<T>::ConstReverseIterator Vector<T>::crend() const {
   return data_.crend();
 }
 
 template <typename T>
 template <class Archive>
-void Vector<T>::save(Archive &ar) const {
+inline void Vector<T>::save(Archive &ar) const {
   ar(data_, l_key_);
 }
 
 template <typename T>
 template <class Archive>
-void Vector<T>::load(Archive &ar) {
+inline void Vector<T>::load(Archive &ar) {
   ar(data_, l_key_);
   has_split_ = false;
 }
 
 template <typename T, typename LL>
-ShardedVector<T, LL>::ShardedVector() {}
+inline ShardedVector<T, LL>::ShardedVector() {}
 
 template <typename T, typename LL>
-T ShardedVector<T, LL>::operator[](std::size_t index) const {
+inline T ShardedVector<T, LL>::operator[](std::size_t index) const {
   std::optional<T> r = this->find_val(index);
   return *r;
 }
 
 template <typename T, typename LL>
-void ShardedVector<T, LL>::set(std::size_t index, T value) {
+inline void ShardedVector<T, LL>::set(std::size_t index, T value) {
   Base::emplace(index, std::move(value));
 }
 
 template <typename T, typename LL>
-void ShardedVector<T, LL>::push_back(const T &value) {
+inline void ShardedVector<T, LL>::push_back(const T &value) {
   Base::emplace_back(value);
 }
 
 template <typename T, typename LL>
-void ShardedVector<T, LL>::emplace_back(T &&value) {
+inline void ShardedVector<T, LL>::emplace_back(T &&value) {
   Base::emplace_back(std::move(value));
 }
 
 template <typename T, typename LL>
-ShardedVector<T, LL>::ShardedVector(std::optional<typename Base::Hint> hint)
+inline ShardedVector<T, LL>::ShardedVector(
+    std::optional<typename Base::Hint> hint)
     : Base(hint) {}
 
 template <typename T, typename LL>
-ShardedVector<T, LL> make_sharded_vector() {
+inline ShardedVector<T, LL> make_sharded_vector() {
   return ShardedVector<T, LL>(std::nullopt);
 }
 
 template <typename T, typename LL>
-ShardedVector<T, LL> make_sharded_vector(uint64_t reserved_count) {
+inline ShardedVector<T, LL> make_sharded_vector(uint64_t reserved_count) {
   return ShardedVector<T, LL>(typename ShardedVector<T, LL>::Base::Hint(
       reserved_count, 0, [](Vector<T>::Key &k, uint64_t off) { k += off; }));
 }

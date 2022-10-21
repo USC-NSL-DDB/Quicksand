@@ -6,7 +6,7 @@
 namespace nu {
 
 template <class Container, class LL>
-ShardedDataStructure<Container, LL>::ShardedDataStructure() {}
+inline ShardedDataStructure<Container, LL>::ShardedDataStructure() {}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
@@ -57,7 +57,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
 }
 
 template <class Container, class LL>
-ShardedDataStructure<Container, LL>::ShardedDataStructure(
+inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
     const ShardedDataStructure &o)
     : mapping_(o.mapping_), key_to_shards_(o.key_to_shards_) {
   mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
@@ -193,15 +193,16 @@ retry:
 }
 
 template <class Container, class LL>
-std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
+inline std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
 ShardedDataStructure<Container, LL>::find_val(Key k) const
     requires Findable<Container> {
   return const_cast<ShardedDataStructure *>(this)->__find_val(k);
 }
 
 template <class Container, class LL>
-std::pair<std::optional<typename ShardedDataStructure<Container, LL>::Key>,
-          std::optional<typename ShardedDataStructure<Container, LL>::Key>>
+inline std::pair<
+    std::optional<typename ShardedDataStructure<Container, LL>::Key>,
+    std::optional<typename ShardedDataStructure<Container, LL>::Key>>
 ShardedDataStructure<Container, LL>::get_key_range(
     KeyToShardsMapping::iterator iter) {
   auto l_key = iter->first;
@@ -211,25 +212,26 @@ ShardedDataStructure<Container, LL>::get_key_range(
 }
 
 template <class Container, class LL>
-ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
+inline ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
     WeakProclet<Shard> s)
     : shard(s), seq(0) {}
 
 template <class Container, class LL>
-ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
+inline ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
     const ShardAndReqs &o)
     : shard(o.shard), seq(0) {}
 
 template <class Container, class LL>
 template <class Archive>
-void ShardedDataStructure<Container, LL>::ShardAndReqs::save(
+inline void ShardedDataStructure<Container, LL>::ShardAndReqs::save(
     Archive &ar) const {
   ar(shard);
 }
 
 template <class Container, class LL>
 template <class Archive>
-void ShardedDataStructure<Container, LL>::ShardAndReqs::load(Archive &ar) {
+inline void ShardedDataStructure<Container, LL>::ShardAndReqs::load(
+    Archive &ar) {
   ar(shard);
   seq = 0;
 }
@@ -420,12 +422,12 @@ std::size_t ShardedDataStructure<Container, LL>::__size() {
 }
 
 template <class Container, class LL>
-std::size_t ShardedDataStructure<Container, LL>::size() const {
+inline std::size_t ShardedDataStructure<Container, LL>::size() const {
   return const_cast<ShardedDataStructure *>(this)->__size();
 }
 
 template <class Container, class LL>
-bool ShardedDataStructure<Container, LL>::empty() const {
+inline bool ShardedDataStructure<Container, LL>::empty() const {
   return !size();
 }
 
@@ -446,14 +448,14 @@ void ShardedDataStructure<Container, LL>::clear() {
 
 template <class Container, class LL>
 template <class Archive>
-void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
+inline void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
   const_cast<ShardedDataStructure *>(this)->flush();
   ar(mapping_, key_to_shards_);
 }
 
 template <class Container, class LL>
 template <class Archive>
-void ShardedDataStructure<Container, LL>::load(Archive &ar) {
+inline void ShardedDataStructure<Container, LL>::load(Archive &ar) {
   ar(mapping_, key_to_shards_);
   mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
 }
@@ -492,12 +494,12 @@ ShardedDataStructure<Container, LL>::get_all_non_empty_shards() {
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::seal() {
+inline void ShardedDataStructure<Container, LL>::seal() {
   mapping_.run(&ShardingMapping::seal);
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::unseal() {
+inline void ShardedDataStructure<Container, LL>::unseal() {
   mapping_.run(&ShardingMapping::unseal);
 }
 

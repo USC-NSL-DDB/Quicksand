@@ -7,9 +7,9 @@ extern "C" {
 namespace nu {
 
 template <typename T, typename Allocator>
-CachedPool<T, Allocator>::CachedPool(const std::function<T *(void)> &new_fn,
-                                     const std::function<void(T *)> &delete_fn,
-                                     uint32_t per_core_cache_size)
+inline CachedPool<T, Allocator>::CachedPool(
+    const std::function<T *(void)> &new_fn,
+    const std::function<void(T *)> &delete_fn, uint32_t per_core_cache_size)
     : new_fn_(new_fn),
       delete_fn_(delete_fn),
       per_core_cache_size_(per_core_cache_size) {
@@ -17,9 +17,9 @@ CachedPool<T, Allocator>::CachedPool(const std::function<T *(void)> &new_fn,
 }
 
 template <typename T, typename Allocator>
-CachedPool<T, Allocator>::CachedPool(std::function<T *(void)> &&new_fn,
-                                     std::function<void(T *)> &&delete_fn,
-                                     uint32_t per_core_cache_size)
+inline CachedPool<T, Allocator>::CachedPool(
+    std::function<T *(void)> &&new_fn, std::function<void(T *)> &&delete_fn,
+    uint32_t per_core_cache_size)
     : new_fn_(std::move(new_fn)),
       delete_fn_(std::move(delete_fn)),
       per_core_cache_size_(per_core_cache_size) {
@@ -27,7 +27,7 @@ CachedPool<T, Allocator>::CachedPool(std::function<T *(void)> &&new_fn,
 }
 
 template <typename T, typename Allocator>
-void CachedPool<T, Allocator>::init(uint32_t per_core_cache_size) {
+inline void CachedPool<T, Allocator>::init(uint32_t per_core_cache_size) {
   RebindAlloc alloc;
   for (uint32_t i = 0; i < kNumCores; i++) {
     locals_[i].num = 0;
@@ -53,7 +53,21 @@ CachedPool<T, Allocator>::~CachedPool() {
 }
 
 template <typename T, typename Allocator>
-T *CachedPool<T, Allocator>::get() {
+T *CachedPool<T, Allocator>::get_slow_path(LocalCache *local) {
+  global_spin_.Lock();
+  while (!global_.empty() && local->num < per_core_cache_size_) {
+    local->items[local->num++] = global_.top();
+    global_.pop();
+  }
+  global_spin_.Unlock();
+  while (local->num < per_core_cache_size_) {
+    local->items[local->num++] = new_fn_();
+  }
+  return local->items[--local->num];
+}
+
+template <typename T, typename Allocator>
+inline T *CachedPool<T, Allocator>::get() {
   int cpu = get_cpu();
   auto &local = locals_[cpu];
   T *item;
@@ -61,16 +75,7 @@ T *CachedPool<T, Allocator>::get() {
   if (likely(local.num)) {
     item = local.items[--local.num];
   } else {
-    global_spin_.Lock();
-    while (!global_.empty() && local.num < per_core_cache_size_) {
-      local.items[local.num++] = global_.top();
-      global_.pop();
-    }
-    global_spin_.Unlock();
-    while (local.num < per_core_cache_size_) {
-      local.items[local.num++] = new_fn_();
-    }
-    item = local.items[--local.num];
+    item = get_slow_path(&local);
   }
   put_cpu();
 
@@ -78,16 +83,21 @@ T *CachedPool<T, Allocator>::get() {
 }
 
 template <typename T, typename Allocator>
-void CachedPool<T, Allocator>::put(T *item) {
+void CachedPool<T, Allocator>::put_slow_path(LocalCache *local) {
+  rt::ScopedLock<rt::Spin> lock(&global_spin_);
+  while (local->num > per_core_cache_size_ / 2 && local->num > 1) {
+    global_.push(local->items[--local->num]);
+  }
+}
+
+template <typename T, typename Allocator>
+inline void CachedPool<T, Allocator>::put(T *item) {
   int cpu = get_cpu();
   auto &local = locals_[cpu];
   local.items[local.num++] = item;
 
   if (unlikely(local.num > per_core_cache_size_)) {
-    rt::ScopedLock<rt::Spin> lock(&global_spin_);
-    while (local.num > per_core_cache_size_ / 2 && local.num > 1) {
-      global_.push(local.items[--local.num]);
-    }
+    put_slow_path(&local);
   }
   put_cpu();
 }

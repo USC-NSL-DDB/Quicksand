@@ -6,58 +6,58 @@
 namespace nu {
 
 template <class Container>
-ContainerHandle<Container>::ContainerHandle(Container *c,
-                                            GeneralShard<Container> *shard)
+inline ContainerHandle<Container>::ContainerHandle(
+    Container *c, GeneralShard<Container> *shard)
     : c_(c), shard_(shard) {
   shard_->rw_lock_.writer_lock();
 }
 
 template <class Container>
-ContainerHandle<Container>::~ContainerHandle() {
+inline ContainerHandle<Container>::~ContainerHandle() {
   shard_->rw_lock_.writer_unlock();
 }
 
 template <class Container>
-Container *ContainerHandle<Container>::operator->() {
+inline Container *ContainerHandle<Container>::operator->() {
   return c_;
 }
 
 template <class Container>
-Container &ContainerHandle<Container>::operator*() {
+inline Container &ContainerHandle<Container>::operator*() {
   return *c_;
 }
 
 template <class Container>
-ConstContainerHandle<Container>::ConstContainerHandle(
+inline ConstContainerHandle<Container>::ConstContainerHandle(
     const Container *c, GeneralShard<Container> *shard)
     : c_(c), shard_(shard) {
   shard_->rw_lock_.writer_lock();
 }
 
 template <class Container>
-ConstContainerHandle<Container>::~ConstContainerHandle() {
+inline ConstContainerHandle<Container>::~ConstContainerHandle() {
   shard_->rw_lock_.writer_unlock();
 }
 
 template <class Container>
-const Container *ConstContainerHandle<Container>::operator->() {
+inline const Container *ConstContainerHandle<Container>::operator->() {
   return c_;
 }
 
 template <class Container>
-const Container &ConstContainerHandle<Container>::operator*() {
+inline const Container &ConstContainerHandle<Container>::operator*() {
   return *c_;
 }
 
 template <class Container>
 template <class Archive>
-void ContainerAndMetadata<Container>::save(Archive &ar) const {
+inline void ContainerAndMetadata<Container>::save(Archive &ar) const {
   ar(capacity, container, container_bucket_size);
 }
 
 template <class Container>
 template <class Archive>
-void ContainerAndMetadata<Container>::load(Archive &ar) {
+inline void ContainerAndMetadata<Container>::load(Archive &ar) {
   ar(capacity);
   if constexpr (Reservable<Container>) {
     container.reserve(capacity);
@@ -66,7 +66,7 @@ void ContainerAndMetadata<Container>::load(Archive &ar) {
 }
 
 template <class Container>
-ContainerAndMetadata<Container>::ContainerAndMetadata(
+inline ContainerAndMetadata<Container>::ContainerAndMetadata(
     const ContainerAndMetadata &o)
     : capacity(o.capacity), container_bucket_size(o.container_bucket_size) {
   if constexpr (Reservable<Container>) {
@@ -77,13 +77,13 @@ ContainerAndMetadata<Container>::ContainerAndMetadata(
 
 template <class Container>
 template <class Archive>
-void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
+inline void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
   ar(l_key, r_key, shard, emplace_back_reqs, emplace_reqs);
 }
 
 template <class Container>
-GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
-                                      uint32_t max_shard_bytes)
+inline GeneralShard<Container>::GeneralShard(
+    WeakProclet<ShardingMapping> mapping, uint32_t max_shard_bytes)
     : GeneralShard(mapping, max_shard_bytes, std::nullopt, std::nullopt,
                    false) {}
 
@@ -118,7 +118,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
 }
 
 template <class Container>
-GeneralShard<Container>::~GeneralShard() {
+inline GeneralShard<Container>::~GeneralShard() {
   // flush all reader or writer handles
   rw_lock_.writer_lock();
   rw_lock_.writer_unlock();
@@ -138,7 +138,7 @@ void GeneralShard<Container>::set_range_and_data(
 }
 
 template <class Container>
-Container GeneralShard<Container>::get_container_copy() {
+inline Container GeneralShard<Container>::get_container_copy() {
   // FIXME: be migration-safe.
   RuntimeSlabGuard slab_guard;
 
@@ -149,12 +149,13 @@ Container GeneralShard<Container>::get_container_copy() {
 }
 
 template <class Container>
-ContainerHandle<Container> GeneralShard<Container>::get_container_handle() {
+inline ContainerHandle<Container>
+GeneralShard<Container>::get_container_handle() {
   return ContainerHandle<Container>(&container_, this);
 }
 
 template <class Container>
-ConstContainerHandle<Container>
+inline ConstContainerHandle<Container>
 GeneralShard<Container>::get_const_container_handle() {
   return ConstContainerHandle<Container>(&container_, this);
 }
@@ -205,13 +206,13 @@ void GeneralShard<Container>::split() {
 }
 
 template <class Container>
-bool GeneralShard<Container>::bad_range(std::optional<Key> l_key,
-                                        std::optional<Key> r_key) {
+inline bool GeneralShard<Container>::bad_range(std::optional<Key> l_key,
+                                               std::optional<Key> r_key) {
   return (l_key < l_key_) || (r_key_ && (r_key > r_key_ || !r_key));
 }
 
 template <class Container>
-bool GeneralShard<Container>::should_split() const {
+inline bool GeneralShard<Container>::should_split() const {
   bool over_container_size = false;
   bool over_slab_size = false;
 
@@ -224,8 +225,19 @@ bool GeneralShard<Container>::should_split() const {
 }
 
 template <class Container>
-bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
-                                          std::optional<Key> r_key, Pair p) {
+void GeneralShard<Container>::split_with_reader_lock() {
+  rw_lock_.reader_unlock();
+  rw_lock_.writer_lock();
+  if (should_split()) {
+    split();
+  }
+  rw_lock_.writer_unlock();
+}
+
+template <class Container>
+inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
+                                                 std::optional<Key> r_key,
+                                                 Pair p) {
   rw_lock_.reader_lock();
 
   if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
@@ -236,12 +248,7 @@ bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
   container_.emplace(std::move(p.first), std::move(p.second));
 
   if (unlikely(should_split())) {
-    rw_lock_.reader_unlock();
-    rw_lock_.writer_lock();
-    if (should_split()) {
-      split();
-    }
-    rw_lock_.writer_unlock();
+    split_with_reader_lock();
     return true;
   }
 
@@ -251,7 +258,7 @@ bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
 }
 
 template <class Container>
-bool GeneralShard<Container>::try_emplace_back(
+inline bool GeneralShard<Container>::try_emplace_back(
     std::optional<Key> l_key, std::optional<Key> r_key,
     Val v) requires EmplaceBackAble<Container> {
   rw_lock_.reader_lock();
@@ -263,12 +270,7 @@ bool GeneralShard<Container>::try_emplace_back(
 
   container_.emplace_back(std::move(v));
   if (unlikely(should_split())) {
-    rw_lock_.reader_unlock();
-    rw_lock_.writer_lock();
-    if (should_split()) {
-      split();
-    }
-    rw_lock_.writer_unlock();
+    split_with_reader_lock();
     return true;
   }
 
@@ -311,7 +313,7 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
 }
 
 template <class Container>
-std::pair<bool, std::optional<typename Container::IterVal>>
+inline std::pair<bool, std::optional<typename Container::IterVal>>
 GeneralShard<Container>::find_val(Key k) requires Findable<Container> {
   bool bad_range = (k < l_key_) || (r_key_ && k > r_key_);
   if (unlikely(bad_range)) {
@@ -325,7 +327,8 @@ GeneralShard<Container>::find_val(Key k) requires Findable<Container> {
 }
 
 template <class Container>
-std::tuple<bool, typename Container::Val, typename Container::ConstIterator>
+inline std::tuple<bool, typename Container::Val,
+                  typename Container::ConstIterator>
 GeneralShard<Container>::find(Key k) requires Findable<Container> {
   bool bad_range = (k < l_key_) || (r_key_ && k > r_key_);
   if (unlikely(bad_range)) {
@@ -639,43 +642,43 @@ GeneralShard<Container>::get_rback_block(
 }
 
 template <class Container>
-typename GeneralShard<Container>::ConstIterator
+inline typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::cbegin() requires ConstIterable<Container> {
   return container_.cbegin();
 }
 
 template <class Container>
-typename GeneralShard<Container>::ConstIterator
+inline typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::clast() requires ConstIterable<Container> {
   return --container_.cend();
 }
 
 template <class Container>
-typename GeneralShard<Container>::ConstIterator
+inline typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::cend() requires ConstIterable<Container> {
   return container_.cend();
 }
 
 template <class Container>
-typename GeneralShard<Container>::ConstReverseIterator
+inline typename GeneralShard<Container>::ConstReverseIterator
 GeneralShard<Container>::crbegin() requires ConstReverseIterable<Container> {
   return container_.crbegin();
 }
 
 template <class Container>
-typename GeneralShard<Container>::ConstReverseIterator
+inline typename GeneralShard<Container>::ConstReverseIterator
 GeneralShard<Container>::crlast() requires ConstReverseIterable<Container> {
   return --container_.crend();
 }
 
 template <class Container>
-typename GeneralShard<Container>::ConstReverseIterator
+inline typename GeneralShard<Container>::ConstReverseIterator
 GeneralShard<Container>::crend() requires ConstReverseIterable<Container> {
   return container_.crend();
 }
 
 template <class Container>
-bool GeneralShard<Container>::empty() {
+inline bool GeneralShard<Container>::empty() {
   return container_.empty();
 }
 }  // namespace nu

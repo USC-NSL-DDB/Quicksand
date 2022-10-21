@@ -25,7 +25,7 @@ inline Thread &Thread::operator=(Thread &&t) {
 }
 
 template <typename F>
-Thread::Thread(F &&f) {
+inline Thread::Thread(F &&f) {
   auto *proclet_header = Runtime::get_current_proclet_header();
 
   if (proclet_header) {
@@ -50,7 +50,7 @@ void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
 }
 
 template <typename F>
-void Thread::create_in_runtime_env(F &&f) {
+inline void Thread::create_in_runtime_env(F &&f) {
   th_ = thread_create_with_buf(trampoline_in_runtime_env,
                                reinterpret_cast<void **>(&join_data_),
                                sizeof(*join_data_));

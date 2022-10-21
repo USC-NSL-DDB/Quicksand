@@ -47,6 +47,7 @@ class ArchivePool {
 
   CachedPool<IASStream, IAAllocator> ia_pool_;
   CachedPool<OASStream, OAAllocator> oa_pool_;
+  void release_oa_sstream_space(OASStream *oa_sstream);
 };
 
 }  // namespace nu

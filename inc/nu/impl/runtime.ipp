@@ -32,7 +32,7 @@ inline ProcletHeader *Runtime::get_current_proclet_header() {
 }
 
 template <typename T>
-T *Runtime::get_current_root_obj() {
+inline T *Runtime::get_current_root_obj() {
   auto *proclet_header = get_current_proclet_header();
   if (!proclet_header) {
     return nullptr;
@@ -42,7 +42,7 @@ T *Runtime::get_current_root_obj() {
 }
 
 template <typename T>
-T *Runtime::get_root_obj(ProcletID id) {
+inline T *Runtime::get_root_obj(ProcletID id) {
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(to_proclet_base(id));
   return reinterpret_cast<T *>(
       reinterpret_cast<uintptr_t>(proclet_header->slab.get_base()));
@@ -104,20 +104,20 @@ Runtime::run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
 }
 
 template <typename T, typename... Args>
-T *Runtime::new_on_runtime_heap(Args &&... args) {
+inline T *Runtime::new_on_runtime_heap(Args &&... args) {
   auto ptr = Runtime::runtime_slab.allocate(sizeof(T));
   new (ptr) T(std::forward<Args>(args)...);
   return reinterpret_cast<T *>(ptr);
 }
 
 template <typename T>
-void Runtime::delete_on_runtime_heap(T *ptr) {
+inline void Runtime::delete_on_runtime_heap(T *ptr) {
   ptr->~T();
   Runtime::runtime_slab.free(ptr);
 }
 
 template <typename T>
-WeakProclet<T> Runtime::get_current_weak_proclet() {
+inline WeakProclet<T> Runtime::get_current_weak_proclet() {
   return WeakProclet<T>(to_proclet_id(get_current_proclet_header()));
 }
 

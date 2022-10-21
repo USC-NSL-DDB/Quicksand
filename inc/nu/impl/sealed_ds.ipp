@@ -4,12 +4,13 @@ namespace nu {
 
 template <typename T, bool Fwd>
 template <class Archive>
-void GeneralSealedDSConstIterator<T, Fwd>::PrefetchReq::serialize(Archive &ar) {
+inline void GeneralSealedDSConstIterator<T, Fwd>::PrefetchReq::serialize(
+    Archive &ar) {
   ar(iter_update, next);
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block::Block() {
+inline GeneralSealedDSConstIterator<T, Fwd>::Block::Block() {
   static ContainerIter iter;
 
   if constexpr (kContiguous) {
@@ -21,11 +22,11 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::Block() {
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block::Block(Prefetched &&data)
+inline GeneralSealedDSConstIterator<T, Fwd>::Block::Block(Prefetched &&data)
     : prefetched(std::move(data)) {}
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block::Block(
+inline GeneralSealedDSConstIterator<T, Fwd>::Block::Block(
     Val v, ContainerIter container_iter) {
   if constexpr (kContiguous) {
     prefetched.first.emplace_back(v);
@@ -36,31 +37,31 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::Block(
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block::Block(const Block &o) {
+inline GeneralSealedDSConstIterator<T, Fwd>::Block::Block(const Block &o) {
   *this = o;
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block &
+inline GeneralSealedDSConstIterator<T, Fwd>::Block &
 GeneralSealedDSConstIterator<T, Fwd>::Block::operator=(const Block &o) {
   prefetched = o.prefetched;
   return *this;
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block::Block(Block &&o) {
+inline GeneralSealedDSConstIterator<T, Fwd>::Block::Block(Block &&o) {
   *this = std::move(o);
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block &
+inline GeneralSealedDSConstIterator<T, Fwd>::Block &
 GeneralSealedDSConstIterator<T, Fwd>::Block::operator=(Block &&o) {
   prefetched = std::move(o.prefetched);
   return *this;
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block::operator bool() const {
+inline GeneralSealedDSConstIterator<T, Fwd>::Block::operator bool() const {
   if constexpr (kContiguous) {
     return !prefetched.first.empty();
   } else {
@@ -69,7 +70,7 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::operator bool() const {
 }
 
 template <typename T, bool Fwd>
-bool GeneralSealedDSConstIterator<T, Fwd>::Block::empty() const {
+inline bool GeneralSealedDSConstIterator<T, Fwd>::Block::empty() const {
   if constexpr (kContiguous) {
     return prefetched.first.empty();
   } else {
@@ -78,7 +79,7 @@ bool GeneralSealedDSConstIterator<T, Fwd>::Block::empty() const {
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block::ConstIterator
+inline GeneralSealedDSConstIterator<T, Fwd>::Block::ConstIterator
 GeneralSealedDSConstIterator<T, Fwd>::Block::cbegin() const {
   if constexpr (kContiguous) {
     return prefetched.first.cbegin();
@@ -88,7 +89,7 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::cbegin() const {
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block::ConstReverseIterator
+inline GeneralSealedDSConstIterator<T, Fwd>::Block::ConstReverseIterator
 GeneralSealedDSConstIterator<T, Fwd>::Block::crbegin() const {
   if constexpr (kContiguous) {
     return prefetched.first.crbegin();
@@ -98,7 +99,7 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::crbegin() const {
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block::ConstIterator
+inline GeneralSealedDSConstIterator<T, Fwd>::Block::ConstIterator
 GeneralSealedDSConstIterator<T, Fwd>::Block::cend() const {
   if constexpr (kContiguous) {
     return prefetched.first.cend();
@@ -108,7 +109,7 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::cend() const {
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::ContainerIter
+inline GeneralSealedDSConstIterator<T, Fwd>::ContainerIter
 GeneralSealedDSConstIterator<T, Fwd>::Block::get_front_container_iter() const {
   if constexpr (kContiguous) {
     return prefetched.second;
@@ -118,7 +119,7 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::get_front_container_iter() const {
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::ContainerIter
+inline GeneralSealedDSConstIterator<T, Fwd>::ContainerIter
 GeneralSealedDSConstIterator<T, Fwd>::Block::get_back_container_iter() const {
   if constexpr (kContiguous) {
     return prefetched.second + prefetched.first.size() - 1;
@@ -128,7 +129,7 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::get_back_container_iter() const {
 }
 
 template <typename T, bool Fwd>
-auto GeneralSealedDSConstIterator<T, Fwd>::Block::to_gid(
+inline auto GeneralSealedDSConstIterator<T, Fwd>::Block::to_gid(
     ConstIterator iter) const {
   if constexpr (kContiguous) {
     return (iter - prefetched.first.cbegin()) + prefetched.second;
@@ -138,7 +139,7 @@ auto GeneralSealedDSConstIterator<T, Fwd>::Block::to_gid(
 }
 
 template <typename T, bool Fwd>
-auto GeneralSealedDSConstIterator<T, Fwd>::Block::to_gid(
+inline auto GeneralSealedDSConstIterator<T, Fwd>::Block::to_gid(
     ConstReverseIterator iter) const {
   if constexpr (kContiguous) {
     return (std::to_address(iter) -
@@ -200,14 +201,14 @@ GeneralSealedDSConstIterator<T, Fwd>::Block::shard_back_block(
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block
+inline GeneralSealedDSConstIterator<T, Fwd>::Block
 GeneralSealedDSConstIterator<T, Fwd>::Block::shard_end_block(
     ShardsVecIter shards_iter) {
   return Block();
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator()
+inline GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator()
     : block_iter_(block_.cbegin()),
       prefetched_next_blocks_(kMaxNumInflightPrefetches),
       prefetched_prev_blocks_(kMaxNumInflightPrefetches) {}
@@ -240,7 +241,7 @@ GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
       prefetched_prev_blocks_(kMaxNumInflightPrefetches) {}
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
+inline GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
     const GeneralSealedDSConstIterator &o)
     : prefetched_next_blocks_(kMaxNumInflightPrefetches),
       prefetched_prev_blocks_(kMaxNumInflightPrefetches) {
@@ -248,7 +249,7 @@ GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>
+inline GeneralSealedDSConstIterator<T, Fwd>
     &GeneralSealedDSConstIterator<T, Fwd>::operator=(
         const GeneralSealedDSConstIterator &o) {
   shards_ = o.shards_;
@@ -259,7 +260,7 @@ GeneralSealedDSConstIterator<T, Fwd>
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
+inline GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
     GeneralSealedDSConstIterator &&o) noexcept
     : prefetched_next_blocks_(kMaxNumInflightPrefetches),
       prefetched_prev_blocks_(kMaxNumInflightPrefetches) {
@@ -282,7 +283,7 @@ GeneralSealedDSConstIterator<T, Fwd>
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::ShardsVecIter
+inline GeneralSealedDSConstIterator<T, Fwd>::ShardsVecIter
 GeneralSealedDSConstIterator<T, Fwd>::shards_vec_begin() const {
   if constexpr (Fwd) {
     return shards_->begin();
@@ -292,7 +293,7 @@ GeneralSealedDSConstIterator<T, Fwd>::shards_vec_begin() const {
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::ShardsVecIter
+inline GeneralSealedDSConstIterator<T, Fwd>::ShardsVecIter
 GeneralSealedDSConstIterator<T, Fwd>::shards_vec_end() const {
   if constexpr (Fwd) {
     return shards_->end();
@@ -302,13 +303,14 @@ GeneralSealedDSConstIterator<T, Fwd>::shards_vec_end() const {
 }
 
 template <typename T, bool Fwd>
-bool GeneralSealedDSConstIterator<T, Fwd>::operator==(
+[[gnu::always_inline]] inline bool
+GeneralSealedDSConstIterator<T, Fwd>::operator==(
     const GeneralSealedDSConstIterator &o) const {
   return block_.to_gid(block_iter_) == o.block_.to_gid(o.block_iter_);
 }
 
 template <typename T, bool Fwd>
-GeneralSealedDSConstIterator<T, Fwd>::Block
+inline GeneralSealedDSConstIterator<T, Fwd>::Block
 GeneralSealedDSConstIterator<T, Fwd>::unwrap_block_variant(
     std::variant<Future<Block>, Block> *variant) {
   return std::visit(
@@ -532,7 +534,7 @@ go_prev_shard:
 }
 
 template <typename T, bool Fwd>
-const GeneralSealedDSConstIterator<T, Fwd>::Val &
+[[gnu::always_inline]] inline const GeneralSealedDSConstIterator<T, Fwd>::Val &
 GeneralSealedDSConstIterator<T, Fwd>::operator*() const {
   if constexpr (kContiguous) {
     return *block_iter_;
@@ -542,7 +544,7 @@ GeneralSealedDSConstIterator<T, Fwd>::operator*() const {
 }
 
 template <typename T, bool Fwd>
-const GeneralSealedDSConstIterator<T, Fwd>::Val *
+[[gnu::always_inline]] inline const GeneralSealedDSConstIterator<T, Fwd>::Val *
 GeneralSealedDSConstIterator<T, Fwd>::operator->() const {
   if constexpr (kContiguous) {
     return std::to_address(block_iter_);
@@ -553,7 +555,7 @@ GeneralSealedDSConstIterator<T, Fwd>::operator->() const {
 
 template <typename T, bool Fwd>
 template <class Archive>
-void GeneralSealedDSConstIterator<T, Fwd>::save(Archive &ar) const {
+inline void GeneralSealedDSConstIterator<T, Fwd>::save(Archive &ar) const {
   uint64_t shards_offset = shards_iter_ - shards_vec_begin();
   uint64_t block_offset = block_iter_ - block_.cbegin();
   ar(shards_, shards_offset, block_.prefetched, block_offset,
@@ -562,7 +564,7 @@ void GeneralSealedDSConstIterator<T, Fwd>::save(Archive &ar) const {
 
 template <typename T, bool Fwd>
 template <class Archive>
-void GeneralSealedDSConstIterator<T, Fwd>::save_move(Archive &ar) {
+inline void GeneralSealedDSConstIterator<T, Fwd>::save_move(Archive &ar) {
   uint64_t shards_offset = shards_iter_ - shards_vec_begin();
   uint64_t block_offset = block_iter_ - block_.cbegin();
   ar(shards_, shards_offset, block_.prefetched, block_offset,
@@ -571,7 +573,7 @@ void GeneralSealedDSConstIterator<T, Fwd>::save_move(Archive &ar) {
 
 template <typename T, bool Fwd>
 template <class Archive>
-void GeneralSealedDSConstIterator<T, Fwd>::load(Archive &ar) {
+inline void GeneralSealedDSConstIterator<T, Fwd>::load(Archive &ar) {
   uint64_t shards_offset, block_offset;
   ar(shards_, shards_offset, block_.prefetched, block_offset,
      prefetch_executor_, prefetch_seq_);
@@ -598,91 +600,91 @@ SealedDS<T>::SealedDS(T &&t) : t_(std::move(t)) {
 }
 
 template <typename T>
-SealedDS<T>::~SealedDS() {
+inline SealedDS<T>::~SealedDS() {
   if (shards_) {
     t_.unseal();
   }
 }
 
 template <typename T>
-T &&SealedDS<T>::unseal() {
+inline T &&SealedDS<T>::unseal() {
   t_.unseal();
   shards_.reset();
   return std::move(t_);
 }
 
 template <typename T>
-const SealedDS<T>::ConstIterator &SealedDS<T>::begin() const
+inline const SealedDS<T>::ConstIterator &SealedDS<T>::begin() const
     requires ConstIterable<typename T::Shard> {
   return cbegin_;
 }
 
 template <typename T>
-const SealedDS<T>::ConstIterator &SealedDS<T>::cbegin() const
+inline const SealedDS<T>::ConstIterator &SealedDS<T>::cbegin() const
     requires ConstIterable<typename T::Shard> {
   return cbegin_;
 }
 
 template <typename T>
-const SealedDS<T>::ConstIterator &SealedDS<T>::end() const
+inline const SealedDS<T>::ConstIterator &SealedDS<T>::end() const
     requires ConstIterable<typename T::Shard> {
   return cend_;
 }
 
 template <typename T>
-const SealedDS<T>::ConstIterator &SealedDS<T>::cend() const
+inline const SealedDS<T>::ConstIterator &SealedDS<T>::cend() const
     requires ConstIterable<typename T::Shard> {
   return cend_;
 }
 
 template <typename T>
-const SealedDS<T>::ConstReverseIterator &SealedDS<T>::rbegin() const
+inline const SealedDS<T>::ConstReverseIterator &SealedDS<T>::rbegin() const
     requires ConstReverseIterable<typename T::Shard> {
   return crbegin_;
 }
 
 template <typename T>
-const SealedDS<T>::ConstReverseIterator &SealedDS<T>::crbegin() const
+inline const SealedDS<T>::ConstReverseIterator &SealedDS<T>::crbegin() const
     requires ConstReverseIterable<typename T::Shard> {
   return crbegin_;
 }
 
 template <typename T>
-const SealedDS<T>::ConstReverseIterator &SealedDS<T>::rend() const
+inline const SealedDS<T>::ConstReverseIterator &SealedDS<T>::rend() const
     requires ConstReverseIterable<typename T::Shard> {
   return crend_;
 }
 
 template <typename T>
-const SealedDS<T>::ConstReverseIterator &SealedDS<T>::crend() const
+inline const SealedDS<T>::ConstReverseIterator &SealedDS<T>::crend() const
     requires ConstReverseIterable<typename T::Shard> {
   return crend_;
 }
 
 template <typename T>
-bool SealedDS<T>::empty() const {
+inline bool SealedDS<T>::empty() const {
   return !size();
 }
 
 template <typename T>
-std::size_t SealedDS<T>::size() const {
+inline std::size_t SealedDS<T>::size() const {
   return const_cast<SealedDS *>(this)->__size();
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::find_iter(T::Key k) const {
+inline SealedDS<T>::ConstIterator SealedDS<T>::find_iter(T::Key k) const {
   return const_cast<SealedDS *>(this)->__find_iter(std::move(k));
 }
 
 template <typename T>
-SealedDS<T>::ShardsVec::iterator SealedDS<T>::search_shard(T::Key k) {
+inline SealedDS<T>::ShardsVec::iterator SealedDS<T>::search_shard(T::Key k) {
   auto idx =
       std::upper_bound(keys_.begin(), keys_.end(), k) - keys_.begin() - 1;
   return shards_->begin() + idx;
 }
 
 template <typename T>
-SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(T::Key k) {
+inline SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(T::Key k) {
   auto shard_iter = search_shard(k);
   auto tuple = shard_iter->run(&Shard::find, k);
   BUG_ON(!std::get<0>(tuple));
@@ -691,7 +693,7 @@ SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(T::Key k) {
 }
 
 template <typename T>
-std::size_t SealedDS<T>::__size() {
+inline std::size_t SealedDS<T>::__size() {
   if (unlikely(!size_)) {
     size_ = t_.size();
   }
@@ -699,12 +701,12 @@ std::size_t SealedDS<T>::__size() {
 }
 
 template <typename T>
-SealedDS<T> to_sealed_ds(T &&t) {
+inline SealedDS<T> to_sealed_ds(T &&t) {
   return SealedDS<T>(std::move(t));
 }
 
 template <typename T>
-T to_unsealed_ds(SealedDS<T> &&sealed) {
+inline T to_unsealed_ds(SealedDS<T> &&sealed) {
   return sealed.unseal();
 }
 

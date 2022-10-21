@@ -40,6 +40,8 @@ class CachedPool {
   rt::Spin global_spin_;
 
   void init(uint32_t per_core_cache_size);
+  T *get_slow_path(LocalCache *local);
+  void put_slow_path(LocalCache *local);
 };
 }  // namespace nu
 

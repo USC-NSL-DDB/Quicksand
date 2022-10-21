@@ -28,6 +28,7 @@ class Future {
   friend class Promise;
 
   Future(Promise<T> *promise);
+  T &get_slow_path();
 };
 
 template <typename Deleter>
@@ -50,6 +51,7 @@ class Future<void, Deleter> {
   friend class Promise;
 
   Future(Promise<void> *promise);
+  void get_slow_path();
 };
 
 template <typename F, typename Allocator = std::allocator<

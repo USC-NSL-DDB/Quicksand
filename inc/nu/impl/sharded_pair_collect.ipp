@@ -5,11 +5,11 @@
 namespace nu {
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection()
+inline PairCollection<K, V>::PairCollection()
     : data_(nullptr), size_(0), capacity_(0), ownership_(false) {}
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection(const PairCollection &o)
+inline PairCollection<K, V>::PairCollection(const PairCollection &o)
     : data_(nullptr), capacity_(0) {
   size_ = o.size_;
   reserve(o.size_);
@@ -17,7 +17,8 @@ PairCollection<K, V>::PairCollection(const PairCollection &o)
 }
 
 template <typename K, typename V>
-PairCollection<K, V> &PairCollection<K, V>::operator=(const PairCollection &o) {
+inline PairCollection<K, V> &PairCollection<K, V>::operator=(
+    const PairCollection &o) {
   size_ = o.size_;
   reserve(o.size_);
   std::copy(o.data_, o.data_ + size_, data_);
@@ -25,7 +26,7 @@ PairCollection<K, V> &PairCollection<K, V>::operator=(const PairCollection &o) {
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept
+inline PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept
     : data_(o.data_),
       size_(o.size_),
       capacity_(o.capacity_),
@@ -34,7 +35,7 @@ PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept
 }
 
 template <typename K, typename V>
-PairCollection<K, V> &PairCollection<K, V>::operator=(
+inline PairCollection<K, V> &PairCollection<K, V>::operator=(
     PairCollection &&o) noexcept {
   destroy();
 
@@ -47,29 +48,29 @@ PairCollection<K, V> &PairCollection<K, V>::operator=(
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::destroy() {
+inline void PairCollection<K, V>::destroy() {
   if (data_ && ownership_) {
     delete[] data_;
   }
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::~PairCollection() {
+inline PairCollection<K, V>::~PairCollection() {
   destroy();
 }
 
 template <typename K, typename V>
-std::size_t PairCollection<K, V>::size() const {
+inline std::size_t PairCollection<K, V>::size() const {
   return size_;
 }
 
 template <typename K, typename V>
-std::size_t PairCollection<K, V>::capacity() const {
+inline std::size_t PairCollection<K, V>::capacity() const {
   return capacity_;
 }
 
 template <typename K, typename V>
-bool PairCollection<K, V>::empty() const {
+inline bool PairCollection<K, V>::empty() const {
   return !size_;
 }
 
@@ -107,7 +108,7 @@ void PairCollection<K, V>::reserve(std::size_t capacity) {
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::emplace(K k, V v) {
+inline void PairCollection<K, V>::emplace(K k, V v) {
   if (unlikely(size_ == capacity_)) {
     reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));
   }
@@ -143,8 +144,9 @@ void PairCollection<K, V>::split(K *mid_k, PairCollection<K, V> *latter_half) {
 
 template <typename K, typename V>
 template <typename... S0s, typename... S1s>
-void PairCollection<K, V>::for_all(void (*fn)(const K &key, V &val, S0s...),
-                                   S1s &&... states) {
+inline void PairCollection<K, V>::for_all(void (*fn)(const K &key, V &val,
+                                                     S0s...),
+                                          S1s &&... states) {
   for (std::size_t i = 0; i < size_; i++) {
     fn(data_[i].first, data_[i].second, states...);
   }
@@ -170,22 +172,22 @@ void PairCollection<K, V>::load(Archive &ar) {
 }
 
 template <typename K, typename V>
-std::pair<K, V> *PairCollection<K, V>::data() {
+inline std::pair<K, V> *PairCollection<K, V>::data() {
   return data_;
 }
 
 template <typename K, typename V>
-ShardedPairCollection<K, V>::ShardedPairCollection(
+inline ShardedPairCollection<K, V>::ShardedPairCollection(
     std::optional<typename Base::Hint> hint)
     : Base(hint) {}
 
 template <typename K, typename V>
-ShardedPairCollection<K, V> make_sharded_pair_collection() {
+inline ShardedPairCollection<K, V> make_sharded_pair_collection() {
   return ShardedPairCollection<K, V>(std::nullopt);
 }
 
 template <typename K, typename V>
-ShardedPairCollection<K, V> make_sharded_pair_collection(
+inline ShardedPairCollection<K, V> make_sharded_pair_collection(
     uint64_t num, K estimated_min_key,
     std::function<void(K &, uint64_t)> key_inc_fn) {
   return ShardedPairCollection<K, V>(

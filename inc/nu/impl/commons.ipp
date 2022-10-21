@@ -32,7 +32,7 @@ inline constexpr SlabId_t get_max_slab_id() {
   return to_slab_id(kMaxProcletHeapVAddr - kMinProcletHeapSize);
 }
 
-inline __attribute__((always_inline)) void *switch_stack(void *new_rsp) {
+[[gnu::always_inline]] inline void *switch_stack(void *new_rsp) {
   assert(reinterpret_cast<uintptr_t>(new_rsp) % kStackAlignment == 0);
   void *old_rsp;
   asm volatile(
@@ -53,17 +53,17 @@ inline VAddrRange get_proclet_stack_range(thread_t *thread) {
 }
 
 template <typename T>
-std::span<std::byte> to_span(T &t) {
+inline std::span<std::byte> to_span(T &t) {
   return std::span<std::byte>(reinterpret_cast<std::byte *>(&t), sizeof(t));
 }
 
 template <typename T>
-T &from_span(std::span<std::byte> span) {
+inline T &from_span(std::span<std::byte> span) {
   return *reinterpret_cast<T *>(span.data());
 }
 
 template <typename T>
-const T &from_span(std::span<const std::byte> span) {
+inline const T &from_span(std::span<const std::byte> span) {
   return *reinterpret_cast<const T *>(span.data());
 }
 

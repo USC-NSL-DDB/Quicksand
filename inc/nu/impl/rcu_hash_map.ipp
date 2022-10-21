@@ -11,7 +11,7 @@ namespace nu {
 
 template <typename K, typename V, typename Allocator>
 template <typename K1>
-V *RCUHashMap<K, V, Allocator>::get(K1 &&k) {
+inline V *RCUHashMap<K, V, Allocator>::get(K1 &&k) {
   lock_.reader_lock();
   auto iter = map_.find(std::forward<K1>(k));
   V *ret;
@@ -26,7 +26,7 @@ V *RCUHashMap<K, V, Allocator>::get(K1 &&k) {
 
 template <typename K, typename V, typename Allocator>
 template <typename K1, typename V1>
-void RCUHashMap<K, V, Allocator>::put(K1 &&k, V1 &&v) {
+inline void RCUHashMap<K, V, Allocator>::put(K1 &&k, V1 &&v) {
   lock_.writer_lock();
   map_.emplace(std::forward<K1>(k), std::forward<V1>(v));
   lock_.writer_unlock();
@@ -34,7 +34,7 @@ void RCUHashMap<K, V, Allocator>::put(K1 &&k, V1 &&v) {
 
 template <typename K, typename V, typename Allocator>
 template <typename K1, typename V1>
-void RCUHashMap<K, V, Allocator>::put_if_not_exists(K1 &&k, V1 &&v) {
+inline void RCUHashMap<K, V, Allocator>::put_if_not_exists(K1 &&k, V1 &&v) {
   lock_.writer_lock();
   map_.try_emplace(std::forward<K1>(k), std::forward<V1>(v));
   lock_.writer_unlock();
@@ -42,8 +42,8 @@ void RCUHashMap<K, V, Allocator>::put_if_not_exists(K1 &&k, V1 &&v) {
 
 template <typename K, typename V, typename Allocator>
 template <typename K1, typename... Args>
-void RCUHashMap<K, V, Allocator>::emplace_if_not_exists(K1 &&k,
-                                                        Args &&... args) {
+inline void RCUHashMap<K, V, Allocator>::emplace_if_not_exists(
+    K1 &&k, Args &&... args) {
   lock_.writer_lock();
   map_.try_emplace(std::forward<K1>(k), std::forward<Args>(args)...);
   lock_.writer_unlock();
@@ -66,7 +66,7 @@ bool RCUHashMap<K, V, Allocator>::update_if_equals(K1 &&k, V1 &&old_v,
 
 template <typename K, typename V, typename Allocator>
 template <typename K1>
-bool RCUHashMap<K, V, Allocator>::remove(K1 &&k) {
+inline bool RCUHashMap<K, V, Allocator>::remove(K1 &&k) {
   lock_.writer_lock();
   auto ret = map_.erase(std::forward<K1>(k));
   lock_.writer_unlock();

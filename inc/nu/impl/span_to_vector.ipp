@@ -5,24 +5,25 @@ extern "C" {
 namespace nu {
 
 template <typename T>
-SpanToVectorWrapper<T>::SpanToVectorWrapper() {}
+inline SpanToVectorWrapper<T>::SpanToVectorWrapper() {}
 
 template <typename T>
-SpanToVectorWrapper<T>::SpanToVectorWrapper(std::span<T> s)
+inline SpanToVectorWrapper<T>::SpanToVectorWrapper(std::span<T> s)
     : s_(s), vec_capacity_(0) {}
 
 template <typename T>
-SpanToVectorWrapper<T>::SpanToVectorWrapper(std::span<T> s,
-                                            uint32_t vec_capacity)
+inline SpanToVectorWrapper<T>::SpanToVectorWrapper(std::span<T> s,
+                                                   uint32_t vec_capacity)
     : s_(s), vec_capacity_(vec_capacity) {}
 
 template <typename T>
-SpanToVectorWrapper<T>::SpanToVectorWrapper(const SpanToVectorWrapper &o) {
+inline SpanToVectorWrapper<T>::SpanToVectorWrapper(
+    const SpanToVectorWrapper &o) {
   *this = o;
 }
 
 template <typename T>
-SpanToVectorWrapper<T> &SpanToVectorWrapper<T>::operator=(
+inline SpanToVectorWrapper<T> &SpanToVectorWrapper<T>::operator=(
     const SpanToVectorWrapper &o) {
   BUG_ON(o.s_.empty());
   v_.reserve(o.vec_capacity_);
@@ -31,13 +32,14 @@ SpanToVectorWrapper<T> &SpanToVectorWrapper<T>::operator=(
 }
 
 template <typename T>
-SpanToVectorWrapper<T>::SpanToVectorWrapper(SpanToVectorWrapper &&o) noexcept
+inline SpanToVectorWrapper<T>::SpanToVectorWrapper(
+    SpanToVectorWrapper &&o) noexcept
     : s_(std::move(o.s_)),
       v_(std::move(o.v_)),
       vec_capacity_(o.vec_capacity_) {}
 
 template <typename T>
-SpanToVectorWrapper<T> &SpanToVectorWrapper<T>::operator=(
+inline SpanToVectorWrapper<T> &SpanToVectorWrapper<T>::operator=(
     SpanToVectorWrapper &&o) noexcept {
   s_ = std::move(o.s_);
   v_ = std::move(o.v_);
@@ -46,7 +48,7 @@ SpanToVectorWrapper<T> &SpanToVectorWrapper<T>::operator=(
 }
 
 template <typename T>
-std::vector<T> &SpanToVectorWrapper<T>::unwrap() {
+inline std::vector<T> &SpanToVectorWrapper<T>::unwrap() {
   BUG_ON(!s_.empty());
   return v_;
 }

@@ -179,6 +179,7 @@ class GeneralShard {
 
   void split();
   bool should_split() const;
+  void split_with_reader_lock();
   bool bad_range(std::optional<Key> l_key, std::optional<Key> r_key);
   uint32_t __get_next_block_with_iters(
       std::vector<std::pair<IterVal, ConstIterator>>::iterator block_iter,
