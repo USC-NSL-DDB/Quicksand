@@ -81,6 +81,7 @@ class GeneralContainerBase {
   using Key = Impl::Key;
   using Val = Impl::Val;
   using Pair = std::pair<Key, Val>;
+  using Implementation = Impl;
   using ConstIterator = decltype([] {
     if constexpr (ConstIterable<Impl>) {
       return typename Impl::ConstIterator();
@@ -177,6 +178,10 @@ class GeneralContainerBase {
   }
   ConstReverseIterator crend() const requires ConstReverseIterable<Impl> {
     return impl_.crend();
+  }
+  template <typename... S0s, typename... S1s>
+  void pass_through(void (*fn)(Impl &, S0s...), S1s &&... states) {
+    synchronized<void>([&] { fn(impl_, states...); });
   }
   template <class Archive>
   void save(Archive &ar) const {
