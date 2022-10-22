@@ -76,8 +76,8 @@ test_slow_path_src = test/test_slow_path.cpp
 test_slow_path_obj = $(test_slow_path_src:.cpp=.o)
 test_max_num_proclets_src = test/test_max_num_proclets.cpp
 test_max_num_proclets_obj = $(test_max_num_proclets_src:.cpp=.o)
-test_sharded_pair_collect_src = test/test_sharded_pair_collect.cpp
-test_sharded_pair_collect_obj = $(test_sharded_pair_collect_src:.cpp=.o)
+test_sharded_partitioner_src = test/test_sharded_partitioner.cpp
+test_sharded_partitioner_obj = $(test_sharded_partitioner_src:.cpp=.o)
 test_cereal_src = test/test_cereal.cpp
 test_cereal_obj = $(test_cereal_src:.cpp=.o)
 test_iter_src = test/test_iter.cpp
@@ -111,8 +111,8 @@ bench_real_cpu_pressure_src = bench/bench_real_cpu_pressure.cpp
 bench_real_cpu_pressure_obj = $(bench_real_cpu_pressure_src:.cpp=.o)
 bench_controller_src = bench/bench_controller.cpp
 bench_controller_obj = $(bench_controller_src:.cpp=.o)
-bench_sharded_pair_collect_src = bench/bench_sharded_pair_collect.cpp
-bench_sharded_pair_collect_obj = $(bench_sharded_pair_collect_src:.cpp=.o)
+bench_sharded_partitioner_src = bench/bench_sharded_partitioner.cpp
+bench_sharded_partitioner_obj = $(bench_sharded_partitioner_src:.cpp=.o)
 bench_sharded_map_src = bench/bench_sharded_map.cpp
 bench_sharded_map_obj = $(bench_sharded_map_src:.cpp=.o)
 bench_sharded_unordered_map_src = bench/bench_sharded_unordered_map.cpp
@@ -136,8 +136,8 @@ bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
 bin/test_fast_path bin/test_slow_path bin/ctrl_main bin/test_max_num_proclets \
-bin/test_sharded_pair_collect bin/bench_controller \
-bin/test_sharded_vector bin/bench_sharded_pair_collect bin/test_cereal bin/bench_sharded_vector \
+bin/test_sharded_partitioner bin/bench_controller \
+bin/test_sharded_vector bin/bench_sharded_partitioner bin/test_cereal bin/bench_sharded_vector \
 bin/bench_proclet_call_bw bin/test_sharded_set bin/test_sharded_map \
 bin/test_sharded_unordered_map bin/bench_cpu_overloaded bin/test_iter \
 bin/bench_sharded_unordered_map bin/bench_sharded_map bin/test_sharded_unordered_set \
@@ -200,8 +200,8 @@ bin/test_slow_path: $(test_slow_path_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_ob
 	$(LDXX) -o $@ $(test_slow_path_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_max_num_proclets: $(test_max_num_proclets_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_max_num_proclets_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/test_sharded_pair_collect: $(test_sharded_pair_collect_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(test_sharded_pair_collect_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_sharded_partitioner: $(test_sharded_partitioner_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_sharded_partitioner_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_cereal: $(test_cereal_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_cereal_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_iter: $(test_iter_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
@@ -233,8 +233,8 @@ bin/bench_real_cpu_pressure: $(bench_real_cpu_pressure_obj) $(librt_libs) $(RUNT
 	$(LDXX) -o $@ $(bench_real_cpu_pressure_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_controller: $(bench_controller_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_controller_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/bench_sharded_pair_collect: $(bench_sharded_pair_collect_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(bench_sharded_pair_collect_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_sharded_partitioner: $(bench_sharded_partitioner_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_sharded_partitioner_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_sharded_map: $(bench_sharded_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_sharded_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_sharded_unordered_map: $(bench_sharded_unordered_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)

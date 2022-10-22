@@ -5,36 +5,36 @@
 
 #include "nu/runtime.hpp"
 #include "nu/sealed_ds.hpp"
-#include "nu/sharded_pair_collect.hpp"
+#include "nu/sharded_partitioner.hpp"
 
 constexpr uint32_t kNumElements = 16 << 20;
 
 class Worker {
  public:
-  Worker(nu::ShardedPairCollection<int, std::string> sc) : sc_(std::move(sc)) {}
+  Worker(nu::ShardedPartitioner<int, std::string> sp) : sp_(std::move(sp)) {}
 
   void emplace(uint32_t start, uint32_t end) {
     for (uint32_t i = start; i < end; i++) {
       auto str = std::to_string(i);
-      sc_.emplace(i, str);
+      sp_.emplace(i, str);
     }
-    sc_.flush();
+    sp_.flush();
   }
 
   void mutate() {
-    sc_.for_all(
+    sp_.for_all(
         +[](const int &key, std::string &val, char new_c) { val += new_c; },
         ' ');
   }
 
  private:
-  nu::ShardedPairCollection<int, std::string> sc_;
+  nu::ShardedPartitioner<int, std::string> sp_;
 };
 
-bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
+bool run_test(nu::ShardedPartitioner<int, std::string> *sp) {
   {
-    auto p0 = make_proclet<Worker>(*sc);
-    auto p1 = make_proclet<Worker>(*sc);
+    auto p0 = make_proclet<Worker>(*sp);
+    auto p1 = make_proclet<Worker>(*sp);
 
     auto f0 = p0.run_async(&Worker::emplace, 0, kNumElements / 2);
     auto f1 = p1.run_async(&Worker::emplace, kNumElements / 2, kNumElements);
@@ -49,7 +49,7 @@ bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
 
   nu::RuntimeSlabGuard g;
 
-  auto c = sc->collect();
+  auto c = sp->collect();
   auto &pc = c.unwrap();
   std::vector<std::pair<int, std::string>> v(pc.data(), pc.data() + pc.size());
   sort(v.begin(), v.end());
@@ -63,7 +63,7 @@ bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
     return false;
   }
 
-  auto sealed = nu::to_sealed_ds(std::move(*sc));
+  auto sealed = nu::to_sealed_ds(std::move(*sp));
   v.clear();
   for (const auto &s : sealed) {
     v.emplace_back(s);
@@ -86,16 +86,16 @@ bool run_test(nu::ShardedPairCollection<int, std::string> *sc) {
 }
 
 bool run_test_no_hint() {
-  auto sc = nu::make_sharded_pair_collection<int, std::string>();
-  return run_test(&sc);
+  auto sp = nu::make_sharded_partitioner<int, std::string>();
+  return run_test(&sp);
 }
 
 bool run_test_with_hint() {
   // Intentionally uses a very bad hint.
-  auto sc = nu::make_sharded_pair_collection<int, std::string>(
+  auto sp = nu::make_sharded_partitioner<int, std::string>(
       /* num = */ kNumElements, /* estimated_min_key = */ kNumElements,
       /* key_inc_fn = */ [](int &k, uint64_t offset) { k += offset; });
-  return run_test(&sc);
+  return run_test(&sp);
 }
 
 bool run_all_tests() {

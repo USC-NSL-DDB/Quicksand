@@ -7,29 +7,28 @@
 namespace nu {
 
 template <typename K, typename V>
-inline PairCollectionConstIterator<K, V>::PairCollectionConstIterator() {}
+inline PartitionerConstIterator<K, V>::PartitionerConstIterator() {}
 
 template <typename K, typename V>
-inline PairCollectionConstIterator<K, V>::PairCollectionConstIterator(
+inline PartitionerConstIterator<K, V>::PartitionerConstIterator(
     std::span<const std::pair<K, V>>::iterator &&iter)
     : std::span<const std::pair<K, V>>::iterator(std::move(iter)) {}
 
 template <typename K, typename V>
-inline PairCollectionConstReverseIterator<
-    K, V>::PairCollectionConstReverseIterator() {}
+inline PartitionerConstReverseIterator<K, V>::
+PartitionerConstReverseIterator() {}
 
 template <typename K, typename V>
-inline PairCollectionConstReverseIterator<K, V>::
-    PairCollectionConstReverseIterator(
-        std::span<const std::pair<K, V>>::reverse_iterator &&iter)
+inline PartitionerConstReverseIterator<K, V>::PartitionerConstReverseIterator(
+    std::span<const std::pair<K, V>>::reverse_iterator &&iter)
     : std::span<const std::pair<K, V>>::reverse_iterator(std::move(iter)) {}
 
 template <typename K, typename V>
-inline PairCollection<K, V>::PairCollection()
+inline Partitioner<K, V>::Partitioner()
     : data_(nullptr), size_(0), capacity_(0), ownership_(false) {}
 
 template <typename K, typename V>
-inline PairCollection<K, V>::PairCollection(const PairCollection &o)
+inline Partitioner<K, V>::Partitioner(const Partitioner &o)
     : data_(nullptr), capacity_(0) {
   size_ = o.size_;
   reserve(o.size_);
@@ -37,8 +36,7 @@ inline PairCollection<K, V>::PairCollection(const PairCollection &o)
 }
 
 template <typename K, typename V>
-inline PairCollection<K, V> &PairCollection<K, V>::operator=(
-    const PairCollection &o) {
+inline Partitioner<K, V> &Partitioner<K, V>::operator=(const Partitioner &o) {
   size_ = o.size_;
   reserve(o.size_);
   std::copy(o.data_, o.data_ + size_, data_);
@@ -46,7 +44,7 @@ inline PairCollection<K, V> &PairCollection<K, V>::operator=(
 }
 
 template <typename K, typename V>
-inline PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept
+inline Partitioner<K, V>::Partitioner(Partitioner &&o) noexcept
     : data_(o.data_),
       size_(o.size_),
       capacity_(o.capacity_),
@@ -55,8 +53,8 @@ inline PairCollection<K, V>::PairCollection(PairCollection &&o) noexcept
 }
 
 template <typename K, typename V>
-inline PairCollection<K, V> &PairCollection<K, V>::operator=(
-    PairCollection &&o) noexcept {
+inline Partitioner<K, V> &Partitioner<K, V>::operator=(
+    Partitioner &&o) noexcept {
   destroy();
 
   data_ = o.data_;
@@ -68,34 +66,34 @@ inline PairCollection<K, V> &PairCollection<K, V>::operator=(
 }
 
 template <typename K, typename V>
-inline void PairCollection<K, V>::destroy() {
+inline void Partitioner<K, V>::destroy() {
   if (data_ && ownership_) {
     delete[] data_;
   }
 }
 
 template <typename K, typename V>
-inline PairCollection<K, V>::~PairCollection() {
+inline Partitioner<K, V>::~Partitioner() {
   destroy();
 }
 
 template <typename K, typename V>
-inline std::size_t PairCollection<K, V>::size() const {
+inline std::size_t Partitioner<K, V>::size() const {
   return size_;
 }
 
 template <typename K, typename V>
-inline std::size_t PairCollection<K, V>::capacity() const {
+inline std::size_t Partitioner<K, V>::capacity() const {
   return capacity_;
 }
 
 template <typename K, typename V>
-inline bool PairCollection<K, V>::empty() const {
+inline bool Partitioner<K, V>::empty() const {
   return !size_;
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::clear() {
+void Partitioner<K, V>::clear() {
   if (data_) {
     for (std::size_t i = 0; i < size_; i++) {
       std::destroy_at(&data_[i]);
@@ -108,7 +106,7 @@ void PairCollection<K, V>::clear() {
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::reserve(std::size_t capacity) {
+void Partitioner<K, V>::reserve(std::size_t capacity) {
   if (unlikely(capacity <= capacity_)) {
     return;
   }
@@ -128,7 +126,7 @@ void PairCollection<K, V>::reserve(std::size_t capacity) {
 }
 
 template <typename K, typename V>
-inline void PairCollection<K, V>::emplace(K k, V v) {
+inline void Partitioner<K, V>::emplace(K k, V v) {
   if (unlikely(size_ == capacity_)) {
     reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));
   }
@@ -139,21 +137,21 @@ inline void PairCollection<K, V>::emplace(K k, V v) {
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::merge(PairCollection pc) {
-  if (unlikely(size_ + pc.size_ > capacity_)) {
-    reserve(
-        std::max(static_cast<std::size_t>(size_ + pc.size_), 2 * capacity_));
+void Partitioner<K, V>::merge(Partitioner partitioner) {
+  if (unlikely(size_ + partitioner.size_ > capacity_)) {
+    reserve(std::max(static_cast<std::size_t>(size_ + partitioner.size_),
+                     2 * capacity_));
   }
 
-  for (std::size_t i = 0; i < pc.size_; i++) {
-    data_[size_++] = std::move(pc.data_[i]);
+  for (std::size_t i = 0; i < partitioner.size_; i++) {
+    data_[size_++] = std::move(partitioner.data_[i]);
   }
   assert(size_ <= capacity_);
   assert(ownership_);
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::split(K *mid_k, PairCollection<K, V> *latter_half) {
+void Partitioner<K, V>::split(K *mid_k, Partitioner<K, V> *latter_half) {
   adaptiveQuickselect(data_, size_ / 2, size_);
   *mid_k = data_[size_ / 2].first;
   latter_half->data_ = data_ + size_ / 2;
@@ -164,45 +162,43 @@ void PairCollection<K, V>::split(K *mid_k, PairCollection<K, V> *latter_half) {
 
 template <typename K, typename V>
 template <typename... S0s, typename... S1s>
-inline void PairCollection<K, V>::for_all(void (*fn)(const K &key, V &val,
-                                                     S0s...),
-                                          S1s &&... states) {
+inline void Partitioner<K, V>::for_all(void (*fn)(const K &key, V &val, S0s...),
+                                       S1s &&... states) {
   for (std::size_t i = 0; i < size_; i++) {
     fn(data_[i].first, data_[i].second, states...);
   }
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::ConstIterator PairCollection<K, V>::cbegin() const {
+Partitioner<K, V>::ConstIterator Partitioner<K, V>::cbegin() const {
   return ConstIterator(std::span<const std::pair<K, V>>(data_, size_).begin());
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::ConstIterator PairCollection<K, V>::cend() const {
+Partitioner<K, V>::ConstIterator Partitioner<K, V>::cend() const {
   return ConstIterator(std::span<const std::pair<K, V>>(data_, size_).end());
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::ConstReverseIterator PairCollection<K, V>::crbegin()
-    const {
+Partitioner<K, V>::ConstReverseIterator Partitioner<K, V>::crbegin() const {
   return ConstReverseIterator(
       std::span<const std::pair<K, V>>(data_, size_).rbegin());
 }
 
 template <typename K, typename V>
-PairCollection<K, V>::ConstReverseIterator PairCollection<K, V>::crend() const {
+Partitioner<K, V>::ConstReverseIterator Partitioner<K, V>::crend() const {
   return ConstReverseIterator(
       std::span<const std::pair<K, V>>(data_, size_).rend());
 }
 
 template <typename K, typename V>
-void PairCollection<K, V>::sort() {
+void Partitioner<K, V>::sort() {
   std::sort(data_, data_ + size_);
 }
 
 template <typename K, typename V>
 template <class Archive>
-void PairCollection<K, V>::save(Archive &ar) const {
+void Partitioner<K, V>::save(Archive &ar) const {
   ar(size_);
 
   if constexpr (cereal::is_memcpy_safe<decltype(data_[0])>()) {
@@ -216,7 +212,7 @@ void PairCollection<K, V>::save(Archive &ar) const {
 
 template <typename K, typename V>
 template <class Archive>
-void PairCollection<K, V>::load(Archive &ar) {
+void Partitioner<K, V>::load(Archive &ar) {
   ar(size_);
   reserve(size_);
 
@@ -230,27 +226,27 @@ void PairCollection<K, V>::load(Archive &ar) {
 }
 
 template <typename K, typename V>
-inline std::pair<K, V> *PairCollection<K, V>::data() {
+inline std::pair<K, V> *Partitioner<K, V>::data() {
   return data_;
 }
 
 template <typename K, typename V>
-inline ShardedPairCollection<K, V>::ShardedPairCollection(
+inline ShardedPartitioner<K, V>::ShardedPartitioner(
     std::optional<typename Base::Hint> hint)
     : Base(hint) {}
 
 template <typename K, typename V>
-inline ShardedPairCollection<K, V> make_sharded_pair_collection() {
-  return ShardedPairCollection<K, V>(std::nullopt);
+inline ShardedPartitioner<K, V> make_sharded_partitioner() {
+  return ShardedPartitioner<K, V>(std::nullopt);
 }
 
 template <typename K, typename V>
-inline ShardedPairCollection<K, V> make_sharded_pair_collection(
+inline ShardedPartitioner<K, V> make_sharded_partitioner(
     uint64_t num, K estimated_min_key,
     std::function<void(K &, uint64_t)> key_inc_fn) {
-  return ShardedPairCollection<K, V>(
+  return ShardedPartitioner<K, V>(
       std::make_optional<typename ShardedDataStructure<
-          PairCollectionContainer<K, V>, std::false_type>::Hint>(
+          PartitionerContainer<K, V>, std::false_type>::Hint>(
           num, std::move(estimated_min_key), std::move(key_inc_fn)));
 }
 

@@ -5,7 +5,7 @@
 
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
-#include "nu/sharded_pair_collect.hpp"
+#include "nu/sharded_partitioner.hpp"
 
 constexpr uint32_t kRunTimes = 1;
 constexpr uint32_t kNumElements = 256 << 20;
@@ -66,17 +66,17 @@ struct Val {
 
 class Worker {
  public:
-  Worker(nu::ShardedPairCollection<Key, Val> sc) : sc_(std::move(sc)) {}
+  Worker(nu::ShardedPartitioner<Key, Val> sp) : sp_(std::move(sp)) {}
 
   void do_work(uint32_t wid) {
     auto num_elems_per_th = kNumElements / kNumThreads;
     for (uint32_t i = 0; i < num_elems_per_th; i++) {
-      sc_.emplace(wid * num_elems_per_th + i, i);
+      sp_.emplace(wid * num_elems_per_th + i, i);
     }
   }
 
  private:
-  nu::ShardedPairCollection<Key, Val> sc_;
+  nu::ShardedPartitioner<Key, Val> sp_;
 };
 
 class Bench {
@@ -112,49 +112,49 @@ class Bench {
 
   void single_thread_no_partition() {
     std::cout << "\tRunning single-thread-no-partition bench..." << std::endl;
-    auto sc = nu::make_sharded_pair_collection<Key, Val>();
-    single_thread(&sc);
+    auto sp = nu::make_sharded_partitioner<Key, Val>();
+    single_thread(&sp);
   }
 
   void single_thread_perfect_partition() {
     std::cout << "\tRunning single-thread-perfect-partition bench..."
               << std::endl;
-    auto sc = nu::make_sharded_pair_collection<Key, Val>(
+    auto sp = nu::make_sharded_partitioner<Key, Val>(
         kNumElements, 0, [](Key &x, uint64_t offset) { x += offset; });
-    single_thread(&sc);
+    single_thread(&sp);
   }
 
-  void single_thread(nu::ShardedPairCollection<Key, Val> *sc_ptr) {
+  void single_thread(nu::ShardedPartitioner<Key, Val> *sp_ptr) {
     auto t0 = microtime();
     for (uint32_t i = 0; i < kNumElements; i++) {
-      sc_ptr->emplace(i, i);
+      sp_ptr->emplace(i, i);
     }
     auto t1 = microtime();
     auto mops = static_cast<double>(kNumElements) / (t1 - t0);
     auto bw = mops * sizeof(std::pair<Key, Val>);
-    std::cout << "\t\tShardedPairCollection: " << t1 - t0 << " us, " << mops
+    std::cout << "\t\tShardedPartitioner: " << t1 - t0 << " us, " << mops
               << " MOPS, " << bw << " MB/s" << std::endl;
   }
 
   void multi_threads_no_partition() {
     std::cout << "\tRunning multi-threads-no-partition bench..." << std::endl;
-    auto sc = nu::make_sharded_pair_collection<Key, Val>();
-    multi_threads(&sc);
+    auto sp = nu::make_sharded_partitioner<Key, Val>();
+    multi_threads(&sp);
   }
 
   void multi_threads_perfect_partition() {
     std::cout << "\tRunning multi-threads-perfect-partition bench..."
               << std::endl;
-    auto sc = nu::make_sharded_pair_collection<Key, Val>(
+    auto sp = nu::make_sharded_partitioner<Key, Val>(
         kNumElements, 0, [](Key &x, uint64_t offset) { x += offset; });
-    multi_threads(&sc);
+    multi_threads(&sp);
   }
 
-  void multi_threads(nu::ShardedPairCollection<Key, Val> *sc_ptr) {
+  void multi_threads(nu::ShardedPartitioner<Key, Val> *sp_ptr) {
     std::vector<nu::Proclet<Worker>> workers;
 
     for (uint32_t i = 0; i < kNumThreads; i++) {
-      workers.emplace_back(nu::make_proclet<Worker>(*sc_ptr));
+      workers.emplace_back(nu::make_proclet<Worker>(*sp_ptr));
     }
 
     std::vector<nu::Future<void>> futures;
@@ -169,7 +169,7 @@ class Bench {
     auto t1 = microtime();
     auto mops = static_cast<double>(kNumElements) / (t1 - t0);
     auto bw = mops * sizeof(std::pair<Key, Val>);
-    std::cout << "\t\tShardedPairCollection: " << t1 - t0 << " us, " << mops
+    std::cout << "\t\tShardedPartitioner: " << t1 - t0 << " us, " << mops
               << " MOPS, " << bw << " MB/s" << std::endl;
   }
 };

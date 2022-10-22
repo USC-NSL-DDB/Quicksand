@@ -9,47 +9,46 @@
 namespace nu {
 
 template <typename K, typename V>
-struct PairCollectionConstIterator
+struct PartitionerConstIterator
     : public std::span<const std::pair<K, V>>::iterator {
   constexpr static bool kContiguous = true;
 
-  PairCollectionConstIterator();
-  PairCollectionConstIterator(
-      std::span<const std::pair<K, V>>::iterator &&iter);
+  PartitionerConstIterator();
+  PartitionerConstIterator(std::span<const std::pair<K, V>>::iterator &&iter);
 };
 
 template <typename K, typename V>
-struct PairCollectionConstReverseIterator
+struct PartitionerConstReverseIterator
     : public std::span<const std::pair<K, V>>::reverse_iterator {
   constexpr static bool kContiguous = true;
 
-  PairCollectionConstReverseIterator();
-  PairCollectionConstReverseIterator(
+  PartitionerConstReverseIterator();
+  PartitionerConstReverseIterator(
       std::span<const std::pair<K, V>>::reverse_iterator &&iter);
 };
 
 template <typename K, typename V>
-class PairCollection {
+class Partitioner {
  public:
   using Key = K;
   using Val = V;
-  using ConstIterator = PairCollectionConstIterator<K, V>;
-  using ConstReverseIterator = PairCollectionConstReverseIterator<K, V>;
+  using ConstIterator = PartitionerConstIterator<K, V>;
+  using ConstReverseIterator = PartitionerConstReverseIterator<K, V>;
 
-  PairCollection();
-  PairCollection(const PairCollection &);
-  PairCollection &operator=(const PairCollection &);
-  PairCollection(PairCollection &&) noexcept;
-  PairCollection &operator=(PairCollection &&) noexcept;
-  ~PairCollection();
+  Partitioner();
+  Partitioner(const Partitioner &);
+  Partitioner &operator=(const Partitioner &);
+  Partitioner(Partitioner &&) noexcept;
+  Partitioner &operator=(Partitioner &&) noexcept;
+  ~Partitioner();
   std::size_t size() const;
   std::size_t capacity() const;
   void reserve(std::size_t capacity);
   bool empty() const;
   void clear();
   void emplace(K k, V v);
-  void split(Key *mid_k, PairCollection *latter_half);
-  void merge(PairCollection pc);
+  void split(Key *mid_k, Partitioner *latter_half);
+  void merge(Partitioner partitioner);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   ConstIterator cbegin() const;
@@ -75,45 +74,45 @@ class PairCollection {
 };
 
 template <typename K, typename V>
-using PairCollectionContainer = GeneralLockedContainer<PairCollection<K, V>>;
+using PartitionerContainer = GeneralLockedContainer<Partitioner<K, V>>;
 
 template <typename K, typename V>
-class ShardedPairCollection
+class ShardedPartitioner
     : public ShardedDataStructure<
-          PairCollectionContainer<K, V>,
+          PartitionerContainer<K, V>,
           /* LL = */ std::false_type>  // Doesn't make sense to use this data
                                        // structure for any low-latency purpose.
 {
  public:
-  ShardedPairCollection(const ShardedPairCollection &) = default;
-  ShardedPairCollection &operator=(const ShardedPairCollection &) = default;
-  ShardedPairCollection(ShardedPairCollection &&) noexcept = default;
-  ShardedPairCollection &operator=(ShardedPairCollection &&) noexcept = default;
+  ShardedPartitioner(const ShardedPartitioner &) = default;
+  ShardedPartitioner &operator=(const ShardedPartitioner &) = default;
+  ShardedPartitioner(ShardedPartitioner &&) noexcept = default;
+  ShardedPartitioner &operator=(ShardedPartitioner &&) noexcept = default;
 
  private:
   using Base =
-      ShardedDataStructure<PairCollectionContainer<K, V>, std::false_type>;
+      ShardedDataStructure<PartitionerContainer<K, V>, std::false_type>;
 
-  ShardedPairCollection() = default;
-  ShardedPairCollection(std::optional<typename Base::Hint> hint);
+  ShardedPartitioner() = default;
+  ShardedPartitioner(std::optional<typename Base::Hint> hint);
 
   friend class ProcletServer;
   template <typename K1, typename V1>
-  friend ShardedPairCollection<K1, V1> make_sharded_pair_collection();
+  friend ShardedPartitioner<K1, V1> make_sharded_partitioner();
   template <typename K1, typename V1>
-  friend ShardedPairCollection<K1, V1> make_sharded_pair_collection(
+  friend ShardedPartitioner<K1, V1> make_sharded_partitioner(
       uint64_t num, K1 estimated_min_key,
       std::function<void(K1 &, uint64_t)> key_inc_fn);
 };
 
 template <typename K, typename V>
-ShardedPairCollection<K, V> make_sharded_pair_collection();
+ShardedPartitioner<K, V> make_sharded_partitioner();
 
 template <typename K, typename V>
-ShardedPairCollection<K, V> make_sharded_pair_collection(
+ShardedPartitioner<K, V> make_sharded_partitioner(
     uint64_t num, K estimated_min_key,
     std::function<void(K &, uint64_t)> key_inc_fn);
 
 }  // namespace nu
 
-#include "nu/impl/sharded_pair_collect.ipp"
+#include "nu/impl/sharded_partitioner.ipp"

@@ -5,12 +5,12 @@
 #include <utility>
 
 #include "nu/sealed_ds.hpp"
-#include "nu/sharded_pair_collect.hpp"
+#include "nu/sharded_partitioner.hpp"
 
 namespace nu {
 
 template <typename K, typename V>
-using ShardedSorted = SealedDS<ShardedPairCollection<K, V>>;
+using ShardedSorted = SealedDS<ShardedPartitioner<K, V>>;
 
 template <typename K, typename V>
 class ShardedSorter {
@@ -24,7 +24,7 @@ class ShardedSorter {
   ShardedSorted<K, V> sort();
 
  private:
-  ShardedPairCollection<K, V> sharded_pc_;
+  ShardedPartitioner<K, V> sharded_pn_;
 
   template <typename K1, typename V1>
   friend ShardedSorter<K1, V1> make_sharded_sorter();
@@ -33,7 +33,7 @@ class ShardedSorter {
       uint64_t num, K1 estimated_min_key,
       std::function<void(K1 &, uint64_t)> key_inc_fn);
 
-  ShardedSorter(ShardedPairCollection<K, V> &&sharded_pc);
+  ShardedSorter(ShardedPartitioner<K, V> &&sharded_pn);
 };
 
 template <typename K, typename V>

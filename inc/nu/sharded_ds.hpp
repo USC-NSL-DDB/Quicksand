@@ -80,7 +80,7 @@ class ShardedDataStructure {
   constexpr static uint32_t kBatchingMaxBatchBytes = 64 << 10;
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
-  constexpr static uint32_t kMaxNumInflightFlushes = 2;
+  constexpr static uint32_t kMaxNumInflightFlushes = 8;
 
   using ReqBatch = Shard::ReqBatch;
   struct ShardAndReqs {
