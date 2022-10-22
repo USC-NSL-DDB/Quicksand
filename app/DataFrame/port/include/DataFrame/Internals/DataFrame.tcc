@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <future>
 #include <random>
 
-#include <nu/sharded_map.hpp>
+#include <nu/sharded_sorter.hpp>
 
 // ----------------------------------------------------------------------------
 
@@ -1141,9 +1141,9 @@ template<typename I, typename H>
 template<typename T, typename I_V, typename ... Ts>
 DataFrame<I, H> DataFrame<I, H>::
 groupby1(const char *col_name, I_V &&idx_visitor, Ts&& ... args) const  {
-    using MapKey = T;
-    using MapVal = std::tuple<IndexType, typename std::tuple_element<2, Ts>::type::value_type...>;
-    auto sharded_multi_map = nu::make_sharded_multi_map<MapKey, MapVal, std::false_type>();
+    using SorterKey = T;
+    using SorterVal = std::tuple<IndexType, typename std::tuple_element<2, Ts>::type::value_type...>;
+    auto sharded_sorter = nu::make_sharded_sorter<SorterKey, SorterVal>();
 
     auto &index       = const_cast<NuShardedVector<IndexType>&>(get_index());
     auto &key         = const_cast<NuShardedVector<T>&>(get_column<T>(col_name));
@@ -1167,7 +1167,7 @@ groupby1(const char *col_name, I_V &&idx_visitor, Ts&& ... args) const  {
         auto k   = *key_iter;
         auto v   = std::apply([&](auto&... iter) { return std::make_tuple(idx, (*iter)...); },
                             agg_col_iters);
-        sharded_multi_map.emplace(std::move(k), std::move(v));
+        sharded_sorter.emplace(std::move(k), std::move(v));
         ++index_iter;
         ++key_iter;
         std::apply([&](auto&... iter) { ((++iter), ...); }, agg_col_iters);
@@ -1181,14 +1181,12 @@ groupby1(const char *col_name, I_V &&idx_visitor, Ts&& ... args) const  {
     auto dst_cols = std::make_tuple(
         (&(res.template create_column<typename std::tuple_element<2, Ts>::type::value_type>(
             std::get<1>(args))))...);
-    auto sealed_sharded_multi_map = nu::to_sealed_ds(std::move(sharded_multi_map));
-    auto iter                     = sealed_sharded_multi_map.cbegin();
-    T marker                      = iter->first;
+    auto sharded_sorted           = sharded_sorter.sort();
+    T marker                      = sharded_sorted.cbegin()->first;
 
     idx_visitor.pre();
     ((std::get<2>(args).pre()), ...);
-    for (;iter != sealed_sharded_multi_map.cend(); ++iter) {
-        auto [k, v] = *iter;
+    for (const auto &[k, v] : sharded_sorted) {
         auto idx    = std::get<0>(v);
         if (k != marker) {
             idx_visitor.post();
@@ -1206,7 +1204,7 @@ groupby1(const char *col_name, I_V &&idx_visitor, Ts&& ... args) const  {
         std::apply([&](auto idx, auto&... col_vals) { ((std::get<2>(args)(idx, col_vals)), ...); },
                    v);
     }
-    if (sealed_sharded_multi_map.size()) {
+    if (sharded_sorted.size()) {
         idx_visitor.post();
         ((std::get<2>(args).post()), ...);
         dst_idx.push_back(idx_visitor.get_result());
