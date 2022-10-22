@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cereal/types/deque.hpp>
 #include <cereal/types/map.hpp>
 #include <cereal/types/optional.hpp>

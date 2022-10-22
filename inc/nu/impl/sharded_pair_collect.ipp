@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "nu/cereal.hpp"
 #include "nu/utils/bfprt/median_of_ninthers.h"
 
 namespace nu {
@@ -203,8 +204,13 @@ template <typename K, typename V>
 template <class Archive>
 void PairCollection<K, V>::save(Archive &ar) const {
   ar(size_);
-  for (std::size_t i = 0; i < size_; i++) {
-    ar(data_[i]);
+
+  if constexpr (cereal::is_memcpy_safe<decltype(data_[0])>()) {
+    ar(cereal::binary_data(data_, size_ * sizeof(data_[0])));
+  } else {
+    for (std::size_t i = 0; i < size_; i++) {
+      ar(data_[i]);
+    }
   }
 }
 
@@ -213,8 +219,13 @@ template <class Archive>
 void PairCollection<K, V>::load(Archive &ar) {
   ar(size_);
   reserve(size_);
-  for (std::size_t i = 0; i < size_; i++) {
-    ar(data_[i]);
+
+  if constexpr (cereal::is_memcpy_safe<decltype(data_[0])>()) {
+    ar(cereal::binary_data(data_, size_ * sizeof(data_[0])));
+  } else {
+    for (std::size_t i = 0; i < size_; i++) {
+      ar(data_[i]);
+    }
   }
 }
 
