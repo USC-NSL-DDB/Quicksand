@@ -55,9 +55,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <memory>
 
-#include <nu/sharded_set.hpp>
 #include <nu/sealed_ds.hpp>
+#include <nu/sharded_partitioner.hpp>
 
 // ----------------------------------------------------------------------------
 
@@ -2077,35 +2078,22 @@ struct MedianVisitor {
 
     inline void operator()(const index_type& idx, const value_type& val)
     {
-        size_++;
-        vals_.push_back(val);
+        partitioner_.emplace(val, char());
     }
 
-    inline void pre()
-    {
-        size_ = 0;
-        vals_.clear();
-    }
+    inline void pre() {}
 
     inline void post()
     {
-        auto set         = nu::make_sharded_multi_set<value_type, std::false_type>();
-        auto sealed_vals = nu::to_sealed_ds(std::move(vals_));
-        for (auto& v : sealed_vals) {
-            set.insert(v);
+        auto sealed = nu::to_sealed_ds(std::move(partitioner_));
+        if (sealed.size() % 2) {
+            result_ = sealed.find_val_by_order(sealed.size() / 2 - 1)->first;
+        } else {
+            result_ = (sealed.find_val_by_order(sealed.size() / 2 - 1)->first +
+                       sealed.find_val_by_order(sealed.size() / 2)->first) /
+                      2;
         }
-
-        auto sealed_set = nu::to_sealed_ds(std::move(set));
-        int idx         = 0;
-        for (auto& v : sealed_set) {
-			if (idx == size_ / 2 - 1) {
-				result_ = v;
-			} else if (idx == size_ / 2 && size_ % 2 == 0) {
-				result_ = (result_ + v) / 2;
-			}
-            idx++;
-        }
-        vals_ = nu::to_unsealed_ds(std::move(sealed_vals));
+        partitioner_ = nu::make_sharded_partitioner<value_type, char>();
     }
 
     inline result_type get_result() const
@@ -2113,12 +2101,11 @@ struct MedianVisitor {
         return (result_);
     }
 
-    MedianVisitor() : vals_(nu_make_sharded_vector<value_type>()) {}
+    MedianVisitor(): partitioner_(nu::make_sharded_partitioner<value_type, char>()) {}
 
 private:
     result_type result_{};
-    NuShardedVector<value_type> vals_;
-    size_t size_;
+    nu::ShardedPartitioner<value_type, char> partitioner_;
 };
 
 template<typename T, typename I = unsigned long>
