@@ -1,7 +1,9 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include "nu/sharded_ds.hpp"
@@ -47,10 +49,11 @@ class Partitioner {
   bool empty() const;
   void clear();
   void emplace(K k, V v);
-  void split(Key *mid_k, Partitioner *latter_half);
+  void split(K *mid_k, Partitioner *latter_half);
   void merge(Partitioner partitioner);
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  void for_all(void (*fn)(const K &key, V &val, S0s...), S1s &&... states);
+  ConstIterator find_by_order(std::size_t order);
   ConstIterator cbegin() const;
   ConstIterator cend() const;
   ConstReverseIterator crbegin() const;

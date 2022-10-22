@@ -178,13 +178,15 @@ class SealedDS {
   bool empty() const;
   std::size_t size() const;
   ConstIterator find_iter(T::Key k) const;
+  std::optional<typename T::IterVal> find_val_by_order(
+      std::size_t order) requires FindableByOrder<typename T::ContainerImpl>;
 
  private:
   using Shard = T::Shard;
   using ShardsVec = std::vector<WeakProclet<Shard>>;
 
   T t_;
-  std::optional<std::size_t> size_;
+  std::vector<std::size_t> prefix_sum_sizes_;
   std::vector<std::optional<typename T::Key>> keys_;
   std::shared_ptr<ShardsVec> shards_;
   ConstIterator cbegin_;
@@ -193,7 +195,6 @@ class SealedDS {
   ConstReverseIterator crend_;
 
   SealedDS(T &&t);
-  std::size_t __size();
   ConstIterator __find_iter(T::Key k);
   T &&unseal();
   ShardsVec::iterator search_shard(T::Key k);

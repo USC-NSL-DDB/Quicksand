@@ -170,6 +170,16 @@ inline void Partitioner<K, V>::for_all(void (*fn)(const K &key, V &val, S0s...),
 }
 
 template <typename K, typename V>
+inline Partitioner<K, V>::ConstIterator Partitioner<K, V>::find_by_order(
+    std::size_t order) {
+  if (unlikely(order >= size_)) {
+    return cend();
+  }
+  adaptiveQuickselect(data_, order, size_);
+  return cbegin() + order;
+}
+
+template <typename K, typename V>
 Partitioner<K, V>::ConstIterator Partitioner<K, V>::cbegin() const {
   return ConstIterator(std::span<const std::pair<K, V>>(data_, size_).begin());
 }

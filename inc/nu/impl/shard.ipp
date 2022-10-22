@@ -340,6 +340,19 @@ GeneralShard<Container>::find(Key k) requires Findable<Container> {
 }
 
 template <class Container>
+inline std::optional<typename Container::IterVal>
+GeneralShard<Container>::find_val_by_order(
+    std::size_t order) requires FindableByOrder<Container> {
+  // Currently, the invocation happens only after sealing the DS. Thus we can
+  // bypass all the redundant checks.
+  auto iter = container_.find_by_order(order);
+  if (unlikely(iter == container_.cend())) {
+    return std::nullopt;
+  }
+  return *iter;
+}
+
+template <class Container>
 std::vector<
     std::pair<typename Container::IterVal, typename Container::ConstIterator>>
 GeneralShard<Container>::get_next_block_with_iters(
@@ -681,4 +694,10 @@ template <class Container>
 inline bool GeneralShard<Container>::empty() {
   return container_.empty();
 }
+
+template <class Container>
+inline std::size_t GeneralShard<Container>::size() {
+  return container_.size();
+}
+
 }  // namespace nu

@@ -34,6 +34,12 @@ concept Findable = requires(T t) {
 };
 
 template <class T>
+concept FindableByOrder = requires(T t) {
+  { t.find_by_order(std::declval<std::size_t>()) }
+  ->std::same_as<typename T::ConstIterator>;
+};
+
+template <class T>
 concept HasCapacity = requires(T t) {
   { t.capacity() }
   ->std::same_as<std::size_t>;
@@ -154,6 +160,11 @@ class GeneralContainerBase {
   ConstIterator find(Key k) const requires Findable<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
+  }
+  ConstIterator find_by_order(
+      std::size_t order) requires FindableByOrder<Impl> {
+    return synchronized<ConstIterator>(
+        [&] { return impl_.find_by_order(order); });
   }
   void split(Key *mid_k, ContainerType *latter_half) {
     return synchronized<void>([&] { impl_.split(mid_k, &latter_half->impl_); });

@@ -585,9 +585,16 @@ template <typename T>
 SealedDS<T>::SealedDS(T &&t) : t_(std::move(t)) {
   t_.seal();
 
-  ShardsVec shards;
-  std::tie(keys_, shards) = t_.get_all_non_empty_shards();
-  shards_ = std::make_shared<ShardsVec>(shards);
+  auto all_shards_info = t_.get_all_shards_info();
+  shards_ = std::make_shared<ShardsVec>();
+  prefix_sum_sizes_.emplace_back(0);
+  for (auto &[k, size, shard] : all_shards_info) {
+    if (size) {
+      keys_.emplace_back(k);
+      shards_->emplace_back(shard);
+      prefix_sum_sizes_.emplace_back(prefix_sum_sizes_.back() + size);
+    }
+  }
 
   if constexpr (ConstIterable<typename T::Shard>) {
     cbegin_ = ConstIterator(shards_, true);
@@ -668,12 +675,28 @@ inline bool SealedDS<T>::empty() const {
 
 template <typename T>
 inline std::size_t SealedDS<T>::size() const {
-  return const_cast<SealedDS *>(this)->__size();
+  return prefix_sum_sizes_.back();
 }
 
 template <typename T>
 inline SealedDS<T>::ConstIterator SealedDS<T>::find_iter(T::Key k) const {
   return const_cast<SealedDS *>(this)->__find_iter(std::move(k));
+}
+
+template <typename T>
+std::optional<typename T::IterVal> SealedDS<T>::find_val_by_order(
+    std::size_t order) requires FindableByOrder<typename T::ContainerImpl> {
+  auto iter = std::ranges::upper_bound(prefix_sum_sizes_, order);
+
+  if (iter == prefix_sum_sizes_.end()) {
+    return std::nullopt;
+  }
+  BUG_ON(iter == prefix_sum_sizes_.begin());
+  --iter;
+  auto shard_idx = iter - prefix_sum_sizes_.begin();
+  auto &shard = (*shards_)[shard_idx];
+  auto local_order = order - *iter;
+  return shard.run(&Shard::find_val_by_order, local_order);
 }
 
 template <typename T>
@@ -690,14 +713,6 @@ inline SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(T::Key k) {
   BUG_ON(!std::get<0>(tuple));
   return ConstIterator(shards_, shard_iter, std::move(std::get<1>(tuple)),
                        std::move(std::get<2>(tuple)));
-}
-
-template <typename T>
-inline std::size_t SealedDS<T>::__size() {
-  if (unlikely(!size_)) {
-    size_ = t_.size();
-  }
-  return *size_;
 }
 
 template <typename T>

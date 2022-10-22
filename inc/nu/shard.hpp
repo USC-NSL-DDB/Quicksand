@@ -151,6 +151,9 @@ class GeneralShard {
   ConstReverseIterator crlast() requires ConstReverseIterable<Container>;
   ConstReverseIterator crend() requires ConstReverseIterable<Container>;
   bool empty();
+  std::size_t size();
+  std::optional<IterVal> find_val_by_order(
+      std::size_t order) requires FindableByOrder<Container>;
   Container get_container_copy();
   ContainerHandle<Container> get_container_handle();
   ConstContainerHandle<Container> get_const_container_handle();

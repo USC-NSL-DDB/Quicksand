@@ -3,6 +3,8 @@
 #include <optional>
 #include <utility>
 
+#include "nu/utils/thread.hpp"
+
 namespace nu {
 
 template <class Container, class LL>
@@ -481,36 +483,32 @@ inline void ShardedDataStructure<Container, LL>::load(Archive &ar) {
 }
 
 template <class Container, class LL>
-std::pair<std::vector<
-              std::optional<typename ShardedDataStructure<Container, LL>::Key>>,
-          std::vector<
-              WeakProclet<typename ShardedDataStructure<Container, LL>::Shard>>>
-ShardedDataStructure<Container, LL>::get_all_non_empty_shards() {
+std::vector<std::tuple<
+    std::optional<typename ShardedDataStructure<Container, LL>::Key>,
+    std::size_t,
+    WeakProclet<typename ShardedDataStructure<Container, LL>::Shard>>>
+ShardedDataStructure<Container, LL>::get_all_shards_info() {
   flush_and_sync_mapping();
 
-  std::vector<std::optional<Key>> all_keys;
-  std::vector<WeakProclet<Shard>> all_shards;
-  std::vector<Future<bool>> shards_emptinesses;
-  std::vector<std::optional<Key>> non_empty_keys;
-  std::vector<WeakProclet<Shard>> non_empty_shards;
+  std::vector<std::tuple<std::optional<Key>, std::size_t, WeakProclet<Shard>>>
+      ret;
+  std::vector<nu::Thread> ths;
 
-  all_shards.reserve(key_to_shards_.size());
-  shards_emptinesses.reserve(key_to_shards_.size());
+  ret.reserve(key_to_shards_.size());
+  ths.reserve(key_to_shards_.size());
   for (auto &[k, shard_and_reqs] : key_to_shards_) {
     auto &shard = shard_and_reqs.shard;
-    all_keys.emplace_back(k);
-    all_shards.emplace_back(shard);
-    shards_emptinesses.emplace_back(shard.run_async(&Shard::empty));
+    ret.emplace_back(k, 0, shard);
+    auto *size_ptr = &std::get<1>(ret.back());
+    ths.emplace_back(
+        [size_ptr, shard]() mutable { *size_ptr = shard.run(&Shard::size); });
   }
 
-  for (uint64_t i = 0; i < all_shards.size(); i++) {
-    if (!shards_emptinesses[i].get()) {
-      non_empty_keys.push_back(all_keys[i]);
-      non_empty_shards.push_back(all_shards[i]);
-    }
+  for (auto &th : ths) {
+    th.join();
   }
 
-  return std::make_pair(std::move(non_empty_keys), std::move(non_empty_shards));
+  return ret;
 }
 
 template <class Container, class LL>

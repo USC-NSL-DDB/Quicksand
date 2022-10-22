@@ -121,8 +121,8 @@ class ShardedDataStructure {
   void flush_and_sync_mapping();
   std::pair<std::optional<Key>, std::optional<Key>> get_key_range(
       KeyToShardsMapping::iterator iter);
-  std::pair<std::vector<std::optional<Key>>, std::vector<WeakProclet<Shard>>>
-  get_all_non_empty_shards();
+  std::vector<std::tuple<std::optional<Key>, std::size_t, WeakProclet<Shard>>>
+  get_all_shards_info();
   void seal();
   void unseal();
 };

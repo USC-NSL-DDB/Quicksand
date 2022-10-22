@@ -82,6 +82,28 @@ bool run_test(nu::ShardedPartitioner<int, std::string> *sp) {
     return false;
   }
 
+  auto smallest_pair = sealed.find_val_by_order(0);
+  if (smallest_pair != std::make_pair(0, std::to_string(0) + "  ")) {
+    return false;
+  }
+
+  auto middle_pair = sealed.find_val_by_order(kNumElements / 2);
+  if (middle_pair != std::make_pair(static_cast<int>(kNumElements / 2),
+                                    std::to_string(kNumElements / 2) + "  ")) {
+    return false;
+  }
+
+  auto largest_pair = sealed.find_val_by_order(kNumElements - 1);
+  if (largest_pair != std::make_pair(static_cast<int>(kNumElements - 1),
+                                     std::to_string(kNumElements - 1) + "  ")) {
+    return false;
+  }
+
+  auto out_of_bound_pair = sealed.find_val_by_order(kNumElements);
+  if (out_of_bound_pair != std::nullopt) {
+    return false;
+  }
+
   return true;
 }
 
