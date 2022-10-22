@@ -2093,7 +2093,9 @@ struct MedianVisitor {
                        sealed.find_val_by_order(sealed.size() / 2)->first) /
                       2;
         }
-        partitioner_ = nu::make_sharded_partitioner<value_type, char>();
+
+        partitioner_ = nu::to_unsealed_ds(std::move(sealed));
+        partitioner_.clear();
     }
 
     inline result_type get_result() const
