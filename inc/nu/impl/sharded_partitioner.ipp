@@ -11,17 +11,20 @@ inline PartitionerConstIterator<K, V>::PartitionerConstIterator() {}
 
 template <typename K, typename V>
 inline PartitionerConstIterator<K, V>::PartitionerConstIterator(
-    std::span<const std::pair<K, V>>::iterator &&iter)
-    : std::span<const std::pair<K, V>>::iterator(std::move(iter)) {}
+    std::span<const typename Partitioner<K, V>::DataEntry>::iterator &&iter)
+    : std::span<const typename Partitioner<K, V>::DataEntry>::iterator(
+          std::move(iter)) {}
 
 template <typename K, typename V>
-inline PartitionerConstReverseIterator<K, V>::
-PartitionerConstReverseIterator() {}
+inline PartitionerConstReverseIterator<K,
+                                       V>::PartitionerConstReverseIterator() {}
 
 template <typename K, typename V>
 inline PartitionerConstReverseIterator<K, V>::PartitionerConstReverseIterator(
-    std::span<const std::pair<K, V>>::reverse_iterator &&iter)
-    : std::span<const std::pair<K, V>>::reverse_iterator(std::move(iter)) {}
+    std::span<const typename Partitioner<K, V>::DataEntry>::reverse_iterator
+        &&iter)
+    : std::span<const typename Partitioner<K, V>::DataEntry>::reverse_iterator(
+          std::move(iter)) {}
 
 template <typename K, typename V>
 inline Partitioner<K, V>::Partitioner()
@@ -113,7 +116,7 @@ void Partitioner<K, V>::reserve(std::size_t capacity) {
 
   capacity_ = capacity;
   ownership_ = true;
-  auto *new_data = new std::pair<K, V>[capacity_];
+  auto *new_data = new DataEntry[capacity_];
 
   if (data_) {
     for (std::size_t i = 0; i < size_; i++) {
@@ -126,12 +129,23 @@ void Partitioner<K, V>::reserve(std::size_t capacity) {
 }
 
 template <typename K, typename V>
-inline void Partitioner<K, V>::emplace(K k, V v) {
+inline void Partitioner<K, V>::emplace(K k, V v) requires HasVal<Partitioner> {
   if (unlikely(size_ == capacity_)) {
     reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));
   }
 
-  data_[size_++] = std::pair<K, V>(std::move(k), std::move(v));
+  data_[size_++] = std::make_pair(std::move(k), std::move(v));
+  assert(size_ <= capacity_);
+  assert(ownership_);
+}
+
+template <typename K, typename V>
+inline void Partitioner<K, V>::emplace(K k) requires(!HasVal<Partitioner>) {
+  if (unlikely(size_ == capacity_)) {
+    reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));
+  }
+
+  data_[size_++] = std::move(k);
   assert(size_ <= capacity_);
   assert(ownership_);
 }
@@ -153,7 +167,11 @@ void Partitioner<K, V>::merge(Partitioner partitioner) {
 template <typename K, typename V>
 void Partitioner<K, V>::split(K *mid_k, Partitioner<K, V> *latter_half) {
   adaptiveQuickselect(data_, size_ / 2, size_);
-  *mid_k = data_[size_ / 2].first;
+  if constexpr (HasVal<Partitioner>) {
+    *mid_k = data_[size_ / 2].first;
+  } else {
+    *mid_k = data_[size_ / 2];
+  }
   latter_half->data_ = data_ + size_ / 2;
   latter_half->size_ = size_ - size_ / 2;
   latter_half->ownership_ = false;
@@ -162,10 +180,21 @@ void Partitioner<K, V>::split(K *mid_k, Partitioner<K, V> *latter_half) {
 
 template <typename K, typename V>
 template <typename... S0s, typename... S1s>
-inline void Partitioner<K, V>::for_all(void (*fn)(const K &key, V &val, S0s...),
-                                       S1s &&... states) {
+inline void Partitioner<K, V>::for_all(
+    void (*fn)(const K &key, V &val, S0s...),
+    S1s &&... states) requires HasVal<Partitioner> {
   for (std::size_t i = 0; i < size_; i++) {
     fn(data_[i].first, data_[i].second, states...);
+  }
+}
+
+template <typename K, typename V>
+template <typename... S0s, typename... S1s>
+inline void Partitioner<K, V>::for_all(
+    void (*fn)(const K &key, S0s...),
+    S1s &&... states) requires(!HasVal<Partitioner>) {
+  for (std::size_t i = 0; i < size_; i++) {
+    fn(data_[i], states...);
   }
 }
 
@@ -181,24 +210,23 @@ inline Partitioner<K, V>::ConstIterator Partitioner<K, V>::find_by_order(
 
 template <typename K, typename V>
 Partitioner<K, V>::ConstIterator Partitioner<K, V>::cbegin() const {
-  return ConstIterator(std::span<const std::pair<K, V>>(data_, size_).begin());
+  return ConstIterator(std::span<const DataEntry>(data_, size_).begin());
 }
 
 template <typename K, typename V>
 Partitioner<K, V>::ConstIterator Partitioner<K, V>::cend() const {
-  return ConstIterator(std::span<const std::pair<K, V>>(data_, size_).end());
+  return ConstIterator(std::span<const DataEntry>(data_, size_).end());
 }
 
 template <typename K, typename V>
 Partitioner<K, V>::ConstReverseIterator Partitioner<K, V>::crbegin() const {
   return ConstReverseIterator(
-      std::span<const std::pair<K, V>>(data_, size_).rbegin());
+      std::span<const DataEntry>(data_, size_).rbegin());
 }
 
 template <typename K, typename V>
 Partitioner<K, V>::ConstReverseIterator Partitioner<K, V>::crend() const {
-  return ConstReverseIterator(
-      std::span<const std::pair<K, V>>(data_, size_).rend());
+  return ConstReverseIterator(std::span<const DataEntry>(data_, size_).rend());
 }
 
 template <typename K, typename V>
@@ -236,7 +264,7 @@ void Partitioner<K, V>::load(Archive &ar) {
 }
 
 template <typename K, typename V>
-inline std::pair<K, V> *Partitioner<K, V>::data() {
+inline Partitioner<K, V>::DataEntry *Partitioner<K, V>::data() {
   return data_;
 }
 

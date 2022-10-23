@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <type_traits>
 #include <utility>
 
 #include "nu/sealed_ds.hpp"
@@ -9,18 +10,19 @@
 
 namespace nu {
 
-template <typename K, typename V>
+template <typename K, typename V = ErasedType>
 using ShardedSorted = SealedDS<ShardedPartitioner<K, V>>;
 
-template <typename K, typename V>
+template <typename K, typename V = ErasedType>
 class ShardedSorter {
  public:
   ShardedSorter(const ShardedSorter &) = delete;
   ShardedSorter &operator=(const ShardedSorter &) = delete;
   ShardedSorter(ShardedSorter &&);
   ShardedSorter &operator=(ShardedSorter &&);
-  void emplace(K k, V v);
-  void emplace(std::pair<K, V> p);
+  void emplace(K k) requires std::is_same_v<V, ErasedType>;
+  void emplace(K k, V v) requires(!std::is_same_v<V, ErasedType>);
+  void emplace(std::pair<K, V> p) requires(!std::is_same_v<V, ErasedType>);
   ShardedSorted<K, V> sort();
 
  private:
@@ -36,10 +38,10 @@ class ShardedSorter {
   ShardedSorter(ShardedPartitioner<K, V> &&sharded_pn);
 };
 
-template <typename K, typename V>
+template <typename K, typename V = ErasedType>
 ShardedSorter<K, V> make_sharded_sorter();
 
-template <typename K, typename V>
+template <typename K, typename V = ErasedType>
 ShardedSorter<K, V> make_sharded_sorter(
     uint64_t num, K estimated_min_key,
     std::function<void(K &, uint64_t)> key_inc_fn);

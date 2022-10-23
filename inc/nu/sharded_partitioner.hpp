@@ -3,6 +3,7 @@
 #include <functional>
 #include <optional>
 #include <span>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -11,29 +12,17 @@
 namespace nu {
 
 template <typename K, typename V>
-struct PartitionerConstIterator
-    : public std::span<const std::pair<K, V>>::iterator {
-  constexpr static bool kContiguous = true;
-
-  PartitionerConstIterator();
-  PartitionerConstIterator(std::span<const std::pair<K, V>>::iterator &&iter);
-};
+struct PartitionerConstIterator;
 
 template <typename K, typename V>
-struct PartitionerConstReverseIterator
-    : public std::span<const std::pair<K, V>>::reverse_iterator {
-  constexpr static bool kContiguous = true;
-
-  PartitionerConstReverseIterator();
-  PartitionerConstReverseIterator(
-      std::span<const std::pair<K, V>>::reverse_iterator &&iter);
-};
+struct PartitionerConstReverseIterator;
 
 template <typename K, typename V>
 class Partitioner {
  public:
   using Key = K;
   using Val = V;
+  using DataEntry = std::conditional_t<HasVal<Partitioner>, std::pair<K, V>, K>;
   using ConstIterator = PartitionerConstIterator<K, V>;
   using ConstReverseIterator = PartitionerConstReverseIterator<K, V>;
 
@@ -48,11 +37,16 @@ class Partitioner {
   void reserve(std::size_t capacity);
   bool empty() const;
   void clear();
-  void emplace(K k, V v);
+  void emplace(K k, V v) requires HasVal<Partitioner>;
+  void emplace(K k) requires(!HasVal<Partitioner>);
   void split(K *mid_k, Partitioner *latter_half);
   void merge(Partitioner partitioner);
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const K &key, V &val, S0s...), S1s &&... states);
+  void for_all(void (*fn)(const K &key, V &val, S0s...),
+               S1s &&... states) requires HasVal<Partitioner>;
+  template <typename... S0s, typename... S1s>
+  void for_all(void (*fn)(const K &key, S0s...),
+               S1s &&... states) requires(!HasVal<Partitioner>);
   ConstIterator find_by_order(std::size_t order);
   ConstIterator cbegin() const;
   ConstIterator cend() const;
@@ -64,10 +58,10 @@ class Partitioner {
   template <class Archive>
   void load(Archive &ar);
 
-  std::pair<K, V> *data();
+  DataEntry *data();
 
  private:
-  std::pair<K, V> *data_;
+  DataEntry *data_;
   std::size_t size_;
   std::size_t capacity_;
   bool ownership_;
@@ -79,7 +73,7 @@ class Partitioner {
 template <typename K, typename V>
 using PartitionerContainer = GeneralLockedContainer<Partitioner<K, V>>;
 
-template <typename K, typename V>
+template <typename K, typename V = ErasedType>
 class ShardedPartitioner
     : public ShardedDataStructure<
           PartitionerContainer<K, V>,
@@ -109,9 +103,31 @@ class ShardedPartitioner
 };
 
 template <typename K, typename V>
-ShardedPartitioner<K, V> make_sharded_partitioner();
+struct PartitionerConstIterator
+    : public std::span<const typename Partitioner<K, V>::DataEntry>::iterator {
+  constexpr static bool kContiguous = true;
+
+  PartitionerConstIterator();
+  PartitionerConstIterator(
+      std::span<const typename Partitioner<K, V>::DataEntry>::iterator &&iter);
+};
 
 template <typename K, typename V>
+struct PartitionerConstReverseIterator
+    : public std::span<
+          const typename Partitioner<K, V>::DataEntry>::reverse_iterator {
+  constexpr static bool kContiguous = true;
+
+  PartitionerConstReverseIterator();
+  PartitionerConstReverseIterator(
+      std::span<const typename Partitioner<K, V>::DataEntry>::reverse_iterator
+          &&iter);
+};
+
+template <typename K, typename V = ErasedType>
+ShardedPartitioner<K, V> make_sharded_partitioner();
+
+template <typename K, typename V = ErasedType>
 ShardedPartitioner<K, V> make_sharded_partitioner(
     uint64_t num, K estimated_min_key,
     std::function<void(K &, uint64_t)> key_inc_fn);
