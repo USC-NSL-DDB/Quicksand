@@ -2078,7 +2078,7 @@ struct MedianVisitor {
 
     inline void operator()(const index_type& idx, const value_type& val)
     {
-        partitioner_.emplace(val, char());
+        partitioner_.emplace(val);
     }
 
     inline void pre() {}
@@ -2087,10 +2087,10 @@ struct MedianVisitor {
     {
         auto sealed = nu::to_sealed_ds(std::move(partitioner_));
         if (sealed.size() % 2) {
-            result_ = sealed.find_val_by_order(sealed.size() / 2 - 1)->first;
+            result_ = *sealed.find_val_by_order(sealed.size() / 2 - 1);
         } else {
-            result_ = (sealed.find_val_by_order(sealed.size() / 2 - 1)->first +
-                       sealed.find_val_by_order(sealed.size() / 2)->first) /
+            result_ = (*sealed.find_val_by_order(sealed.size() / 2 - 1) +
+                       *sealed.find_val_by_order(sealed.size() / 2)) /
                       2;
         }
 
@@ -2103,11 +2103,11 @@ struct MedianVisitor {
         return (result_);
     }
 
-    MedianVisitor(): partitioner_(nu::make_sharded_partitioner<value_type, char>()) {}
+    MedianVisitor(): partitioner_(nu::make_sharded_partitioner<value_type>()) {}
 
 private:
     result_type result_{};
-    nu::ShardedPartitioner<value_type, char> partitioner_;
+    nu::ShardedPartitioner<value_type> partitioner_;
 };
 
 template<typename T, typename I = unsigned long>

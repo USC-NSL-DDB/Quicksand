@@ -312,7 +312,7 @@ get_col_unique_values(const char *name) const  {
             continue;
         }
 
-        hashset.insert(citer);
+        hashset.emplace(citer);
     }
 
     auto sealed_hashset = nu::to_sealed_ds(std::move(hashset));
