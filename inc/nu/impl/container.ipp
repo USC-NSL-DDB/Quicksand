@@ -17,10 +17,14 @@ inline RetT GeneralContainerBase<Impl, Synchronized>::synchronized(
 
 template <class Impl, class Synchronized>
 inline void GeneralContainerBase<Impl, Synchronized>::emplace_batch(
-    std::vector<std::pair<Key, Val>> reqs) {
+    std::vector<DataEntry> reqs) {
   synchronized<void>([&]() {
     for (auto &req : reqs) {
-      impl_.emplace(std::move(req.first), std::move(req.second));
+      if constexpr (HasVal<Impl>) {
+        impl_.emplace(std::move(req.first), std::move(req.second));
+      } else {
+        impl_.emplace(std::move(req));
+      }
     }
   });
 }

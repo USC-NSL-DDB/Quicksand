@@ -40,7 +40,7 @@ inline void GeneralSet<T, M>::clear() {
 }
 
 template <typename T, typename M>
-inline void GeneralSet<T, M>::emplace(Key k, Val v) {
+inline void GeneralSet<T, M>::emplace(Key k) {
   assert(k == v);
   set_.insert(std::move(k));
 }
@@ -57,9 +57,9 @@ inline void GeneralSet<T, M>::merge(GeneralSet s) {
 
 template <typename T, typename M>
 template <typename... S0s, typename... S1s>
-inline void GeneralSet<T, M>::for_all(void (*fn)(const Key &key, Val &val,
-                                                 S0s...),
+inline void GeneralSet<T, M>::for_all(void (*fn)(const Key &key, S0s...),
                                       S1s &&... states) {
+  // Not implemented.
   BUG();
 }
 
@@ -117,16 +117,6 @@ template <typename T, typename M>
 template <class Archive>
 inline void GeneralSet<T, M>::load(Archive &ar) {
   ar(set_);
-}
-
-template <typename T, typename M, typename LL>
-inline void GeneralShardedSet<T, M, LL>::insert(const T &value) {
-  this->emplace(value, value);
-}
-
-template <typename T, typename M, typename LL>
-inline bool GeneralShardedSet<T, M, LL>::empty() {
-  return this->size() == 0;
 }
 
 template <typename T, typename M, typename LL>

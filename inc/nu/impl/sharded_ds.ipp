@@ -15,7 +15,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<Hint> hint) {
   constexpr auto kMaxShardBytes =
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
-  constexpr auto kMaxShardSize = kMaxShardBytes / sizeof(Pair);
+  constexpr auto kMaxShardSize = kMaxShardBytes / sizeof(DataEntry);
 
   mapping_ = make_proclet<ShardingMapping>(kMaxShardBytes);
 
@@ -116,20 +116,25 @@ ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
 
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
-    Key k, Val v) {
+    Key k, Val v) requires HasVal<Container> {
   emplace({std::move(k), std::move(v)});
 }
 
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
-    Pair p) {
+    DataEntry entry) {
 [[maybe_unused]] retry:
-  auto iter = --key_to_shards_.upper_bound(p.first);
+  typename KeyToShardsMapping::iterator iter;
+  if constexpr (HasVal<Container>) {
+    iter = --key_to_shards_.upper_bound(entry.first);
+  } else {
+    iter = --key_to_shards_.upper_bound(entry);
+  }
 
   if constexpr (LL::value) {
     auto [l_key, r_key] = get_key_range(iter);
     auto shard = iter->second.shard;
-    auto succeed = shard.run(&Shard::try_emplace, l_key, r_key, p);
+    auto succeed = shard.run(&Shard::try_emplace, l_key, r_key, entry);
 
     if (unlikely(!succeed)) {
       sync_mapping(l_key, r_key, shard);
@@ -137,9 +142,9 @@ template <class Container, class LL>
     }
   } else {
     auto &reqs = iter->second.emplace_reqs;
-    reqs.emplace_back(std::move(p));
+    reqs.emplace_back(std::move(entry));
 
-    if (unlikely(reqs.size() >= kBatchingMaxBatchBytes / sizeof(Pair))) {
+    if (unlikely(reqs.size() >= kBatchingMaxBatchBytes / sizeof(DataEntry))) {
       flush_one_batch(iter, /* drain = */ false);
     }
   }
@@ -359,10 +364,9 @@ void ShardedDataStructure<Container, LL>::flush_and_sync_mapping() {
 }
 
 template <class Container, class LL>
-template <typename... S0s, typename... S1s>
-void ShardedDataStructure<Container, LL>::for_all(void (*fn)(const Key &key,
-                                                             Val &val, S0s...),
-                                                  S1s &&... states) {
+template <typename... S1s>
+void ShardedDataStructure<Container, LL>::__for_all(auto *fn,
+                                                    S1s &&... states) {
   flush_and_sync_mapping();
 
   using Fn = decltype(fn);
@@ -377,6 +381,22 @@ void ShardedDataStructure<Container, LL>::for_all(void (*fn)(const Key &key,
         },
         raw_fn, states...));
   }
+}
+
+template <class Container, class LL>
+template <typename... S0s, typename... S1s>
+void ShardedDataStructure<Container, LL>::for_all(
+    void (*fn)(const Key &key, Val &val, S0s...),
+    S1s &&... states) requires HasVal<Container> {
+  __for_all(fn, std::forward<S1s>(states)...);
+}
+
+template <class Container, class LL>
+template <typename... S0s, typename... S1s>
+void ShardedDataStructure<Container, LL>::for_all(
+    void (*fn)(const Key &key, S0s...),
+    S1s &&... states) requires(!HasVal<Container>) {
+  __for_all(fn, std::forward<S1s>(states)...);
 }
 
 template <class Container, class LL>

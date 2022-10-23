@@ -75,6 +75,11 @@ concept ConstReverseIterable = requires(T t) {
   ->std::same_as<typename T::ConstReverseIterator>;
 };
 
+template <class T>
+concept HasVal = requires {
+  requires !std::is_same_v<typename T::Val, ErasedType>;
+};
+
 template <class Impl>
 using GeneralContainer = GeneralContainerBase<Impl, std::false_type>;
 
@@ -85,14 +90,20 @@ template <class Impl, BoolIntegral Synchronized>
 class GeneralContainerBase {
  public:
   using Key = Impl::Key;
-  using Val = Impl::Val;
-  using Pair = std::pair<Key, Val>;
+  using Val = decltype([] {
+    if constexpr (HasVal<Impl>) {
+      return typename Impl::Val();
+    } else {
+      return ErasedType();
+    }
+ }());
+  using DataEntry = std::conditional_t<HasVal<Impl>, std::pair<Key, Val>, Key>;
   using Implementation = Impl;
   using ConstIterator = decltype([] {
     if constexpr (ConstIterable<Impl>) {
       return typename Impl::ConstIterator();
     } else {
-      return new ErasedType();
+      return ErasedType();
     }
   }());
   constexpr static bool kContiguousIterator = [] {
@@ -106,7 +117,7 @@ class GeneralContainerBase {
     if constexpr (ConstReverseIterable<Impl>) {
       return typename Impl::ConstReverseIterator();
     } else {
-      return new ErasedType();
+      return ErasedType();
     }
   }());
   constexpr static bool kContiguousReverseIterator = [] {
@@ -148,7 +159,7 @@ class GeneralContainerBase {
   void clear() {
     return synchronized<void>([&] { return impl_.clear(); });
   };
-  void emplace(Key k, Val v) {
+  void emplace(Key k, Val v) requires HasVal<Impl> {
     synchronized<void>([&] { impl_.emplace(std::move(k), std::move(v)); });
   }
   void emplace_back(Val v) requires EmplaceBackAble<Impl> {
@@ -173,7 +184,14 @@ class GeneralContainerBase {
     synchronized<void>([&] { impl_.merge(std::move(c.impl_)); });
   }
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states) {
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...),
+               S1s &&... states) requires HasVal<Impl> {
+    synchronized<void>(
+        [&] { impl_.for_all(fn, std::forward<S1s>(states)...); });
+  }
+  template <typename... S0s, typename... S1s>
+  void for_all(void (*fn)(const Key &key, S0s...),
+               S1s &&... states) requires(!HasVal<Impl>) {
     synchronized<void>(
         [&] { impl_.for_all(fn, std::forward<S1s>(states)...); });
   }
@@ -202,7 +220,7 @@ class GeneralContainerBase {
   void load(Archive &ar) {
     impl_.load(ar);
   }
-  void emplace_batch(std::vector<std::pair<Key, Val>> reqs);
+  void emplace_batch(std::vector<DataEntry> reqs);
 
  private:
   Impl impl_;

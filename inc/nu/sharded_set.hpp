@@ -25,7 +25,6 @@ template <typename T, BoolIntegral M>
 class GeneralSet {
  public:
   using Key = T;
-  using Val = T;
   using Set = std::conditional_t<M::value, std::multiset<T>, std::set<T>>;
   using ConstIterator = SetConstIterator<Set>;
   using ConstReverseIterator = SetConstReverseIterator<Set>;
@@ -39,10 +38,10 @@ class GeneralSet {
   std::size_t size() const;
   bool empty() const;
   void clear();
-  void emplace(Key k, Val v);
+  void emplace(Key k);
   ConstIterator find(Key k) const;
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  void for_all(void (*fn)(const Key &key, S0s...), S1s &&... states);
   void split(Key *mid_k, GeneralSet *latter_half);
   void merge(GeneralSet s);
   ConstIterator cbegin() const;
@@ -82,9 +81,6 @@ class GeneralShardedSet
   GeneralShardedSet &operator=(const GeneralShardedSet &) = default;
   GeneralShardedSet(GeneralShardedSet &&) noexcept = default;
   GeneralShardedSet &operator=(GeneralShardedSet &&) noexcept = default;
-
-  void insert(const T &value);
-  bool empty();
 
  private:
   using Base =

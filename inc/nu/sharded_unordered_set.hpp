@@ -20,7 +20,6 @@ template <typename T, BoolIntegral M>
 class GeneralUnorderedSet {
  public:
   using Key = T;
-  using Val = T;
   using USet = std::conditional_t<M::value, std::unordered_multiset<T>,
                                   std::unordered_set<T>>;
   using ConstIterator = UnorderedSetConstIterator<USet>;
@@ -35,10 +34,10 @@ class GeneralUnorderedSet {
   void reserve(std::size_t size);
   bool empty() const;
   void clear();
-  void emplace(Key k, Val v);
+  void emplace(Key k);
   ConstIterator find(Key k) const;
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  void for_all(void (*fn)(const Key &key, S0s...), S1s &&... states);
   void split(Key *mid_k, GeneralUnorderedSet *latter_half);
   void merge(GeneralUnorderedSet s);
   ConstIterator cbegin() const;
@@ -76,8 +75,6 @@ class GeneralShardedUnorderedSet
   GeneralShardedUnorderedSet(GeneralShardedUnorderedSet &&) noexcept = default;
   GeneralShardedUnorderedSet &operator=(
       GeneralShardedUnorderedSet &&) noexcept = default;
-  void insert(const T &value);
-  bool empty();
 
  private:
   using Base =

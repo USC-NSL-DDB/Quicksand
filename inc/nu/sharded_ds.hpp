@@ -36,7 +36,7 @@ class ShardedDataStructure {
   using Key = Container::Key;
   using Val = Container::Val;
   using IterVal = Container::IterVal;
-  using Pair = Container::Pair;
+  using DataEntry = Container::DataEntry;
   using ContainerImpl = Container::Implementation;
   using Shard = GeneralShard<Container>;
   using ShardingMapping = GeneralShardingMapping<Shard>;
@@ -47,12 +47,16 @@ class ShardedDataStructure {
     std::function<void(Key &, uint64_t)> key_inc_fn;
   };
 
-  void emplace(Key k, Val v);
-  void emplace(Pair p);
+  void emplace(Key k, Val v) requires HasVal<Container>;
+  void emplace(DataEntry entry);
   void emplace_back(Val v) requires EmplaceBackAble<Container>;
   std::optional<IterVal> find_val(Key k) const requires Findable<Container>;
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...),
+               S1s &&... states) requires HasVal<Container>;
+  template <typename... S0s, typename... S1s>
+  void for_all(void (*fn)(const Key &key, S0s...),
+               S1s &&... states) requires(!HasVal<Container>);
   template <typename... S0s, typename... S1s>
   void for_all_shards(void (*fn)(ContainerImpl &container_impl, S0s...),
                       S1s &&... states);
@@ -87,7 +91,7 @@ class ShardedDataStructure {
     WeakProclet<Shard> shard;
     uint32_t seq;
     RemUniquePtr<RobExecutor<ReqBatch, std::optional<ReqBatch>>> flush_executor;
-    std::vector<std::pair<Key, Val>> emplace_reqs;
+    std::vector<DataEntry> emplace_reqs;
 
     ShardAndReqs() = default;
     ShardAndReqs(WeakProclet<Shard> s);
@@ -125,6 +129,8 @@ class ShardedDataStructure {
   get_all_shards_info();
   void seal();
   void unseal();
+  template <typename... S1s>
+  void __for_all(auto *fn, S1s &&... states);
 };
 
 }  // namespace nu

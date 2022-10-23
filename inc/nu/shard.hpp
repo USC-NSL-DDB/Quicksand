@@ -68,7 +68,7 @@ class GeneralShard {
   using Key = Container::Key;
   using Val = Container::Val;
   using IterVal = Container::IterVal;
-  using Pair = Container::Pair;
+  using DataEntry = Container::DataEntry;
   using ShardingMapping = GeneralShardingMapping<GeneralShard>;
   using GeneralContainer = Container;
   using ConstIterator = Container::ConstIterator;
@@ -79,7 +79,7 @@ class GeneralShard {
     std::optional<Key> r_key;
     WeakProclet<GeneralShard> shard;
     std::vector<Val> emplace_back_reqs;
-    std::vector<std::pair<Key, Val>> emplace_reqs;
+    std::vector<DataEntry> emplace_reqs;
 
     template <class Archive>
     void serialize(Archive &ar);
@@ -93,13 +93,15 @@ class GeneralShard {
   void set_range_and_data(
       std::optional<Key> l_key, std::optional<Key> r_key,
       ContainerAndMetadata<Container> container_and_metadata);
-  bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key, Pair p);
+  bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key,
+                   DataEntry entry);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
   std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);
   std::pair<bool, std::optional<IterVal>> find_val(
       Key k) requires Findable<Container>;
-  std::tuple<bool, Val, ConstIterator> find(Key k) requires Findable<Container>;
+  std::tuple<bool, IterVal, ConstIterator> find(
+      Key k) requires Findable<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_front_block_with_iters(
       uint32_t block_size) requires ConstIterable<Container>;
   std::pair<std::vector<IterVal>, ConstIterator> get_front_block(

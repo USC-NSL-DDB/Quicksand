@@ -40,8 +40,7 @@ inline void GeneralUnorderedSet<T, M>::clear() {
 }
 
 template <typename T, typename M>
-inline void GeneralUnorderedSet<T, M>::emplace(Key k, Val v) {
-  assert(k == v);
+inline void GeneralUnorderedSet<T, M>::emplace(Key k) {
   set_.insert(std::move(k));
 }
 
@@ -59,9 +58,9 @@ inline void GeneralUnorderedSet<T, M>::merge(GeneralUnorderedSet s) {
 template <typename T, typename M>
 template <typename... S0s, typename... S1s>
 inline void GeneralUnorderedSet<T, M>::for_all(void (*fn)(const Key &key,
-                                                          Val &val, S0s...),
+                                                          S0s...),
                                                S1s &&... states) {
-  /* Not implemented */
+  // Not implemented.
   BUG();
 }
 
@@ -117,16 +116,6 @@ template <typename T, typename M>
 template <class Archive>
 inline void GeneralUnorderedSet<T, M>::load(Archive &ar) {
   ar(set_);
-}
-
-template <typename T, typename M, typename LL>
-inline void GeneralShardedUnorderedSet<T, M, LL>::insert(const T &value) {
-  this->emplace(value, value);
-}
-
-template <typename T, typename M, typename LL>
-inline bool GeneralShardedUnorderedSet<T, M, LL>::empty() {
-  return this->size() == 0;
 }
 
 template <typename T, typename M, typename LL>

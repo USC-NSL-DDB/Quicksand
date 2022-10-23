@@ -17,13 +17,13 @@ bool test_insertion() {
   auto s = make_sharded_unordered_set<std::size_t, std::false_type>();
 
   for (std::size_t i = 0; i < kNumElements; ++i) {
-    s.insert(i);
-    expected.insert(i);
+    s.emplace(i);
+    expected.emplace(i);
   }
 
   auto sealed_set = to_sealed_ds(std::move(s));
   for (auto it = sealed_set.cbegin(); it != sealed_set.cend(); ++it) {
-    iterated.insert(*it);
+    iterated.emplace(*it);
   }
 
   return iterated == expected;
@@ -35,12 +35,12 @@ bool test_size() {
   if (s.size() != 0) return false;
 
   for (std::size_t i = 0; i < kNumElements; i++) {
-    s.insert(i);
+    s.emplace(i);
   }
   if (s.size() != kNumElements) return false;
 
   for (std::size_t i = 0; i < kNumElements; i++) {
-    s.insert(i);
+    s.emplace(i);
   }
   if (s.size() != kNumElements) return false;
 
@@ -51,7 +51,7 @@ bool test_clear() {
   auto s = make_sharded_unordered_set<std::size_t, std::false_type>();
 
   for (std::size_t i = 0; i < kNumElements; i++) {
-    s.insert(i);
+    s.emplace(i);
   }
   s.clear();
 

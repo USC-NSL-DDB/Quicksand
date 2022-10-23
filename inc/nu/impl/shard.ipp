@@ -237,7 +237,7 @@ void GeneralShard<Container>::split_with_reader_lock() {
 template <class Container>
 inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
                                                  std::optional<Key> r_key,
-                                                 Pair p) {
+                                                 DataEntry entry) {
   rw_lock_.reader_lock();
 
   if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
@@ -245,7 +245,11 @@ inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
     return false;
   }
 
-  container_.emplace(std::move(p.first), std::move(p.second));
+  if constexpr (HasVal<Container>) {
+    container_.emplace(std::move(entry.first), std::move(entry.second));
+  } else {
+    container_.emplace(std::move(entry));
+  }
 
   if (unlikely(should_split())) {
     split_with_reader_lock();
@@ -327,7 +331,7 @@ GeneralShard<Container>::find_val(Key k) requires Findable<Container> {
 }
 
 template <class Container>
-inline std::tuple<bool, typename Container::Val,
+inline std::tuple<bool, typename Container::IterVal,
                   typename Container::ConstIterator>
 GeneralShard<Container>::find(Key k) requires Findable<Container> {
   bool bad_range = (k < l_key_) || (r_key_ && k > r_key_);
