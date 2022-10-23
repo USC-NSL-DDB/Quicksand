@@ -27,7 +27,7 @@ inline GeneralSealedDSConstIterator<T, Fwd>::Block::Block(Prefetched &&data)
 
 template <typename T, bool Fwd>
 inline GeneralSealedDSConstIterator<T, Fwd>::Block::Block(
-    Val v, ContainerIter container_iter) {
+    IterVal v, ContainerIter container_iter) {
   if constexpr (kContiguous) {
     prefetched.first.emplace_back(v);
     prefetched.second = container_iter;
@@ -231,7 +231,7 @@ GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
 
 template <typename T, bool Fwd>
 GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
-    std::shared_ptr<ShardsVec> &shards, ShardsVecIter shards_iter, Val val,
+    std::shared_ptr<ShardsVec> &shards, ShardsVecIter shards_iter, IterVal val,
     ContainerIter iter)
     : shards_(shards),
       shards_iter_(shards_iter),
@@ -534,7 +534,8 @@ go_prev_shard:
 }
 
 template <typename T, bool Fwd>
-[[gnu::always_inline]] inline const GeneralSealedDSConstIterator<T, Fwd>::Val &
+[[gnu::always_inline]] inline const GeneralSealedDSConstIterator<T,
+                                                                 Fwd>::IterVal &
 GeneralSealedDSConstIterator<T, Fwd>::operator*() const {
   if constexpr (kContiguous) {
     return *block_iter_;
@@ -544,7 +545,8 @@ GeneralSealedDSConstIterator<T, Fwd>::operator*() const {
 }
 
 template <typename T, bool Fwd>
-[[gnu::always_inline]] inline const GeneralSealedDSConstIterator<T, Fwd>::Val *
+[[gnu::always_inline]] inline const GeneralSealedDSConstIterator<T,
+                                                                 Fwd>::IterVal *
 GeneralSealedDSConstIterator<T, Fwd>::operator->() const {
   if constexpr (kContiguous) {
     return std::to_address(block_iter_);
@@ -684,7 +686,7 @@ inline SealedDS<T>::ConstIterator SealedDS<T>::find_iter(T::Key k) const {
 }
 
 template <typename T>
-std::optional<typename T::IterVal> SealedDS<T>::find_val_by_order(
+std::optional<typename T::IterVal> SealedDS<T>::find_data_by_order(
     std::size_t order) requires FindableByOrder<typename T::ContainerImpl> {
   auto iter = std::ranges::upper_bound(prefix_sum_sizes_, order);
 
@@ -696,7 +698,7 @@ std::optional<typename T::IterVal> SealedDS<T>::find_val_by_order(
   auto shard_idx = iter - prefix_sum_sizes_.begin();
   auto &shard = (*shards_)[shard_idx];
   auto local_order = order - *iter;
-  return shard.run(&Shard::find_val_by_order, local_order);
+  return shard.run(&Shard::find_data_by_order, local_order);
 }
 
 template <typename T>

@@ -21,7 +21,7 @@ namespace nu {
 template <ShardedDataStructureBased T, bool Fwd>
 class GeneralSealedDSConstIterator {
 private:
-  using Val = T::Shard::GeneralContainer::IterVal;
+  using IterVal = T::Shard::GeneralContainer::IterVal;
   using Container = T::Shard::GeneralContainer;
   using ContainerIter =
       std::conditional_t<Fwd, typename Container::ConstIterator,
@@ -41,8 +41,8 @@ public:
   operator--() requires PreDecrementable<ContainerIter>;
   GeneralSealedDSConstIterator operator++(int) = delete;
   GeneralSealedDSConstIterator operator--(int) = delete;
-  const Val &operator*() const;
-  const Val *operator->() const;
+  const IterVal &operator*() const;
+  const IterVal *operator->() const;
 
   template <class Archive>
   void save(Archive &ar) const;
@@ -64,8 +64,8 @@ public:
   class Block {
    public:
     using PrefetchedVec =
-        std::conditional_t<kContiguous, std::vector<Val>,
-                           std::vector<std::pair<Val, ContainerIter>>>;
+        std::conditional_t<kContiguous, std::vector<IterVal>,
+                           std::vector<std::pair<IterVal, ContainerIter>>>;
     using Prefetched =
         std::conditional_t<kContiguous, std::pair<PrefetchedVec, ContainerIter>,
                            PrefetchedVec>;
@@ -79,7 +79,7 @@ public:
 
     Block();
     Block(Prefetched &&prefetched);
-    Block(Val v, ContainerIter container_iter);
+    Block(IterVal v, ContainerIter container_iter);
     Block(const Block &);
     Block &operator=(const Block &);
     Block(Block &&);
@@ -110,9 +110,9 @@ public:
     void serialize(Archive &ar);
   };
 
-  constexpr static uint32_t kMaxNumInflightPrefetches = 4;
+  constexpr static uint32_t kMaxNumInflightPrefetches = 8;
   constexpr static uint32_t kPrefetchEntrySize =
-      kContiguous ? sizeof(Val) : sizeof(std::pair<Val, ContainerIter>);
+      kContiguous ? sizeof(IterVal) : sizeof(std::pair<IterVal, ContainerIter>);
   constexpr static uint32_t kPrefetchSizePerThread =
       (64 << 10) / kPrefetchEntrySize;
 
@@ -134,7 +134,7 @@ public:
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
                                bool is_begin);
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
-                               ShardsVecIter shards_iter, Val val,
+                               ShardsVecIter shards_iter, IterVal val,
                                ContainerIter container_iter);
   ShardsVecIter shards_vec_begin() const;
   ShardsVecIter shards_vec_end() const;
@@ -178,7 +178,7 @@ class SealedDS {
   bool empty() const;
   std::size_t size() const;
   ConstIterator find_iter(T::Key k) const;
-  std::optional<typename T::IterVal> find_val_by_order(
+  std::optional<typename T::IterVal> find_data_by_order(
       std::size_t order) requires FindableByOrder<typename T::ContainerImpl>;
 
  private:

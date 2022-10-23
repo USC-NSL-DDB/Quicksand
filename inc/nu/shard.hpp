@@ -98,7 +98,7 @@ class GeneralShard {
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
   std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);
-  std::pair<bool, std::optional<IterVal>> find_val(
+  std::pair<bool, std::optional<IterVal>> find_data(
       Key k) requires Findable<Container>;
   std::tuple<bool, IterVal, ConstIterator> find(
       Key k) requires Findable<Container>;
@@ -154,7 +154,7 @@ class GeneralShard {
   ConstReverseIterator crend() requires ConstReverseIterable<Container>;
   bool empty();
   std::size_t size();
-  std::optional<IterVal> find_val_by_order(
+  std::optional<IterVal> find_data_by_order(
       std::size_t order) requires FindableByOrder<Container>;
   Container get_container_copy();
   ContainerHandle<Container> get_container_handle();

@@ -2087,10 +2087,10 @@ struct MedianVisitor {
     {
         auto sealed = nu::to_sealed_ds(std::move(partitioner_));
         if (sealed.size() % 2) {
-            result_ = *sealed.find_val_by_order(sealed.size() / 2 - 1);
+            result_ = *sealed.find_data_by_order(sealed.size() / 2 - 1);
         } else {
-            result_ = (*sealed.find_val_by_order(sealed.size() / 2 - 1) +
-                       *sealed.find_val_by_order(sealed.size() / 2)) /
+            result_ = (*sealed.find_data_by_order(sealed.size() / 2 - 1) +
+                       *sealed.find_data_by_order(sealed.size() / 2)) /
                       2;
         }
 

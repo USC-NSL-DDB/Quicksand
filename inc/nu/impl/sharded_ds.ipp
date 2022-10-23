@@ -181,14 +181,14 @@ ShardedDataStructure<Container, LL>::emplace_back(
 
 template <class Container, class LL>
 std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
-ShardedDataStructure<Container, LL>::__find_val(
+ShardedDataStructure<Container, LL>::__find_data(
     Key k) requires Findable<Container> {
   flush();
 
 retry:
   auto iter = --key_to_shards_.upper_bound(k);
   auto shard = iter->second.shard;
-  auto [succeed, val] = shard.run(&Shard::find_val, k);
+  auto [succeed, val] = shard.run(&Shard::find_data, k);
 
   if (unlikely(!succeed)) {
     auto [l_key, r_key] = get_key_range(iter);
@@ -201,9 +201,9 @@ retry:
 
 template <class Container, class LL>
 inline std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
-ShardedDataStructure<Container, LL>::find_val(Key k) const
+ShardedDataStructure<Container, LL>::find_data(Key k) const
     requires Findable<Container> {
-  return const_cast<ShardedDataStructure *>(this)->__find_val(k);
+  return const_cast<ShardedDataStructure *>(this)->__find_data(k);
 }
 
 template <class Container, class LL>

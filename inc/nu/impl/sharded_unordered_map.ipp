@@ -115,7 +115,7 @@ inline void GeneralUnorderedMap<K, V, M>::load(Archive &ar) {
 
 template <typename K, typename V, typename M, typename LL>
 inline V GeneralShardedUnorderedMap<K, V, M, LL>::operator[](const K &key) {
-  auto found = this->find_val(key);
+  auto found = this->find_data(key);
   if (found.has_value()) {
     return found->second;
   } else {

@@ -318,7 +318,7 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
 
 template <class Container>
 inline std::pair<bool, std::optional<typename Container::IterVal>>
-GeneralShard<Container>::find_val(Key k) requires Findable<Container> {
+GeneralShard<Container>::find_data(Key k) requires Findable<Container> {
   bool bad_range = (k < l_key_) || (r_key_ && k > r_key_);
   if (unlikely(bad_range)) {
     return std::make_pair(false, std::nullopt);
@@ -345,7 +345,7 @@ GeneralShard<Container>::find(Key k) requires Findable<Container> {
 
 template <class Container>
 inline std::optional<typename Container::IterVal>
-GeneralShard<Container>::find_val_by_order(
+GeneralShard<Container>::find_data_by_order(
     std::size_t order) requires FindableByOrder<Container> {
   // Currently, the invocation happens only after sealing the DS. Thus we can
   // bypass all the redundant checks.

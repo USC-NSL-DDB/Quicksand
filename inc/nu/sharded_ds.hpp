@@ -50,7 +50,7 @@ class ShardedDataStructure {
   void emplace(Key k, Val v) requires HasVal<Container>;
   void emplace(DataEntry entry);
   void emplace_back(Val v) requires EmplaceBackAble<Container>;
-  std::optional<IterVal> find_val(Key k) const requires Findable<Container>;
+  std::optional<IterVal> find_data(Key k) const requires Findable<Container>;
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...),
                S1s &&... states) requires HasVal<Container>;
@@ -113,7 +113,7 @@ class ShardedDataStructure {
   friend class SealedDS;
 
   std::size_t __size();
-  std::optional<IterVal> __find_val(Key k) requires Findable<Container>;
+  std::optional<IterVal> __find_data(Key k) requires Findable<Container>;
   void reset();
   void set_shard_and_batch_size(uint32_t *max_shard_bytes,
                                 uint32_t *max_shard_size,
