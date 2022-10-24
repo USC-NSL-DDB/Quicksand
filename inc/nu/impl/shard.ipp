@@ -284,6 +284,124 @@ inline bool GeneralShard<Container>::try_emplace_back(
 }
 
 template <class Container>
+std::pair<bool, typename Container::Val> GeneralShard<Container>::try_front(
+    std::optional<Key> l_key,
+    std::optional<Key> r_key) requires FrontAble<Container> {
+  rw_lock_.reader_lock();
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return std::make_pair(false, Val());
+  }
+
+  Val v = container_.front();
+
+  rw_lock_.reader_unlock();
+  return std::make_pair(true, v);
+}
+
+template <class Container>
+bool GeneralShard<Container>::try_push_front(
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    Val v) requires PushFrontAble<Container> {
+  rw_lock_.reader_lock();
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return false;
+  }
+
+  container_.push_front(std::move(v));
+  if (unlikely(should_split())) {
+    rw_lock_.reader_unlock();
+    rw_lock_.writer_lock();
+    if (should_split()) {
+      split();
+    }
+    rw_lock_.writer_unlock();
+    return true;
+  }
+
+  rw_lock_.reader_unlock();
+  return true;
+}
+
+template <class Container>
+bool GeneralShard<Container>::try_pop_front(
+    std::optional<Key> l_key,
+    std::optional<Key> r_key) requires PopFrontAble<Container> {
+  rw_lock_.reader_lock();
+
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return false;
+  }
+  rw_lock_.reader_unlock();
+
+  rw_lock_.writer_lock();
+  container_.pop_front();
+  rw_lock_.writer_unlock();
+
+  return true;
+}
+
+template <class Container>
+std::pair<bool, typename Container::Val> GeneralShard<Container>::try_back(
+    std::optional<Key> l_key,
+    std::optional<Key> r_key) requires BackAble<Container> {
+  rw_lock_.reader_lock();
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return std::make_pair(false, Val());
+  }
+
+  Val v = container_.back();
+
+  rw_lock_.reader_unlock();
+  return std::make_pair(true, v);
+}
+
+template <class Container>
+bool GeneralShard<Container>::try_push_back(
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    Val v) requires PushBackAble<Container> {
+  rw_lock_.reader_lock();
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return false;
+  }
+
+  container_.push_back(std::move(v));
+  if (unlikely(should_split())) {
+    rw_lock_.reader_unlock();
+    rw_lock_.writer_lock();
+    if (should_split()) {
+      split();
+    }
+    rw_lock_.writer_unlock();
+    return true;
+  }
+
+  rw_lock_.reader_unlock();
+  return true;
+}
+
+template <class Container>
+bool GeneralShard<Container>::try_pop_back(
+    std::optional<Key> l_key,
+    std::optional<Key> r_key) requires PopBackAble<Container> {
+  rw_lock_.reader_lock();
+
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return false;
+  }
+  rw_lock_.reader_unlock();
+
+  container_.pop_back();
+
+  return true;
+}
+
+template <class Container>
 std::optional<typename GeneralShard<Container>::ReqBatch>
 GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
   rw_lock_.reader_lock();
@@ -364,8 +482,7 @@ GeneralShard<Container>::get_next_block_with_iters(
     uint32_t block_size) requires ConstIterable<Container> {
   std::vector<std::pair<IterVal, ConstIterator>> block;
   block.resize(block_size);
-  auto size =
-      __get_next_block_with_iters(block.begin(), prev_iter, block_size);
+  auto size = __get_next_block_with_iters(block.begin(), prev_iter, block_size);
   block.resize(size);
   return block;
 }
@@ -576,8 +693,8 @@ GeneralShard<Container>::get_front_block_with_iters(
   std::vector<std::pair<IterVal, ConstIterator>> block;
   block.resize(block_size + 1);
   block[0] = std::pair(*container_.cbegin(), container_.cbegin());
-  auto size = __get_next_block_with_iters(++block.begin(),
-                                             container_.cbegin(), block_size);
+  auto size = __get_next_block_with_iters(++block.begin(), container_.cbegin(),
+                                          block_size);
   block.resize(size + 1);
   return block;
 }
@@ -605,7 +722,7 @@ GeneralShard<Container>::get_rfront_block_with_iters(
   block.resize(block_size + 1);
   block[0] = std::pair(*container_.crbegin(), container_.crbegin());
   auto size = __get_next_rblock_with_iters(++block.begin(),
-                                              container_.crbegin(), block_size);
+                                           container_.crbegin(), block_size);
   block.resize(size + 1);
   return block;
 }

@@ -126,8 +126,7 @@ template <class Container, class LL>
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
     DataEntry entry) {
-[[maybe_unused]] retry:
-  typename KeyToShardsMapping::iterator iter;
+  [[maybe_unused]] retry : typename KeyToShardsMapping::iterator iter;
   if constexpr (HasVal<Container>) {
     iter = --key_to_shards_.upper_bound(entry.first);
   } else {
@@ -157,8 +156,7 @@ template <class Container, class LL>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
-[[maybe_unused]] retry:
-  if constexpr (LL::value) {
+  [[maybe_unused]] retry : if constexpr (LL::value) {
     // rbegin() is O(1) which is much faster than the O(logn) of --end().
     auto iter = key_to_shards_.rbegin();
     auto l_key = iter->first;
@@ -180,6 +178,92 @@ ShardedDataStructure<Container, LL>::emplace_back(
       flush_one_batch(iter, /* drain = */ false);
     }
   }
+}
+
+// TODO: all front/back operations only implemented for LL so far
+template <class Container, class LL>
+template <bool FrontBack, typename RetT, typename Func, class... Args>
+RetT ShardedDataStructure<Container, LL>::front_back_impl(Func func,
+                                                          Args... args) {
+retry:
+  std::optional<Key> l_key;
+  WeakProclet<Shard> shard;
+  if constexpr (FrontBack) {
+    auto iter = key_to_shards_.begin();
+    l_key = iter->first;
+    shard = iter->second.shard;
+  } else {
+    auto iter = key_to_shards_.rbegin();
+    l_key = iter->first;
+    shard = iter->second.shard;
+  }
+
+  auto r_key = std::optional<Key>();
+  auto val = shard.run(func, l_key, r_key, args...);
+
+  bool succeed;
+  if constexpr (!std::is_same_v<RetT, void>) {
+    succeed = val.first;
+  } else {
+    succeed = val;
+  }
+
+  if (unlikely(!succeed)) {
+    sync_mapping(l_key, r_key, shard);
+    goto retry;
+  }
+
+  if constexpr (!std::is_same_v<RetT, void>) {
+    return val.second;
+  }
+}
+
+template <class Container, class LL>
+Container::Val ShardedDataStructure<Container, LL>::front() const
+    requires FrontAble<Container> {
+  return const_cast<ShardedDataStructure *>(this)->__front();
+}
+
+template <class Container, class LL>
+Container::Val
+ShardedDataStructure<Container, LL>::__front() requires FrontAble<Container> {
+  return front_back_impl<true, Val>(&Shard::try_front);
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container, LL>::push_front(
+    Val v) requires PushFrontAble<Container> {
+  front_back_impl<true, void>(&Shard::try_push_front, v);
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container,
+                          LL>::pop_front() requires PopFrontAble<Container> {
+  front_back_impl<true, void>(&Shard::try_pop_front);
+}
+
+template <class Container, class LL>
+Container::Val ShardedDataStructure<Container, LL>::back() const
+    requires BackAble<Container> {
+  return const_cast<ShardedDataStructure *>(this)->__back();
+}
+
+template <class Container, class LL>
+Container::Val
+ShardedDataStructure<Container, LL>::__back() requires BackAble<Container> {
+  return front_back_impl<false, Val>(&Shard::try_back);
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container, LL>::push_back(
+    Val v) requires PushBackAble<Container> {
+  front_back_impl<false, void>(&Shard::try_push_back, v);
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container,
+                          LL>::pop_back() requires PopBackAble<Container> {
+  front_back_impl<false, void>(&Shard::try_pop_back);
 }
 
 template <class Container, class LL>
@@ -416,7 +500,7 @@ void ShardedDataStructure<Container, LL>::for_all_shards(
         +[](Shard &shard, uintptr_t raw_fn, S1s... states) {
           auto *fn = reinterpret_cast<Fn>(raw_fn);
           auto container_ptr = shard.get_container_handle();
-	  container_ptr->pass_through(fn, states...);
+          container_ptr->pass_through(fn, states...);
         },
         raw_fn, states...));
   }
@@ -477,7 +561,8 @@ inline bool ShardedDataStructure<Container, LL>::empty() const {
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::clear() {
+void ShardedDataStructure<Container,
+                          LL>::clear() requires ClearAble<Container> {
   flush_and_sync_mapping();
 
   std::vector<Future<void>> futures;

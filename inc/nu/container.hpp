@@ -28,6 +28,48 @@ concept EmplaceBackAble = requires(T t) {
 };
 
 template <class T>
+concept FrontAble = requires(T t) {
+  { t.front() }
+  ->std::same_as<typename T::Val>;
+};
+
+template <class T>
+concept PopFrontAble = requires(T t) {
+  { t.pop_front() }
+  ->std::same_as<void>;
+};
+
+template <class T>
+concept PushFrontAble = requires(T t) {
+  { t.push_front(std::declval<typename T::Val>()) }
+  ->std::same_as<void>;
+};
+
+template <class T>
+concept BackAble = requires(T t) {
+  { t.back() }
+  ->std::same_as<typename T::Val>;
+};
+
+template <class T>
+concept PopBackAble = requires(T t) {
+  { t.pop_back() }
+  ->std::same_as<void>;
+};
+
+template <class T>
+concept PushBackAble = requires(T t) {
+  { t.push_back(std::declval<typename T::Val>()) }
+  ->std::same_as<void>;
+};
+
+template <class T>
+concept ClearAble = requires(T t) {
+  { t.clear() }
+  ->std::same_as<void>;
+};
+
+template <class T>
 concept Findable = requires(T t) {
   { t.find(std::declval<typename T::Key>()) }
   ->std::same_as<typename T::ConstIterator>;
@@ -96,14 +138,14 @@ class GeneralContainerBase {
     } else {
       return ErasedType();
     }
- }());
+  }());
   using DataEntry = std::conditional_t<HasVal<Impl>, std::pair<Key, Val>, Key>;
   using Implementation = Impl;
   using ConstIterator = decltype([] {
     if constexpr (ConstIterable<Impl>) {
       return typename Impl::ConstIterator();
     } else {
-      return ErasedType();
+      return new ErasedType();
     }
   }());
   constexpr static bool kContiguousIterator = [] {
@@ -117,7 +159,7 @@ class GeneralContainerBase {
     if constexpr (ConstReverseIterable<Impl>) {
       return typename Impl::ConstReverseIterator();
     } else {
-      return ErasedType();
+      return new ErasedType();
     }
   }());
   constexpr static bool kContiguousReverseIterator = [] {
@@ -156,7 +198,7 @@ class GeneralContainerBase {
   bool empty() const {
     return synchronized<bool>([&] { return impl_.empty(); });
   };
-  void clear() {
+  void clear() requires ClearAble<Impl> {
     return synchronized<void>([&] { return impl_.clear(); });
   };
   void emplace(Key k, Val v) requires HasVal<Impl> {
@@ -171,6 +213,24 @@ class GeneralContainerBase {
   ConstIterator find(Key k) const requires Findable<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
+  }
+  Val front() const requires FrontAble<Impl> {
+    return synchronized<Val>([&] { return impl_.front(); });
+  }
+  void push_front(Val v) requires PushFrontAble<Impl> {
+    return synchronized<void>([&] { impl_.push_front(v); });
+  }
+  void pop_front() requires PopFrontAble<Impl> {
+    return synchronized<void>([&] { impl_.pop_front(); });
+  }
+  Val back() const requires BackAble<Impl> {
+    return synchronized<Val>([&] { return impl_.back(); });
+  }
+  void push_back(Val v) requires PushBackAble<Impl> {
+    return synchronized<void>([&] { impl_.push_back(v); });
+  }
+  void pop_back() requires PopBackAble<Impl> {
+    return synchronized<void>([&] { impl_.pop_back(); });
   }
   ConstIterator find_by_order(
       std::size_t order) requires FindableByOrder<Impl> {
