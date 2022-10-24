@@ -375,11 +375,14 @@ std::vector<typename Container::IterVal>
 GeneralShard<Container>::get_next_block(
     ConstIterator prev_iter,
     uint32_t block_size) requires ConstIterable<Container> {
-  std::vector<IterVal> block;
-  block.resize(block_size);
-  auto size = __get_next_block(block.begin(), prev_iter, block_size);
-  block.resize(size);
-  return block;
+  ConstIterator end_iter;
+  if (likely(container_.cend() - prev_iter > block_size + 1)) {
+    end_iter = prev_iter + block_size + 1;
+  } else {
+    end_iter = container_.cend();
+  }
+  return std::vector<IterVal>(std::to_address(prev_iter + 1),
+                              std::to_address(end_iter));
 }
 
 template <class Container>
@@ -395,23 +398,6 @@ uint32_t GeneralShard<Container>::__get_next_block_with_iters(
       break;
     }
     *block_iter = std::pair(*iter, iter);
-  }
-
-  return i;
-}
-
-template <class Container>
-uint32_t GeneralShard<Container>::__get_next_block(
-    std::vector<IterVal>::iterator block_iter, ConstIterator prev_iter,
-    uint32_t block_size) requires ConstIterable<Container> {
-  auto iter = prev_iter;
-
-  uint32_t i;
-  for (i = 0; i < block_size; ++i, ++block_iter) {
-    if (unlikely(++iter == container_.cend())) {
-      break;
-    }
-    *block_iter = *iter;
   }
 
   return i;
@@ -445,21 +431,14 @@ std::vector<typename Container::IterVal>
 GeneralShard<Container>::get_prev_block(
     ConstIterator succ_iter,
     uint32_t block_size) requires ConstIterable<Container> {
-  std::vector<IterVal> block;
-  block.resize(block_size);
-  auto iter = succ_iter;
-
-  uint32_t i;
-  for (i = 0; i < block_size; i++) {
-    if (unlikely(iter-- == container_.cbegin())) {
-      break;
-    }
-    block[i] = *iter;
+  ConstIterator begin_iter;
+  if (likely(succ_iter - container_.cbegin() > block_size)) {
+    begin_iter = succ_iter - block_size;
+  } else {
+    begin_iter = container_.cbegin();
   }
-  block.resize(i);
-
-  std::reverse(block.begin(), block.end());
-  return block;
+  return std::vector<IterVal>(std::to_address(begin_iter),
+                              std::to_address(succ_iter));
 }
 
 template <class Container>
@@ -481,11 +460,15 @@ std::vector<typename Container::IterVal>
 GeneralShard<Container>::get_next_rblock(
     ConstReverseIterator prev_iter,
     uint32_t block_size) requires ConstReverseIterable<Container> {
-  std::vector<IterVal> block;
-  block.resize(block_size);
-  auto size = __get_next_rblock(block.begin(), prev_iter, block_size);
-  block.resize(size);
-  return block;
+  ConstReverseIterator end_iter;
+  if (likely(container_.crend() - prev_iter > block_size + 1)) {
+    end_iter = prev_iter + block_size + 1;
+  } else {
+    end_iter = container_.crend();
+  }
+  auto span =
+      std::span(std::to_address(end_iter - 1), std::to_address(prev_iter));
+  return std::vector<IterVal>(span.rbegin(), span.rend());
 }
 
 template <class Container>
@@ -501,23 +484,6 @@ uint32_t GeneralShard<Container>::__get_next_rblock_with_iters(
       break;
     }
     *block_iter = std::pair(*iter, iter);
-  }
-
-  return i;
-}
-
-template <class Container>
-uint32_t GeneralShard<Container>::__get_next_rblock(
-    std::vector<IterVal>::iterator block_iter, ConstReverseIterator prev_iter,
-    uint32_t block_size) requires ConstReverseIterable<Container> {
-  auto iter = prev_iter;
-
-  uint32_t i;
-  for (i = 0; i < block_size; ++i, ++block_iter) {
-    if (unlikely(++iter == container_.crend())) {
-      break;
-    }
-    *block_iter = *iter;
   }
 
   return i;
@@ -551,21 +517,15 @@ std::vector<typename Container::IterVal>
 GeneralShard<Container>::get_prev_rblock(
     ConstReverseIterator succ_iter,
     uint32_t block_size) requires ConstReverseIterable<Container> {
-  std::vector<IterVal> block;
-  block.resize(block_size);
-  auto iter = succ_iter;
-
-  uint32_t i;
-  for (i = 0; i < block_size; i++) {
-    if (unlikely(iter-- == container_.crbegin())) {
-      break;
-    }
-    block[i] = *iter;
+  ConstReverseIterator begin_iter;
+  if (likely(succ_iter - container_.crbegin() > block_size)) {
+    begin_iter = succ_iter - block_size;
+  } else {
+    begin_iter = container_.crbegin();
   }
-  block.resize(i);
-
-  std::reverse(block.begin(), block.end());
-  return block;
+  auto span = std::span(std::to_address(succ_iter - 1),
+                        std::to_address(begin_iter - 1));
+  return std::vector<IterVal>(span.rbegin(), span.rend());
 }
 
 template <class Container>
@@ -587,13 +547,16 @@ std::pair<std::vector<typename Container::IterVal>,
           typename Container::ConstIterator>
 GeneralShard<Container>::get_front_block(
     uint32_t block_size) requires ConstIterable<Container> {
-  std::vector<IterVal> block;
-  block.resize(block_size + 1);
-  block[0] = *container_.cbegin();
-  auto size =
-      __get_next_block(++block.begin(), container_.cbegin(), block_size);
-  block.resize(size + 1);
-  return std::make_pair(std::move(block), container_.cbegin());
+  ConstIterator end_iter;
+  if (likely(container_.cend() - container_.cbegin() > block_size)) {
+    end_iter = container_.cbegin() + block_size;
+  } else {
+    end_iter = container_.cend();
+  }
+  return std::make_pair(
+      std::vector<IterVal>(std::to_address(container_.cbegin()),
+                           std::to_address(end_iter)),
+      container_.cbegin());
 }
 
 template <class Container>
@@ -615,13 +578,16 @@ std::pair<std::vector<typename Container::IterVal>,
           typename Container::ConstReverseIterator>
 GeneralShard<Container>::get_rfront_block(
     uint32_t block_size) requires ConstReverseIterable<Container> {
-  std::vector<IterVal> block;
-  block.resize(block_size + 1);
-  block[0] = *container_.crbegin();
-  auto size =
-      __get_next_rblock(++block.begin(), container_.crbegin(), block_size);
-  block.resize(size + 1);
-  return std::make_pair(std::move(block), container_.crbegin());
+  ConstReverseIterator end_iter;
+  if (likely(container_.crend() - container_.crbegin() > block_size)) {
+    end_iter = container_.crbegin() + block_size;
+  } else {
+    end_iter = container_.crend();
+  }
+  auto span = std::span(std::to_address(end_iter - 1),
+                        std::to_address(container_.crbegin() - 1));
+  return std::make_pair(std::vector<IterVal>(span.rbegin(), span.rend()),
+                        container_.crbegin());
 }
 
 template <class Container>
