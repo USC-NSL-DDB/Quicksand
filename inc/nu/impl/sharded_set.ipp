@@ -41,7 +41,6 @@ inline void GeneralSet<T, M>::clear() {
 
 template <typename T, typename M>
 inline void GeneralSet<T, M>::emplace(Key k) {
-  assert(k == v);
   set_.insert(std::move(k));
 }
 
