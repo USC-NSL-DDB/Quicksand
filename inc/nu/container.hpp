@@ -103,7 +103,7 @@ class GeneralContainerBase {
     if constexpr (ConstIterable<Impl>) {
       return typename Impl::ConstIterator();
     } else {
-      return ErasedType();
+      return new ErasedType();
     }
   }());
   constexpr static bool kContiguousIterator = [] {
@@ -117,7 +117,7 @@ class GeneralContainerBase {
     if constexpr (ConstReverseIterable<Impl>) {
       return typename Impl::ConstReverseIterator();
     } else {
-      return ErasedType();
+      return new ErasedType();
     }
   }());
   constexpr static bool kContiguousReverseIterator = [] {
