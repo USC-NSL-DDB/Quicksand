@@ -46,6 +46,11 @@ struct LPInfo {
   LPInfo() : rr_iter(node_statuses.end()) {}
 };
 
+struct ProcletHeapSegment {
+  VAddrRange range;
+  NodeIP prev_host;
+};
+
 class Controller {
  public:
   constexpr static bool kEnableBinaryVerification = true;
@@ -69,7 +74,8 @@ class Controller {
  private:
   constexpr static auto kNumProcletSegmentBuckets =
       bsr_64(kMaxProcletHeapSize) - bsr_64(kMinProcletHeapSize) + 1;
-  std::stack<VAddrRange> free_proclet_heap_segments_[kNumProcletSegmentBuckets];
+  std::stack<ProcletHeapSegment>
+      free_proclet_heap_segments_[kNumProcletSegmentBuckets];
   std::stack<VAddrRange> free_stack_cluster_segments_;  // One segment per Node.
   std::set<lpid_t> free_lpids_;
   std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;
@@ -78,7 +84,8 @@ class Controller {
   bool done_;
   rt::Mutex mutex_;
 
-  NodeIP select_node_for_proclet(lpid_t lpid, NodeIP ip_hint);
+  NodeIP select_node_for_proclet(lpid_t lpid, NodeIP ip_hint,
+                                 const ProcletHeapSegment &segment);
   bool update_node(std::set<Node>::iterator iter);
 };
 }  // namespace nu

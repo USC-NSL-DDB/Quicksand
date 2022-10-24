@@ -37,7 +37,7 @@ Controller::Controller() {
        start_addr += kMaxProcletHeapSize) {
     VAddrRange range = {.start = start_addr,
                         .end = start_addr + kMaxProcletHeapSize};
-    highest_bucket.push(range);
+    highest_bucket.push({range, 0});
   }
 
   for (uint64_t start_addr = kMinStackClusterVAddr;
@@ -135,16 +135,18 @@ std::optional<std::pair<ProcletID, NodeIP>> Controller::allocate_proclet(
     }
     auto max_segment = highest_bucket.top();
     highest_bucket.pop();
-    auto start_addr = max_segment.start;
-    while (start_addr < max_segment.end) {
-      bucket.push({start_addr, start_addr += capacity});
+    for (auto start_addr = max_segment.range.start;
+         start_addr < max_segment.range.end; start_addr += capacity) {
+      VAddrRange range = {.start = start_addr, .end = start_addr + capacity};
+      bucket.push({range, max_segment.prev_host});
     }
   }
 
-  auto start_addr = bucket.top().start;
-  auto id = start_addr;
+  auto segment = bucket.top();
   bucket.pop();
-  auto node_ip = select_node_for_proclet(lpid, ip_hint);
+  auto start_addr = segment.range.start;
+  auto id = start_addr;
+  auto node_ip = select_node_for_proclet(lpid, ip_hint, segment);
   if (unlikely(!node_ip)) {
     return std::nullopt;
   }
@@ -165,7 +167,7 @@ void Controller::destroy_proclet(VAddrRange proclet_segment) {
     WARN();
     return;
   }
-  bucket.push(proclet_segment);
+  bucket.push({proclet_segment, iter->second});
   proclet_id_to_ip_.erase(iter);
 }
 
@@ -176,7 +178,8 @@ NodeIP Controller::resolve_proclet(ProcletID id) {
   return iter != proclet_id_to_ip_.end() ? iter->second : 0;
 }
 
-NodeIP Controller::select_node_for_proclet(lpid_t lpid, NodeIP ip_hint) {
+NodeIP Controller::select_node_for_proclet(lpid_t lpid, NodeIP ip_hint,
+                                           const ProcletHeapSegment &segment) {
   auto &[node_statuses, rr_iter] = lpid_to_info_[lpid];
   BUG_ON(node_statuses.empty());
 
@@ -186,6 +189,10 @@ NodeIP Controller::select_node_for_proclet(lpid_t lpid, NodeIP ip_hint) {
       return 0;
     }
     return ip_hint;
+  }
+
+  if (segment.prev_host) {
+    return segment.prev_host;
   }
 
   // TODO: adopt a more sophisticated mechanism once we've added more fields.
