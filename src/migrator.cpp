@@ -526,7 +526,8 @@ void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
 
 void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
   rt::Thread([proclet_header] {
-    Runtime::proclet_manager->cleanup(proclet_header);
+    Runtime::proclet_manager->cleanup(proclet_header,
+                                      /* for_migration = */ true);
   }).Detach();
 }
 
@@ -876,7 +877,8 @@ void Migrator::load(rt::TcpConn *c) {
     mmap_th.Join();
     preempt_disable();
     for (auto [proclet, size] : skipped_proclets) {
-      Runtime::proclet_manager->depopulate(proclet, size);
+      Runtime::proclet_manager->depopulate(proclet, size,
+                                           /* delay = */ false);
     }
     Runtime::stack_manager->add_ref_cnt(stack_cluster,
                                         -skipped_proclets.size());

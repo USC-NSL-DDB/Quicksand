@@ -88,9 +88,9 @@ class ProcletManager {
 
   static void setup(void *proclet_base, uint64_t capacity, bool migratable,
                     bool from_migration);
-  static void cleanup(void *proclet_base);
+  static void cleanup(void *proclet_base, bool for_migration);
   static void madvise_populate(void *proclet_base, uint64_t populate_len);
-  static void depopulate(void *proclet_base, uint64_t size);
+  static void depopulate(void *proclet_base, uint64_t size, bool delay);
   static void wait_until(ProcletHeader *proclet_header, ProcletStatus status);
   void insert(void *proclet_base);
   bool remove_for_migration(void *proclet_base);

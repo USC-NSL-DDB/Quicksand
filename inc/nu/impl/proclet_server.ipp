@@ -150,7 +150,8 @@ void ProcletServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
     // Wait for all ongoing invocations to finish.
     proclet_header->rcu_lock().writer_sync();
     auto vaddr_range = proclet_header->get_range();
-    Runtime::proclet_manager->cleanup(proclet_base);
+    Runtime::proclet_manager->cleanup(proclet_base,
+                                      /* for_migration = */ false);
     // Release the proclet back to the controller only after ensuring the
     // cleanup has finished to avoid the race.
     ProcletServer::release_proclet(vaddr_range);
@@ -188,7 +189,8 @@ bool ProcletServer::update_ref_cnt_locally(
 
     RuntimeSlabGuard runtime_slab_guard;
     auto vaddr_range = proclet_header->get_range();
-    Runtime::proclet_manager->cleanup(proclet_header);
+    Runtime::proclet_manager->cleanup(proclet_header,
+                                      /* for_migration = */ false);
     ProcletServer::release_proclet(vaddr_range);
   }
 
