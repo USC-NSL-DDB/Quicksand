@@ -129,6 +129,8 @@ class ShardedDataStructure {
   get_all_shards_info();
   void seal();
   void unseal();
+  void reroute_reqs(std::vector<DataEntry> emplace_reqs,
+                    std::vector<Val> emplace_back_reqs);
   template <typename... S1s>
   void __for_all(auto *fn, S1s &&... states);
 };

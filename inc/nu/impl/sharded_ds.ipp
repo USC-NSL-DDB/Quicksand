@@ -304,18 +304,24 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::handle_rejected_flush_batch(
-    ReqBatch &batch) {
-  sync_mapping(batch.l_key, batch.r_key, batch.shard);
-
-  for (auto &req : batch.emplace_back_reqs) {
-    if constexpr (EmplaceBackAble<Container>) {
+void ShardedDataStructure<Container, LL>::reroute_reqs(
+    std::vector<DataEntry> emplace_reqs, std::vector<Val> emplace_back_reqs) {
+  for (auto &req : emplace_reqs) {
+    emplace(std::move(req));
+  }
+  if constexpr (EmplaceBackAble<Container>) {
+    for (auto &req : emplace_back_reqs) {
       emplace_back(std::move(req));
     }
   }
-  for (auto &req : batch.emplace_reqs) {
-    emplace(std::move(req));
-  }
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container, LL>::handle_rejected_flush_batch(
+    ReqBatch &batch) {
+  sync_mapping(batch.l_key, batch.r_key, batch.shard);
+  reroute_reqs(std::move(batch.emplace_reqs),
+               std::move(batch.emplace_back_reqs));
 }
 
 template <class Container, class LL>
@@ -337,9 +343,10 @@ void ShardedDataStructure<Container, LL>::sync_mapping(
                    ? key_to_shards_.equal_range(r_key)
                    : std::make_pair(key_to_shards_.end(), key_to_shards_.end());
   auto kts_iter = (l_key != r_key) ? range.first : range.second;
-  auto current_shard = (--kts_iter)->second.shard;
-  // We've already got a newer mapping.
+  auto &shard_and_reqs = (--kts_iter)->second;
+  auto current_shard = shard_and_reqs.shard;
   if (unlikely(shard != current_shard)) {
+    // We've already got a newer mapping.
     return;
   }
 
@@ -353,6 +360,17 @@ void ShardedDataStructure<Container, LL>::sync_mapping(
     auto &[k, s] = *lm_iter;
     key_to_shards_.emplace(k, ShardAndReqs(s));
   }
+
+  auto emplace_reqs = std::move(shard_and_reqs.emplace_reqs);
+  shard_and_reqs.emplace_reqs.clear();
+
+  std::vector<Val> emplace_back_reqs;
+  if (!r_key) {
+    emplace_back_reqs = std::move(emplace_back_reqs_);
+    emplace_back_reqs_.clear();
+  }
+
+  reroute_reqs(std::move(emplace_reqs), std::move(emplace_back_reqs));
 }
 
 template <class Container, class LL>
