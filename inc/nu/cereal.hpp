@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cereal/archives/binary.hpp>
+#include <cereal/details/traits.hpp>
 #include <cereal/types/deque.hpp>
 #include <cereal/types/map.hpp>
 #include <cereal/types/optional.hpp>
@@ -10,7 +12,6 @@
 #include <cereal/types/unordered_set.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
-#include <cereal/archives/binary.hpp>
 #include <concepts>
 #include <type_traits>
 
@@ -36,27 +37,46 @@ concept HasBuiltinLoad = requires(Archive ar, T t) {
 template <class T>
 consteval bool is_memcpy_safe();
 
-template <class Archive, typename T>
+template <class Archive, typename T,
+          traits::EnableIf<cereal::traits::is_same_archive<
+              Archive, cereal::BinaryOutputArchive>::value> = traits::sfinae>
 void save(Archive &ar, T const &t) requires(
-    std::is_trivially_copy_assignable_v<T> &&
-    !std::is_fundamental_v<T> &&
-    !std::is_pointer_v<T> &&
+    is_memcpy_safe<T>() &&
     !HasBuiltinSerialize<Archive, T> &&
     !HasBuiltinSave<Archive, T> &&
-    !HasBuiltinLoad<Archive, T> &&
-    !nu::is_specialization_of_v<T, std::optional> &&
-    !nu::is_specialization_of_v<T, cereal::BinaryData>);
+    !HasBuiltinLoad<Archive, T>  &&
+    !nu::is_specialization_of_v<T, cereal::BinaryData> &&
+    !nu::is_specialization_of_v<T, std::tuple>);
 
-template <class Archive, typename T>
-void load(Archive &ar, T &t) requires(
-    std::is_trivially_copy_assignable_v<T> &&
-    !std::is_fundamental_v<T> &&
-    !std::is_pointer_v<T> &&
+template <class Archive, typename T,
+          traits::EnableIf<cereal::traits::is_same_archive<
+              Archive, cereal::BinaryOutputArchive>::value> = traits::sfinae>
+void save_move(Archive &ar, T &&t) requires(
+    is_memcpy_safe<T>() &&
     !HasBuiltinSerialize<Archive, T> &&
     !HasBuiltinSave<Archive, T> &&
     !HasBuiltinLoad<Archive, T> &&
-    !nu::is_specialization_of_v<T, std::optional> &&
-    !nu::is_specialization_of_v<T, cereal::BinaryData>);
+    !nu::is_specialization_of_v<T, cereal::BinaryData> &&
+    !nu::is_specialization_of_v<T, std::tuple>);
+
+template <class Archive, typename T,
+          traits::EnableIf<cereal::traits::is_same_archive<
+              Archive, cereal::BinaryInputArchive>::value> = traits::sfinae>
+void load(Archive &ar, T &t) requires(
+    is_memcpy_safe<T>() &&
+    !HasBuiltinSerialize<Archive, T> &&
+    !HasBuiltinSave<Archive, T> &&
+    !HasBuiltinLoad<Archive, T>  &&
+    !nu::is_specialization_of_v<T, cereal::BinaryData> &&
+    !nu::is_specialization_of_v<T, std::tuple>);
+
+template <typename... Types>
+void serialize(cereal::BinaryOutputArchive &ar, std::tuple<Types...> &t) requires(
+    is_memcpy_safe<std::tuple<Types...>>());
+
+template <typename... Types>
+void serialize(cereal::BinaryInputArchive &ar, std::tuple<Types...> &t) requires(
+    is_memcpy_safe<std::tuple<Types...>>());
 
 template <class Archive, typename P, typename A>
 void save(Archive &ar, std::vector<P, A> const &v) requires(
