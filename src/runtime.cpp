@@ -140,15 +140,6 @@ Runtime::~Runtime() {
   preempt_enable();
 }
 
-// FIXME
-uint32_t Runtime::get_ip_by_proclet_id(ProcletID id) {
-  RuntimeSlabGuard g;
-  auto *owner_proclet = thread_unset_owner_proclet();
-  auto ip = rpc_client_mgr->get_ip_by_proclet_id(id);
-  thread_set_owner_proclet(thread_self(), owner_proclet);
-  return ip;
-}
-
 void Runtime::reserve_conns(uint32_t ip) {
   RuntimeSlabGuard guard;
   migrator->reserve_conns(ip);
