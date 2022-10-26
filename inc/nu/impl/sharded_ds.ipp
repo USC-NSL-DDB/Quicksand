@@ -126,7 +126,8 @@ template <class Container, class LL>
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
     DataEntry entry) {
-  [[maybe_unused]] retry : typename KeyToShardsMapping::iterator iter;
+[[maybe_unused]] retry:
+  typename KeyToShardsMapping::iterator iter;
   if constexpr (HasVal<Container>) {
     iter = --key_to_shards_.upper_bound(entry.first);
   } else {
@@ -156,7 +157,8 @@ template <class Container, class LL>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
-  [[maybe_unused]] retry : if constexpr (LL::value) {
+[[maybe_unused]] retry:
+  if constexpr (LL::value) {
     // rbegin() is O(1) which is much faster than the O(logn) of --end().
     auto iter = key_to_shards_.rbegin();
     auto l_key = iter->first;
@@ -183,8 +185,8 @@ ShardedDataStructure<Container, LL>::emplace_back(
 // TODO: all front/back operations only implemented for LL so far
 template <class Container, class LL>
 template <bool Front, typename RetT, typename Func, class... Args>
-[[gnu::always_inline]] inline RetT
-ShardedDataStructure<Container, LL>::front_back_impl(Func func, Args... args) {
+RetT ShardedDataStructure<Container, LL>::front_back_impl(Func func,
+                                                          Args &... args) {
 retry:
   std::optional<Key> l_key, r_key;
   WeakProclet<Shard> shard;
@@ -216,7 +218,7 @@ retry:
   }
 
   if constexpr (!std::is_same_v<RetT, void>) {
-    return val.value();
+    return *val;
   }
 }
 

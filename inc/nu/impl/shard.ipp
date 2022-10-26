@@ -315,7 +315,6 @@ GeneralShard<Container>::try_front(
   }
 
   Val v = container_.front();
-
   rw_lock_.reader_unlock();
   return v;
 }
@@ -330,9 +329,9 @@ inline bool GeneralShard<Container>::try_pop_front(
     rw_lock_.reader_unlock();
     return false;
   }
-  rw_lock_.reader_unlock();
 
   container_.pop_front();
+  rw_lock_.reader_unlock();
   return true;
 }
 
@@ -347,7 +346,6 @@ inline std::optional<typename Container::Val> GeneralShard<Container>::try_back(
   }
 
   Val v = container_.back();
-
   rw_lock_.reader_unlock();
   return v;
 }
@@ -362,6 +360,7 @@ inline bool GeneralShard<Container>::try_pop_back(
     rw_lock_.reader_unlock();
     return false;
   }
+
   container_.pop_back();
   rw_lock_.reader_unlock();
   return true;

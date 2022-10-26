@@ -20,7 +20,7 @@ bool test_push_and_pop() {
     return false;
   }
 
-  // This may fail if merge is not implemented
+  // FIXME: This may fail if merge is not implemented
   top -= 1 << 10;
   for (uint32_t i = 0; i < (1 << 10); i++) {
     stack.pop();
