@@ -1,11 +1,11 @@
 #pragma once
 
 #include <memory>
+#include <spanstream>
 #include <sstream>
 #include <utility>
 
 #include "nu/utils/cached_pool.hpp"
-#include "nu/utils/spanstream.h"
 
 namespace nu {
 
@@ -22,7 +22,7 @@ class ArchivePool {
   using String = std::basic_string<char, std::char_traits<char>, CharAllocator>;
 
   struct IASStream {
-    std::experimental::spanstream ss;
+    std::spanstream ss;
     cereal::BinaryInputArchive ia;
     IASStream() : ss{std::span<char>()}, ia(ss) {}
   };
