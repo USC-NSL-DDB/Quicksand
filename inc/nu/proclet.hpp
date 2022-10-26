@@ -37,18 +37,18 @@ class Proclet {
   operator bool() const;
   bool operator==(const Proclet &) const;
   ProcletID get_id() const;
-  template <typename RetT, typename... S0s, typename... S1s>
+  template <bool MigrEn = true, typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(
       RetT (*fn)(T &, S0s...),
       S1s &&... states) requires ValidInvocationTypes<RetT, S0s...>;
-  template <typename RetT, typename... S0s, typename... S1s>
+  template <bool MigrEn = true, typename RetT, typename... S0s, typename... S1s>
   RetT run(RetT (*fn)(T &, S0s...),
            S1s &&... states) requires ValidInvocationTypes<RetT, S0s...>;
-  template <typename RetT, typename... A0s, typename... A1s>
+  template <bool MigrEn = true, typename RetT, typename... A0s, typename... A1s>
   Future<RetT> run_async(
       RetT (T::*md)(A0s...),
       A1s &&... args) requires ValidInvocationTypes<RetT, A0s...>;
-  template <typename RetT, typename... A0s, typename... A1s>
+  template <bool MigrEn = true, typename RetT, typename... A0s, typename... A1s>
   RetT run(RetT (T::*md)(A0s...),
            A1s &&... args) requires ValidInvocationTypes<RetT, A0s...>;
   void reset();
@@ -82,13 +82,13 @@ class Proclet {
   template <typename... As>
   static Proclet __create(uint64_t capacity, bool pinned, uint32_t ip_hint,
                           As &&... args);
-  template <typename RetT, typename... S0s, typename... S1s>
+  template <bool MigrEn = true, typename RetT, typename... S0s, typename... S1s>
   Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
-  template <typename RetT, typename... S0s, typename... S1s>
+  template <bool MigrEn = true, typename RetT, typename... S0s, typename... S1s>
   RetT __run(RetT (*fn)(T &, S0s...), S1s &&... states);
-  template <typename RetT, typename... A0s, typename... A1s>
+  template <bool MigrEn = true, typename RetT, typename... A0s, typename... A1s>
   Future<RetT> __run_async(RetT (T::*md)(A0s...), A1s &&... args);
-  template <typename RetT, typename... A0s, typename... A1s>
+  template <bool MigrEn = true, typename RetT, typename... A0s, typename... A1s>
   RetT __run(RetT (T::*md)(A0s...), A1s &&... args);
 
   template <typename U, typename... As>

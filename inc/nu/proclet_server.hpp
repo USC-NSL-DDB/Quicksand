@@ -34,10 +34,12 @@ class ProcletServer {
   static void construct_proclet_locally(MigrationDisabledGuard *caller_guard,
                                         void *base, uint64_t size, bool pinned,
                                         As &&... args);
-  template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+  template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+            typename... S1s>
   static void run_closure(cereal::BinaryInputArchive &ia,
                           RPCReturner *returner);
-  template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+  template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+            typename... S1s>
   static void run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
                                   ProcletID callee_id, FnPtr fn_ptr,
                                   S1s &&... states);
@@ -60,7 +62,8 @@ class ProcletServer {
   static void __update_ref_cnt(Cls &obj, RPCReturner returner,
                                ProcletHeader *proclet_header, int delta,
                                bool *destructed);
-  template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+  template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+            typename... S1s>
   static void __run_closure(Cls &obj, ProcletHeader *proclet_header,
                             cereal::BinaryInputArchive &ia,
                             RPCReturner returner);

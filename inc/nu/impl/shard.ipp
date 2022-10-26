@@ -139,7 +139,6 @@ void GeneralShard<Container>::set_range_and_data(
 
 template <class Container>
 inline Container GeneralShard<Container>::get_container_copy() {
-  // FIXME: be migration-safe.
   RuntimeSlabGuard slab_guard;
 
   rw_lock_.reader_lock();
@@ -162,7 +161,7 @@ GeneralShard<Container>::get_const_container_handle() {
 
 template <class Container>
 void GeneralShard<Container>::split() {
-  // FIXME: be migration-safe.
+  MigrationDisabledGuard migration_guard;
   RuntimeSlabGuard slab_guard;
 
   Key mid_k;

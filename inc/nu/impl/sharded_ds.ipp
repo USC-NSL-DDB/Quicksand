@@ -529,7 +529,8 @@ Container ShardedDataStructure<Container, LL>::collect() {
   std::vector<Future<Container>> futures;
   for (auto &[_, shard_and_reqs] : key_to_shards_) {
     futures.emplace_back(
-        shard_and_reqs.shard.run_async(&Shard::get_container_copy));
+        shard_and_reqs.shard.template run_async</* MigrationEnabled = */ false>(
+            &Shard::get_container_copy));
   }
 
   std::size_t size = 0;

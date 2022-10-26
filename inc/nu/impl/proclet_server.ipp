@@ -1,11 +1,11 @@
 #include <alloca.h>
-#include <net.h>
-#include <sync.h>
-#include <thread.h>
-
 #include <memory>
 #include <type_traits>
 #include <utility>
+
+#include <net.h>
+#include <sync.h>
+#include <thread.h>
 
 #include "nu/ctrl.hpp"
 #include "nu/migrator.hpp"
@@ -200,7 +200,8 @@ bool ProcletServer::update_ref_cnt_locally(
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wuninitialized"
 
-template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+          typename... S1s>
 void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
                                   cereal::BinaryInputArchive &ia,
                                   RPCReturner returner) {
@@ -217,21 +218,24 @@ void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
   std::construct_at(states, std::decay_t<S1s>()...);
   std::apply([&](auto &&... states) { ((ia >> states), ...); }, *states);
 
+  using Guard = std::conditional_t<MigrEn, MigrationEnabledGuard, ErasedType>;
   if constexpr (std::is_same<RetT, void>::value) {
     {
-      MigrationEnabledGuard guard;
+      [[maybe_unused]] Guard guard;
       std::apply([&](auto &&... states) { fn(obj, std::move(states)...); },
                  *states);
       std::destroy_at(states);
     }
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
   } else {
-    MigrationEnabledGuard guard;
-    auto ret = std::apply(
-        [&](auto &&... states) { return fn(obj, std::move(states)...); },
-        *states);
-    std::destroy_at(states);
-    guard.reset();
+    RetT ret;
+    {
+      [[maybe_unused]] Guard guard;
+      ret = std::apply(
+          [&](auto &&... states) { return fn(obj, std::move(states)...); },
+          *states);
+      std::destroy_at(states);
+    }
 
     oa_sstream = Runtime::archive_pool->get_oa_sstream();
     oa_sstream->oa << std::move(ret);
@@ -244,21 +248,23 @@ void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
 
 #pragma GCC diagnostic pop
 
-template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+          typename... S1s>
 void ProcletServer::run_closure(cereal::BinaryInputArchive &ia,
                                 RPCReturner *returner) {
   ProcletID id;
   ia >> id;
   auto *proclet_header = to_proclet_header(id);
   bool proclet_not_found = !Runtime::run_within_proclet_env<Cls>(
-      proclet_header, __run_closure<Cls, RetT, FnPtr, S1s...>, proclet_header,
-      ia, *returner);
+      proclet_header, __run_closure<MigrEn, Cls, RetT, FnPtr, S1s...>,
+      proclet_header, ia, *returner);
   if (proclet_not_found) {
     send_rpc_resp_wrong_client(returner);
   }
 }
 
-template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+          typename... S1s>
 void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
                                         ProcletID callee_id, FnPtr fn_ptr,
                                         S1s &&... states) {
@@ -268,10 +274,15 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
   callee_proclet_header->thread_cnt.inc_unsafe();
 
   auto *obj = Runtime::get_root_obj<Cls>(callee_id);
+  using Guard = std::conditional_t<MigrEn, ErasedType, MigrationDisabledGuard>;
+
   if constexpr (!std::is_same<RetT, void>::value) {
     auto *ret = reinterpret_cast<RetT *>(alloca(sizeof(RetT)));
     std::construct_at(ret);
-    *ret = fn_ptr(*obj, std::move(states)...);
+    {
+      [[maybe_unused]] Guard guard;
+      *ret = fn_ptr(*obj, std::move(states)...);
+    }
     callee_proclet_header->thread_cnt.dec_unsafe();
     callee_proclet_header->cpu_load.monitor_end(state);
 
@@ -309,7 +320,10 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
           Runtime::archive_pool->put_oa_sstream(oa_sstream);
         });
   } else {
-    fn_ptr(*obj, std::move(states)...);
+    {
+      [[maybe_unused]] Guard guard;
+      fn_ptr(*obj, std::move(states)...);
+    }
     callee_proclet_header->thread_cnt.dec_unsafe();
     callee_proclet_header->cpu_load.monitor_end(state);
 
