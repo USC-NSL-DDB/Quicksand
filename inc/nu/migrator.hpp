@@ -1,7 +1,5 @@
 #pragma once
 
-#include <folly/Function.h>
-
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -120,10 +118,9 @@ class Migrator {
   void forward_to_client(RPCReqForward &req);
   uint32_t get_max_num_proclets_per_migration() const;
   template <typename RetT>
-  static void migrate_thread_and_ret_val(RPCReturnBuffer &&return_buf,
-                                         ProcletID dest_id,
-                                         RetT *dest_ret_val_ptr,
-                                         folly::Function<void()> cleanup_fn);
+  static void migrate_thread_and_ret_val(
+      RPCReturnBuffer &&return_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
+      std::move_only_function<void()> cleanup_fn);
   template <typename RetT>
   static RPCReturnCode load_thread_and_ret_val(
       ProcletHeader *dest_proclet_header, void *raw_dest_ret_val_ptr,

@@ -6,7 +6,7 @@ extern "C" {
 #include <runtime/runtime.h>
 }
 
-#include <folly/Function.h>
+#include <functional>
 #include <string>
 
 namespace rt {

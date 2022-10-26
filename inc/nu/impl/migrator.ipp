@@ -53,10 +53,9 @@ RPCReturnCode Migrator::load_thread_and_ret_val(
 }
 
 template <typename RetT>
-void Migrator::migrate_thread_and_ret_val(RPCReturnBuffer &&ret_val_buf,
-                                          ProcletID dest_id,
-                                          RetT *dest_ret_val_ptr,
-                                          folly::Function<void()> cleanup_fn) {
+void Migrator::migrate_thread_and_ret_val(
+    RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
+    std::move_only_function<void()> cleanup_fn) {
   rt::Thread(
       [&, th = thread_self(), ret_val_buf = std::move(ret_val_buf)] {
         thread_wait_until_parked(th);

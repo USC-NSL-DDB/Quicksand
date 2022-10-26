@@ -1,9 +1,9 @@
 #pragma once
 
-#include <folly/Function.h>
-#include <sync.h>
-
 #include <memory>
+#include <functional>
+
+#include <sync.h>
 
 #include "nu/proclet_mgr.hpp"
 #include "nu/utils/cond_var.hpp"
@@ -21,7 +21,7 @@ struct join_data {
   bool done;
   SpinLock lock;
   CondVar cv;
-  folly::Function<void()> func;
+  std::move_only_function<void()> func;
   ProcletHeader *header;
 };
 

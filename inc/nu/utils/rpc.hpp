@@ -20,7 +20,7 @@ class RPCReturnBuffer {
  public:
   RPCReturnBuffer() {}
   RPCReturnBuffer(std::span<const std::byte> buf,
-                  folly::Function<void()> deleter_fn = {})
+                  std::move_only_function<void()> deleter_fn = {})
       : buf_(buf), deleter_fn_(std::move(deleter_fn)) {}
   ~RPCReturnBuffer() {
     if (deleter_fn_) deleter_fn_();
@@ -47,7 +47,7 @@ class RPCReturnBuffer {
 
   // replaces the return data buffer.
   void Reset(std::span<const std::byte> buf = {},
-             folly::Function<void()> deleter_fn = nullptr) {
+             std::move_only_function<void()> deleter_fn = nullptr) {
     if (deleter_fn_) deleter_fn_();
     buf_ = buf;
     deleter_fn_ = std::move(deleter_fn);
@@ -63,7 +63,7 @@ class RPCReturnBuffer {
 
  private:
   std::span<const std::byte> buf_;
-  folly::Function<void()> deleter_fn_;
+  std::move_only_function<void()> deleter_fn_;
 };
 
 enum RPCReturnCode { kErrWrongClient = -2, kErrTimeout = -1, kOk = 0 };
@@ -73,7 +73,7 @@ class RPCReturner {
   RPCReturner() {}
   RPCReturner(void *rpc_server, std::size_t completion_data);
   void Return(RPCReturnCode rc, std::span<const std::byte> buf,
-              folly::Function<void()> deleter_fn);
+              std::move_only_function<void()> deleter_fn);
   void Return(RPCReturnCode rc);
 
  private:
@@ -82,10 +82,10 @@ class RPCReturner {
 };
 
 // A function handler for each RPC request, invoked concurrently.
-using RPCHandler =
-    folly::Function<void(std::span<std::byte> args, RPCReturner *rpc_returner)>;
+using RPCHandler = std::move_only_function<void(std::span<std::byte> args,
+                                                RPCReturner *rpc_returner)>;
 // A callback for each RPC request, invoked when the response data is ready.
-using RPCCallback = folly::Function<void(ssize_t len, rt::TcpConn *c)>;
+using RPCCallback = std::move_only_function<void(ssize_t len, rt::TcpConn *c)>;
 
 namespace rpc_internal {
 

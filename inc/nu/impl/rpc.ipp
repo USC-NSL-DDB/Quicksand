@@ -55,7 +55,7 @@ inline RPCReturner::RPCReturner(void *rpc_server, std::size_t completion_data)
 
 inline void RPCReturner::Return(RPCReturnCode rc,
                                 std::span<const std::byte> buf,
-                                folly::Function<void()> deleter_fn) {
+                                std::move_only_function<void()> deleter_fn) {
   auto rpc_server = reinterpret_cast<rpc_internal::RPCServer *>(rpc_server_);
   rpc_server->Return(rc, RPCReturnBuffer(buf, std::move(deleter_fn)),
                      completion_data_);

@@ -5,15 +5,15 @@
 namespace rt {
 namespace thread_internal {
 
-// A helper to jump from a C function to a C++ folly::Function.
+// A helper to jump from a C function to a C++ std::move_only_function.
 void ThreadTrampoline(void *arg) {
-  auto *func_ptr = static_cast<folly::Function<void()> *>(arg);
+  auto *func_ptr = static_cast<std::move_only_function<void()> *>(arg);
   (*func_ptr)();
   std::destroy_at(func_ptr);
 }
 
-// A helper to jump from a C function to a C++ folly::Function. This variant
-// can wait for the thread to be joined.
+// A helper to jump from a C function to a C++ std::move_only_function.
+// This variant can wait for the thread to be joined.
 void ThreadTrampolineWithJoin(void *arg) {
   thread_internal::join_data *d =
       static_cast<thread_internal::join_data *>(arg);

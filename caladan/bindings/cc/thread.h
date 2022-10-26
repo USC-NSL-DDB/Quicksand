@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include <folly/Function.h>
-
 extern "C" {
 #include <base/assert.h>
 #include <runtime/sync.h>
 }
+
+#include <functional>
 
 namespace rt {
 namespace thread_internal {
@@ -21,7 +21,7 @@ struct join_data {
   spinlock_t lock_;
   bool done_;
   thread_t *waiter_;
-  folly::Function<void()> func_;
+  std::move_only_function<void()> func_;
 };
 
 extern void ThreadTrampoline(void *arg);
@@ -33,9 +33,9 @@ extern void ThreadTrampolineWithJoin(void *arg);
 template <typename F> void Spawn(F &&f) {
   void *buf;
   thread_t *th = thread_create_with_buf(thread_internal::ThreadTrampoline, &buf,
-                                        sizeof(folly::Function<void()>));
+                                        sizeof(std::move_only_function<void()>));
   if (unlikely(!th)) BUG();
-  new (buf) folly::Function<void()>(std::forward<F>(f));
+  new (buf) std::move_only_function<void()>(std::forward<F>(f));
   thread_ready(th);
 }
 
