@@ -197,6 +197,9 @@ bool ProcletServer::update_ref_cnt_locally(
   return true;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
                                   cereal::BinaryInputArchive &ia,
@@ -238,6 +241,8 @@ void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
   proclet_header->thread_cnt.dec_unsafe();
   proclet_header->cpu_load.monitor_end(state);
 }
+
+#pragma GCC diagnostic pop
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 void ProcletServer::run_closure(cereal::BinaryInputArchive &ia,
