@@ -23,7 +23,8 @@ class Stack {
   bool empty() const;
   void emplace(Key k, Val v);
   Val back() const;
-  void push_back(Val v);
+  void emplace_back(Val v);
+  void emplace_back_batch(std::vector<Val> v);
   void pop_back();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);

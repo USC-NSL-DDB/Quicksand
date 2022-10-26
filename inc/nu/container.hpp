@@ -22,13 +22,19 @@ concept GeneralContainerBased = requires {
 };
 
 template <class T>
+concept EmplaceFrontAble = requires(T t) {
+  { t.emplace_front(std::declval<typename T::Val>()) }
+  ->std::same_as<void>;
+};
+
+template <class T>
 concept EmplaceBackAble = requires(T t) {
   { t.emplace_back(std::declval<typename T::Val>()) }
   ->std::same_as<void>;
 };
 
 template <class T>
-concept FrontAble = requires(T t) {
+concept HasFront = requires(T t) {
   { t.front() }
   ->std::same_as<typename T::Val>;
 };
@@ -40,13 +46,7 @@ concept PopFrontAble = requires(T t) {
 };
 
 template <class T>
-concept PushFrontAble = requires(T t) {
-  { t.push_front(std::declval<typename T::Val>()) }
-  ->std::same_as<void>;
-};
-
-template <class T>
-concept BackAble = requires(T t) {
+concept HasBack = requires(T t) {
   { t.back() }
   ->std::same_as<typename T::Val>;
 };
@@ -54,12 +54,6 @@ concept BackAble = requires(T t) {
 template <class T>
 concept PopBackAble = requires(T t) {
   { t.pop_back() }
-  ->std::same_as<void>;
-};
-
-template <class T>
-concept PushBackAble = requires(T t) {
-  { t.push_back(std::declval<typename T::Val>()) }
   ->std::same_as<void>;
 };
 
@@ -214,20 +208,17 @@ class GeneralContainerBase {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
   }
-  Val front() const requires FrontAble<Impl> {
+  Val front() const requires HasFront<Impl> {
     return synchronized<Val>([&] { return impl_.front(); });
   }
-  void push_front(Val v) requires PushFrontAble<Impl> {
-    return synchronized<void>([&] { impl_.push_front(v); });
+  void emplace_front(Val v) requires EmplaceFrontAble<Impl> {
+    return synchronized<void>([&] { impl_.emplace_front(v); });
   }
   void pop_front() requires PopFrontAble<Impl> {
     return synchronized<void>([&] { impl_.pop_front(); });
   }
-  Val back() const requires BackAble<Impl> {
+  Val back() const requires HasBack<Impl> {
     return synchronized<Val>([&] { return impl_.back(); });
-  }
-  void push_back(Val v) requires PushBackAble<Impl> {
-    return synchronized<void>([&] { impl_.push_back(v); });
   }
   void pop_back() requires PopBackAble<Impl> {
     return synchronized<void>([&] { impl_.pop_back(); });

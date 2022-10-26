@@ -97,18 +97,16 @@ class GeneralShard {
                    DataEntry entry);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
-  std::pair<bool, Val> try_front(
+  std::optional<Val> try_front(
       std::optional<Key> l_key,
-      std::optional<Key> r_key) requires FrontAble<Container>;
-  bool try_push_front(std::optional<Key> l_key, std::optional<Key> r_key,
-                      Val v) requires PushFrontAble<Container>;
+      std::optional<Key> r_key) requires HasFront<Container>;
+  bool try_emplace_front(std::optional<Key> l_key, std::optional<Key> r_key,
+                         Val v) requires EmplaceFrontAble<Container>;
   bool try_pop_front(std::optional<Key> l_key,
                      std::optional<Key> r_key) requires PopFrontAble<Container>;
-  std::pair<bool, Val> try_back(
+  std::optional<Val> try_back(
       std::optional<Key> l_key,
-      std::optional<Key> r_key) requires BackAble<Container>;
-  bool try_push_back(std::optional<Key> l_key, std::optional<Key> r_key,
-                     Val v) requires PushBackAble<Container>;
+      std::optional<Key> r_key) requires HasBack<Container>;
   bool try_pop_back(std::optional<Key> l_key,
                     std::optional<Key> r_key) requires PopBackAble<Container>;
   std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);

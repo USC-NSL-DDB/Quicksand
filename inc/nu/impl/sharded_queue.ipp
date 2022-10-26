@@ -32,8 +32,13 @@ inline Queue<T>::Val Queue<T>::back() const {
 }
 
 template <typename T>
-inline void Queue<T>::push_back(Val v) {
+inline void Queue<T>::emplace_back(Val v) {
   queue_.push(v);
+}
+
+template <typename T>
+inline void Queue<T>::emplace_back_batch(std::vector<Val> v) {
+  BUG();
 }
 
 template <typename T>
@@ -45,7 +50,7 @@ template <typename T>
 template <typename... S0s, typename... S1s>
 inline void Queue<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
                               S1s &&... states) {
-  assert(false /* not implemented */);
+  BUG();
 }
 
 template <typename T>
@@ -57,7 +62,7 @@ inline void Queue<T>::split(Key *mid_k, Queue *latter_half) {
 template <typename T>
 inline void Queue<T>::merge(Queue queue) {
   while (!queue.queue_.empty()) {
-    queue_.push_back(queue.queue_.top());
+    queue_.emplace_back(queue.queue_.top());
     queue.queue_.pop();
   }
 }
@@ -94,7 +99,7 @@ inline T ShardedQueue<T, LL>::back() const {
 
 template <typename T, typename LL>
 void ShardedQueue<T, LL>::push(const T &value) {
-  Base::push_back(value);
+  Base::emplace_back(value);
 }
 
 template <typename T, typename LL>

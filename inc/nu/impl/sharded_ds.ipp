@@ -182,28 +182,30 @@ ShardedDataStructure<Container, LL>::emplace_back(
 
 // TODO: all front/back operations only implemented for LL so far
 template <class Container, class LL>
-template <bool FrontBack, typename RetT, typename Func, class... Args>
-RetT ShardedDataStructure<Container, LL>::front_back_impl(Func func,
-                                                          Args... args) {
+template <bool Front, typename RetT, typename Func, class... Args>
+[[gnu::always_inline]] inline RetT
+ShardedDataStructure<Container, LL>::front_back_impl(Func func, Args... args) {
 retry:
-  std::optional<Key> l_key;
+  std::optional<Key> l_key, r_key;
   WeakProclet<Shard> shard;
-  if constexpr (FrontBack) {
+  if constexpr (Front) {
     auto iter = key_to_shards_.begin();
-    l_key = iter->first;
     shard = iter->second.shard;
+    l_key = std::optional<Key>();
+    r_key =
+        (++iter != key_to_shards_.end()) ? iter->first : std::optional<Key>();
   } else {
     auto iter = key_to_shards_.rbegin();
-    l_key = iter->first;
     shard = iter->second.shard;
+    l_key = iter->first;
+    r_key = std::optional<Key>();
   }
 
-  auto r_key = std::optional<Key>();
   auto val = shard.run(func, l_key, r_key, args...);
 
   bool succeed;
   if constexpr (!std::is_same_v<RetT, void>) {
-    succeed = val.first;
+    succeed = val.has_value();
   } else {
     succeed = val;
   }
@@ -214,55 +216,49 @@ retry:
   }
 
   if constexpr (!std::is_same_v<RetT, void>) {
-    return val.second;
+    return val.value();
   }
 }
 
 template <class Container, class LL>
-Container::Val ShardedDataStructure<Container, LL>::front() const
-    requires FrontAble<Container> {
+inline Container::Val ShardedDataStructure<Container, LL>::front() const
+    requires HasFront<Container> {
   return const_cast<ShardedDataStructure *>(this)->__front();
 }
 
 template <class Container, class LL>
-Container::Val
-ShardedDataStructure<Container, LL>::__front() requires FrontAble<Container> {
+inline Container::Val
+ShardedDataStructure<Container, LL>::__front() requires HasFront<Container> {
   return front_back_impl<true, Val>(&Shard::try_front);
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::push_front(
-    Val v) requires PushFrontAble<Container> {
-  front_back_impl<true, void>(&Shard::try_push_front, v);
+inline void ShardedDataStructure<Container, LL>::emplace_front(
+    Val v) requires EmplaceFrontAble<Container> {
+  front_back_impl<true, void>(&Shard::try_emplace_front, v);
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container,
-                          LL>::pop_front() requires PopFrontAble<Container> {
+inline void ShardedDataStructure<
+    Container, LL>::pop_front() requires PopFrontAble<Container> {
   front_back_impl<true, void>(&Shard::try_pop_front);
 }
 
 template <class Container, class LL>
-Container::Val ShardedDataStructure<Container, LL>::back() const
-    requires BackAble<Container> {
+inline Container::Val ShardedDataStructure<Container, LL>::back() const
+    requires HasBack<Container> {
   return const_cast<ShardedDataStructure *>(this)->__back();
 }
 
 template <class Container, class LL>
-Container::Val
-ShardedDataStructure<Container, LL>::__back() requires BackAble<Container> {
+inline Container::Val
+ShardedDataStructure<Container, LL>::__back() requires HasBack<Container> {
   return front_back_impl<false, Val>(&Shard::try_back);
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::push_back(
-    Val v) requires PushBackAble<Container> {
-  front_back_impl<false, void>(&Shard::try_push_back, v);
-}
-
-template <class Container, class LL>
-void ShardedDataStructure<Container,
-                          LL>::pop_back() requires PopBackAble<Container> {
+inline void ShardedDataStructure<
+    Container, LL>::pop_back() requires PopBackAble<Container> {
   front_back_impl<false, void>(&Shard::try_pop_back);
 }
 

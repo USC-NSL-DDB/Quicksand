@@ -6,7 +6,7 @@
 
 namespace nu {
 
-// LIFO Queue
+// FIFO Queue
 template <typename T>
 class Queue {
  public:
@@ -22,9 +22,10 @@ class Queue {
   std::size_t size() const;
   bool empty() const;
   void emplace(Key k, Val v);
+  void emplace_back(Val v);
+  void emplace_back_batch(std::vector<Val> v);
   Val front() const;
   Val back() const;
-  void push_back(Val v);
   void pop_front();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);

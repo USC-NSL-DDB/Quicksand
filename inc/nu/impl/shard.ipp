@@ -284,25 +284,9 @@ inline bool GeneralShard<Container>::try_emplace_back(
 }
 
 template <class Container>
-std::pair<bool, typename Container::Val> GeneralShard<Container>::try_front(
-    std::optional<Key> l_key,
-    std::optional<Key> r_key) requires FrontAble<Container> {
-  rw_lock_.reader_lock();
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
-    rw_lock_.reader_unlock();
-    return std::make_pair(false, Val());
-  }
-
-  Val v = container_.front();
-
-  rw_lock_.reader_unlock();
-  return std::make_pair(true, v);
-}
-
-template <class Container>
-bool GeneralShard<Container>::try_push_front(
+inline bool GeneralShard<Container>::try_emplace_front(
     std::optional<Key> l_key, std::optional<Key> r_key,
-    Val v) requires PushFrontAble<Container> {
+    Val v) requires EmplaceFrontAble<Container> {
   rw_lock_.reader_lock();
   if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
@@ -311,12 +295,7 @@ bool GeneralShard<Container>::try_push_front(
 
   container_.push_front(std::move(v));
   if (unlikely(should_split())) {
-    rw_lock_.reader_unlock();
-    rw_lock_.writer_lock();
-    if (should_split()) {
-      split();
-    }
-    rw_lock_.writer_unlock();
+    split_with_reader_lock();
     return true;
   }
 
@@ -325,7 +304,24 @@ bool GeneralShard<Container>::try_push_front(
 }
 
 template <class Container>
-bool GeneralShard<Container>::try_pop_front(
+inline std::optional<typename Container::Val>
+GeneralShard<Container>::try_front(
+    std::optional<Key> l_key,
+    std::optional<Key> r_key) requires HasFront<Container> {
+  rw_lock_.reader_lock();
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return std::nullopt;
+  }
+
+  Val v = container_.front();
+
+  rw_lock_.reader_unlock();
+  return v;
+}
+
+template <class Container>
+inline bool GeneralShard<Container>::try_pop_front(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires PopFrontAble<Container> {
   rw_lock_.reader_lock();
@@ -336,56 +332,28 @@ bool GeneralShard<Container>::try_pop_front(
   }
   rw_lock_.reader_unlock();
 
-  rw_lock_.writer_lock();
   container_.pop_front();
-  rw_lock_.writer_unlock();
-
   return true;
 }
 
 template <class Container>
-std::pair<bool, typename Container::Val> GeneralShard<Container>::try_back(
+inline std::optional<typename Container::Val> GeneralShard<Container>::try_back(
     std::optional<Key> l_key,
-    std::optional<Key> r_key) requires BackAble<Container> {
+    std::optional<Key> r_key) requires HasBack<Container> {
   rw_lock_.reader_lock();
   if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
-    return std::make_pair(false, Val());
+    return std::nullopt;
   }
 
   Val v = container_.back();
 
   rw_lock_.reader_unlock();
-  return std::make_pair(true, v);
+  return v;
 }
 
 template <class Container>
-bool GeneralShard<Container>::try_push_back(
-    std::optional<Key> l_key, std::optional<Key> r_key,
-    Val v) requires PushBackAble<Container> {
-  rw_lock_.reader_lock();
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
-    rw_lock_.reader_unlock();
-    return false;
-  }
-
-  container_.push_back(std::move(v));
-  if (unlikely(should_split())) {
-    rw_lock_.reader_unlock();
-    rw_lock_.writer_lock();
-    if (should_split()) {
-      split();
-    }
-    rw_lock_.writer_unlock();
-    return true;
-  }
-
-  rw_lock_.reader_unlock();
-  return true;
-}
-
-template <class Container>
-bool GeneralShard<Container>::try_pop_back(
+inline bool GeneralShard<Container>::try_pop_back(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires PopBackAble<Container> {
   rw_lock_.reader_lock();
@@ -394,10 +362,8 @@ bool GeneralShard<Container>::try_pop_back(
     rw_lock_.reader_unlock();
     return false;
   }
-  rw_lock_.reader_unlock();
-
   container_.pop_back();
-
+  rw_lock_.reader_unlock();
   return true;
 }
 

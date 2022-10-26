@@ -50,13 +50,11 @@ class ShardedDataStructure {
   void emplace(Key k, Val v) requires HasVal<Container>;
   void emplace(DataEntry entry);
   void emplace_back(Val v) requires EmplaceBackAble<Container>;
-  Val front() const requires FrontAble<Container>;
-  void push_front(Val v) requires PushFrontAble<Container>;
+  void emplace_front(Val v) requires EmplaceFrontAble<Container>;
+  Val front() const requires HasFront<Container>;
   void pop_front() requires PopFrontAble<Container>;
-  Val back() const requires BackAble<Container>;
-  void push_back(Val v) requires PushBackAble<Container>;
+  Val back() const requires HasBack<Container>;
   void pop_back() requires PopBackAble<Container>;
-  std::optional<IterVal> find_val(Key k) const requires Findable<Container>;
   std::optional<IterVal> find_data(Key k) const requires Findable<Container>;
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...),
@@ -120,11 +118,10 @@ class ShardedDataStructure {
   friend class SealedDS;
 
   std::size_t __size();
-  Val __front() requires FrontAble<Container>;
-  Val __back() requires BackAble<Container>;
+  Val __front() requires HasFront<Container>;
+  Val __back() requires HasBack<Container>;
   template <bool FrontBack, typename RetT, typename Func, class... Args>
   RetT front_back_impl(Func func, Args... args);
-  std::optional<IterVal> __find_val(Key k) requires Findable<Container>;
   std::optional<IterVal> __find_data(Key k) requires Findable<Container>;
   void reset();
   void set_shard_and_batch_size(uint32_t *max_shard_bytes,
