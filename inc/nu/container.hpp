@@ -210,7 +210,7 @@ class GeneralContainerBase {
   }
   template <typename... S0s, typename... S1s>
   void pass_through(void (*fn)(Impl &, S0s...), S1s &&... states) {
-    synchronized<void>([&] { fn(impl_, states...); });
+    synchronized<void>([&] { fn(impl_, std::move(states)...); });
   }
   template <class Archive>
   void save(Archive &ar) const {
