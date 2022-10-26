@@ -18,8 +18,6 @@
 
 #include "nu/commons.hpp"
 
-using namespace std;
-
 constexpr uint32_t kMallocGranularityMB = 32;
 constexpr uint32_t kNumCores = 3;
 constexpr uint32_t kLoggingIntervalUs = 1000;

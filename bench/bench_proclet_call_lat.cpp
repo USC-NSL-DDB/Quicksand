@@ -15,7 +15,6 @@ extern "C" {
 #include "nu/utils/bench.hpp"
 
 using namespace nu;
-using namespace std;
 
 constexpr static uint32_t kNumRuns = 100000;
 

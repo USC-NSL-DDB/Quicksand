@@ -22,7 +22,6 @@ extern "C" {
 #include "nu/commons.hpp"
 
 using namespace nu;
-using namespace std;
 
 constexpr netaddr server_addr = {.ip = MAKE_IP_ADDR(18, 18, 1, 4),
                                  .port = 8080};
