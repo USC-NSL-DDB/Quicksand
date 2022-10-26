@@ -53,15 +53,19 @@ class PressureHandler {
   bool has_pressure();
 
  private:
-  constexpr static auto kCmpMemUtil = [](Utility x, Utility y) {
-    return x.mem_pressure_util > y.mem_pressure_util;
+  struct CmpMemUtil {
+    bool operator()(const Utility &x, const Utility &y) const {
+      return x.mem_pressure_util > y.mem_pressure_util;
+    }
   };
-  constexpr static auto kCmpCpuUtil = [](Utility x, Utility y) {
-    return x.cpu_pressure_util > y.cpu_pressure_util;
+  struct CmpCpuUtil {
+    bool operator()(const Utility &x, const Utility &y) const {
+      return x.cpu_pressure_util > y.cpu_pressure_util;
+    }
   };
-  std::shared_ptr<std::multiset<Utility, decltype(kCmpMemUtil)>>
+  std::shared_ptr<std::multiset<Utility, CmpMemUtil>>
       mem_pressure_sorted_proclets_;
-  std::shared_ptr<std::multiset<Utility, decltype(kCmpCpuUtil)>>
+  std::shared_ptr<std::multiset<Utility, CmpCpuUtil>>
       cpu_pressure_sorted_proclets_;
   rt::Thread update_th_;
   AuxHandlerState aux_handler_states_[kNumAuxHandlers];

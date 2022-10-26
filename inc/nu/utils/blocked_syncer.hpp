@@ -22,10 +22,11 @@ class BlockedSyncer {
   constexpr static uint32_t kNumBuckets = kNumCores;
   using Key = void *;
   using Val = Type;
-  constexpr static auto HashFn = [](void *p) {
-    return util::Fingerprint(reinterpret_cast<uint64_t>(p));
+  struct Hash {
+    uint64_t operator()(void *p) {
+      return util::Fingerprint(reinterpret_cast<uint64_t>(p));
+    }
   };
-  using Hash = decltype(HashFn);
   using KeyEqual = std::equal_to<Key>;
   using Allocator = std::allocator<std::pair<const Key, Val>>;
 
