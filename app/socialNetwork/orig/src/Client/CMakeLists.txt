@@ -1,6 +1,5 @@
 set(NU_DIR ../../../../../)
 set(CALADAN_DIR ${NU_DIR}/caladan/)
-set(FOLLY_DIR ${CALADAN_DIR}/deps/folly/)
 set(CMAKE_EXE_LINKER_FLAGS "-T ${CALADAN_DIR}/base/base.ld")
 
 execute_process(COMMAND nproc OUTPUT_VARIABLE NCORES)
@@ -23,7 +22,6 @@ target_include_directories(
     ${NU_DIR}/inc
     ${CALADAN_DIR}/inc
     ${CALADAN_DIR}/bindings/cc
-    ${FOLLY_DIR}/include
 )
 
 target_link_directories(

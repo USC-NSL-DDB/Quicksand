@@ -81,18 +81,3 @@ cd build
 cmake ..
 make PCM_STATIC -j $CORES
 cd ../../../
-
-echo building Folly
-cd deps/folly
-sudo ./build.sh
-pushd /tmp
-folly_path=`sudo find . -wholename "*/installed/folly"`
-popd
-if test -z "$folly_path"
-then
-      echo "Error: Failed to find folly's installed folder!"
-else
-      sudo cp -r /tmp/$folly_path/* .
-fi
-sudo rm -rf /tmp/fbcode*
-cd ../../

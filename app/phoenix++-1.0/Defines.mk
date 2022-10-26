@@ -46,8 +46,7 @@ CFLAGS = $(DEBUG) -Wall -O3 $(OS) $(NUMA) -DMMAP_POPULATE -fstrict-aliasing -Wst
          -DNCORES=$(NCORES) -T ${CALADAN}/base/base.ld -static -static-libstdc++ -static-libgcc
 LIBS = -L${NU}/glibc/build/install/lib -L${CALADAN} -L${CALADAN}/bindings/cc -L${CALADAN}/rdma-core/build/lib/statics/ \
        -L${NU} -lnu -lrt++ -lruntime -lnet -lbase -lmlx5 -libverbs -lnl-3 -lnl-route-3 -lcrypto -lpthread -ldl -lpthread -lrt
-INC =  -I../../include -I$(NU)/inc -I$(CALADAN)/inc -I$(CALADAN)/bindings/cc \
-       -I$(CALADAN)/deps/folly/include/
+INC =  -I../../include -I$(NU)/inc -I$(CALADAN)/inc -I$(CALADAN)/bindings/cc
 endif
 
 ifeq ($(OSTYPE),SunOS)

@@ -10,9 +10,6 @@
 [submodule "caladan/deps/pcm"]
 	path = caladan/deps/pcm
 	url = https://github.com/opcm/pcm.git
-[submodule "caladan/deps/folly"]
-	path = caladan/deps/folly
-	url = https://github.com/facebook/folly
 [submodule "caladan/spdk"]
 	path = caladan/spdk
 	url = https://github.com/spdk/spdk.git

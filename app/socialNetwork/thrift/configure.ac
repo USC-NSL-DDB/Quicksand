@@ -833,7 +833,7 @@ if test "x[$]ENABLE_NUTHREADS" = "x1" -o "x[$]ENABLE_CALADANTCP" = "x1"; then
     [NU_PATH="$withval"])
   NCORES=`nproc`
   CXXFLAGS="-I$NU_PATH/inc -DNCORES=$NCORES $CXXFLAGS"
-  CXXFLAGS="-I$NU_PATH/caladan/inc -I$NU_PATH/caladan/bindings/cc -I$NU_PATH/caladan/deps/folly/include $CXXFLAGS"
+  CXXFLAGS="-I$NU_PATH/caladan/inc -I$NU_PATH/caladan/bindings/cc $CXXFLAGS"
   LIBS="-L$NU_PATH/caladan/bindings/cc -lrt++ -L$NU_PATH/caladan -lruntime -lnet -lbase"
 fi
 

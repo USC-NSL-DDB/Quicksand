@@ -49,9 +49,6 @@ set(CALADAN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../caladan)
 include_directories(${CALADAN_ROOT}/inc)
 include_directories(${CALADAN_ROOT}/bindings/cc)
 
-# Include Folly
-include_directories(${CALADAN_ROOT}/deps/folly/include)
-
 # Build DataFrame library
 check_symbol_exists(clock_gettime "time.h" HMDF_HAVE_CLOCK_GETTIME)
 

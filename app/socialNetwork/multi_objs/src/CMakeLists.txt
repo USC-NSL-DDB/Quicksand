@@ -6,7 +6,6 @@ find_package(Threads)
 set(THRIFT_GEN_CPP_DIR ../gen-cpp)
 set(NU_DIR ../../../../)
 set(CALADAN_DIR ${NU_DIR}/caladan/)
-set(FOLLY_DIR ${CALADAN_DIR}/deps/folly/)
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 set(BUILD_SHARED_LIBS OFF)
 set(CMAKE_EXE_LINKER_FLAGS "-T ${CALADAN_DIR}/base/base.ld \
@@ -41,7 +40,6 @@ target_include_directories(
     ${NU_DIR}/inc
     ${CALADAN_DIR}/inc
     ${CALADAN_DIR}/bindings/cc
-    ${FOLLY_DIR}/include
 )
 
 target_link_directories(
