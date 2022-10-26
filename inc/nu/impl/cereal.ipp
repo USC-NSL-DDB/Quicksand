@@ -21,7 +21,7 @@ consteval bool is_memcpy_safe() {
 
 template <class Archive, typename T,
           traits::EnableIf<cereal::traits::is_same_archive<
-              Archive, cereal::BinaryOutputArchive>::value> = traits::sfinae>
+              Archive, cereal::BinaryOutputArchive>::value>>
 inline void save(Archive &ar, T const &t) requires(
     is_memcpy_safe<T>() &&
     !HasBuiltinSerialize<Archive, T> &&
@@ -34,7 +34,7 @@ inline void save(Archive &ar, T const &t) requires(
 
 template <class Archive, typename T,
           traits::EnableIf<cereal::traits::is_same_archive<
-              Archive, cereal::BinaryOutputArchive>::value> = traits::sfinae>
+              Archive, cereal::BinaryOutputArchive>::value>>
 inline void save_move(Archive &ar, T &&t) requires(
     is_memcpy_safe<T>() &&
     !HasBuiltinSerialize<Archive, T> &&
@@ -47,7 +47,7 @@ inline void save_move(Archive &ar, T &&t) requires(
 
 template <class Archive, typename T,
           traits::EnableIf<cereal::traits::is_same_archive<
-              Archive, cereal::BinaryInputArchive>::value> = traits::sfinae>
+              Archive, cereal::BinaryInputArchive>::value>>
 inline void load(Archive &ar, T &t) requires(
     is_memcpy_safe<T>() &&
     !HasBuiltinSerialize<Archive, T> &&
