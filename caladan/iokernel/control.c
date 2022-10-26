@@ -102,7 +102,7 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 	struct proc *p = NULL;
 	struct thread_spec *threads = NULL;
 	unsigned long *overflow_queue = NULL;
-	void *shbuf;
+	void *shbuf = NULL;
 	int i, ret;
 
 	/* attach the shared memory region */
