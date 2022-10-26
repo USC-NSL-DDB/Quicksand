@@ -22,8 +22,44 @@ concept GeneralContainerBased = requires {
 };
 
 template <class T>
+concept EmplaceFrontAble = requires(T t) {
+  { t.emplace_front(std::declval<typename T::Val>()) }
+  ->std::same_as<void>;
+};
+
+template <class T>
 concept EmplaceBackAble = requires(T t) {
   { t.emplace_back(std::declval<typename T::Val>()) }
+  ->std::same_as<void>;
+};
+
+template <class T>
+concept HasFront = requires(T t) {
+  { t.front() }
+  ->std::same_as<typename T::Val>;
+};
+
+template <class T>
+concept PopFrontAble = requires(T t) {
+  { t.pop_front() }
+  ->std::same_as<void>;
+};
+
+template <class T>
+concept HasBack = requires(T t) {
+  { t.back() }
+  ->std::same_as<typename T::Val>;
+};
+
+template <class T>
+concept PopBackAble = requires(T t) {
+  { t.pop_back() }
+  ->std::same_as<void>;
+};
+
+template <class T>
+concept ClearAble = requires(T t) {
+  { t.clear() }
   ->std::same_as<void>;
 };
 
@@ -96,7 +132,7 @@ class GeneralContainerBase {
     } else {
       return ErasedType();
     }
- }());
+  }());
   using DataEntry = std::conditional_t<HasVal<Impl>, std::pair<Key, Val>, Key>;
   using Implementation = Impl;
   using ConstIterator = decltype([] {
@@ -156,7 +192,7 @@ class GeneralContainerBase {
   bool empty() const {
     return synchronized<bool>([&] { return impl_.empty(); });
   };
-  void clear() {
+  void clear() requires ClearAble<Impl> {
     return synchronized<void>([&] { return impl_.clear(); });
   };
   void emplace(Key k, Val v) requires HasVal<Impl> {
@@ -171,6 +207,21 @@ class GeneralContainerBase {
   ConstIterator find(Key k) const requires Findable<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
+  }
+  Val front() const requires HasFront<Impl> {
+    return synchronized<Val>([&] { return impl_.front(); });
+  }
+  void emplace_front(Val v) requires EmplaceFrontAble<Impl> {
+    return synchronized<void>([&] { impl_.emplace_front(v); });
+  }
+  void pop_front() requires PopFrontAble<Impl> {
+    return synchronized<void>([&] { impl_.pop_front(); });
+  }
+  Val back() const requires HasBack<Impl> {
+    return synchronized<Val>([&] { return impl_.back(); });
+  }
+  void pop_back() requires PopBackAble<Impl> {
+    return synchronized<void>([&] { impl_.pop_back(); });
   }
   ConstIterator find_by_order(
       std::size_t order) requires FindableByOrder<Impl> {

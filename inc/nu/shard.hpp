@@ -97,6 +97,18 @@ class GeneralShard {
                    DataEntry entry);
   bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
                         Val v) requires EmplaceBackAble<Container>;
+  std::optional<Val> try_front(
+      std::optional<Key> l_key,
+      std::optional<Key> r_key) requires HasFront<Container>;
+  bool try_emplace_front(std::optional<Key> l_key, std::optional<Key> r_key,
+                         Val v) requires EmplaceFrontAble<Container>;
+  bool try_pop_front(std::optional<Key> l_key,
+                     std::optional<Key> r_key) requires PopFrontAble<Container>;
+  std::optional<Val> try_back(
+      std::optional<Key> l_key,
+      std::optional<Key> r_key) requires HasBack<Container>;
+  bool try_pop_back(std::optional<Key> l_key,
+                    std::optional<Key> r_key) requires PopBackAble<Container>;
   std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);
   std::pair<bool, std::optional<IterVal>> find_data(
       Key k) requires Findable<Container>;
