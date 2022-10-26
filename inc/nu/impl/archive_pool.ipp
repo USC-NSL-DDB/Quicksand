@@ -51,16 +51,11 @@ inline void ArchivePool<Allocator>::put_ia_sstream(IASStream *ia_sstream) {
   return ia_pool_.put(ia_sstream);
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overread"
-
 template <typename Allocator>
 void ArchivePool<Allocator>::release_oa_sstream_space(OASStream *oa_sstream) {
   // It triggers a bogus warning in g++-11 (bug confirmed).
   oa_sstream->ss.str(String(kOAStreamPreallocBufSize, '\0'));
 }
-
-#pragma GCC diagnostic pop
 
 template <typename Allocator>
 inline void ArchivePool<Allocator>::put_oa_sstream(OASStream *oa_sstream) {
