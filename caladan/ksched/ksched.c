@@ -352,7 +352,7 @@ static void ksched_ipi(void *unused)
 
 	/* check if a signal has been requested */
 	tmp = smp_load_acquire(&s->sig);
-	if (tmp == p->last_gen) {
+	if (tmp >= p->last_gen) {
 		ksched_deliver_signal(p, READ_ONCE(s->signum));
 		smp_store_release(&s->sig, 0);
 	}
