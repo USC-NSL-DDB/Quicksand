@@ -151,9 +151,9 @@ bool run_test() {
 
 void do_work() {
   if (run_test()) {
-    std::cout << "passed" << std::endl;
+    std::cout << "Passed" << std::endl;
   } else {
-    std::cout << "failed" << std::endl;
+    std::cout << "Failed" << std::endl;
   }
 }
 
