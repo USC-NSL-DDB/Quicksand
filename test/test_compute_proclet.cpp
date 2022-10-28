@@ -1,6 +1,7 @@
 #include <cereal/types/memory.hpp>
 #include <cstdint>
 #include <iostream>
+#include <ranges>
 
 #include "nu/compute_proclet.hpp"
 #include "nu/runtime.hpp"
@@ -8,58 +9,54 @@
 #include "nu/sharded_unordered_map.hpp"
 #include "nu/sharded_vector.hpp"
 
-#define RUN_TEST(test) \
-  do {                 \
-    if (!test()) {     \
-      return false;    \
-    }                  \
-  } while (0);
+bool test_basic() {
+  std::string s0{"hello"};
+  std::string s1{"world"};
 
-bool test_basic_compute_proclet() {
-  auto test_concat = [](auto a, auto b) {
-    auto expected = a + b;
-    auto cp = nu::compute([](auto &x, auto &y) { return x + y; }, std::move(a),
-                          std::move(b));
-    return cp.get() == expected;
-  };
-
-  // TODO: not passing b/c of segfault when deserializing RPC args?
-  // return test_concat(std::string{"hello"}, std::string{"world"});
-  return test_concat(1, 2);
+  auto cp = nu::make_compute_proclet(
+      +[](std::string s0, std::string s1) { return s0 + s1; }, s0, s1);
+  return cp.get() == s0 + s1;
 }
 
-bool test_pass_proclet_arg() {
+bool test_pass_sharded_ds() {
   auto ints = nu::make_sharded_vector<int, std::false_type>();
-  auto ints_ref = ints;
-  auto cp = nu::compute([](auto ints) { ints.push_back(1); }, std::move(ints));
+  using Ints = decltype(ints);
+  auto cp = nu::make_compute_proclet(
+      +[](Ints ints) { ints.push_back(1); }, ints);
   cp.get();
-  auto result = ints_ref[0];
-  return result == 1;
+  return ints[0] == 1;
 }
 
-bool test_compute_proclet_over_one_sharded_ds() {
-  std::size_t elem_count = 10;
+bool test_compute_over_sharded_ds() {
+  constexpr auto kNumElements = 10;
 
-  auto input = nu::make_sharded_vector<int, std::false_type>(elem_count);
+  auto input = nu::make_sharded_vector<int, std::false_type>(kNumElements);
   auto output = nu::make_sharded_vector<int, std::false_type>();
 
-  for (std::size_t i = 0; i < elem_count; ++i) {
-    input.push_back(1);
+  for (auto i : std::views::iota(0, kNumElements)) {
+    input.push_back(i);
   }
-  auto sealed_in = nu::to_sealed_ds(std::move(input));
+  auto sealed_input = nu::to_sealed_ds(std::move(input));
+  auto range_input = nu::range(sealed_input);
+  auto cp = nu::make_compute_proclet(
+      +[](decltype(range_input) r, decltype(output) output) {
+        // TODO: support std::range or at least range-based for loop.
+        for (; r.has_next(); ++r) {
+          output.push_back(*r);
+        }
+      },
+      range_input, output);
 
-  auto out_ref = output;
-  auto cp =
-      nu::compute_range([](auto &elem, auto &out) { out.push_back(elem); },
-                        nu::range(sealed_in), std::move(out_ref));
-  cp.get();
-
-  auto sealed_out = nu::to_sealed_ds(std::move(output));
-  if (sealed_out.size() != 10) {
+  auto sealed_output = nu::to_sealed_ds(std::move(output));
+  if (sealed_output.size() != kNumElements) {
     return false;
   }
-  for (const auto elem : sealed_out) {
-    if (elem != 1) {
+
+  // TODO: support std::ranges::zip_view.
+  auto it_input = sealed_input.cbegin();
+  auto it_output = sealed_output.cbegin();
+  for (; it_input != sealed_input.cend(); ++it_input, ++it_output) {
+    if (*it_input != *it_output) {
       return false;
     }
   }
@@ -139,14 +136,8 @@ bool test_compute_proclet_over_one_sharded_ds() {
 // }
 
 bool run_test() {
-  RUN_TEST(test_basic_compute_proclet);
-  RUN_TEST(test_pass_proclet_arg);
-  //
-  // TODO: sometimes segfaults in PressureHandler, when inserting into
-  // PressureHandler->new_cpu_pressure_sorted_proclets;
-  // RUN_TEST(test_compute_proclet_over_one_sharded_ds);
-
-  return true;
+  return test_basic() && test_pass_sharded_ds() &&
+         test_compute_over_sharded_ds();
 }
 
 void do_work() {

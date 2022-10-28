@@ -1,88 +1,43 @@
 #pragma once
 
+#include <type_traits>
+
+#include "nu/commons.hpp"
 #include "nu/proclet.hpp"
 #include "nu/sealed_ds.hpp"
 #include "nu/utils/future.hpp"
 
 namespace nu {
-template <typename F, typename... As>
-class ComputeProclet {
- private:
-  using RetT = std::invoke_result_t<std::decay_t<F>, As&...>;
 
+template <typename RetT>
+class ComputeProclet {
  public:
-  ComputeProclet(F&& fn, As&&... states);
-  ComputeProclet(const ComputeProclet&) = default;
-  ComputeProclet& operator=(const ComputeProclet&) = default;
+  using RetTRef = decltype([] {
+    if constexpr (!std::is_same_v<RetT, void>) {
+      return RetT();
+    }
+  }());
+
   ComputeProclet(ComputeProclet&&) = default;
   ComputeProclet& operator=(ComputeProclet&&) = default;
+  ComputeProclet(const ComputeProclet&) = delete;
+  ComputeProclet& operator=(const ComputeProclet&) = delete;
 
-  RetT get();
+  RetTRef get();
 
  private:
-  class Executor {
-   public:
-    Executor(F&& fn, As&&... states);
-    Executor(const Executor&) = delete;
-    Executor& operator=(const Executor&) = delete;
-    Executor(Executor&&);
-    Executor& operator=(Executor&&);
-    ~Executor();
+  Proclet<ErasedType> proclet_;
+  Future<RetT> future_;
 
-    RetT get();
-    template <class Archive>
-    void save(Archive& ar) const;
-    template <class Archive>
-    void load(Archive& ar);
+  template <typename R, typename... A0s, typename... A1s>
+  friend ComputeProclet<R> make_compute_proclet(R (*fn)(A0s...), A1s&&...);
 
-   private:
-    Future<RetT> f_;
-  };
-
-  Proclet<Executor> inner_;
+  ComputeProclet();
 };
 
-template <typename F, typename R, typename... As>
-class RangedComputeProclet {
- private:
- public:
-  RangedComputeProclet(F&& fn, R&& range, As&&... states);
-  RangedComputeProclet(const RangedComputeProclet&) = default;
-  RangedComputeProclet& operator=(const RangedComputeProclet&) = default;
-  RangedComputeProclet(RangedComputeProclet&&) = default;
-  RangedComputeProclet& operator=(RangedComputeProclet&&) = default;
+template <typename RetT, typename... A0s, typename... A1s>
+ComputeProclet<RetT> make_compute_proclet(RetT (*fn)(A0s...), A1s&&... args);
 
-  void get();
-
- private:
-  class Executor {
-   public:
-    Executor(F&& fn, R&& range, As&&... states);
-    Executor(const Executor&) = delete;
-    Executor& operator=(const Executor&) = delete;
-    Executor(Executor&&);
-    Executor& operator=(Executor&&);
-    ~Executor();
-
-    void get();
-    template <class Archive>
-    void save(Archive& ar) const;
-    template <class Archive>
-    void load(Archive& ar);
-
-   private:
-    Future<void> f_;
-  };
-
-  Proclet<Executor> inner_;
-};
-
-template <typename F, typename... As>
-ComputeProclet<F, As...> compute(F&& fn, As&&... states);
-
-template <typename F, typename R, typename... As>
-RangedComputeProclet<F, R, As...> compute_range(F&& fn, R&& range,
-                                                As&&... states);
 }  // namespace nu
 
 #include "nu/impl/compute_proclet.ipp"
