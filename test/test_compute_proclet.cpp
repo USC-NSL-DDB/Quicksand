@@ -31,7 +31,7 @@ bool test_basic_compute_proclet() {
 bool test_pass_proclet_arg() {
   auto ints = nu::make_sharded_vector<int, std::false_type>();
   auto ints_ref = ints;
-  auto cp = nu::compute([](auto &ints) { ints.push_back(1); }, std::move(ints));
+  auto cp = nu::compute([](auto ints) { ints.push_back(1); }, std::move(ints));
   cp.get();
   auto result = ints_ref[0];
   return result == 1;
@@ -140,7 +140,7 @@ bool test_compute_proclet_over_one_sharded_ds() {
 
 bool run_test() {
   RUN_TEST(test_basic_compute_proclet);
-  // RUN_TEST(test_pass_proclet_arg);
+  RUN_TEST(test_pass_proclet_arg);
   //
   // TODO: sometimes segfaults in PressureHandler, when inserting into
   // PressureHandler->new_cpu_pressure_sorted_proclets;
