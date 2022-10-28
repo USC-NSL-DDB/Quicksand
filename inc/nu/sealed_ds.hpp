@@ -9,6 +9,7 @@
 #include <utility>
 #include <variant>
 
+#include "container.hpp"
 #include "nu/proclet.hpp"
 #include "nu/rem_unique_ptr.hpp"
 #include "nu/sharded_ds.hpp"
@@ -20,14 +21,14 @@ namespace nu {
 
 template <ShardedDataStructureBased T, bool Fwd>
 class GeneralSealedDSConstIterator {
-private:
+ private:
   using IterVal = T::Shard::GeneralContainer::IterVal;
   using Container = T::Shard::GeneralContainer;
   using ContainerIter =
       std::conditional_t<Fwd, typename Container::ConstIterator,
                          typename Container::ConstReverseIterator>;
 
-public:
+ public:
   GeneralSealedDSConstIterator();
   GeneralSealedDSConstIterator(const GeneralSealedDSConstIterator &);
   GeneralSealedDSConstIterator &operator=(const GeneralSealedDSConstIterator &);
@@ -98,7 +99,6 @@ public:
     static Block shard_back_block(ShardsVecIter shards_iter);
     static Block shard_end_block(ShardsVecIter shards_iter);
 
-   private:
     Prefetched prefetched;
   };
 
@@ -131,6 +131,9 @@ public:
   template <ShardedDataStructureBased U>
   friend class SealedDS;
 
+  template <typename It>
+  friend class Range;
+
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
                                bool is_begin);
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
@@ -148,6 +151,29 @@ public:
                                                ContainerIter *container_iter);
   static Block unwrap_block_variant(
       std::variant<Future<Block>, Block> *variant);
+};
+
+template <typename It>
+class Range {
+ public:
+  Range();
+  Range(const It &begin, const It &end);
+  Range(const Range &) = default;
+  Range &operator=(const Range &) = default;
+  Range(Range &&) = default;
+  Range &operator=(Range &&) = default;
+  bool has_next() const;
+  Range &operator++();
+  const It::IterVal &operator*();
+
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
+
+ private:
+  It curr_;
+  It end_;
 };
 
 template <ShardedDataStructureBased T>
@@ -208,6 +234,9 @@ template <typename T>
 SealedDS<T> to_sealed_ds(T &&t);
 template <typename T>
 T to_unsealed_ds(SealedDS<T> &&sealed);
+
+template <typename T>
+Range<GeneralSealedDSConstIterator<T, true>> range(const SealedDS<T> &sealed);
 
 }  // namespace nu
 

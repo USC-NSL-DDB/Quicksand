@@ -373,11 +373,11 @@ GeneralSealedDSConstIterator<T, Fwd>::prefetch_prev_block(
     prefetched.second = *container_iter;
   } else {
     if constexpr (Fwd) {
-      prefetched = shard->get_prev_block_with_iters(
-          *container_iter, kPrefetchSizePerThread);
+      prefetched = shard->get_prev_block_with_iters(*container_iter,
+                                                    kPrefetchSizePerThread);
     } else {
-      prefetched = shard->get_prev_rblock_with_iters(
-          *container_iter, kPrefetchSizePerThread);
+      prefetched = shard->get_prev_rblock_with_iters(*container_iter,
+                                                     kPrefetchSizePerThread);
     }
     if (!prefetched.empty()) {
       *container_iter = prefetched.front().second;
@@ -406,7 +406,7 @@ void GeneralSealedDSConstIterator<T, Fwd>::allocate_prefetch_executor() {
             if constexpr (PreDecrementable<ContainerIter>) {
               return prefetch_prev_block(states->first, &states->second);
             }
-	    BUG();
+            BUG();
           }
         },
         kMaxNumInflightPrefetches);
@@ -725,6 +725,45 @@ inline SealedDS<T> to_sealed_ds(T &&t) {
 template <typename T>
 inline T to_unsealed_ds(SealedDS<T> &&sealed) {
   return sealed.unseal();
+}
+
+template <typename It>
+Range<It>::Range() {}
+
+template <typename It>
+Range<It>::Range(const It &begin, const It &end) : curr_(begin), end_(end) {}
+
+template <typename It>
+bool Range<It>::has_next() const {
+  return curr_ != end_;
+}
+
+template <typename It>
+Range<It> &Range<It>::operator++() {
+  ++curr_;
+  return *this;
+}
+
+template <typename It>
+const It::IterVal &Range<It>::operator*() {
+  return *curr_;
+}
+
+template <typename It>
+template <class Archive>
+inline void Range<It>::save(Archive &ar) const {
+  ar(curr_, end_);
+}
+
+template <typename It>
+template <class Archive>
+inline void Range<It>::load(Archive &ar) {
+  ar(curr_, end_);
+}
+
+template <typename T>
+Range<GeneralSealedDSConstIterator<T, true>> range(const SealedDS<T> &sealed) {
+  return Range(sealed.cbegin(), sealed.cend());
 }
 
 }  // namespace nu
