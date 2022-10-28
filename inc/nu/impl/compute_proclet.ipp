@@ -16,7 +16,9 @@ ComputeProclet<F, As...>::RetT ComputeProclet<F, As...>::get() {
 
 template <typename F, typename... As>
 ComputeProclet<F, As...>::Executor::Executor(F&& fn, As&&... states)
-    : f_(nu::async([&]() { return fn(states...); })) {}
+    : f_(nu::async([... ss = std::move(states), fn = std::forward<F>(fn)]() {
+        return fn(ss...);
+      })) {}
 
 template <typename F, typename... As>
 ComputeProclet<F, As...>::Executor::Executor(Executor&& o) {
