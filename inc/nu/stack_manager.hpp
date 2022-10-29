@@ -18,8 +18,6 @@ class StackManager {
   StackManager(VAddrRange stack_cluster);
   uint8_t *get();
   void put(uint8_t *stack);
-  VAddrRange get_range();
-  void add_ref_cnt(VAddrRange borrowed_stack_cluster, uint32_t cnt);
 
  private:
   struct alignas(kCacheLineBytes) CoreCache {
@@ -28,13 +26,11 @@ class StackManager {
 
   VAddrRange range_;
   CachedPool<uint8_t> cached_pool_;
-  std::map<VAddrRange, uint32_t> borrowed_stack_ref_cnt_map_;
   rt::Mutex mutex_;
 
-  static void mmap(VAddrRange borrowed_stack_cluster);
-  static void munmap(VAddrRange borrowed_stack_cluster);
+  bool not_in_range(uint8_t *stack);
+  void release_space(uint8_t *stack);
 };
 
 }  // namespace nu
 
-#include "nu/impl/stack_manager.ipp"

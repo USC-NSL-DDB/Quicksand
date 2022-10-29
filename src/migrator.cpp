@@ -372,12 +372,6 @@ void Migrator::transmit_threads(rt::TcpConn *c,
   }
 }
 
-void Migrator::transmit_stack_cluster_mmap_task(rt::TcpConn *c) {
-  auto stack_cluster = Runtime::stack_manager->get_range();
-  BUG_ON(c->WriteFull(&stack_cluster, sizeof(stack_cluster), /* nt = */ false,
-                      /* poll = */ true) < 0);
-}
-
 void Migrator::transmit_proclet_migration_tasks(
     rt::TcpConn *c, std::vector<ProcletMigrationTask>::const_iterator begin,
     std::vector<ProcletMigrationTask>::const_iterator end) {
@@ -516,6 +510,7 @@ uint32_t Migrator::migrate(Resource resource,
       break;
     }
   }
+
   return num_migrated_proclets;
 }
 
@@ -564,7 +559,6 @@ uint32_t Migrator::__migrate(Resource resource,
     BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
                            /* poll = */ true) < 0);
     transmit_proclet_migration_tasks(conn, it, tasks.end());
-    transmit_stack_cluster_mmap_task(conn);
 
     while (it != tasks.end()) {
       loader_approval = receive_approval(conn);
@@ -803,13 +797,6 @@ void Migrator::load_threads(rt::TcpConn *c, ProcletHeader *proclet_header) {
   }
 }
 
-VAddrRange Migrator::load_stack_cluster_mmap_task(rt::TcpConn *c) {
-  VAddrRange stack_cluster;
-  BUG_ON(c->ReadFull(&stack_cluster, sizeof(stack_cluster), /* nt = */ false,
-                     /* poll = */ true) <= 0);
-  return stack_cluster;
-}
-
 std::vector<ProcletMigrationTask> Migrator::load_proclet_migration_tasks(
     rt::TcpConn *c) {
   std::vector<ProcletMigrationTask> tasks;
@@ -839,9 +826,6 @@ void Migrator::load(rt::TcpConn *c) {
       Runtime::proclet_manager->madvise_populate(header, size);
     }
   });
-
-  auto stack_cluster = load_stack_cluster_mmap_task(c);
-  Runtime::stack_manager->add_ref_cnt(stack_cluster, tasks.size());
 
   std::vector<std::pair<ProcletHeader *, uint64_t>> skipped_proclets;
   for (auto &[proclet_header, capacity, size] : tasks) {
@@ -880,8 +864,6 @@ void Migrator::load(rt::TcpConn *c) {
       Runtime::proclet_manager->depopulate(proclet, size,
                                            /* delay = */ false);
     }
-    Runtime::stack_manager->add_ref_cnt(stack_cluster,
-                                        -skipped_proclets.size());
   } else {
     mmap_th.Detach();
   }

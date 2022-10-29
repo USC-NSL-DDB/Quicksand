@@ -62,10 +62,6 @@ struct ProcletHeader {
   Time time;
   bool migratable;
 
-  // Forwarding related.
-  // FIXME
-  // rt::WaitGroup migrated_wg;
-
   //--- Fields below will be automatically copied during migration. ---/
   uint8_t copy_start[0];
 
