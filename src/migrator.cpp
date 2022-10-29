@@ -360,6 +360,7 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
   BUG_ON(c->WriteFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                       /* nt = */ false,
                       /* poll = */ true) < 0);
+  Runtime::stack_manager->free(reinterpret_cast<uint8_t *>(stack_range.end));
 }
 
 void Migrator::transmit_threads(rt::TcpConn *c,
@@ -393,7 +394,7 @@ void Migrator::update_proclet_location(rt::TcpConn *c,
                                        ProcletHeader *proclet_header) {
   Runtime::controller_client->update_location(to_proclet_id(proclet_header),
                                               c->RemoteAddr().ip);
-  // Wakeup the blocked requests after marking the proclet as absent so that
+  // Wakeup the requests blocked after marking the proclet as absent so that
   // they will be immediately rejected.
   proclet_header->spin_lock.lock();
   proclet_header->status() = kAbsent;
@@ -532,11 +533,17 @@ void skip_proclet(rt::TcpConn *conn, ProcletHeader *proclet_header) {
                          /* poll = */ true) < 0);
 }
 
-bool Migrator::receive_approval(rt::TcpConn *c) {
+bool receive_approval(rt::TcpConn *c) {
   bool approval;
   BUG_ON(c->ReadFull(&approval, sizeof(approval),
                      /* nt = */ false, /* poll = */ true) <= 0);
   return approval;
+}
+
+void send_done(rt::TcpConn *c) {
+  bool dummy = false;
+  BUG_ON(c->WriteFull(&dummy, sizeof(dummy), /* nt = */ false,
+                      /* poll = */ true) < 0);
 }
 
 uint32_t Migrator::__migrate(Resource resource,
@@ -578,6 +585,8 @@ uint32_t Migrator::__migrate(Resource resource,
       gc_migrated_threads();
       post_migration_cleanup(proclet_header);
     }
+
+    send_done(conn);
 
     for (auto tmp_it = it; tmp_it != tasks.end(); tmp_it++) {
       auto *proclet_header = tmp_it->header;
@@ -699,8 +708,6 @@ void Migrator::load_mutexes(rt::TcpConn *c, ProcletHeader *proclet_header) {
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
                          /* poll = */ true) <= 0);
-      // FIXME
-      // proclet_header->migrated_wg.Add(num_threads);
 
       auto *waiters = mutex->get_waiters();
       list_head_init(waiters);
@@ -732,8 +739,6 @@ void Migrator::load_condvars(rt::TcpConn *c, ProcletHeader *proclet_header) {
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
                          /* poll = */ true) <= 0);
-      // FIXME
-      // proclet_header->migrated_wg.Add(num_threads);
 
       auto *waiters = condvar->get_waiters();
       list_head_init(waiters);
@@ -756,8 +761,6 @@ void Migrator::load_time(rt::TcpConn *c, ProcletHeader *proclet_header) {
                           {&num_entries, sizeof(num_entries)}};
   BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false,
                       /* poll = */ true) <= 0);
-  // FIXME
-  // proclet_header->migrated_wg.Add(num_entries);
 
   auto loader_tsc = rdtscp(nullptr) - start_tsc;
   time.offset_tsc_ = sum_tsc - loader_tsc;
@@ -788,8 +791,6 @@ void Migrator::load_threads(rt::TcpConn *c, ProcletHeader *proclet_header) {
   uint64_t num_threads;
   BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
                      /* poll = */ true) <= 0);
-  // FIXME
-  // proclet_header->migrated_wg.Add(num_threads);
 
   for (uint64_t i = 0; i < num_threads; i++) {
     auto *th = load_one_thread(c, proclet_header);
@@ -814,9 +815,15 @@ std::vector<ProcletMigrationTask> Migrator::load_proclet_migration_tasks(
   return tasks;
 }
 
-void Migrator::issue_approval(rt::TcpConn *c, bool approval) {
+void issue_approval(rt::TcpConn *c, bool approval) {
   BUG_ON(c->WriteFull(&approval, sizeof(approval), /* nt = */ false,
                       /* poll = */ true) < 0);
+}
+
+void receive_done(rt::TcpConn *c) {
+  bool dummy;
+  BUG_ON(c->ReadFull(&dummy, sizeof(dummy),
+                     /* nt = */ false, /* poll = */ true) <= 0);
 }
 
 void Migrator::load(rt::TcpConn *c) {
@@ -827,7 +834,9 @@ void Migrator::load(rt::TcpConn *c) {
     }
   });
 
+  std::vector<ProcletHeader *> loaded_proclets;
   std::vector<std::pair<ProcletHeader *, uint64_t>> skipped_proclets;
+
   for (auto &[proclet_header, capacity, size] : tasks) {
     bool approval = !Runtime::pressure_handler->has_real_pressure();
     issue_approval(c, approval);
@@ -840,20 +849,16 @@ void Migrator::load(rt::TcpConn *c) {
     load_mutexes(c, proclet_header);
     load_condvars(c, proclet_header);
     load_time(c, proclet_header);
-
     Runtime::proclet_manager->insert(proclet_header);
-
     load_threads(c, proclet_header);
-
+    loaded_proclets.emplace_back(proclet_header);
     // Wakeup the blocked threads.
     proclet_header->cond_var.signal_all();
+  }
 
-    // FIXME
-    // rt::Thread([proclet_header, stack_cluster] {
-    //   proclet_header->migrated_wg.Wait();
-    //   rt::access_once(proclet_header->migratable) = true;
-    //   Runtime::stack_manager->add_ref_cnt(stack_cluster, -1);
-    // }).Detach();
+  receive_done(c);
+  for (auto *proclet_header : loaded_proclets) {
+    proclet_header->migratable = true;
   }
 
   if (unlikely(!skipped_proclets.empty())) {

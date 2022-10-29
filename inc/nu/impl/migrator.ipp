@@ -57,7 +57,9 @@ void Migrator::migrate_thread_and_ret_val(
     RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
     std::move_only_function<void()> cleanup_fn) {
   rt::Thread(
-      [&, th = thread_self(), ret_val_buf = std::move(ret_val_buf)] {
+      [dest_id, dest_ret_val_ptr, th = thread_self(),
+       ret_val_buf = std::move(ret_val_buf),
+       cleanup_fn = std::move(cleanup_fn)]() mutable {
         thread_wait_until_parked(th);
         auto *dest_proclet_header = to_proclet_header(dest_id);
         thread_set_owner_proclet(th, dest_proclet_header);
@@ -89,6 +91,8 @@ void Migrator::migrate_thread_and_ret_val(
         if (cleanup_fn) {
           cleanup_fn();
         }
+        Runtime::stack_manager->free(
+            reinterpret_cast<uint8_t *>(stack_range.end));
 
         auto req_span = std::span(req_buf.get(), req_buf_len);
         RPCReturnBuffer unused_buf;

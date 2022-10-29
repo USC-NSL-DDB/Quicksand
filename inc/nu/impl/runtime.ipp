@@ -51,20 +51,20 @@ inline T *Runtime::get_root_obj(ProcletID id) {
 template <typename Cls, typename... A0s, typename... A1s>
 __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer"))) void
-__run_within_proclet_env(NonBlockingMigrationDisabledGuard *guard, Cls *obj_ptr,
-                         void (*fn)(A0s...), A1s &&... args) {
+Runtime::__run_within_proclet_env(NonBlockingMigrationDisabledGuard *guard,
+                                  Cls *obj_ptr, void (*fn)(A0s...),
+                                  A1s &&... args) {
   {
     NonBlockingMigrationDisabledGuard guard_on_proclet_stack(std::move(*guard));
-    // auto *proclet_header = guard_on_proclet_stack.get_proclet_header();
-
     fn(*obj_ptr, std::forward<A1s>(args)...);
   }
 
   thread_unset_owner_proclet();
   if (unlikely(thread_has_been_migrated())) {
-    // FIXME
-    // proclet_header->migrated_wg.Done();
+    auto proclet_stack_base = get_proclet_stack_range(__self).end;
     switch_stack(thread_get_runtime_stack_base());
+    Runtime::stack_manager->put(
+        reinterpret_cast<uint8_t *>(proclet_stack_base));
     rt::Exit();
   }
 }

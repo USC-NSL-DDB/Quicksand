@@ -312,13 +312,8 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
 
     RuntimeSlabGuard slab_guard;
     Migrator::migrate_thread_and_ret_val<RetT>(
-        std::move(ret_val_buf), caller_id, caller_ptr, [&, th = thread_self()] {
-          // FIXME
-          // if (thread_is_migrated(th)) {
-          // callee_proclet_header->migrated_wg.Done();
-          // }
-          Runtime::archive_pool->put_oa_sstream(oa_sstream);
-        });
+        std::move(ret_val_buf), caller_id, caller_ptr,
+        [oa_sstream] { Runtime::archive_pool->put_oa_sstream(oa_sstream); });
   } else {
     {
       [[maybe_unused]] Guard guard;
@@ -338,14 +333,8 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
 
     RuntimeSlabGuard slab_guard;
     RPCReturnBuffer ret_val_buf;
-    Migrator::migrate_thread_and_ret_val<void>(
-        std::move(ret_val_buf), caller_id, nullptr, [&, th = thread_self()] {
-          // FIXME
-          // if (thread_is_migrated(th))
-          // {
-          //   callee_proclet_header->migrated_wg.Done();
-          // }
-        });
+    Migrator::migrate_thread_and_ret_val<void>(std::move(ret_val_buf),
+                                               caller_id, nullptr, nullptr);
   }
 }
 

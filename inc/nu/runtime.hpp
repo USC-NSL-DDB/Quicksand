@@ -35,6 +35,7 @@ template <typename T>
 class RuntimeDeleter;
 template <typename T>
 class WeakProclet;
+class NonBlockingMigrationDisabledGuard;
 
 struct RPCReqReserveConns {
   RPCReqType rpc_type = kReserveConns;
@@ -105,6 +106,10 @@ class Runtime {
   friend class Proclet;
 
   Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid);
+  template <typename Cls, typename... A0s, typename... A1s>
+  static void __run_within_proclet_env(NonBlockingMigrationDisabledGuard *guard,
+                                       Cls *obj_ptr, void (*fn)(A0s...),
+                                       A1s &&... args);
 };
 
 class RuntimeSlabGuard {

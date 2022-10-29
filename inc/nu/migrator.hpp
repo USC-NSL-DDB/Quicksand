@@ -170,8 +170,6 @@ class Migrator {
                      const std::vector<ProcletMigrationTask> &tasks);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);
-  void issue_approval(rt::TcpConn *c, bool approve_migration);
-  bool receive_approval(rt::TcpConn *c);
 };
 
 }  // namespace nu

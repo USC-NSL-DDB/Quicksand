@@ -18,6 +18,7 @@ class StackManager {
   StackManager(VAddrRange stack_cluster);
   uint8_t *get();
   void put(uint8_t *stack);
+  void free(uint8_t *stack);
 
  private:
   struct alignas(kCacheLineBytes) CoreCache {
@@ -29,7 +30,6 @@ class StackManager {
   rt::Mutex mutex_;
 
   bool not_in_range(uint8_t *stack);
-  void release_space(uint8_t *stack);
 };
 
 }  // namespace nu

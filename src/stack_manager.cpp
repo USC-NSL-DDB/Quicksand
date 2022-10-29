@@ -40,17 +40,19 @@ bool StackManager::not_in_range(uint8_t *stack) {
   return addr > range_.end || addr <= range_.start;
 }
 
-void StackManager::release_space(uint8_t *stack) {
-  stack -= kStackSize;
-  BUG_ON(munmap(stack, kStackSize) == -1);
-  auto mmap_addr = mmap(stack, kStackSize, PROT_READ | PROT_WRITE,
-                        MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
-  BUG_ON(mmap_addr != stack);
+void StackManager::free(uint8_t *stack) {
+  if (not_in_range(stack)) {
+    stack -= kStackSize;
+    BUG_ON(munmap(stack, kStackSize) == -1);
+    auto mmap_addr = mmap(stack, kStackSize, PROT_READ | PROT_WRITE,
+                          MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+    BUG_ON(mmap_addr != stack);
+  }
 }
 
 void StackManager::put(uint8_t *stack) {
   if (unlikely(not_in_range(stack))) {
-    release_space(stack);
+    free(stack);
     return;
   }
   cached_pool_.put(stack);

@@ -29,17 +29,10 @@ Thread::trampoline_in_proclet_env(void *args) {
   auto old_rsp = switch_stack(runtime_stack_base);
   Runtime::switch_to_runtime_slab();
 
-  // auto *proclet_header = d->header;
-  if (likely(thread_is_at_creator())) {
-    auto proclet_stack_addr =
-        ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &
-         (~(kStackSize - 1)));
-    Runtime::stack_manager->put(
-        reinterpret_cast<uint8_t *>(proclet_stack_addr));
-  } else {
-    // FIXME
-    // proclet_header->migrated_wg.Done();
-  }
+  auto proclet_stack_addr =
+      ((reinterpret_cast<uintptr_t>(old_rsp) + kStackSize - 1) &
+       (~(kStackSize - 1)));
+  Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(proclet_stack_addr));
   rt::Exit();
 }
 
