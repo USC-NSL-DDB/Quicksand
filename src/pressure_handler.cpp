@@ -93,8 +93,8 @@ void PressureHandler::__main_handler() {
     if constexpr (kEnableLogging) {
       std::cout << "Detect pressure = { .mem_mbs = "
                 << rt::RuntimeToReleaseMemMbs()
-                << ", .cpu_pressure = " << rt::RuntimeCpuPressure()
-                << ", .mock = " << mock_ << " }." << std::endl;
+                << ", .cpu_pressure = " << rt::RuntimeCpuPressure() << " }."
+                << std::endl;
     }
 
     auto min_num_proclets =
@@ -112,6 +112,9 @@ void PressureHandler::__main_handler() {
         break;
       }
     } else {
+      if (mock_)  {
+        mock_clear_pressure();
+      }
       break;
     }
   }
@@ -261,8 +264,15 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
 }
 
 void PressureHandler::mock_set_pressure() {
+  mock_ = true;
   ResourcePressureInfo pressure = {
       .mock = true, .to_release_mem_mbs = std::numeric_limits<uint32_t>::max()};
+  *resource_pressure_info = pressure;
+}
+
+void PressureHandler::mock_clear_pressure() {
+  mock_ = false;
+  ResourcePressureInfo pressure = {.mock = false, .to_release_mem_mbs = 0};
   *resource_pressure_info = pressure;
 }
 

@@ -845,7 +845,7 @@ void Migrator::load(rt::TcpConn *c) {
 
   std::vector<std::pair<ProcletHeader *, uint64_t>> skipped_proclets;
   for (auto &[proclet_header, capacity, size] : tasks) {
-    bool approval = !Runtime::pressure_handler->has_pressure();
+    bool approval = !Runtime::pressure_handler->has_real_pressure();
     issue_approval(c, approval);
 
     if (unlikely(!load_proclet(c, proclet_header, capacity))) {
