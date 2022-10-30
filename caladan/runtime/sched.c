@@ -18,9 +18,9 @@
 #include "defs.h"
 
 const int thread_link_offset = offsetof(struct thread, link);
-const int thread_run_cycles_offset =
+const int thread_monitor_cnt_offset =
        offsetof(struct thread, nu_state) +
-       offsetof(struct thread_nu_state, run_cycles);
+       offsetof(struct thread_nu_state, monitor_cnt);
 const int thread_owner_proclet_offset =
        offsetof(struct thread, nu_state) +
        offsetof(struct thread_nu_state, owner_proclet);
@@ -669,6 +669,30 @@ done:
 	jmp_thread(th);
 }
 
+static inline struct aligned_cycles *get_aligned_cycles(void *owner_proclet)
+{
+	return (struct aligned_cycles *)owner_proclet;
+}
+
+static inline void __update_monitor_cycles(uint64_t now_tsc)
+{
+	thread_t *curth = thread_self();
+	struct aligned_cycles *cycles;
+
+	if (curth->nu_state.monitor_cnt) {
+		cycles = get_aligned_cycles(curth->nu_state.owner_proclet);
+		if (cycles) {
+			cycles[read_cpu()].c += now_tsc - curth->run_start_tsc;
+			curth->run_start_tsc = now_tsc;
+		}
+	}
+}
+
+void update_monitor_cycles(void)
+{
+	__update_monitor_cycles(rdtsc());
+}
+
 static __always_inline void enter_schedule(thread_t *curth)
 {
 	struct kthread *k = myk();
@@ -678,9 +702,7 @@ static __always_inline void enter_schedule(thread_t *curth)
 	assert_preempt_disabled();
 
 	now_tsc = rdtsc();
-	if (curth->nu_state.run_cycles)
-		curth->nu_state.run_cycles[read_cpu()].c +=
-			now_tsc - curth->run_start_tsc;
+	__update_monitor_cycles(now_tsc);
 
 	/* prepare current thread for sleeping */
 	curth->last_cpu = k->curr_cpu;
@@ -957,14 +979,9 @@ static void thread_finish_cede(void)
  */
 void thread_cede(void)
 {
-	struct thread *th = thread_self();
-	int core_id;
-
+	preempt_disable();
+	update_monitor_cycles();
 	/* this will switch from the thread stack to the runtime stack */
-	core_id = get_cpu();
-	if (th->nu_state.run_cycles)
-		th->nu_state.run_cycles[core_id].c +=
-			rdtsc() - th->run_start_tsc;
 	jmp_runtime(thread_finish_cede);
 }
 
@@ -1013,7 +1030,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->wq_spin = false;
 	th->migrated = false;
 	memset(th->rcus, 0, sizeof(th->rcus));
-	th->nu_state.run_cycles = NULL;
+	th->nu_state.monitor_cnt = 0;
 	th->nu_state.nu_thread = NULL;
 	th->nu_state.creator_ip = get_cfg_ip();
 	th->nu_state.proclet_slab = NULL;
@@ -1382,50 +1399,19 @@ void *thread_get_runtime_stack_base(void)
 	return &__self->stack->usable[STACK_PTR_SIZE];
 }
 
-struct aligned_cycles *
-thread_start_monitor_cycles(struct aligned_cycles *output)
-{
-       int core_id = get_cpu();
-       uint64_t curr_tsc = rdtsc();
-       struct aligned_cycles *old_output;
-
-       if (__self->nu_state.run_cycles) {
-              __self->nu_state.run_cycles[core_id].c +=
-                     curr_tsc - __self->run_start_tsc;
-	      old_output = __self->nu_state.run_cycles;
-       } else
-	      old_output = NULL;
-       __self->run_start_tsc = curr_tsc;
-       __self->nu_state.run_cycles = output;
-       put_cpu();
-
-       return old_output;
-}
-
-void thread_end_monitor_cycles(struct aligned_cycles *old_output) {
-       int core_id = get_cpu();
-       uint64_t curr_tsc = rdtsc();
-
-       __self->nu_state.run_cycles[core_id].c +=
-              curr_tsc - __self->run_start_tsc;
-       __self->nu_state.run_cycles = old_output;
-       __self->run_start_tsc = curr_tsc;
-       put_cpu();
-}
-
 void thread_flush_all_monitor_cycles(void)
 {
        int i;
        thread_t *th;
        uint64_t curr_tsc = rdtsc();
-       struct aligned_cycles *run_cycles;
+       struct aligned_cycles *cycles;
 
        for (i = 0; i < nrks; i++) {
               th = ks[i]->curr_th;
-	      if (th) {
-                     run_cycles = th->nu_state.run_cycles;
-                     if (run_cycles) {
-                            run_cycles[i].c += curr_tsc - th->run_start_tsc;
+	      if (th && th->nu_state.monitor_cnt) {
+                     cycles = get_aligned_cycles(th->nu_state.owner_proclet);
+                     if (cycles) {
+                            cycles[i].c += curr_tsc - th->run_start_tsc;
                             th->run_start_tsc = curr_tsc;
                      }
 	      }

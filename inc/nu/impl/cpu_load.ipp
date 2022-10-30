@@ -14,28 +14,17 @@ inline void CPULoad::reset() {
   memset(cnts_, 0, sizeof(cnts_));
 }
 
-inline CPULoad::State CPULoad::monitor_start() {
-  State state;
+inline void CPULoad::start_monitor() {
   auto core_id = read_cpu();
 
-  if (likely((cnts_[core_id].invocations++ % kSampleInterval) &&
-             !thread_monitored())) {
-    state.sampled = false;
-    state.caller_output = nullptr;
-  } else {
-    state.sampled = true;
+  if (unlikely(cnts_[core_id].invocations++ % kSampleInterval == 0 ||
+               thread_monitored())) {
     cnts_[core_id].samples++;
-    state.caller_output = thread_start_monitor_cycles(cycles_);
+    thread_start_monitor_cycles();
   }
-  return state;
 }
 
-inline void CPULoad::monitor_end(const State &state) {
-  if (likely(!state.sampled)) {
-    return;
-  }
-  thread_end_monitor_cycles(state.caller_output);
-}
+inline void CPULoad::end_monitor() { thread_end_monitor_cycles(); }
 
 inline void CPULoad::flush_all() { thread_flush_all_monitor_cycles(); }
 

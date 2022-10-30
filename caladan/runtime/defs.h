@@ -92,8 +92,8 @@ struct stack;
 
 struct thread_nu_state {
 	uint32_t                creator_ip;
+	uint32_t                monitor_cnt;
 	void                    *owner_proclet;
-	struct aligned_cycles	*run_cycles;
 	void                    *proclet_slab;
 	void                    *nu_thread;
 	struct thread_tf	tf;

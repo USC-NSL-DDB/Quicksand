@@ -21,7 +21,7 @@ struct aligned_cycles {
 } __aligned(CACHE_LINE_SIZE);
 
 extern const int thread_link_offset;
-extern const int thread_run_cycles_offset;
+extern const int thread_monitor_cnt_offset;
 extern const int thread_owner_proclet_offset;
 extern const int thread_proclet_slab_offset;
 
@@ -36,10 +36,6 @@ extern void thread_ready(thread_t *thread);
 extern void thread_ready_head(thread_t *thread);
 extern thread_t *thread_create(thread_fn_t fn, void *arg);
 extern thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
-extern thread_t *thread_nu_create_with_buf(void *nu_thread, void *proclet_stack,
-                                           uint32_t proclet_stack_size,
-                                           thread_fn_t fn, void **buf,
-                                           size_t buf_len);
 
 extern __thread thread_t *__self;
 extern __thread unsigned int kthread_idx;
@@ -73,16 +69,6 @@ static inline thread_id_t get_thread_id(thread_t *th)
 extern uint64_t get_uthread_specific(void);
 extern void set_uthread_specific(uint64_t val);
 
-extern struct aligned_cycles *
-thread_start_monitor_cycles(struct aligned_cycles *output);
-extern void thread_end_monitor_cycles(struct aligned_cycles *old_output);
-extern void thread_flush_all_monitor_cycles(void);
-inline bool thread_monitored(void) {
-	return *(void **)((uint64_t)__self + thread_run_cycles_offset);
-}
-extern void thread_hold_rcu(void *rcu);
-extern void thread_unhold_rcu(void *rcu);
-
 /*
  * High-level routines, use this API most of the time.
  */
@@ -94,6 +80,9 @@ extern void thread_exit(void) __noreturn;
 /*
  * Used by Nu.
  */
+extern thread_t *thread_nu_create_with_buf(
+        void *nu_thread, void *proclet_stack, uint32_t proclet_stack_size,
+        thread_fn_t fn, void **buf, size_t buf_len);
 extern bool thread_has_been_migrated(void);
 extern bool thread_is_at_creator(void);
 extern uint64_t thread_get_rsp(thread_t *th);
@@ -112,12 +101,41 @@ extern void *thread_get_nu_thread(thread_t *th);
 extern uint32_t thread_get_creator_ip(void);
 extern void thread_wait_until_parked(thread_t *th);
 extern void prealloc_threads_and_stacks(uint32_t num_mags);
+extern void update_monitor_cycles(void);
+extern void thread_flush_all_monitor_cycles(void);
+extern void thread_hold_rcu(void *rcu);
+extern void thread_unhold_rcu(void *rcu);
+
+inline void thread_start_monitor_cycles(void)
+{
+	uint32_t *cnt = (uint32_t *)((uint8_t *)__self +
+				     thread_monitor_cnt_offset);
+	(*cnt)++;
+}
+
+inline void thread_end_monitor_cycles(void)
+{
+	uint32_t *cnt = (uint32_t *)((uint8_t *)__self +
+				     thread_monitor_cnt_offset);
+	if (unlikely(*cnt)) {
+		update_monitor_cycles();
+		--(*cnt);
+	}
+}
+
+inline bool thread_monitored(void) {
+	uint32_t *cnt = (uint32_t *)((uint8_t *)__self +
+				     thread_monitor_cnt_offset);
+	return *cnt;
+}
 
 static inline void *thread_unset_owner_proclet(void)
 {
 	void **owner_proclet_p =
 		(void **)((uint64_t)__self + thread_owner_proclet_offset);
 	void *old_owner_proclet = *owner_proclet_p;
+	if (unlikely(old_owner_proclet))
+		update_monitor_cycles();
 	*owner_proclet_p = NULL;
 
 	return old_owner_proclet;
@@ -128,6 +146,8 @@ static inline void *thread_set_owner_proclet(thread_t *th, void *owner_proclet)
 	void **owner_proclet_p =
 		(void **)((uint64_t)th + thread_owner_proclet_offset);
 	void *old_owner_proclet = *owner_proclet_p;
+	if (unlikely(old_owner_proclet))
+		update_monitor_cycles();
 	*owner_proclet_p = owner_proclet;
 
 	return old_owner_proclet;

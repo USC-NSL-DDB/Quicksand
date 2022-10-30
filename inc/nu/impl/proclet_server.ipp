@@ -205,7 +205,7 @@ template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
 void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
                                   cereal::BinaryInputArchive &ia,
                                   RPCReturner returner) {
-  auto state = proclet_header->cpu_load.monitor_start();
+  proclet_header->cpu_load.start_monitor();
   proclet_header->thread_cnt.inc_unsafe();
 
   decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
@@ -243,7 +243,7 @@ void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
 
   send_rpc_resp_ok(oa_sstream, &returner);
   proclet_header->thread_cnt.dec_unsafe();
-  proclet_header->cpu_load.monitor_end(state);
+  proclet_header->cpu_load.end_monitor();
 }
 
 #pragma GCC diagnostic pop
@@ -270,7 +270,7 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
                                         S1s &&... states) {
   auto *callee_proclet_header = to_proclet_header(callee_id);
   auto *caller_proclet_header = to_proclet_header(caller_id);
-  auto state = callee_proclet_header->cpu_load.monitor_start();
+  callee_proclet_header->cpu_load.start_monitor();
   callee_proclet_header->thread_cnt.inc_unsafe();
 
   auto *obj = Runtime::get_root_obj<Cls>(callee_id);
@@ -284,7 +284,7 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
       *ret = fn_ptr(*obj, std::move(states)...);
     }
     callee_proclet_header->thread_cnt.dec_unsafe();
-    callee_proclet_header->cpu_load.monitor_end(state);
+    callee_proclet_header->cpu_load.end_monitor();
 
     {
       NonBlockingMigrationDisabledGuard caller_guard(caller_proclet_header);
@@ -320,7 +320,7 @@ void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
       fn_ptr(*obj, std::move(states)...);
     }
     callee_proclet_header->thread_cnt.dec_unsafe();
-    callee_proclet_header->cpu_load.monitor_end(state);
+    callee_proclet_header->cpu_load.end_monitor();
 
     {
       NonBlockingMigrationDisabledGuard caller_guard(caller_proclet_header);

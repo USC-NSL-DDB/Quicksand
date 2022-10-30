@@ -44,14 +44,15 @@ extern RCULock proclet_rcu_locks[kMaxNumProcletRCULocks];
 struct ProcletHeader {
   ~ProcletHeader();
 
+  // Used for monitoring cpu load.
+  CPULoad cpu_load;
+
+  // Max heap size.
   uint64_t capacity;
 
   // For synchronization.
   SpinLock spin_lock;
   CondVar cond_var;
-
-  // Used for monitoring cpu load.
-  CPULoad cpu_load;
 
   // Used for monitoring active threads count.
   Counter thread_cnt;
