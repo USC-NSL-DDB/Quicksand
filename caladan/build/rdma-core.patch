@@ -57,7 +57,7 @@ index 9239fe5d..70f5fcac 100644
 +
 +	assert(ste->htbl->chunk->num_of_entries == 1);
 +
-+	old_qp_index = dmn->ste_ctx->get_miss_addr(ste->hw_ste) & ~0x1;
++	old_qp_index = dmn->ste_ctx->get_hit_addr(ste->hw_ste) & ~0x1;
 +	assert(old_qp_index == ((prev_qp->tir_icm_addr >> 5) & 0xffffffff));
 +
 +	dr_ste_set_hit_addr(dmn->ste_ctx, ste->hw_ste, next_qp->tir_icm_addr, 1);
