@@ -8,9 +8,9 @@
 
 extern __thread unsigned int kthread_idx;
 extern __thread volatile unsigned int preempt_cnt;
-extern __thread volatile bool preempt_cede;
 extern void preempt(void);
 
+/* this flag is set whenever there is _not_ a pending preemption */
 #define PREEMPT_NOT_PENDING	(1 << 31)
 
 /**
@@ -49,7 +49,8 @@ static inline void preempt_enable(void)
 #else
 	int zero;
 	barrier();
-	asm volatile("subl $1, %%fs:preempt_cnt@tpoff" : "=@ccz" (zero) : : "memory", "cc");
+	asm volatile("subl $1, %%fs:preempt_cnt@tpoff"
+		     : "=@ccz" (zero) :: "memory", "cc");
 	if (unlikely(zero))
 		preempt();
 #endif
@@ -64,22 +65,12 @@ static inline bool preempt_needed(void)
 }
 
 /**
- * preempt_needed - returns true if a cede preemption event is stuck waiting
- */
-static inline bool preempt_cede_needed(void)
-{
-	return preempt_cede;
-}
-
-
-/**
  * preempt_enabled - returns true if preemption is enabled
  */
 static inline bool preempt_enabled(void)
 {
 	return (preempt_cnt & ~PREEMPT_NOT_PENDING) == 0;
 }
-
 
 /**
  * assert_preempt_disabled - asserts that preemption is disabled
@@ -96,16 +87,6 @@ static inline void assert_preempt_disabled(void)
 static inline void clear_preempt_needed(void)
 {
 	preempt_cnt = preempt_cnt | PREEMPT_NOT_PENDING;
-}
-
-/**
- * clear_preempt_needed - clear the flag that indicates a cede request is
- * pending. This should only be called before parking.
- */
-static inline void clear_preempt_cede_needed(void)
-{
-	clear_preempt_needed();
-	preempt_cede = false;
 }
 
 static inline unsigned int get_cpu(void)

@@ -336,7 +336,7 @@ static void __noinline net_tx_drain_overflow(void)
 		if (net_ops.tx_single(m))
 			break;
 		mbufq_pop_head(&k->txpktq_overflow);
-		if (unlikely(preempt_cede_needed()))
+		if (unlikely(preempt_cede_needed(k)))
 			return;
 	}
 }
