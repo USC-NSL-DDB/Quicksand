@@ -82,4 +82,13 @@ inline constexpr uint64_t round_up_to_power2(uint64_t x) {
   return (1 << (bsr_64(x - 1) + 1));
 }
 
+template <typename T>
+inline constexpr void ewma(double weight, T *result, T new_data) {
+  if (*result == 0) {
+    *result = new_data;
+  } else {
+    *result = weight * new_data + (1 - weight) * (*result);
+  }
+}
+
 }  // namespace nu

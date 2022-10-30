@@ -7,12 +7,13 @@ namespace nu {
 class CPULoad {
  public:
   constexpr static uint32_t kSampleInterval = 32;  // Be power of 2 for speed.
+  constexpr static uint32_t kDecayIntervalUs = 20 * kOneMilliSecond;
+  constexpr static float kEMWAWeight = 0.25;
 
   CPULoad();
-  void reset();
   void start_monitor();
   void end_monitor();
-  float get_load() const;
+  float get_load();
   static void flush_all();
 
  private:
@@ -21,7 +22,10 @@ class CPULoad {
     uint64_t invocations;
     uint64_t samples;
   } cnts_[kNumCores];
-  uint64_t last_refresh_tsc_;
+  uint64_t last_decay_tsc_;
+  float cpu_load_;
+
+  void decay(uint64_t now_tsc);
 };
 
 }  // namespace nu

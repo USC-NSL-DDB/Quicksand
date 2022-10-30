@@ -42,7 +42,6 @@ Utility::Utility(ProcletHeader *proclet_header) {
   auto time = kFixedCostUs + (mem_size / (kNetBwGbps / 8.0f) / 1000.0f);
 
   cpu_load = proclet_header->cpu_load.get_load();
-  proclet_header->cpu_load.reset();
 
   cpu_pressure_util = cpu_load / time;
   mem_pressure_util = mem_size / time;

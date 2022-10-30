@@ -23,6 +23,8 @@ namespace nu {
 
 // This is really a logical node as opposed to the real physical node.
 struct NodeStatus {
+  constexpr static float kEWMAWeight = 0.25;
+
   bool acquired;
   Resource free_resource;
 

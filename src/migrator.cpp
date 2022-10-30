@@ -625,7 +625,6 @@ bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
   Runtime::proclet_manager->setup(proclet_header, capacity,
                                   /* migratable = */ false,
                                   /* from_migration = */ true);
-  proclet_header->cpu_load.reset();
   while (proclet_header->pending_load_cnt.load()) {
     unblock_and_relax();
   }

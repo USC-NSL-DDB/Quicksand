@@ -260,15 +260,9 @@ void Controller::report_free_resource(lpid_t lpid, NodeIP ip,
   iter->second.update_free_resource(free_resource);
 }
 
-template <typename T>
-void ewma(double weight, T *result, T new_data) {
-  *result = *result * weight + (1 - weight) * new_data;
-}
-
 void NodeStatus::update_free_resource(Resource resource) {
-  constexpr double kWeight = 0.8;
-  ewma(kWeight, &free_resource.cores, resource.cores);
-  ewma(kWeight, &free_resource.mem_mbs, resource.mem_mbs);
+  ewma(kEWMAWeight, &free_resource.cores, resource.cores);
+  ewma(kEWMAWeight, &free_resource.mem_mbs, resource.mem_mbs);
 }
 
 }  // namespace nu

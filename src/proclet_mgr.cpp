@@ -78,6 +78,7 @@ void ProcletManager::setup(void *proclet_base, uint64_t capacity,
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
 
   proclet_header->capacity = capacity;
+  std::construct_at(&proclet_header->cpu_load);
   std::construct_at(&proclet_header->spin_lock);
   std::construct_at(&proclet_header->cond_var);
   std::construct_at(&proclet_header->blocked_syncer);

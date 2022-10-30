@@ -27,7 +27,6 @@ void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
                                   /* from_migration = */ false);
 
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(base);
-  proclet_header->cpu_load.reset();
   auto &slab = proclet_header->slab;
   auto obj_space = slab.yield(sizeof(Cls));
 
@@ -58,7 +57,6 @@ void ProcletServer::construct_proclet_locally(
                                   /* from_migration = */ false);
 
   auto *callee_header = reinterpret_cast<ProcletHeader *>(base);
-  callee_header->cpu_load.reset();
   callee_header->status() = kPresent;
   auto &slab = callee_header->slab;
   auto obj_space = slab.yield(sizeof(Cls));
