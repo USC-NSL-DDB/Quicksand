@@ -74,8 +74,8 @@ class Test {
  public:
   void migrate() { Runtime::pressure_handler->mock_set_pressure(); }
 
-  bool mostly_equals(double real, double expected) {
-    return std::abs((real - expected) / real < 0.05);
+  bool mostly_equal(double real, double expected) {
+    return std::abs((real - expected) / real) < 0.1;
   }
 
   bool run() {
@@ -119,11 +119,11 @@ class Test {
     });
     spin_obj.run(&CPUSpinObj::done);
 
-    passed &= mostly_equals(spin_cpu_load, 1);
-    passed &= mostly_equals(heavy_cpu_load / light_cpu_load,
-                            CPUHeavyObj::kTimeUs / CPULightObj::kTimeUs);
-    passed &= mostly_equals(nested_cpu_load / light_cpu_load,
-                            CPUNestedObj::kTimeUs / CPULightObj::kTimeUs);
+    passed &= mostly_equal(spin_cpu_load, 1);
+    passed &= mostly_equal(heavy_cpu_load / light_cpu_load,
+                           CPUHeavyObj::kTimeUs / CPULightObj::kTimeUs);
+    passed &= mostly_equal(nested_cpu_load / light_cpu_load,
+                           CPUNestedObj::kTimeUs / CPULightObj::kTimeUs);
     return passed;
   };
 };
