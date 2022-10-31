@@ -1,40 +1,24 @@
 #!/bin/bash
 
-# Config instance type.
-if [[ ! -v NODE_TYPE ]]; then
+function not_supported {
     echo 'Please set env var $NODE_TYPE, 
-supported list: [r650, r6525, c6525-100g, c6525-25g, xl170, xl170-uswitch, other]'
+supported list: [r650, r6525, c6525, xl170, xl170_uswitch]'
     exit 1
+}
+
+# Check node type.
+if [[ ! -v NODE_TYPE ]]; then
+    not_supported
 fi
 
-# Patch source files.
-if [ $NODE_TYPE == "r650" ]; then
-    patch -p1 -d caladan/ < caladan/build/cloudlab_r650.patch
+# Apply patches.
+patch_file=caladan/build/cloudlab_$NODE_TYPE.patch
+
+if [ ! -f $patch_file ]; then
+    not_supported
 fi
 
-if [ $NODE_TYPE == "r6525" ]; then
-    patch -p1 -d caladan/ < caladan/build/cloudlab_r6525.patch
-fi
-
-if [ $NODE_TYPE == "c6525-100g" ]; then
-    patch -p1 -d caladan/ < caladan/build/cloudlab_c6525.patch
-fi
-
-if [ $NODE_TYPE == "c6525-25g" ]; then
-    patch -p1 -d caladan/ < caladan/build/cloudlab_c6525.patch
-fi
-
-if [ $NODE_TYPE == "xl170" ]; then
-    patch -p1 -d caladan/ < caladan/build/cloudlab_xl170.patch
-    patch -p1 -d caladan/ < caladan/build/connectx-4.patch    
-fi
-
-if [ $NODE_TYPE == "xl170-uswitch" ]; then
-    patch -p1 -d caladan/ < caladan/build/cloudlab_xl170_uswitch.patch
-    patch -p1 -d caladan/ < caladan/build/connectx-4.patch    
-fi
-
-patch -p1 -d caladan/ < caladan/build/runtime_fdb.patch
+patch -p1 -d caladan/ < $patch_file
 
 # Build caladan.
 cd caladan

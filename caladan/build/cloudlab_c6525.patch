@@ -17,50 +17,6 @@ index 0b48209..00fd89f 100644
  	if (dpdk_port_init(dp.port, dp.rx_mbuf_pool) != 0) {
  		log_err("dpdk: cannot init port %"PRIu8 "\n", dp.port);
  		return -1;
-diff --git a/iokernel/ias_bw.c b/iokernel/ias_bw.c
-index 56d09fb..e563465 100644
---- a/iokernel/ias_bw.c
-+++ b/iokernel/ias_bw.c
-@@ -10,7 +10,7 @@
- #include "ksched.h"
- #include "pmc.h"
- #include "ias.h"
--#include "pcm.h"
-+/* #include "pcm.h" */
- 
- /* statistics */
- uint64_t ias_bw_punish_count;
-@@ -185,7 +185,8 @@ static float ias_measure_bw(void)
- 	barrier();
- 	tsc = rdtsc();
- 	barrier();
--	cur_cas = pcm_caladan_get_cas_count(0);
-+	/* cur_cas = pcm_caladan_get_cas_count(0); */
-+	cur_cas = 0;
- 	bw_estimate = (float)(cur_cas - last_cas) / (float)(tsc - last_tsc);
- 	last_cas = cur_cas;
- 	last_tsc = tsc;
-@@ -257,14 +258,16 @@ int ias_bw_init(void)
- 	if (cfg.nobw)
- 		return 0;
- 
--	ret = pcm_caladan_init(0);
-+	/* ret = pcm_caladan_init(0); */
-+	ret = 0;
- 	if (ret)
- 		return ret;
- 
- 	/* We monitor 1 channel, so multiply measurements by nr_channels to estimate real bw */
--	nr_channels = pcm_caladan_get_active_channel_count();
--	if (nr_channels == 0)
--		return -EINVAL;
-+	/* nr_channels = pcm_caladan_get_active_channel_count(); */
-+	/* if (nr_channels == 0) */
-+	/* 	return -EINVAL; */
-+	nr_channels = 0;
- 
- 	/* Use default limit if none supplied */
- 	if (!cfg.ias_bw_limit)
 diff --git a/runtime/net/directpath/mlx5/mlx5_init.c b/runtime/net/directpath/mlx5/mlx5_init.c
 index 0071d92..e626a3d 100644
 --- a/runtime/net/directpath/mlx5/mlx5_init.c

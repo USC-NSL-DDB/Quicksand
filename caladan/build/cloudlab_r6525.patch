@@ -11,50 +11,6 @@ index c7226f7..88b7346 100644
  	if (dpdk_port_init(dp.port, dp.rx_mbuf_pool) != 0) {
  		log_err("dpdk: cannot init port %"PRIu8 "\n", dp.port);
  		return -1;
-diff --git a/iokernel/ias_bw.c b/iokernel/ias_bw.c
-index 56d09fb..e563465 100644
---- a/iokernel/ias_bw.c
-+++ b/iokernel/ias_bw.c
-@@ -10,7 +10,7 @@
- #include "ksched.h"
- #include "pmc.h"
- #include "ias.h"
--#include "pcm.h"
-+/* #include "pcm.h" */
- 
- /* statistics */
- uint64_t ias_bw_punish_count;
-@@ -185,7 +185,8 @@ static float ias_measure_bw(void)
- 	barrier();
- 	tsc = rdtsc();
- 	barrier();
--	cur_cas = pcm_caladan_get_cas_count(0);
-+	/* cur_cas = pcm_caladan_get_cas_count(0); */
-+	cur_cas = 0;
- 	bw_estimate = (float)(cur_cas - last_cas) / (float)(tsc - last_tsc);
- 	last_cas = cur_cas;
- 	last_tsc = tsc;
-@@ -257,14 +258,16 @@ int ias_bw_init(void)
- 	if (cfg.nobw)
- 		return 0;
- 
--	ret = pcm_caladan_init(0);
-+	/* ret = pcm_caladan_init(0); */
-+	ret = 0;
- 	if (ret)
- 		return ret;
- 
- 	/* We monitor 1 channel, so multiply measurements by nr_channels to estimate real bw */
--	nr_channels = pcm_caladan_get_active_channel_count();
--	if (nr_channels == 0)
--		return -EINVAL;
-+	/* nr_channels = pcm_caladan_get_active_channel_count(); */
-+	/* if (nr_channels == 0) */
-+	/* 	return -EINVAL; */
-+	nr_channels = 0;
- 
- 	/* Use default limit if none supplied */
- 	if (!cfg.ias_bw_limit)
 diff --git a/iokernel/sched.c b/iokernel/sched.c
 index 6846dc1..c19ba79 100644
 --- a/iokernel/sched.c
@@ -63,7 +19,7 @@ index 6846dc1..c19ba79 100644
  	 */
  
  	for (i = 0; i < cpu_count; i++) {
--		if (cpu_info_tbl[i].package != 0 && sched_ops != &numa_ops)
+-		if (cpu_info_tbl[i].package != managed_numa_node && sched_ops != &numa_ops)
 +		if (cpu_info_tbl[i].package != 1 && sched_ops != &numa_ops)
  			continue;
  
@@ -93,22 +49,6 @@ index deb009c..13947b5 100644
 +	buflen *= MAX(24, guaranteedks) * (16 * RQ_NUM_DESC) * 2UL;
  	return align_up(buflen, PGSIZE_2MB);
  }
-
-diff --git a/scripts/setup_machine.sh b/scripts/setup_machine.sh
-index 8e3bbcd..33c5827 100755
---- a/scripts/setup_machine.sh
-+++ b/scripts/setup_machine.sh
-@@ -16,8 +16,8 @@ mknod /dev/ksched c 280 0
- chmod uga+rwx /dev/ksched
-
- # reserve huge pages
--echo 5192 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
--echo 0 > /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
-+echo 1024 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
-+echo 5192 > /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
- for n in /sys/devices/system/node/node[2-9]; do
-        echo 0 > $n/hugepages/hugepages-2048kB/nr_hugepages
- done
 diff --git a/iokernel/hw_timestamp.c b/iokernel/hw_timestamp.c
 index c2683fbd..0137a7f6 100644
 --- a/iokernel/hw_timestamp.c
