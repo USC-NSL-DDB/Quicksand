@@ -126,7 +126,9 @@ int directpath_init(void)
 	/* initialize mlx5 */
 	if (strncmp("qs", directpath_arg, 2) != 0) {
  		directpath_mode = RX_MODE_FLOW_STEERING;
- 		ret = mlx5_init_flow_steering(rxq_out, txq_out, maxks, maxks);
+		ret = mlx5_init_flow_steering(rxq_out,
+					      (struct direct_txq **)txq_out,
+					      maxks, maxks);
  		if (ret == 0) {
  			log_err("directpath_init: selected flow steering mode");
  			return 0;
@@ -135,7 +137,9 @@ int directpath_init(void)
 
  	if (strncmp("fs", directpath_arg, 2) != 0) {
  		directpath_mode = RX_MODE_QUEUE_STEERING;
- 		ret = mlx5_init_queue_steering(rxq_out, txq_out, maxks, maxks);
+		ret = mlx5_init_queue_steering(rxq_out,
+					       (struct direct_txq **)txq_out,
+					       maxks, maxks);
  		if (ret == 0) {
  			log_err("directpath_init: selected queue steering mode");
  			return 0;
