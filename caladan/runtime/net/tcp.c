@@ -640,7 +640,7 @@ int __tcp_dial(struct netaddr laddr, struct netaddr raddr, tcpconn_t **c_out,
 		return -ENOMEM;
 
 	/* rewrite loopback address */
-	if (raddr.ip == ((127 << 24) | 1))
+	if (raddr.ip == MAKE_IP_ADDR(127, 0, 0, 1))
 		raddr.ip = netcfg.addr;
 
 	/*
@@ -693,7 +693,7 @@ int __tcp_dial_conn_affinity(tcpconn_t *in, struct netaddr raddr,
                              tcpconn_t **c_out, uint8_t dscp)
 {
 	/* rewrite loopback address */
-	if (raddr.ip == ((127 << 24) | 1))
+	if (raddr.ip == MAKE_IP_ADDR(127, 0, 0, 1))
 		raddr.ip = netcfg.addr;
 
 	uint32_t in_aff = net_ops.get_flow_affinity(
@@ -713,7 +713,7 @@ int __tcp_dial_affinity(uint32_t in_aff, struct netaddr raddr,
 	base_port = start_port = rand_crc32c(in_aff);
 
 	/* rewrite loopback address */
-	if (raddr.ip == ((127 << 24) | 1))
+	if (raddr.ip == MAKE_IP_ADDR(127, 0, 0, 1))
 		raddr.ip = netcfg.addr;
 
 	while (true) {
