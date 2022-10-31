@@ -25,6 +25,10 @@ static int udp_send_raw(struct mbuf *m, size_t len,
 {
 	struct udp_hdr *udphdr;
 
+	/* rewrite loopback address */
+	if (raddr.ip == ((127 << 24) | 1))
+		raddr.ip = netcfg.addr;
+
 	/* write UDP header */
 	udphdr = mbuf_push_hdr(m, *udphdr);
 	udphdr->src_port = hton16(laddr.port);
@@ -176,6 +180,10 @@ int udp_dial(struct netaddr laddr, struct netaddr raddr, udpconn_t **c_out)
 		laddr.ip = netcfg.addr;
 	else if (laddr.ip != netcfg.addr)
 		return -EINVAL;
+
+	/* rewrite loopback address */
+	if (raddr.ip == ((127 << 24) | 1))
+		raddr.ip = netcfg.addr;
 
 	c = smalloc(sizeof(*c));
 	if (!c)
@@ -386,6 +394,9 @@ ssize_t udp_write_to(udpconn_t *c, const void *buf, size_t len,
 		addr = c->e.raddr;
 	} else {
 		addr = *raddr;
+		/* rewrite loopback address */
+		if (addr.ip == ((127 << 24) | 1))
+			addr.ip = netcfg.addr;
 	}
 
 	spin_lock_np(&c->outq_lock);
@@ -668,6 +679,10 @@ ssize_t udp_send(const void *buf, size_t len,
 	if (laddr.port == 0)
 		return -EINVAL;
 
+	/* rewrite loopback address */
+	if (raddr.ip == ((127 << 24) | 1))
+		raddr.ip = netcfg.addr;
+
 	m = net_tx_alloc_mbuf();
 	if (unlikely(!m))
 		return -ENOBUFS;
@@ -698,6 +713,10 @@ ssize_t udp_sendv(const struct iovec *iov, int iovcnt,
 		return -EINVAL;
 	if (laddr.port == 0)
 		return -EINVAL;
+
+	/* rewrite loopback address */
+	if (raddr.ip == ((127 << 24) | 1))
+		raddr.ip = netcfg.addr;
 
 	m = net_tx_alloc_mbuf();
 	if (unlikely(!m))
