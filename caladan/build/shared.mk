@@ -39,7 +39,7 @@ MLX5_LIBS += -l:libmlx5.a -l:libibverbs.a -lnl-3 -lnl-route-3 -lrdmacm -lrdma_ut
 
 # parse configuration options
 ifeq ($(CONFIG_DEBUG),y)
-FLAGS += -DDEBUG -DCCAN_LIST_DEBUG -rdynamic -O0 -ggdb -mssse3
+FLAGS += -DDEBUG -rdynamic -O0 -ggdb -mssse3
 LDFLAGS += -rdynamic
 else
 FLAGS += -DNDEBUG -O3
