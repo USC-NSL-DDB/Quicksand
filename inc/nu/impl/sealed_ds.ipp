@@ -750,6 +750,16 @@ const It::IterVal &Range<It>::operator*() {
 }
 
 template <typename It>
+It Range<It>::begin() {
+  return curr_;
+}
+
+template <typename It>
+It Range<It>::end() {
+  return end_;
+}
+
+template <typename It>
 template <class Archive>
 inline void Range<It>::save(Archive &ar) const {
   ar(curr_, end_);

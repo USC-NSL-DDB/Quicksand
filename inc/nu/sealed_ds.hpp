@@ -165,6 +165,8 @@ class Range {
   bool has_next() const;
   Range &operator++();
   const It::IterVal &operator*();
+  It begin();
+  It end();
 
   template <class Archive>
   void save(Archive &ar) const;

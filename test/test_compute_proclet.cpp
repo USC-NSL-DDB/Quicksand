@@ -38,13 +38,8 @@ bool test_compute_over_sharded_ds() {
   }
   auto sealed_input = nu::to_sealed_ds(std::move(input));
   auto range_input = nu::range(sealed_input);
-  auto cp = nu::make_compute_proclet(
-      +[](decltype(range_input) r, decltype(output) output) {
-        // TODO: support std::range or at least range-based for loop.
-        for (; r.has_next(); ++r) {
-          output.push_back(*r);
-        }
-      },
+  auto cp = nu::compute_range(
+      +[](const int &val, decltype(output) output) { output.push_back(val); },
       range_input, output);
 
   auto sealed_output = nu::to_sealed_ds(std::move(output));
