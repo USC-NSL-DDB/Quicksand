@@ -1043,7 +1043,6 @@ static __always_inline thread_t *__thread_create(void)
 	th->migrated = false;
 	memset(th->rcus, 0, sizeof(th->rcus));
 	th->nu_state.monitor_cnt = 0;
-	th->nu_state.nu_thread = NULL;
 	th->nu_state.creator_ip = get_cfg_ip();
 	th->nu_state.proclet_slab = NULL;
 	th->nu_state.owner_proclet = NULL;
@@ -1100,9 +1099,9 @@ thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t buf_len)
 	return th;
 }
 
-thread_t *thread_nu_create_with_buf(void *nu_thread, void *proclet_stack,
-				    uint32_t proclet_stack_size, thread_fn_t fn,
-				    void **buf, size_t buf_len)
+thread_t *thread_nu_create_with_buf(void *proclet_stack,
+                                    uint32_t proclet_stack_size, thread_fn_t fn,
+                                    void **buf, size_t buf_len)
 {
 	void *ptr;
 	thread_t *th = __thread_create();
@@ -1111,7 +1110,6 @@ thread_t *thread_nu_create_with_buf(void *nu_thread, void *proclet_stack,
 
 	th->nu_state.proclet_slab = __self->nu_state.proclet_slab;
 	th->nu_state.owner_proclet = __self->nu_state.owner_proclet;
-	th->nu_state.nu_thread = nu_thread;
 	th->nu_state.tf.rsp =
 		nu_stack_init_to_rsp_with_buf(proclet_stack, proclet_stack_size,
 					      &ptr, buf_len);
@@ -1461,16 +1459,6 @@ inline bool thread_is_rcu_held(thread_t *th, void *rcu) {
                      return true;
        }
        return false;
-}
-
-void thread_set_nu_thread(thread_t *th, void *nu_thread)
-{
-       th->nu_state.nu_thread = nu_thread;
-}
-
-void *thread_get_nu_thread(thread_t *th)
-{
-       return th->nu_state.nu_thread;
 }
 
 void prioritize_and_wait_rcu_readers(void *rcu)

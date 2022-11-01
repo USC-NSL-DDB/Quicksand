@@ -19,20 +19,8 @@ RPCReturnCode Migrator::load_thread_and_ret_val(
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto *th = create_migrated_thread(payload);
-  auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
-  auto nu_thread_addr = reinterpret_cast<uint64_t>(nu_thread);
-
   auto stack_range = get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
-
-  // Only rewrite the pointer if the nu_thread locates at the dest proclet.
-  bool in_proclet_heap = dest_proclet_header->is_inside(nu_thread);
-  bool in_proclet_stack =
-      nu_thread_addr >= stack_range.start && nu_thread_addr < stack_range.end;
-  if (in_proclet_heap || in_proclet_stack) {
-    BUG_ON(!nu_thread->th_);
-    nu_thread->th_ = th;
-  }
   memcpy(reinterpret_cast<void *>(stack_range.start), payload + nu_state_size,
          stack_len);
 

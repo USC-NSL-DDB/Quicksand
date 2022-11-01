@@ -81,7 +81,7 @@ extern void thread_exit(void) __noreturn;
  * Used by Nu.
  */
 extern thread_t *thread_nu_create_with_buf(
-        void *nu_thread, void *proclet_stack, uint32_t proclet_stack_size,
+        void *proclet_stack, uint32_t proclet_stack_size,
         thread_fn_t fn, void **buf, size_t buf_len);
 extern bool thread_has_been_migrated(void);
 extern bool thread_is_at_creator(void);
@@ -96,8 +96,6 @@ extern void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
 extern thread_t *create_migrated_thread(void *nu_state);
 extern void gc_migrated_threads(void);
 extern void *thread_get_runtime_stack_base(void);
-extern void thread_set_nu_thread(thread_t *th, void *nu_thread);
-extern void *thread_get_nu_thread(thread_t *th);
 extern uint32_t thread_get_creator_ip(void);
 extern void thread_wait_until_parked(thread_t *th);
 extern void prealloc_threads_and_stacks(uint32_t num_mags);

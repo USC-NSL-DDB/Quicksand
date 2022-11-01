@@ -60,14 +60,12 @@ void Thread::join() {
     join_data_->cv.signal();
     join_data_->lock.unlock();
     join_data_ = nullptr;
-    thread_set_nu_thread(th_, nullptr);
     return;
   }
 
   join_data_->done = true;
   join_data_->cv.wait_and_unlock(&join_data_->lock);
   join_data_ = nullptr;
-  thread_set_nu_thread(th_, nullptr);
 }
 
 void Thread::detach() {
@@ -78,14 +76,12 @@ void Thread::detach() {
     join_data_->cv.signal();
     join_data_->lock.unlock();
     join_data_ = nullptr;
-    thread_set_nu_thread(th_, nullptr);
     return;
   }
 
   join_data_->done = true;
   join_data_->lock.unlock();
   join_data_ = nullptr;
-  thread_set_nu_thread(th_, nullptr);
 }
 
 }  // namespace nu

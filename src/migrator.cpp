@@ -676,16 +676,6 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c,
   BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                      /* nt = */ false,
                      /* poll = */ true) <= 0);
-
-  auto *nu_thread = reinterpret_cast<Thread *>(thread_get_nu_thread(th));
-  auto nu_thread_addr = reinterpret_cast<uint64_t>(nu_thread);
-  bool in_proclet_heap = proclet_header->is_inside(nu_thread);
-  bool in_proclet_stack =
-      nu_thread_addr >= stack_range.start && nu_thread_addr < stack_range.end;
-  if (in_proclet_heap || in_proclet_stack) {
-    BUG_ON(!nu_thread->th_);
-    nu_thread->th_ = th;
-  }
   return th;
 }
 

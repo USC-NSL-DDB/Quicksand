@@ -27,8 +27,6 @@ struct join_data {
 
 class Thread {
  public:
-  using id = thread_id_t;
-
   template <typename F>
   Thread(F &&f);
   Thread();
@@ -40,12 +38,11 @@ class Thread {
   bool joinable();
   void join();
   void detach();
-  // Warning: in the current implementation, the ID may change after migration.
-  id get_id() { return get_thread_id(th_); }
-  static id get_current_id() { return get_current_thread_id(); }
+  uint64_t get_id();
+  static uint64_t get_current_id();
 
  private:
-  thread_t *th_;
+  uint64_t id_;
   join_data *join_data_;
   friend class Migrator;
 
