@@ -31,6 +31,7 @@ class ZippedIterator {
  public:
   using IterVal = std::tuple<iter_val_t<Its>...>;
 
+  ZippedIterator();
   ZippedIterator(Its &&... iters);
   ZippedIterator(const ZippedIterator &) = default;
   ZippedIterator &operator=(const ZippedIterator &) = default;
@@ -39,6 +40,11 @@ class ZippedIterator {
   ZippedIterator &operator++();
   bool operator!=(const ZippedIterator &);
   const IterVal operator*();
+
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
 
  private:
   std::tuple<Its...> iters_;
@@ -49,14 +55,19 @@ class Zip {
  public:
   using Iter = ZippedIterator<range_iter_t<Rs>...>;
 
+  Zip();
   Zip(const Rs &... ranges);
   Zip(const Zip &) = default;
   Zip &operator=(const Zip &) = default;
   Zip(Zip &&) = default;
   Zip &operator=(Zip &&) = default;
-
   Iter begin() const;
   Iter end() const;
+
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
 
  private:
   Iter begin_;

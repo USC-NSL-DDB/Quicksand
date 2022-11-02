@@ -45,6 +45,9 @@ Range<GeneralSealedDSConstIterator<T, true>> range(const SealedDS<T> &sealed) {
 }
 
 template <typename... Its>
+ZippedIterator<Its...>::ZippedIterator() {}
+
+template <typename... Its>
 ZippedIterator<Its...>::ZippedIterator(Its &&... iters)
     : iters_(std::forward<Its>(iters)...) {}
 
@@ -65,6 +68,21 @@ bool ZippedIterator<Its...>::operator!=(const ZippedIterator &other) {
   return iters_ == other.iters_;
 }
 
+template <typename... Its>
+template <class Archive>
+void ZippedIterator<Its...>::save(Archive &ar) const {
+  ar(iters_);
+}
+
+template <typename... Its>
+template <class Archive>
+void ZippedIterator<Its...>::load(Archive &ar) {
+  ar(iters_);
+}
+
+template <typename... Rs>
+Zip<Rs...>::Zip() {}
+
 template <typename... Rs>
 Zip<Rs...>::Zip(const Rs &... ranges)
     : begin_((ranges.begin())...), end_((ranges.end())...) {}
@@ -77,6 +95,18 @@ Zip<Rs...>::Iter Zip<Rs...>::begin() const {
 template <typename... Rs>
 Zip<Rs...>::Iter Zip<Rs...>::end() const {
   return end_;
+}
+
+template <typename... Rs>
+template <class Archive>
+void Zip<Rs...>::save(Archive &ar) const {
+  ar(begin_, end_);
+}
+
+template <typename... Rs>
+template <class Archive>
+void Zip<Rs...>::load(Archive &ar) {
+  ar(begin_, end_);
 }
 
 template <typename... Ts>

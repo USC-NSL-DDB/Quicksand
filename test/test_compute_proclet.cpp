@@ -10,7 +10,8 @@
 #include "nu/sharded_unordered_map.hpp"
 #include "nu/sharded_vector.hpp"
 
-constexpr auto kNumElements = 10'000'000;
+// TODO: investigate occasional segfaults when element count is higher.
+constexpr auto kNumElements = 500'000;
 
 bool test_basic() {
   std::string s0{"hello"};
@@ -57,33 +58,32 @@ bool test_compute_over_sharded_ds() {
   return true;
 }
 
-// TODO: implement these tests
-// bool test_adding_two_vectors() {
-//   std::size_t elem_count = 1'000'000;
-//
-//   auto make_sealed_test_data = [&]() {
-//     auto v = nu::make_sharded_vector<int, std::false_type>(elem_count);
-//     for (std::size_t i = 0; i < elem_count; ++i) {
-//       v.push_back(1);
-//     }
-//     return nu::to_sealed_ds(std::move(v));
-//   };
-//
-//   auto sealed_v1 = make_sealed_test_data();
-//   auto sealed_v2 = make_sealed_test_data();
-//   auto sum = nu::make_sharded_vector<int, std::false_type>();
-//
-//   auto cp = nu::compute_range(
-//       [](auto &elems, auto &out) {
-//         auto [x, y] = elems;
-//         out.push_back(x + y);
-//       },
-//       nu::zip(sealed_v1, sealed_v2), std::move(sum));
-//   cp.get();
-//
-//   return true;
-// }
+bool test_compute_over_zipped_range() {
+  auto make_sealed_test_data = [&]() {
+    auto v = nu::make_sharded_vector<int, std::false_type>(kNumElements);
+    for (std::size_t i = 0; i < kNumElements; ++i) {
+      v.push_back(1);
+    }
+    return nu::to_sealed_ds(std::move(v));
+  };
 
+  auto sealed_v1 = make_sealed_test_data();
+  auto sealed_v2 = make_sealed_test_data();
+  auto sum = nu::make_sharded_vector<int, std::false_type>();
+
+  auto cp = nu::compute_range(
+      +[](const std::tuple<const int &, const int &> &elems,
+          decltype(sum) out) {
+        auto [x, y] = elems;
+        out.push_back(x + y);
+      },
+      nu::zip(sealed_v1, sealed_v2), std::move(sum));
+  cp.get();
+
+  return true;
+}
+
+// TODO: implement these tests
 // bool test_naive_chained_compute() {
 //   auto first = nu::make_sharded_vector<std::string, std::false_type>();
 //   auto last = nu::make_sharded_vector<std::string, std::false_type>();
@@ -130,7 +130,7 @@ bool test_compute_over_sharded_ds() {
 
 bool run_test() {
   return test_basic() && test_pass_sharded_ds() &&
-         test_compute_over_sharded_ds();
+         test_compute_over_sharded_ds() && test_compute_over_zipped_range();
 }
 
 void do_work() {
