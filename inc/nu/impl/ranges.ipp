@@ -50,6 +50,10 @@ Range<GeneralSealedDSConstIterator<T, true>> range(const SealedDS<T> &sealed) {
 }
 
 template <typename... Its>
+ZippedIterator<Its...>::ZippedIterator(const Its &... iters)
+    : iters_(iters...) {}
+
+template <typename... Its>
 const ZippedIterator<Its...>::IterVal ZippedIterator<Its...>::operator*() {
   return std::apply([](auto &&... iters) { return std::tie(*iters...); },
                     iters_);
