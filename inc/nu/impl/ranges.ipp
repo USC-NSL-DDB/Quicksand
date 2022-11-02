@@ -54,6 +54,10 @@ ZippedIterator<Its...>::ZippedIterator(const Its &... iters)
     : iters_(iters...) {}
 
 template <typename... Its>
+ZippedIterator<Its...>::ZippedIterator(Its &&... iters)
+    : iters_(std::forward<Its>(iters)...) {}
+
+template <typename... Its>
 const ZippedIterator<Its...>::IterVal ZippedIterator<Its...>::operator*() {
   return std::apply([](auto &&... iters) { return std::tie(*iters...); },
                     iters_);

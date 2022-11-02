@@ -33,6 +33,7 @@ class ZippedIterator {
   using IterVal = std::tuple<iter_val_t<Its>...>;
 
   ZippedIterator(const Its &... iters);
+  ZippedIterator(Its &&... iters);
   ZippedIterator(const ZippedIterator &) = default;
   ZippedIterator &operator=(const ZippedIterator &) = default;
   ZippedIterator(ZippedIterator &&) = default;
