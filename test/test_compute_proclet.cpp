@@ -10,6 +10,8 @@
 #include "nu/sharded_unordered_map.hpp"
 #include "nu/sharded_vector.hpp"
 
+constexpr auto kNumElements = 10'000'000;
+
 bool test_basic() {
   std::string s0{"hello"};
   std::string s1{"world"};
@@ -29,8 +31,6 @@ bool test_pass_sharded_ds() {
 }
 
 bool test_compute_over_sharded_ds() {
-  constexpr auto kNumElements = 10;
-
   auto input = nu::make_sharded_vector<int, std::false_type>(kNumElements);
   auto output = nu::make_sharded_vector<int, std::false_type>();
 
