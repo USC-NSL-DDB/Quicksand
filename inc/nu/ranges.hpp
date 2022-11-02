@@ -11,7 +11,6 @@ class Range {
   Range &operator=(const Range &) = default;
   Range(Range &&) = default;
   Range &operator=(Range &&) = default;
-  bool has_next() const;
   Range &operator++();
   const It::IterVal &operator*();
   It begin() const;

@@ -7,11 +7,6 @@ template <typename It>
 Range<It>::Range(const It &begin, const It &end) : curr_(begin), end_(end) {}
 
 template <typename It>
-bool Range<It>::has_next() const {
-  return curr_ != end_;
-}
-
-template <typename It>
 Range<It> &Range<It>::operator++() {
   ++curr_;
   return *this;
