@@ -48,6 +48,24 @@ struct DeepDecay {
 template <typename T>
 using DeepDecay_t = typename DeepDecay<T>::type;
 
+template <typename It>
+struct iter_val {
+  using Iter = std::decay_t<It>;
+  using value_type = decltype(*Iter());
+};
+
+template <typename R>
+using iter_val_t = iter_val<R>::value_type;
+
+template <typename R>
+struct range_iter {
+  using Rng = std::decay_t<R>;
+  using iter_type = decltype((Rng().begin()));
+};
+
+template <typename R>
+using range_iter_t = range_iter<R>::iter_type;
+
 template <class T>
 concept PreIncrementable = requires(T t) {
   {++t};

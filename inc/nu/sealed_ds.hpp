@@ -153,31 +153,6 @@ class GeneralSealedDSConstIterator {
       std::variant<Future<Block>, Block> *variant);
 };
 
-template <typename It>
-class Range {
- public:
-  Range();
-  Range(const It &begin, const It &end);
-  Range(const Range &) = default;
-  Range &operator=(const Range &) = default;
-  Range(Range &&) = default;
-  Range &operator=(Range &&) = default;
-  bool has_next() const;
-  Range &operator++();
-  const It::IterVal &operator*();
-  It begin();
-  It end();
-
-  template <class Archive>
-  void save(Archive &ar) const;
-  template <class Archive>
-  void load(Archive &ar);
-
- private:
-  It curr_;
-  It end_;
-};
-
 template <ShardedDataStructureBased T>
 class SealedDS {
  public:
@@ -236,9 +211,6 @@ template <typename T>
 SealedDS<T> to_sealed_ds(T &&t);
 template <typename T>
 T to_unsealed_ds(SealedDS<T> &&sealed);
-
-template <typename T>
-Range<GeneralSealedDSConstIterator<T, true>> range(const SealedDS<T> &sealed);
 
 }  // namespace nu
 

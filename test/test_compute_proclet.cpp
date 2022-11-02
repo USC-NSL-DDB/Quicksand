@@ -4,6 +4,7 @@
 #include <ranges>
 
 #include "nu/compute_proclet.hpp"
+#include "nu/ranges.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sealed_ds.hpp"
 #include "nu/sharded_unordered_map.hpp"
@@ -47,11 +48,8 @@ bool test_compute_over_sharded_ds() {
     return false;
   }
 
-  // TODO: support std::ranges::zip_view.
-  auto it_input = sealed_input.cbegin();
-  auto it_output = sealed_output.cbegin();
-  for (; it_input != sealed_input.cend(); ++it_input, ++it_output) {
-    if (*it_input != *it_output) {
+  for (const auto &[got, expected] : nu::zip(sealed_input, sealed_output)) {
+    if (got != expected) {
       return false;
     }
   }
