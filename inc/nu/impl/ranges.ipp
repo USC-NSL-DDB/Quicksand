@@ -45,10 +45,6 @@ Range<GeneralSealedDSConstIterator<T, true>> range(const SealedDS<T> &sealed) {
 }
 
 template <typename... Its>
-ZippedIterator<Its...>::ZippedIterator(const Its &... iters)
-    : iters_(iters...) {}
-
-template <typename... Its>
 ZippedIterator<Its...>::ZippedIterator(Its &&... iters)
     : iters_(std::forward<Its>(iters)...) {}
 
