@@ -2,11 +2,11 @@ extern "C" {
 #include <base/time.h>
 }
 
-#include "nu/utils/reader_writer_lock.hpp"
+#include "nu/utils/read_skewed_lock.hpp"
 
 namespace nu {
 
-void ReaderWriterLock::reader_wait(bool np) {
+void ReadSkewedLock::reader_wait(bool np) {
   if (np) {
     rcu_lock_.reader_unlock_np();
   } else {

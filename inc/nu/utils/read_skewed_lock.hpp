@@ -6,11 +6,11 @@
 
 namespace nu {
 
-class ReaderWriterLock {
+class ReadSkewedLock {
  public:
   constexpr static uint32_t kReaderWaitFastPathMaxUs = 20;
 
-  ReaderWriterLock();
+  ReadSkewedLock();
   void reader_lock();
   void reader_unlock();
   void reader_lock_np();
@@ -29,4 +29,4 @@ class ReaderWriterLock {
 
 }  // namespace nu
 
-#include "nu/impl/reader_writer_lock.ipp"
+#include "nu/impl/read_skewed_lock.ipp"

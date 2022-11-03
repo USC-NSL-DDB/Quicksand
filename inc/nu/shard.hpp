@@ -8,6 +8,7 @@
 
 #include "nu/container.hpp"
 #include "nu/rem_unique_ptr.hpp"
+#include "nu/utils/read_skewed_lock.hpp"
 #include "nu/utils/rob_executor.hpp"
 
 namespace nu {
@@ -184,7 +185,7 @@ class GeneralShard {
   std::optional<Key> l_key_;
   std::optional<Key> r_key_;
   Container container_;
-  ReaderWriterLock rw_lock_;
+  ReadSkewedLock rw_lock_;
   SlabAllocator *slab_;
   uint64_t container_bucket_size_;
   uint64_t initial_slab_usage_;

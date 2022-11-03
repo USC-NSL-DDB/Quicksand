@@ -17,7 +17,6 @@
 #include "nu/type_traits.hpp"
 #include "nu/utils/future.hpp"
 #include "nu/utils/mutex.hpp"
-#include "nu/utils/reader_writer_lock.hpp"
 #include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
