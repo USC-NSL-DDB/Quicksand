@@ -8,7 +8,6 @@
 #include "nu/shard.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
-#include "nu/utils/read_skewed_lock.hpp"
 
 namespace nu {
 
@@ -40,7 +39,6 @@ class GeneralShardingMapping {
   uint32_t max_shard_bytes_;
   uint32_t proclet_capacity_;
   std::multimap<std::optional<Key>, Proclet<Shard>> mapping_;
-  ReadSkewedLock rw_lock_;
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;
   std::stack<Proclet<Shard>> reserved_shards_;

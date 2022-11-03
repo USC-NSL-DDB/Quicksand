@@ -9,12 +9,12 @@ template <class Container>
 inline ContainerHandle<Container>::ContainerHandle(
     Container *c, GeneralShard<Container> *shard)
     : c_(c), shard_(shard) {
-  shard_->rw_lock_.writer_lock();
+  shard_->rw_lock_.reader_lock();
 }
 
 template <class Container>
 inline ContainerHandle<Container>::~ContainerHandle() {
-  shard_->rw_lock_.writer_unlock();
+  shard_->rw_lock_.reader_unlock();
 }
 
 template <class Container>
@@ -24,28 +24,6 @@ inline Container *ContainerHandle<Container>::operator->() {
 
 template <class Container>
 inline Container &ContainerHandle<Container>::operator*() {
-  return *c_;
-}
-
-template <class Container>
-inline ConstContainerHandle<Container>::ConstContainerHandle(
-    const Container *c, GeneralShard<Container> *shard)
-    : c_(c), shard_(shard) {
-  shard_->rw_lock_.writer_lock();
-}
-
-template <class Container>
-inline ConstContainerHandle<Container>::~ConstContainerHandle() {
-  shard_->rw_lock_.writer_unlock();
-}
-
-template <class Container>
-inline const Container *ConstContainerHandle<Container>::operator->() {
-  return c_;
-}
-
-template <class Container>
-inline const Container &ConstContainerHandle<Container>::operator*() {
   return *c_;
 }
 
@@ -118,11 +96,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
 }
 
 template <class Container>
-inline GeneralShard<Container>::~GeneralShard() {
-  // flush all reader or writer handles
-  rw_lock_.writer_lock();
-  rw_lock_.writer_unlock();
-}
+inline GeneralShard<Container>::~GeneralShard() {}
 
 template <class Container>
 void GeneralShard<Container>::set_range_and_data(
@@ -151,12 +125,6 @@ template <class Container>
 inline ContainerHandle<Container>
 GeneralShard<Container>::get_container_handle() {
   return ContainerHandle<Container>(&container_, this);
-}
-
-template <class Container>
-inline ConstContainerHandle<Container>
-GeneralShard<Container>::get_const_container_handle() {
-  return ConstContainerHandle<Container>(&container_, this);
 }
 
 template <class Container>
@@ -385,12 +353,7 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
   }
 
   if (unlikely(should_split())) {
-    rw_lock_.reader_unlock();
-    rw_lock_.writer_lock();
-    if (should_split()) {
-      split();
-    }
-    rw_lock_.writer_unlock();
+    split_with_reader_lock();
     return std::nullopt;
   }
 

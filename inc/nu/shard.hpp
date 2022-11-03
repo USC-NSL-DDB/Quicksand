@@ -32,19 +32,6 @@ class ContainerHandle {
   GeneralShard<Container> *shard_;
 };
 
-template <GeneralContainerBased Container>
-class ConstContainerHandle {
- public:
-  ConstContainerHandle(const Container *c, GeneralShard<Container> *shard);
-  ~ConstContainerHandle();
-  const Container *operator->();
-  const Container &operator*();
-
- private:
-  const Container *c_;
-  GeneralShard<Container> *shard_;
-};
-
 template <class Container>
 struct ContainerAndMetadata {
   Container container;
@@ -171,7 +158,6 @@ class GeneralShard {
       std::size_t order) requires FindableByOrder<Container>;
   Container get_container_copy();
   ContainerHandle<Container> get_container_handle();
-  ConstContainerHandle<Container> get_const_container_handle();
 
  private:
   constexpr static uint32_t kReserveProbeSize = 8192;
@@ -193,7 +179,6 @@ class GeneralShard {
   std::size_t size_thresh_;
 
   friend class ContainerHandle<Container>;
-  friend class ConstContainerHandle<Container>;
 
   void split();
   bool should_split() const;

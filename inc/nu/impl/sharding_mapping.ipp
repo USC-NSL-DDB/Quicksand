@@ -59,7 +59,7 @@ GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
   bool normal_range = (l_key != r_key);
 
-  rw_lock_.reader_lock();
+  mutex_.lock();
   for (auto iter = mapping_.lower_bound(l_key); iter != mapping_.end();
        ++iter) {
     bool in_range =
@@ -71,7 +71,7 @@ GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
 
     shards.emplace_back(iter->first, iter->second.get_weak());
   }
-  rw_lock_.reader_unlock();
+  mutex_.unlock();
 
   return shards;
 }
@@ -81,11 +81,11 @@ std::vector<std::pair<std::optional<typename Shard::Key>, WeakProclet<Shard>>>
 GeneralShardingMapping<Shard>::get_all_shards() {
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
 
-  rw_lock_.reader_lock();
+  mutex_.lock();
   for (auto &[k, s] : mapping_) {
     shards.emplace_back(k, s.get_weak());
   }
-  rw_lock_.reader_unlock();
+  mutex_.unlock();
 
   return shards;
 }
@@ -93,10 +93,10 @@ GeneralShardingMapping<Shard>::get_all_shards() {
 template <class Shard>
 std::optional<WeakProclet<Shard>>
 GeneralShardingMapping<Shard>::get_shard_for_key(std::optional<Key> key) {
-  rw_lock_.reader_lock();
+  mutex_.lock();
   auto iter = --mapping_.upper_bound(key);
   auto shard = iter->second.get_weak();
-  rw_lock_.reader_unlock();
+  mutex_.unlock();
   return shard;
 }
 
@@ -129,9 +129,9 @@ WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
 
   auto new_weak_shard = new_shard.get_weak();
 
-  rw_lock_.writer_lock();
+  mutex_.lock();
   mapping_.emplace(l_key, std::move(new_shard));
-  rw_lock_.writer_unlock();
+  mutex_.unlock();
 
   return new_weak_shard;
 }
