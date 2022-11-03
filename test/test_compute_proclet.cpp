@@ -10,8 +10,7 @@
 #include "nu/sharded_unordered_map.hpp"
 #include "nu/sharded_vector.hpp"
 
-// TODO: investigate occasional segfaults when element count is higher.
-constexpr auto kNumElements = 500'000;
+constexpr auto kNumElements = 1'000'000;
 
 bool test_basic() {
   std::string s0{"hello"};
@@ -77,8 +76,19 @@ bool test_compute_over_zipped_range() {
         auto [x, y] = elems;
         out.push_back(x + y);
       },
-      nu::zip(sealed_v1, sealed_v2), std::move(sum));
+      nu::zip(sealed_v1, sealed_v2), sum);
   cp.get();
+
+  auto sealed_sum = nu::to_sealed_ds(std::move(sum));
+
+  if (sealed_sum.size() != kNumElements) {
+    return false;
+  }
+  for (const auto sum : sealed_sum) {
+    if (sum != 2) {
+      return false;
+    }
+  }
 
   return true;
 }
@@ -129,8 +139,10 @@ bool test_compute_over_zipped_range() {
 // }
 
 bool run_test() {
-  return test_basic() && test_pass_sharded_ds() &&
-         test_compute_over_sharded_ds() && test_compute_over_zipped_range();
+  auto passed = test_basic() && test_pass_sharded_ds() &&
+                test_compute_over_sharded_ds() &&
+                test_compute_over_zipped_range();
+  return passed;
 }
 
 void do_work() {
