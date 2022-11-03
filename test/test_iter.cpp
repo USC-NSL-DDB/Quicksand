@@ -9,7 +9,18 @@ using namespace nu;
 
 constexpr uint32_t kNumElements = (1 << 20) + 1;
 
-bool run_test() {
+// TODO: fix segfault when sealing an empty container
+bool test_seal_empty_ds() {
+  auto vec = make_sharded_vector<uint32_t, std::false_type>();
+  auto sealed_vec = to_sealed_ds(std::move(vec));
+  if (sealed_vec.size() != 0) {
+    return false;
+  }
+  auto v = to_unsealed_ds(std::move(sealed_vec));
+  return true;
+}
+
+bool test_iter() {
   auto vec = make_sharded_vector<uint32_t, std::false_type>();
   for (uint32_t i = 0; i < kNumElements; ++i) {
     vec.push_back(i);
@@ -68,7 +79,7 @@ bool run_test() {
     auto iter = sealed_vec.find_iter(kNumElements / 2);
     for (uint32_t i = kNumElements / 2; i < kNumElements; ++i, ++iter) {
       if (i != *iter) {
-	return false;
+        return false;
       }
     }
     if (iter != sealed_vec.cend()) {
@@ -80,6 +91,8 @@ bool run_test() {
 
   return true;
 }
+
+bool run_test() { return test_iter(); }
 
 void do_work() {
   if (run_test()) {
