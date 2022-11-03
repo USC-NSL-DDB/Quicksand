@@ -90,27 +90,4 @@ void RCULock::reader_wait() {
   }
 }
 
-void RCULock::__reader_lock_np() {
-  int core = get_cpu();
-  Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
-  cnt.data.c++;
-  cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
-  barrier();
-  thread_hold_rcu(this);
-}
-
-void RCULock::reader_unlock_np() {
-  thread_unhold_rcu(this);
-  int core = read_cpu();
-  Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
-  cnt.data.c--;
-  cnt.data.ver++;
-  barrier();
-  aligned_cnts_[core].cnt.data = cnt.data;
-  put_cpu();
-}
-
 }  // namespace nu
