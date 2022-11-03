@@ -224,8 +224,9 @@ GeneralSealedDSConstIterator<T, Fwd>::GeneralSealedDSConstIterator(
   } else {
     shards_iter_ = is_begin ? shards->rbegin() : shards->rend();
   }
-  block_ = is_begin ? Block::shard_front_block(shards_iter_)
-                    : Block::shard_end_block(shards_iter_);
+  block_ = (is_begin && !shards->empty())
+               ? Block::shard_front_block(shards_iter_)
+               : Block::shard_end_block(shards_iter_);
   block_iter_ = is_begin ? block_.cbegin() : block_.cend();
 }
 

@@ -9,8 +9,7 @@ using namespace nu;
 
 constexpr uint32_t kNumElements = (1 << 20) + 1;
 
-// TODO: fix segfault when sealing an empty container
-bool test_seal_empty_ds() {
+bool test_empty_ds() {
   auto vec = make_sharded_vector<uint32_t, std::false_type>();
   auto sealed_vec = to_sealed_ds(std::move(vec));
   if (sealed_vec.size() != 0) {
@@ -20,7 +19,7 @@ bool test_seal_empty_ds() {
   return true;
 }
 
-bool test_iter() {
+bool test_nonempty_ds() {
   auto vec = make_sharded_vector<uint32_t, std::false_type>();
   for (uint32_t i = 0; i < kNumElements; ++i) {
     vec.push_back(i);
@@ -92,7 +91,7 @@ bool test_iter() {
   return true;
 }
 
-bool run_test() { return test_iter(); }
+bool run_test() { return test_empty_ds() && test_nonempty_ds(); }
 
 void do_work() {
   if (run_test()) {
