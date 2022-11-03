@@ -1,16 +1,39 @@
 #include <cereal/types/memory.hpp>
 #include <cstdint>
 #include <iostream>
+#include <random>
 #include <ranges>
 
 #include "nu/compute_proclet.hpp"
 #include "nu/ranges.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sealed_ds.hpp"
-#include "nu/sharded_unordered_map.hpp"
+#include "nu/sharded_unordered_set.hpp"
 #include "nu/sharded_vector.hpp"
 
 constexpr auto kNumElements = 1'000'000;
+
+std::random_device rd;
+std::mt19937 mt(rd());
+std::uniform_int_distribution<int> dist('A', 'z');
+
+std::string random_str(uint32_t len) {
+  std::string str = "";
+  for (uint32_t i = 0; i < len; i++) {
+    str += dist(mt);
+  }
+  return str;
+}
+
+nu::ShardedVector<std::string, std::false_type> make_sharded_str_vec(
+    uint32_t size) {
+  int test_str_len = 35;
+  auto v = nu::make_sharded_vector<std::string, std::false_type>();
+  for (uint32_t i = 0; i < size; ++i) {
+    v.emplace_back(random_str(test_str_len));
+  }
+  return v;
+}
 
 bool test_basic() {
   std::string s0{"hello"};
@@ -57,7 +80,7 @@ bool test_compute_over_sharded_ds() {
   return true;
 }
 
-bool test_compute_over_zipped_range() {
+bool test_zipped_ints() {
   auto make_sealed_test_data = [&]() {
     auto v = nu::make_sharded_vector<int, std::false_type>(kNumElements);
     for (std::size_t i = 0; i < kNumElements; ++i) {
@@ -93,50 +116,39 @@ bool test_compute_over_zipped_range() {
   return true;
 }
 
-// TODO: implement these tests
-// bool test_naive_chained_compute() {
-//   auto first = nu::make_sharded_vector<std::string, std::false_type>();
-//   auto last = nu::make_sharded_vector<std::string, std::false_type>();
-//   auto name_count =
-//       nu::make_sharded_unordered_map<std::string, int, std::false_type>();
-//
-//   auto names = nu::make_sharded_vector<std::string, std::false_type>();
-//   auto names_ref = names;
-//   auto cp1 = nu::compute_range(
-//       [](auto &elems, auto &out) {
-//         auto [first, last] = elems;
-//         out.push_back(first + " " + last);
-//       },
-//       nu::zip(sealed_first, sealed_last), std::move(names_ref));
-//   cp1.get();
-//
-//   auto name_count_ref = name_count;
-//   auto cp2 = nu::compute_range([](auto &name, auto &count) { count[name]++;
-//   },
-//                                nu::range(nu::to_sealed_ds(std::move(names))),
-//                                std::move(name_count_ref));
-//   cp2.get();
-// }
-//
-// bool test_optimized_chained_compute() {
-//   auto first = nu::make_sharded_vector<std::string, std::false_type>();
-//   auto last = nu::make_sharded_vector<std::string, std::false_type>();
-//   auto name_count =
-//       nu::make_sharded_unordered_map<std::string, int, std::false_type>();
-//
-//   auto name_count_ref = name_count;
-//   auto cp = nu::compute_range(
-//       [](auto &elems, auto &counts) {
-//         auto [first, last] = elems;
-//         counts[first + " " + last]++;
-//       },
-//       nu::zip(sealed_first, sealed_last), std::move(name_count_ref));
-//   cp.get();
-// }
-//
-// bool test_chained_compute() {
-//   return test_chained_compute() && test_optimized_chained_compute();
-// }
+bool test_zipped_strs() {
+  auto s1 = make_sharded_str_vec(kNumElements);
+  auto s2 = make_sharded_str_vec(kNumElements);
+  auto sealed_s1 = nu::to_sealed_ds(std::move(s1));
+  auto sealed_s2 = nu::to_sealed_ds(std::move(s2));
+  auto set = nu::make_sharded_unordered_set<std::string, std::false_type>();
+
+  std::unordered_set<std::string> expected, got;
+  for (const auto &[x, y] : nu::zip(sealed_s1, sealed_s2)) {
+    expected.emplace(x + y);
+  }
+
+  auto input = nu::zip(sealed_s1, sealed_s2);
+  auto cp = nu::compute_range(
+      +[](const std::tuple<const std::string &, const std::string &> &elems,
+          decltype(set) set) {
+        auto [s1, s2] = elems;
+        set.emplace(s1 + s2);
+      },
+      input, set);
+  cp.get();
+
+  auto sealed_set = nu::to_sealed_ds(std::move(set));
+  for (const auto &elem : sealed_set) {
+    got.emplace(elem);
+  }
+
+  return got == expected;
+}
+
+bool test_compute_over_zipped_range() {
+  return test_zipped_ints() && test_zipped_strs();
+}
 
 bool run_test() {
   auto passed = test_basic() && test_pass_sharded_ds() &&
