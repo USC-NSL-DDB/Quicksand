@@ -65,7 +65,7 @@ ZippedIterator<Its...> &ZippedIterator<Its...>::operator++() {
 
 template <typename... Its>
 bool ZippedIterator<Its...>::operator!=(const ZippedIterator &other) {
-  return iters_ == other.iters_;
+  return iters_ != other.iters_;
 }
 
 template <typename... Its>
