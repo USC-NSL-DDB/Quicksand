@@ -1,4 +1,5 @@
 extern "C" {
+#include <runtime/membarrier.h>
 #include <runtime/timer.h>
 }
 
@@ -24,7 +25,7 @@ RCULock::~RCULock() {
 
 void RCULock::writer_sync(bool prioritize_readers) {
   sync_barrier_ = true;
-  barrier();
+  membarrier();
 
   int32_t sum;
   int32_t snapshot_vers[kNumCores];
@@ -63,7 +64,7 @@ retry:
     }
   }
 
-  rt::access_once(sync_barrier_) = false;
+  sync_barrier_ = false;
   rt::SpinGuard guard(&spin_);
   for (auto &waker : wakers_) {
     waker.Wake();
@@ -87,27 +88,6 @@ void RCULock::reader_wait() {
       spin_guard.Park(&wakers_.back());
     }
   }
-}
-
-void RCULock::__reader_lock_np() {
-  int core = get_cpu();
-  Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
-  cnt.data.c++;
-  cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
-  thread_hold_rcu(this);
-}
-
-void RCULock::reader_unlock_np() {
-  thread_unhold_rcu(this);
-  int core = read_cpu();
-  Cnt cnt;
-  cnt.raw = aligned_cnts_[core].cnt.raw;
-  cnt.data.c--;
-  cnt.data.ver++;
-  aligned_cnts_[core].cnt.data = cnt.data;
-  put_cpu();
 }
 
 }  // namespace nu
