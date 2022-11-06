@@ -1,3 +1,5 @@
+#include <experimental/scope>
+#include <type_traits>
 #include <utility>
 
 extern "C" {
@@ -21,6 +23,32 @@ inline void *Runtime::switch_slab(void *slab) {
 
 inline void *Runtime::switch_to_runtime_slab() {
   return thread_set_proclet_slab(nullptr);
+}
+
+[[gnu::always_inline]] inline void *Runtime::switch_stack(void *new_rsp) {
+  // assert(!thread_get_owner_proclet());
+  assert(reinterpret_cast<uintptr_t>(new_rsp) % kStackAlignment == 0);
+  void *old_rsp;
+  asm volatile(
+      "movq %%rsp, %0\n\t"
+      "movq %1, %%rsp"
+      : "=&r"(old_rsp)
+      : "r"(new_rsp)
+      :);
+  return old_rsp;
+}
+
+[[gnu::always_inline]] inline void Runtime::switch_runtime_stack() {
+  auto *runtime_rsp = thread_get_runtime_stack_base();
+  switch_stack(runtime_rsp);
+}
+
+inline VAddrRange Runtime::get_proclet_stack_range(thread_t *thread) {
+  VAddrRange range;
+  auto rsp = thread_get_rsp(thread);
+  range.start = rsp - kStackRedZoneSize;
+  range.end = ((rsp + kStackSize) & (~(kStackSize - 1)));
+  return range;
 }
 
 inline SlabAllocator *Runtime::get_current_proclet_slab() {
@@ -50,57 +78,46 @@ inline T *Runtime::get_root_obj(ProcletID id) {
 
 template <typename Cls, typename... A0s, typename... A1s>
 __attribute__((noinline))
-__attribute__((optimize("no-omit-frame-pointer"))) void
-Runtime::__run_within_proclet_env(NonBlockingMigrationDisabledGuard *guard,
-                                  Cls *obj_ptr, void (*fn)(A0s...),
+__attribute__((optimize("no-omit-frame-pointer"))) bool
+Runtime::__run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                                   A1s &&... args) {
-  {
-    NonBlockingMigrationDisabledGuard guard_on_proclet_stack(std::move(*guard));
-    fn(*obj_ptr, std::forward<A1s>(args)...);
+  auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
+  auto optional_migration_guard = attach_and_disable_migration(proclet_header);
+  if (unlikely(!optional_migration_guard)) {
+    return false;
   }
+  auto &migration_guard = *optional_migration_guard;
 
-  thread_unset_owner_proclet();
+  auto *obj_ptr = get_current_root_obj<Cls>();
+  fn(&migration_guard, obj_ptr, std::forward<A1s>(args)...);
+  detach(migration_guard);
+
   if (unlikely(thread_has_been_migrated())) {
+    migration_guard.reset();
     auto proclet_stack_base = get_proclet_stack_range(__self).end;
     switch_stack(thread_get_runtime_stack_base());
     Runtime::stack_manager->put(
         reinterpret_cast<uint8_t *>(proclet_stack_base));
     rt::Exit();
   }
+
+  return true;
 }
 
-// By default, fn will be invoked with migration disabled.
+// By default, fn will be invoked with preemption disabled.
 template <typename Cls, typename... A0s, typename... A1s>
 __attribute__((optimize("no-omit-frame-pointer"))) bool
 Runtime::run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                                 A1s &&... args) {
-  auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-
-  NonBlockingMigrationDisabledGuard guard(proclet_header);
-  if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(proclet_header->status()) != kAbsent)) {
-      ProcletManager::wait_until(proclet_header, kAbsent);
-    }
-    return false;
-  }
-
-  auto *slab = &proclet_header->slab;
-  auto *obj_ptr =
-      reinterpret_cast<Cls *>(reinterpret_cast<uintptr_t>(slab->get_base()));
+  bool ret;
   auto *proclet_stack = Runtime::stack_manager->get();
   assert(reinterpret_cast<uintptr_t>(proclet_stack) % kStackAlignment == 0);
-
-  switch_slab(slab);
-  thread_set_owner_proclet(thread_self(), proclet_base);
   auto *old_rsp = switch_stack(proclet_stack);
-
-  __run_within_proclet_env<Cls>(&guard, obj_ptr, fn,
-                                std::forward<A1s>(args)...);
-
+  ret = __run_within_proclet_env<Cls>(proclet_base, fn,
+                                      std::forward<A1s>(args)...);
   switch_stack(old_rsp);
-  switch_to_runtime_slab();
   Runtime::stack_manager->put(proclet_stack);
-  return true;
+  return ret;
 }
 
 template <typename T, typename... Args>
@@ -121,6 +138,41 @@ inline WeakProclet<T> Runtime::get_current_weak_proclet() {
   return WeakProclet<T>(to_proclet_id(get_current_proclet_header()));
 }
 
+inline void Runtime::detach(const MigrationGuard &g) {
+  thread_unset_owner_proclet();
+}
+
+inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
+    ProcletHeader *new_header) {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+
+  auto *old_header = thread_set_owner_proclet(thread_self(), new_header);
+  if (!new_header) {
+    return MigrationGuard(nullptr);
+  } else if (new_header->status() != kAbsent) {
+    new_header->rcu_lock.reader_lock();
+    if (likely(new_header->status() != kAbsent)) {
+      return MigrationGuard(new_header);
+    }
+  }
+
+  thread_set_owner_proclet(thread_self(), old_header);
+  return std::nullopt;
+}
+
+inline std::optional<MigrationGuard> Runtime::attach_and_disable_migration(
+    ProcletHeader *proclet_header) {
+  assert(!thread_get_owner_proclet());
+  return __reattach_and_disable_migration(proclet_header);
+}
+
+inline std::optional<MigrationGuard> Runtime::reattach_and_disable_migration(
+    ProcletHeader *new_header, const MigrationGuard &old_guard) {
+  assert(thread_get_owner_proclet() == old_guard.header());
+  return __reattach_and_disable_migration(new_header);
+}
+
 inline RuntimeSlabGuard::RuntimeSlabGuard() {
   original_slab_ = Runtime::switch_to_runtime_slab();
 }
@@ -136,5 +188,58 @@ inline ProcletSlabGuard::ProcletSlabGuard(void *slab) {
 inline ProcletSlabGuard::~ProcletSlabGuard() {
   thread_set_proclet_slab(original_slab_);
 }
+
+inline MigrationGuard::MigrationGuard() {
+  header_ = Runtime::get_current_proclet_header();
+  if (header_) {
+    header_->rcu_lock.reader_lock();
+    if (unlikely(header_->status() == kAbsent)) {
+      ProcletManager::wait_until(header_, kPresent);
+    }
+  }
+}
+
+inline MigrationGuard::MigrationGuard(ProcletHeader *header)
+    : header_(header) {}
+
+inline MigrationGuard::MigrationGuard(MigrationGuard &&o) : header_(o.header_) {
+  o.header_ = nullptr;
+}
+
+inline MigrationGuard::~MigrationGuard() {
+  if (header_) {
+    header_->rcu_lock.reader_unlock();
+  }
+}
+
+inline ProcletHeader *MigrationGuard::header() const { return header_; }
+
+template <typename F>
+inline auto MigrationGuard::enable_for(F &&f) {
+  using RetT = decltype(f());
+
+  auto cleaner = std::experimental::scope_exit([&] {
+    header_->rcu_lock.reader_lock();
+    if (unlikely(header_->status() == kAbsent)) {
+      ProcletManager::wait_until(header_, kPresent);
+    }
+  });
+
+  header_->rcu_lock.reader_unlock();
+  if constexpr (std::is_same_v<RetT, void>) {
+    f();
+  } else {
+    return f();
+  }
+}
+
+inline void MigrationGuard::reset() {
+  if (header_) {
+    header_->rcu_lock.reader_unlock();
+    header_ = nullptr;
+  }
+}
+
+inline void MigrationGuard::release() { header_ = nullptr; }
 
 }  // namespace nu

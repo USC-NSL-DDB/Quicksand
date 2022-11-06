@@ -9,8 +9,7 @@
 #include <vector>
 
 #include "nu/utils/cond_var.hpp"
-#include "nu/utils/rcu_lock.hpp"
-#include "nu/utils/reader_writer_lock.hpp"
+#include "nu/utils/read_skewed_lock.hpp"
 
 namespace nu {
 
@@ -31,6 +30,7 @@ class RCUHashSet {
   using Hash = std::hash<K>;
   using KeyEqual = std::equal_to<K>;
 
+  ReadSkewedLock lock_;
   std::unordered_set<K, Hash, KeyEqual, Allocator> set_;
 };
 }  // namespace nu

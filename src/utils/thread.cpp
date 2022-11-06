@@ -26,7 +26,7 @@ Thread::trampoline_in_proclet_env(void *args) {
   }
 
   auto runtime_stack_base = thread_get_runtime_stack_base();
-  auto old_rsp = switch_stack(runtime_stack_base);
+  auto old_rsp = Runtime::switch_stack(runtime_stack_base);
   Runtime::switch_to_runtime_slab();
 
   auto proclet_stack_addr =

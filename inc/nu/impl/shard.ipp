@@ -113,11 +113,15 @@ void GeneralShard<Container>::set_range_and_data(
 
 template <class Container>
 inline Container GeneralShard<Container>::get_container_copy() {
+  rw_lock_.reader_lock();
+
+  rt::Preempt p;
+  rt::PreemptGuard preempt_guard(&p);
   RuntimeSlabGuard slab_guard;
 
-  rw_lock_.reader_lock();
   Container c = container_;
   rw_lock_.reader_unlock();
+
   return c;
 }
 
@@ -129,11 +133,8 @@ GeneralShard<Container>::get_container_handle() {
 
 template <class Container>
 void GeneralShard<Container>::split() {
-  MigrationDisabledGuard migration_guard;
-  RuntimeSlabGuard slab_guard;
-
   Key mid_k;
-  Container latter_half_container;
+  std::unique_ptr<Container> latter_half_container;
   std::size_t new_container_capacity = 0;
   auto cur_slab_usage = slab_->get_usage();
 
@@ -146,14 +147,21 @@ void GeneralShard<Container>::split() {
   }
 
   BUG_ON(container_.empty());
-  container_.split(&mid_k, &latter_half_container);
+  {
+    rt::Preempt p;
+    rt::PreemptGuard preempt_guard(&p);
+    RuntimeSlabGuard slab_guard;
+
+    latter_half_container.reset(new Container());
+    container_.split(&mid_k, latter_half_container.get());
+  }
 
   auto new_shard = mapping_.run(&ShardingMapping::create_new_shard, mid_k,
                                 r_key_, /* reserve_space = */ false);
   ContainerAndMetadata<Container> container_and_metadata;
-  container_and_metadata.container = std::move(latter_half_container);
+  container_and_metadata.container = std::move(*latter_half_container);
   container_and_metadata.capacity =
-      std::max(new_container_capacity, latter_half_container.size());
+      std::max(new_container_capacity, latter_half_container->size());
   container_and_metadata.container_bucket_size = container_bucket_size_;
   new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
                 container_and_metadata);

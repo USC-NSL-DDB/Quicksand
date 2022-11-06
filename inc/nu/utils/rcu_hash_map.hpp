@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "nu/utils/cond_var.hpp"
-#include "nu/utils/rcu_lock.hpp"
 #include "nu/utils/read_skewed_lock.hpp"
 
 namespace nu {
@@ -40,8 +39,8 @@ class RCUHashMap {
   using Hash = std::hash<K>;
   using KeyEqual = std::equal_to<K>;
 
-  std::unordered_map<K, V, Hash, KeyEqual, Allocator> map_;
   ReadSkewedLock lock_;
+  std::unordered_map<K, V, Hash, KeyEqual, Allocator> map_;
 };
 }  // namespace nu
 

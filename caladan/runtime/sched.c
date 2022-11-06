@@ -332,6 +332,13 @@ static void pop_deprioritized_threads_locked(struct kthread *k)
 	}
 }
 
+static inline bool can_handle_pause_req(struct kthread *k) {
+	if (k->curr_th &&
+	    k->curr_th->nu_state.owner_proclet == pause_req_owner_proclet)
+		return false;
+	return true;
+}
+
 static bool handle_pending_pause_req(struct kthread *k)
 {
 	bool handled;
@@ -343,8 +350,7 @@ static bool handle_pending_pause_req(struct kthread *k)
 		return true;
 	}
 
-	if (k->curr_th &&
-	    k->curr_th->nu_state.owner_proclet == pause_req_owner_proclet)
+	if (!can_handle_pause_req(k))
 		handled = false;
 	else {
 		__pause_migrating_threads_locked(k);
@@ -1333,7 +1339,6 @@ void pause_migrating_ths_main(void *owner_proclet)
 	int i;
 	bool intr = false;
 	cpu_set_t mask;
-	thread_t *th;
 	struct kthread *k;
 	uint64_t wait_start_us;
 	bool intr_all_cores = false;
@@ -1352,9 +1357,7 @@ void pause_migrating_ths_main(void *owner_proclet)
 		         * The (ultra rare) race condition will be handled
 		         * by the fallback path below.
 		         */
-			th = k->curr_th;
-			if (th &&
-			    th->nu_state.owner_proclet == pause_req_owner_proclet) {
+			if (!can_handle_pause_req(k)) {
 				intr = true;
 				CPU_SET(k->curr_cpu, &mask);
 			}

@@ -13,7 +13,7 @@ class CPULoad {
   CPULoad();
   void start_monitor();
   void end_monitor();
-  float get_load();
+  float get_load() const;
   static void flush_all();
 
  private:

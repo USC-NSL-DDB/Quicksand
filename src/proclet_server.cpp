@@ -60,19 +60,18 @@ void ProcletServer::send_rpc_resp_ok(
   if (likely(thread_is_at_creator())) {
     auto span = std::span(data, len);
 
-    RuntimeSlabGuard guard;
     returner->Return(kOk, span, [oa_sstream]() {
       Runtime::archive_pool->put_oa_sstream(oa_sstream);
     });
   } else {
-    Runtime::migrator->forward_to_original_server(kOk, returner, len, data);
+    Runtime::migrator->forward_to_original_server(kOk, returner, len,
+                                                  data);
     Runtime::archive_pool->put_oa_sstream(oa_sstream);
   }
 }
 
 void ProcletServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
   if (likely(thread_is_at_creator())) {
-    RuntimeSlabGuard guard;
     returner->Return(kErrWrongClient);
   } else {
     Runtime::migrator->forward_to_original_server(kErrWrongClient, returner, 0,

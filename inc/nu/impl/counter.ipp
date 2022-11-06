@@ -22,7 +22,7 @@ inline void Counter::dec() {
 
 inline void Counter::dec_unsafe() { cnts_[read_cpu()].c--; }
 
-inline int64_t Counter::get() {
+inline int64_t Counter::get() const {
   int64_t sum = 0;
   for (auto &cnt : cnts_) {
     sum += cnt.c;

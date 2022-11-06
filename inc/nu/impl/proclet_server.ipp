@@ -1,7 +1,7 @@
-#include <alloca.h>
 #include <memory>
 #include <type_traits>
 #include <utility>
+#include <optional>
 
 #include <net.h>
 #include <sync.h>
@@ -16,6 +16,29 @@
 namespace nu {
 
 template <typename Cls, typename... As>
+void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
+                                        cereal::BinaryInputArchive &ia,
+                                        RPCReturner returner) {
+  auto *callee_header = callee_guard->header();
+  auto &callee_slab = callee_header->slab;
+  auto obj_space = callee_slab.yield(sizeof(Cls));
+
+  std::tuple<std::decay_t<As>...> args{std::decay_t<As>()...};
+
+  callee_guard->enable_for([&] {
+    // FIXME: a quick hack here that avoids nested RCUs.
+    std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
+    ProcletSlabGuard slab_guard(&callee_slab);
+    std::apply(
+        [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
+        args);
+  });
+
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  send_rpc_resp_ok(oa_sstream, &returner);
+}
+
+template <typename Cls, typename... As>
 void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
                                       RPCReturner *returner) {
   void *base;
@@ -27,103 +50,90 @@ void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
                                   /* from_migration = */ false);
 
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(base);
-  auto &slab = proclet_header->slab;
-  auto obj_space = slab.yield(sizeof(Cls));
+  proclet_header->status() = kPresent;
 
-  std::tuple<std::decay_t<As>...> args{std::decay_t<As>()...};
-  std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
-  std::apply(
-      [&](auto &&... args) {
-        ProcletSlabGuard proclet_slab_guard(&slab);
-        proclet_header->status() = kPresent;
-        auto *self = thread_self();
-        auto *old_owner = thread_set_owner_proclet(self, base);
-        new (obj_space) Cls(std::move(args)...);
-        thread_set_owner_proclet(self, old_owner);
-      },
-      args);
+  bool proclet_not_found = !Runtime::run_within_proclet_env<Cls>(
+      base, __construct_proclet<Cls, As...>, ia, *returner);
+  BUG_ON(proclet_not_found);
 
   Runtime::proclet_manager->insert(base);
-
-  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
-  send_rpc_resp_ok(oa_sstream, returner);
 }
 
 template <typename Cls, typename... As>
 void ProcletServer::construct_proclet_locally(
-    MigrationDisabledGuard *caller_guard, void *base, uint64_t size,
-    bool pinned, As &&... args) {
+    MigrationGuard *caller_guard, const RuntimeSlabGuard &runtime_slab_guard,
+    void *base, uint64_t size, bool pinned, As &&... args) {
   Runtime::proclet_manager->setup(base, size, /* migratable = */ !pinned,
                                   /* from_migration = */ false);
 
   auto *callee_header = reinterpret_cast<ProcletHeader *>(base);
   callee_header->status() = kPresent;
-  auto &slab = callee_header->slab;
-  auto obj_space = slab.yield(sizeof(Cls));
+  auto &callee_slab = callee_header->slab;
+  auto obj_space = callee_slab.yield(sizeof(Cls));
 
-  auto *caller_header = caller_guard->get_proclet_header();
+  auto *caller_header = Runtime::get_current_proclet_header();
+  auto optional_callee_guard =
+      Runtime::reattach_and_disable_migration(callee_header, *caller_guard);
+  BUG_ON(!optional_callee_guard);
+  auto &callee_guard = *optional_callee_guard;
+
   {
-    ProcletSlabGuard proclet_slab_guard(&slab);
+    ProcletSlabGuard slab_guard(&callee_header->slab);
 
-    using ArgsTuple = std::tuple<std::decay_t<As>...>;
     // Do copy for the most cases and only do move when we are sure it's safe.
     // For copy, we assume the type implements "deep copy".
+    using ArgsTuple = std::tuple<std::decay_t<As>...>;
     ArgsTuple copied_args(move_if_safe(std::forward<As>(args))...);
-    thread_set_owner_proclet(thread_self(), base);
-    // Save to drop the caller migration guard now.
+
+    barrier();
+    {
+      RuntimeSlabGuard slab_guard;
+      Runtime::proclet_manager->insert(base);
+    }
     caller_guard->reset();
 
-    std::apply(
-        [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
-        copied_args);
+    callee_guard.enable_for([&] {
+      std::apply(
+          [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
+          copied_args);
+    });
   }
 
-  RuntimeSlabGuard runtime_slab_guard;
-  NonBlockingMigrationDisabledGuard guard(caller_header);
-  if (caller_header && unlikely(!guard)) {
+  auto optional =
+      Runtime::reattach_and_disable_migration(caller_header, callee_guard);
+  if (!optional) {
     RPCReturnBuffer return_buf;
     Migrator::migrate_thread_and_ret_val<void>(
-        std::move(return_buf), to_proclet_id(caller_header), nullptr, nullptr);
-  } else {
-    thread_set_owner_proclet(thread_self(), caller_header);
+        &callee_guard, std::move(return_buf), to_proclet_id(caller_header),
+        nullptr, nullptr);
   }
-
-  Runtime::proclet_manager->insert(base);
 }
 
 template <typename Cls>
-void ProcletServer::__update_ref_cnt(Cls &obj, RPCReturner returner,
-                                     ProcletHeader *proclet_header, int delta,
-                                     bool *deallocate) {
+void ProcletServer::__update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
+                                     RPCReturner returner, int delta,
+                                     bool *destructed) {
+  auto *proclet_header = callee_guard->header();
   proclet_header->spin_lock.lock();
   auto latest_cnt = (proclet_header->ref_cnt += delta);
   BUG_ON(latest_cnt < 0);
   proclet_header->spin_lock.unlock();
+  *destructed = (latest_cnt == 0);
 
-  if (latest_cnt == 0) {
-    if (likely(
-            Runtime::proclet_manager->remove_for_destruction(proclet_header))) {
-      // Won't be migrated at this point.
-      *deallocate = true;
-      {
-        MigrationEnabledGuard guard;
-        obj.~Cls();
-      }
-    } else {
-      // Will be migrated at this point, so we wait for migration to be
-      // finished.
-      {
-        MigrationEnabledGuard guard;
-        ProcletManager::wait_until(proclet_header, kPresent);
-      }
-      // Safe without acquiring the lock since the proclet is dead now.
-      proclet_header->ref_cnt = -delta;
-      RuntimeSlabGuard guard;
-      send_rpc_resp_wrong_client(&returner);
-      return;
+  if (*destructed) {
+    while (unlikely(
+        !Runtime::proclet_manager->remove_for_destruction(proclet_header))) {
+      // Will be migrated at this point, so let's wait for migration to finish.
+      callee_guard->enable_for([] {});
     }
+
+    // Now won't be migrated.
+    ProcletSlabGuard slab_guard(&proclet_header->slab);
+    callee_guard->enable_for([&] { obj->~Cls(); });
+    proclet_header->status() = kAbsent;
   }
 
+  RuntimeSlabGuard guard;
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   send_rpc_resp_ok(oa_sstream, &returner);
 }
@@ -139,20 +149,17 @@ void ProcletServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
   auto *proclet_base = to_proclet_base(id);
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
 
-  bool deallocate = false;
+  bool destructed = false;
   bool proclet_not_found = !Runtime::run_within_proclet_env<Cls>(
-      proclet_base, __update_ref_cnt<Cls>, *returner, proclet_header, delta,
-      &deallocate);
+      proclet_base, __update_ref_cnt<Cls>, *returner, delta, &destructed);
 
-  if (deallocate) {
-    // Wait for all ongoing invocations to finish.
-    proclet_header->rcu_lock().writer_sync();
-    auto vaddr_range = proclet_header->get_range();
+  if (destructed) {
+    // Wait for other concurrent cnt updating threads to finish.
+    proclet_header->rcu_lock.writer_sync();
+    auto vaddr_range = proclet_header->range();
+    ProcletServer::release_proclet(vaddr_range);
     Runtime::proclet_manager->cleanup(proclet_base,
                                       /* for_migration = */ false);
-    // Release the proclet back to the controller only after ensuring the
-    // cleanup has finished to avoid the race.
-    ProcletServer::release_proclet(vaddr_range);
   }
 
   if (proclet_not_found) {
@@ -161,178 +168,174 @@ void ProcletServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls>
-bool ProcletServer::update_ref_cnt_locally(
-    NonBlockingMigrationDisabledGuard *callee_guard, ProcletID id, int delta) {
-  auto *proclet_header = reinterpret_cast<ProcletHeader *>(to_proclet_base(id));
-  proclet_header->spin_lock.lock();
-  auto latest_cnt = (proclet_header->ref_cnt += delta);
+void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
+                                           ProcletHeader *caller_header,
+                                           ProcletHeader *callee_header,
+                                           int delta) {
+  callee_header->spin_lock.lock();
+  auto latest_cnt = (callee_header->ref_cnt += delta);
   BUG_ON(latest_cnt < 0);
-  proclet_header->spin_lock.unlock();
+  callee_header->spin_lock.unlock();
+
+  RuntimeSlabGuard runtime_slab_guard;
 
   if (latest_cnt == 0) {
-    if (unlikely(!Runtime::proclet_manager->remove_for_destruction(
-            proclet_header))) {
-      return false;
-    }
-    // Won't be migrated at this point.
-    {
-      auto *obj = Runtime::get_root_obj<Cls>(id);
-      ProcletSlabGuard proclet_slab_guard(&proclet_header->slab);
-      callee_guard->reset();
-      auto *self = thread_self();
-      auto *old_owner = thread_set_owner_proclet(self, proclet_header);
-      obj->~Cls();
-      thread_set_owner_proclet(self, old_owner);
+    while (unlikely(
+        !Runtime::proclet_manager->remove_for_destruction(callee_header))) {
+      // Will be migrated at this point, so let's wait for migration to finish.
+      callee_guard->enable_for([] {});
     }
 
-    RuntimeSlabGuard runtime_slab_guard;
-    auto vaddr_range = proclet_header->get_range();
-    Runtime::proclet_manager->cleanup(proclet_header,
-                                      /* for_migration = */ false);
-    ProcletServer::release_proclet(vaddr_range);
+    // Now won't be migrated.
+    auto *obj = Runtime::get_root_obj<Cls>(to_proclet_id(callee_header));
+    ProcletSlabGuard callee_slab_guard(&callee_header->slab);
+    callee_guard->enable_for([&] { obj->~Cls(); });
+    callee_header->status() = kAbsent;
   }
 
-  return true;
+  auto optional =
+      Runtime::reattach_and_disable_migration(caller_header, *callee_guard);
+
+  if (latest_cnt == 0) {
+    // Wait for other concurrent cnt updating threads to finish.
+    callee_guard->reset();
+    callee_header->rcu_lock.writer_sync();
+    auto vaddr_range = callee_header->range();
+    ProcletServer::release_proclet(vaddr_range);
+    Runtime::proclet_manager->cleanup(callee_header,
+                                      /* for_migration = */ false);
+  }
+
+  if (!optional) {
+    RPCReturnBuffer return_buf;
+    Migrator::migrate_thread_and_ret_val<void>(
+        callee_guard, std::move(return_buf), to_proclet_id(caller_header),
+        nullptr, nullptr);
+  }
 }
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wuninitialized"
 
-template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-          typename... S1s>
-void ProcletServer::__run_closure(Cls &obj, ProcletHeader *proclet_header,
+template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
                                   cereal::BinaryInputArchive &ia,
                                   RPCReturner returner) {
-  proclet_header->cpu_load.start_monitor();
-  proclet_header->thread_cnt.inc_unsafe();
+  constexpr auto kNonVoidRetT = !std::is_same<RetT, void>::value;
+  std::conditional_t<kNonVoidRetT, RetT, ErasedType> ret;
 
-  decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
+  auto *callee_header = callee_guard->header();
+  callee_header->cpu_load.start_monitor();
+  callee_header->thread_cnt.inc_unsafe();
 
-  FnPtr fn;
-  ia >> fn;
+  {
+    ProcletSlabGuard slab_guard(&callee_header->slab);
 
-  using States = std::tuple<std::decay_t<S1s>...>;
-  auto *states = reinterpret_cast<States *>(alloca(sizeof(States)));
-  std::construct_at(states, std::decay_t<S1s>()...);
-  std::apply([&](auto &&... states) { ((ia >> states), ...); }, *states);
+    FnPtr fn;
+    ia >> fn;
 
-  using Guard = std::conditional_t<MigrEn, MigrationEnabledGuard, ErasedType>;
-  if constexpr (std::is_same<RetT, void>::value) {
-    {
-      [[maybe_unused]] Guard guard;
-      std::apply([&](auto &&... states) { fn(obj, std::move(states)...); },
-                 *states);
-      std::destroy_at(states);
-    }
-    oa_sstream = Runtime::archive_pool->get_oa_sstream();
-  } else {
-    RetT ret;
-    {
-      [[maybe_unused]] Guard guard;
-      ret = std::apply(
-          [&](auto &&... states) { return fn(obj, std::move(states)...); },
-          *states);
-      std::destroy_at(states);
-    }
+    std::tuple<std::decay_t<S1s>...> states{std::decay_t<S1s>()...};
 
-    oa_sstream = Runtime::archive_pool->get_oa_sstream();
-    oa_sstream->oa << std::move(ret);
+    callee_guard->enable_for([&] {
+      // FIXME: a quick hack here that avoids nested RCUs.
+      std::apply([&](auto &&... states) { ((ia >> states), ...); }, states);
+      std::apply(
+          [&](auto &&... states) {
+            if constexpr (kNonVoidRetT) {
+              ret = fn(*obj, std::move(states)...);
+            } else {
+              fn(*obj, std::move(states)...);
+            }
+          },
+          states);
+    });
   }
 
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  if constexpr (kNonVoidRetT) {
+    oa_sstream->oa << std::move(ret);
+  }
   send_rpc_resp_ok(oa_sstream, &returner);
-  proclet_header->thread_cnt.dec_unsafe();
-  proclet_header->cpu_load.end_monitor();
+
+  callee_header->thread_cnt.dec_unsafe();
+  callee_header->cpu_load.end_monitor();
 }
 
 #pragma GCC diagnostic pop
 
-template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-          typename... S1s>
+template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 void ProcletServer::run_closure(cereal::BinaryInputArchive &ia,
                                 RPCReturner *returner) {
   ProcletID id;
   ia >> id;
   auto *proclet_header = to_proclet_header(id);
+
   bool proclet_not_found = !Runtime::run_within_proclet_env<Cls>(
-      proclet_header, __run_closure<MigrEn, Cls, RetT, FnPtr, S1s...>,
-      proclet_header, ia, *returner);
+      proclet_header, __run_closure<Cls, RetT, FnPtr, S1s...>, ia, *returner);
+
   if (proclet_not_found) {
     send_rpc_resp_wrong_client(returner);
   }
 }
 
-template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-          typename... S1s>
-void ProcletServer::run_closure_locally(RetT *caller_ptr, ProcletID caller_id,
-                                        ProcletID callee_id, FnPtr fn_ptr,
-                                        S1s &&... states) {
-  auto *callee_proclet_header = to_proclet_header(callee_id);
-  auto *caller_proclet_header = to_proclet_header(caller_id);
-  callee_proclet_header->cpu_load.start_monitor();
-  callee_proclet_header->thread_cnt.inc_unsafe();
+template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+void ProcletServer::run_closure_locally(
+    MigrationGuard *callee_migration_guard,
+    const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
+    ProcletHeader *caller_header, ProcletHeader *callee_header, FnPtr fn_ptr,
+    S1s &&... states) {
+  callee_header->cpu_load.start_monitor();
+  callee_header->thread_cnt.inc_unsafe();
 
-  auto *obj = Runtime::get_root_obj<Cls>(callee_id);
-  using Guard = std::conditional_t<MigrEn, ErasedType, MigrationDisabledGuard>;
+  auto *obj = Runtime::get_root_obj<Cls>(to_proclet_id(callee_header));
 
   if constexpr (!std::is_same<RetT, void>::value) {
-    auto *ret = reinterpret_cast<RetT *>(alloca(sizeof(RetT)));
-    std::construct_at(ret);
-    {
-      [[maybe_unused]] Guard guard;
-      *ret = fn_ptr(*obj, std::move(states)...);
-    }
-    callee_proclet_header->thread_cnt.dec_unsafe();
-    callee_proclet_header->cpu_load.end_monitor();
+    auto ret = callee_migration_guard->enable_for(
+        [&] { return fn_ptr(*obj, std::move(states)...); });
+    callee_header->thread_cnt.dec_unsafe();
+    callee_header->cpu_load.end_monitor();
 
-    {
-      NonBlockingMigrationDisabledGuard caller_guard(caller_proclet_header);
-
-      if (likely(caller_guard)) {
-        {
-          ProcletSlabGuard caller_slab_guard(&caller_proclet_header->slab);
-          *caller_ptr = move_if_safe(std::move(*ret));
-        }
-        thread_set_owner_proclet(thread_self(), caller_proclet_header);
-        std::destroy_at(ret);
-        return;
-      }
+    auto optional = Runtime::reattach_and_disable_migration(
+        caller_header, *callee_migration_guard);
+    if (likely(optional)) {
+      *caller_ptr = move_if_safe(std::move(ret));
+      return;
     }
 
-    decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
-    oa_sstream = Runtime::archive_pool->get_oa_sstream();
-    oa_sstream->oa << std::move(*ret);
+    RuntimeSlabGuard slab_guard;
+
+    auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+    oa_sstream->oa << std::move(ret);
     auto ss_view = oa_sstream->ss.view();
     auto ret_val_span = std::span<const std::byte>(
         reinterpret_cast<const std::byte *>(ss_view.data()),
         oa_sstream->ss.tellp());
     RPCReturnBuffer ret_val_buf(ret_val_span);
-    std::destroy_at(ret);
 
-    RuntimeSlabGuard slab_guard;
     Migrator::migrate_thread_and_ret_val<RetT>(
-        std::move(ret_val_buf), caller_id, caller_ptr,
-        [oa_sstream] { Runtime::archive_pool->put_oa_sstream(oa_sstream); });
+        callee_migration_guard, std::move(ret_val_buf),
+        to_proclet_id(caller_header), caller_ptr,
+        [&] { Runtime::archive_pool->put_oa_sstream(oa_sstream); });
   } else {
-    {
-      [[maybe_unused]] Guard guard;
-      fn_ptr(*obj, std::move(states)...);
-    }
-    callee_proclet_header->thread_cnt.dec_unsafe();
-    callee_proclet_header->cpu_load.end_monitor();
+    callee_migration_guard->enable_for(
+        [&] { fn_ptr(*obj, std::move(states)...); });
+    callee_header->thread_cnt.dec_unsafe();
+    callee_header->cpu_load.end_monitor();
 
-    {
-      NonBlockingMigrationDisabledGuard caller_guard(caller_proclet_header);
-
-      if (likely(caller_guard)) {
-        thread_set_owner_proclet(thread_self(), caller_proclet_header);
-        return;
-      }
+    auto optional = Runtime::reattach_and_disable_migration(
+        caller_header, *callee_migration_guard);
+    if (likely(optional)) {
+      return;
     }
 
     RuntimeSlabGuard slab_guard;
     RPCReturnBuffer ret_val_buf;
-    Migrator::migrate_thread_and_ret_val<void>(std::move(ret_val_buf),
-                                               caller_id, nullptr, nullptr);
+
+    callee_migration_guard->reset();
+
+    Migrator::migrate_thread_and_ret_val<void>(
+        callee_migration_guard, std::move(ret_val_buf),
+        to_proclet_id(caller_header), nullptr, nullptr);
   }
 }
 

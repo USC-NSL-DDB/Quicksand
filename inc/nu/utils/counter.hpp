@@ -11,7 +11,7 @@ class Counter {
   void dec();
   void inc_unsafe();
   void dec_unsafe();
-  int64_t get();
+  int64_t get() const;
   void reset();
 
  private:

@@ -11,6 +11,7 @@
 extern "C" {
 #include <base/assert.h>
 #include <net/ip.h>
+#include <runtime/membarrier.h>
 #include <runtime/timer.h>
 }
 #include <thread.h>
@@ -355,7 +356,7 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
   BUG_ON(c->WriteFull(nu_state, nu_state_size, /* nt = */ false,
                       /* poll = */ true) < 0);
 
-  auto stack_range = get_proclet_stack_range(thread);
+  auto stack_range = Runtime::get_proclet_stack_range(thread);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->WriteFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                       /* nt = */ false,
@@ -443,7 +444,7 @@ bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
           !Runtime::proclet_manager->remove_for_migration(proclet_header))) {
     return false;
   }
-  proclet_header->rcu_lock().writer_sync(/* poll = */ true);
+  proclet_header->rcu_lock.writer_sync(/* poll = */ true);
   return true;
 }
 
@@ -671,7 +672,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c,
                      /* poll = */ true) <= 0);
   auto *th = create_migrated_thread(nu_state.get());
 
-  auto stack_range = get_proclet_stack_range(th);
+  auto stack_range = Runtime::get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                      /* nt = */ false,
@@ -883,7 +884,7 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
   std::construct_at(req);
   req->rc = rc;
   req->returner = *returner;
-  req->stack_top = get_proclet_stack_range(thread_self()).end;
+  req->stack_top = Runtime::get_proclet_stack_range(thread_self()).end;
   req->payload_len = payload_len;
   memcpy(req->payload, payload, payload_len);
   auto req_span = std::span(req_buf.get(), req_buf_len);

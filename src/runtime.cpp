@@ -35,7 +35,6 @@ namespace nu {
 bool active_runtime = false;
 
 SlabAllocator Runtime::runtime_slab;
-RCULock Runtime::rcu_lock;
 std::unique_ptr<ProcletServer> Runtime::proclet_server;
 std::unique_ptr<ProcletManager> Runtime::proclet_manager;
 std::unique_ptr<StackManager> Runtime::stack_manager;
@@ -125,7 +124,6 @@ std::unique_ptr<Runtime> Runtime::init(uint32_t remote_ctrl_ip, Mode mode,
 }
 
 Runtime::~Runtime() {
-  rcu_lock.writer_sync();
   proclet_server.reset();
   controller_client.reset();
   proclet_manager.reset();

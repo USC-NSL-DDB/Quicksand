@@ -5,21 +5,21 @@
 namespace nu {
 
 template <typename RetT>
-RPCReturnCode Migrator::load_thread_and_ret_val(
-    ProcletHeader *dest_proclet_header, void *raw_dest_ret_val_ptr,
-    uint64_t payload_len, uint8_t *payload) {
-  NonBlockingMigrationDisabledGuard guard(dest_proclet_header);
-  if (unlikely(!guard)) {
-    if (unlikely(rt::access_once(dest_proclet_header->status()) != kAbsent)) {
-      ProcletManager::wait_until(dest_proclet_header, kAbsent);
-    }
+RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
+                                                void *raw_dest_ret_val_ptr,
+                                                uint64_t payload_len,
+                                                uint8_t *payload) {
+  auto optional_migration_guard =
+      Runtime::attach_and_disable_migration(dest_header);
+  if (unlikely(!optional_migration_guard)) {
     return kErrWrongClient;
   }
+  Runtime::detach(*optional_migration_guard);
 
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto *th = create_migrated_thread(payload);
-  auto stack_range = get_proclet_stack_range(th);
+  auto stack_range = Runtime::get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
   memcpy(reinterpret_cast<void *>(stack_range.start), payload + nu_state_size,
          stack_len);
@@ -30,24 +30,24 @@ RPCReturnCode Migrator::load_thread_and_ret_val(
   ret_ss.span({reinterpret_cast<char *>(payload + nu_state_size + stack_len),
                payload_len - nu_state_size - stack_len});
   if constexpr (!std::is_same<RetT, void>::value) {
-    ProcletSlabGuard g(&dest_proclet_header->slab);
+    ProcletSlabGuard g(&dest_header->slab);
     ia >> *dest_ret_val_ptr;
   }
   Runtime::archive_pool->put_ia_sstream(ia_sstream);
 
   thread_ready(th);
-
   return kOk;
 }
 
 template <typename RetT>
-void Migrator::migrate_thread_and_ret_val(
-    RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
-    std::move_only_function<void()> cleanup_fn) {
+void Migrator::__migrate_thread_and_ret_val(
+    MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
+    RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn) {
+
+  uint8_t *stack_to_gc = nullptr;
+
   rt::Thread(
-      [dest_id, dest_ret_val_ptr, th = thread_self(),
-       ret_val_buf = std::move(ret_val_buf),
-       cleanup_fn = std::move(cleanup_fn)]() mutable {
+      [&, th = thread_self(), ret_val_buf = std::move(ret_val_buf)]() mutable {
         thread_wait_until_parked(th);
         auto *dest_proclet_header = to_proclet_header(dest_id);
         thread_set_owner_proclet(th, dest_proclet_header);
@@ -55,7 +55,7 @@ void Migrator::migrate_thread_and_ret_val(
         size_t nu_state_size;
         auto *nu_state = thread_get_nu_state(th, &nu_state_size);
 
-        auto stack_range = get_proclet_stack_range(th);
+        auto stack_range = Runtime::get_proclet_stack_range(th);
         auto stack_len = stack_range.end - stack_range.start;
 
         auto ret_val_span = ret_val_buf.get_buf();
@@ -76,11 +76,9 @@ void Migrator::migrate_thread_and_ret_val(
         memcpy(req->payload + nu_state_size + stack_len, ret_val_span.data(),
                ret_val_span.size_bytes());
 
-        if (cleanup_fn) {
-          cleanup_fn();
-        }
-        Runtime::stack_manager->free(
-            reinterpret_cast<uint8_t *>(stack_range.end));
+        stack_to_gc = reinterpret_cast<uint8_t *>(stack_range.end);
+        barrier();
+        thread_ready(th);
 
         auto req_span = std::span(req_buf.get(), req_buf_len);
         RPCReturnBuffer unused_buf;
@@ -99,6 +97,40 @@ void Migrator::migrate_thread_and_ret_val(
 
   rt::Preempt p;
   rt::PreemptGuardAndPark gp(&p);
+
+  if (stack_to_gc) {
+    if (cleanup_fn) {
+      cleanup_fn();
+    }
+    if (guard) {
+      guard->reset();
+    }
+    Runtime::switch_runtime_stack();
+    Runtime::stack_manager->free(stack_to_gc);
+    rt::Exit();
+  } else if (guard) {
+    guard->release();
+  }
+}
+
+template <typename RetT>
+__attribute__((optimize("no-omit-frame-pointer"))) void
+Migrator::migrate_thread_and_ret_val(
+    RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
+    std::move_only_function<void()> &&cleanup_fn) {
+  assert(!thread_get_owner_proclet());
+  __migrate_thread_and_ret_val(nullptr, std::move(ret_val_buf), dest_id,
+                               dest_ret_val_ptr, std::move(cleanup_fn));
+}
+
+template <typename RetT>
+__attribute__((optimize("no-omit-frame-pointer"))) void
+Migrator::migrate_thread_and_ret_val(
+    MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
+    RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn) {
+  assert(thread_get_owner_proclet() == guard->header());
+  __migrate_thread_and_ret_val(guard, std::move(ret_val_buf), dest_id,
+                               dest_ret_val_ptr, std::move(cleanup_fn));
 }
 
 }  // namespace nu

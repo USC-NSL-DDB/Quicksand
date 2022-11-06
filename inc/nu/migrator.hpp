@@ -119,8 +119,12 @@ class Migrator {
   uint32_t get_max_num_proclets_per_migration() const;
   template <typename RetT>
   static void migrate_thread_and_ret_val(
-      RPCReturnBuffer &&return_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
-      std::move_only_function<void()> cleanup_fn);
+      RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
+      std::move_only_function<void()> &&cleanup_fn);
+  template <typename RetT>
+  static void migrate_thread_and_ret_val(
+      MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
+      RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn);
   template <typename RetT>
   static RPCReturnCode load_thread_and_ret_val(
       ProcletHeader *dest_proclet_header, void *raw_dest_ret_val_ptr,
@@ -170,6 +174,10 @@ class Migrator {
                      const std::vector<ProcletMigrationTask> &tasks);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);
+  template <typename RetT>
+  static void __migrate_thread_and_ret_val(
+      MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
+      RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn);
 };
 
 }  // namespace nu

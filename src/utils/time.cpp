@@ -12,20 +12,20 @@ namespace nu {
 
 void Time::timer_callback(unsigned long arg_addr) {
   auto *arg = reinterpret_cast<TimerCallbackArg *>(arg_addr);
-
   auto *proclet_header = arg->proclet_header;
-  NonBlockingMigrationDisabledGuard guard(proclet_header);
-  if (unlikely(!guard)) {
+
+  auto optional_migration_guard =
+      Runtime::attach_and_disable_migration(proclet_header);
+  if (unlikely(!optional_migration_guard)) {
     return;
   }
+  Runtime::detach(*optional_migration_guard);
 
   auto &time = proclet_header->time;
   time.spin_.Lock();
-  {
-    RuntimeSlabGuard g;
-    time.entries_.erase(arg->iter);
-  }
+  time.entries_.erase(arg->iter);
   time.spin_.Unlock();
+
   thread_ready(arg->th);
 }
 

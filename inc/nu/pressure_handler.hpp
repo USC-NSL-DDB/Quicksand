@@ -24,7 +24,8 @@ struct AuxHandlerState {
 
 struct Utility {
   Utility();
-  Utility(ProcletHeader *proclet_header);
+  Utility(ProcletHeader *proclet_header, uint64_t size, uint64_t thread_cnt,
+          float cpu_load);
 
   constexpr static uint32_t kFixedCostUs = 25;
   constexpr static uint32_t kNetBwGbps = 100;

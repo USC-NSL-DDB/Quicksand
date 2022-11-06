@@ -7,7 +7,6 @@
 
 #include "nu/commons.hpp"
 #include "nu/utils/cached_pool.hpp"
-#include "nu/utils/rcu_lock.hpp"
 
 namespace nu {
 
@@ -27,7 +26,6 @@ class StackManager {
 
   VAddrRange range_;
   CachedPool<uint8_t> cached_pool_;
-  rt::Mutex mutex_;
 
   bool not_in_range(uint8_t *stack);
 };

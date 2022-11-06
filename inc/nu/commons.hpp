@@ -79,8 +79,6 @@ constexpr ProcletID to_proclet_id(void *proclet_base);
 constexpr SlabId_t to_slab_id(void *proclet_base);
 constexpr SlabId_t to_slab_id(uint64_t proclet_base_addr);
 constexpr SlabId_t get_max_slab_id();
-void *switch_stack(void *new_rsp);
-VAddrRange get_proclet_stack_range(thread_t *thread);
 bool is_copied_on_migration(void *ptr, ProcletHeader *proclet_header);
 template <typename T>
 std::span<std::byte> to_span(T &t);

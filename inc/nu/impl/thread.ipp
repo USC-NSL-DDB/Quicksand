@@ -69,7 +69,7 @@ inline uint64_t Thread::get_current_id() {
   auto *proclet_header = Runtime::get_current_proclet_header();
 
   if (proclet_header) {
-    return get_proclet_stack_range(thread_self()).end;
+    return Runtime::get_proclet_stack_range(thread_self()).end;
   } else {
     return get_current_thread_id();
   }

@@ -27,10 +27,10 @@ inline void CPULoad::end_monitor() { thread_end_monitor_cycles(); }
 
 inline void CPULoad::flush_all() { thread_flush_all_monitor_cycles(); }
 
-inline float CPULoad::get_load() {
+inline float CPULoad::get_load() const {
   auto now_tsc = rdtsc();
   if (unlikely(now_tsc >= last_decay_tsc_ + kDecayIntervalUs * cycles_per_us)) {
-    decay(now_tsc);
+    const_cast<CPULoad *>(this)->decay(now_tsc);
   }
 
   return cpu_load_;

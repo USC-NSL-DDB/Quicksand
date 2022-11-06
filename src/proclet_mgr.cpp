@@ -17,7 +17,6 @@ extern "C" {
 namespace nu {
 
 uint8_t proclet_statuses[kMaxNumProclets];
-RCULock proclet_rcu_locks[kMaxNumProcletRCULocks];
 
 ProcletManager::ProcletManager() {
   num_present_proclets_ = 0;
@@ -43,10 +42,14 @@ void ProcletManager::madvise_populate(void *proclet_base,
 void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
   RuntimeSlabGuard guard;
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-  proclet_header->status() = kAbsent;
-  proclet_header->rcu_lock().writer_sync(
-      /* poll = */ true);  // Sync with PressureHandler.
 
+  {
+    // Sync with get_proclet_info() inovked by PressureHandler.
+    rt::SpinGuard g(&spin_);
+    proclet_header->status() = kAbsent;
+  }
+
+  std::destroy_at(&proclet_header->rcu_lock);
   std::destroy_at(&proclet_header->spin_lock);
   std::destroy_at(&proclet_header->cond_var);
   std::destroy_at(&proclet_header->blocked_syncer);
@@ -79,6 +82,7 @@ void ProcletManager::setup(void *proclet_base, uint64_t capacity,
 
   proclet_header->capacity = capacity;
   std::construct_at(&proclet_header->cpu_load);
+  std::construct_at(&proclet_header->rcu_lock);
   std::construct_at(&proclet_header->spin_lock);
   std::construct_at(&proclet_header->cond_var);
   std::construct_at(&proclet_header->blocked_syncer);
