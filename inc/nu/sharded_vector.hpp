@@ -3,6 +3,7 @@
 #include <functional>
 #include <vector>
 
+#include "sealed_ds.hpp"
 #include "sharded_ds.hpp"
 
 namespace nu {
@@ -69,9 +70,60 @@ class Vector {
 };
 
 template <typename T, typename LL>
+class ShardedVector;
+
+template <typename T, typename LL>
+class VectorInsertCollection {
+ public:
+  VectorInsertCollection(const ShardedVector<T, LL> &original);
+  ~VectorInsertCollection();
+
+  void inc_ref_cnt();
+  void dec_ref_cnt();
+  void submit_batch(std::size_t rank, ShardedVector<T, LL> elems);
+
+ private:
+  std::map<std::size_t, ShardedVector<T, LL>> vecs_;
+  ShardedVector<T, LL> original_;
+  uint32_t ref_cnt_;
+  Mutex mutex_;
+
+  void flush();
+};
+
+template <typename T, typename LL>
+class VectorBackInserter {
+ public:
+  VectorBackInserter();
+  VectorBackInserter(Proclet<VectorInsertCollection<T, LL>> state,
+                     std::size_t rank);
+  VectorBackInserter(const VectorBackInserter &);
+  VectorBackInserter &operator=(const VectorBackInserter &);
+  VectorBackInserter(VectorBackInserter &&) noexcept;
+  VectorBackInserter &operator=(VectorBackInserter &&) noexcept;
+  ~VectorBackInserter();
+
+  void push_back(const T &);
+  void emplace_back(T &&);
+  VectorBackInserter<T, LL> split(std::size_t rank);
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
+
+ private:
+  Proclet<VectorInsertCollection<T, LL>> state_;
+  std::optional<ShardedVector<T, LL>> elems_;
+  std::size_t rank_;
+
+  void flush();
+};
+
+template <typename T, typename LL>
 class ShardedVector
     : public ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL> {
  public:
+  ShardedVector();
   ShardedVector(const ShardedVector &) = default;
   ShardedVector &operator=(const ShardedVector &) = default;
   ShardedVector(ShardedVector &&) noexcept = default;
@@ -82,13 +134,15 @@ class ShardedVector
   void push_back(const T &value);
   void emplace_back(T &&value);
   void pop_back();
+  VectorBackInserter<T, LL> back_inserter();
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL>;
 
-  ShardedVector();
   ShardedVector(std::optional<typename Base::Hint> hint);
   friend class ProcletServer;
+  template <typename T1, typename LL1>
+  friend class VectorBackInserter;
   template <typename T1, typename LL1>
   friend ShardedVector<T1, LL1> make_sharded_vector();
   template <typename T1, typename LL1>

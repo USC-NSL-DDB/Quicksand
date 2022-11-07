@@ -34,7 +34,8 @@ ComputeProclet<void> compute_range(void (*fn)(iter_val_t<range_iter_t<Rng>> &,
       fn(val, args...);
     }
   };
-  cp.future_ = cp.proclet_.run_async(wrapped_fn, fn_addr, r, args...);
+  cp.future_ =
+      cp.proclet_.run_async(wrapped_fn, fn_addr, r, std::move(args)...);
 
   return cp;
 }

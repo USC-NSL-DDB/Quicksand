@@ -90,6 +90,64 @@ bool test_for_all() {
   return true;
 }
 
+template <typename T, typename LL>
+class BackInserterWorker {
+ public:
+  static const std::size_t kNumElements = 1'000'000;
+  static const std::size_t kNumWorkers = 10;
+
+  BackInserterWorker(nu::VectorBackInserter<T, LL> inserter, std::size_t wid)
+      : inserter_(std::move(inserter)), wid_(wid) {
+    if (wid < kNumWorkers - 1) {
+      auto next_wid = wid + 1;
+      nu::make_proclet<BackInserterWorker<int, std::false_type>>(
+          inserter_.split(next_wid), next_wid);
+    }
+
+    do_work();
+  }
+
+  void do_work() {
+    for (std::size_t i = 0; i < kNumElements; ++i) {
+      inserter_.push_back(wid_ * kNumElements + i);
+    }
+  }
+
+ private:
+  nu::VectorBackInserter<T, LL> inserter_;
+  std::size_t wid_;
+};
+
+bool test_back_inserter() {
+  auto num_workers = BackInserterWorker<int, std::false_type>::kNumWorkers;
+  auto num_elems = BackInserterWorker<int, std::false_type>::kNumElements;
+
+  auto v = nu::make_sharded_vector<int, std::false_type>();
+  {
+    auto inserter = v.back_inserter();
+    auto worker = nu::make_proclet<BackInserterWorker<int, std::false_type>>(
+        std::move(inserter), 0);
+  }
+
+  // blocks until insertion is done
+  auto sealed = nu::to_sealed_ds(std::move(v));
+
+  auto expected_len = num_workers * num_elems;
+  if (sealed.size() != expected_len) {
+    return false;
+  }
+
+  int expected = 0;
+  for (const auto elem : sealed) {
+    if (elem != expected) {
+      return false;
+    }
+    ++expected;
+  }
+
+  return true;
+}
+
 bool run_test() {
   if (!test_push_and_set()) {
     return false;
@@ -98,6 +156,9 @@ bool run_test() {
     return false;
   }
   if (!test_for_all()) {
+    return false;
+  }
+  if (!test_back_inserter()) {
     return false;
   }
 

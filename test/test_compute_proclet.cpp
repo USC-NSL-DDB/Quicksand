@@ -1,6 +1,7 @@
 #include <cereal/types/memory.hpp>
 #include <cstdint>
 #include <iostream>
+#include <iterator>
 #include <random>
 #include <ranges>
 
@@ -11,7 +12,7 @@
 #include "nu/sharded_unordered_set.hpp"
 #include "nu/sharded_vector.hpp"
 
-constexpr auto kNumElements = 1'000'000;
+constexpr auto kNumElements = 100000;
 
 std::random_device rd;
 std::mt19937 mt(rd());
@@ -92,14 +93,15 @@ bool test_zipped_ints() {
   auto sealed_v1 = make_sealed_test_data();
   auto sealed_v2 = make_sealed_test_data();
   auto sum = nu::make_sharded_vector<int, std::false_type>();
+  auto inserter = sum.back_inserter();
 
   auto cp = nu::compute_range(
       +[](const std::tuple<const int &, const int &> &elems,
-          decltype(sum) out) {
+          decltype(inserter) out) {
         auto [x, y] = elems;
         out.push_back(x + y);
       },
-      nu::zip(sealed_v1, sealed_v2), sum);
+      nu::zip(sealed_v1, sealed_v2), std::move(inserter));
   cp.get();
 
   auto sealed_sum = nu::to_sealed_ds(std::move(sum));
@@ -107,6 +109,7 @@ bool test_zipped_ints() {
   if (sealed_sum.size() != kNumElements) {
     return false;
   }
+
   for (const auto sum : sealed_sum) {
     if (sum != 2) {
       return false;
