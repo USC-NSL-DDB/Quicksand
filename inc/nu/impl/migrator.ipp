@@ -40,10 +40,10 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
 }
 
 template <typename RetT>
-void Migrator::__migrate_thread_and_ret_val(
+__attribute__((optimize("no-omit-frame-pointer"))) void
+Migrator::__migrate_thread_and_ret_val(
     MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
     RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn) {
-
   uint8_t *stack_to_gc = nullptr;
 
   rt::Thread(
@@ -95,8 +95,10 @@ void Migrator::__migrate_thread_and_ret_val(
       /* head = */ true)
       .Detach();
 
-  rt::Preempt p;
-  rt::PreemptGuardAndPark gp(&p);
+  {
+    rt::Preempt p;
+    rt::PreemptGuardAndPark gp(&p);
+  }
 
   if (stack_to_gc) {
     if (cleanup_fn) {
@@ -114,8 +116,7 @@ void Migrator::__migrate_thread_and_ret_val(
 }
 
 template <typename RetT>
-__attribute__((optimize("no-omit-frame-pointer"))) void
-Migrator::migrate_thread_and_ret_val(
+inline void Migrator::migrate_thread_and_ret_val(
     RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
     std::move_only_function<void()> &&cleanup_fn) {
   assert(!thread_get_owner_proclet());
@@ -124,8 +125,7 @@ Migrator::migrate_thread_and_ret_val(
 }
 
 template <typename RetT>
-__attribute__((optimize("no-omit-frame-pointer"))) void
-Migrator::migrate_thread_and_ret_val(
+inline void Migrator::migrate_thread_and_ret_val(
     MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
     RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn) {
   assert(thread_get_owner_proclet() == guard->header());
