@@ -88,6 +88,7 @@ extern int sched_run_on_core(struct proc *p, unsigned int core);
 extern int sched_idle_on_core(uint32_t mwait_hint, unsigned int core);
 extern int sched_yield_on_core(unsigned int core);
 extern struct thread *sched_get_thread_on_core(unsigned int core);
+extern int sched_yield_on_core(unsigned int core);
 
 static inline int sched_threads_active(struct proc *p)
 {

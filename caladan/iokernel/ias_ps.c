@@ -8,6 +8,7 @@
 #include "defs.h"
 #include "ias.h"
 #include "ksched.h"
+#include "sched.h"
 
 #define MIN_PREEMPT_INTERVAL_US 100
 
@@ -45,9 +46,9 @@ static bool ias_ps_preempt_core(struct ias_data *sd)
 		}
 		*preemptor_ptr = sd->p->resource_pressure_handlers[--num_needed_cores];
 		barrier();
-		/* Make sure that the kthread won't be parked. */
+		/* Handle the race condition of thread parking. */
 		ksched_run(core, th->tid);
-		ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
+		sched_yield_on_core(core);
 	}
 
 	return true;

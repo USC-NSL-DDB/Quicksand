@@ -266,7 +266,8 @@ int kthread_init(void)
 	return 0;
 }
 
-void kthread_yield_cores(cpu_set_t *mask) {
+void kthread_send_yield_intrs(cpu_set_t *mask)
+{
 	struct ksched_intr_req req;
 	struct kthread *k = myk();
 	uint64_t last_core = k->curr_cpu;
@@ -283,6 +284,20 @@ void kthread_yield_cores(cpu_set_t *mask) {
 	store_release(&cpu_map[s].recent_kthread, k);
 }
 
+void kthread_enqueue_yield(cpu_set_t *mask, struct kthread *k)
+{
+	/* Don't bother yielding any parked kthread. */
+	if (!k->parked) {
+		/*
+		 * Ideally we should add a new field to struct kthread for
+		 * self-issued yield requests. For now, we just piggyback on
+		 * iokernel's field.
+		 */
+		k->q_ptrs->yield_rcu_gen = k->rcu_gen;
+		CPU_SET(k->curr_cpu, mask);
+	}
+}
+
 void kthread_yield_all_cores(void)
 {
 	int i;
@@ -290,7 +305,6 @@ void kthread_yield_all_cores(void)
 
 	CPU_ZERO(&mask);
 	for (i = 0; i < nrks; i++)
-		CPU_SET(i, &mask);
-	kthread_yield_cores(&mask);
+		kthread_enqueue_yield(&mask, ks[i]);
+	kthread_send_yield_intrs(&mask);
 }
-

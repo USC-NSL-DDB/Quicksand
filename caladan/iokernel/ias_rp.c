@@ -7,6 +7,7 @@
 #include "defs.h"
 #include "ias.h"
 #include "ksched.h"
+#include "sched.h"
 
 #define MAX_INTERVAL_US 2000
 
@@ -36,8 +37,9 @@ static bool ias_rp_preempt_core(struct ias_data *sd)
 	th = sd->p->active_threads[i];
 	*th->preemptor = sd->p->resource_reporting->handler;
 	barrier();
+	/* Handle the race condition of thread parking. */
 	ksched_run(core, th->tid);
-	ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
+	sched_yield_on_core(core);
 
 	return true;
 }

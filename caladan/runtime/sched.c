@@ -1359,12 +1359,12 @@ void pause_migrating_ths_main(void *owner_proclet)
 		         */
 			if (!can_handle_pause_req(k)) {
 				intr = true;
-				CPU_SET(k->curr_cpu, &mask);
+				kthread_enqueue_yield(&mask, k);
 			}
 		}
 	}
 	if (intr)
-		kthread_yield_cores(&mask);
+		kthread_send_yield_intrs(&mask);
 
 	wait_start_us = microtime();
 	while (ACCESS_ONCE(global_pause_req_mask)) {
