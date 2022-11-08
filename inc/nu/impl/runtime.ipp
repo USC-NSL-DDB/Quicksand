@@ -146,7 +146,7 @@ inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
   rt::Preempt p;
   rt::PreemptGuard g(&p);
 
-  auto *old_header = thread_set_owner_proclet(thread_self(), new_header);
+  auto *old_header = thread_set_owner_proclet(thread_self(), new_header, true);
   if (!new_header) {
     return MigrationGuard(nullptr);
   } else if (new_header->status() != kAbsent) {
@@ -156,7 +156,7 @@ inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
     }
   }
 
-  thread_set_owner_proclet(thread_self(), old_header);
+  thread_set_owner_proclet(thread_self(), old_header, false);
   return std::nullopt;
 }
 

@@ -139,12 +139,13 @@ static inline void *thread_unset_owner_proclet(void)
 	return old_owner_proclet;
 }
 
-static inline void *thread_set_owner_proclet(thread_t *th, void *owner_proclet)
+static inline void *thread_set_owner_proclet(thread_t *th, void *owner_proclet,
+                                             bool update_monitor)
 {
 	void **owner_proclet_p =
 		(void **)((uint64_t)th + thread_owner_proclet_offset);
 	void *old_owner_proclet = *owner_proclet_p;
-	if (unlikely(old_owner_proclet))
+	if (update_monitor && unlikely(old_owner_proclet))
 		update_monitor_cycles();
 	*owner_proclet_p = owner_proclet;
 

@@ -297,6 +297,7 @@ void ProcletServer::run_closure_locally(
         caller_header, *callee_migration_guard);
     if (likely(optional)) {
       *caller_ptr = move_if_safe(std::move(ret));
+      callee_migration_guard->reset();
       return;
     }
 
@@ -324,6 +325,7 @@ void ProcletServer::run_closure_locally(
     auto optional = Runtime::reattach_and_disable_migration(
         caller_header, *callee_migration_guard);
     if (likely(optional)) {
+      callee_migration_guard->reset();
       return;
     }
 

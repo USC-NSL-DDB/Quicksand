@@ -47,7 +47,7 @@ void Migrator::snapshot_thread_and_ret_val(
       [&, th = thread_self()]() mutable {
         thread_wait_until_parked(th);
         auto *dest_proclet_header = to_proclet_header(dest_id);
-        thread_set_owner_proclet(th, dest_proclet_header);
+        thread_set_owner_proclet(th, dest_proclet_header, true);
 
         size_t nu_state_size;
         auto *nu_state = thread_get_nu_state(th, &nu_state_size);
