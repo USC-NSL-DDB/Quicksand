@@ -63,7 +63,7 @@ class Runtime {
   static void *switch_slab(void *slab);
   static void *switch_to_runtime_slab();
   static void *switch_stack(void *new_rsp);
-  static void switch_runtime_stack();
+  static void switch_to_runtime_stack();
   static VAddrRange get_proclet_stack_range(thread_t *thread);
   template <typename T, typename... Args>
   static T *new_on_runtime_heap(Args &&... args);

@@ -141,6 +141,8 @@ class ShardedDataStructure {
                     std::vector<Val> emplace_back_reqs);
   template <typename... S1s>
   void __for_all(auto *fn, S1s &&... states);
+  template <class Archive>
+  void __save(Archive &ar);
 };
 
 }  // namespace nu

@@ -122,10 +122,6 @@ class Migrator {
       RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
       std::move_only_function<void()> &&cleanup_fn);
   template <typename RetT>
-  static void migrate_thread_and_ret_val(
-      MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
-      RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn);
-  template <typename RetT>
   static RPCReturnCode load_thread_and_ret_val(
       ProcletHeader *dest_proclet_header, void *raw_dest_ret_val_ptr,
       uint64_t payload_len, uint8_t *payload);
@@ -174,10 +170,16 @@ class Migrator {
                      const std::vector<ProcletMigrationTask> &tasks);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);
+  static void transmit_thread_and_ret_val(std::unique_ptr<std::byte[]> req_buf,
+                                          uint64_t req_buf_len,
+                                          ProcletID dest_id,
+                                          uint8_t *proclet_stack);
   template <typename RetT>
-  static void __migrate_thread_and_ret_val(
-      MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
-      RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn);
+  static void snapshot_thread_and_ret_val(std::unique_ptr<std::byte[]> *req_buf,
+                                          uint64_t *req_buf_len,
+                                          RPCReturnBuffer &&ret_val_buf,
+                                          ProcletID dest_id,
+                                          RetT *dest_ret_val_ptr);
 };
 
 }  // namespace nu

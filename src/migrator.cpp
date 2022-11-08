@@ -857,7 +857,7 @@ void Migrator::load(rt::TcpConn *c) {
     preempt_disable();
     for (auto [proclet, size] : skipped_proclets) {
       Runtime::proclet_manager->depopulate(proclet, size,
-                                           /* delay = */ false);
+                                           /* defer = */ false);
     }
   } else {
     mmap_th.Detach();
@@ -911,6 +911,27 @@ uint32_t Migrator::get_max_num_proclets_per_migration() const {
   return Migrator::kMaxPctProcletPerMigration *
              Runtime::proclet_manager->get_num_present_proclets() +
          1;
+}
+
+void Migrator::transmit_thread_and_ret_val(std::unique_ptr<std::byte[]> req_buf,
+                                           uint64_t req_buf_len,
+                                           ProcletID dest_id,
+                                           uint8_t *proclet_stack) {
+  // Runtime::stack_manager->free(proclet_stack);
+
+  auto req_span = std::span(req_buf.get(), req_buf_len);
+  RPCReturnBuffer unused_buf;
+
+retry:
+  auto *rpc_client = Runtime::rpc_client_mgr->get_by_proclet_id(dest_id);
+  auto rc = rpc_client->Call(req_span, &unused_buf);
+
+  if (unlikely(rc == kErrWrongClient)) {
+    Runtime::rpc_client_mgr->invalidate_cache(dest_id, rpc_client);
+    goto retry;
+  }
+
+  rt::Exit();
 }
 
 }  // namespace nu

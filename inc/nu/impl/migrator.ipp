@@ -40,14 +40,11 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
 }
 
 template <typename RetT>
-__attribute__((optimize("no-omit-frame-pointer"))) void
-Migrator::__migrate_thread_and_ret_val(
-    MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
-    RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn) {
-  uint8_t *stack_to_gc = nullptr;
-
+void Migrator::snapshot_thread_and_ret_val(
+    std::unique_ptr<std::byte[]> *req_buf, uint64_t *req_buf_len,
+    RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr) {
   rt::Thread(
-      [&, th = thread_self(), ret_val_buf = std::move(ret_val_buf)]() mutable {
+      [&, th = thread_self()]() mutable {
         thread_wait_until_parked(th);
         auto *dest_proclet_header = to_proclet_header(dest_id);
         thread_set_owner_proclet(th, dest_proclet_header);
@@ -61,10 +58,9 @@ Migrator::__migrate_thread_and_ret_val(
         auto ret_val_span = ret_val_buf.get_buf();
         auto payload_len =
             nu_state_size + stack_len + ret_val_span.size_bytes();
-        auto req_buf_len = sizeof(RPCReqMigrateThreadAndRetVal) + payload_len;
-        auto req_buf = std::make_unique_for_overwrite<std::byte[]>(req_buf_len);
-        auto *req =
-            reinterpret_cast<RPCReqMigrateThreadAndRetVal *>(req_buf.get());
+        *req_buf_len = sizeof(RPCReqMigrateThreadAndRetVal) + payload_len;
+        auto buf = std::make_unique_for_overwrite<std::byte[]>(*req_buf_len);
+        auto *req = reinterpret_cast<RPCReqMigrateThreadAndRetVal *>(buf.get());
         std::construct_at(req);
         req->handler = load_thread_and_ret_val<RetT>;
         req->dest_proclet_header = dest_proclet_header;
@@ -75,62 +71,41 @@ Migrator::__migrate_thread_and_ret_val(
                reinterpret_cast<void *>(stack_range.start), stack_len);
         memcpy(req->payload + nu_state_size + stack_len, ret_val_span.data(),
                ret_val_span.size_bytes());
-
-        stack_to_gc = reinterpret_cast<uint8_t *>(stack_range.end);
-        barrier();
-        thread_ready(th);
-
-        auto req_span = std::span(req_buf.get(), req_buf_len);
-        RPCReturnBuffer unused_buf;
-
-      retry:
-        auto *rpc_client = Runtime::rpc_client_mgr->get_by_proclet_id(dest_id);
-        auto rc = rpc_client->Call(req_span, &unused_buf);
-
-        if (unlikely(rc == kErrWrongClient)) {
-          Runtime::rpc_client_mgr->invalidate_cache(dest_id, rpc_client);
-          goto retry;
-        }
+        // Only set req_buf after taking a snaphot of the stack so that only the
+        // old thread will be able to observe its non-nullptr content.
+        *req_buf = std::move(buf);
+        thread_ready_head(th);
       },
       /* head = */ true)
       .Detach();
 
-  {
-    rt::Preempt p;
-    rt::PreemptGuardAndPark gp(&p);
-  }
-
-  if (stack_to_gc) {
-    if (cleanup_fn) {
-      cleanup_fn();
-    }
-    if (guard) {
-      guard->reset();
-    }
-    Runtime::switch_runtime_stack();
-    Runtime::stack_manager->free(stack_to_gc);
-    rt::Exit();
-  } else if (guard) {
-    guard->release();
-  }
+  rt::Preempt p;
+  rt::PreemptGuardAndPark gp(&p);
 }
 
 template <typename RetT>
-inline void Migrator::migrate_thread_and_ret_val(
+__attribute__((optimize("no-omit-frame-pointer"))) inline void
+Migrator::migrate_thread_and_ret_val(
     RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
     std::move_only_function<void()> &&cleanup_fn) {
   assert(!thread_get_owner_proclet());
-  __migrate_thread_and_ret_val(nullptr, std::move(ret_val_buf), dest_id,
-                               dest_ret_val_ptr, std::move(cleanup_fn));
-}
 
-template <typename RetT>
-inline void Migrator::migrate_thread_and_ret_val(
-    MigrationGuard *guard, RPCReturnBuffer &&ret_val_buf, ProcletID dest_id,
-    RetT *dest_ret_val_ptr, std::move_only_function<void()> &&cleanup_fn) {
-  assert(thread_get_owner_proclet() == guard->header());
-  __migrate_thread_and_ret_val(guard, std::move(ret_val_buf), dest_id,
-                               dest_ret_val_ptr, std::move(cleanup_fn));
+  std::unique_ptr<std::byte[]> req_buf;
+  uint64_t req_buf_len;
+
+  snapshot_thread_and_ret_val(&req_buf, &req_buf_len, std::move(ret_val_buf),
+                              dest_id, dest_ret_val_ptr);
+
+  if (req_buf) {
+    if (cleanup_fn) {
+      cleanup_fn();
+    }
+    auto *proclet_stack = reinterpret_cast<uint8_t *>(
+        Runtime::get_proclet_stack_range(__self).end);
+    Runtime::switch_to_runtime_stack();
+    transmit_thread_and_ret_val(std::move(req_buf), req_buf_len, dest_id,
+                                proclet_stack);
+  }
 }
 
 }  // namespace nu

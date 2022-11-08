@@ -26,7 +26,6 @@ inline void *Runtime::switch_to_runtime_slab() {
 }
 
 [[gnu::always_inline]] inline void *Runtime::switch_stack(void *new_rsp) {
-  // assert(!thread_get_owner_proclet());
   assert(reinterpret_cast<uintptr_t>(new_rsp) % kStackAlignment == 0);
   void *old_rsp;
   asm volatile(
@@ -38,7 +37,7 @@ inline void *Runtime::switch_to_runtime_slab() {
   return old_rsp;
 }
 
-[[gnu::always_inline]] inline void Runtime::switch_runtime_stack() {
+[[gnu::always_inline]] inline void Runtime::switch_to_runtime_stack() {
   auto *runtime_rsp = thread_get_runtime_stack_base();
   switch_stack(runtime_rsp);
 }

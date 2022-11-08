@@ -88,6 +88,8 @@ struct thread_tf {
  * Thread support
  */
 
+#define MAX_NUM_RCUS_HELD       2
+
 struct stack;
 
 struct thread_nu_state {
@@ -96,10 +98,9 @@ struct thread_nu_state {
 	void                    *owner_proclet;
 	void                    *proclet_slab;
 	void                    *nu_thread;
+	void                    *rcus[MAX_NUM_RCUS_HELD];
 	struct thread_tf	tf;
 };
-
-#define MAX_NUM_RCUS_HELD       2
 
 struct thread {
 	struct list_node	link;
@@ -110,7 +111,6 @@ struct thread {
 	unsigned int		last_cpu;
 	uint64_t                run_start_tsc;
 	uint64_t		ready_tsc;
-	void                    *rcus[MAX_NUM_RCUS_HELD];
 #ifdef GC
 	struct list_node	gc_link;
 	unsigned int		onk;

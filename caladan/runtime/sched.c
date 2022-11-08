@@ -1047,7 +1047,7 @@ static __always_inline thread_t *__thread_create(void)
 	th->thread_running = false;
 	th->wq_spin = false;
 	th->migrated = false;
-	memset(th->rcus, 0, sizeof(th->rcus));
+	memset(th->nu_state.rcus, 0, sizeof(th->nu_state.rcus));
 	th->nu_state.monitor_cnt = 0;
 	th->nu_state.creator_ip = get_cfg_ip();
 	th->nu_state.proclet_slab = NULL;
@@ -1435,8 +1435,9 @@ void thread_hold_rcu(void *rcu)
 {
        int i;
        for (i = 0; i < MAX_NUM_RCUS_HELD; i++) {
-              if (!__self->rcus[i]) {
-                     __self->rcus[i] = rcu;
+              assert(__self->nu_state.rcus[i] != rcu);
+              if (!__self->nu_state.rcus[i]) {
+                     __self->nu_state.rcus[i] = rcu;
                      return;
               }
        }
@@ -1447,8 +1448,8 @@ void thread_unhold_rcu(void *rcu)
 {
        int i;
        for (i = 0; i < MAX_NUM_RCUS_HELD; i++) {
-              if (__self->rcus[i] == rcu) {
-                     __self->rcus[i] = NULL;
+              if (__self->nu_state.rcus[i] == rcu) {
+                     __self->nu_state.rcus[i] = NULL;
                      return;
               }
        }
@@ -1458,7 +1459,7 @@ void thread_unhold_rcu(void *rcu)
 inline bool thread_is_rcu_held(thread_t *th, void *rcu) {
        int i;
        for (i = 0; i < MAX_NUM_RCUS_HELD; i++) {
-              if (th->rcus[i] == rcu)
+              if (th->nu_state.rcus[i] == rcu)
                      return true;
        }
        return false;

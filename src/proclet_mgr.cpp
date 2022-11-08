@@ -49,21 +49,17 @@ void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
     proclet_header->status() = kAbsent;
   }
 
-  std::destroy_at(&proclet_header->rcu_lock);
-  std::destroy_at(&proclet_header->spin_lock);
-  std::destroy_at(&proclet_header->cond_var);
-  std::destroy_at(&proclet_header->blocked_syncer);
-  std::destroy_at(&proclet_header->time);
+  // Deregister its slab ID.
   std::destroy_at(&proclet_header->slab);
 
-  bool delay = !for_migration;
-  depopulate(proclet_base, proclet_header->size(), delay);
+  bool defer = !for_migration;
+  depopulate(proclet_base, proclet_header->size(), defer);
 }
 
-void ProcletManager::depopulate(void *proclet_base, uint64_t size, bool delay) {
+void ProcletManager::depopulate(void *proclet_base, uint64_t size, bool defer) {
   size = ((size - 1) / kPageSize + 1) * kPageSize;
 
-  if (delay) {
+  if (defer) {
     // Try to keep the memory for future reuses.
     BUG_ON(madvise(proclet_base, size, MADV_FREE) != 0);
   } else {
@@ -82,7 +78,6 @@ void ProcletManager::setup(void *proclet_base, uint64_t capacity,
 
   proclet_header->capacity = capacity;
   std::construct_at(&proclet_header->cpu_load);
-  std::construct_at(&proclet_header->rcu_lock);
   std::construct_at(&proclet_header->spin_lock);
   std::construct_at(&proclet_header->cond_var);
   std::construct_at(&proclet_header->blocked_syncer);
@@ -91,6 +86,7 @@ void ProcletManager::setup(void *proclet_base, uint64_t capacity,
 
   if (!from_migration) {
     proclet_header->ref_cnt = 1;
+    std::construct_at(&proclet_header->rcu_lock);
     auto slab_region_size = capacity - sizeof(ProcletHeader);
     std::construct_at(&proclet_header->slab, to_slab_id(proclet_header),
                       proclet_header + 1, slab_region_size);

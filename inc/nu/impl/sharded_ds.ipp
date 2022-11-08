@@ -594,16 +594,22 @@ void ShardedDataStructure<Container,
 
 template <class Container, class LL>
 template <class Archive>
-inline void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
-  const_cast<ShardedDataStructure *>(this)->flush();
+inline void ShardedDataStructure<Container, LL>::__save(Archive &ar) {
+  flush();
   ar(mapping_, key_to_shards_);
+  mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
+}
+
+template <class Container, class LL>
+template <class Archive>
+inline void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
+  const_cast<ShardedDataStructure *>(this)->__save(ar);
 }
 
 template <class Container, class LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::load(Archive &ar) {
   ar(mapping_, key_to_shards_);
-  mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
 }
 
 template <class Container, class LL>

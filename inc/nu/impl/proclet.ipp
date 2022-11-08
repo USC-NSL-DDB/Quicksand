@@ -227,6 +227,7 @@ Proclet<T> Proclet<T>::__create(uint64_t capacity, bool pinned, uint32_t ip_hint
   }
 
   // Cold path: use RPC.
+  optional_caller_migration_guard->reset();
   auto *handler = ProcletServer::construct_proclet<T, As...>;
   invoke_remote(callee_id, handler, to_proclet_base(callee_id), capacity,
                 pinned, std::forward<As>(args)...);

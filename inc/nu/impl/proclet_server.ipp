@@ -26,7 +26,6 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
   std::tuple<std::decay_t<As>...> args{std::decay_t<As>()...};
 
   callee_guard->enable_for([&] {
-    // FIXME: a quick hack here that avoids nested RCUs.
     std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
     ProcletSlabGuard slab_guard(&callee_slab);
     std::apply(
@@ -102,10 +101,12 @@ void ProcletServer::construct_proclet_locally(
   auto optional =
       Runtime::reattach_and_disable_migration(caller_header, callee_guard);
   if (!optional) {
+    Runtime::detach(callee_guard);
+    callee_guard.reset();
+
     RPCReturnBuffer return_buf;
     Migrator::migrate_thread_and_ret_val<void>(
-        &callee_guard, std::move(return_buf), to_proclet_id(caller_header),
-        nullptr, nullptr);
+        std::move(return_buf), to_proclet_id(caller_header), nullptr, nullptr);
   }
 }
 
@@ -188,29 +189,27 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
 
     // Now won't be migrated.
     auto *obj = Runtime::get_root_obj<Cls>(to_proclet_id(callee_header));
-    ProcletSlabGuard callee_slab_guard(&callee_header->slab);
-    callee_guard->enable_for([&] { obj->~Cls(); });
+    callee_guard->enable_for([&] {
+      ProcletSlabGuard callee_slab_guard(&callee_header->slab);
+
+      obj->~Cls();
+      callee_header->rcu_lock.writer_sync();
+    });
     callee_header->status() = kAbsent;
-  }
-
-  auto optional =
-      Runtime::reattach_and_disable_migration(caller_header, *callee_guard);
-
-  if (latest_cnt == 0) {
-    // Wait for other concurrent cnt updating threads to finish.
-    callee_guard->reset();
-    callee_header->rcu_lock.writer_sync();
-    auto vaddr_range = callee_header->range();
-    ProcletServer::release_proclet(vaddr_range);
+    ProcletServer::release_proclet(callee_header->range());
     Runtime::proclet_manager->cleanup(callee_header,
                                       /* for_migration = */ false);
   }
 
+  auto optional =
+      Runtime::reattach_and_disable_migration(caller_header, *callee_guard);
   if (!optional) {
+    Runtime::detach(*callee_guard);
+    callee_guard->reset();
+
     RPCReturnBuffer return_buf;
     Migrator::migrate_thread_and_ret_val<void>(
-        callee_guard, std::move(return_buf), to_proclet_id(caller_header),
-        nullptr, nullptr);
+        std::move(return_buf), to_proclet_id(caller_header), nullptr, nullptr);
   }
 }
 
@@ -235,10 +234,9 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
     ia >> fn;
 
     std::tuple<std::decay_t<S1s>...> states{std::decay_t<S1s>()...};
+    std::apply([&](auto &&... states) { ((ia >> states), ...); }, states);
 
     callee_guard->enable_for([&] {
-      // FIXME: a quick hack here that avoids nested RCUs.
-      std::apply([&](auto &&... states) { ((ia >> states), ...); }, states);
       std::apply(
           [&](auto &&... states) {
             if constexpr (kNonVoidRetT) {
@@ -312,9 +310,10 @@ void ProcletServer::run_closure_locally(
         oa_sstream->ss.tellp());
     RPCReturnBuffer ret_val_buf(ret_val_span);
 
+    Runtime::detach(*callee_migration_guard);
+    callee_migration_guard->reset();
     Migrator::migrate_thread_and_ret_val<RetT>(
-        callee_migration_guard, std::move(ret_val_buf),
-        to_proclet_id(caller_header), caller_ptr,
+        std::move(ret_val_buf), to_proclet_id(caller_header), caller_ptr,
         [&] { Runtime::archive_pool->put_oa_sstream(oa_sstream); });
   } else {
     callee_migration_guard->enable_for(
@@ -331,11 +330,10 @@ void ProcletServer::run_closure_locally(
     RuntimeSlabGuard slab_guard;
     RPCReturnBuffer ret_val_buf;
 
+    Runtime::detach(*callee_migration_guard);
     callee_migration_guard->reset();
-
     Migrator::migrate_thread_and_ret_val<void>(
-        callee_migration_guard, std::move(ret_val_buf),
-        to_proclet_id(caller_header), nullptr, nullptr);
+        std::move(ret_val_buf), to_proclet_id(caller_header), nullptr, nullptr);
   }
 }
 
