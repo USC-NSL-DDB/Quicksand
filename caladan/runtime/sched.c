@@ -1359,7 +1359,7 @@ void pause_migrating_ths_main(void *owner_proclet)
 		         */
 			if (!can_handle_pause_req(k)) {
 				intr = true;
-				kthread_enqueue_yield(&mask, k);
+				kthread_enqueue_intr(&mask, k);
 			}
 		}
 	}

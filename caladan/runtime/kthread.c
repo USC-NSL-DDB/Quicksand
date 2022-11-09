@@ -268,34 +268,32 @@ int kthread_init(void)
 
 void kthread_send_yield_intrs(cpu_set_t *mask)
 {
-	struct ksched_intr_req req;
-	struct kthread *k = myk();
+	struct ksched_runtime_intr_req req;
+	struct kthread *k = getk();
 	uint64_t last_core = k->curr_cpu;
 	ssize_t s;
 
+	req.opcode = RUNTIME_INTR_YIELD;
+	req.wait = false;
 	req.len = sizeof(*mask);
 	req.mask = mask;
 
-	s = ioctl(ksched_fd, KSCHED_IOC_YIELD, &req);
+	s = ioctl(ksched_fd, KSCHED_IOC_RUNTIME_INTR, &req);
 	BUG_ON(s < 0);
 	k->curr_cpu = s;
 	if (k->curr_cpu != last_core)
 		STAT(CORE_MIGRATIONS)++;
 	store_release(&cpu_map[s].recent_kthread, k);
+	putk();
 }
 
-void kthread_enqueue_yield(cpu_set_t *mask, struct kthread *k)
+bool kthread_enqueue_intr(cpu_set_t *mask, struct kthread *k)
 {
-	/* Don't bother yielding any parked kthread. */
-	if (!k->parked) {
-		/*
-		 * Ideally we should add a new field to struct kthread for
-		 * self-issued yield requests. For now, we just piggyback on
-		 * iokernel's field.
-		 */
-		k->q_ptrs->yield_rcu_gen = k->rcu_gen;
-		CPU_SET(k->curr_cpu, mask);
-	}
+	/* Don't bother sending signal to any parked kthread. */
+	if (k->parked)
+		return false;
+	CPU_SET(k->curr_cpu, mask);
+	return true;
 }
 
 void kthread_yield_all_cores(void)
@@ -305,6 +303,12 @@ void kthread_yield_all_cores(void)
 
 	CPU_ZERO(&mask);
 	for (i = 0; i < nrks; i++)
-		kthread_enqueue_yield(&mask, ks[i]);
+		if (kthread_enqueue_intr(&mask, ks[i]))
+			/*
+			 * Ideally we should add a new field to struct kthread for
+			 * self-issued yield requests. For now, we just piggyback on
+			 * iokernel's field.
+			 */
+			ks[i]->q_ptrs->yield_rcu_gen = ks[i]->rcu_gen;
 	kthread_send_yield_intrs(&mask);
 }

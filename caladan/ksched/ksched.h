@@ -19,6 +19,18 @@ struct ksched_intr_req {
 	const void __user	*mask;
 };
 
+enum {
+      RUNTIME_INTR_YIELD,
+      RUNTIME_INTR_MB
+};
+
+struct ksched_runtime_intr_req {
+	uint8_t			opcode;
+	uint8_t			wait;
+	size_t			len;
+	const void __user	*mask;
+};
+
 struct ksched_shm_cpu {
 	/* written by userspace */
 	unsigned int		gen;
@@ -45,4 +57,4 @@ struct ksched_shm_cpu {
 #define KSCHED_IOC_START	_IO(KSCHED_MAGIC, 1)
 #define KSCHED_IOC_PARK		_IO(KSCHED_MAGIC, 2)
 #define KSCHED_IOC_INTR		_IOW(KSCHED_MAGIC, 3, struct ksched_intr_req)
-#define KSCHED_IOC_YIELD	_IOW(KSCHED_MAGIC, 4, struct ksched_intr_req)
+#define KSCHED_IOC_RUNTIME_INTR	_IOW(KSCHED_MAGIC, 4, struct ksched_intr_req)

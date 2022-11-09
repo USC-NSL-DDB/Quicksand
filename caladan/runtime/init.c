@@ -9,7 +9,6 @@
 #include <base/log.h>
 #include <base/limits.h>
 #include <runtime/thread.h>
-#include <runtime/membarrier.h>
 
 #include "defs.h"
 
@@ -126,8 +125,6 @@ static int runtime_init_thread(void)
 static void *pthread_entry(void *data)
 {
 	int ret;
-
-	membarrier_register();
 
 	ret = runtime_init_thread();
 	BUG_ON(ret);

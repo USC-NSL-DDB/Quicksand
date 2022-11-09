@@ -1,24 +1,34 @@
-#include <linux/membarrier.h>
-#include <sys/syscall.h>
-#include <unistd.h>
+#include <sys/ioctl.h>
 
-#include <base/assert.h>
-#include <base/compiler.h>
+#define __user
+#include "defs.h"
+#include "../ksched/ksched.h"
 
-void membarrier_register(void)
+extern int ksched_fd;
+
+void membarrier()
 {
-	int ret;
+	int i;
+	cpu_set_t mask;
+	struct ksched_runtime_intr_req req;
+	struct kthread *k = getk();
+	uint64_t last_core = k->curr_cpu;
+	ssize_t s;
 
-	ret = syscall(__NR_membarrier,
-		      MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED, 0, 0);
-	BUG_ON(ret);
-}
+	CPU_ZERO(&mask);
+	for (i = 0; i < nrks; i++)
+		kthread_enqueue_intr(&mask, ks[i]);
 
-void membarrier(void)
-{
-	int ret;
+	req.opcode = RUNTIME_INTR_MB;
+	req.wait = true;
+	req.len = sizeof(mask);
+	req.mask = &mask;
 
-	ret = syscall(__NR_membarrier,
-		      MEMBARRIER_CMD_PRIVATE_EXPEDITED, 0, 0);
-	BUG_ON(ret);
+	s = ioctl(ksched_fd, KSCHED_IOC_RUNTIME_INTR, &req);
+	BUG_ON(s < 0);
+	k->curr_cpu = s;
+	if (k->curr_cpu != last_core)
+		STAT(CORE_MIGRATIONS)++;
+	store_release(&cpu_map[s].recent_kthread, k);
+	putk();
 }

@@ -537,7 +537,7 @@ extern bool cfg_react_mem_pressure;
 extern void kthread_park(bool voluntary);
 extern void kthread_wait_to_attach(void);
 extern void kthread_yield_all_cores(void);
-extern void kthread_enqueue_yield(cpu_set_t *mask, struct kthread *k);
+extern bool kthread_enqueue_intr(cpu_set_t *mask, struct kthread *k);
 extern void kthread_send_yield_intrs(cpu_set_t *mask);
 
 struct cpu_record {

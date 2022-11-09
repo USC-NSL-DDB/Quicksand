@@ -398,7 +398,7 @@ static long ksched_intr(struct ksched_intr_req __user *ureq)
 	return 0;
 }
 
-static void do_yield(void *unused)
+static void do_yield(void)
 {
 	struct ksched_percpu *p;
 	int cpu;
@@ -412,10 +412,27 @@ static void do_yield(void *unused)
 	put_cpu();
 }
 
-static long ksched_yield(struct ksched_intr_req __user *ureq)
+static void ksched_ipi_runtime_ipi(void *arg)
+{
+	struct ksched_runtime_intr_req *req = arg;
+
+	switch (req->opcode) {
+	case RUNTIME_INTR_YIELD:
+		do_yield();
+		break;
+	case RUNTIME_INTR_MB:
+		/* do nothing */
+		break;
+	default:
+		WARN_ONCE(1, "Invalid opcode (%d) in ksched_ipi_runtime_intr()\n",
+			     (int)req->opcode);
+	}
+}
+
+static long ksched_runtime_intr(struct ksched_runtime_intr_req __user *ureq)
 {
 	cpumask_var_t mask;
-	struct ksched_intr_req req;
+	struct ksched_runtime_intr_req req;
 
 	if (unlikely(!capable(CAP_SYS_ADMIN)))
 		return -EACCES;
@@ -431,7 +448,7 @@ static long ksched_yield(struct ksched_intr_req __user *ureq)
 		return -EFAULT;
 	}
   
-	smp_call_function_many(mask, do_yield, NULL, false);
+	smp_call_function_many(mask, ksched_ipi_runtime_ipi, &req, req.wait);
 	free_cpumask_var(mask);
 	return smp_processor_id();
 }
@@ -452,8 +469,8 @@ ksched_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return ksched_park();
 	case KSCHED_IOC_INTR:
 		return ksched_intr((void __user *)arg);
-	case KSCHED_IOC_YIELD:
-		return ksched_yield((void __user *)arg);
+	case KSCHED_IOC_RUNTIME_INTR:
+		return ksched_runtime_intr((void __user *)arg);
 	default:
 		break;
 	}
