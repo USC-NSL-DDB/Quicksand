@@ -14,7 +14,8 @@ ComputeProclet<RetT> make_compute_proclet(RetT (*fn)(A0s...), A1s &&... args) {
       return fn(std::move(args)...);
     }
   };
-  cp.future_ = cp.proclet_.run_async(wrapped_fn, fn_addr, args...);
+  cp.future_ =
+      cp.proclet_.run_async(wrapped_fn, fn_addr, std::forward<A1s>(args)...);
 
   return cp;
 }
@@ -35,7 +36,7 @@ ComputeProclet<void> compute_range(void (*fn)(iter_val_t<range_iter_t<Rng>> &,
     }
   };
   cp.future_ =
-      cp.proclet_.run_async(wrapped_fn, fn_addr, r, std::move(args)...);
+      cp.proclet_.run_async(wrapped_fn, fn_addr, r, std::forward<A1s>(args)...);
 
   return cp;
 }
