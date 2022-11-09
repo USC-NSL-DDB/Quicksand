@@ -19,7 +19,7 @@ extern "C" {
 
 using namespace nu;
 
-constexpr static int kConcurrency = 100;
+constexpr static int kConcurrency = 1000;
 
 namespace nu {
 class Test {

@@ -7,45 +7,44 @@ extern "C" {
 
 namespace nu {
 
-RCULock::RCULock() : sync_barrier_(false) {
+RCULock::RCULock() : flag_(false) {
   memset(aligned_cnts_, 0, sizeof(aligned_cnts_));
 }
 
 RCULock::~RCULock() {
 #ifdef DEBUG
   int32_t sum = 0;
-  for (size_t i = 0; i < kNumCores; i++) {
-    Cnt cnt;
-    cnt.raw = ACCESS_ONCE(aligned_cnts_[i].cnt.raw);
-    sum += cnt.data.c;
+  for (auto &per_flag : aligned_cnts_) {
+    for (auto &aligned_cnt : per_flag) {
+      sum += aligned_cnt.cnt.val;
+    }
   }
   assert(sum == 0);
 #endif
 }
 
-void RCULock::writer_sync(bool prioritize_readers) {
-  sync_barrier_ = true;
-  membarrier();
+void RCULock::flip_and_wait(bool poll) {
+  auto flag = load_acquire(&flag_);
+  store_release(&flag_, !flag);
+  mb();
 
-  int32_t sum;
-  int32_t snapshot_vers[kNumCores];
+  auto prioritized = false;
   auto start_us = microtime();
-  bool prioritized = false;
-
 retry:
-  sum = 0;
-  for (size_t i = 0; i < kNumCores; i++) {
-    Cnt cnt;
-    cnt.raw = ACCESS_ONCE(aligned_cnts_[i].cnt.raw);
-    snapshot_vers[i] = cnt.data.ver;
-    sum += cnt.data.c;
+  barrier();
+  int32_t sum_val = 0;
+  int32_t sum_ver = 0;
+  for (const auto &aligned_cnt : aligned_cnts_[flag]) {
+    sum_val += aligned_cnt.cnt.val;
+    sum_ver += aligned_cnt.cnt.ver;
   }
-  if (sum != 0) {
-    if (prioritize_readers) {
+  if (sum_val) {
+    if (poll) {
       if (!prioritized) {
         prioritize_and_wait_rcu_readers(this);
         prioritized = true;
       }
+      cpu_relax();
     } else {
       if (likely(microtime() < start_us + kWriterWaitFastPathMaxUs)) {
         // Fast path.
@@ -57,37 +56,24 @@ retry:
     }
     goto retry;
   }
-  for (size_t i = 0; i < kNumCores; i++) {
-    if (unlikely(ACCESS_ONCE(aligned_cnts_[i].cnt.data.ver) !=
-                 snapshot_vers[i])) {
-      goto retry;
-    }
+  barrier();
+  auto latest_sum_ver = 0;
+  for (const auto &aligned_cnt : aligned_cnts_[flag]) {
+    latest_sum_ver += aligned_cnt.cnt.ver;
   }
-
-  sync_barrier_ = false;
-  rt::SpinGuard guard(&spin_);
-  for (auto &waker : wakers_) {
-    waker.Wake();
+  if (unlikely(sum_ver != latest_sum_ver)) {
+    goto retry;
   }
-  wakers_.clear();
 }
 
-void RCULock::reader_wait() {
-  // Fast path.
-  auto start_us = microtime();
-  do {
-    rt::Yield();
-  } while (microtime() < start_us + kReaderWaitFastPathMaxUs &&
-           unlikely(rt::access_once(sync_barrier_)));
-
-  if (unlikely(rt::access_once(sync_barrier_))) {
-    // Slow path.
-    rt::SpinGuard spin_guard(&spin_);
-    if (likely(rt::access_once(sync_barrier_))) {
-      wakers_.emplace_back();
-      spin_guard.Park(&wakers_.back());
-    }
+void RCULock::writer_sync(bool poll) {
+  membarrier();
+  {
+    ScopedLock g(&mutex_);
+    flip_and_wait(poll);
+    flip_and_wait(poll);
   }
+  mb();
 }
 
 }  // namespace nu

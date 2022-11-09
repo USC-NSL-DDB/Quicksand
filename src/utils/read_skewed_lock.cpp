@@ -6,12 +6,8 @@ extern "C" {
 
 namespace nu {
 
-void ReadSkewedLock::reader_wait(bool np) {
-  if (np) {
-    rcu_lock_.reader_unlock_np();
-  } else {
-    rcu_lock_.reader_unlock();
-  }
+void ReadSkewedLock::reader_wait() {
+  rcu_lock_.reader_unlock();
 
   // Fast path: using rt::Yield() to wait for the writer.
   auto start_us = microtime();

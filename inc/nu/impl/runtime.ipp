@@ -150,10 +150,11 @@ inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
   if (!new_header) {
     return MigrationGuard(nullptr);
   } else if (new_header->status() != kAbsent) {
-    new_header->rcu_lock.reader_lock();
-    if (likely(new_header->status() != kAbsent)) {
+    auto nesting_cnt = new_header->rcu_lock.reader_lock();
+    if (likely(new_header->status() != kAbsent || nesting_cnt > 1)) {
       return MigrationGuard(new_header);
     }
+    new_header->rcu_lock.reader_unlock();
   }
 
   thread_set_owner_proclet(thread_self(), old_header, false);
@@ -191,9 +192,12 @@ inline ProcletSlabGuard::~ProcletSlabGuard() {
 inline MigrationGuard::MigrationGuard() {
   header_ = Runtime::get_current_proclet_header();
   if (header_) {
-    header_->rcu_lock.reader_lock();
-    if (unlikely(header_->status() == kAbsent)) {
+  retry:
+    auto nesting_cnt = header_->rcu_lock.reader_lock();
+    if (unlikely(header_->status() == kAbsent && nesting_cnt == 1)) {
+      header_->rcu_lock.reader_unlock();
       ProcletManager::wait_until(header_, kPresent);
+      goto retry;
     }
   }
 }
@@ -218,10 +222,13 @@ inline auto MigrationGuard::enable_for(F &&f) {
   using RetT = decltype(f());
 
   auto cleaner = std::experimental::scope_exit([&] {
-    header_->rcu_lock.reader_lock();
-    if (unlikely(header_->status() == kAbsent)) {
-      ProcletManager::wait_until(header_, kPresent);
-    }
+    retry:
+      auto nesting_cnt = header_->rcu_lock.reader_lock();
+      if (unlikely(header_->status() == kAbsent && nesting_cnt == 1)) {
+        header_->rcu_lock.reader_unlock();
+        ProcletManager::wait_until(header_, kPresent);
+        goto retry;
+      }
   });
 
   header_->rcu_lock.reader_unlock();

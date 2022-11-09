@@ -101,8 +101,8 @@ extern void thread_wait_until_parked(thread_t *th);
 extern void prealloc_threads_and_stacks(uint32_t num_mags);
 extern void update_monitor_cycles(void);
 extern void thread_flush_all_monitor_cycles(void);
-extern void thread_hold_rcu(void *rcu);
-extern void thread_unhold_rcu(void *rcu);
+extern int32_t thread_hold_rcu(void *rcu, bool flag);
+extern int32_t thread_unhold_rcu(void *rcu, bool *flag);
 
 inline void thread_start_monitor_cycles(void)
 {

@@ -88,9 +88,15 @@ struct thread_tf {
  * Thread support
  */
 
-#define MAX_NUM_RCUS_HELD       2
+#define MAX_NUM_RCUS_HELD       3
 
 struct stack;
+
+struct rcu_context {
+	void *rcu;
+	int32_t nesting_cnt;
+	bool flag;
+};
 
 struct thread_nu_state {
 	uint32_t                creator_ip;
@@ -98,7 +104,7 @@ struct thread_nu_state {
 	void                    *owner_proclet;
 	void                    *proclet_slab;
 	void                    *nu_thread;
-	void                    *rcus[MAX_NUM_RCUS_HELD];
+	struct rcu_context      rcu_ctxs[MAX_NUM_RCUS_HELD];
 	struct thread_tf	tf;
 };
 
