@@ -321,13 +321,14 @@ template <typename T, typename LL>
 template <class Archive>
 void VectorBackInserter<T, LL>::save(Archive &ar) const {
   ar(state_, elems_, rank_);
+  const_cast<Proclet<VectorInsertCollection<T, LL>> &>(state_).run(
+      &VectorInsertCollection<T, LL>::inc_ref_cnt);
 }
 
 template <typename T, typename LL>
 template <class Archive>
 void VectorBackInserter<T, LL>::load(Archive &ar) {
   ar(state_, elems_, rank_);
-  state_.run(&VectorInsertCollection<T, LL>::inc_ref_cnt);
 }
 
 template <typename T, typename LL>
