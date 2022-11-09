@@ -150,11 +150,11 @@ inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
   if (!new_header) {
     return MigrationGuard(nullptr);
   } else if (new_header->status() != kAbsent) {
-    auto nesting_cnt = new_header->rcu_lock.reader_lock();
+    auto nesting_cnt = new_header->rcu_lock.reader_lock(g);
     if (likely(new_header->status() != kAbsent || nesting_cnt > 1)) {
       return MigrationGuard(new_header);
     }
-    new_header->rcu_lock.reader_unlock();
+    new_header->rcu_lock.reader_unlock(g);
   }
 
   thread_set_owner_proclet(thread_self(), old_header, false);
