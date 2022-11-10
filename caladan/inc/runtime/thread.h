@@ -161,9 +161,6 @@ static inline void *thread_get_owner_proclet(void)
 
 static inline void *thread_get_proclet_slab(void)
 {
-       if (!__self)
-		return 0;
-
        return *(void **)((uint64_t)__self + thread_proclet_slab_offset);
 }
 

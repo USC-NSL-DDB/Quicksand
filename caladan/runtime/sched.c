@@ -601,8 +601,8 @@ again:
 
 	/* try to steal from every kthread */
 	start_idx = rand_crc32c((uintptr_t)l);
-	for (i = 0; i < nrks; i++) {
-		int idx = (start_idx + i) % nrks;
+	for (i = 0; i < maxks; i++) {
+		int idx = (start_idx + i) % maxks;
 		if (ks[idx] != l && steal_work(l, ks[idx])) {
 			goto done;
 		}
@@ -1316,7 +1316,7 @@ void pause_migrating_ths_aux(void)
 retry:
 	i = last;
 	done = true;
-	for (; i < nrks; i++) {
+	for (; i < maxks; i++) {
 		if (ACCESS_ONCE(ks[i]->pause_req) &&
 		    !handle_pending_pause_req(ks[i])) {
 			if (done) {
@@ -1343,13 +1343,13 @@ void pause_migrating_ths_main(void *owner_proclet)
 	uint64_t wait_start_us;
 	bool intr_all_cores = false;
 
-	for (i = 0; i < nrks; i++)
+	for (i = 0; i < maxks; i++)
 		ks[i]->pause_req = true;
 	pause_req_owner_proclet = owner_proclet;
 	store_release(&global_pause_req_mask, true);
 
 	CPU_ZERO(&mask);
-	for (i = 0; i < nrks; i++) {
+	for (i = 0; i < maxks; i++) {
 		k = ks[i];
 		if (ACCESS_ONCE(k->pause_req)) {
 		        /*
@@ -1419,7 +1419,7 @@ void thread_flush_all_monitor_cycles(void)
        uint64_t curr_tsc = rdtsc();
        struct aligned_cycles *cycles;
 
-       for (i = 0; i < nrks; i++) {
+       for (i = 0; i < maxks; i++) {
               th = ks[i]->curr_th;
 	      if (th && th->nu_state.monitor_cnt) {
                      cycles = get_aligned_cycles(th->nu_state.owner_proclet);
@@ -1484,14 +1484,14 @@ void prioritize_and_wait_rcu_readers(void *rcu)
 {
 	int i;
 
-	for (i = 0; i < nrks; i++) {
+	for (i = 0; i < maxks; i++) {
 		ks[i]->prioritize_req = true;
 	}
 	store_release(&global_prioritized_rcu, rcu);
 	kthread_yield_all_cores();
         prioritize_local_rcu_readers();
 retry:
-	for (i = 0; i < nrks; i++)
+	for (i = 0; i < maxks; i++)
 		if (ACCESS_ONCE(ks[i]->prioritize_req) ||
 		    !list_empty_volatile(&ks[i]->rq_deprioritized))
 			goto retry;

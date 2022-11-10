@@ -609,7 +609,7 @@ static void __check_net_softirq(void *raw_args)
 	/* check all ks which handles the race condition of flow table updates */
 	if (unlikely(now_us - args->last_check_all_us >= RUNTIME_WATCHDOG_US)) {
 		args->last_check_all_us = now_us;
-		for (i = 0; i < nrks; i++)
+		for (i = 0; i < maxks; i++)
 			if (softirq_directpath_pending(ks[i]))
 				directpath_softirq_one(ks[i]);
 	}

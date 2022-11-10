@@ -16,7 +16,7 @@ void membarrier()
 	ssize_t s;
 
 	CPU_ZERO(&mask);
-	for (i = 0; i < nrks; i++)
+	for (i = 0; i < maxks; i++)
 		kthread_enqueue_intr(&mask, ks[i]);
 
 	req.opcode = RUNTIME_INTR_MB;

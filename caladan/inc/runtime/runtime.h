@@ -22,10 +22,6 @@ extern struct congestion_info *runtime_congestion;
 /* real-time resource pressure signals (shared with the iokernel) */
 extern struct resource_pressure_info *resource_pressure_info;
 
-extern unsigned int maxks;
-extern unsigned int guaranteedks;
-extern atomic_t runningks;
-
 extern int runtime_spinning_cores(void);
 
 /**
@@ -34,8 +30,6 @@ extern int runtime_spinning_cores(void);
  */
 static inline uint64_t runtime_queue_us(void)
 {
-	if ((unsigned int)atomic_read(&runningks) < maxks)
-		return 0;
 	return ACCESS_ONCE(runtime_congestion->delay_us);
 }
 
@@ -53,6 +47,7 @@ static inline float runtime_load(void)
  */
 static inline int runtime_active_cores(void)
 {
+	extern atomic_t runningks;
 	return atomic_read(&runningks);
 }
 
@@ -63,6 +58,7 @@ static inline int runtime_active_cores(void)
  */
 static inline int runtime_max_cores(void)
 {
+	extern unsigned int maxks;
 	return maxks;
 }
 
@@ -74,6 +70,7 @@ static inline int runtime_max_cores(void)
  */
 static inline int runtime_guaranteed_cores(void)
 {
+	extern unsigned int guaranteedks;
 	return guaranteedks;
 }
 

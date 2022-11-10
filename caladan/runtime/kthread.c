@@ -25,7 +25,7 @@ DEFINE_SPINLOCK(klock);
 /* the maximum number of kthreads */
 unsigned int maxks;
 /* the total number of attached kthreads (i.e. the size of @ks) */
-unsigned int nrks;
+static unsigned int nrks;
 /* the number of busy spinning kthreads (threads that don't park) */
 unsigned int spinks;
 /* the number of guaranteed kthreads (we can always have this many if we want,
@@ -302,7 +302,7 @@ void kthread_yield_all_cores(void)
 	cpu_set_t mask;
 
 	CPU_ZERO(&mask);
-	for (i = 0; i < nrks; i++)
+	for (i = 0; i < maxks; i++)
 		if (kthread_enqueue_intr(&mask, ks[i]))
 			/*
 			 * Ideally we should add a new field to struct kthread for
