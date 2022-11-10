@@ -44,7 +44,7 @@ LDFLAGS += -rdynamic
 else
 FLAGS += -DNDEBUG -O3
 ifeq ($(CONFIG_OPTIMIZE),y)
-FLAGS += -march=native -ffast-math
+FLAGS += -march=native -flto=auto -ffast-math
 else
 FLAGS += -mssse3
 endif
