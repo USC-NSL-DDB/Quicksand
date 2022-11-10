@@ -52,15 +52,9 @@ inline void ArchivePool<Allocator>::put_ia_sstream(IASStream *ia_sstream) {
 }
 
 template <typename Allocator>
-void ArchivePool<Allocator>::release_oa_sstream_space(OASStream *oa_sstream) {
-  // It triggers a bogus warning in g++-11 (bug confirmed).
-  oa_sstream->ss.str(String(kOAStreamPreallocBufSize, '\0'));
-}
-
-template <typename Allocator>
 inline void ArchivePool<Allocator>::put_oa_sstream(OASStream *oa_sstream) {
   if (unlikely(oa_sstream->ss.tellp() >= kOAStreamMaxBufSize)) {
-    release_oa_sstream_space(oa_sstream);
+    oa_sstream->ss.str(String(kOAStreamPreallocBufSize, '\0'));
   }
   oa_sstream->ss.seekp(0);
   return oa_pool_.put(oa_sstream);
