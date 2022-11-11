@@ -19,7 +19,7 @@ extern "C" {
 
 using namespace nu;
 
-constexpr static int kConcurrency = 1000;
+constexpr static int kConcurrency = 4000;
 
 namespace nu {
 class Test {
@@ -57,12 +57,10 @@ void do_work() {
   std::vector<Future<void>> futures;
   for (size_t i = 0; i < kConcurrency; i++) {
     futures.emplace_back(proclet.run_async(&Test::consume));
-  }
-
-  futures.emplace_back(proclet.run_async(&Test::migrate));
-
-  for (size_t i = 0; i < kConcurrency; i++) {
     futures.emplace_back(proclet.run_async(&Test::produce));
+    if (i == kConcurrency / 2) {
+      futures.emplace_back(proclet.run_async(&Test::migrate));
+    }
   }
 
   for (auto &future : futures) {
