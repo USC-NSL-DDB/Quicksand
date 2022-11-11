@@ -188,7 +188,10 @@ int runtime_main_init(int argc, char **argv,
 
 inline void *__new(size_t size) {
   void *ptr;
-  auto *slab = reinterpret_cast<nu::SlabAllocator *>(thread_get_proclet_slab());
+  auto *slab =
+      thread_self()
+          ? reinterpret_cast<nu::SlabAllocator *>(thread_get_proclet_slab())
+          : nullptr;
 
   if (slab) {
     ptr = slab->allocate(size);

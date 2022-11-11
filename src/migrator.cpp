@@ -914,8 +914,9 @@ uint32_t Migrator::get_max_num_proclets_per_migration() const {
 }
 
 __attribute__((noinline)) void Migrator::transmit_thread_and_ret_val(
-    std::unique_ptr<std::byte[]> req_buf, uint64_t req_buf_len,
+    std::unique_ptr<std::byte[]> *req_buf_ptr, uint64_t req_buf_len,
     ProcletID dest_id, uint8_t *proclet_stack) {
+  auto req_buf = std::move(*req_buf_ptr);
   // Runtime::stack_manager->free(proclet_stack);
 
   auto req_span = std::span(req_buf.get(), req_buf_len);

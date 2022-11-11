@@ -34,19 +34,18 @@ class ProcletServer {
   static void construct_proclet(cereal::BinaryInputArchive &ia,
                                 RPCReturner *returner);
   template <typename Cls, typename... As>
-  static void construct_proclet_locally(
-      MigrationGuard *caller_guard, const RuntimeSlabGuard &runtime_slab_guard,
-      void *base, uint64_t size, bool pinned, As &&... args);
+  static void construct_proclet_locally(MigrationGuard &&caller_guard,
+                                        void *base, uint64_t size, bool pinned,
+                                        As &&... args);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
   static void run_closure(cereal::BinaryInputArchive &ia,
                           RPCReturner *returner);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-  static void run_closure_locally(MigrationGuard *callee_migration_guard,
-                                  const ProcletSlabGuard &callee_slab_guard,
-                                  RetT *caller_ptr,
-                                  ProcletHeader *caller_header,
-                                  ProcletHeader *callee_header, FnPtr fn_ptr,
-                                  S1s &&... states);
+  static MigrationGuard run_closure_locally(
+      MigrationGuard *callee_migration_guard,
+      const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
+      ProcletHeader *caller_header, ProcletHeader *callee_header, FnPtr fn_ptr,
+      S1s &&... states);
 
  private:
   using GenericHandler = void (*)(cereal::BinaryInputArchive &ia,

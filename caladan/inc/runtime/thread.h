@@ -103,6 +103,7 @@ extern void update_monitor_cycles(void);
 extern void thread_flush_all_monitor_cycles(void);
 extern int32_t thread_hold_rcu(void *rcu, bool flag);
 extern int32_t thread_unhold_rcu(void *rcu, bool *flag);
+extern bool thread_is_rcu_held(thread_t *th, void *rcu);
 
 inline void thread_start_monitor_cycles(void)
 {
@@ -172,5 +173,3 @@ static inline void *thread_set_proclet_slab(void *proclet_slab)
 
        return old_proclet_slab;
 }
-
-

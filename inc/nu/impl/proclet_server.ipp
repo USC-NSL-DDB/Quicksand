@@ -25,13 +25,15 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
 
   std::tuple<std::decay_t<As>...> args{std::decay_t<As>()...};
 
-  callee_guard->enable_for([&] {
-    std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
+  {
     ProcletSlabGuard slab_guard(&callee_slab);
-    std::apply(
-        [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
-        args);
-  });
+    callee_guard->enable_for([&] {
+      std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
+      std::apply(
+          [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
+          args);
+    });
+  }
 
   auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
   send_rpc_resp_ok(oa_sstream, &returner);
@@ -59,9 +61,11 @@ void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls, typename... As>
-void ProcletServer::construct_proclet_locally(
-    MigrationGuard *caller_guard, const RuntimeSlabGuard &runtime_slab_guard,
-    void *base, uint64_t size, bool pinned, As &&... args) {
+void ProcletServer::construct_proclet_locally(MigrationGuard &&caller_guard,
+                                              void *base, uint64_t size,
+                                              bool pinned, As &&... args) {
+  std::optional<MigrationGuard> optional_caller_guard;
+  RuntimeSlabGuard slab_guard;
   Runtime::proclet_manager->setup(base, size, /* migratable = */ !pinned,
                                   /* from_migration = */ false);
 
@@ -72,7 +76,7 @@ void ProcletServer::construct_proclet_locally(
 
   auto *caller_header = Runtime::get_current_proclet_header();
   auto optional_callee_guard =
-      Runtime::reattach_and_disable_migration(callee_header, *caller_guard);
+      Runtime::reattach_and_disable_migration(callee_header, caller_guard);
   BUG_ON(!optional_callee_guard);
   auto &callee_guard = *optional_callee_guard;
 
@@ -89,7 +93,7 @@ void ProcletServer::construct_proclet_locally(
       RuntimeSlabGuard slab_guard;
       Runtime::proclet_manager->insert(base);
     }
-    caller_guard->reset();
+    caller_guard.reset();
 
     callee_guard.enable_for([&] {
       std::apply(
@@ -98,14 +102,14 @@ void ProcletServer::construct_proclet_locally(
     });
   }
 
-  auto optional =
+  optional_caller_guard =
       Runtime::reattach_and_disable_migration(caller_header, callee_guard);
-  if (!optional) {
+  if (!optional_caller_guard) {
     Runtime::detach(callee_guard);
     callee_guard.reset();
 
     RPCReturnBuffer return_buf;
-    Migrator::migrate_thread_and_ret_val<void>(
+    optional_caller_guard = Migrator::migrate_thread_and_ret_val<void>(
         std::move(return_buf), to_proclet_id(caller_header), nullptr, nullptr);
   }
 }
@@ -178,6 +182,7 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
   BUG_ON(latest_cnt < 0);
   callee_header->spin_lock.unlock();
 
+  std::optional<MigrationGuard> optional_caller_guard;
   RuntimeSlabGuard runtime_slab_guard;
 
   if (latest_cnt == 0) {
@@ -189,26 +194,27 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
 
     // Now won't be migrated.
     auto *obj = Runtime::get_root_obj<Cls>(to_proclet_id(callee_header));
-    callee_guard->enable_for([&] {
+    {
       ProcletSlabGuard callee_slab_guard(&callee_header->slab);
-
-      obj->~Cls();
-      callee_header->rcu_lock.writer_sync();
-    });
+      callee_guard->enable_for([&] {
+        obj->~Cls();
+        callee_header->rcu_lock.writer_sync();
+      });
+    }
     callee_header->status() = kAbsent;
     ProcletServer::release_proclet(callee_header->range());
     Runtime::proclet_manager->cleanup(callee_header,
                                       /* for_migration = */ false);
   }
 
-  auto optional =
+  optional_caller_guard =
       Runtime::reattach_and_disable_migration(caller_header, *callee_guard);
-  if (!optional) {
+  if (!optional_caller_guard) {
     Runtime::detach(*callee_guard);
     callee_guard->reset();
 
     RPCReturnBuffer return_buf;
-    Migrator::migrate_thread_and_ret_val<void>(
+    optional_caller_guard = Migrator::migrate_thread_and_ret_val<void>(
         std::move(return_buf), to_proclet_id(caller_header), nullptr, nullptr);
   }
 }
@@ -277,7 +283,7 @@ void ProcletServer::run_closure(cereal::BinaryInputArchive &ia,
 }
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-void ProcletServer::run_closure_locally(
+MigrationGuard ProcletServer::run_closure_locally(
     MigrationGuard *callee_migration_guard,
     const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
     ProcletHeader *caller_header, ProcletHeader *callee_header, FnPtr fn_ptr,
@@ -293,12 +299,12 @@ void ProcletServer::run_closure_locally(
     callee_header->thread_cnt.dec_unsafe();
     callee_header->cpu_load.end_monitor();
 
-    auto optional = Runtime::reattach_and_disable_migration(
+    auto optional_caller_guard = Runtime::reattach_and_disable_migration(
         caller_header, *callee_migration_guard);
-    if (likely(optional)) {
+    if (likely(optional_caller_guard)) {
       *caller_ptr = move_if_safe(std::move(ret));
       callee_migration_guard->reset();
-      return;
+      return std::move(*optional_caller_guard);
     }
 
     RuntimeSlabGuard slab_guard;
@@ -313,7 +319,7 @@ void ProcletServer::run_closure_locally(
 
     Runtime::detach(*callee_migration_guard);
     callee_migration_guard->reset();
-    Migrator::migrate_thread_and_ret_val<RetT>(
+    return Migrator::migrate_thread_and_ret_val<RetT>(
         std::move(ret_val_buf), to_proclet_id(caller_header), caller_ptr,
         [&] { Runtime::archive_pool->put_oa_sstream(oa_sstream); });
   } else {
@@ -322,11 +328,11 @@ void ProcletServer::run_closure_locally(
     callee_header->thread_cnt.dec_unsafe();
     callee_header->cpu_load.end_monitor();
 
-    auto optional = Runtime::reattach_and_disable_migration(
+    auto optional_caller_guard = Runtime::reattach_and_disable_migration(
         caller_header, *callee_migration_guard);
-    if (likely(optional)) {
+    if (likely(optional_caller_guard)) {
       callee_migration_guard->reset();
-      return;
+      return std::move(*optional_caller_guard);
     }
 
     RuntimeSlabGuard slab_guard;
@@ -334,7 +340,7 @@ void ProcletServer::run_closure_locally(
 
     Runtime::detach(*callee_migration_guard);
     callee_migration_guard->reset();
-    Migrator::migrate_thread_and_ret_val<void>(
+    return Migrator::migrate_thread_and_ret_val<void>(
         std::move(ret_val_buf), to_proclet_id(caller_header), nullptr, nullptr);
   }
 }

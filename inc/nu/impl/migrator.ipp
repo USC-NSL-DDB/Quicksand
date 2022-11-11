@@ -44,7 +44,7 @@ __attribute__((noinline)) void Migrator::snapshot_thread_and_ret_val(
     std::unique_ptr<std::byte[]> *req_buf, uint64_t *req_buf_len,
     RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr) {
   rt::Thread(
-      [&, th = thread_self()]() mutable {
+      [&, th = thread_self(), ret_val_buf = std::move(ret_val_buf)]() mutable {
         thread_wait_until_parked(th);
         auto *dest_proclet_header = to_proclet_header(dest_id);
         thread_set_owner_proclet(th, dest_proclet_header, true);
@@ -84,7 +84,8 @@ __attribute__((noinline)) void Migrator::snapshot_thread_and_ret_val(
 }
 
 template <typename RetT>
-__attribute__((optimize("no-omit-frame-pointer"))) void
+__attribute__((optimize("no-omit-frame-pointer")))
+[[nodiscard]] MigrationGuard
 Migrator::migrate_thread_and_ret_val(
     RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
     std::move_only_function<void()> &&cleanup_fn) {
@@ -103,9 +104,10 @@ Migrator::migrate_thread_and_ret_val(
     auto *proclet_stack = reinterpret_cast<uint8_t *>(
         Runtime::get_proclet_stack_range(__self).end);
     Runtime::switch_to_runtime_stack();
-    transmit_thread_and_ret_val(std::move(req_buf), req_buf_len, dest_id,
-                                proclet_stack);
+    transmit_thread_and_ret_val(&req_buf, req_buf_len, dest_id, proclet_stack);
   }
+
+  return MigrationGuard();
 }
 
 }  // namespace nu

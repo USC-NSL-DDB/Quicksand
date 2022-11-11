@@ -38,19 +38,16 @@ inline void serialize(auto *oa_sstream, S1s &&... states) {
 
 template <typename T>
 template <typename... S1s>
-void Proclet<T>::invoke_remote(ProcletID id, S1s &&... states) {
+void Proclet<T>::invoke_remote(MigrationGuard &&caller_guard, ProcletID id,
+                               S1s &&... states) {
+  std::optional<MigrationGuard> optional_caller_guard;
   RuntimeSlabGuard slab_guard;
 
-  decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
   auto *caller_header = Runtime::get_current_proclet_header();
-
-  {
-    MigrationGuard caller_migration_guard;
-
-    oa_sstream = Runtime::archive_pool->get_oa_sstream();
-    serialize(oa_sstream, std::forward<S1s>(states)...);
-    Runtime::detach(caller_migration_guard);
-  }
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  serialize(oa_sstream, std::forward<S1s>(states)...);
+  Runtime::detach(caller_guard);
+  caller_guard.reset();
 
 retry:
   auto states_view = oa_sstream->ss.view();
@@ -70,30 +67,26 @@ retry:
   assert(rc == kOk);
   Runtime::archive_pool->put_oa_sstream(oa_sstream);
 
-  auto optional = Runtime::attach_and_disable_migration(caller_header);
-  if (!optional) {
-    Migrator::migrate_thread_and_ret_val<void>(
+  optional_caller_guard = Runtime::attach_and_disable_migration(caller_header);
+  if (!optional_caller_guard) {
+    optional_caller_guard = Migrator::migrate_thread_and_ret_val<void>(
         std::move(return_buf), to_proclet_id(caller_header), nullptr, nullptr);
   }
 }
 
 template <typename T>
 template <typename RetT, typename... S1s>
-RetT Proclet<T>::invoke_remote_with_ret(ProcletID id, S1s &&... states) {
+RetT Proclet<T>::invoke_remote_with_ret(MigrationGuard &&caller_guard,
+                                        ProcletID id, S1s &&... states) {
   RetT ret;
-
+  std::optional<MigrationGuard> optional_caller_guard;
   RuntimeSlabGuard slab_guard;
 
-  decltype(Runtime::archive_pool->get_oa_sstream()) oa_sstream;
   auto *caller_header = Runtime::get_current_proclet_header();
-
-  {
-    MigrationGuard caller_migration_guard;
-
-    oa_sstream = Runtime::archive_pool->get_oa_sstream();
-    serialize(oa_sstream, std::forward<S1s>(states)...);
-    Runtime::detach(caller_migration_guard);
-  }
+  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  serialize(oa_sstream, std::forward<S1s>(states)...);
+  Runtime::detach(caller_guard);
+  caller_guard.reset();
 
 retry:
   auto states_view = oa_sstream->ss.view();
@@ -113,9 +106,9 @@ retry:
   assert(rc == kOk);
   Runtime::archive_pool->put_oa_sstream(oa_sstream);
 
-  auto optional = Runtime::attach_and_disable_migration(caller_header);
-  if (!optional) {
-    Migrator::migrate_thread_and_ret_val<RetT>(
+  optional_caller_guard = Runtime::attach_and_disable_migration(caller_header);
+  if (!optional_caller_guard) {
+    optional_caller_guard = Migrator::migrate_thread_and_ret_val<RetT>(
         std::move(return_buf), to_proclet_id(caller_header), &ret, nullptr);
   } else {
     auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
@@ -184,8 +177,6 @@ template <typename T>
 template <typename... As>
 Proclet<T> Proclet<T>::__create(uint64_t capacity, bool pinned, uint32_t ip_hint,
                                 As &&... args) {
-  RuntimeSlabGuard slab_guard;
-
   uint32_t server_ip;
   ProcletID callee_id;
   Proclet<T> callee_proclet;
@@ -200,37 +191,43 @@ Proclet<T> Proclet<T>::__create(uint64_t capacity, bool pinned, uint32_t ip_hint
     Runtime::detach(caller_migration_guard);
   }
 
-  auto optional =
-      Runtime::controller_client->allocate_proclet(capacity, ip_hint);
-  if (unlikely(!optional)) {
-    throw OutOfMemory();
-  }
-  std::tie(callee_id, server_ip) = *optional;
-  Runtime::rpc_client_mgr->update_cache(callee_id, server_ip);
-  callee_proclet.id_ = callee_id;
+  std::optional<MigrationGuard> optional_caller_migration_guard;
+  {
+    RuntimeSlabGuard slab_guard;
 
-  auto optional_caller_migration_guard =
-      Runtime::attach_and_disable_migration(caller_header);
-  if (!optional_caller_migration_guard) {
-    RPCReturnBuffer return_buf;
-    Migrator::migrate_thread_and_ret_val<void>(
-        std::move(return_buf), to_proclet_id(caller_header), nullptr, nullptr);
+    auto optional =
+        Runtime::controller_client->allocate_proclet(capacity, ip_hint);
+    if (unlikely(!optional)) {
+      throw OutOfMemory();
+    }
+    std::tie(callee_id, server_ip) = *optional;
+    Runtime::rpc_client_mgr->update_cache(callee_id, server_ip);
+    callee_proclet.id_ = callee_id;
+
+    optional_caller_migration_guard =
+        Runtime::attach_and_disable_migration(caller_header);
+    if (!optional_caller_migration_guard) {
+      RPCReturnBuffer return_buf;
+      optional_caller_migration_guard =
+          Migrator::migrate_thread_and_ret_val<void>(
+              std::move(return_buf), to_proclet_id(caller_header), nullptr,
+              nullptr);
+    }
   }
 
   if (server_ip == get_cfg_ip()) {
     // Fast path: the proclet is actually local, use normal function call.
     ProcletServer::construct_proclet_locally<T, As...>(
-        &(*optional_caller_migration_guard), slab_guard,
-        to_proclet_base(callee_id), capacity, pinned,
-        std::forward<As>(args)...);
+        std::move(*optional_caller_migration_guard), to_proclet_base(callee_id),
+        capacity, pinned, std::forward<As>(args)...);
     return callee_proclet;
   }
 
   // Cold path: use RPC.
-  optional_caller_migration_guard->reset();
   auto *handler = ProcletServer::construct_proclet<T, As...>;
-  invoke_remote(callee_id, handler, to_proclet_base(callee_id), capacity,
-                pinned, std::forward<As>(args)...);
+  invoke_remote(std::move(*optional_caller_migration_guard), callee_id, handler,
+                to_proclet_base(callee_id), capacity, pinned,
+                std::forward<As>(args)...);
   return callee_proclet;
 }
 
@@ -285,10 +282,9 @@ template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   auto *caller_header = Runtime::get_current_proclet_header();
 
+  MigrationGuard caller_migration_guard;
   if (caller_header) {
     auto callee_header = to_proclet_header(id_);
-
-    MigrationGuard caller_migration_guard;
     auto optional_callee_migration_guard =
         Runtime::reattach_and_disable_migration(callee_header,
                                                 caller_migration_guard);
@@ -306,20 +302,24 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
         RetT ret;
         std::apply(
             [&](auto &&... states) {
-              ProcletServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-                  &(*optional_callee_migration_guard), slab_guard, &ret,
-                  caller_header, callee_header, fn,
-                  std::forward<S1s>(states)...);
+              caller_migration_guard =
+                  ProcletServer::run_closure_locally<T, RetT, decltype(fn),
+                                                     S1s...>(
+                      &(*optional_callee_migration_guard),
+                      std::move(slab_guard), &ret, caller_header, callee_header,
+                      fn, std::forward<S1s>(states)...);
             },
             copied_states);
         return ret;
       } else {
         std::apply(
             [&](auto &&... states) {
-              ProcletServer::run_closure_locally<T, RetT, decltype(fn), S1s...>(
-                  &(*optional_callee_migration_guard), slab_guard, nullptr,
-                  caller_header, callee_header, fn,
-                  std::forward<S1s>(states)...);
+              caller_migration_guard =
+                  ProcletServer::run_closure_locally<T, RetT, decltype(fn),
+                                                     S1s...>(
+                      &(*optional_callee_migration_guard),
+                      std::move(slab_guard), nullptr, caller_header,
+                      callee_header, fn, std::forward<S1s>(states)...);
             },
             copied_states);
         return;
@@ -331,10 +331,12 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   auto *handler =
       ProcletServer::run_closure<T, RetT, decltype(fn), S1s...>;
   if constexpr (!std::is_same<RetT, void>::value) {
-    return invoke_remote_with_ret<RetT>(id_, handler, id_, fn,
+    return invoke_remote_with_ret<RetT>(std::move(caller_migration_guard), id_,
+                                        handler, id_, fn,
                                         std::forward<S1s>(states)...);
   } else {
-    invoke_remote(id_, handler, id_, fn, std::forward<S1s>(states)...);
+    invoke_remote(std::move(caller_migration_guard), id_, handler, id_, fn,
+                  std::forward<S1s>(states)...);
   }
 }
 
@@ -393,7 +395,6 @@ std::optional<Future<void>> Proclet<T>::update_ref_cnt(ProcletID id,
         Runtime::reattach_and_disable_migration(callee_header,
                                                 caller_migration_guard);
     caller_migration_guard.reset();
-
     if (optional_callee_migration_guard) {
       // Fast path: the proclet is actually local, use function call.
       ProcletServer::update_ref_cnt_locally<T>(
@@ -404,9 +405,10 @@ std::optional<Future<void>> Proclet<T>::update_ref_cnt(ProcletID id,
   }
 
   // Slow path: the proclet is actually remote, use RPC.
-  return nu::async([&, id, delta]() {
+  return nu::async([&, id, delta]() mutable {
+    MigrationGuard caller_migration_guard;
     auto *handler = ProcletServer::update_ref_cnt<T>;
-    invoke_remote(id, handler, id, delta);
+    invoke_remote(std::move(caller_migration_guard), id, handler, id, delta);
   });
 }
 

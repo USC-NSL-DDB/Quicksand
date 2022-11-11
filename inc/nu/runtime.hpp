@@ -143,7 +143,6 @@ class ProcletSlabGuard {
   ~ProcletSlabGuard();
   ProcletSlabGuard(const ProcletSlabGuard &) = delete;
   ProcletSlabGuard &operator=(const ProcletSlabGuard &) = delete;
-  ProcletSlabGuard(ProcletSlabGuard &&) = delete;
   ProcletSlabGuard &operator=(ProcletSlabGuard &&) = delete;
 
  private:
@@ -159,7 +158,7 @@ class MigrationGuard {
   MigrationGuard(const MigrationGuard &) = delete;
   MigrationGuard &operator=(const MigrationGuard &) = delete;
   MigrationGuard(MigrationGuard &&);
-  MigrationGuard &operator=(MigrationGuard &&) = delete;
+  MigrationGuard &operator=(MigrationGuard &&);
   ProcletHeader *header() const;
   template <typename F>
   auto enable_for(F &&f);

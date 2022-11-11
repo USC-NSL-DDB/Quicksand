@@ -173,19 +173,33 @@ inline std::optional<MigrationGuard> Runtime::reattach_and_disable_migration(
   return __reattach_and_disable_migration(new_header);
 }
 
+inline void slab_guard_check() {
+#ifdef DEBUG
+  auto *proclet_header =
+      reinterpret_cast<ProcletHeader *>(thread_get_owner_proclet());
+  if (proclet_header && preempt_enabled()) {
+    assert(thread_is_rcu_held(thread_self(), &proclet_header->rcu_lock));
+  }
+#endif
+}
+
 inline RuntimeSlabGuard::RuntimeSlabGuard() {
+  slab_guard_check();
   original_slab_ = Runtime::switch_to_runtime_slab();
 }
 
 inline RuntimeSlabGuard::~RuntimeSlabGuard() {
+  slab_guard_check();
   thread_set_proclet_slab(original_slab_);
 }
 
 inline ProcletSlabGuard::ProcletSlabGuard(void *slab) {
+  slab_guard_check();
   original_slab_ = Runtime::switch_slab(slab);
 }
 
 inline ProcletSlabGuard::~ProcletSlabGuard() {
+  slab_guard_check();
   thread_set_proclet_slab(original_slab_);
 }
 
@@ -207,6 +221,13 @@ inline MigrationGuard::MigrationGuard(ProcletHeader *header)
 
 inline MigrationGuard::MigrationGuard(MigrationGuard &&o) : header_(o.header_) {
   o.header_ = nullptr;
+}
+
+inline MigrationGuard &MigrationGuard::operator=(MigrationGuard &&o) {
+  reset();
+  header_ = o.header_;
+  o.header_ = nullptr;
+  return *this;
 }
 
 inline MigrationGuard::~MigrationGuard() {

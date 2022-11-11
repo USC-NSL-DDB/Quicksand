@@ -118,7 +118,7 @@ class Migrator {
   void forward_to_client(RPCReqForward &req);
   uint32_t get_max_num_proclets_per_migration() const;
   template <typename RetT>
-  static void migrate_thread_and_ret_val(
+  [[nodiscard]] static MigrationGuard migrate_thread_and_ret_val(
       RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
       std::move_only_function<void()> &&cleanup_fn);
   template <typename RetT>
@@ -170,7 +170,7 @@ class Migrator {
                      const std::vector<ProcletMigrationTask> &tasks);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);
-  static void transmit_thread_and_ret_val(std::unique_ptr<std::byte[]> req_buf,
+  static void transmit_thread_and_ret_val(std::unique_ptr<std::byte[]> *req_buf,
                                           uint64_t req_buf_len,
                                           ProcletID dest_id,
                                           uint8_t *proclet_stack);
