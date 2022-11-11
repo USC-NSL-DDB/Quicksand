@@ -191,34 +191,20 @@ inline std::optional<MigrationGuard> Runtime::reattach_and_disable_migration(
   return __reattach_and_disable_migration(new_header);
 }
 
-inline void slab_guard_check() {
-#ifdef DEBUG
-  auto *proclet_header =
-      reinterpret_cast<ProcletHeader *>(thread_get_owner_proclet());
-  if (proclet_header && preempt_enabled()) {
-    assert(thread_is_rcu_held(thread_self(), &proclet_header->rcu_lock));
-  }
-#endif
-}
-
 inline RuntimeSlabGuard::RuntimeSlabGuard() {
-  slab_guard_check();
   original_slab_ = get_runtime()->switch_to_runtime_slab();
 }
 
 inline RuntimeSlabGuard::~RuntimeSlabGuard() {
-  slab_guard_check();
-  thread_set_proclet_slab(original_slab_);
+  get_runtime()->switch_slab(original_slab_);
 }
 
 inline ProcletSlabGuard::ProcletSlabGuard(void *slab) {
-  slab_guard_check();
   original_slab_ = get_runtime()->switch_slab(slab);
 }
 
 inline ProcletSlabGuard::~ProcletSlabGuard() {
-  slab_guard_check();
-  thread_set_proclet_slab(original_slab_);
+  get_runtime()->switch_slab(original_slab_);
 }
 
 inline MigrationGuard::MigrationGuard() {
@@ -287,7 +273,21 @@ inline void MigrationGuard::reset() {
 
 inline void MigrationGuard::release() { header_ = nullptr; }
 
+inline void runtime_check() {
+#ifdef DEBUG
+  if (thread_self()) {
+    auto *proclet_header =
+        reinterpret_cast<ProcletHeader *>(thread_get_owner_proclet());
+    if (proclet_header && preempt_enabled()) {
+      assert(thread_is_rcu_held(thread_self(), &proclet_header->rcu_lock));
+    }
+  }
+#endif
+}
+
 inline Runtime *get_runtime() {
+  runtime_check();
+
   static Runtime singleton_runtime;
   return &singleton_runtime;
 }
