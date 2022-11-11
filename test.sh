@@ -54,8 +54,7 @@ function run_test {
     disown -r
     sleep 3    
 
-    run_client $BIN 2>/dev/null | tee log
-    cat log | grep -q "Passed"
+    run_client $BIN 2>/dev/null | grep -q "Passed
     ret=$?
 
     kill_process test_
