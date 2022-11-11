@@ -68,7 +68,9 @@ struct Test {
   constexpr static size_t kNumPairs = kTotalNumBuckets * kLoadFactor;
 
   Test() {}
-  uint64_t get_mem_usage() { return Runtime::proclet_manager->get_mem_usage(); }
+  uint64_t get_mem_usage() {
+    return get_runtime()->proclet_manager()->get_mem_usage();
+  }
 };
 }  // namespace nu
 
@@ -149,7 +151,7 @@ void gen_commands(std::vector<Command> *commands) {
 uint64_t run_on_local_hash_table(std::vector<Command> *commands) {
   auto padding =
       (2ULL << bsr_64(sizeof(LocalHashTable))) - sizeof(LocalHashTable);
-  auto mem_usage_start = Runtime::runtime_slab.get_usage();
+  auto mem_usage_start = get_runtime()->runtime_slab()->get_usage();
   LocalHashTable local_hash_table;
 
   std::vector<rt::Thread> threads;
@@ -174,7 +176,7 @@ uint64_t run_on_local_hash_table(std::vector<Command> *commands) {
     thread.Join();
   }
 
-  auto mem_usage_end = Runtime::runtime_slab.get_usage();
+  auto mem_usage_end = get_runtime()->runtime_slab()->get_usage();
 
   return mem_usage_end - mem_usage_start - padding;
 }

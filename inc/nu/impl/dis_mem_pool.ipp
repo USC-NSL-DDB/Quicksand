@@ -10,7 +10,7 @@ extern "C" {
 namespace nu {
 
 inline DistributedMemPool::Heap::Heap(uint32_t shard_size) {
-  auto *slab = Runtime::get_current_proclet_slab();
+  auto *slab = get_runtime()->get_current_proclet_slab();
   BUG_ON(!slab->try_shrink(shard_size));
 }
 

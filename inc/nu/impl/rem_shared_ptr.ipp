@@ -41,12 +41,12 @@ inline RemSharedPtr<T>::RemSharedPtr() noexcept {}
 
 template <typename T>
 inline RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> &&shared_ptr) noexcept
-    : RemPtr<T>(Runtime::get_current_proclet_header(), shared_ptr.get()),
+    : RemPtr<T>(get_runtime()->get_current_proclet_header(), shared_ptr.get()),
       shared_ptr_(new std::shared_ptr<T>(std::move(shared_ptr))) {}
 
 template <typename T>
 inline RemSharedPtr<T>::RemSharedPtr(std::shared_ptr<T> *shared_ptr)
-    : RemPtr<T>(Runtime::get_current_proclet_header(),
+    : RemPtr<T>(get_runtime()->get_current_proclet_header(),
                 shared_ptr ? shared_ptr->get() : nullptr),
       shared_ptr_(shared_ptr) {}
 

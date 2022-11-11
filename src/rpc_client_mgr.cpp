@@ -46,7 +46,7 @@ retry:
     rt::MutexGuard g(&node_info_mutexes_[slab_id]);
     auto &info_ref = rem_id_to_node_info_[slab_id];
     if (!info_ref.raw) {
-      auto ip = Runtime::controller_client->resolve_proclet(proclet_id);
+      auto ip = get_runtime()->controller_client()->resolve_proclet(proclet_id);
       BUG_ON(!ip);
       NodeInfo info;
       info.ip = ip;

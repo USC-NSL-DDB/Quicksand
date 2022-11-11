@@ -15,11 +15,11 @@ void Time::timer_callback(unsigned long arg_addr) {
   auto *proclet_header = arg->proclet_header;
 
   auto optional_migration_guard =
-      Runtime::attach_and_disable_migration(proclet_header);
+      get_runtime()->attach_and_disable_migration(proclet_header);
   if (unlikely(!optional_migration_guard)) {
     return;
   }
-  Runtime::detach(*optional_migration_guard);
+  get_runtime()->detach(*optional_migration_guard);
 
   auto &time = proclet_header->time;
   time.spin_.Lock();
@@ -30,7 +30,7 @@ void Time::timer_callback(unsigned long arg_addr) {
 }
 
 uint64_t Time::rdtsc() {
-  auto *proclet_header = Runtime::get_current_proclet_header();
+  auto *proclet_header = get_runtime()->get_current_proclet_header();
   if (proclet_header) {
     return proclet_header->time.proclet_env_rdtsc();
   } else {
@@ -39,7 +39,7 @@ uint64_t Time::rdtsc() {
 }
 
 uint64_t Time::microtime() {
-  auto *proclet_header = Runtime::get_current_proclet_header();
+  auto *proclet_header = get_runtime()->get_current_proclet_header();
   if (proclet_header) {
     return proclet_header->time.proclet_env_microtime();
   } else {
@@ -48,7 +48,7 @@ uint64_t Time::microtime() {
 }
 
 void Time::sleep_until(uint64_t deadline_us) {
-  auto *proclet_header = Runtime::get_current_proclet_header();
+  auto *proclet_header = get_runtime()->get_current_proclet_header();
   if (proclet_header) {
     proclet_header->time.proclet_env_sleep_until(deadline_us);
   } else {
@@ -57,7 +57,7 @@ void Time::sleep_until(uint64_t deadline_us) {
 }
 
 void Time::sleep(uint64_t duration_us) {
-  auto *proclet_header = Runtime::get_current_proclet_header();
+  auto *proclet_header = get_runtime()->get_current_proclet_header();
   if (proclet_header) {
     proclet_header->time.proclet_env_sleep(duration_us);
   } else {
@@ -73,7 +73,7 @@ void Time::proclet_env_sleep_until(uint64_t deadline_us) {
   std::unique_ptr<TimerCallbackArg> arg_gc(arg);
 
   arg->th = thread_self();
-  arg->proclet_header = Runtime::get_current_proclet_header();
+  arg->proclet_header = get_runtime()->get_current_proclet_header();
   arg->logical_deadline_us = deadline_us;
   BUG_ON(!arg->proclet_header);
   timer_init(e, Time::timer_callback, reinterpret_cast<unsigned long>(arg));

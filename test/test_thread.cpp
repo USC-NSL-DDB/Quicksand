@@ -29,7 +29,7 @@ class Test {
 
   int read() { return s_; }
 
-  void migrate() { Runtime::pressure_handler->mock_set_pressure(); }
+  void migrate() { get_runtime()->pressure_handler()->mock_set_pressure(); }
 
  private:
   std::atomic<int> s_;

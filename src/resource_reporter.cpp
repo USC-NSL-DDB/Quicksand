@@ -56,7 +56,7 @@ void ResourceReporter::report_resource(bool forced) {
                    (rt::RuntimeActiveCores() - rt::RuntimeSpinningCores())) +
       rt::RuntimeSpinningCores();
   resource.mem_mbs = rt::RuntimeFreeMemMbs();
-  Runtime::controller_client->report_free_resource(resource);
+  get_runtime()->controller_client()->report_free_resource(resource);
   finish_resource_reporting(forced);
 }
 

@@ -26,7 +26,7 @@ class Test {
     return Time::sleep_until(deadline_us);
   }
   void sleep(uint64_t duration_us) { Time::sleep(duration_us); }
-  void migrate() { Runtime::pressure_handler->mock_set_pressure(); }
+  void migrate() { get_runtime()->pressure_handler()->mock_set_pressure(); }
 };
 }  // namespace nu
 

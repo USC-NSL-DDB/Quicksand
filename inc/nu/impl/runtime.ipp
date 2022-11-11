@@ -17,6 +17,36 @@ extern "C" {
 
 namespace nu {
 
+inline SlabAllocator *Runtime::runtime_slab() { return runtime_slab_.get(); }
+
+inline StackManager *Runtime::stack_manager() { return stack_manager_.get(); }
+
+inline ArchivePool<> *Runtime::archive_pool() { return archive_pool_.get(); }
+
+inline RPCClientMgr *Runtime::rpc_client_mgr() { return rpc_client_mgr_.get(); }
+
+inline ProcletManager *Runtime::proclet_manager() {
+  return proclet_manager_.get();
+}
+
+inline PressureHandler *Runtime::pressure_handler() {
+  return pressure_handler_.get();
+}
+
+inline ControllerClient *Runtime::controller_client() {
+  return controller_client_.get();
+}
+
+inline ProcletServer *Runtime::proclet_server() {
+  return proclet_server_.get();
+}
+
+inline Migrator *Runtime::migrator() { return migrator_.get(); }
+
+inline ControllerServer *Runtime::controller_server() {
+  return controller_server_.get();
+}
+
 inline void *Runtime::switch_slab(void *slab) {
   return thread_set_proclet_slab(slab);
 }
@@ -94,9 +124,9 @@ Runtime::__run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
   if (unlikely(thread_has_been_migrated())) {
     migration_guard.reset();
     auto proclet_stack_base = get_proclet_stack_range(__self).end;
+    // FIXME
     switch_stack(thread_get_runtime_stack_base());
-    Runtime::stack_manager->put(
-        reinterpret_cast<uint8_t *>(proclet_stack_base));
+    stack_manager_->put(reinterpret_cast<uint8_t *>(proclet_stack_base));
     rt::Exit();
   }
 
@@ -109,27 +139,15 @@ __attribute__((optimize("no-omit-frame-pointer"))) bool
 Runtime::run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                                 A1s &&... args) {
   bool ret;
-  auto *proclet_stack = Runtime::stack_manager->get();
+  auto *proclet_stack = stack_manager_->get();
   assert(reinterpret_cast<uintptr_t>(proclet_stack) % kStackAlignment == 0);
+  // FIXME
   auto *old_rsp = switch_stack(proclet_stack);
   ret = __run_within_proclet_env<Cls>(proclet_base, fn,
                                       std::forward<A1s>(args)...);
   switch_stack(old_rsp);
-  Runtime::stack_manager->put(proclet_stack);
+  stack_manager_->put(proclet_stack);
   return ret;
-}
-
-template <typename T, typename... Args>
-inline T *Runtime::new_on_runtime_heap(Args &&... args) {
-  auto ptr = Runtime::runtime_slab.allocate(sizeof(T));
-  new (ptr) T(std::forward<Args>(args)...);
-  return reinterpret_cast<T *>(ptr);
-}
-
-template <typename T>
-inline void Runtime::delete_on_runtime_heap(T *ptr) {
-  ptr->~T();
-  Runtime::runtime_slab.free(ptr);
 }
 
 template <typename T>
@@ -185,7 +203,7 @@ inline void slab_guard_check() {
 
 inline RuntimeSlabGuard::RuntimeSlabGuard() {
   slab_guard_check();
-  original_slab_ = Runtime::switch_to_runtime_slab();
+  original_slab_ = get_runtime()->switch_to_runtime_slab();
 }
 
 inline RuntimeSlabGuard::~RuntimeSlabGuard() {
@@ -195,7 +213,7 @@ inline RuntimeSlabGuard::~RuntimeSlabGuard() {
 
 inline ProcletSlabGuard::ProcletSlabGuard(void *slab) {
   slab_guard_check();
-  original_slab_ = Runtime::switch_slab(slab);
+  original_slab_ = get_runtime()->switch_slab(slab);
 }
 
 inline ProcletSlabGuard::~ProcletSlabGuard() {
@@ -204,7 +222,7 @@ inline ProcletSlabGuard::~ProcletSlabGuard() {
 }
 
 inline MigrationGuard::MigrationGuard() {
-  header_ = Runtime::get_current_proclet_header();
+  header_ = get_runtime()->get_current_proclet_header();
   if (header_) {
   retry:
     auto nesting_cnt = header_->rcu_lock.reader_lock();
@@ -268,5 +286,10 @@ inline void MigrationGuard::reset() {
 }
 
 inline void MigrationGuard::release() { header_ = nullptr; }
+
+inline Runtime *get_runtime() {
+  static Runtime singleton_runtime;
+  return &singleton_runtime;
+}
 
 }  // namespace nu

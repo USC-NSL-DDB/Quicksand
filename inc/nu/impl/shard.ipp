@@ -76,7 +76,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      slab_(Runtime::get_current_proclet_slab()) {
+      slab_(get_runtime()->get_current_proclet_slab()) {
   if constexpr (Reservable<Container>) {
     if (reserve_space) {
       auto old_slab_usage = slab_->get_usage();

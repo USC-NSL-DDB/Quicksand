@@ -32,70 +32,7 @@ extern "C" {
 
 namespace nu {
 
-bool active_runtime = false;
-
-SlabAllocator Runtime::runtime_slab;
-std::unique_ptr<ProcletServer> Runtime::proclet_server;
-std::unique_ptr<ProcletManager> Runtime::proclet_manager;
-std::unique_ptr<StackManager> Runtime::stack_manager;
-std::unique_ptr<ControllerClient> Runtime::controller_client;
-std::unique_ptr<ControllerServer> Runtime::controller_server;
-std::unique_ptr<RPCClientMgr> Runtime::rpc_client_mgr;
-std::unique_ptr<Migrator> Runtime::migrator;
-std::unique_ptr<ArchivePool<RuntimeAllocator<uint8_t>>> Runtime::archive_pool;
-std::unique_ptr<RPCServer> Runtime::rpc_server;
-std::unique_ptr<PressureHandler> Runtime::pressure_handler;
-std::unique_ptr<ResourceReporter> Runtime::resource_reporter;
-
-void Runtime::init_runtime_heap() {
-  auto addr = reinterpret_cast<void *>(kMinRuntimeHeapVaddr);
-  preempt_disable();
-  auto mmap_addr =
-      mmap(addr, kRuntimeHeapSize, PROT_READ | PROT_WRITE,
-           MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED | MAP_NORESERVE, -1, 0);
-  BUG_ON(mmap_addr != addr);
-  auto rc = madvise(addr, kRuntimeHeapSize, MADV_DONTDUMP);
-  BUG_ON(rc == -1);
-  preempt_enable();
-  runtime_slab.init(kRuntimeSlabId, mmap_addr, kRuntimeHeapSize,
-                    /* aggressive_caching = */ true);
-}
-
-void Runtime::init_as_controller() {
-  controller_server.reset(new decltype(controller_server)::element_type());
-  rpc_server.reset(new decltype(rpc_server)::element_type());
-  rpc_server->run_background_loop();
-}
-
-void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
-  proclet_server.reset(new decltype(proclet_server)::element_type());
-  rpc_server.reset(new decltype(rpc_server)::element_type());
-  rpc_server->run_background_loop();
-  migrator.reset(new decltype(migrator)::element_type());
-  migrator->run_background_loop();
-  controller_client.reset(new decltype(controller_client)::element_type(
-      remote_ctrl_ip, kServer, lpid));
-  proclet_manager.reset(new decltype(proclet_manager)::element_type());
-  pressure_handler.reset(new decltype(pressure_handler)::element_type());
-  resource_reporter.reset(new decltype(resource_reporter)::element_type());
-  stack_manager.reset(new decltype(stack_manager)::element_type(
-      controller_client->get_stack_cluster()));
-  archive_pool.reset(new decltype(archive_pool)::element_type());
-}
-
-void Runtime::init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid) {
-  controller_client.reset(new decltype(controller_client)::element_type(
-      remote_ctrl_ip, kClient, lpid));
-  archive_pool.reset(new decltype(archive_pool)::element_type());
-}
-
-void Runtime::common_init() {
-  prealloc_threads_and_stacks(4 * kNumCores);
-  init_runtime_heap();
-  active_runtime = true;
-  rpc_client_mgr.reset(
-      new decltype(rpc_client_mgr)::element_type(RPCServer::kPort));
-}
+Runtime::Runtime() {}
 
 Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid) {
   common_init();
@@ -116,37 +53,77 @@ Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid) {
   }
 }
 
-std::unique_ptr<Runtime> Runtime::init(uint32_t remote_ctrl_ip, Mode mode,
-                                       lpid_t lpid) {
-  BUG_ON(active_runtime);
-  auto runtime_ptr = new Runtime(remote_ctrl_ip, mode, lpid);
-  return std::unique_ptr<Runtime>(runtime_ptr);
+Runtime::~Runtime() {
+  proclet_server_.reset();
+  controller_client_.reset();
+  proclet_manager_.reset();
+  stack_manager_.reset();
+  rpc_client_mgr_.reset();
+  migrator_.reset();
+  archive_pool_.reset();
+  runtime_slab_.reset();
 }
 
-Runtime::~Runtime() {
-  proclet_server.reset();
-  controller_client.reset();
-  proclet_manager.reset();
-  stack_manager.reset();
-  rpc_client_mgr.reset();
-  migrator.reset();
-  archive_pool.reset();
-  barrier();
-  active_runtime = false;
-  preempt_disable();
-  munmap(runtime_slab.get_base(), kRuntimeHeapSize);
-  preempt_enable();
+void Runtime::init_runtime_heap() {
+  auto addr = reinterpret_cast<void *>(kMinRuntimeHeapVaddr);
+  {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+    auto mmap_addr =
+        mmap(addr, kRuntimeHeapSize, PROT_READ | PROT_WRITE,
+             MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED | MAP_NORESERVE, -1, 0);
+    BUG_ON(mmap_addr != addr);
+    auto rc = madvise(addr, kRuntimeHeapSize, MADV_DONTDUMP);
+    BUG_ON(rc == -1);
+  }
+  runtime_slab_.reset(new decltype(runtime_slab_)::element_type(
+      kRuntimeSlabId, addr, kRuntimeHeapSize,
+      /* aggressive_caching = */ true));
+}
+
+void Runtime::init_as_controller() {
+  controller_server_.reset(new decltype(controller_server_)::element_type());
+  rpc_server_.reset(new decltype(rpc_server_)::element_type());
+  rpc_server_->run_background_loop();
+}
+
+void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
+  proclet_server_.reset(new decltype(proclet_server_)::element_type());
+  rpc_server_.reset(new decltype(rpc_server_)::element_type());
+  rpc_server_->run_background_loop();
+  migrator_.reset(new decltype(migrator_)::element_type());
+  migrator_->run_background_loop();
+  controller_client_.reset(new decltype(controller_client_)::element_type(
+      remote_ctrl_ip, kServer, lpid));
+  proclet_manager_.reset(new decltype(proclet_manager_)::element_type());
+  pressure_handler_.reset(new decltype(pressure_handler_)::element_type());
+  resource_reporter_.reset(new decltype(resource_reporter_)::element_type());
+  stack_manager_.reset(new decltype(stack_manager_)::element_type(
+      controller_client_->get_stack_cluster()));
+  archive_pool_.reset(new decltype(archive_pool_)::element_type());
+}
+
+void Runtime::init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid) {
+  controller_client_.reset(new decltype(controller_client_)::element_type(
+      remote_ctrl_ip, kClient, lpid));
+  archive_pool_.reset(new decltype(archive_pool_)::element_type());
+}
+
+void Runtime::common_init() {
+  prealloc_threads_and_stacks(4 * kNumCores);
+  init_runtime_heap();
+  rpc_client_mgr_.reset(
+      new decltype(rpc_client_mgr_)::element_type(RPCServer::kPort));
 }
 
 void Runtime::reserve_conns(uint32_t ip) {
   RuntimeSlabGuard guard;
-  migrator->reserve_conns(ip);
-  rpc_client_mgr->get_by_ip(ip);
+  migrator_->reserve_conns(ip);
+  rpc_client_mgr_->get_by_ip(ip);
 }
 
 int runtime_main_init(int argc, char **argv,
                       std::function<void(int argc, char **argv)> main_func) {
-
   AllOptionsDesc all_options_desc;
   all_options_desc.parse(argc, argv);
 
@@ -164,7 +141,6 @@ int runtime_main_init(int argc, char **argv,
     if (conf_path.starts_with(".conf_")) {
       BUG_ON(remove(conf_path.c_str()));
     }
-    auto runtime = nu::Runtime::init(ctrl_ip, mode, lpid);
     for (int i = 0; i < argc; i++) {
       if (strcmp(argv[i], "--") == 0 || i == argc - 1) {
         argc -= i;
@@ -173,7 +149,9 @@ int runtime_main_init(int argc, char **argv,
         break;
       }
     }
+    new (get_runtime()) Runtime(ctrl_ip, mode, lpid);
     main_func(argc, argv);
+    std::destroy_at(get_runtime());
   });
 
   if (ret) {
@@ -192,11 +170,10 @@ inline void *__new(size_t size) {
       thread_self()
           ? reinterpret_cast<nu::SlabAllocator *>(thread_get_proclet_slab())
           : nullptr;
-
   if (slab) {
     ptr = slab->allocate(size);
-  } else if (nu::active_runtime) {
-    ptr = nu::Runtime::runtime_slab.allocate(size);
+  } else if (auto *runtime_slab = nu::get_runtime()->runtime_slab()) {
+    ptr = runtime_slab->allocate(size);
   } else {
     preempt_disable();
     ptr = malloc(size);
@@ -216,7 +193,7 @@ void *operator new(size_t size, const std::nothrow_t &nothrow_value) noexcept {
 }
 
 void operator delete(void *ptr) noexcept {
-  if (nu::active_runtime) {
+  if (nu::get_runtime()->runtime_slab()) {
     nu::SlabAllocator::free(ptr);
   } else {
     preempt_disable();

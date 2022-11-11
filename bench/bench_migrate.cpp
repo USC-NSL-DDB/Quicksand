@@ -24,7 +24,7 @@ namespace nu {
 class Test {
  public:
   void run() {
-    Runtime::pressure_handler->mock_set_pressure();
+    get_runtime()->pressure_handler()->mock_set_pressure();
     delay_ms(1000);
   }
 

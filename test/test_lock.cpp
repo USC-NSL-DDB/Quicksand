@@ -33,7 +33,7 @@ class Test {
     mutex_.unlock();
   }
 
-  void migrate() { Runtime::pressure_handler->mock_set_pressure(); }
+  void migrate() { get_runtime()->pressure_handler()->mock_set_pressure(); }
 
   int get_cnt() { return cnt_; }
 

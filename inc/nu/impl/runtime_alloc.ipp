@@ -34,13 +34,14 @@ inline RuntimeAllocator<T> &RuntimeAllocator<T>::operator=(
 
 template <typename T>
 inline T *RuntimeAllocator<T>::allocate(std::size_t n) {
-  return reinterpret_cast<T *>(Runtime::runtime_slab.allocate(n * sizeof(T)));
+  return reinterpret_cast<T *>(
+      get_runtime()->runtime_slab()->allocate(n * sizeof(T)));
 }
 
 template <typename T>
 inline void RuntimeAllocator<T>::deallocate(value_type *p,
                                             std::size_t n) noexcept {
-  Runtime::runtime_slab.free(p);
+  get_runtime()->runtime_slab()->free(p);
 }
 
 template <typename T>

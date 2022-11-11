@@ -216,7 +216,8 @@ void Migrator::transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
         {reinterpret_cast<std::byte *>(req_start_addrs[i]), req_lens[i]}};
     if (i < PressureHandler::kNumAuxHandlers) {
       // Dispatch to aux handler.
-      Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
+      get_runtime()->pressure_handler()->dispatch_aux_tcp_task(i,
+                                                               std::move(task));
     } else {
       // Execute the task itself.
       BUG_ON(c->WritevFull(std::span<const iovec>(task), /* nt = */ true,
@@ -224,7 +225,7 @@ void Migrator::transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
     }
   }
 
-  Runtime::pressure_handler->wait_aux_tasks();
+  get_runtime()->pressure_handler()->wait_aux_tasks();
 
   if constexpr (kMonitorTime) {
     t1 = microtime();
@@ -250,7 +251,7 @@ void Migrator::transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
     std::cout << "Transmit proclet: addr = " << proclet_header
               << ", size = " << len << ", time_us = " << t1 - t0
               << ", num proclets left = "
-              << Runtime::proclet_manager->get_num_present_proclets()
+              << get_runtime()->proclet_manager()->get_num_present_proclets()
               << std::endl;
     preempt_enable();
   }
@@ -356,12 +357,13 @@ void Migrator::transmit_one_thread(rt::TcpConn *c, thread_t *thread) {
   BUG_ON(c->WriteFull(nu_state, nu_state_size, /* nt = */ false,
                       /* poll = */ true) < 0);
 
-  auto stack_range = Runtime::get_proclet_stack_range(thread);
+  auto stack_range = get_runtime()->get_proclet_stack_range(thread);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->WriteFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                       /* nt = */ false,
                       /* poll = */ true) < 0);
-  Runtime::stack_manager->free(reinterpret_cast<uint8_t *>(stack_range.end));
+  get_runtime()->stack_manager()->free(
+      reinterpret_cast<uint8_t *>(stack_range.end));
 }
 
 void Migrator::transmit_threads(rt::TcpConn *c,
@@ -393,8 +395,8 @@ void Migrator::transmit_proclet_migration_tasks(
 
 void Migrator::update_proclet_location(rt::TcpConn *c,
                                        ProcletHeader *proclet_header) {
-  Runtime::controller_client->update_location(to_proclet_id(proclet_header),
-                                              c->RemoteAddr().ip);
+  get_runtime()->controller_client()->update_location(
+      to_proclet_id(proclet_header), c->RemoteAddr().ip);
   // Wakeup the requests blocked after marking the proclet as absent so that
   // they will be immediately rejected.
   proclet_header->spin_lock.lock();
@@ -440,8 +442,8 @@ void Migrator::transmit(rt::TcpConn *c, ProcletHeader *proclet_header,
 }
 
 bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
-  if (unlikely(
-          !Runtime::proclet_manager->remove_for_migration(proclet_header))) {
+  if (unlikely(!get_runtime()->proclet_manager()->remove_for_migration(
+          proclet_header))) {
     return false;
   }
   proclet_header->rcu_lock.writer_sync(/* poll = */ true);
@@ -453,12 +455,13 @@ void Migrator::aux_handlers_enable_polling(uint32_t dest_ip) {
 
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
     auto aux_migration_conn = migrator_conn_mgr_.get(dest_ip);
-    Runtime::pressure_handler->update_aux_handler_state(
+    get_runtime()->pressure_handler()->update_aux_handler_state(
         i, std::move(aux_migration_conn));
     std::vector<iovec> task{{&type, sizeof(type)}};
-    Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
+    get_runtime()->pressure_handler()->dispatch_aux_tcp_task(i,
+                                                             std::move(task));
   }
-  Runtime::pressure_handler->wait_aux_tasks();
+  get_runtime()->pressure_handler()->wait_aux_tasks();
 }
 
 void Migrator::aux_handlers_disable_polling() {
@@ -466,9 +469,10 @@ void Migrator::aux_handlers_disable_polling() {
 
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
     std::vector<iovec> task{{&type, sizeof(type)}};
-    Runtime::pressure_handler->dispatch_aux_tcp_task(i, std::move(task));
+    get_runtime()->pressure_handler()->dispatch_aux_tcp_task(i,
+                                                             std::move(task));
   }
-  Runtime::pressure_handler->wait_aux_tasks();
+  get_runtime()->pressure_handler()->wait_aux_tasks();
 }
 
 void Migrator::callback() {
@@ -517,14 +521,14 @@ uint32_t Migrator::migrate(Resource resource,
 }
 
 void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
-  Runtime::pressure_handler->dispatch_aux_pause_task(0);
+  get_runtime()->pressure_handler()->dispatch_aux_pause_task(0);
   pause_migrating_ths_main(proclet_header);
 }
 
 void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
   rt::Thread([proclet_header] {
-    Runtime::proclet_manager->cleanup(proclet_header,
-                                      /* for_migration = */ true);
+    get_runtime()->proclet_manager()->cleanup(proclet_header,
+                                              /* for_migration = */ true);
   }).Detach();
 }
 
@@ -554,7 +558,7 @@ uint32_t Migrator::__migrate(Resource resource,
 
   do {
     auto migration_dest =
-        Runtime::controller_client->acquire_migration_dest(resource);
+        get_runtime()->controller_client()->acquire_migration_dest(resource);
     if (unlikely(!migration_dest)) {
       break;
     }
@@ -571,7 +575,7 @@ uint32_t Migrator::__migrate(Resource resource,
     while (it != tasks.end()) {
       loader_approval = receive_approval(conn);
       if (unlikely(!loader_approval ||
-                   !Runtime::pressure_handler->has_pressure())) {
+                   !get_runtime()->pressure_handler()->has_pressure())) {
         break;
       }
 
@@ -623,9 +627,9 @@ bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
   BUG_ON(type != kCopyProclet);
   handle_copy_proclet(c);
 
-  Runtime::proclet_manager->setup(proclet_header, capacity,
-                                  /* migratable = */ false,
-                                  /* from_migration = */ true);
+  get_runtime()->proclet_manager()->setup(proclet_header, capacity,
+                                          /* migratable = */ false,
+                                          /* from_migration = */ true);
   while (proclet_header->pending_load_cnt.load()) {
     unblock_and_relax();
   }
@@ -672,7 +676,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c,
                      /* poll = */ true) <= 0);
   auto *th = create_migrated_thread(nu_state.get());
 
-  auto stack_range = Runtime::get_proclet_stack_range(th);
+  auto stack_range = get_runtime()->get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
   BUG_ON(c->ReadFull(reinterpret_cast<void *>(stack_range.start), stack_len,
                      /* nt = */ false,
@@ -820,7 +824,7 @@ void Migrator::load(rt::TcpConn *c) {
   auto tasks = load_proclet_migration_tasks(c);
   rt::Thread mmap_th([tasks] {
     for (auto &[header, _, size] : tasks) {
-      Runtime::proclet_manager->madvise_populate(header, size);
+      get_runtime()->proclet_manager()->madvise_populate(header, size);
     }
   });
 
@@ -828,7 +832,7 @@ void Migrator::load(rt::TcpConn *c) {
   std::vector<std::pair<ProcletHeader *, uint64_t>> skipped_proclets;
 
   for (auto &[proclet_header, capacity, size] : tasks) {
-    bool approval = !Runtime::pressure_handler->has_real_pressure();
+    bool approval = !get_runtime()->pressure_handler()->has_real_pressure();
     issue_approval(c, approval);
 
     if (unlikely(!load_proclet(c, proclet_header, capacity))) {
@@ -839,7 +843,7 @@ void Migrator::load(rt::TcpConn *c) {
     load_mutexes(c, proclet_header);
     load_condvars(c, proclet_header);
     load_time(c, proclet_header);
-    Runtime::proclet_manager->insert(proclet_header);
+    get_runtime()->proclet_manager()->insert(proclet_header);
     load_threads(c, proclet_header);
     loaded_proclets.emplace_back(proclet_header);
     // Wakeup the blocked threads.
@@ -856,8 +860,8 @@ void Migrator::load(rt::TcpConn *c) {
     mmap_th.Join();
     preempt_disable();
     for (auto [proclet, size] : skipped_proclets) {
-      Runtime::proclet_manager->depopulate(proclet, size,
-                                           /* defer = */ false);
+      get_runtime()->proclet_manager()->depopulate(proclet, size,
+                                                   /* defer = */ false);
     }
   } else {
     mmap_th.Detach();
@@ -884,12 +888,13 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
   std::construct_at(req);
   req->rc = rc;
   req->returner = *returner;
-  req->stack_top = Runtime::get_proclet_stack_range(thread_self()).end;
+  req->stack_top = get_runtime()->get_proclet_stack_range(thread_self()).end;
   req->payload_len = payload_len;
   memcpy(req->payload, payload, payload_len);
   auto req_span = std::span(req_buf.get(), req_buf_len);
   RPCReturnBuffer return_buf;
-  auto *client = Runtime::rpc_client_mgr->get_by_ip(thread_get_creator_ip());
+  auto *client =
+      get_runtime()->rpc_client_mgr()->get_by_ip(thread_get_creator_ip());
   BUG_ON(client->Call(req_span, &return_buf) != kOk);
 }
 
@@ -904,12 +909,13 @@ void Migrator::forward_to_client(RPCReqForward &req) {
   } else {
     req.returner.Return(req.rc);
   }
-  Runtime::stack_manager->put(reinterpret_cast<uint8_t *>(req.stack_top));
+  get_runtime()->stack_manager()->put(
+      reinterpret_cast<uint8_t *>(req.stack_top));
 }
 
 uint32_t Migrator::get_max_num_proclets_per_migration() const {
   return Migrator::kMaxPctProcletPerMigration *
-             Runtime::proclet_manager->get_num_present_proclets() +
+             get_runtime()->proclet_manager()->get_num_present_proclets() +
          1;
 }
 
@@ -917,21 +923,31 @@ __attribute__((noinline)) void Migrator::transmit_thread_and_ret_val(
     std::unique_ptr<std::byte[]> *req_buf_ptr, uint64_t req_buf_len,
     ProcletID dest_id, uint8_t *proclet_stack) {
   auto req_buf = std::move(*req_buf_ptr);
-  // Runtime::stack_manager->free(proclet_stack);
+  get_runtime()->stack_manager()->free(proclet_stack);
 
   auto req_span = std::span(req_buf.get(), req_buf_len);
   RPCReturnBuffer unused_buf;
 
 retry:
-  auto *rpc_client = Runtime::rpc_client_mgr->get_by_proclet_id(dest_id);
+  auto *rpc_client =
+      get_runtime()->rpc_client_mgr()->get_by_proclet_id(dest_id);
   auto rc = rpc_client->Call(req_span, &unused_buf);
 
   if (unlikely(rc == kErrWrongClient)) {
-    Runtime::rpc_client_mgr->invalidate_cache(dest_id, rpc_client);
+    get_runtime()->rpc_client_mgr()->invalidate_cache(dest_id, rpc_client);
     goto retry;
   }
 
   rt::Exit();
+}
+
+__attribute__((noinline))
+__attribute__((optimize("no-omit-frame-pointer"))) void
+Migrator::switch_stack_and_transmit(std::unique_ptr<std::byte[]> *req_buf,
+                                    uint64_t req_buf_len, ProcletID dest_id,
+                                    uint8_t *proclet_stack) {
+  get_runtime()->switch_to_runtime_stack();
+  transmit_thread_and_ret_val(req_buf, req_buf_len, dest_id, proclet_stack);
 }
 
 }  // namespace nu

@@ -17,13 +17,13 @@ void RPCServer::run_background_loop() {
       // Migrator
       case kReserveConns: {
         auto &req = from_span<RPCReqReserveConns>(args);
-        Runtime::reserve_conns(req.dest_server_ip);
+        get_runtime()->reserve_conns(req.dest_server_ip);
         returner->Return(kOk);
         break;
       }
       case kForward: {
         auto &req = from_span<RPCReqForward>(args);
-        Runtime::migrator->forward_to_client(req);
+        get_runtime()->migrator()->forward_to_client(req);
         returner->Return(kOk);
         break;
       }
@@ -37,35 +37,39 @@ void RPCServer::run_background_loop() {
       // Controller
       case kRegisterNode: {
         auto &req = from_span<RPCReqRegisterNode>(args);
-        auto resp = Runtime::controller_server->handle_register_node(req);
+        auto resp =
+            get_runtime()->controller_server()->handle_register_node(req);
         auto span = to_span(*resp);
         returner->Return(kOk, span, [resp = std::move(resp)] {});
         break;
       }
       case kVerifyMD5: {
         auto &req = from_span<RPCReqVerifyMD5>(args);
-        auto resp = Runtime::controller_server->handle_verify_md5(req);
+        auto resp = get_runtime()->controller_server()->handle_verify_md5(req);
         auto span = to_span(*resp);
         returner->Return(kOk, span, [resp = std::move(resp)] {});
         break;
       }
       case kAllocateProclet: {
         auto &req = from_span<RPCReqAllocateProclet>(args);
-        auto resp = Runtime::controller_server->handle_allocate_proclet(req);
+        auto resp =
+            get_runtime()->controller_server()->handle_allocate_proclet(req);
         auto span = to_span(*resp);
         returner->Return(kOk, span, [resp = std::move(resp)] {});
         break;
       }
       case kDestroyProclet: {
         auto &req = from_span<RPCReqDestroyProclet>(args);
-        auto resp = Runtime::controller_server->handle_destroy_proclet(req);
+        auto resp =
+            get_runtime()->controller_server()->handle_destroy_proclet(req);
         auto span = to_span(*resp);
         returner->Return(kOk, span, [resp = std::move(resp)] {});
         break;
       }
       case kResolveProclet: {
         auto &req = from_span<RPCReqResolveProclet>(args);
-        auto resp = Runtime::controller_server->handle_resolve_proclet(req);
+        auto resp =
+            get_runtime()->controller_server()->handle_resolve_proclet(req);
         auto span = to_span(*resp);
         returner->Return(kOk, span, [resp = std::move(resp)] {});
         break;
@@ -73,7 +77,7 @@ void RPCServer::run_background_loop() {
       // Proclet server
       case kProcletCall: {
         args = args.subspan(sizeof(RPCReqType));
-        Runtime::proclet_server->parse_and_run_handler(args, returner);
+        get_runtime()->proclet_server()->parse_and_run_handler(args, returner);
         break;
       }
       default:

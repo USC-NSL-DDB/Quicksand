@@ -53,10 +53,10 @@ void PressureHandler::update_sorted_proclets() {
       std::make_shared<decltype(mem_pressure_sorted_proclets_)::element_type>();
   auto new_cpu_pressure_sorted_proclets =
       std::make_shared<decltype(cpu_pressure_sorted_proclets_)::element_type>();
-  auto all_proclets = Runtime::proclet_manager->get_all_proclets();
+  auto all_proclets = get_runtime()->proclet_manager()->get_all_proclets();
   for (auto *proclet_base : all_proclets) {
     auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-    auto optional_info = Runtime::proclet_manager->get_proclet_info(
+    auto optional_info = get_runtime()->proclet_manager()->get_proclet_info(
         proclet_header, std::function([](const ProcletHeader *header) {
           return std::make_tuple(header->migratable, header->size(),
                                  header->thread_cnt.get(),
@@ -87,8 +87,7 @@ void PressureHandler::register_handlers() {
 }
 
 void PressureHandler::main_handler(void *unused) {
-  auto *handler = Runtime::pressure_handler.get();
-  handler->__main_handler();
+  get_runtime()->pressure_handler()->__main_handler();
 }
 
 void PressureHandler::__main_handler() {
@@ -102,12 +101,12 @@ void PressureHandler::__main_handler() {
 
     auto min_num_proclets =
         rt::RuntimeCpuPressure()
-            ? Runtime::migrator->get_max_num_proclets_per_migration()
+            ? get_runtime()->migrator()->get_max_num_proclets_per_migration()
             : 0;
     auto min_mem_mbs = rt::RuntimeToReleaseMemMbs();
     auto [tasks, resource] = pick_tasks(min_num_proclets, min_mem_mbs);
     if (likely(!tasks.empty())) {
-      auto num_migrated = Runtime::migrator->migrate(resource, tasks);
+      auto num_migrated = get_runtime()->migrator()->migrate(resource, tasks);
       if constexpr (kEnableLogging) {
         std::cout << "Migrate " << num_migrated << " proclets." << std::endl;
       }
@@ -220,7 +219,7 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
     bool migratable;
     uint64_t capacity, size;
 
-    auto optional = Runtime::proclet_manager->get_proclet_info(
+    auto optional = get_runtime()->proclet_manager()->get_proclet_info(
         header, std::function([&](const ProcletHeader *header) {
           migratable = header->migratable;
           capacity = header->capacity;
@@ -267,7 +266,7 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
 
   if (unlikely(!done)) {
     CPULoad::flush_all();
-    auto all_proclets = Runtime::proclet_manager->get_all_proclets();
+    auto all_proclets = get_runtime()->proclet_manager()->get_all_proclets();
     auto iter = all_proclets.begin();
     while (iter != all_proclets.end() && !done) {
       auto *header = reinterpret_cast<ProcletHeader *>(*(iter++));

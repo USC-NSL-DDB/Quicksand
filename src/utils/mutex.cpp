@@ -25,7 +25,7 @@ void Mutex::__lock() {
 
   myth = thread_self();
   if (list_empty(&m_.waiters)) {
-    auto *proclet_header = Runtime::get_current_proclet_header();
+    auto *proclet_header = get_runtime()->get_current_proclet_header();
     if (proclet_header) {
       proclet_header->blocked_syncer.add(this, BlockedSyncer::Type::kMutex);
     }
@@ -48,7 +48,7 @@ void Mutex::__unlock() {
       const_cast<void *>(list_pop_(&m_.waiters, thread_link_offset)));
   if (!waketh) {
     atomic_write(&m_.held, 0);
-    auto *proclet_header = Runtime::get_current_proclet_header();
+    auto *proclet_header = get_runtime()->get_current_proclet_header();
     if (proclet_header) {
       proclet_header->blocked_syncer.remove(this);
     }

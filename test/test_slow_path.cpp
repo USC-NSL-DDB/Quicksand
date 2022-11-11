@@ -66,7 +66,9 @@ class Test {
            run_both_migrated_test();
   }
 
-  static void migrate() { Runtime::pressure_handler->mock_set_pressure(); }
+  static void migrate() {
+    get_runtime()->pressure_handler()->mock_set_pressure();
+  }
 };
 
 }  // namespace nu

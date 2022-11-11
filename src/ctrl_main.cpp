@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <fstream>
+#include <utility>
 
 extern "C" {
 #include <runtime/net.h>
@@ -15,21 +16,9 @@ extern "C" {
 
 constexpr auto kIP = "18.18.1.1";
 
-void either_options(const boost::program_options::variables_map &vm,
-                    const char *opt1, const char *opt2) {
-  if (vm.count(opt1) && !vm[opt1].defaulted() && vm.count(opt2) &&
-      !vm[opt2].defaulted()) {
-    throw std::logic_error(std::string("Both '") + opt1 + "' and '" + opt2 +
-                           "' are specified.");
-  }
-  if (!vm.count(opt1) && !vm[opt1].defaulted() && !vm.count(opt2) &&
-      !vm[opt2].defaulted()) {
-    throw std::logic_error(std::string("Neither '") + opt1 + "' nor '" + opt2 +
-                           "' is specified.");
-  }
-}
+namespace nu {
 
-int main(int argc, char **argv) {
+int ctrl_main(int argc, char **argv) {
   nu::CaladanOptionsDesc desc(kIP);
   desc.parse(argc, argv);
 
@@ -43,7 +32,9 @@ int main(int argc, char **argv) {
     if (conf_path.starts_with(".conf_")) {
       BUG_ON(remove(conf_path.c_str()));
     }
-    nu::Runtime::init(get_cfg_ip(), nu::Runtime::Mode::kController, 0);
+    new (get_runtime())
+        Runtime(get_cfg_ip(), nu::Runtime::Mode::kController, 0);
+    std::unreachable();
   });
 
   if (ret) {
@@ -53,3 +44,7 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
+}  // namespace nu
+
+int main(int argc, char **argv) { return nu::ctrl_main(argc, argv); }

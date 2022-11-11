@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <spanstream>
 #include <sstream>
@@ -9,7 +10,7 @@
 
 namespace nu {
 
-template <typename Allocator>
+template <typename Allocator = std::allocator<std::byte>>
 class ArchivePool {
  public:
   constexpr static uint32_t kOAStreamPreallocBufSize = 128 - 1;

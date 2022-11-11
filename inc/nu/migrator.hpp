@@ -170,16 +170,19 @@ class Migrator {
                      const std::vector<ProcletMigrationTask> &tasks);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);
-  static void transmit_thread_and_ret_val(std::unique_ptr<std::byte[]> *req_buf,
-                                          uint64_t req_buf_len,
-                                          ProcletID dest_id,
-                                          uint8_t *proclet_stack);
   template <typename RetT>
   static void snapshot_thread_and_ret_val(std::unique_ptr<std::byte[]> *req_buf,
                                           uint64_t *req_buf_len,
                                           RPCReturnBuffer &&ret_val_buf,
                                           ProcletID dest_id,
                                           RetT *dest_ret_val_ptr);
+  static void switch_stack_and_transmit(std::unique_ptr<std::byte[]> *req_buf,
+                                        uint64_t req_buf_len, ProcletID dest_id,
+                                        uint8_t *proclet_stack);
+  static void transmit_thread_and_ret_val(std::unique_ptr<std::byte[]> *req_buf,
+                                          uint64_t req_buf_len,
+                                          ProcletID dest_id,
+                                          uint8_t *proclet_stack);
 };
 
 }  // namespace nu

@@ -23,7 +23,7 @@ inline Thread &Thread::operator=(Thread &&t) {
 
 template <typename F>
 inline Thread::Thread(F &&f) {
-  auto *proclet_header = Runtime::get_current_proclet_header();
+  auto *proclet_header = get_runtime()->get_current_proclet_header();
 
   if (proclet_header) {
     create_in_proclet_env(f, proclet_header);
@@ -36,7 +36,7 @@ template <typename F>
 void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
   rt::Preempt p;
   rt::PreemptGuard g(&p);
-  auto *proclet_stack = Runtime::stack_manager->get();
+  auto *proclet_stack = get_runtime()->stack_manager()->get();
   auto proclet_stack_addr = reinterpret_cast<uint64_t>(proclet_stack);
   assert(proclet_stack_addr % kStackAlignment == 0);
   auto *th = thread_nu_create_with_buf(
@@ -66,10 +66,10 @@ inline uint64_t Thread::get_id() {
 }
 
 inline uint64_t Thread::get_current_id() {
-  auto *proclet_header = Runtime::get_current_proclet_header();
+  auto *proclet_header = get_runtime()->get_current_proclet_header();
 
   if (proclet_header) {
-    return Runtime::get_proclet_stack_range(thread_self()).end;
+    return get_runtime()->get_proclet_stack_range(thread_self()).end;
   } else {
     return get_current_thread_id();
   }

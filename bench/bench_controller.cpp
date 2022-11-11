@@ -130,7 +130,7 @@ class Test {
   void run() {
     {
       PerfResolveObjAdapter perf_resolve_obj_adapter(
-          Runtime::controller_client.get());
+          get_runtime()->controller_client());
       Perf perf(perf_resolve_obj_adapter);
       perf.run(kNumThreads, kTargetMops, kPerfDurationUs);
       std::cout << "resolve_obj() mops = " << perf.get_real_mops() << std::endl;
@@ -138,7 +138,7 @@ class Test {
 
     {
       PerfAcquireMigrationDestAdapter perf_acquire_migration_dest_adapter(
-          Runtime::controller_client.get());
+          get_runtime()->controller_client());
       Perf perf(perf_acquire_migration_dest_adapter);
       perf.run(kNumThreads, kTargetMops, kPerfDurationUs);
       std::cout << "acquire_migration_obj() mops = " << perf.get_real_mops()
@@ -147,7 +147,7 @@ class Test {
 
     {
       PerfUpdateLocationAdapter perf_update_location_adapter(
-          Runtime::controller_client.get());
+          get_runtime()->controller_client());
       Perf perf(perf_update_location_adapter);
       perf.run(kNumThreads, kTargetMops, kPerfDurationUs);
       std::cout << "update_location() mops = " << perf.get_real_mops()

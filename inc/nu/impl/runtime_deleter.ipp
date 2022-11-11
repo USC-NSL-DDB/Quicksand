@@ -25,6 +25,6 @@ inline RuntimeDeleter<T> &RuntimeDeleter<T>::operator=(
 
 template <typename T>
 inline void RuntimeDeleter<T>::operator()(T *t) noexcept {
-  Runtime::delete_on_runtime_heap(t);
+  delete t;
 }
 }  // namespace nu

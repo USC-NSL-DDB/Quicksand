@@ -93,14 +93,14 @@ std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
 
   auto &node_statuses = lpid_to_info_[lpid].node_statuses;
   for (auto [existing_node_ip, _] : node_statuses) {
-    auto *client = Runtime::rpc_client_mgr->get_by_ip(existing_node_ip);
+    auto *client = get_runtime()->rpc_client_mgr()->get_by_ip(existing_node_ip);
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
     req.dest_server_ip = ip;
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  auto *client = Runtime::rpc_client_mgr->get_by_ip(ip);
+  auto *client = get_runtime()->rpc_client_mgr()->get_by_ip(ip);
   for (auto [existing_node_ip, _] : node_statuses) {
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;

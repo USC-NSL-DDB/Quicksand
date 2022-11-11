@@ -43,10 +43,10 @@ void Proclet<T>::invoke_remote(MigrationGuard &&caller_guard, ProcletID id,
   std::optional<MigrationGuard> optional_caller_guard;
   RuntimeSlabGuard slab_guard;
 
-  auto *caller_header = Runtime::get_current_proclet_header();
-  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  auto *caller_header = get_runtime()->get_current_proclet_header();
+  auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
   serialize(oa_sstream, std::forward<S1s>(states)...);
-  Runtime::detach(caller_guard);
+  get_runtime()->detach(caller_guard);
   caller_guard.reset();
 
 retry:
@@ -58,16 +58,17 @@ retry:
   RPCReturnCode rc;
   auto args_span = std::span(states_data, states_size);
 
-  auto *client = Runtime::rpc_client_mgr->get_by_proclet_id(id);
+  auto *client = get_runtime()->rpc_client_mgr()->get_by_proclet_id(id);
   rc = client->Call(args_span, &return_buf);
   if (unlikely(rc == kErrWrongClient)) {
-    Runtime::rpc_client_mgr->invalidate_cache(id, client);
+    get_runtime()->rpc_client_mgr()->invalidate_cache(id, client);
     goto retry;
   }
   assert(rc == kOk);
-  Runtime::archive_pool->put_oa_sstream(oa_sstream);
+  get_runtime()->archive_pool()->put_oa_sstream(oa_sstream);
 
-  optional_caller_guard = Runtime::attach_and_disable_migration(caller_header);
+  optional_caller_guard =
+      get_runtime()->attach_and_disable_migration(caller_header);
   if (!optional_caller_guard) {
     optional_caller_guard = Migrator::migrate_thread_and_ret_val<void>(
         std::move(return_buf), to_proclet_id(caller_header), nullptr, nullptr);
@@ -82,10 +83,10 @@ RetT Proclet<T>::invoke_remote_with_ret(MigrationGuard &&caller_guard,
   std::optional<MigrationGuard> optional_caller_guard;
   RuntimeSlabGuard slab_guard;
 
-  auto *caller_header = Runtime::get_current_proclet_header();
-  auto *oa_sstream = Runtime::archive_pool->get_oa_sstream();
+  auto *caller_header = get_runtime()->get_current_proclet_header();
+  auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
   serialize(oa_sstream, std::forward<S1s>(states)...);
-  Runtime::detach(caller_guard);
+  get_runtime()->detach(caller_guard);
   caller_guard.reset();
 
 retry:
@@ -97,21 +98,22 @@ retry:
   RPCReturnCode rc;
   auto args_span = std::span(states_data, states_size);
 
-  auto *client = Runtime::rpc_client_mgr->get_by_proclet_id(id);
+  auto *client = get_runtime()->rpc_client_mgr()->get_by_proclet_id(id);
   rc = client->Call(args_span, &return_buf);
   if (unlikely(rc == kErrWrongClient)) {
-    Runtime::rpc_client_mgr->invalidate_cache(id, client);
+    get_runtime()->rpc_client_mgr()->invalidate_cache(id, client);
     goto retry;
   }
   assert(rc == kOk);
-  Runtime::archive_pool->put_oa_sstream(oa_sstream);
+  get_runtime()->archive_pool()->put_oa_sstream(oa_sstream);
 
-  optional_caller_guard = Runtime::attach_and_disable_migration(caller_header);
+  optional_caller_guard =
+      get_runtime()->attach_and_disable_migration(caller_header);
   if (!optional_caller_guard) {
     optional_caller_guard = Migrator::migrate_thread_and_ret_val<RetT>(
         std::move(return_buf), to_proclet_id(caller_header), &ret, nullptr);
   } else {
-    auto *ia_sstream = Runtime::archive_pool->get_ia_sstream();
+    auto *ia_sstream = get_runtime()->archive_pool()->get_ia_sstream();
     auto &[ret_ss, ia] = *ia_sstream;
     auto return_span = return_buf.get_mut_buf();
     ret_ss.span(
@@ -122,7 +124,7 @@ retry:
     } else {
       ia >> ret;
     }
-    Runtime::archive_pool->put_ia_sstream(ia_sstream);
+    get_runtime()->archive_pool()->put_ia_sstream(ia_sstream);
   }
 
   return ret;
@@ -188,7 +190,7 @@ Proclet<T> Proclet<T>::__create(uint64_t capacity, bool pinned, uint32_t ip_hint
     MigrationGuard caller_migration_guard;
 
     caller_header = caller_migration_guard.header();
-    Runtime::detach(caller_migration_guard);
+    get_runtime()->detach(caller_migration_guard);
   }
 
   std::optional<MigrationGuard> optional_caller_migration_guard;
@@ -196,16 +198,16 @@ Proclet<T> Proclet<T>::__create(uint64_t capacity, bool pinned, uint32_t ip_hint
     RuntimeSlabGuard slab_guard;
 
     auto optional =
-        Runtime::controller_client->allocate_proclet(capacity, ip_hint);
+        get_runtime()->controller_client()->allocate_proclet(capacity, ip_hint);
     if (unlikely(!optional)) {
       throw OutOfMemory();
     }
     std::tie(callee_id, server_ip) = *optional;
-    Runtime::rpc_client_mgr->update_cache(callee_id, server_ip);
+    get_runtime()->rpc_client_mgr()->update_cache(callee_id, server_ip);
     callee_proclet.id_ = callee_id;
 
     optional_caller_migration_guard =
-        Runtime::attach_and_disable_migration(caller_header);
+        get_runtime()->attach_and_disable_migration(caller_header);
     if (!optional_caller_migration_guard) {
       RPCReturnBuffer return_buf;
       optional_caller_migration_guard =
@@ -280,14 +282,14 @@ inline RetT Proclet<T>::run(
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  auto *caller_header = Runtime::get_current_proclet_header();
+  auto *caller_header = get_runtime()->get_current_proclet_header();
 
   MigrationGuard caller_migration_guard;
   if (caller_header) {
     auto callee_header = to_proclet_header(id_);
     auto optional_callee_migration_guard =
-        Runtime::reattach_and_disable_migration(callee_header,
-                                                caller_migration_guard);
+        get_runtime()->reattach_and_disable_migration(callee_header,
+                                                      caller_migration_guard);
     if (optional_callee_migration_guard) {
       // Fast path: the callee proclet is actually local, use function call.
 
@@ -386,14 +388,14 @@ inline RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
 template <typename T>
 std::optional<Future<void>> Proclet<T>::update_ref_cnt(ProcletID id,
                                                        int delta) {
-  auto *caller_header = Runtime::get_current_proclet_header();
+  auto *caller_header = get_runtime()->get_current_proclet_header();
 
   if (caller_header) {
     MigrationGuard caller_migration_guard;
     auto *callee_header = to_proclet_header(id);
     auto optional_callee_migration_guard =
-        Runtime::reattach_and_disable_migration(callee_header,
-                                                caller_migration_guard);
+        get_runtime()->reattach_and_disable_migration(callee_header,
+                                                      caller_migration_guard);
     caller_migration_guard.reset();
     if (optional_callee_migration_guard) {
       // Fast path: the proclet is actually local, use function call.

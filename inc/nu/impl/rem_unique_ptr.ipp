@@ -19,7 +19,7 @@ inline RemUniquePtr<T>::RemUniquePtr() noexcept {}
 
 template <typename T>
 inline RemUniquePtr<T>::RemUniquePtr(T *raw_ptr)
-    : RemPtr<T>(Runtime::get_current_proclet_header(), raw_ptr) {}
+    : RemPtr<T>(get_runtime()->get_current_proclet_header(), raw_ptr) {}
 
 template <typename T>
 inline RemUniquePtr<T>::RemUniquePtr(std::unique_ptr<T> &&unique_ptr) noexcept

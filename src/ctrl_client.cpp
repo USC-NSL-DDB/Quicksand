@@ -14,7 +14,7 @@ namespace nu {
 ControllerClient::ControllerClient(NodeIP ctrl_server_ip, Runtime::Mode mode,
                                    lpid_t lpid)
     : lpid_(lpid),
-      rpc_client_(Runtime::rpc_client_mgr->get_by_ip(ctrl_server_ip)) {
+      rpc_client_(get_runtime()->rpc_client_mgr()->get_by_ip(ctrl_server_ip)) {
   netaddr laddr{.ip = 0, .port = 0};
   netaddr raddr{.ip = ctrl_server_ip, .port = ControllerServer::kPort};
   tcp_conn_.reset(rt::TcpConn::Dial(laddr, raddr));
