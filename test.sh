@@ -54,7 +54,8 @@ function run_test {
     disown -r
     sleep 3    
 
-    run_client $BIN 2>/dev/null | grep -q "Passed"
+    run_client $BIN 2>/dev/null | tee log
+    cat log | grep -q "Passed"
     ret=$?
 
     kill_process test_
@@ -84,7 +85,6 @@ function run_tests {
 
 function cleanup {
     kill_iokerneld
-    prune_fdb_table
 }
 
 function force_cleanup {

@@ -23,27 +23,12 @@ function setup_trust_dscp {
     sudo mlnx_qos -i $nic_dev --trust dscp
 }
 
-function setup_pfc {
-    sudo ethtool -A $nic_dev rx off tx off
-    sudo mlnx_qos -i $nic_dev -f 1,1,1,1,1,1,1,1 \
-	                       -p 0,1,2,3,4,5,6,7 \
-	                       --prio2buffer 0,1,1,1,1,1,1,1 \
-			       -s strict,strict,strict,strict,strict,strict,strict,strict
-}
-
 function setup_dropless_rq {
     sudo ethtool --set-priv-flags $nic_dev dropless_rq on
-}
-
-function prune_fdb_table {
-    sudo bridge fdb | grep $nic_dev | awk '{print $1, $2, $3}' | \
-	xargs -d '\n' -I {} bash -c "sudo bridge fdb delete {}"
 }
 
 setup_caladan
 get_nic_dev
 setup_jumbo_frame
 setup_trust_dscp
-#setup_pfc
 setup_dropless_rq
-prune_fdb_table
