@@ -40,7 +40,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
 }
 
 template <typename RetT>
-void Migrator::snapshot_thread_and_ret_val(
+__attribute__((noinline)) void Migrator::snapshot_thread_and_ret_val(
     std::unique_ptr<std::byte[]> *req_buf, uint64_t *req_buf_len,
     RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr) {
   rt::Thread(
@@ -84,7 +84,7 @@ void Migrator::snapshot_thread_and_ret_val(
 }
 
 template <typename RetT>
-__attribute__((optimize("no-omit-frame-pointer"))) inline void
+__attribute__((optimize("no-omit-frame-pointer"))) void
 Migrator::migrate_thread_and_ret_val(
     RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
     std::move_only_function<void()> &&cleanup_fn) {
