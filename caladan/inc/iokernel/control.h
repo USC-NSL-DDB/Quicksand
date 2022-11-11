@@ -8,6 +8,7 @@
 
 #include <base/bitmap.h>
 #include <base/limits.h>
+#include <base/pci.h>
 #include <iokernel/shm.h>
 #include <net/ethernet.h>
 
@@ -29,7 +30,7 @@ struct q_ptrs {
 	uint32_t		directpath_rx_tail;
 	uint64_t		next_timer_tsc;
 	uint32_t		storage_tail;
-	uint32_t		pad;
+	uint32_t		q_assign_idx;
 	uint64_t		oldest_tsc;
 	uint64_t		rcu_gen;
 	uint64_t		run_start_tsc;
@@ -150,5 +151,8 @@ struct control_hdr {
 /* information shared from iokernel to all runtimes */
 struct iokernel_info {
 	DEFINE_BITMAP(managed_cores, NCPU);
-	unsigned char rss_key[40];
+	unsigned char		rss_key[40];
+	struct pci_addr		directpath_pci;
 };
+
+BUILD_ASSERT(sizeof(struct iokernel_info) <= IOKERNEL_INFO_SIZE);

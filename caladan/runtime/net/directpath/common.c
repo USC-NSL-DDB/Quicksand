@@ -123,6 +123,17 @@ int directpath_init(void)
 	if (ret)
 		return ret;
 
+	if (!cfg_pci_addr_specified) {
+		if (memcmp(&nic_pci_addr, &iok.iok_info->directpath_pci, sizeof(nic_pci_addr))) {
+			memcpy(&nic_pci_addr,  &iok.iok_info->directpath_pci, sizeof(nic_pci_addr));
+			cfg_pci_addr_specified = true;
+			log_info("directpath: using pci address from iokernel: %04hx:%02hhx:%02hhx.%hhd",
+			         nic_pci_addr.domain, nic_pci_addr.bus,
+			         nic_pci_addr.slot, nic_pci_addr.func);
+		}
+	}
+
+
 	/* initialize mlx5 */
 	if (strncmp("qs", directpath_arg, 2) != 0) {
  		directpath_mode = RX_MODE_FLOW_STEERING;
@@ -186,6 +197,9 @@ int directpath_init_thread(void)
 	for (i = 0; i < ETH_VLAN_MAX_PCP; i++) {
 		k->directpath_txq[i] = txq_out[k->kthread_idx][i];
         }
+
+	if (directpath_mode == RX_MODE_FLOW_STEERING)
+		ACCESS_ONCE(k->q_ptrs->q_assign_idx) = k->kthread_idx;
 
 	tcache_init_perthread(directpath_buf_tcache, &perthread_get(directpath_buf_pt));
 
