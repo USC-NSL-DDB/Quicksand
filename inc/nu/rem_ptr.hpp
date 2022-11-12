@@ -34,7 +34,7 @@ class RemPtr {
   WeakProclet<ErasedType> proclet_;
   T *raw_ptr_ = nullptr;
 
-  RemPtr(ProcletHeader *header, T *raw_ptr);
+  RemPtr(T *raw_ptr);
 
  private:
   friend class DistributedMemPool;

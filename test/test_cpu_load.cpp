@@ -72,7 +72,11 @@ namespace nu {
 
 class Test {
  public:
-  void migrate() { get_runtime()->pressure_handler()->mock_set_pressure(); }
+  void migrate() {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+    get_runtime()->pressure_handler()->mock_set_pressure();
+  }
 
   bool mostly_equal(double real, double expected) {
     return std::abs((real - expected) / real) < 0.1;
@@ -98,21 +102,29 @@ class Test {
     }
 
     auto light_cpu_load = light_obj.run(+[](CPULightObj &_) {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
       auto *heap_header = get_runtime()->get_current_proclet_header();
       return heap_header->cpu_load.get_load();
     });
 
     auto heavy_cpu_load = heavy_obj.run(+[](CPUHeavyObj &_) {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
       auto *heap_header = get_runtime()->get_current_proclet_header();
       return heap_header->cpu_load.get_load();
     });
 
     auto nested_cpu_load = nested_obj.run(+[](CPUNestedObj &_) {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
       auto *heap_header = get_runtime()->get_current_proclet_header();
       return heap_header->cpu_load.get_load();
     });
 
     auto spin_cpu_load = spin_obj.run(+[](CPUSpinObj &_) {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
       auto *heap_header = get_runtime()->get_current_proclet_header();
       CPULoad::flush_all();
       return heap_header->cpu_load.get_load();

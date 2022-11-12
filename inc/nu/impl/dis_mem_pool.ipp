@@ -10,7 +10,12 @@ extern "C" {
 namespace nu {
 
 inline DistributedMemPool::Heap::Heap(uint32_t shard_size) {
-  auto *slab = get_runtime()->get_current_proclet_slab();
+  SlabAllocator *slab;
+  {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+    slab = get_runtime()->get_current_proclet_slab();
+  }
   BUG_ON(!slab->try_shrink(shard_size));
 }
 

@@ -2,10 +2,13 @@ namespace nu {
 
 template <class Shard>
 GeneralShardingMapping<Shard>::GeneralShardingMapping(uint32_t max_shard_bytes)
-    : self_(get_runtime()->get_current_weak_proclet<GeneralShardingMapping>()),
-      max_shard_bytes_(max_shard_bytes),
+    : max_shard_bytes_(max_shard_bytes),
       proclet_capacity_(max_shard_bytes_ * kProcletOverprovisionFactor),
-      ref_cnt_(1) {}
+      ref_cnt_(1) {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+  self_ = get_runtime()->get_current_weak_proclet<GeneralShardingMapping>();
+}
 
 template <class Shard>
 GeneralShardingMapping<Shard>::~GeneralShardingMapping() {

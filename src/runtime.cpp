@@ -193,11 +193,12 @@ void *operator new(size_t size, const std::nothrow_t &nothrow_value) noexcept {
 }
 
 void operator delete(void *ptr) noexcept {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+
   if (nu::get_runtime()->runtime_slab()) {
     nu::SlabAllocator::free(ptr);
   } else {
-    preempt_disable();
     free(ptr);
-    preempt_enable();
   }
 }

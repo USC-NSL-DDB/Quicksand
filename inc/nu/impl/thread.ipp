@@ -23,7 +23,12 @@ inline Thread &Thread::operator=(Thread &&t) {
 
 template <typename F>
 inline Thread::Thread(F &&f) {
-  auto *proclet_header = get_runtime()->get_current_proclet_header();
+  ProcletHeader *proclet_header;
+  {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+    proclet_header = get_runtime()->get_current_proclet_header();
+  }
 
   if (proclet_header) {
     create_in_proclet_env(f, proclet_header);

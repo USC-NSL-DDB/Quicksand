@@ -71,6 +71,8 @@ class Test {
   Test(uint32_t pressure_mem_mbs) : pressure_mem_mbs_(pressure_mem_mbs) {}
 
   int migrate() {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
     get_runtime()->pressure_handler()->mock_set_pressure();
     return 0;
   }

@@ -75,8 +75,13 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
       l_key_(l_key),
-      r_key_(r_key),
-      slab_(get_runtime()->get_current_proclet_slab()) {
+      r_key_(r_key) {
+  {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+    slab_ = get_runtime()->get_current_proclet_slab();
+  }
+
   if constexpr (Reservable<Container>) {
     if (reserve_space) {
       auto old_slab_usage = slab_->get_usage();

@@ -71,6 +71,8 @@ void Migrator::snapshot_thread_and_ret_val(
                reinterpret_cast<void *>(stack_range.start), stack_len);
         memcpy(req->payload + nu_state_size + stack_len, ret_val_span.data(),
                ret_val_span.size_bytes());
+
+        thread_unset_owner_proclet(th, false);
         // Only set req_buf after taking a snaphot of the stack so that only the
         // old thread will be able to observe its non-nullptr content.
         *req_buf = std::move(buf);

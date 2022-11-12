@@ -129,6 +129,8 @@ class Test {
  public:
   void run() {
     {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
       PerfResolveObjAdapter perf_resolve_obj_adapter(
           get_runtime()->controller_client());
       Perf perf(perf_resolve_obj_adapter);
@@ -137,6 +139,8 @@ class Test {
     }
 
     {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
       PerfAcquireMigrationDestAdapter perf_acquire_migration_dest_adapter(
           get_runtime()->controller_client());
       Perf perf(perf_acquire_migration_dest_adapter);
@@ -146,6 +150,8 @@ class Test {
     }
 
     {
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
       PerfUpdateLocationAdapter perf_update_location_adapter(
           get_runtime()->controller_client());
       Perf perf(perf_update_location_adapter);

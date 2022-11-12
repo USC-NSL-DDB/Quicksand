@@ -67,6 +67,8 @@ class Test {
   }
 
   static void migrate() {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
     get_runtime()->pressure_handler()->mock_set_pressure();
   }
 };

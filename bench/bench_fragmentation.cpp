@@ -69,6 +69,8 @@ struct Test {
 
   Test() {}
   uint64_t get_mem_usage() {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
     return get_runtime()->proclet_manager()->get_mem_usage();
   }
 };
@@ -151,7 +153,12 @@ void gen_commands(std::vector<Command> *commands) {
 uint64_t run_on_local_hash_table(std::vector<Command> *commands) {
   auto padding =
       (2ULL << bsr_64(sizeof(LocalHashTable))) - sizeof(LocalHashTable);
-  auto mem_usage_start = get_runtime()->runtime_slab()->get_usage();
+  size_t mem_usage_start;
+  {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+    mem_usage_start = get_runtime()->runtime_slab()->get_usage();
+  }
   LocalHashTable local_hash_table;
 
   std::vector<rt::Thread> threads;
@@ -176,7 +183,12 @@ uint64_t run_on_local_hash_table(std::vector<Command> *commands) {
     thread.Join();
   }
 
-  auto mem_usage_end = get_runtime()->runtime_slab()->get_usage();
+  size_t mem_usage_end;
+  {
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+    mem_usage_end = get_runtime()->runtime_slab()->get_usage();
+  }
 
   return mem_usage_end - mem_usage_start - padding;
 }

@@ -282,9 +282,8 @@ inline RetT Proclet<T>::run(
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
-  auto *caller_header = get_runtime()->get_current_proclet_header();
-
   MigrationGuard caller_migration_guard;
+  auto *caller_header = caller_migration_guard.header();
   if (caller_header) {
     auto callee_header = to_proclet_header(id_);
     auto optional_callee_migration_guard =
@@ -388,21 +387,23 @@ inline RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
 template <typename T>
 std::optional<Future<void>> Proclet<T>::update_ref_cnt(ProcletID id,
                                                        int delta) {
-  auto *caller_header = get_runtime()->get_current_proclet_header();
-
-  if (caller_header) {
+  {
     MigrationGuard caller_migration_guard;
-    auto *callee_header = to_proclet_header(id);
-    auto optional_callee_migration_guard =
-        get_runtime()->reattach_and_disable_migration(callee_header,
-                                                      caller_migration_guard);
-    caller_migration_guard.reset();
-    if (optional_callee_migration_guard) {
-      // Fast path: the proclet is actually local, use function call.
-      ProcletServer::update_ref_cnt_locally<T>(
-          &(*optional_callee_migration_guard), caller_header, callee_header,
-          delta);
-      return std::nullopt;
+    auto *caller_header = caller_migration_guard.header();
+
+    if (caller_header) {
+      auto *callee_header = to_proclet_header(id);
+      auto optional_callee_migration_guard =
+          get_runtime()->reattach_and_disable_migration(callee_header,
+                                                        caller_migration_guard);
+      caller_migration_guard.reset();
+      if (optional_callee_migration_guard) {
+        // Fast path: the proclet is actually local, use function call.
+        ProcletServer::update_ref_cnt_locally<T>(
+            &(*optional_callee_migration_guard), caller_header, callee_header,
+            delta);
+        return std::nullopt;
+      }
     }
   }
 

@@ -7,8 +7,7 @@ template <typename T>
 inline RemRawPtr<T>::RemRawPtr() {}
 
 template <typename T>
-inline RemRawPtr<T>::RemRawPtr(T *raw_ptr)
-    : RemPtr<T>(get_runtime()->get_current_proclet_header(), raw_ptr) {}
+inline RemRawPtr<T>::RemRawPtr(T *raw_ptr) : RemPtr<T>(raw_ptr) {}
 
 template <typename T>
 inline RemRawPtr<T>::RemRawPtr(const RemRawPtr<T> &o) : RemPtr<T>(o) {}

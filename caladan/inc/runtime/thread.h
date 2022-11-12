@@ -128,12 +128,13 @@ inline bool thread_monitored(void) {
 	return *cnt;
 }
 
-static inline void *thread_unset_owner_proclet(void)
+static inline void *thread_unset_owner_proclet(thread_t *th,
+					       bool update_monitor)
 {
 	void **owner_proclet_p =
-		(void **)((uint64_t)__self + thread_owner_proclet_offset);
+		(void **)((uint64_t)th + thread_owner_proclet_offset);
 	void *old_owner_proclet = *owner_proclet_p;
-	if (unlikely(old_owner_proclet))
+	if (update_monitor && unlikely(old_owner_proclet))
 		update_monitor_cycles();
 	*owner_proclet_p = NULL;
 

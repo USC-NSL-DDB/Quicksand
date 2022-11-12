@@ -156,7 +156,7 @@ inline WeakProclet<T> Runtime::get_current_weak_proclet() {
 }
 
 inline void Runtime::detach(const MigrationGuard &g) {
-  thread_unset_owner_proclet();
+  thread_unset_owner_proclet(thread_self(), true);
 }
 
 inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
@@ -208,13 +208,16 @@ inline ProcletSlabGuard::~ProcletSlabGuard() {
 }
 
 inline MigrationGuard::MigrationGuard() {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+
   header_ = get_runtime()->get_current_proclet_header();
   if (header_) {
   retry:
-    auto nesting_cnt = header_->rcu_lock.reader_lock();
+    auto nesting_cnt = header_->rcu_lock.reader_lock(g);
     if (unlikely(header_->status() == kAbsent && nesting_cnt == 1)) {
-      header_->rcu_lock.reader_unlock();
-      ProcletManager::wait_until(header_, kPresent);
+      header_->rcu_lock.reader_unlock(g);
+      g.EnableFor([&] { ProcletManager::wait_until(header_, kPresent); });
       goto retry;
     }
   }

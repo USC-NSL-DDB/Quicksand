@@ -22,7 +22,7 @@ Thread::trampoline_in_proclet_env(void *args) {
     rt::Preempt p;
     rt::PreemptGuard g(&p);
 
-    thread_unset_owner_proclet();
+    thread_unset_owner_proclet(thread_self(), true);
   }
 
   auto runtime_stack_base = thread_get_runtime_stack_base();
