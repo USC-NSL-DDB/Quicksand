@@ -1,12 +1,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <memory>
 #include <span>
+#include <syncstream>
 
 extern "C" {
 #include <base/assert.h>
@@ -55,6 +55,7 @@ MigratorConn::MigratorConn(MigratorConn &&o)
 }
 
 MigratorConn &MigratorConn::operator=(MigratorConn &&o) {
+  release();
   tcp_conn_ = o.tcp_conn_;
   ip_ = o.ip_;
   manager_ = o.manager_;
@@ -114,8 +115,7 @@ void Migrator::handle_copy_proclet(rt::TcpConn *c) {
 }
 
 inline void Migrator::handle_load(rt::TcpConn *c) {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
+  Caladan::PreemptGuard g;
 
   load(c);
 }
@@ -247,13 +247,14 @@ void Migrator::transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
   }
 
   if constexpr (kEnableLogging) {
-    preempt_disable();
-    std::cout << "Transmit proclet: addr = " << proclet_header
-              << ", size = " << len << ", time_us = " << t1 - t0
-              << ", num proclets left = "
-              << get_runtime()->proclet_manager()->get_num_present_proclets()
-              << std::endl;
-    preempt_enable();
+    Caladan::PreemptGuard g;
+
+    std::osyncstream synced_out(std::cout);
+    synced_out << "Transmit proclet: addr = " << proclet_header
+               << ", size = " << len << ", time_us = " << t1 - t0
+               << ", num proclets left = "
+               << get_runtime()->proclet_manager()->get_num_present_proclets()
+               << std::endl;
   }
 }
 
@@ -657,10 +658,11 @@ bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
   }
 
   if constexpr (kEnableLogging) {
-    preempt_disable();
-    std::cout << "Load proclet: addr = " << proclet_header
-              << ", time_us = " << t1 - t0 << std::endl;
-    preempt_enable();
+    Caladan::PreemptGuard g;
+
+    std::osyncstream synced_out(std::cout);
+    synced_out << "Load proclet: addr = " << proclet_header
+               << ", time_us = " << t1 - t0 << std::endl;
   }
   return true;
 }
@@ -856,9 +858,11 @@ void Migrator::load(rt::TcpConn *c) {
   }
 
   if (unlikely(!skipped_proclets.empty())) {
-    preempt_enable();
-    mmap_th.Join();
-    preempt_disable();
+    {
+      Caladan::PreemptGuard g;
+
+      mmap_th.Join();
+    }
     for (auto [proclet, size] : skipped_proclets) {
       get_runtime()->proclet_manager()->depopulate(proclet, size,
                                                    /* defer = */ false);
