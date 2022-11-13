@@ -2,14 +2,17 @@
 
 #include <vector>
 
-#include "nu/utils/mutex.hpp"
+#include <sync.h>
+#include <thread.h>
+#include <timer.h>
+
 #include "nu/utils/scoped_lock.hpp"
-#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 
 class SlabAllocator;
 class RCULock;
+struct ProcletHeader;
 
 class Caladan {
  public:
@@ -22,8 +25,9 @@ class Caladan {
   };
 
   void thread_park();
-  void thread_park_and_unlock_np(ScopedLock<SpinLock> &&lock);
-  void thread_park_and_unlock_np(spinlock_t *spin, struct list_head *waiters);
+  template <typename T>
+  void thread_park_and_unlock_np(ScopedLock<T> &&lock);
+  void thread_park_and_unlock_np(spinlock_t *spin, list_head *waiters);
   void thread_exit();
   void thread_yield();
   void thread_yield(const PreemptGuard &g);
@@ -31,6 +35,7 @@ class Caladan {
   void thread_spawn(F &&f);
   void thread_ready(thread_t *th);
   void thread_ready_head(thread_t *th);
+  bool preempt_enabled();
   template <typename F>
   void context_switch_to(F &&f);
   void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
@@ -62,12 +67,27 @@ class Caladan {
   bool thread_monitored();
   void thread_flush_all_monitor_cycles();
   void unblock_and_relax();
-  void wake_one_thread(struct list_head *waiters);
-  void wake_all_threads(struct list_head *waiters);
+  void wake_one_thread(list_head *waiters);
+  void wake_all_threads(list_head *waiters);
+  uint64_t rdtsc();
+  uint64_t microtime();
+  void timer_sleep_until(uint64_t deadline_us);
+  void timer_sleep(uint64_t deadline_us);
+  void timer_start(timer_entry *e, uint64_t deadline_us);
 
   static thread_t *thread_self();
   template <typename T>
   static T volatile &access_once(T &t);
+  static void spin_lock_init(spinlock_t *spin);
+  static void spin_lock_np(spinlock_t *spin);
+  static bool spin_try_lock_np(spinlock_t *spin);
+  static void spin_unlock_np(spinlock_t *spin);
+  static bool spin_lock_held(spinlock_t *spin);
+  static void mutex_init(mutex_t *mutex);
+  static bool mutex_held(mutex_t *mutex);
+  static bool mutex_try_lock(mutex_t *mutex);
+  static void condvar_init(condvar_t *condvar);
+  static void timer_init(timer_entry *e, timer_fn_t fn, unsigned long arg);
 
  private:
   Caladan() = default;

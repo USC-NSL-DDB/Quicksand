@@ -1,8 +1,6 @@
 #pragma once
 
-extern "C" {
-#include <runtime/sync.h>
-}
+#include <sync.h>
 
 namespace nu {
 

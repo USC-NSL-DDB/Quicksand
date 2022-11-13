@@ -13,7 +13,6 @@ inline Thread::~Thread() { BUG_ON(join_data_); }
 inline Thread::Thread(Thread &&t) { *this = std::move(t); }
 
 inline Thread &Thread::operator=(Thread &&t) {
-  Caladan::PreemptGuard g;
   join_data_ = t.join_data_;
   t.join_data_ = nullptr;
   return *this;
@@ -24,6 +23,7 @@ inline Thread::Thread(F &&f) {
   ProcletHeader *proclet_header;
   {
     Caladan::PreemptGuard g;
+
     proclet_header = get_runtime()->get_current_proclet_header();
   }
 
@@ -37,6 +37,7 @@ inline Thread::Thread(F &&f) {
 template <typename F>
 void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
   Caladan::PreemptGuard g;
+
   auto *proclet_stack = get_runtime()->stack_manager()->get();
   auto proclet_stack_addr = reinterpret_cast<uint64_t>(proclet_stack);
   assert(proclet_stack_addr % kStackAlignment == 0);
@@ -70,9 +71,7 @@ inline uint64_t Thread::get_current_id() {
   auto *proclet_header = get_runtime()->get_current_proclet_header();
 
   if (proclet_header) {
-    return get_runtime()
-        ->get_proclet_stack_range(get_runtime()->caladan()->thread_self())
-        .end;
+    return get_runtime()->get_proclet_stack_range(Caladan::thread_self()).end;
   } else {
     return get_runtime()->caladan()->get_current_thread_id();
   }

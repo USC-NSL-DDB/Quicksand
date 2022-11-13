@@ -279,11 +279,11 @@ inline void MigrationGuard::release() { header_ = nullptr; }
 
 inline void runtime_check(Runtime *runtime) {
 #ifdef DEBUG
-  if (runtime->caladan()->thread_self()) {
+  if (Caladan::thread_self()) {
     auto *proclet_header = runtime->caladan()->thread_get_owner_proclet();
-    if (proclet_header && preempt_enabled()) {
-      assert(runtime->caladan()->thread_is_rcu_held(
-          runtime->caladan()->thread_self(), &proclet_header->rcu_lock));
+    if (proclet_header && runtime->caladan()->preempt_enabled()) {
+      assert(runtime->caladan()->thread_is_rcu_held(Caladan::thread_self(),
+                                                    &proclet_header->rcu_lock));
     }
   }
 #endif

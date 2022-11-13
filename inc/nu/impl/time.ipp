@@ -1,27 +1,33 @@
-extern "C" {
-#include <runtime/timer.h>
-}
+#include "nu/runtime.hpp"
+#include "nu/utils/caladan.hpp"
 
 namespace nu {
 
 inline Time::Time() : offset_tsc_(0) {}
 
-inline void Time::delay(uint64_t us) { delay_us(us); }
+inline void Time::delay(uint64_t us) {
+  uint64_t cycles = us * cycles_per_us;
+  unsigned long start = rdtsc();
+
+  while (rdtsc() - start < cycles) {
+    cpu_relax();
+  }
+}
 
 inline uint64_t Time::to_logical_tsc(uint64_t physical_tsc) {
-  return physical_tsc + offset_tsc_;
+  return physical_tsc + Caladan::access_once(offset_tsc_);
 }
 
 inline uint64_t Time::to_logical_us(uint64_t physical_us) {
-  return physical_us + offset_tsc_ / cycles_per_us;
+  return physical_us + Caladan::access_once(offset_tsc_) / cycles_per_us;
 }
 
 inline uint64_t Time::to_physical_tsc(uint64_t logical_tsc) {
-  return logical_tsc - offset_tsc_;
+  return logical_tsc - Caladan::access_once(offset_tsc_);
 }
 
 inline uint64_t Time::to_physical_us(uint64_t logical_us) {
-  return logical_us - offset_tsc_ / cycles_per_us;
+  return logical_us - Caladan::access_once(offset_tsc_) / cycles_per_us;
 }
 
 inline uint64_t Time::proclet_env_microtime() {

@@ -1,9 +1,5 @@
 #include <memory>
 
-extern "C" {
-#include <base/assert.h>
-}
-
 #include "nu/runtime.hpp"
 #include "nu/utils/scoped_lock.hpp"
 #include "nu/utils/time.hpp"
@@ -39,7 +35,7 @@ uint64_t Time::rdtsc() {
   if (proclet_header) {
     return proclet_header->time.proclet_env_rdtsc();
   } else {
-    return ::rdtsc();
+    return get_runtime()->caladan()->rdtsc();
   }
 }
 
@@ -52,7 +48,7 @@ uint64_t Time::microtime() {
   if (proclet_header) {
     return proclet_header->time.proclet_env_microtime();
   } else {
-    return ::microtime();
+    return get_runtime()->caladan()->microtime();
   }
 }
 
@@ -65,7 +61,7 @@ void Time::sleep_until(uint64_t deadline_us) {
   if (proclet_header) {
     proclet_header->time.proclet_env_sleep_until(deadline_us);
   } else {
-    timer_sleep_until(deadline_us);
+    get_runtime()->caladan()->timer_sleep_until(deadline_us);
   };
 }
 
@@ -78,7 +74,7 @@ void Time::sleep(uint64_t duration_us) {
   if (proclet_header) {
     proclet_header->time.proclet_env_sleep(duration_us);
   } else {
-    timer_sleep(duration_us);
+    get_runtime()->caladan()->timer_sleep(duration_us);
   };
 }
 
@@ -96,7 +92,8 @@ void Time::proclet_env_sleep_until(uint64_t deadline_us) {
   }
   arg->logical_deadline_us = deadline_us;
   BUG_ON(!arg->proclet_header);
-  timer_init(e, Time::timer_callback, reinterpret_cast<unsigned long>(arg));
+  Caladan::timer_init(e, Time::timer_callback,
+                      reinterpret_cast<unsigned long>(arg));
 
   ScopedLock lock(&spin_);
   {
@@ -104,7 +101,7 @@ void Time::proclet_env_sleep_until(uint64_t deadline_us) {
     entries_.push_back(e);
   }
   arg->iter = --entries_.end();
-  timer_start(e, physical_us);
+  get_runtime()->caladan()->timer_start(e, physical_us);
   get_runtime()->caladan()->thread_park_and_unlock_np(std::move(lock));
 }
 

@@ -1,6 +1,3 @@
-#include <sync.h>
-#include <thread.h>
-
 namespace nu {
 
 inline Caladan::PreemptGuard::PreemptGuard() { preempt_disable(); }
@@ -27,13 +24,14 @@ inline void Caladan::thread_park() {
   rt::PreemptGuardAndPark gp(&p);
 }
 
-inline void Caladan::thread_park_and_unlock_np(ScopedLock<SpinLock> &&lock) {
+template <typename T>
+inline void Caladan::thread_park_and_unlock_np(ScopedLock<T> &&lock) {
   ::thread_park_and_unlock_np(&lock.l_->spinlock_);
   lock.l_ = nullptr;
 }
 
 inline void Caladan::thread_park_and_unlock_np(spinlock_t *spin,
-                                               struct list_head *waiters) {
+                                               list_head *waiters) {
   auto *myth = Caladan::thread_self();
   auto *myth_link = reinterpret_cast<list_node *>(
       reinterpret_cast<uintptr_t>(myth) + thread_link_offset);
@@ -62,6 +60,8 @@ inline void Caladan::thread_ready(thread_t *th) { ::thread_ready(th); }
 inline void Caladan::thread_ready_head(thread_t *th) {
   ::thread_ready_head(th);
 }
+
+inline bool Caladan::preempt_enabled() { return ::preempt_enabled(); }
 
 inline void *Caladan::thread_get_nu_state(thread_t *th, size_t *nu_state_size) {
   return ::thread_get_nu_state(th, nu_state_size);
@@ -173,7 +173,7 @@ inline void Caladan::unblock_and_relax() {
   cpu_relax();
 }
 
-inline void Caladan::wake_one_thread(struct list_head *waiters) {
+inline void Caladan::wake_one_thread(list_head *waiters) {
   auto *th = reinterpret_cast<thread_t *>(
       const_cast<void *>(list_pop_(waiters, thread_link_offset)));
   if (th) {
@@ -181,11 +181,67 @@ inline void Caladan::wake_one_thread(struct list_head *waiters) {
   }
 }
 
-inline void Caladan::wake_all_threads(struct list_head *waiters) {
+inline void Caladan::wake_all_threads(list_head *waiters) {
   while (auto *waketh = reinterpret_cast<thread_t *>(
              const_cast<void *>(list_pop_(waiters, thread_link_offset)))) {
     thread_ready(waketh);
   }
 }
 
+inline void Caladan::spin_lock_init(spinlock_t *spin) {
+  ::spin_lock_init(spin);
+}
+
+inline void Caladan::spin_lock_np(spinlock_t *spin) { ::spin_lock_np(spin); }
+
+inline bool Caladan::spin_try_lock_np(spinlock_t *spin) {
+  return ::spin_try_lock_np(spin);
+}
+
+inline void Caladan::spin_unlock_np(spinlock_t *spin) {
+  ::spin_unlock_np(spin);
+}
+
+inline bool Caladan::spin_lock_held(spinlock_t *spin) {
+  return ::spin_lock_held(spin);
+}
+
+inline void Caladan::mutex_init(mutex_t *mutex) {
+  ::mutex_init(mutex);
+}
+
+inline bool Caladan::mutex_held(mutex_t *mutex) {
+  return ::mutex_held(mutex);
+}
+
+inline bool Caladan::mutex_try_lock(mutex_t *mutex) {
+  return ::mutex_try_lock(mutex);
+}
+
+inline void Caladan::condvar_init(condvar_t *condvar) {
+  return ::condvar_init(condvar);
+}
+
+inline uint64_t Caladan::rdtsc() { return ::rdtsc(); }
+
+inline uint64_t Caladan::microtime() { return ::microtime(); }
+
+inline void Caladan::timer_init(timer_entry *e, timer_fn_t fn,
+                                unsigned long arg) {
+  ::timer_init(e, fn, arg);
+}
+
+inline void Caladan::timer_start(timer_entry *e, uint64_t deadline_us) {
+  ::timer_start(e, deadline_us);
+}
+
+inline void Caladan::timer_sleep_until(uint64_t deadline_us) {
+  ::timer_sleep_until(deadline_us);
+}
+
+inline void Caladan::timer_sleep(uint64_t duration_us) {
+  ::timer_sleep(duration_us);
+}
+
 }  // namespace nu
+

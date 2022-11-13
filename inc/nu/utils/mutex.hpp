@@ -1,10 +1,6 @@
 #pragma once
 
-#include "nu/commons.hpp"
-
-extern "C" {
-#include <runtime/sync.h>
-}
+#include <sync.h>
 
 namespace nu {
 class Mutex {

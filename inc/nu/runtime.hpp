@@ -15,7 +15,6 @@ extern "C" {
 #include "nu/stack_manager.hpp"
 #include "nu/utils/archive_pool.hpp"
 #include "nu/utils/caladan.hpp"
-#include "nu/utils/slab.hpp"
 
 namespace nu {
 
@@ -33,6 +32,8 @@ template <typename T>
 class WeakProclet;
 class MigrationGuard;
 class RPCReturner;
+class SlabAllocator;
+class Caladan;
 
 struct RPCReqReserveConns {
   RPCReqType rpc_type = kReserveConns;

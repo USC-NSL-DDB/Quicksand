@@ -9,7 +9,7 @@ namespace nu {
 
 void CondVar::wait(Mutex *mutex) {
   assert_mutex_held(&mutex->m_);
-  spin_lock_np(&cv_.waiter_lock);
+  Caladan::spin_lock_np(&cv_.waiter_lock);
   mutex->unlock();
   if (list_empty(&cv_.waiters)) {
     auto *proclet_header = get_runtime()->get_current_proclet_header();
@@ -31,7 +31,7 @@ void CondVar::wait(SpinLock *spin) {
 
 void CondVar::wait_and_unlock(SpinLock *spin) {
   assert_spin_lock_held(&spin->spinlock_);
-  spin_lock_np(&cv_.waiter_lock);
+  Caladan::spin_lock_np(&cv_.waiter_lock);
   spin->unlock();
   if (list_empty(&cv_.waiters)) {
     auto *proclet_header = get_runtime()->get_current_proclet_header();
@@ -45,7 +45,7 @@ void CondVar::wait_and_unlock(SpinLock *spin) {
 }
 
 void CondVar::signal() {
-  spin_lock_np(&cv_.waiter_lock);
+  Caladan::spin_lock_np(&cv_.waiter_lock);
   if (!list_empty(&cv_.waiters)) {
     get_runtime()->caladan()->wake_one_thread(&cv_.waiters);
     if (unlikely(list_empty(&cv_.waiters))) {
@@ -55,11 +55,11 @@ void CondVar::signal() {
       }
     }
   }
-  spin_unlock_np(&cv_.waiter_lock);
+  Caladan::spin_unlock_np(&cv_.waiter_lock);
 }
 
 void CondVar::signal_all() {
-  spin_lock_np(&cv_.waiter_lock);
+  Caladan::spin_lock_np(&cv_.waiter_lock);
   if (!list_empty(&cv_.waiters)) {
     auto *proclet_header = get_runtime()->get_current_proclet_header();
     if (proclet_header) {
@@ -67,7 +67,7 @@ void CondVar::signal_all() {
     }
   }
   get_runtime()->caladan()->wake_all_threads(&cv_.waiters);
-  spin_unlock_np(&cv_.waiter_lock);
+  Caladan::spin_unlock_np(&cv_.waiter_lock);
 }
 
 }  // namespace nu

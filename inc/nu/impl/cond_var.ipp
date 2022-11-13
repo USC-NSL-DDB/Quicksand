@@ -1,8 +1,8 @@
-#include <sync.h>
+#include "nu/utils/caladan.hpp"
 
 namespace nu {
 
-inline CondVar::CondVar() { condvar_init(&cv_); }
+inline CondVar::CondVar() { Caladan::condvar_init(&cv_); }
 
 inline CondVar::~CondVar() {}
 

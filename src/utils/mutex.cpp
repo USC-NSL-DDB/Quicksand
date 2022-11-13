@@ -11,12 +11,12 @@ namespace nu {
 constexpr uint32_t kWaiterFlag = 1 << 31;
 
 void Mutex::__lock() {
-  spin_lock_np(&m_.waiter_lock);
+  Caladan::spin_lock_np(&m_.waiter_lock);
 
   /* did we race with mutex_unlock? */
   if (atomic_fetch_and_or(&m_.held, kWaiterFlag) == 0) {
     atomic_write(&m_.held, 1);
-    spin_unlock_np(&m_.waiter_lock);
+    Caladan::spin_unlock_np(&m_.waiter_lock);
     return;
   }
 
@@ -32,7 +32,7 @@ void Mutex::__lock() {
 }
 
 void Mutex::__unlock() {
-  spin_lock_np(&m_.waiter_lock);
+  Caladan::spin_lock_np(&m_.waiter_lock);
 
   if (list_empty(&m_.waiters)) {
     atomic_write(&m_.held, 0);
@@ -44,7 +44,7 @@ void Mutex::__unlock() {
     get_runtime()->caladan()->wake_one_thread(&m_.waiters);
   }
 
-  spin_unlock_np(&m_.waiter_lock);
+  Caladan::spin_unlock_np(&m_.waiter_lock);
 }
 
 }  // namespace nu
