@@ -242,13 +242,6 @@ class ScopedLock {
     lock_->Lock();
   }
 
-  template <typename F>
-  void EnableFor(F &&f) {
-    lock_->Unlock();
-    f();
-    lock_->Lock();
-  }
-
  private:
   L *const lock_;
 

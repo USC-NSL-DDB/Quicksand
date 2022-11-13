@@ -47,12 +47,6 @@ inline const T &from_span(std::span<const std::byte> span) {
   return *reinterpret_cast<const T *>(span.data());
 }
 
-inline void unblock_and_relax() {
-  pause_local_migrating_threads();
-  prioritize_local_rcu_readers();
-  cpu_relax();
-}
-
 template <typename T>
 inline constexpr T div_round_up_unchecked(T dividend, T divisor) {
   return (dividend + divisor - 1) / divisor;

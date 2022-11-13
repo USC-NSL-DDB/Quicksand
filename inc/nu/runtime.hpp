@@ -14,7 +14,7 @@ extern "C" {
 #include "nu/rpc_server.hpp"
 #include "nu/stack_manager.hpp"
 #include "nu/utils/archive_pool.hpp"
-#include "nu/utils/rpc.hpp"
+#include "nu/utils/caladan.hpp"
 #include "nu/utils/slab.hpp"
 
 namespace nu {
@@ -32,6 +32,7 @@ class ResourceReporter;
 template <typename T>
 class WeakProclet;
 class MigrationGuard;
+class RPCReturner;
 
 struct RPCReqReserveConns {
   RPCReqType rpc_type = kReserveConns;
@@ -53,6 +54,7 @@ class Runtime {
   Migrator *migrator();
   ControllerServer *controller_server();
   ProcletServer *proclet_server();
+  Caladan *caladan();
   void reserve_conns(uint32_t ip);
   void common_init();
   void init_runtime_heap();
@@ -62,8 +64,8 @@ class Runtime {
   template <typename Cls, typename... A0s, typename... A1s>
   bool run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                               A1s &&... args);
-  void *switch_slab(void *slab);
-  void *switch_to_runtime_slab();
+  SlabAllocator *switch_slab(SlabAllocator *slab);
+  SlabAllocator *switch_to_runtime_slab();
   void *switch_stack(void *new_rsp);
   void switch_to_runtime_stack();
   VAddrRange get_proclet_stack_range(thread_t *thread);
@@ -87,6 +89,9 @@ class Runtime {
   // new proclet if succeeded. No migration will happen during its invocation.
   std::optional<MigrationGuard> reattach_and_disable_migration(
       ProcletHeader *new_header, const MigrationGuard &old_guard);
+  void send_rpc_resp_ok(ArchivePool<>::OASStream *oa_sstream,
+                        RPCReturner *returner);
+  void send_rpc_resp_wrong_client(RPCReturner *returner);
 
  private:
   std::unique_ptr<SlabAllocator> runtime_slab_;
@@ -101,6 +106,7 @@ class Runtime {
   std::unique_ptr<RPCServer> rpc_server_;
   std::unique_ptr<PressureHandler> pressure_handler_;
   std::unique_ptr<ResourceReporter> resource_reporter_;
+  std::unique_ptr<Caladan> caladan_;
   friend int runtime_main_init(int, char **, std::function<void(int, char **)>);
   friend Runtime *get_runtime();
   friend int ctrl_main(int, char **);
@@ -124,19 +130,19 @@ class RuntimeSlabGuard {
   RuntimeSlabGuard &operator=(RuntimeSlabGuard &&) = delete;
 
  private:
-  void *original_slab_;
+  SlabAllocator *original_slab_;
 };
 
 class ProcletSlabGuard {
  public:
-  ProcletSlabGuard(void *slab);
+  ProcletSlabGuard(SlabAllocator *slab);
   ~ProcletSlabGuard();
   ProcletSlabGuard(const ProcletSlabGuard &) = delete;
   ProcletSlabGuard &operator=(const ProcletSlabGuard &) = delete;
   ProcletSlabGuard &operator=(ProcletSlabGuard &&) = delete;
 
  private:
-  void *original_slab_;
+  SlabAllocator *original_slab_;
 };
 
 // Once constructed, it guarantees that the current proclet won't be migrated.

@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <utility>
 
+#include "nu/utils/spin_lock.hpp"
+
 namespace nu {
 
 template <typename K, typename V,
@@ -33,7 +35,7 @@ class PartitionedSpinHashMap {
   using KeyEqual = std::equal_to<K>;
 
   struct alignas(kCacheLineBytes) AlignedSpin {
-    rt::Spin spin;
+    Spin spin;
   };
 
   std::unordered_map<K, V, Hash, KeyEqual, Allocator> maps_[NPartitions];

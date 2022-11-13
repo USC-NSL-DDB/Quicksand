@@ -3,6 +3,7 @@ extern "C" {
 #include <runtime/timer.h>
 }
 
+#include "nu/runtime.hpp"
 #include "nu/utils/rcu_lock.hpp"
 
 namespace nu {
@@ -48,7 +49,8 @@ retry:
     } else {
       if (likely(microtime() < start_us + kWriterWaitFastPathMaxUs)) {
         // Fast path.
-        rt::Yield();
+	Caladan::PreemptGuard g;
+        get_runtime()->caladan()->thread_yield(g);
       } else {
         // Slow path.
         timer_sleep(kWriterWaitSlowPathSleepUs);

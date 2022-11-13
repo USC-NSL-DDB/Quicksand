@@ -2,9 +2,8 @@
 
 #include <cstdint>
 
-#include <sync.h>
-
 #include "nu/commons.hpp"
+#include "nu/utils/caladan.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/scoped_lock.hpp"
 
@@ -19,8 +18,8 @@ class RCULock {
   ~RCULock();
   uint32_t reader_lock();
   void reader_unlock();
-  uint32_t reader_lock(const rt::PreemptGuard &g);
-  void reader_unlock(const rt::PreemptGuard &g);
+  uint32_t reader_lock(const Caladan::PreemptGuard &g);
+  void reader_unlock(const Caladan::PreemptGuard &g);
   void writer_sync(bool poll = false);
 
  private:

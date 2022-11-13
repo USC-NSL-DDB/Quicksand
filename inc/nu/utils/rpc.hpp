@@ -109,13 +109,13 @@ class RPCCompletion {
   void Done(ssize_t len, rt::TcpConn *c);
 
   RPCReturnCode get_return_code() const {
-    while (rt::access_once(poll_)) {
-      unblock_and_relax();
-    }
+    Poll();
     return rc_;
   }
 
  private:
+  void Poll() const;
+
   RPCReturnCode rc_;
   RPCReturnBuffer *return_buf_;
   RPCCallback callback_;

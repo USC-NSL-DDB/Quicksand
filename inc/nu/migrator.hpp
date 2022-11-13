@@ -16,15 +16,16 @@ extern "C" {
 #include <net.h>
 #include <sync.h>
 
-#include "nu/proclet_mgr.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/utils/slab.hpp"
+#include "nu/utils/rpc.hpp"
 
 namespace nu {
 
 class Mutex;
 class CondVar;
 class Time;
+struct ProcletHeader;
 
 enum MigratorTCPOp_t {
   kCopyProclet,

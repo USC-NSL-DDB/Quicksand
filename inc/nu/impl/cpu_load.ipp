@@ -1,8 +1,6 @@
 #include <cstring>
 
-extern "C" {
-#include <runtime/thread.h>
-}
+#include "nu/runtime.hpp"
 
 namespace nu {
 
@@ -17,15 +15,19 @@ inline void CPULoad::start_monitor() {
   auto core_id = read_cpu();
 
   if (unlikely(cnts_[core_id].invocations++ % kSampleInterval == 0 ||
-               thread_monitored())) {
+               get_runtime()->caladan()->thread_monitored())) {
     cnts_[core_id].samples++;
-    thread_start_monitor_cycles();
+    get_runtime()->caladan()->thread_start_monitor_cycles();
   }
 }
 
-inline void CPULoad::end_monitor() { thread_end_monitor_cycles(); }
+inline void CPULoad::end_monitor() {
+  get_runtime()->caladan()->thread_end_monitor_cycles();
+}
 
-inline void CPULoad::flush_all() { thread_flush_all_monitor_cycles(); }
+inline void CPULoad::flush_all() {
+  get_runtime()->caladan()->thread_flush_all_monitor_cycles();
+}
 
 inline float CPULoad::get_load() const {
   auto now_tsc = rdtsc();

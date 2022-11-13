@@ -1,23 +1,21 @@
-#include <sync.h>
-
 #include <cstring>
+
+#include "nu/utils/caladan.hpp"
 
 namespace nu {
 
 inline Counter::Counter() { reset(); }
 
 inline void Counter::inc() {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
-  cnts_[p.get_cpu()].c++;
+  Caladan::PreemptGuard g;
+  cnts_[g.read_cpu()].c++;
 }
 
 inline void Counter::inc_unsafe() { cnts_[read_cpu()].c++; }
 
 inline void Counter::dec() {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
-  cnts_[p.get_cpu()].c--;
+  Caladan::PreemptGuard g;
+  cnts_[g.read_cpu()].c--;
 }
 
 inline void Counter::dec_unsafe() { cnts_[read_cpu()].c--; }

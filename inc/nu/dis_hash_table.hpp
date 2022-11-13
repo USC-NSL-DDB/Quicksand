@@ -7,7 +7,6 @@
 extern "C" {
 #include <runtime/net.h>
 }
-#include <thread.h>
 
 #include "nu/proclet.hpp"
 #include "nu/utils/mutex.hpp"

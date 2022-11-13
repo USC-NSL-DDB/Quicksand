@@ -1,0 +1,79 @@
+#pragma once
+
+#include <vector>
+
+#include "nu/utils/mutex.hpp"
+#include "nu/utils/scoped_lock.hpp"
+#include "nu/utils/spin_lock.hpp"
+
+namespace nu {
+
+class SlabAllocator;
+class RCULock;
+
+class Caladan {
+ public:
+  struct PreemptGuard {
+    PreemptGuard();
+    ~PreemptGuard();
+    uint32_t read_cpu() const;
+    template <typename F>
+    void enable_for(F &&f);
+  };
+
+  void thread_park();
+  void thread_park_and_unlock_np(ScopedLock<SpinLock> &&lock);
+  void thread_park_and_unlock_np(spinlock_t *spin, struct list_head *waiters);
+  void thread_exit();
+  void thread_yield();
+  void thread_yield(const PreemptGuard &g);
+  template <typename F>
+  void thread_spawn(F &&f);
+  void thread_ready(thread_t *th);
+  void thread_ready_head(thread_t *th);
+  template <typename F>
+  void context_switch_to(F &&f);
+  void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
+  thread_t *create_migrated_thread(void *nu_state);
+  thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
+  thread_t *thread_nu_create_with_buf(void *proclet_stack,
+                                      uint32_t proclet_stack_size,
+                                      thread_fn_t fn, void **buf,
+                                      size_t buf_len);
+  thread_id_t get_thread_id(thread_t *th);
+  thread_id_t get_current_thread_id();
+  void thread_wait_until_parked(thread_t *th);
+  ProcletHeader *thread_unset_owner_proclet(thread_t *th, bool update_monitor);
+  ProcletHeader *thread_set_owner_proclet(thread_t *th,
+                                          ProcletHeader *owner_proclet,
+                                          bool update_monitor);
+  ProcletHeader *thread_get_owner_proclet();
+  SlabAllocator *thread_get_proclet_slab();
+  SlabAllocator *thread_set_proclet_slab(SlabAllocator *proclet_slab);
+  void *thread_get_runtime_stack_base();
+  uint64_t thread_get_rsp(thread_t *th);
+  bool thread_has_been_migrated();
+  int32_t thread_hold_rcu(RCULock *rcu, bool flag);
+  int32_t thread_unhold_rcu(RCULock *rcu, bool *flag);
+  bool thread_is_rcu_held(thread_t *th, RCULock *rcu);
+  bool thread_is_at_creator();
+  void thread_start_monitor_cycles();
+  void thread_end_monitor_cycles();
+  bool thread_monitored();
+  void thread_flush_all_monitor_cycles();
+  void unblock_and_relax();
+  void wake_one_thread(struct list_head *waiters);
+  void wake_all_threads(struct list_head *waiters);
+
+  static thread_t *thread_self();
+  template <typename T>
+  static T volatile &access_once(T &t);
+
+ private:
+  Caladan() = default;
+  friend class Runtime;
+};
+
+}  // namespace nu
+
+#include "nu/impl/caladan.ipp"

@@ -15,7 +15,6 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/commons.hpp"
-#include "nu/proclet_mgr.hpp"
 #include "nu/rpc_client_mgr.hpp"
 #include "nu/utils/md5.hpp"
 

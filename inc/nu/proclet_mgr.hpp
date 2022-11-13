@@ -28,14 +28,6 @@ extern "C" {
 
 namespace nu {
 
-struct Pressure;
-class SlabAllocator;
-class Mutex;
-class CondVar;
-class Time;
-template <typename T>
-class RuntimeAllocator;
-
 enum ProcletStatus { kAbsent = 0, kPresent, kDestructing };
 // Proclet statuses are stored out of band so that they are always accessible
 // even if the proclets are not present locally.
@@ -103,7 +95,7 @@ class ProcletManager {
  private:
   std::vector<void *> present_proclets_;
   uint32_t num_present_proclets_;
-  rt::Spin spin_;
+  SpinLock spin_;
   friend class Test;
 
   bool __remove(void *proclet_base, ProcletStatus new_status);

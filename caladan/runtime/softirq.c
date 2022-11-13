@@ -95,20 +95,31 @@ bool softirq_run_locked(struct kthread *k)
  */
 bool softirq_run(void)
 {
+	bool work_done;
+
+	preempt_disable();
+	work_done = softirq_run_preempt_disabled();
+	preempt_enable();
+
+	return work_done;
+}
+
+bool softirq_run_preempt_disabled(void)
+{
 	struct kthread *k;
 	uint64_t now_tsc = rdtsc();
 	bool work_done;
 
-	k = getk();
+	assert_preempt_disabled();
+
+	k = myk();
 	if (!softirq_pending(k, now_tsc)) {
 		k->last_softirq_tsc = now_tsc;
-		putk();
 		return false;
 	}
 	spin_lock(&k->lock);
 	work_done = softirq_run_locked(k);
 	spin_unlock(&k->lock);
-	putk();
 
 	return work_done;
 }

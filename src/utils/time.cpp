@@ -5,7 +5,7 @@ extern "C" {
 }
 
 #include "nu/runtime.hpp"
-#include "nu/runtime_deleter.hpp"
+#include "nu/utils/scoped_lock.hpp"
 #include "nu/utils/time.hpp"
 
 namespace nu {
@@ -22,18 +22,18 @@ void Time::timer_callback(unsigned long arg_addr) {
   get_runtime()->detach(*optional_migration_guard);
 
   auto &time = proclet_header->time;
-  time.spin_.Lock();
-  time.entries_.erase(arg->iter);
-  time.spin_.Unlock();
+  {
+    ScopedLock lock(&time.spin_);
+    time.entries_.erase(arg->iter);
+  }
 
-  thread_ready(arg->th);
+  get_runtime()->caladan()->thread_ready(arg->th);
 }
 
 uint64_t Time::rdtsc() {
   ProcletHeader *proclet_header;
   {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
     proclet_header = get_runtime()->get_current_proclet_header();
   }
   if (proclet_header) {
@@ -46,8 +46,7 @@ uint64_t Time::rdtsc() {
 uint64_t Time::microtime() {
   ProcletHeader *proclet_header;
   {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
     proclet_header = get_runtime()->get_current_proclet_header();
   }
   if (proclet_header) {
@@ -60,8 +59,7 @@ uint64_t Time::microtime() {
 void Time::sleep_until(uint64_t deadline_us) {
   ProcletHeader *proclet_header;
   {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
     proclet_header = get_runtime()->get_current_proclet_header();
   }
   if (proclet_header) {
@@ -74,8 +72,7 @@ void Time::sleep_until(uint64_t deadline_us) {
 void Time::sleep(uint64_t duration_us) {
   ProcletHeader *proclet_header;
   {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
     proclet_header = get_runtime()->get_current_proclet_header();
   }
   if (proclet_header) {
@@ -92,24 +89,23 @@ void Time::proclet_env_sleep_until(uint64_t deadline_us) {
   auto *arg = new TimerCallbackArg();
   std::unique_ptr<TimerCallbackArg> arg_gc(arg);
 
-  arg->th = thread_self();
+  arg->th = Caladan::thread_self();
   {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
     arg->proclet_header = get_runtime()->get_current_proclet_header();
   }
   arg->logical_deadline_us = deadline_us;
   BUG_ON(!arg->proclet_header);
   timer_init(e, Time::timer_callback, reinterpret_cast<unsigned long>(arg));
 
-  spin_.Lock();
+  ScopedLock lock(&spin_);
   {
     RuntimeSlabGuard g;
     entries_.push_back(e);
   }
   arg->iter = --entries_.end();
   timer_start(e, physical_us);
-  thread_park_and_unlock_np(reinterpret_cast<spinlock_t *>(&spin_));
+  get_runtime()->caladan()->thread_park_and_unlock_np(std::move(lock));
 }
 
 }  // namespace nu

@@ -22,6 +22,7 @@ class ScopedLock {
 
  private:
   L *l_;
+  friend class Caladan;
 };
 
 }  // namespace nu

@@ -6,8 +6,8 @@
 #include <thread.h>
 
 #include "nu/commons.hpp"
-#include "nu/migrator.hpp"
 #include "nu/runtime.hpp"
+#include "nu/migrator.hpp"
 #include "nu/pressure_handler.hpp"
 
 constexpr static bool kEnableLogging = false;
@@ -138,7 +138,7 @@ void PressureHandler::pause_aux_handlers() {
   // Wait for aux pressure handlers to exit.
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
     while (rt::access_once(aux_handler_states_[i].done)) {
-      unblock_and_relax();
+      get_runtime()->caladan()->unblock_and_relax();
     }
   }
 }
@@ -146,7 +146,7 @@ void PressureHandler::pause_aux_handlers() {
 void PressureHandler::wait_aux_tasks() {
   for (uint32_t i = 0; i < kNumAuxHandlers; i++) {
     while (rt::access_once(aux_handler_states_[i].task_pending)) {
-      unblock_and_relax();
+      get_runtime()->caladan()->unblock_and_relax();
     }
   }
 }
@@ -155,7 +155,7 @@ void PressureHandler::update_aux_handler_state(uint32_t handler_id,
                                                MigratorConn &&conn) {
   auto &state = aux_handler_states_[handler_id];
   while (rt::access_once(state.task_pending)) {
-    unblock_and_relax();
+    get_runtime()->caladan()->unblock_and_relax();
   }
   barrier();
   state.conn = std::move(conn);
@@ -165,7 +165,7 @@ void PressureHandler::dispatch_aux_tcp_task(
     uint32_t handler_id, std::vector<iovec> &&tcp_write_task) {
   auto &state = aux_handler_states_[handler_id];
   while (rt::access_once(state.task_pending)) {
-    unblock_and_relax();
+    get_runtime()->caladan()->unblock_and_relax();
   }
   state.tcp_write_task = std::move(tcp_write_task);
   store_release(&state.task_pending, true);
@@ -174,7 +174,7 @@ void PressureHandler::dispatch_aux_tcp_task(
 void PressureHandler::dispatch_aux_pause_task(uint32_t handler_id) {
   auto &state = aux_handler_states_[handler_id];
   while (rt::access_once(state.task_pending)) {
-    unblock_and_relax();
+    get_runtime()->caladan()->unblock_and_relax();
   }
   state.pause = true;
   store_release(&state.task_pending, true);
@@ -197,7 +197,7 @@ void PressureHandler::aux_handler(void *args) {
       }
       store_release(&state->task_pending, false);
     }
-    unblock_and_relax();
+    get_runtime()->caladan()->unblock_and_relax();
   }
   state->conn.release();
   // Prepare for the next start.

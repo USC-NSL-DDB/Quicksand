@@ -10,11 +10,9 @@ extern "C" {
 #include <base/assert.h>
 #include <runtime/net.h>
 }
-#include <thread.h>
 
 #include "nu/ctrl_client.hpp"
 #include "nu/exception.hpp"
-#include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
 #include "nu/rem_shared_ptr.hpp"
 #include "nu/rem_unique_ptr.hpp"
@@ -23,6 +21,8 @@ extern "C" {
 #include "nu/utils/future.hpp"
 
 namespace nu {
+
+struct ProcletHeader;
 
 template <typename... S1s>
 inline void serialize(auto *oa_sstream, S1s &&... states) {

@@ -9,12 +9,12 @@
 extern "C" {
 #include <base/time.h>
 }
-#include <sync.h>
-#include <thread.h>
 
 #include "nu/commons.hpp"
 #include "nu/proclet.hpp"
 #include "nu/utils/future.hpp"
+#include "nu/utils/mutex.hpp"
+#include "nu/utils/thread.hpp"
 
 namespace nu {
 
@@ -109,9 +109,9 @@ class DistributedMemPool {
   FreeShardPerCoreCache local_free_shards_[kNumCores];
   std::deque<Shard> global_free_shards_;
   std::deque<Shard> global_full_shards_;
-  rt::Mutex global_mutex_;
+  Mutex global_mutex_;
   uint64_t last_probing_us_;
-  std::unique_ptr<rt::Thread> probing_thread_;
+  std::unique_ptr<Thread> probing_thread_;
   bool probing_active_;
 
   bool done_;

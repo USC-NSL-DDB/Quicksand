@@ -1,6 +1,7 @@
 #include <cmath>
 
 #include "nu/sharding_mapping.hpp"
+#include "nu/utils/caladan.hpp"
 #include "nu/utils/rob_executor.hpp"
 
 namespace nu {
@@ -77,8 +78,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       l_key_(l_key),
       r_key_(r_key) {
   {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
     slab_ = get_runtime()->get_current_proclet_slab();
   }
 
@@ -120,8 +120,7 @@ template <class Container>
 inline Container GeneralShard<Container>::get_container_copy() {
   rw_lock_.reader_lock();
 
-  rt::Preempt p;
-  rt::PreemptGuard preempt_guard(&p);
+  Caladan::PreemptGuard g;
   RuntimeSlabGuard slab_guard;
 
   Container c = container_;
@@ -153,8 +152,7 @@ void GeneralShard<Container>::split() {
 
   BUG_ON(container_.empty());
   {
-    rt::Preempt p;
-    rt::PreemptGuard preempt_guard(&p);
+    Caladan::PreemptGuard g;
     RuntimeSlabGuard slab_guard;
 
     latter_half_container.reset(new Container());

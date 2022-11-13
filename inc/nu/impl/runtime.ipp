@@ -12,7 +12,6 @@ extern "C" {
 
 #include "nu/commons.hpp"
 #include "nu/proclet_mgr.hpp"
-#include "nu/runtime_alloc.hpp"
 #include "nu/stack_manager.hpp"
 
 namespace nu {
@@ -41,18 +40,20 @@ inline ProcletServer *Runtime::proclet_server() {
   return proclet_server_.get();
 }
 
+inline Caladan *Runtime::caladan() { return caladan_.get(); }
+
 inline Migrator *Runtime::migrator() { return migrator_.get(); }
 
 inline ControllerServer *Runtime::controller_server() {
   return controller_server_.get();
 }
 
-inline void *Runtime::switch_slab(void *slab) {
-  return thread_set_proclet_slab(slab);
+inline SlabAllocator *Runtime::switch_slab(SlabAllocator *slab) {
+  return caladan_->thread_set_proclet_slab(slab);
 }
 
-inline void *Runtime::switch_to_runtime_slab() {
-  return thread_set_proclet_slab(nullptr);
+inline SlabAllocator *Runtime::switch_to_runtime_slab() {
+  return caladan_->thread_set_proclet_slab(nullptr);
 }
 
 [[gnu::always_inline]] inline void *Runtime::switch_stack(void *new_rsp) {
@@ -68,24 +69,24 @@ inline void *Runtime::switch_to_runtime_slab() {
 }
 
 [[gnu::always_inline]] inline void Runtime::switch_to_runtime_stack() {
-  auto *runtime_rsp = thread_get_runtime_stack_base();
+  auto *runtime_rsp = caladan_->thread_get_runtime_stack_base();
   switch_stack(runtime_rsp);
 }
 
 inline VAddrRange Runtime::get_proclet_stack_range(thread_t *thread) {
   VAddrRange range;
-  auto rsp = thread_get_rsp(thread);
+  auto rsp = caladan_->thread_get_rsp(thread);
   range.start = rsp - kStackRedZoneSize;
   range.end = ((rsp + kStackSize) & (~(kStackSize - 1)));
   return range;
 }
 
 inline SlabAllocator *Runtime::get_current_proclet_slab() {
-  return reinterpret_cast<nu::SlabAllocator *>(thread_get_proclet_slab());
+  return caladan_->thread_get_proclet_slab();
 }
 
 inline ProcletHeader *Runtime::get_current_proclet_header() {
-  return reinterpret_cast<ProcletHeader *>(thread_get_owner_proclet());
+  return caladan_->thread_get_owner_proclet();
 }
 
 template <typename T>
@@ -121,13 +122,13 @@ Runtime::__run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
   fn(&migration_guard, obj_ptr, std::forward<A1s>(args)...);
   detach(migration_guard);
 
-  if (unlikely(thread_has_been_migrated())) {
+  if (unlikely(caladan_->thread_has_been_migrated())) {
     migration_guard.reset();
     auto proclet_stack_base = get_proclet_stack_range(__self).end;
     // FIXME
-    switch_stack(thread_get_runtime_stack_base());
+    switch_stack(caladan_->thread_get_runtime_stack_base());
     stack_manager_->put(reinterpret_cast<uint8_t *>(proclet_stack_base));
-    rt::Exit();
+    get_runtime()->caladan()->thread_exit();
   }
 
   return true;
@@ -156,15 +157,15 @@ inline WeakProclet<T> Runtime::get_current_weak_proclet() {
 }
 
 inline void Runtime::detach(const MigrationGuard &g) {
-  thread_unset_owner_proclet(thread_self(), true);
+  caladan_->thread_unset_owner_proclet(caladan_->thread_self(), true);
 }
 
 inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
     ProcletHeader *new_header) {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
+  Caladan::PreemptGuard g;
 
-  auto *old_header = thread_set_owner_proclet(thread_self(), new_header, true);
+  auto *old_header = caladan_->thread_set_owner_proclet(caladan_->thread_self(),
+                                                        new_header, true);
   if (!new_header) {
     return MigrationGuard(nullptr);
   } else if (new_header->status() != kAbsent) {
@@ -175,19 +176,20 @@ inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
     new_header->rcu_lock.reader_unlock(g);
   }
 
-  thread_set_owner_proclet(thread_self(), old_header, false);
+  caladan_->thread_set_owner_proclet(caladan_->thread_self(), old_header,
+                                     false);
   return std::nullopt;
 }
 
 inline std::optional<MigrationGuard> Runtime::attach_and_disable_migration(
     ProcletHeader *proclet_header) {
-  assert(!thread_get_owner_proclet());
+  assert(!caladan_->thread_get_owner_proclet());
   return __reattach_and_disable_migration(proclet_header);
 }
 
 inline std::optional<MigrationGuard> Runtime::reattach_and_disable_migration(
     ProcletHeader *new_header, const MigrationGuard &old_guard) {
-  assert(thread_get_owner_proclet() == old_guard.header());
+  assert(caladan_->thread_get_owner_proclet() == old_guard.header());
   return __reattach_and_disable_migration(new_header);
 }
 
@@ -199,7 +201,7 @@ inline RuntimeSlabGuard::~RuntimeSlabGuard() {
   get_runtime()->switch_slab(original_slab_);
 }
 
-inline ProcletSlabGuard::ProcletSlabGuard(void *slab) {
+inline ProcletSlabGuard::ProcletSlabGuard(SlabAllocator *slab) {
   original_slab_ = get_runtime()->switch_slab(slab);
 }
 
@@ -208,8 +210,7 @@ inline ProcletSlabGuard::~ProcletSlabGuard() {
 }
 
 inline MigrationGuard::MigrationGuard() {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
+  Caladan::PreemptGuard g;
 
   header_ = get_runtime()->get_current_proclet_header();
   if (header_) {
@@ -217,7 +218,7 @@ inline MigrationGuard::MigrationGuard() {
     auto nesting_cnt = header_->rcu_lock.reader_lock(g);
     if (unlikely(header_->status() == kAbsent && nesting_cnt == 1)) {
       header_->rcu_lock.reader_unlock(g);
-      g.EnableFor([&] { ProcletManager::wait_until(header_, kPresent); });
+      g.enable_for([&] { ProcletManager::wait_until(header_, kPresent); });
       goto retry;
     }
   }
@@ -276,22 +277,22 @@ inline void MigrationGuard::reset() {
 
 inline void MigrationGuard::release() { header_ = nullptr; }
 
-inline void runtime_check() {
+inline void runtime_check(Runtime *runtime) {
 #ifdef DEBUG
-  if (thread_self()) {
-    auto *proclet_header =
-        reinterpret_cast<ProcletHeader *>(thread_get_owner_proclet());
+  if (runtime->caladan()->thread_self()) {
+    auto *proclet_header = runtime->caladan()->thread_get_owner_proclet();
     if (proclet_header && preempt_enabled()) {
-      assert(thread_is_rcu_held(thread_self(), &proclet_header->rcu_lock));
+      assert(runtime->caladan()->thread_is_rcu_held(
+          runtime->caladan()->thread_self(), &proclet_header->rcu_lock));
     }
   }
 #endif
 }
 
 inline Runtime *get_runtime() {
-  runtime_check();
-
   static Runtime singleton_runtime;
+
+  runtime_check(&singleton_runtime);
   return &singleton_runtime;
 }
 

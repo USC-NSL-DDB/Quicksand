@@ -1,19 +1,15 @@
-extern "C" {
-#include <base/compiler.h>
-}
-
 #include "nu/rem_raw_ptr.hpp"
 #include "nu/rem_shared_ptr.hpp"
 #include "nu/rem_unique_ptr.hpp"
 #include "nu/utils/promise.hpp"
+#include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
 
 inline DistributedMemPool::Heap::Heap(uint32_t shard_size) {
   SlabAllocator *slab;
   {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
     slab = get_runtime()->get_current_proclet_slab();
   }
   BUG_ON(!slab->try_shrink(shard_size));
@@ -87,11 +83,11 @@ inline DistributedMemPool::~DistributedMemPool() { halt_probing(); }
 
 inline void DistributedMemPool::halt_probing() {
   {
-    rt::ScopedLock<rt::Mutex> scope(&global_mutex_);
+    ScopedLock<Mutex> scope(&global_mutex_);
     done_ = true;
   }
   if (probing_thread_) {
-    probing_thread_->Join();
+    probing_thread_->join();
   }
 }
 

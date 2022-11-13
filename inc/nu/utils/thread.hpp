@@ -5,11 +5,12 @@
 
 #include <sync.h>
 
-#include "nu/proclet_mgr.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/spin_lock.hpp"
 
 namespace nu {
+
+struct ProcletHeader;
 
 struct join_data {
   template <typename F>

@@ -580,6 +580,7 @@ extern bool disable_watchdog;
 extern bool softirq_pending(struct kthread *k, uint64_t now_tsc);
 extern bool softirq_run_locked(struct kthread *k);
 extern bool softirq_run(void);
+extern bool softirq_run_preempt_disabled(void);
 extern bool softirq_directpath_pending(struct kthread *k);
 extern void directpath_softirq_one(struct kthread *k);
 

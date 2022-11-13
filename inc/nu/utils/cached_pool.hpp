@@ -1,11 +1,10 @@
 #pragma once
 
-#include <sync.h>
-
 #include <memory>
 #include <stack>
 
 #include "nu/commons.hpp"
+#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 template <typename T, typename Allocator = std::allocator<T>>
@@ -37,7 +36,7 @@ class CachedPool {
   uint32_t per_core_cache_size_;
   LocalCache locals_[kNumCores];
   ItemStack global_;
-  rt::Spin global_spin_;
+  SpinLock global_spin_;
 
   void init(uint32_t per_core_cache_size);
   T *get_slow_path(LocalCache *local);

@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+#include "nu/utils/spin_lock.hpp"
+
 namespace nu {
 
 template <typename K, typename Allocator = std::allocator<K>,
@@ -28,7 +30,7 @@ class PartitionedSpinHashSet {
   using KeyEqual = std::equal_to<K>;
 
   struct alignas(kCacheLineBytes) AlignedSpin {
-    rt::Spin spin;
+    Spin spin;
   };
 
   std::unordered_set<K, Hash, KeyEqual, Allocator> sets_[NPartitions];

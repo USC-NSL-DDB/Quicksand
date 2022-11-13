@@ -74,6 +74,7 @@ extern void set_uthread_specific(uint64_t val);
  */
 
 extern void thread_yield(void);
+extern void thread_yield_and_preempt_enable(void);
 extern int thread_spawn(thread_fn_t fn, void *arg);
 extern void thread_exit(void) __noreturn;
 

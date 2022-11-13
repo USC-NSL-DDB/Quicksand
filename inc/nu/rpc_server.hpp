@@ -2,8 +2,6 @@
 
 #include <cstdint>
 
-#include "nu/utils/rpc.hpp"
-
 namespace nu {
 
 enum RPCReqEnum {

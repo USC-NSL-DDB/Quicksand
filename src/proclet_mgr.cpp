@@ -10,9 +10,8 @@ extern "C" {
 #include <runtime/thread.h>
 }
 
-#include "nu/proclet_mgr.hpp"
 #include "nu/runtime.hpp"
-#include "nu/runtime_alloc.hpp"
+#include "nu/proclet_mgr.hpp"
 
 namespace nu {
 
@@ -45,7 +44,7 @@ void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
 
   {
     // Sync with get_proclet_info() inovked by PressureHandler.
-    rt::SpinGuard g(&spin_);
+    ScopedLock lock(&spin_);
     proclet_header->status() = kAbsent;
   }
 
@@ -95,7 +94,7 @@ void ProcletManager::setup(void *proclet_base, uint64_t capacity,
 
 std::vector<void *> ProcletManager::get_all_proclets() {
   {
-    rt::SpinGuard guard(&spin_);
+    ScopedLock lock(&spin_);
     auto iter = present_proclets_.begin();
     for (auto *proclet_base : present_proclets_) {
       auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);

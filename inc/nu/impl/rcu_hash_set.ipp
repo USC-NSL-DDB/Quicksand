@@ -4,7 +4,6 @@
 extern "C" {
 #include <base/assert.h>
 }
-#include <thread.h>
 
 namespace nu {
 

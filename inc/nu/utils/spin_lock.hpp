@@ -17,6 +17,7 @@ class SpinLock {
  private:
   spinlock_t spinlock_;
   friend class CondVar;
+  friend class Caladan;
 };
 }  // namespace nu
 

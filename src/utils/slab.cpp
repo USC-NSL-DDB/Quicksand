@@ -1,6 +1,7 @@
 #include <algorithm>
 
 #include "nu/utils/slab.hpp"
+#include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
 
@@ -70,16 +71,16 @@ inline uint32_t get_num_cache_entries(bool aggressive_caching,
 
 #ifdef SLAB_TRANSFER_CACHE
 inline void SlabAllocator::drain_transferred_cache(
-    const rt::Preempt &p, uint32_t slab_shift) noexcept {
-  auto &transferred_cache = transferred_caches_[p.get_cpu()];
+    const Caladan::PreemptGuard &g, uint32_t slab_shift) noexcept {
+  auto &transferred_cache = transferred_caches_[g.read_cpu()];
   auto &list = transferred_cache.lists[slab_shift];
 
   if (list.size()) {
-    rt::SpinGuard g(&transferred_cache.spin);
+    ScopedLock l(&transferred_cache.spin);
 
     while (list.size()) {
       auto *ptr = list.pop();
-      __do_free(p, ptr, slab_shift);
+      __do_free(g, ptr, slab_shift);
     }
   }
 }
@@ -91,21 +92,20 @@ void *SlabAllocator::__allocate(size_t size) noexcept {
   auto slab_shift = get_slab_shift(size);
 
   if (likely(slab_shift < kMaxSlabClassShift)) {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
 
 #ifdef SLAB_TRANSFER_CACHE
-    drain_transferred_cache(p, slab_shift);
+    drain_transferred_cache(g, slab_shift);
 #endif
 
-    cpu = p.get_cpu();
+    cpu = g.read_cpu();
     auto &cache_list = cache_lists_[cpu].lists[slab_shift];
     if (likely(cache_list.size())) {
       ret = cache_list.pop();
     }
 
     if (unlikely(!ret)) {
-      rt::SpinGuard g(&spin_);
+      ScopedLock lock(&spin_);
       auto &slab_list = slab_lists_[slab_shift];
       auto num_cache_entries =
           std::max(static_cast<uint32_t>(1),
@@ -163,33 +163,32 @@ void SlabAllocator::__free(const void *_ptr) noexcept {
   auto slab_shift = slab->get_slab_shift(size);
 
   if (likely(slab_shift < slab->kMaxSlabClassShift)) {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
 
 #ifdef SLAB_TRANSFER_CACHE
-    slab->drain_transferred_cache(p, slab_shift);
-    if (likely(p.get_cpu() == hdr->core_id)) {
+    slab->drain_transferred_cache(g, slab_shift);
+    if (likely(g.read_cpu() == hdr->core_id)) {
 #endif
-      slab->__do_free(p, ptr, slab_shift);
+      slab->__do_free(g, ptr, slab_shift);
 #ifdef SLAB_TRANSFER_CACHE
     } else {
       auto &transferred_cache = slab->transferred_caches_[hdr->core_id];
-      rt::SpinGuard g(&transferred_cache.spin);
+      ScopedLock lock(&transferred_cache.spin);
       transferred_cache.lists[slab_shift].push(ptr);
     }
 #endif
   }
 }
 
-inline void SlabAllocator::__do_free(const rt::Preempt &p, void *ptr,
+inline void SlabAllocator::__do_free(const Caladan::PreemptGuard &g, void *ptr,
                                      uint32_t slab_shift) noexcept {
-  auto &cache_list = cache_lists_[p.get_cpu()].lists[slab_shift];
+  auto &cache_list = cache_lists_[g.read_cpu()].lists[slab_shift];
   cache_list.push(ptr);
 
   auto num_cache_entries =
       get_num_cache_entries(aggressive_caching_, slab_shift);
   if (unlikely(cache_list.size() > num_cache_entries)) {
-    rt::SpinGuard g(&spin_);
+    ScopedLock lock(&spin_);
     auto &slab_list = slab_lists_[slab_shift];
     while (cache_list.size() > num_cache_entries / 2) {
       slab_list.push(cache_list.pop());
@@ -198,7 +197,7 @@ inline void SlabAllocator::__do_free(const rt::Preempt &p, void *ptr,
 }
 
 void *SlabAllocator::yield(size_t size) noexcept {
-  rt::SpinGuard g(&spin_);
+  ScopedLock lock(&spin_);
   size = (((size - 1) / kAlignment) + 1) * kAlignment;
   if (unlikely(cur_ + size > end_)) {
     return nullptr;

@@ -16,7 +16,6 @@ extern "C" {
 #include "nu/ctrl_server.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
-#include "nu/runtime_alloc.hpp"
 #include "nu/utils/rpc.hpp"
 
 namespace nu {

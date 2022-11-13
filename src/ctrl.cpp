@@ -11,6 +11,7 @@ extern "C" {
 #include <thread.h>
 
 #include "nu/commons.hpp"
+#include "nu/runtime.hpp"
 #include "nu/ctrl.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"

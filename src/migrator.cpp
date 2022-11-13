@@ -20,13 +20,13 @@ extern "C" {
 #include "nu/commons.hpp"
 #include "nu/ctrl_client.hpp"
 #include "nu/migrator.hpp"
+#include "nu/runtime.hpp"
 #include "nu/pressure_handler.hpp"
 #include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
-#include "nu/runtime.hpp"
-#include "nu/runtime_alloc.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
+#include "nu/utils/scoped_lock.hpp"
 #include "nu/utils/thread.hpp"
 
 namespace nu {
@@ -631,7 +631,7 @@ bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
                                           /* migratable = */ false,
                                           /* from_migration = */ true);
   while (proclet_header->pending_load_cnt.load()) {
-    unblock_and_relax();
+    get_runtime()->caladan()->unblock_and_relax();
   }
 
   auto *slab = &proclet_header->slab;
@@ -771,7 +771,7 @@ void Migrator::load_time(rt::TcpConn *c, ProcletHeader *proclet_header) {
       auto *th = load_one_thread(c, proclet_header);
       arg->th = th;
       {
-        rt::SpinGuard guard(&time.spin_);
+        ScopedLock lock(&time.spin_);
         time.entries_.push_back(entry);
         arg->iter = --time.entries_.end();
       }

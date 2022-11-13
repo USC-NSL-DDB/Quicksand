@@ -1,3 +1,5 @@
+#include "nu/utils/caladan.hpp"
+
 namespace nu {
 
 template <class Shard>
@@ -5,8 +7,7 @@ GeneralShardingMapping<Shard>::GeneralShardingMapping(uint32_t max_shard_bytes)
     : max_shard_bytes_(max_shard_bytes),
       proclet_capacity_(max_shard_bytes_ * kProcletOverprovisionFactor),
       ref_cnt_(1) {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
+  Caladan::PreemptGuard g;
   self_ = get_runtime()->get_current_weak_proclet<GeneralShardingMapping>();
 }
 
@@ -19,7 +20,8 @@ template <class Shard>
 void GeneralShardingMapping<Shard>::seal() {
   mutex_.lock();
   BUG_ON(!ref_cnt_);                        // Cannot be sealed twice.
-  while (rt::access_once(ref_cnt_) != 1) {  // Wait until there's only one ref.
+  while (Caladan::access_once(ref_cnt_) !=
+         1) {  // Wait until there's only one ref.
     ref_cnt_cv_.wait(&mutex_);
   }
   ref_cnt_ = 0;
@@ -38,7 +40,7 @@ void GeneralShardingMapping<Shard>::unseal() {
 template <class Shard>
 void GeneralShardingMapping<Shard>::inc_ref_cnt() {
   mutex_.lock();
-  while (!rt::access_once(ref_cnt_)) {  // Wait until it is unsealed.
+  while (!Caladan::access_once(ref_cnt_)) {  // Wait until it is unsealed.
     ref_cnt_cv_.wait(&mutex_);
   }
   ref_cnt_++;

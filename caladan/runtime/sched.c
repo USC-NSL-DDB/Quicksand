@@ -1010,11 +1010,23 @@ void thread_cede(void)
  */
 void thread_yield(void)
 {
-	thread_t *curth;
+	thread_t *curth = thread_self();
 
+	/* check for softirqs */
 	softirq_run();
+
 	preempt_disable();
-	curth = thread_self();
+	curth->thread_ready = false;
+	thread_ready(curth);
+	enter_schedule(curth);
+}
+
+void thread_yield_and_preempt_enable(void)
+{
+	thread_t *curth = thread_self();
+
+	assert_preempt_disabled();
+	softirq_run_preempt_disabled();
 	curth->thread_ready = false;
 	thread_ready(curth);
 	enter_schedule(curth);

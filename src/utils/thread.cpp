@@ -1,3 +1,4 @@
+#include "nu/runtime.hpp"
 #include "nu/utils/thread.hpp"
 
 namespace nu {
@@ -19,13 +20,13 @@ Thread::trampoline_in_proclet_env(void *args) {
   std::destroy_at(&d->func);
 
   {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
 
-    thread_unset_owner_proclet(thread_self(), true);
+    get_runtime()->caladan()->thread_unset_owner_proclet(thread_self(), true);
   }
 
-  auto runtime_stack_base = thread_get_runtime_stack_base();
+  auto runtime_stack_base =
+      get_runtime()->caladan()->thread_get_runtime_stack_base();
   auto old_rsp = get_runtime()->switch_stack(runtime_stack_base);
   get_runtime()->switch_to_runtime_slab();
 
@@ -34,7 +35,7 @@ Thread::trampoline_in_proclet_env(void *args) {
        (~(kStackSize - 1)));
   get_runtime()->stack_manager()->put(
       reinterpret_cast<uint8_t *>(proclet_stack_addr));
-  rt::Exit();
+  get_runtime()->caladan()->thread_exit();
 }
 
 void Thread::trampoline_in_runtime_env(void *args) {

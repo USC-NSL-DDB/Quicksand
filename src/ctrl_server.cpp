@@ -1,14 +1,14 @@
+#include <algorithm>
+
 extern "C" {
 #include <base/assert.h>
 #include <net/ip.h>
 }
-
 #include <runtime.h>
 #include <sync.h>
 #include <timer.h>
 
-#include <algorithm>
-
+#include "nu/runtime.hpp"
 #include "nu/ctrl_server.hpp"
 
 namespace nu {

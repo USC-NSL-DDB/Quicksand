@@ -1,3 +1,4 @@
+#include "nu/runtime.hpp"
 #include "nu/rpc_client_mgr.hpp"
 #include "nu/utils/archive_pool.hpp"
 #include "nu/utils/thread.hpp"
@@ -17,8 +18,9 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
   get_runtime()->detach(*optional_migration_guard);
 
   size_t nu_state_size;
-  thread_get_nu_state(thread_self(), &nu_state_size);
-  auto *th = create_migrated_thread(payload);
+  get_runtime()->caladan()->thread_get_nu_state(Caladan::thread_self(),
+                                                &nu_state_size);
+  auto *th = get_runtime()->caladan()->create_migrated_thread(payload);
   auto stack_range = get_runtime()->get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
   memcpy(reinterpret_cast<void *>(stack_range.start), payload + nu_state_size,
@@ -35,7 +37,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
   }
   get_runtime()->archive_pool()->put_ia_sstream(ia_sstream);
 
-  thread_ready(th);
+  get_runtime()->caladan()->thread_ready(th);
   return kOk;
 }
 
@@ -43,14 +45,17 @@ template <typename RetT>
 void Migrator::snapshot_thread_and_ret_val(
     std::unique_ptr<std::byte[]> *req_buf, uint64_t *req_buf_len,
     RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr) {
-  rt::Thread(
-      [&, th = thread_self(), ret_val_buf = std::move(ret_val_buf)]() mutable {
-        thread_wait_until_parked(th);
+  get_runtime()->caladan()->context_switch_to(
+      [&, th = Caladan::thread_self(),
+       ret_val_buf = std::move(ret_val_buf)]() mutable {
+        get_runtime()->caladan()->thread_wait_until_parked(th);
         auto *dest_proclet_header = to_proclet_header(dest_id);
-        thread_set_owner_proclet(th, dest_proclet_header, true);
+        get_runtime()->caladan()->thread_set_owner_proclet(
+            th, dest_proclet_header, true);
 
         size_t nu_state_size;
-        auto *nu_state = thread_get_nu_state(th, &nu_state_size);
+        auto *nu_state =
+            get_runtime()->caladan()->thread_get_nu_state(th, &nu_state_size);
 
         auto stack_range = get_runtime()->get_proclet_stack_range(th);
         auto stack_len = stack_range.end - stack_range.start;
@@ -72,24 +77,19 @@ void Migrator::snapshot_thread_and_ret_val(
         memcpy(req->payload + nu_state_size + stack_len, ret_val_span.data(),
                ret_val_span.size_bytes());
 
-        thread_unset_owner_proclet(th, false);
+        get_runtime()->caladan()->thread_unset_owner_proclet(th, false);
         // Only set req_buf after taking a snaphot of the stack so that only the
         // old thread will be able to observe its non-nullptr content.
         *req_buf = std::move(buf);
-        thread_ready_head(th);
-      },
-      /* head = */ true)
-      .Detach();
-
-  rt::Preempt p;
-  rt::PreemptGuardAndPark gp(&p);
+        get_runtime()->caladan()->thread_ready_head(th);
+      });
 }
 
 template <typename RetT>
 inline MigrationGuard Migrator::migrate_thread_and_ret_val(
     RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,
     std::move_only_function<void()> &&cleanup_fn) {
-  assert(!thread_get_owner_proclet());
+  assert(!get_runtime()->caladan()->thread_get_owner_proclet());
 
   std::unique_ptr<std::byte[]> req_buf;
   uint64_t req_buf_len;

@@ -1,3 +1,5 @@
+#include "nu/utils/caladan.hpp"
+
 namespace nu {
 
 template <typename Arg, typename Ret>
@@ -44,7 +46,7 @@ void RobExecutor<Arg, Ret>::executor_fn() {
     for (auto &entry : rob_) {
       entry.mutex.lock();
       while (!entry.arg) {
-        if (unlikely(rt::access_once(done_))) {
+        if (unlikely(Caladan::access_once(done_))) {
           entry.mutex.unlock();
           return;
         }

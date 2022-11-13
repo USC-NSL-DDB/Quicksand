@@ -9,14 +9,13 @@ extern "C" {
 }
 #include <sync.h>
 
-#include "nu/proclet_mgr.hpp"
-#include "nu/runtime.hpp"
-#include "nu/runtime_alloc.hpp"
 #include "nu/utils/archive_pool.hpp"
 #include "nu/utils/rpc.hpp"
 #include "nu/utils/trace_logger.hpp"
 
 namespace nu {
+
+struct ProcletHeader;
 
 class ProcletServer {
  public:
@@ -56,9 +55,6 @@ class ProcletServer {
 
   static void forward(RPCReturnCode rc, RPCReturner *returner,
                       const void *payload, uint64_t payload_len);
-  static void send_rpc_resp_ok(ArchivePool<>::OASStream *oa_sstream,
-                               RPCReturner *returner);
-  static void send_rpc_resp_wrong_client(RPCReturner *returner);
   void parse_and_run_handler(std::span<std::byte> args, RPCReturner *returner);
   template <typename Cls, typename... As>
   static void __construct_proclet(MigrationGuard *callee_guard, Cls *obj,
@@ -72,7 +68,6 @@ class ProcletServer {
   static void __run_closure(MigrationGuard *callee_guard, Cls *obj,
                             cereal::BinaryInputArchive &ia,
                             RPCReturner returner);
-  static void release_proclet(VAddrRange vaddr_range);
 };
 }  // namespace nu
 

@@ -1,3 +1,5 @@
+#include "nu/runtime.hpp"
+
 namespace nu {
 
 namespace rpc_internal {
@@ -46,6 +48,12 @@ inline void RPCFlow::Call(std::span<const std::byte> src, RPCCompletion *c) {
   rt::SpinGuard guard(&lock_);
   reqs_.emplace(req_ctx{src, c});
   if (sent_count_ - recv_count_ < credits_) wake_sender_.Wake();
+}
+
+inline void RPCCompletion::Poll() const {
+  while (rt::access_once(poll_)) {
+    get_runtime()->caladan()->unblock_and_relax();
+  }
 }
 
 }  // namespace rpc_internal

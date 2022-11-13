@@ -4,13 +4,12 @@
 #include <optional>
 
 #include <net.h>
-#include <sync.h>
-#include <thread.h>
 
 #include "nu/ctrl.hpp"
+#include "nu/ctrl_client.hpp"
 #include "nu/migrator.hpp"
-#include "nu/proclet_mgr.hpp"
 #include "nu/runtime.hpp"
+#include "nu/proclet_mgr.hpp"
 #include "nu/type_traits.hpp"
 
 namespace nu {
@@ -36,7 +35,7 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
   }
 
   auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
-  send_rpc_resp_ok(oa_sstream, &returner);
+  get_runtime()->send_rpc_resp_ok(oa_sstream, &returner);
 }
 
 template <typename Cls, typename... As>
@@ -142,7 +141,13 @@ void ProcletServer::__update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
 
   RuntimeSlabGuard guard;
   auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
-  send_rpc_resp_ok(oa_sstream, &returner);
+  get_runtime()->send_rpc_resp_ok(oa_sstream, &returner);
+}
+
+inline void release_proclet(VAddrRange vaddr_range) {
+  get_runtime()->caladan()->thread_spawn([vaddr_range] {
+    get_runtime()->controller_client()->destroy_proclet(vaddr_range);
+  });
 }
 
 template <typename Cls>
@@ -164,13 +169,13 @@ void ProcletServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
     // Wait for other concurrent cnt updating threads to finish.
     proclet_header->rcu_lock.writer_sync();
     auto vaddr_range = proclet_header->range();
-    ProcletServer::release_proclet(vaddr_range);
+    release_proclet(vaddr_range);
     get_runtime()->proclet_manager()->cleanup(proclet_base,
                                               /* for_migration = */ false);
   }
 
   if (proclet_not_found) {
-    send_rpc_resp_wrong_client(returner);
+    get_runtime()->send_rpc_resp_wrong_client(returner);
   }
 }
 
@@ -204,7 +209,7 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
       });
     }
     callee_header->status() = kAbsent;
-    ProcletServer::release_proclet(callee_header->range());
+    release_proclet(callee_header->range());
     get_runtime()->proclet_manager()->cleanup(callee_header,
                                               /* for_migration = */ false);
   }
@@ -261,7 +266,7 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
   if constexpr (kNonVoidRetT) {
     oa_sstream->oa << std::move(ret);
   }
-  send_rpc_resp_ok(oa_sstream, &returner);
+  get_runtime()->send_rpc_resp_ok(oa_sstream, &returner);
 
   callee_header->thread_cnt.dec_unsafe();
   callee_header->cpu_load.end_monitor();
@@ -280,7 +285,7 @@ void ProcletServer::run_closure(cereal::BinaryInputArchive &ia,
       proclet_header, __run_closure<Cls, RetT, FnPtr, S1s...>, ia, *returner);
 
   if (proclet_not_found) {
-    send_rpc_resp_wrong_client(returner);
+    get_runtime()->send_rpc_resp_wrong_client(returner);
   }
 }
 

@@ -8,13 +8,9 @@
 #include <string_view>
 #include <type_traits>
 
-extern "C" {
-#include <base/compiler.h>
-#include <runtime/preempt.h>
-}
-#include <sync.h>
-
 #include "nu/commons.hpp"
+#include "nu/utils/caladan.hpp"
+#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 
@@ -85,7 +81,7 @@ class SlabAllocator {
   };
 
   struct alignas(kCacheLineBytes) TransferredCoreCache {
-    rt::Spin spin;
+    SpinLock spin;
     FreePtrsLinkedList lists[kMaxSlabClassShift];
   };
 
@@ -100,13 +96,14 @@ class SlabAllocator {
 #ifdef SLAB_TRANSFER_CACHE
   TransferredCoreCache transferred_caches_[kNumCores];
 #endif
-  rt::Spin spin_;
+  SpinLock spin_;
 
   void *__allocate(size_t size) noexcept;
   static void __free(const void *ptr) noexcept;
-  void __do_free(const rt::Preempt &p, void *ptr, uint32_t slab_shift) noexcept;
+  void __do_free(const Caladan::PreemptGuard &g, void *ptr,
+                 uint32_t slab_shift) noexcept;
   uint32_t get_slab_shift(uint64_t size) noexcept;
-  void drain_transferred_cache(const rt::Preempt &p,
+  void drain_transferred_cache(const Caladan::PreemptGuard &g,
                                uint32_t slab_shift) noexcept;
 };
 }  // namespace nu

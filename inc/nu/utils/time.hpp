@@ -7,7 +7,8 @@ extern "C" {
 #include <base/time.h>
 #include <runtime/timer.h>
 }
-#include <sync.h>
+
+#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 
@@ -26,7 +27,7 @@ class Time {
  private:
   int64_t offset_tsc_;
   std::list<timer_entry *> entries_;
-  rt::Spin spin_;
+  SpinLock spin_;
   friend class Migrator;
 
   static void timer_callback(unsigned long arg_addr);

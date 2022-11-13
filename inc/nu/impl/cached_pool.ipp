@@ -1,8 +1,6 @@
 #include <memory>
 
-extern "C" {
-#include <runtime/preempt.h>
-}
+#include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
 
@@ -54,12 +52,13 @@ CachedPool<T, Allocator>::~CachedPool() {
 
 template <typename T, typename Allocator>
 T *CachedPool<T, Allocator>::get_slow_path(LocalCache *local) {
-  global_spin_.Lock();
-  while (!global_.empty() && local->num < per_core_cache_size_) {
-    local->items[local->num++] = global_.top();
-    global_.pop();
+  {
+    ScopedLock<SpinLock> lock(&global_spin_);
+    while (!global_.empty() && local->num < per_core_cache_size_) {
+      local->items[local->num++] = global_.top();
+      global_.pop();
+    }
   }
-  global_spin_.Unlock();
   while (local->num < per_core_cache_size_) {
     local->items[local->num++] = new_fn_();
   }
@@ -84,7 +83,7 @@ inline T *CachedPool<T, Allocator>::get() {
 
 template <typename T, typename Allocator>
 void CachedPool<T, Allocator>::put_slow_path(LocalCache *local) {
-  rt::ScopedLock<rt::Spin> lock(&global_spin_);
+  ScopedLock<SpinLock> lock(&global_spin_);
   while (local->num > per_core_cache_size_ / 2 && local->num > 1) {
     global_.push(local->items[--local->num]);
   }
@@ -109,7 +108,7 @@ void CachedPool<T, Allocator>::reserve(uint32_t num) {
     items[i] = new_fn_();
   }
 
-  rt::ScopedLock<rt::Spin> lock(&global_spin_);
+  ScopedLock<SpinLock> lock(&global_spin_);
   for (uint32_t i = 0; i < num; i++) {
     global_.push(items[i]);
   }

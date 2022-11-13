@@ -48,8 +48,7 @@ Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid) {
       BUG();
     }
 
-    rt::Preempt p;
-    rt::PreemptGuardAndPark pg(&p);
+    caladan_->thread_park();
   }
 }
 
@@ -61,14 +60,15 @@ Runtime::~Runtime() {
   rpc_client_mgr_.reset();
   migrator_.reset();
   archive_pool_.reset();
+  caladan_.reset();
   runtime_slab_.reset();
 }
 
 void Runtime::init_runtime_heap() {
   auto addr = reinterpret_cast<void *>(kMinRuntimeHeapVaddr);
   {
-    rt::Preempt p;
-    rt::PreemptGuard g(&p);
+    Caladan::PreemptGuard g;
+
     auto mmap_addr =
         mmap(addr, kRuntimeHeapSize, PROT_READ | PROT_WRITE,
              MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED | MAP_NORESERVE, -1, 0);
@@ -112,6 +112,7 @@ void Runtime::init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid) {
 void Runtime::common_init() {
   prealloc_threads_and_stacks(4 * kNumCores);
   init_runtime_heap();
+  caladan_.reset(new decltype(caladan_)::element_type());
   rpc_client_mgr_.reset(
       new decltype(rpc_client_mgr_)::element_type(RPCServer::kPort));
 }
@@ -120,6 +121,33 @@ void Runtime::reserve_conns(uint32_t ip) {
   RuntimeSlabGuard guard;
   migrator_->reserve_conns(ip);
   rpc_client_mgr_->get_by_ip(ip);
+}
+
+void Runtime::send_rpc_resp_ok(ArchivePool<>::OASStream *oa_sstream,
+                               RPCReturner *returner) {
+  auto view = oa_sstream->ss.view();
+  auto data = reinterpret_cast<const std::byte *>(view.data());
+  auto len = oa_sstream->ss.tellp();
+
+  if (likely(caladan_->thread_is_at_creator())) {
+    auto span = std::span(data, len);
+
+    returner->Return(kOk, span, [this, oa_sstream]() {
+      archive_pool_->put_oa_sstream(oa_sstream);
+    });
+  } else {
+    migrator_->forward_to_original_server(kOk, returner, len, data);
+    archive_pool_->put_oa_sstream(oa_sstream);
+  }
+}
+
+void Runtime::send_rpc_resp_wrong_client(RPCReturner *returner) {
+  if (likely(caladan_->thread_is_at_creator())) {
+    returner->Return(kErrWrongClient);
+  } else {
+    migrator_->forward_to_original_server(kErrWrongClient, returner, 0,
+                                          nullptr);
+  }
 }
 
 int runtime_main_init(int argc, char **argv,
@@ -165,19 +193,17 @@ int runtime_main_init(int argc, char **argv,
 }  // namespace nu
 
 inline void *__new(size_t size) {
+  nu::Caladan::PreemptGuard g;
   void *ptr;
-  auto *slab =
-      thread_self()
-          ? reinterpret_cast<nu::SlabAllocator *>(thread_get_proclet_slab())
-          : nullptr;
+  auto *slab = nu::Caladan::thread_self()
+                   ? nu::get_runtime()->caladan()->thread_get_proclet_slab()
+                   : nullptr;
   if (slab) {
     ptr = slab->allocate(size);
   } else if (auto *runtime_slab = nu::get_runtime()->runtime_slab()) {
     ptr = runtime_slab->allocate(size);
   } else {
-    preempt_disable();
     ptr = malloc(size);
-    preempt_enable();
   }
   return ptr;
 }
@@ -193,8 +219,7 @@ void *operator new(size_t size, const std::nothrow_t &nothrow_value) noexcept {
 }
 
 void operator delete(void *ptr) noexcept {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
+  nu::Caladan::PreemptGuard g;
 
   if (nu::get_runtime()->runtime_slab()) {
     nu::SlabAllocator::free(ptr);

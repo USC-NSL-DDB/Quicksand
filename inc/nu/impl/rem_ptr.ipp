@@ -1,5 +1,6 @@
 #include "nu/commons.hpp"
 #include "nu/runtime.hpp"
+#include "nu/utils/caladan.hpp"
 
 namespace nu {
 
@@ -48,8 +49,7 @@ inline RemPtr<T> &RemPtr<T>::operator=(RemPtr<T> &&o) noexcept {
 
 template <typename T>
 inline RemPtr<T>::RemPtr(T *raw_ptr) : raw_ptr_(raw_ptr) {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
+  Caladan::PreemptGuard g;
   proclet_.id_ = to_proclet_id(get_runtime()->get_current_proclet_header());
 }
 

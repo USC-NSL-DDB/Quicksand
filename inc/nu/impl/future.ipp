@@ -1,10 +1,5 @@
 #pragma once
 
-extern "C" {
-#include <base/compiler.h>
-}
-#include <sync.h>
-
 #include "nu/utils/promise.hpp"
 
 namespace nu {
@@ -85,12 +80,12 @@ inline Future<void, Deleter>::operator bool() const {
 
 template <typename T, typename Deleter>
 inline bool Future<T, Deleter>::is_ready() {
-  return rt::access_once(promise_->ready_);
+  return Caladan::access_once(promise_->ready_);
 }
 
 template <typename Deleter>
 inline bool Future<void, Deleter>::is_ready() {
-  return rt::access_once(promise_->ready_);
+  return Caladan::access_once(promise_->ready_);
 }
 
 template <typename T, typename Deleter>

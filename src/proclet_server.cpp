@@ -11,12 +11,11 @@ extern "C" {
 #include <thread.h>
 
 #include "nu/commons.hpp"
+#include "nu/runtime.hpp"
 #include "nu/ctrl_client.hpp"
 #include "nu/migrator.hpp"
 #include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
-#include "nu/runtime.hpp"
-#include "nu/runtime_alloc.hpp"
 
 constexpr static bool kEnableLogging = false;
 constexpr static uint32_t kPrintLoggingIntervalUs = 200 * 1000;
@@ -48,40 +47,6 @@ void ProcletServer::parse_and_run_handler(std::span<std::byte> args,
   }
 
   get_runtime()->archive_pool()->put_ia_sstream(ia_sstream);
-}
-
-void ProcletServer::send_rpc_resp_ok(ArchivePool<>::OASStream *oa_sstream,
-                                     RPCReturner *returner) {
-  auto view = oa_sstream->ss.view();
-  auto data = reinterpret_cast<const std::byte *>(view.data());
-  auto len = oa_sstream->ss.tellp();
-
-  if (likely(thread_is_at_creator())) {
-    auto span = std::span(data, len);
-
-    returner->Return(kOk, span, [oa_sstream]() {
-      get_runtime()->archive_pool()->put_oa_sstream(oa_sstream);
-    });
-  } else {
-    get_runtime()->migrator()->forward_to_original_server(kOk, returner, len,
-                                                          data);
-    get_runtime()->archive_pool()->put_oa_sstream(oa_sstream);
-  }
-}
-
-void ProcletServer::send_rpc_resp_wrong_client(RPCReturner *returner) {
-  if (likely(thread_is_at_creator())) {
-    returner->Return(kErrWrongClient);
-  } else {
-    get_runtime()->migrator()->forward_to_original_server(kErrWrongClient,
-                                                          returner, 0, nullptr);
-  }
-}
-
-void ProcletServer::release_proclet(VAddrRange vaddr_range) {
-  rt::Spawn([vaddr_range] {
-    get_runtime()->controller_client()->destroy_proclet(vaddr_range);
-  });
 }
 
 }  // namespace nu
