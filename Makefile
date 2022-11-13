@@ -29,6 +29,8 @@ test_pass_proclet_src = test/test_pass_proclet.cpp
 test_pass_proclet_obj = $(test_pass_proclet_src:.cpp=.o)
 test_migrate_src = test/test_migrate.cpp
 test_migrate_obj = $(test_migrate_src:.cpp=.o)
+test_continuous_migrate_src = test/test_continuous_migrate.cpp
+test_continuous_migrate_obj = $(test_continuous_migrate_src:.cpp=.o)
 test_lock_src = test/test_lock.cpp
 test_lock_obj = $(test_lock_src:.cpp=.o)
 test_condvar_src = test/test_condvar.cpp
@@ -141,13 +143,13 @@ bin/test_dis_mem_pool bin/test_rem_raw_ptr bin/test_rem_unique_ptr \
 bin/test_rem_shared_ptr bin/bench_fragmentation bin/test_perf bin/bench_real_mem_pressure \
 bin/bench_real_cpu_pressure bin/test_cpu_load bin/test_tcp_poll bin/test_thread \
 bin/test_fast_path bin/test_slow_path bin/ctrl_main bin/test_max_num_proclets \
-bin/test_sharded_partitioner bin/bench_controller \
-bin/test_sharded_vector bin/bench_sharded_partitioner bin/test_cereal bin/bench_sharded_vector \
+bin/test_sharded_partitioner bin/bench_controller bin/test_sharded_vector \
+bin/bench_sharded_partitioner bin/test_cereal bin/bench_sharded_vector \
 bin/bench_proclet_call_bw bin/test_sharded_set bin/test_sharded_map \
 bin/test_sharded_unordered_map bin/bench_cpu_overloaded bin/test_iter \
 bin/bench_sharded_unordered_map bin/bench_sharded_map bin/test_sharded_unordered_set \
-bin/test_sharded_sorter bin/bench_sharded_sorter \
-bin/test_sharded_stack bin/test_sharded_queue bin/test_compute_proclet
+bin/test_sharded_sorter bin/bench_sharded_sorter bin/test_sharded_stack \
+bin/test_sharded_queue bin/test_compute_proclet bin/test_continuous_migrate
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -162,6 +164,8 @@ bin/test_pass_proclet: $(test_pass_proclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(
 	$(LDXX) -o $@ $(test_pass_proclet_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_migrate: $(test_migrate_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_migrate_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_continuous_migrate: $(test_continuous_migrate_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_continuous_migrate_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_lock: $(test_lock_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_lock_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_condvar: $(test_condvar_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
