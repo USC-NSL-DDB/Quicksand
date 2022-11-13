@@ -67,8 +67,8 @@ inline void *Caladan::thread_get_nu_state(thread_t *th, size_t *nu_state_size) {
   return ::thread_get_nu_state(th, nu_state_size);
 }
 
-inline thread_t *Caladan::create_migrated_thread(void *nu_state) {
-  return ::create_migrated_thread(nu_state);
+inline thread_t *Caladan::restore_thread(void *nu_state) {
+  return ::restore_thread(nu_state);
 }
 
 inline void Caladan::thread_wait_until_parked(thread_t *th) {
@@ -150,8 +150,6 @@ inline int32_t Caladan::thread_unhold_rcu(RCULock *rcu, bool *flag) {
 inline bool Caladan::thread_is_rcu_held(thread_t *th, RCULock *rcu) {
   return ::thread_is_rcu_held(th, rcu);
 }
-
-inline bool Caladan::thread_is_at_creator() { return ::thread_is_at_creator(); }
 
 inline void Caladan::thread_start_monitor_cycles() {
   ::thread_start_monitor_cycles();

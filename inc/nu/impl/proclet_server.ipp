@@ -16,7 +16,7 @@ namespace nu {
 
 template <typename Cls, typename... As>
 void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
-                                        cereal::BinaryInputArchive &ia,
+                                        ArchivePool<>::IASStream *ia_sstream,
                                         RPCReturner returner) {
   auto *callee_header = callee_guard->header();
   auto &callee_slab = callee_header->slab;
@@ -26,8 +26,10 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
 
   {
     ProcletSlabGuard slab_guard(&callee_slab);
+
+    std::apply([&](auto &&... args) { ((ia_sstream->ia >> args), ...); }, args);
+
     callee_guard->enable_for([&] {
-      std::apply([&](auto &&... args) { ((ia >> args), ...); }, args);
       std::apply(
           [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
           args);
@@ -35,16 +37,16 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
   }
 
   auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
-  get_runtime()->send_rpc_resp_ok(oa_sstream, &returner);
+  get_runtime()->send_rpc_resp_ok(oa_sstream, ia_sstream, &returner);
 }
 
 template <typename Cls, typename... As>
-void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
+void ProcletServer::construct_proclet(ArchivePool<>::IASStream *ia_sstream,
                                       RPCReturner *returner) {
   void *base;
   uint64_t size;
   bool pinned;
-  ia >> base >> size >> pinned;
+  ia_sstream->ia >> base >> size >> pinned;
 
   get_runtime()->proclet_manager()->setup(base, size,
                                           /* migratable = */ !pinned,
@@ -54,7 +56,7 @@ void ProcletServer::construct_proclet(cereal::BinaryInputArchive &ia,
   proclet_header->status() = kPresent;
 
   bool proclet_not_found = !get_runtime()->run_within_proclet_env<Cls>(
-      base, __construct_proclet<Cls, As...>, ia, *returner);
+      base, __construct_proclet<Cls, As...>, ia_sstream, *returner);
   BUG_ON(proclet_not_found);
 
   get_runtime()->proclet_manager()->insert(base);
@@ -117,6 +119,7 @@ void ProcletServer::construct_proclet_locally(MigrationGuard &&caller_guard,
 
 template <typename Cls>
 void ProcletServer::__update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
+                                     ArchivePool<>::IASStream *ia_sstream,
                                      RPCReturner returner, int delta,
                                      bool *destructed) {
   auto *proclet_header = callee_guard->header();
@@ -141,7 +144,7 @@ void ProcletServer::__update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
 
   RuntimeSlabGuard guard;
   auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
-  get_runtime()->send_rpc_resp_ok(oa_sstream, &returner);
+  get_runtime()->send_rpc_resp_ok(oa_sstream, ia_sstream, &returner);
 }
 
 inline void release_proclet(VAddrRange vaddr_range) {
@@ -151,19 +154,19 @@ inline void release_proclet(VAddrRange vaddr_range) {
 }
 
 template <typename Cls>
-void ProcletServer::update_ref_cnt(cereal::BinaryInputArchive &ia,
+void ProcletServer::update_ref_cnt(ArchivePool<>::IASStream *ia_sstream,
                                    RPCReturner *returner) {
   ProcletID id;
-  ia >> id;
   int delta;
-  ia >> delta;
+  ia_sstream->ia >> id >> delta;
 
   auto *proclet_base = to_proclet_base(id);
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
 
   bool destructed = false;
   bool proclet_not_found = !get_runtime()->run_within_proclet_env<Cls>(
-      proclet_base, __update_ref_cnt<Cls>, *returner, delta, &destructed);
+      proclet_base, __update_ref_cnt<Cls>, ia_sstream, *returner, delta,
+      &destructed);
 
   if (destructed) {
     // Wait for other concurrent cnt updating threads to finish.
@@ -231,7 +234,7 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
-                                  cereal::BinaryInputArchive &ia,
+                                  ArchivePool<>::IASStream *ia_sstream,
                                   RPCReturner returner) {
   constexpr auto kNonVoidRetT = !std::is_same<RetT, void>::value;
   std::conditional_t<kNonVoidRetT, RetT, ErasedType> ret;
@@ -244,10 +247,11 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
     ProcletSlabGuard slab_guard(&callee_header->slab);
 
     FnPtr fn;
-    ia >> fn;
+    ia_sstream->ia >> fn;
 
     std::tuple<std::decay_t<S1s>...> states{std::decay_t<S1s>()...};
-    std::apply([&](auto &&... states) { ((ia >> states), ...); }, states);
+    std::apply([&](auto &&... states) { ((ia_sstream->ia >> states), ...); },
+               states);
 
     callee_guard->enable_for([&] {
       std::apply(
@@ -266,7 +270,7 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
   if constexpr (kNonVoidRetT) {
     oa_sstream->oa << std::move(ret);
   }
-  get_runtime()->send_rpc_resp_ok(oa_sstream, &returner);
+  get_runtime()->send_rpc_resp_ok(oa_sstream, ia_sstream, &returner);
 
   callee_header->thread_cnt.dec_unsafe();
   callee_header->cpu_load.end_monitor();
@@ -275,14 +279,16 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
 #pragma GCC diagnostic pop
 
 template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-void ProcletServer::run_closure(cereal::BinaryInputArchive &ia,
+void ProcletServer::run_closure(ArchivePool<>::IASStream *ia_sstream,
                                 RPCReturner *returner) {
   ProcletID id;
-  ia >> id;
+  ia_sstream->ia >> id;
+
   auto *proclet_header = to_proclet_header(id);
 
   bool proclet_not_found = !get_runtime()->run_within_proclet_env<Cls>(
-      proclet_header, __run_closure<Cls, RetT, FnPtr, S1s...>, ia, *returner);
+      proclet_header, __run_closure<Cls, RetT, FnPtr, S1s...>, ia_sstream,
+      *returner);
 
   if (proclet_not_found) {
     get_runtime()->send_rpc_resp_wrong_client(returner);

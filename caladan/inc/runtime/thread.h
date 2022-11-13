@@ -81,20 +81,19 @@ extern void thread_exit(void) __noreturn;
 /*
  * Used by Nu.
  */
+extern struct list_head all_migrating_ths;
 extern thread_t *thread_nu_create_with_buf(
         void *proclet_stack, uint32_t proclet_stack_size,
         thread_fn_t fn, void **buf, size_t buf_len);
 extern bool thread_has_been_migrated(void);
-extern bool thread_is_at_creator(void);
 extern uint64_t thread_get_rsp(thread_t *th);
 extern void pause_migrating_ths_main(void *owner_proclet);
 extern void pause_migrating_ths_aux(void);
-extern struct list_head all_migrating_ths;
 extern void pause_local_migrating_threads(void);
 extern void prioritize_and_wait_rcu_readers(void *rcu);
 extern void prioritize_local_rcu_readers(void);
 extern void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
-extern thread_t *create_migrated_thread(void *nu_state);
+extern thread_t *restore_thread(void *nu_state);
 extern void gc_migrated_threads(void);
 extern void *thread_get_runtime_stack_base(void);
 extern uint32_t thread_get_creator_ip(void);

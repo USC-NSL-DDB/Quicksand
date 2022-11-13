@@ -91,6 +91,7 @@ class Runtime {
   std::optional<MigrationGuard> reattach_and_disable_migration(
       ProcletHeader *new_header, const MigrationGuard &old_guard);
   void send_rpc_resp_ok(ArchivePool<>::OASStream *oa_sstream,
+                        ArchivePool<>::IASStream *ia_sstream,
                         RPCReturner *returner);
   void send_rpc_resp_wrong_client(RPCReturner *returner);
 

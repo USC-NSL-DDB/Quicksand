@@ -39,7 +39,7 @@ class Caladan {
   template <typename F>
   void context_switch_to(F &&f);
   void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
-  thread_t *create_migrated_thread(void *nu_state);
+  thread_t *restore_thread(void *nu_state);
   thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
   thread_t *thread_nu_create_with_buf(void *proclet_stack,
                                       uint32_t proclet_stack_size,
@@ -61,7 +61,6 @@ class Caladan {
   int32_t thread_hold_rcu(RCULock *rcu, bool flag);
   int32_t thread_unhold_rcu(RCULock *rcu, bool *flag);
   bool thread_is_rcu_held(thread_t *th, RCULock *rcu);
-  bool thread_is_at_creator();
   void thread_start_monitor_cycles();
   void thread_end_monitor_cycles();
   bool thread_monitored();

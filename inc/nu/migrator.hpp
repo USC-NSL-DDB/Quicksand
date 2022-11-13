@@ -17,8 +17,9 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/rpc_server.hpp"
-#include "nu/utils/slab.hpp"
+#include "nu/utils/archive_pool.hpp"
 #include "nu/utils/rpc.hpp"
+#include "nu/utils/slab.hpp"
 
 namespace nu {
 
@@ -41,7 +42,10 @@ struct RPCReqForward {
   RPCReqType rpc_type = kForward;
   RPCReturnCode rc;
   RPCReturner returner;
-  uint64_t stack_top;
+  struct GCContext {
+    uint64_t stack_base;
+    ArchivePool<>::IASStream *ia_sstream;
+  } gc_ctx;
   uint64_t payload_len;
   uint8_t payload[0];
 };
@@ -115,7 +119,8 @@ class Migrator {
                    const std::vector<ProcletMigrationTask> &tasks);
   void reserve_conns(uint32_t dest_server_ip);
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,
-                                  uint64_t payload_len, const void *payload);
+                                  uint64_t payload_len, const void *payload,
+                                  ArchivePool<>::IASStream *ia_sstream);
   void forward_to_client(RPCReqForward &req);
   uint32_t get_max_num_proclets_per_migration() const;
   template <typename RetT>

@@ -23,21 +23,21 @@ class ProcletServer {
   ~ProcletServer();
   netaddr get_addr() const;
   template <typename Cls>
-  static void update_ref_cnt(cereal::BinaryInputArchive &ia,
+  static void update_ref_cnt(ArchivePool<>::IASStream *ia_sstream,
                              RPCReturner *returner);
   template <typename Cls>
   static void update_ref_cnt_locally(MigrationGuard *callee_guard,
                                      ProcletHeader *caller_header,
                                      ProcletHeader *callee_header, int delta);
   template <typename Cls, typename... As>
-  static void construct_proclet(cereal::BinaryInputArchive &ia,
+  static void construct_proclet(ArchivePool<>::IASStream *ia_sstream,
                                 RPCReturner *returner);
   template <typename Cls, typename... As>
   static void construct_proclet_locally(MigrationGuard &&caller_guard,
                                         void *base, uint64_t size, bool pinned,
                                         As &&... args);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
-  static void run_closure(cereal::BinaryInputArchive &ia,
+  static void run_closure(ArchivePool<>::IASStream *ia_sstream,
                           RPCReturner *returner);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
   static MigrationGuard run_closure_locally(
@@ -47,7 +47,7 @@ class ProcletServer {
       S1s &&... states);
 
  private:
-  using GenericHandler = void (*)(cereal::BinaryInputArchive &ia,
+  using GenericHandler = void (*)(ArchivePool<>::IASStream *ia_sstream,
                                   RPCReturner *returner);
 
   TraceLogger trace_logger_;
@@ -58,15 +58,16 @@ class ProcletServer {
   void parse_and_run_handler(std::span<std::byte> args, RPCReturner *returner);
   template <typename Cls, typename... As>
   static void __construct_proclet(MigrationGuard *callee_guard, Cls *obj,
-                                  cereal::BinaryInputArchive &ia,
+                                  ArchivePool<>::IASStream *ia_sstream,
                                   RPCReturner returner);
   template <typename Cls>
   static void __update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
+                               ArchivePool<>::IASStream *ia_sstream,
                                RPCReturner returner, int delta,
                                bool *destructed);
   template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
   static void __run_closure(MigrationGuard *callee_guard, Cls *obj,
-                            cereal::BinaryInputArchive &ia,
+                            ArchivePool<>::IASStream *ia_sstream,
                             RPCReturner returner);
 };
 }  // namespace nu

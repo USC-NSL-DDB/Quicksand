@@ -1312,11 +1312,6 @@ bool thread_has_been_migrated(void)
 	return __self->migrated;
 }
 
-bool thread_is_at_creator(void)
-{
-	return __self->nu_state.creator_ip == get_cfg_ip();
-}
-
 void pause_migrating_ths_aux(void)
 {
 	int i, last = 0;
@@ -1400,7 +1395,7 @@ void *thread_get_nu_state(thread_t *th, size_t *nu_state_size)
 	return &th->nu_state;
 }
 
-thread_t *create_migrated_thread(void *nu_state)
+thread_t *restore_thread(void *nu_state)
 {
 	thread_t *th = __thread_create();
 	BUG_ON(!th);

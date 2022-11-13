@@ -125,9 +125,8 @@ Runtime::__run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
   if (unlikely(caladan_->thread_has_been_migrated())) {
     migration_guard.reset();
     auto proclet_stack_base = get_proclet_stack_range(__self).end;
-    // FIXME
     switch_stack(caladan_->thread_get_runtime_stack_base());
-    stack_manager_->put(reinterpret_cast<uint8_t *>(proclet_stack_base));
+    stack_manager_->free(reinterpret_cast<uint8_t *>(proclet_stack_base));
     get_runtime()->caladan()->thread_exit();
   }
 
@@ -142,7 +141,6 @@ Runtime::run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
   bool ret;
   auto *proclet_stack = stack_manager_->get();
   assert(reinterpret_cast<uintptr_t>(proclet_stack) % kStackAlignment == 0);
-  // FIXME
   auto *old_rsp = switch_stack(proclet_stack);
   ret = __run_within_proclet_env<Cls>(proclet_base, fn,
                                       std::forward<A1s>(args)...);

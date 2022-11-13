@@ -20,7 +20,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
   size_t nu_state_size;
   get_runtime()->caladan()->thread_get_nu_state(Caladan::thread_self(),
                                                 &nu_state_size);
-  auto *th = get_runtime()->caladan()->create_migrated_thread(payload);
+  auto *th = get_runtime()->caladan()->restore_thread(payload);
   auto stack_range = get_runtime()->get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
   memcpy(reinterpret_cast<void *>(stack_range.start), payload + nu_state_size,

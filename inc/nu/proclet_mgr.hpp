@@ -56,7 +56,7 @@ struct ProcletHeader {
   bool migratable;
 
   // Logical timer.
-  Time time;  
+  Time time;
 
   //--- Fields below will be automatically copied during migration. ---/
   uint8_t copy_start[0];

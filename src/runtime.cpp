@@ -124,30 +124,27 @@ void Runtime::reserve_conns(uint32_t ip) {
 }
 
 void Runtime::send_rpc_resp_ok(ArchivePool<>::OASStream *oa_sstream,
+                               ArchivePool<>::IASStream *ia_sstream,
                                RPCReturner *returner) {
   auto view = oa_sstream->ss.view();
   auto data = reinterpret_cast<const std::byte *>(view.data());
   auto len = oa_sstream->ss.tellp();
 
-  if (likely(caladan_->thread_is_at_creator())) {
+  if (likely(!caladan_->thread_has_been_migrated())) {
     auto span = std::span(data, len);
 
     returner->Return(kOk, span, [this, oa_sstream]() {
       archive_pool_->put_oa_sstream(oa_sstream);
     });
   } else {
-    migrator_->forward_to_original_server(kOk, returner, len, data);
+    migrator_->forward_to_original_server(kOk, returner, len, data, ia_sstream);
     archive_pool_->put_oa_sstream(oa_sstream);
   }
 }
 
 void Runtime::send_rpc_resp_wrong_client(RPCReturner *returner) {
-  if (likely(caladan_->thread_is_at_creator())) {
-    returner->Return(kErrWrongClient);
-  } else {
-    migrator_->forward_to_original_server(kErrWrongClient, returner, 0,
-                                          nullptr);
-  }
+  BUG_ON(caladan_->thread_has_been_migrated());
+  returner->Return(kErrWrongClient);
 }
 
 int runtime_main_init(int argc, char **argv,

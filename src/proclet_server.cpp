@@ -32,18 +32,17 @@ ProcletServer::~ProcletServer() {}
 
 void ProcletServer::parse_and_run_handler(std::span<std::byte> args,
                                           RPCReturner *returner) {
-  // TODO: gc them when the thread gets migrated.
   auto *ia_sstream = get_runtime()->archive_pool()->get_ia_sstream();
   auto &[args_ss, ia] = *ia_sstream;
   args_ss.span({reinterpret_cast<char *>(args.data()), args.size()});
 
   GenericHandler handler;
-  ia >> handler;
+  ia_sstream->ia >> handler;
 
   if constexpr (kEnableLogging) {
-    trace_logger_.add_trace([&] { handler(ia, returner); });
+    trace_logger_.add_trace([&] { handler(ia_sstream, returner); });
   } else {
-    handler(ia, returner);
+    handler(ia_sstream, returner);
   }
 
   get_runtime()->archive_pool()->put_ia_sstream(ia_sstream);

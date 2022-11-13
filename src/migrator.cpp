@@ -674,7 +674,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c,
   auto nu_state = std::make_unique<uint8_t[]>(nu_state_size);
   BUG_ON(c->ReadFull(nu_state.get(), nu_state_size, /* nt = */ false,
                      /* poll = */ true) <= 0);
-  auto *th = create_migrated_thread(nu_state.get());
+  auto *th = restore_thread(nu_state.get());
 
   auto stack_range = get_runtime()->get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
@@ -876,10 +876,9 @@ void Migrator::reserve_conns(uint32_t dest_server_ip) {
   }
 }
 
-void Migrator::forward_to_original_server(RPCReturnCode rc,
-                                          RPCReturner *returner,
-                                          uint64_t payload_len,
-                                          const void *payload) {
+void Migrator::forward_to_original_server(
+    RPCReturnCode rc, RPCReturner *returner, uint64_t payload_len,
+    const void *payload, ArchivePool<>::IASStream *ia_sstream) {
   RuntimeSlabGuard guard;
 
   auto req_buf_len = sizeof(RPCReqForward) + payload_len;
@@ -888,7 +887,9 @@ void Migrator::forward_to_original_server(RPCReturnCode rc,
   std::construct_at(req);
   req->rc = rc;
   req->returner = *returner;
-  req->stack_top = get_runtime()->get_proclet_stack_range(thread_self()).end;
+  req->gc_ctx.stack_base =
+      get_runtime()->get_proclet_stack_range(thread_self()).end;
+  req->gc_ctx.ia_sstream = ia_sstream;
   req->payload_len = payload_len;
   memcpy(req->payload, payload, payload_len);
   auto req_span = std::span(req_buf.get(), req_buf_len);
@@ -909,8 +910,10 @@ void Migrator::forward_to_client(RPCReqForward &req) {
   } else {
     req.returner.Return(req.rc);
   }
+  // GC resources.
   get_runtime()->stack_manager()->put(
-      reinterpret_cast<uint8_t *>(req.stack_top));
+      reinterpret_cast<uint8_t *>(req.gc_ctx.stack_base));
+  get_runtime()->archive_pool()->put_ia_sstream(req.gc_ctx.ia_sstream);
 }
 
 uint32_t Migrator::get_max_num_proclets_per_migration() const {
