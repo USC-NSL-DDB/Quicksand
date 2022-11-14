@@ -402,7 +402,7 @@ void Migrator::update_proclet_location(rt::TcpConn *c,
   // they will be immediately rejected.
   proclet_header->spin_lock.lock();
   proclet_header->status() = kAbsent;
-  proclet_header->cond_var.signal_all();
+  proclet_header->cond_var.signal_all_as(proclet_header);
   proclet_header->spin_lock.unlock();
 }
 
@@ -849,7 +849,7 @@ void Migrator::load(rt::TcpConn *c) {
     load_threads(c, proclet_header);
     loaded_proclets.emplace_back(proclet_header);
     // Wakeup the blocked threads.
-    proclet_header->cond_var.signal_all();
+    proclet_header->cond_var.signal_all_as(proclet_header);
   }
 
   receive_done(c);
