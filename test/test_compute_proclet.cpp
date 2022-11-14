@@ -64,7 +64,7 @@ bool test_compute_over_sharded_ds() {
   auto sealed_input = nu::to_sealed_ds(std::move(input));
   auto range_input = nu::range(sealed_input);
   auto cp = nu::compute_range(
-      +[](const int &val, decltype(output) output) { output.push_back(val); },
+      +[](const int &val, decltype(output) &output) { output.push_back(val); },
       range_input, output);
 
   auto sealed_output = nu::to_sealed_ds(std::move(output));
@@ -97,7 +97,7 @@ bool test_zipped_ints() {
 
   auto cp = nu::compute_range(
       +[](const std::tuple<const int &, const int &> &elems,
-          decltype(inserter) out) {
+          decltype(inserter) &out) {
         auto [x, y] = elems;
         out.push_back(x + y);
       },
@@ -134,7 +134,7 @@ bool test_zipped_strs() {
   auto input = nu::zip(sealed_s1, sealed_s2);
   auto cp = nu::compute_range(
       +[](const std::tuple<const std::string &, const std::string &> &elems,
-          decltype(set) set) {
+          decltype(set) &set) {
         auto [s1, s2] = elems;
         set.emplace(s1 + s2);
       },
