@@ -10,7 +10,7 @@ INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offsetof \
                      -DNCORES=$(NCORES) $(shell pkg-config --cflags opencv4) \
-										 -Wno-deprecated-enum-enum-conversion   # warnings from opencv library
+										 -Wno-deprecated-enum-enum-conversion   # supress warnings from opencv library
 override LDFLAGS += -lcrypto -lpthread -lboost_program_options $(shell pkg-config --libs opencv4) \
 										 -lnuma
 
@@ -25,8 +25,10 @@ image_kernel_src = image_kernel.cpp
 image_kernel_obj = $(image_kernel_src:.cpp=.o)
 baseline_src = baseline.cpp
 baseline_obj = $(baseline_src:.cpp=.o)
+distributed_src = distributed.cpp
+distributed_obj = $(distributed_src:.cpp=.o)
 
-all: baseline
+all: baseline distributed
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -36,10 +38,13 @@ all: baseline
 baseline: $(baseline_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_kernel_obj)
 	$(LDXX) -o $@ $(baseline_obj) $(image_kernel_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
+distributed: $(distributed_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_kernel_obj)
+	$(LDXX) -o $@ $(distributed_obj) $(image_kernel_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)
 endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) baseline baseline.o image_kernel.o
+	rm -f $(dep) baseline baseline.o distributed distributed.o image_kernel.o

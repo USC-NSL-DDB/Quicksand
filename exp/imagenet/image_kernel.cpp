@@ -4,6 +4,10 @@
 
 namespace imagenet {
 
+Image::Image() {
+  // empty image
+}
+
 Image::Image(std::string path) {
   std::ifstream file(path, std::ios::binary);
 
