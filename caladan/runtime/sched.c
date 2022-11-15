@@ -535,12 +535,6 @@ static __noreturn __noinline void schedule(void)
 	ACCESS_ONCE(l->q_ptrs->rcu_gen) = l->rcu_gen;
 	assert((l->rcu_gen & 0x1) == 0x0);
 
-	prioritize_local_rcu_readers_locked();
-	pause_local_migrating_threads_locked();
-	if (handle_preemptor()) {
-		goto done;
-	}
-
 	/* check for pending preemption */
 	if (unlikely(preempt_cede_needed(l))) {
 		l->parked = true;
@@ -550,6 +544,12 @@ static __noreturn __noinline void schedule(void)
 		iters = 0;
 		spin_lock(&l->lock);
 		l->parked = false;
+	}
+
+	prioritize_local_rcu_readers_locked();
+	pause_local_migrating_threads_locked();
+	if (handle_preemptor()) {
+		goto done;
 	}
 
 #ifdef GC
@@ -1011,12 +1011,13 @@ void thread_cede(void)
  */
 void thread_yield(void)
 {
-	thread_t *curth = thread_self();
+	thread_t *curth;
 
 	/* check for softirqs */
 	softirq_run();
 
 	preempt_disable();
+	curth = thread_self();
 	curth->thread_ready = false;
 	thread_ready(curth);
 	enter_schedule(curth);

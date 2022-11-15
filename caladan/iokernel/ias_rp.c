@@ -39,7 +39,7 @@ static bool ias_rp_preempt_core(struct ias_data *sd)
 	barrier();
 	/* Handle the race condition of thread parking. */
 	ksched_run(core, th->tid);
-	sched_yield_on_core(core);
+	BUG_ON(sched_yield_on_core(core) != 0);
 
 	return true;
 }

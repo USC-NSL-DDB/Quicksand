@@ -142,7 +142,6 @@ void ProcletServer::__update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
     proclet_header->status() = kAbsent;
   }
 
-  RuntimeSlabGuard guard;
   auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
   get_runtime()->send_rpc_resp_ok(oa_sstream, ia_sstream, &returner);
 }

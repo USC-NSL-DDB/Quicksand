@@ -15,8 +15,17 @@ inline void Caladan::PreemptGuard::enable_for(F &&f) {
 
 template <typename F>
 inline void Caladan::context_switch_to(F &&f) {
-  rt::Thread(std::forward<F>(f), /* head = */ true).Detach();
-  thread_park();
+  rt::Preempt p;
+  p.Lock();
+  rt::Thread(
+      [old_th = thread_self(), f = std::forward<F>(f)]() mutable {
+        ::thread_wait_until_parked(old_th);
+        f();
+        ::thread_ready_head(old_th);
+      },
+      /* head = */ true)
+      .Detach();
+  p.UnlockAndPark();
 }
 
 inline void Caladan::thread_park() {
@@ -69,10 +78,6 @@ inline void *Caladan::thread_get_nu_state(thread_t *th, size_t *nu_state_size) {
 
 inline thread_t *Caladan::restore_thread(void *nu_state) {
   return ::restore_thread(nu_state);
-}
-
-inline void Caladan::thread_wait_until_parked(thread_t *th) {
-  ::thread_wait_until_parked(th);
 }
 
 inline ProcletHeader *Caladan::thread_unset_owner_proclet(thread_t *th,

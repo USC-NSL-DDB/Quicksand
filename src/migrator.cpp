@@ -274,10 +274,12 @@ void Migrator::transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes) {
   for (auto mutex : mutexes) {
     std::vector<thread_t *> ths;
     auto *waiters = mutex->get_waiters();
-    void *th_raw;
-    list_for_each_off(waiters, th_raw, thread_link_offset) {
-      auto *th = reinterpret_cast<thread_t *>(th_raw);
+    while (auto *th = reinterpret_cast<thread_t *>(
+               const_cast<void *>(list_pop_(waiters, thread_link_offset)))) {
       ths.push_back(th);
+      auto *th_link = reinterpret_cast<list_node *>(
+          reinterpret_cast<uintptr_t>(th) + thread_link_offset);
+      list_add_tail(&all_migrating_ths, th_link);
     }
     size_t num_threads = ths.size();
     BUG_ON(!num_threads);
@@ -286,7 +288,6 @@ void Migrator::transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes) {
     for (auto th : ths) {
       transmit_one_thread(c, th);
     }
-    list_head_init(waiters);
   }
 }
 
@@ -308,10 +309,12 @@ void Migrator::transmit_condvars(rt::TcpConn *c,
   for (auto condvar : condvars) {
     std::vector<thread_t *> ths;
     auto *waiters = condvar->get_waiters();
-    void *th_raw;
-    list_for_each_off(waiters, th_raw, thread_link_offset) {
-      auto *th = reinterpret_cast<thread_t *>(th_raw);
+    while (auto *th = reinterpret_cast<thread_t *>(
+               const_cast<void *>(list_pop_(waiters, thread_link_offset)))) {
       ths.push_back(th);
+      auto *th_link = reinterpret_cast<list_node *>(
+          reinterpret_cast<uintptr_t>(th) + thread_link_offset);
+      list_add_tail(&all_migrating_ths, th_link);
     }
     size_t num_threads = ths.size();
     BUG_ON(!num_threads);
@@ -320,7 +323,6 @@ void Migrator::transmit_condvars(rt::TcpConn *c,
     for (auto th : ths) {
       transmit_one_thread(c, th);
     }
-    list_head_init(waiters);
   }
 }
 

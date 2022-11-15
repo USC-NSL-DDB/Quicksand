@@ -22,11 +22,13 @@ constexpr static uint32_t kMinComputeTimeUs = 10;
 constexpr static uint32_t kMaxComputeTimeUs = 200;
 constexpr static uint32_t kMigrationIntervalUs = 10 * kOneSecond;
 constexpr static uint32_t kNumMigrationSourceNodes = 2;
-constexpr static uint32_t kClientConcurrency = 20;
+constexpr static uint32_t kClientConcurrency = 50;
 
 struct Args {
   uint8_t data[kArgsSize];
 };
+
+CachelineAligned(uint64_t) invocation_cnts[kClientConcurrency];
 
 class IntGen {
  public:
@@ -97,7 +99,7 @@ void do_work() {
   }
 
   for (uint32_t i = 0; i < kClientConcurrency; i++) {
-    rt::Spawn([&] {
+    rt::Spawn([&, tid = i] {
       IntGen idx_gen(0, roots.size() - 1);
       IntGen time_gen(kMinComputeTimeUs, kMaxComputeTimeUs);
       Args args;
@@ -106,6 +108,7 @@ void do_work() {
       while (true) {
         auto &root = roots[idx_gen.next()];
         auto rets = root.run(&Obj<0>::compute, args, time_gen.next());
+        invocation_cnts[tid].d++;
 
         for (auto n : rets.data) {
           BUG_ON(n !=num_nodes_per_root());
@@ -116,6 +119,7 @@ void do_work() {
 
   uint64_t last_time_us = microtime();
   IntGen idx_gen(0, roots.size() - 1);
+
   while (true) {
     auto now_time_us = microtime();
     if (now_time_us >= last_time_us + kMigrationIntervalUs) {
@@ -124,8 +128,14 @@ void do_work() {
         auto &root = roots[idx_gen.next()];
         root.run(+[](Obj<0> &_) {
           Caladan::PreemptGuard g;
-          get_runtime()->pressure_handler()->mock_set_pressure();
+	  auto *runtime = get_runtime();
+          runtime->pressure_handler()->mock_set_pressure();
         });
+      }
+      std::cout << "*********************" << std::endl;
+      for (uint32_t i = 0; i < kClientConcurrency; i++) {
+        std::cout << i << " " << invocation_cnts[i].d << std::endl
+                  << std::flush;
       }
     }
   }
