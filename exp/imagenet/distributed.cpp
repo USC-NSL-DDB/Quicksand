@@ -12,7 +12,8 @@
 #include "nu/sharded_vector.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
-using shard_type = nu::ShardedVector<imagenet::Image, std::integral_constant<bool, false>>;
+using shard_type = nu::ShardedVector<imagenet::Image, std::false_type>;
+using sealed_shard_type = nu::SealedDS<shard_type>;
 using namespace std::chrono;
 using namespace imagenet;
 
@@ -30,10 +31,13 @@ void load(std::string path, shard_type &imgs)
   std::cout << i << " images loaded" << std::endl;
 }
 
-void process(int thread_id, int thread_cnt, shard_type &imgs)
+void process(int thread_id, int thread_cnt, sealed_shard_type &sealed_imgs)
 {
-  for (size_t i = thread_id; i < imgs.size(); i += thread_cnt) {
-    kernel(imgs[i]);
+  //  for (size_t i = thread_id; i < sealed_imgs.size(); i += thread_cnt) {
+  //    kernel(sealed_imgs[i]);
+  //  }
+  for (auto &image : sealed_imgs) {
+    kernel(image);
   }
 }
 
@@ -47,15 +51,16 @@ void do_work() {
   auto duration = duration_cast<milliseconds>(end - start);
   std::cout << "Image loading takes " << duration.count() << "ms" << std::endl;
 
-  int thread_cnt = 4;
-  std::vector<std::thread> threads;
+  int thread_cnt = 1;
+  std::vector<nu::Thread> threads;
 
-  std::cout << imgs.size() << std::endl;
+  auto sealed_imgs = nu::to_sealed_ds(std::move(imgs));
+  std::cout << sealed_imgs.size() << std::endl;
 
   start = high_resolution_clock::now();
 
   for (int i = 0; i < thread_cnt; i++) {
-    threads.push_back(std::thread(process, i, thread_cnt, std::ref(imgs)));
+    threads.emplace_back([&, i, thread_cnt] { process(i, thread_cnt, sealed_imgs); });
   }
 
   for (auto &thread : threads) {
