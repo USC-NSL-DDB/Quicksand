@@ -5,6 +5,8 @@ namespace nu {
 template <typename It>
 class Range {
  public:
+  using IterVal = It::IterVal;
+
   Range();
   Range(const It &begin, const It &end);
   Range(const Range &) = default;
@@ -54,6 +56,7 @@ template <typename... Rs>
 class Zip {
  public:
   using Iter = ZippedIterator<range_iter_t<Rs>...>;
+  using IterVal = iter_val_t<Iter>;
 
   Zip();
   Zip(const Rs &... ranges);

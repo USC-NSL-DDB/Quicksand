@@ -92,6 +92,23 @@ template <class Archive, typename P, typename A>
 void load(Archive &ar, std::vector<P, A> &v) requires(
     is_memcpy_safe<P>());
 
+struct SizeArchive {
+  template <typename T>
+  void operator()(T &&t);
+  template <typename... Ts>
+  void operator()(Ts &&... ts) requires(sizeof...(Ts) > 1);
+
+  uint64_t size = 0;
+};
+
+namespace traits {
+
+template <class T>
+struct is_output_serializable<T, SizeArchive>
+    : std::integral_constant<bool, true> {};
+
+}  // namespace traits
+
 }  // namespace cereal
 
 #include "nu/impl/cereal.ipp"

@@ -64,8 +64,8 @@ bool test_compute_over_sharded_ds() {
   auto sealed_input = nu::to_sealed_ds(std::move(input));
   auto range_input = nu::range(sealed_input);
   auto cp = nu::compute_range(
-      +[](const int &val, decltype(output) output) { output.push_back(val); },
-      range_input, output);
+      +[](const int &val, decltype(output) &output) { output.push_back(val); },
+      std::move(range_input), output);
 
   auto sealed_output = nu::to_sealed_ds(std::move(output));
   if (sealed_output.size() != kNumElements) {
@@ -92,16 +92,18 @@ bool test_zipped_ints() {
 
   auto sealed_v1 = make_sealed_test_data();
   auto sealed_v2 = make_sealed_test_data();
+  auto input = nu::zip(sealed_v1, sealed_v2);
+  using Input = decltype(input);
+
   auto sum = nu::make_sharded_vector<int, std::false_type>();
   auto inserter = sum.back_inserter();
 
   auto cp = nu::compute_range(
-      +[](const std::tuple<const int &, const int &> &elems,
-          decltype(inserter) out) {
+      +[](const Input::IterVal &elems, decltype(inserter) &out) {
         auto [x, y] = elems;
         out.push_back(x + y);
       },
-      nu::zip(sealed_v1, sealed_v2), std::move(inserter));
+      std::move(input), std::move(inserter));
   cp.get();
 
   auto sealed_sum = nu::to_sealed_ds(std::move(sum));
@@ -132,13 +134,13 @@ bool test_zipped_strs() {
   }
 
   auto input = nu::zip(sealed_s1, sealed_s2);
+  using Input = decltype(input);
   auto cp = nu::compute_range(
-      +[](const std::tuple<const std::string &, const std::string &> &elems,
-          decltype(set) set) {
+      +[](const Input::IterVal &elems, decltype(set) &set) {
         auto [s1, s2] = elems;
         set.emplace(s1 + s2);
       },
-      input, set);
+      std::move(input), set);
   cp.get();
 
   auto sealed_set = nu::to_sealed_ds(std::move(set));

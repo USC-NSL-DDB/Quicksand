@@ -5,14 +5,26 @@
 
 #include "nu/utils/thread.hpp"
 
+namespace {
+
+inline uint64_t get_size(const auto &t) {
+  cereal::SizeArchive size_ar;
+  size_ar(t);
+  return size_ar.size;
+}
+
+}  // namespace
+
 namespace nu {
 
 template <class Container, class LL>
-inline ShardedDataStructure<Container, LL>::ShardedDataStructure() {}
+inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
+    : max_num_vals_(0), max_num_data_entries_(0) {}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
-    std::optional<Hint> hint) {
+    std::optional<Hint> hint)
+    : max_num_vals_(0), max_num_data_entries_(0) {
   constexpr auto kMaxShardBytes =
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
   constexpr auto kMaxShardSize = kMaxShardBytes / sizeof(DataEntry);
@@ -64,7 +76,10 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
 template <class Container, class LL>
 inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
     const ShardedDataStructure &o)
-    : mapping_(o.mapping_), key_to_shards_(o.key_to_shards_) {
+    : mapping_(o.mapping_),
+      key_to_shards_(o.key_to_shards_),
+      max_num_vals_(o.max_num_vals_),
+      max_num_data_entries_(o.max_num_data_entries_) {
   mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
 }
 
@@ -76,6 +91,8 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
 
   mapping_ = o.mapping_;
   key_to_shards_ = o.key_to_shards_;
+  max_num_vals_ = o.max_num_vals_;
+  max_num_data_entries_ = o.max_num_data_entries_;
 
   mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
 
@@ -88,7 +105,9 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     : mapping_(std::move(o.mapping_)),
       key_to_shards_(std::move(o.key_to_shards_)),
       emplace_back_reqs_(std::move(o.emplace_back_reqs_)),
-      flush_futures_(std::move(o.flush_futures_)) {}
+      flush_futures_(std::move(o.flush_futures_)),
+      max_num_vals_(o.max_num_vals_),
+      max_num_data_entries_(o.max_num_data_entries_) {}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>
@@ -100,6 +119,9 @@ ShardedDataStructure<Container, LL>
   key_to_shards_ = std::move(o.key_to_shards_);
   emplace_back_reqs_ = std::move(o.emplace_back_reqs_);
   flush_futures_ = std::move(o.flush_futures_);
+  max_num_vals_ = o.max_num_vals_;
+  max_num_data_entries_ = o.max_num_data_entries_;
+
   return *this;
 }
 
@@ -115,6 +137,18 @@ void ShardedDataStructure<Container, LL>::reset() {
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
   reset();
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container, LL>::update_max_num_data_entries(
+    KeyToShardsMapping::iterator iter) {
+  max_num_data_entries_ =
+      kBatchingMaxBatchBytes / get_size(iter->second.emplace_reqs.back());
+}
+
+template <class Container, class LL>
+void ShardedDataStructure<Container, LL>::update_max_num_vals() {
+  max_num_vals_ = kBatchingMaxBatchBytes / get_size(emplace_back_reqs_.back());
 }
 
 template <class Container, class LL>
@@ -147,7 +181,8 @@ template <class Container, class LL>
     auto &reqs = iter->second.emplace_reqs;
     reqs.emplace_back(std::move(entry));
 
-    if (unlikely(reqs.size() >= kBatchingMaxBatchBytes / sizeof(DataEntry))) {
+    if (unlikely(reqs.size() >= max_num_data_entries_)) {
+      update_max_num_data_entries(iter);
       flush_one_batch(iter, /* drain = */ false);
     }
   }
@@ -174,8 +209,8 @@ ShardedDataStructure<Container, LL>::emplace_back(
   else {
     emplace_back_reqs_.emplace_back(std::move(v));
 
-    if (unlikely(emplace_back_reqs_.size() >=
-                 kBatchingMaxBatchBytes / sizeof(Val))) {
+    if (unlikely(emplace_back_reqs_.size() >= max_num_vals_)) {
+      update_max_num_vals();
       auto iter = --key_to_shards_.end();
       flush_one_batch(iter, /* drain = */ false);
     }
@@ -596,7 +631,7 @@ template <class Container, class LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::__save(Archive &ar) {
   flush();
-  ar(mapping_, key_to_shards_);
+  ar(mapping_, key_to_shards_, max_num_vals_, max_num_data_entries_);
   mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
 }
 
@@ -609,7 +644,7 @@ inline void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
 template <class Container, class LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::load(Archive &ar) {
-  ar(mapping_, key_to_shards_);
+  ar(mapping_, key_to_shards_, max_num_vals_, max_num_data_entries_);
 }
 
 template <class Container, class LL>

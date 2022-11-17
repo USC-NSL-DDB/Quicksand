@@ -4,13 +4,13 @@ source shared.sh
 
 USAGE="Usage: $0 [tests_prefix]
 "
-
-all_passed=1
 CLIENT_IP="18.18.1.4"
 SERVER1_IP="18.18.1.2"
 SERVER2_IP="18.18.1.3"
 LPID=1
+SKIPPED_TESTS=("test_continuous_migrate")
 
+all_passed=1
 tests_prefix=
 while (( "$#" )); do
 	case "$1" in
@@ -70,6 +70,9 @@ function run_tests {
     TESTS=`ls bin | grep $1`
     for test in $TESTS
     do
+	if [[ " ${SKIPPED_TESTS[*]} " =~ " $test " ]]; then
+	    continue
+	fi
 	echo "Running test $test..."
 	rerun_iokerneld
 	run_test $test

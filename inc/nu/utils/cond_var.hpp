@@ -6,6 +6,7 @@ namespace nu {
 
 class Mutex;
 class SpinLock;
+struct ProcletHeader;
 
 class CondVar {
  public:
@@ -24,6 +25,7 @@ class CondVar {
   friend class Migrator;
 
   list_head *get_waiters();
+  void signal_all_as(ProcletHeader *proclet_header);
 };
 
 }  // namespace nu

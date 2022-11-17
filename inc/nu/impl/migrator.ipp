@@ -48,7 +48,6 @@ void Migrator::snapshot_thread_and_ret_val(
   get_runtime()->caladan()->context_switch_to(
       [&, th = Caladan::thread_self(),
        ret_val_buf = std::move(ret_val_buf)]() mutable {
-        get_runtime()->caladan()->thread_wait_until_parked(th);
         auto *dest_proclet_header = to_proclet_header(dest_id);
         get_runtime()->caladan()->thread_set_owner_proclet(
             th, dest_proclet_header, true);
@@ -81,7 +80,6 @@ void Migrator::snapshot_thread_and_ret_val(
         // Only set req_buf after taking a snaphot of the stack so that only the
         // old thread will be able to observe its non-nullptr content.
         *req_buf = std::move(buf);
-        get_runtime()->caladan()->thread_ready_head(th);
       });
 }
 

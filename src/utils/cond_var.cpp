@@ -70,4 +70,15 @@ void CondVar::signal_all() {
   Caladan::spin_unlock_np(&cv_.waiter_lock);
 }
 
+void CondVar::signal_all_as(ProcletHeader *proclet_header) {
+  Caladan::spin_lock_np(&cv_.waiter_lock);
+  if (!list_empty(&cv_.waiters)) {
+    if (proclet_header) {
+      proclet_header->blocked_syncer.remove(this);
+    }
+  }
+  get_runtime()->caladan()->wake_all_threads(&cv_.waiters);
+  Caladan::spin_unlock_np(&cv_.waiter_lock);
+}
+
 }  // namespace nu

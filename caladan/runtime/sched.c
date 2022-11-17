@@ -333,8 +333,9 @@ static void pop_deprioritized_threads_locked(struct kthread *k)
 }
 
 static inline bool can_handle_pause_req(struct kthread *k) {
-	if (k->curr_th &&
-	    k->curr_th->nu_state.owner_proclet == pause_req_owner_proclet)
+	thread_t *th = k->curr_th;
+
+	if (th && th->nu_state.owner_proclet == pause_req_owner_proclet)
 		return false;
 	return true;
 }
@@ -534,12 +535,6 @@ static __noreturn __noinline void schedule(void)
 	ACCESS_ONCE(l->q_ptrs->rcu_gen) = l->rcu_gen;
 	assert((l->rcu_gen & 0x1) == 0x0);
 
-	prioritize_local_rcu_readers_locked();
-	pause_local_migrating_threads_locked();
-	if (handle_preemptor()) {
-		goto done;
-	}
-
 	/* check for pending preemption */
 	if (unlikely(preempt_cede_needed(l))) {
 		l->parked = true;
@@ -549,6 +544,12 @@ static __noreturn __noinline void schedule(void)
 		iters = 0;
 		spin_lock(&l->lock);
 		l->parked = false;
+	}
+
+	prioritize_local_rcu_readers_locked();
+	pause_local_migrating_threads_locked();
+	if (handle_preemptor()) {
+		goto done;
 	}
 
 #ifdef GC
@@ -1010,12 +1011,13 @@ void thread_cede(void)
  */
 void thread_yield(void)
 {
-	thread_t *curth = thread_self();
+	thread_t *curth;
 
 	/* check for softirqs */
 	softirq_run();
 
 	preempt_disable();
+	curth = thread_self();
 	curth->thread_ready = false;
 	thread_ready(curth);
 	enter_schedule(curth);
@@ -1193,9 +1195,9 @@ static void thread_finish_exit(void)
 	stack_free(th->stack);
 	tcache_free(&perthread_get(thread_pt), th);
 	__self = NULL;
-	myk()->curr_th = NULL;
 
 	spin_lock(&myk()->lock);
+	myk()->curr_th = NULL;
 	schedule();
 }
 

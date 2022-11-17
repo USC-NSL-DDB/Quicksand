@@ -47,7 +47,6 @@ class Caladan {
                                       size_t buf_len);
   thread_id_t get_thread_id(thread_t *th);
   thread_id_t get_current_thread_id();
-  void thread_wait_until_parked(thread_t *th);
   ProcletHeader *thread_unset_owner_proclet(thread_t *th, bool update_monitor);
   ProcletHeader *thread_set_owner_proclet(thread_t *th,
                                           ProcletHeader *owner_proclet,

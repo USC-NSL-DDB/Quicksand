@@ -1,12 +1,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <memory>
 #include <span>
+#include <syncstream>
 
 extern "C" {
 #include <base/assert.h>
@@ -55,6 +55,7 @@ MigratorConn::MigratorConn(MigratorConn &&o)
 }
 
 MigratorConn &MigratorConn::operator=(MigratorConn &&o) {
+  release();
   tcp_conn_ = o.tcp_conn_;
   ip_ = o.ip_;
   manager_ = o.manager_;
@@ -114,8 +115,7 @@ void Migrator::handle_copy_proclet(rt::TcpConn *c) {
 }
 
 inline void Migrator::handle_load(rt::TcpConn *c) {
-  rt::Preempt p;
-  rt::PreemptGuard g(&p);
+  Caladan::PreemptGuard g;
 
   load(c);
 }
@@ -247,13 +247,14 @@ void Migrator::transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header) {
   }
 
   if constexpr (kEnableLogging) {
-    preempt_disable();
-    std::cout << "Transmit proclet: addr = " << proclet_header
-              << ", size = " << len << ", time_us = " << t1 - t0
-              << ", num proclets left = "
-              << get_runtime()->proclet_manager()->get_num_present_proclets()
-              << std::endl;
-    preempt_enable();
+    Caladan::PreemptGuard g;
+
+    std::osyncstream synced_out(std::cout);
+    synced_out << "Transmit proclet: addr = " << proclet_header
+               << ", size = " << len << ", time_us = " << t1 - t0
+               << ", num proclets left = "
+               << get_runtime()->proclet_manager()->get_num_present_proclets()
+               << std::endl;
   }
 }
 
@@ -273,10 +274,12 @@ void Migrator::transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes) {
   for (auto mutex : mutexes) {
     std::vector<thread_t *> ths;
     auto *waiters = mutex->get_waiters();
-    void *th_raw;
-    list_for_each_off(waiters, th_raw, thread_link_offset) {
-      auto *th = reinterpret_cast<thread_t *>(th_raw);
+    while (auto *th = reinterpret_cast<thread_t *>(
+               const_cast<void *>(list_pop_(waiters, thread_link_offset)))) {
       ths.push_back(th);
+      auto *th_link = reinterpret_cast<list_node *>(
+          reinterpret_cast<uintptr_t>(th) + thread_link_offset);
+      list_add_tail(&all_migrating_ths, th_link);
     }
     size_t num_threads = ths.size();
     BUG_ON(!num_threads);
@@ -285,7 +288,6 @@ void Migrator::transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes) {
     for (auto th : ths) {
       transmit_one_thread(c, th);
     }
-    list_head_init(waiters);
   }
 }
 
@@ -307,10 +309,12 @@ void Migrator::transmit_condvars(rt::TcpConn *c,
   for (auto condvar : condvars) {
     std::vector<thread_t *> ths;
     auto *waiters = condvar->get_waiters();
-    void *th_raw;
-    list_for_each_off(waiters, th_raw, thread_link_offset) {
-      auto *th = reinterpret_cast<thread_t *>(th_raw);
+    while (auto *th = reinterpret_cast<thread_t *>(
+               const_cast<void *>(list_pop_(waiters, thread_link_offset)))) {
       ths.push_back(th);
+      auto *th_link = reinterpret_cast<list_node *>(
+          reinterpret_cast<uintptr_t>(th) + thread_link_offset);
+      list_add_tail(&all_migrating_ths, th_link);
     }
     size_t num_threads = ths.size();
     BUG_ON(!num_threads);
@@ -319,7 +323,6 @@ void Migrator::transmit_condvars(rt::TcpConn *c,
     for (auto th : ths) {
       transmit_one_thread(c, th);
     }
-    list_head_init(waiters);
   }
 }
 
@@ -401,7 +404,7 @@ void Migrator::update_proclet_location(rt::TcpConn *c,
   // they will be immediately rejected.
   proclet_header->spin_lock.lock();
   proclet_header->status() = kAbsent;
-  proclet_header->cond_var.signal_all();
+  proclet_header->cond_var.signal_all_as(proclet_header);
   proclet_header->spin_lock.unlock();
 }
 
@@ -657,10 +660,11 @@ bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
   }
 
   if constexpr (kEnableLogging) {
-    preempt_disable();
-    std::cout << "Load proclet: addr = " << proclet_header
-              << ", time_us = " << t1 - t0 << std::endl;
-    preempt_enable();
+    Caladan::PreemptGuard g;
+
+    std::osyncstream synced_out(std::cout);
+    synced_out << "Load proclet: addr = " << proclet_header
+               << ", time_us = " << t1 - t0 << std::endl;
   }
   return true;
 }
@@ -847,7 +851,7 @@ void Migrator::load(rt::TcpConn *c) {
     load_threads(c, proclet_header);
     loaded_proclets.emplace_back(proclet_header);
     // Wakeup the blocked threads.
-    proclet_header->cond_var.signal_all();
+    proclet_header->cond_var.signal_all_as(proclet_header);
   }
 
   receive_done(c);
@@ -856,9 +860,11 @@ void Migrator::load(rt::TcpConn *c) {
   }
 
   if (unlikely(!skipped_proclets.empty())) {
-    preempt_enable();
-    mmap_th.Join();
-    preempt_disable();
+    {
+      Caladan::PreemptGuard g;
+
+      mmap_th.Join();
+    }
     for (auto [proclet, size] : skipped_proclets) {
       get_runtime()->proclet_manager()->depopulate(proclet, size,
                                                    /* defer = */ false);

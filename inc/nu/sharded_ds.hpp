@@ -113,6 +113,8 @@ class ShardedDataStructure {
   KeyToShardsMapping key_to_shards_;
   std::vector<Val> emplace_back_reqs_;
   std::queue<Future<std::optional<typename Shard::ReqBatch>>> flush_futures_;
+  uint64_t max_num_vals_;
+  uint64_t max_num_data_entries_;
   template <ShardedDataStructureBased T>
   friend class SealedDS;
 
@@ -143,6 +145,8 @@ class ShardedDataStructure {
   void __for_all(auto *fn, S1s &&... states);
   template <class Archive>
   void __save(Archive &ar);
+  void update_max_num_data_entries(KeyToShardsMapping::iterator iter);
+  void update_max_num_vals();
 };
 
 }  // namespace nu

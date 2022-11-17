@@ -43,7 +43,6 @@ struct ProcletHeader {
   uint64_t capacity;
 
   // For synchronization.
-  RCULock rcu_lock;
   SpinLock spin_lock;
   CondVar cond_var;
 
@@ -60,6 +59,9 @@ struct ProcletHeader {
 
   //--- Fields below will be automatically copied during migration. ---/
   uint8_t copy_start[0];
+
+  // For disabling migration.
+  RCULock rcu_lock;
 
   // Ref cnt related.
   int ref_cnt;

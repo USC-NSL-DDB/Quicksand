@@ -63,7 +63,6 @@ void ProcletManager::depopulate(void *proclet_base, uint64_t size, bool defer) {
     BUG_ON(madvise(proclet_base, size, MADV_FREE) != 0);
   } else {
     // Release mem ASAP.
-    BUG_ON(munmap(proclet_base, size) == -1);
     auto mmap_addr = mmap(proclet_base, size, PROT_READ | PROT_WRITE,
                           MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
     BUG_ON(mmap_addr != proclet_base);
@@ -93,18 +92,16 @@ void ProcletManager::setup(void *proclet_base, uint64_t capacity,
 }
 
 std::vector<void *> ProcletManager::get_all_proclets() {
-  {
-    ScopedLock lock(&spin_);
-    auto iter = present_proclets_.begin();
-    for (auto *proclet_base : present_proclets_) {
-      auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
-      if (proclet_header->status() == kPresent) {
-        *iter = proclet_base;
-        iter++;
-      }
+  ScopedLock lock(&spin_);
+  auto iter = present_proclets_.begin();
+  for (auto *proclet_base : present_proclets_) {
+    auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
+    if (proclet_header->status() == kPresent) {
+      *iter = proclet_base;
+      iter++;
     }
-    present_proclets_.erase(iter, present_proclets_.end());
   }
+  present_proclets_.erase(iter, present_proclets_.end());
   return present_proclets_;
 }
 
