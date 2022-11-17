@@ -99,12 +99,12 @@ template <typename T>
 void SizeArchive::operator()(T &&t) {
   using D = std::decay_t<T>;
 
-  if constexpr (std::is_trivially_copyable_v<D>) {
-    size += sizeof(D);
-  } else if constexpr (nu::is_specialization_of_v<D, cereal::BinaryData>) {
+  if constexpr (nu::is_specialization_of_v<D, cereal::BinaryData>) {
     size += t.size;
   } else if constexpr (nu::is_specialization_of_v<D, cereal::NameValuePair>) {
     this->operator()(t.value);
+  } else if constexpr (std::is_trivially_copyable_v<D>) {
+    size += sizeof(D);
   } else if constexpr (HasBuiltinSerialize<SizeArchive, D>) {
     t.serialize(*this);
   } else if constexpr (HasBuiltinSave<SizeArchive, D>) {
