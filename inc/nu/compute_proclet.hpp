@@ -1,52 +1,37 @@
 #pragma once
 
-#include <ranges>
-#include <type_traits>
+#include <vector>
+#include <tuple>
 
 #include "nu/commons.hpp"
-#include "nu/proclet.hpp"
-#include "nu/sealed_ds.hpp"
+#include "nu/task_range.hpp"
 #include "nu/utils/future.hpp"
 
 namespace nu {
 
-template <typename RetT>
-class ComputeProclet {
+template <TaskRangeBased TR, typename... States>
+class ComputeProcletWorker {
  public:
-  using RetTRef = decltype([] {
-    if constexpr (!std::is_same_v<RetT, void>) {
-      return RetT();
-    }
-  }());
-
-  ComputeProclet(ComputeProclet&&) = default;
-  ComputeProclet& operator=(ComputeProclet&&) = default;
-  ComputeProclet(const ComputeProclet&) = delete;
-  ComputeProclet& operator=(const ComputeProclet&) = delete;
-
-  RetTRef get();
+  ComputeProcletWorker(States... states);
+  template <typename RetT>
+  RetT compute(RetT (*fn)(TR &, States...), TR task_range);
 
  private:
-  Proclet<ErasedType> proclet_;
-  Future<RetT> future_;
-
-  template <typename R, typename... A0s, typename... A1s>
-  friend ComputeProclet<R> make_compute_proclet(R (*fn)(A0s...), A1s&&...);
-
-  template <typename Rng, typename... A0s, typename... A1s>
-  friend ComputeProclet<void> compute_range(
-      void (*fn)(iter_val_t<range_iter_t<Rng>>&, A0s&...), Rng&& r,
-      A1s&&... args);
-  ComputeProclet();
+  std::tuple<States...> states_;
+  TR task_range_;
 };
 
-template <typename RetT, typename... A0s, typename... A1s>
-ComputeProclet<RetT> make_compute_proclet(RetT (*fn)(A0s...), A1s&&... args);
-
-template <typename Rng, typename... A0s, typename... A1s>
-ComputeProclet<void> compute_range(void (*fn)(iter_val_t<range_iter_t<Rng>>&,
-                                              A0s&...),
-                                   Rng&& r, A1s&&... args);
+template <TaskRangeBased TR>
+class ComputeProclet {
+ public:
+  ComputeProclet() = default;
+  template <typename RetT, typename... S0s, typename... S1s>
+  std::vector<RetT> run(RetT (*fn)(TR &, S0s...), TR task_range,
+                        S1s &&... states);
+  template <typename RetT, typename... S0s, typename... S1s>
+  Future<std::vector<RetT>> run_async(RetT (*fn)(TR &, S0s...), TR task_range,
+                                      S1s &&... states);
+};
 
 }  // namespace nu
 

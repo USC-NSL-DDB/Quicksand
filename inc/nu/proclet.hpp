@@ -5,6 +5,7 @@
 
 #include "nu/commons.hpp"
 #include "nu/runtime_deleter.hpp"
+#include "nu/task_range.hpp"
 #include "nu/type_traits.hpp"
 #include "nu/utils/future.hpp"
 
@@ -73,6 +74,8 @@ class Proclet {
             uint64_t NumBuckets>
   friend class DistributedHashTable;
   friend class DistributedMemPool;
+  template <TaskRangeBased TR>
+  friend class ComputeProclet;
 
   std::optional<Future<void>> update_ref_cnt(ProcletID id, int delta);
   template <typename... S1s>

@@ -1,57 +1,47 @@
+#include <type_traits>
+
+#include "nu/proclet.hpp"
+
 namespace nu {
 
-template <typename RetT, typename... A0s, typename... A1s>
-ComputeProclet<RetT> make_compute_proclet(RetT (*fn)(A0s...), A1s &&... args) {
-  using Fn = decltype(fn);
+template <class TR, typename... States>
+ComputeProcletWorker<TR, States...>::ComputeProcletWorker(States... states)
+    : states_(std::move(states)...) {}
 
-  ComputeProclet<RetT> cp;
-  auto fn_addr = reinterpret_cast<uintptr_t>(fn);
-  auto wrapped_fn = +[](ErasedType &_, uintptr_t fn_addr, A0s... args) {
-    auto *fn = reinterpret_cast<Fn>(fn_addr);
-    if constexpr (std::is_same_v<RetT, void>) {
-      fn(std::move(args)...);
-    } else {
-      return fn(std::move(args)...);
-    }
-  };
-  cp.future_ =
-      cp.proclet_.run_async(wrapped_fn, fn_addr, std::forward<A1s>(args)...);
-
-  return cp;
-}
-
-template <typename Rng, typename... A0s, typename... A1s>
-ComputeProclet<void> compute_range(void (*fn)(iter_val_t<range_iter_t<Rng>> &,
-                                              A0s &...),
-                                   Rng &&r, A1s &&... args) {
-  using Fn = decltype(fn);
-
-  ComputeProclet<void> cp;
-  auto fn_addr = reinterpret_cast<uintptr_t>(fn);
-  auto wrapped_fn = +[](ErasedType &_, uintptr_t fn_addr,
-                        std::decay_t<Rng> range, A0s... args) {
-    auto *fn = reinterpret_cast<Fn>(fn_addr);
-    for (const auto &val : range) {
-      fn(val, args...);
-    }
-  };
-  cp.future_ =
-      cp.proclet_.run_async(wrapped_fn, fn_addr, r, std::forward<A1s>(args)...);
-
-  return cp;
-}
-
+template <class TR, typename... States>
 template <typename RetT>
-ComputeProclet<RetT>::ComputeProclet()
-    : proclet_(nu::make_proclet<ErasedType>()) {}
-
-template <typename RetT>
-ComputeProclet<RetT>::RetTRef ComputeProclet<RetT>::get() {
+RetT ComputeProcletWorker<TR, States...>::compute(RetT (*fn)(TR &, States...),
+                                                  TR task_range) {
+  task_range_ = std::move(task_range);
   if constexpr (std::is_same_v<RetT, void>) {
-    future_.get();
+    std::apply([&](auto &... states) { fn(task_range_, states...); }, states_);
   } else {
-    return future_.get();
+    return std::apply(
+        [&](auto &... states) { return fn(task_range_, states...); }, states_);
   }
+}
+
+template <class TR>
+template <typename RetT, typename... S0s, typename... S1s>
+inline std::vector<RetT> ComputeProclet<TR>::run(RetT (*fn)(TR &, S0s...),
+                                                 TR task_range,
+                                                 S1s &&... states) {
+  std::vector<Proclet<ComputeProcletWorker<TR, S0s...>>> workers;
+  workers.emplace_back(
+      nu::make_proclet<ComputeProcletWorker<TR, S0s...>>(states...));
+  return std::vector<RetT>{workers.front().__run(
+      &ComputeProcletWorker<TR, S0s...>::template compute<RetT>, fn,
+      std::move(task_range))};
+}
+
+template <class TR>
+template <typename RetT, typename... S0s, typename... S1s>
+inline Future<std::vector<RetT>> ComputeProclet<TR>::run_async(
+    RetT (*fn)(TR &, S0s...), TR task_range, S1s &&... states) {
+  return nu::async([&, fn, task_range = std::move(task_range),
+                    ... states = std::forward<S1s>(states)]() mutable {
+    return run(fn, task_range, std::forward<S1s>(states)...);
+  });
 }
 
 }  // namespace nu
