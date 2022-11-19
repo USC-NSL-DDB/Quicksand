@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include "nu/cereal.hpp"
 #include "nu/task_range.hpp"
 
 namespace nu {
@@ -23,7 +22,7 @@ class VectorTaskRangeImpl {
   std::size_t size() const;
   bool empty() const;
   VectorTaskRangeImpl split();
-  void merge(VectorTaskRangeImpl task_range);
+  void merge(VectorTaskRangeImpl r_range);
   std::pair<Key, Key> initial_key_range() const;
   template <class Archive>
   void save(Archive &ar) const;

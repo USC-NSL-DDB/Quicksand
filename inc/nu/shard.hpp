@@ -51,6 +51,14 @@ struct ContainerAndMetadata {
 };
 
 template <GeneralContainerBased Container>
+class GeneralShard;
+
+template <class T>
+concept GeneralShardBased = requires {
+  requires is_base_of_template_v<T, GeneralShard>;
+};
+
+template <GeneralContainerBased Container>
 class GeneralShard {
  public:
   using Key = Container::Key;
@@ -179,6 +187,8 @@ class GeneralShard {
   std::size_t size_thresh_;
 
   friend class ContainerHandle<Container>;
+  template <GeneralShardBased S>
+  friend class ContiguousDSRangeImpl;
 
   void split();
   bool should_split() const;
@@ -192,11 +202,6 @@ class GeneralShard {
       std::vector<std::pair<IterVal, ConstReverseIterator>>::iterator block_it,
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
-};
-
-template <class T>
-concept GeneralShardBased = requires {
-  requires is_base_of_template_v<T, GeneralShard>;
 };
 
 }  // namespace nu

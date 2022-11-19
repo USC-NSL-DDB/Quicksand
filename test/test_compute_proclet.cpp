@@ -50,8 +50,33 @@ bool test_sharded_ds_range() {
                          static_cast<std::size_t>(0)) == sum;
 }
 
+bool test_cont_ds_range() {
+  constexpr std::size_t kSize = 50 << 20;
+  auto vec = nu::make_sharded_vector<std::size_t, std::false_type>();
+  std::size_t sum = 0;
+  for (std::size_t i = 0; i < kSize; i++) {
+    vec.push_back(i);
+    sum += i;
+  }
+  auto sealed_vec = nu::to_sealed_ds(std::move(vec));
+  auto cont_ds_range = nu::make_contiguous_ds_range(sealed_vec);
+  auto cp = nu::ComputeProclet<decltype(cont_ds_range)>();
+  auto outputs_vectors = cp.run(
+      +[](decltype(cont_ds_range) &task_range) {
+        uint64_t sum = 0;
+        while (!task_range.empty()) {
+          sum += task_range.pop();
+        }
+        return sum;
+      },
+      cont_ds_range);
+  return std::accumulate(outputs_vectors.begin(), outputs_vectors.end(),
+                         static_cast<std::size_t>(0)) == sum;
+}
+
 bool test_all() {
-  return test_vector_task_range() && test_sharded_ds_range();
+  return test_vector_task_range() && test_sharded_ds_range() &&
+         test_cont_ds_range();
 }
 
 int main(int argc, char **argv) {

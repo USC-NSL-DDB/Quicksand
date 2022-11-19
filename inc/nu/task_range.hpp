@@ -14,7 +14,7 @@ class TaskRange {
   using Task = Impl::Task;
 
   TaskRange() = default;
-  TaskRange(Impl impl) : impl_(impl) {}
+  TaskRange(Impl impl) : impl_(std::move(impl)) {}
   TaskRange(const TaskRange &) = default;
   TaskRange &operator=(const TaskRange &) = default;
   TaskRange(TaskRange &&) = default;
@@ -23,7 +23,7 @@ class TaskRange {
   std::size_t size() const { return impl_.size(); }
   bool empty() const { return impl_.empty(); }
   TaskRange split() { return impl_.split(); }
-  void merge(TaskRange task_range) { impl_.merge(task_range); }
+  void merge(TaskRange r_range) { impl_.merge(r_range); }
   std::pair<Key, Key> initial_key_range() const {
     return impl_.initial_key_range();
   }

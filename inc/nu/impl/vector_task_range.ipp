@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <ranges>
 
+#include "nu/cereal.hpp"
+
 namespace nu {
 
 template <typename T>
@@ -28,20 +30,20 @@ inline bool VectorTaskRangeImpl<T>::empty() const {
 
 template <typename T>
 inline VectorTaskRangeImpl<T> VectorTaskRangeImpl<T>::split() {
-  VectorTaskRangeImpl new_range;
+  VectorTaskRangeImpl r_range;
   auto mid = idx_ + size() / 2;
   std::ranges::move(tasks_.begin() + mid, tasks_.end(),
-                    std::back_inserter(new_range.tasks_));
+                    std::back_inserter(r_range.tasks_));
   tasks_.resize(mid - idx_);
-  new_range.idx_ = 0;
-  new_range.offset_ = key_offset_ + tasks_.size();
-  return new_range;
+  r_range.idx_ = 0;
+  r_range.offset_ = key_offset_ + tasks_.size();
+  return r_range;
 }
 
 template <typename T>
-inline void VectorTaskRangeImpl<T>::merge(VectorTaskRangeImpl task_range) {
-  BUG_ON(key_offset_ + tasks_.size() != task_range.key_offset_);
-  std::ranges::move(task_range.tasks_, std::back_inserter(tasks_));
+inline void VectorTaskRangeImpl<T>::merge(VectorTaskRangeImpl r_range) {
+  BUG_ON(key_offset_ + tasks_.size() != r_range.key_offset_);
+  std::ranges::move(r_range.tasks_, std::back_inserter(tasks_));
 }
 
 template <typename T>

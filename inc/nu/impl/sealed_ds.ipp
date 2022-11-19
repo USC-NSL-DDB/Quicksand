@@ -306,10 +306,16 @@ GeneralSealedDSConstIterator<Shard, Fwd>::shards_vec_end() const {
 }
 
 template <typename Shard, bool Fwd>
+[[gnu::always_inline]] inline auto
+GeneralSealedDSConstIterator<Shard, Fwd>::to_gid() const {
+  return block_.to_gid(block_iter_);
+}
+
+template <typename Shard, bool Fwd>
 [[gnu::always_inline]] inline bool
 GeneralSealedDSConstIterator<Shard, Fwd>::operator==(
     const GeneralSealedDSConstIterator &o) const {
-  return block_.to_gid(block_iter_) == o.block_.to_gid(o.block_iter_);
+  return to_gid() == o.to_gid();
 }
 
 template <typename Shard, bool Fwd>

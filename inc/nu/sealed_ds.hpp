@@ -10,6 +10,7 @@
 #include <variant>
 
 #include "container.hpp"
+#include "nu/cont_ds_range.hpp"
 #include "nu/proclet.hpp"
 #include "nu/rem_unique_ptr.hpp"
 #include "nu/sharded_ds.hpp"
@@ -30,6 +31,10 @@ class GeneralSealedDSConstIterator {
                          typename Container::ConstReverseIterator>;
 
  public:
+  constexpr static bool kContiguous =
+      Fwd ? Container::kContiguousIterator
+          : Container::kContiguousReverseIterator;
+
   GeneralSealedDSConstIterator();
   GeneralSealedDSConstIterator(const GeneralSealedDSConstIterator &);
   GeneralSealedDSConstIterator &operator=(const GeneralSealedDSConstIterator &);
@@ -58,9 +63,6 @@ class GeneralSealedDSConstIterator {
   using ShardsVecIter =
       std::conditional_t<Fwd, typename ShardsVec::iterator,
                          typename ShardsVec::reverse_iterator>;
-  constexpr static bool kContiguous =
-      Fwd ? Container::kContiguousIterator
-          : Container::kContiguousReverseIterator;
 
   class Block {
    public:
@@ -132,12 +134,15 @@ class GeneralSealedDSConstIterator {
   friend class SealedDS;
   template <GeneralShardBased S>
   friend class ShardRange;
+  template <GeneralShardBased S>
+  friend class ContiguousDSRangeImpl;
 
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
                                bool is_begin);
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
                                ShardsVecIter shards_iter, IterVal val,
                                ContainerIter container_iter);
+  auto to_gid() const;
   ShardsVecIter shards_vec_begin() const;
   ShardsVecIter shards_vec_end() const;
   void allocate_prefetch_executor();
@@ -208,6 +213,10 @@ class SealedDS {
   template <ShardedDataStructureBased U>
   friend ShardedDSRange<typename U::Shard> make_sharded_ds_range(
       const SealedDS<U> &sealed_ds);
+  template <ShardedDataStructureBased U>
+  ContiguousDSRange<typename U::Shard>
+  friend make_contiguous_ds_range(const SealedDS<U> &sealed_ds) requires(
+    SealedDS<U>::ConstIterator::kContiguous);
 };
 
 template <typename T>
