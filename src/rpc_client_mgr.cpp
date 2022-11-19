@@ -1,5 +1,4 @@
 #include "nu/rpc_client_mgr.hpp"
-
 #include "nu/ctrl_client.hpp"
 
 namespace nu {
