@@ -19,7 +19,7 @@ class TaskRange {
   TaskRange &operator=(const TaskRange &) = default;
   TaskRange(TaskRange &&) = default;
   TaskRange &operator=(TaskRange &&) = default;
-  Task &&pop() { return std::move(impl_.pop()); }
+  Task pop() { return impl_.pop(); }
   std::size_t size() const { return impl_.size(); }
   bool empty() const { return impl_.empty(); }
   TaskRange split() { return impl_.split(); }

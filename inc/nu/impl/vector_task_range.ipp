@@ -12,7 +12,7 @@ inline VectorTaskRangeImpl<T>::VectorTaskRangeImpl(std::vector<T> tasks)
     : tasks_(std::move(tasks)), idx_(0), key_offset_(0) {}
 
 template <typename T>
-inline T &&VectorTaskRangeImpl<T>::pop() {
+inline T VectorTaskRangeImpl<T>::pop() {
   return std::move(tasks_[idx_++]);
 }
 

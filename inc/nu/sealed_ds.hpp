@@ -13,17 +13,18 @@
 #include "nu/proclet.hpp"
 #include "nu/rem_unique_ptr.hpp"
 #include "nu/sharded_ds.hpp"
+#include "nu/sharded_ds_range.hpp"
 #include "nu/type_traits.hpp"
 #include "nu/utils/future.hpp"
 #include "nu/utils/rob_executor.hpp"
 
 namespace nu {
 
-template <ShardedDataStructureBased T, bool Fwd>
+template <GeneralShardBased Shard, bool Fwd>
 class GeneralSealedDSConstIterator {
  private:
-  using IterVal = T::Shard::GeneralContainer::IterVal;
-  using Container = T::Shard::GeneralContainer;
+  using IterVal = Shard::GeneralContainer::IterVal;
+  using Container = Shard::GeneralContainer;
   using ContainerIter =
       std::conditional_t<Fwd, typename Container::ConstIterator,
                          typename Container::ConstReverseIterator>;
@@ -53,7 +54,6 @@ class GeneralSealedDSConstIterator {
   void load(Archive &ar);
 
  private:
-  using Shard = T::Shard;
   using ShardsVec = std::vector<WeakProclet<Shard>>;
   using ShardsVecIter =
       std::conditional_t<Fwd, typename ShardsVec::iterator,
@@ -130,9 +130,8 @@ class GeneralSealedDSConstIterator {
 
   template <ShardedDataStructureBased U>
   friend class SealedDS;
-
-  template <typename It>
-  friend class Range;
+  template <GeneralShardBased S>
+  friend class ShardRange;
 
   GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
                                bool is_begin);
@@ -156,8 +155,9 @@ class GeneralSealedDSConstIterator {
 template <ShardedDataStructureBased T>
 class SealedDS {
  public:
-  using ConstIterator = GeneralSealedDSConstIterator<T, true>;
-  using ConstReverseIterator = GeneralSealedDSConstIterator<T, false>;
+  using ConstIterator = GeneralSealedDSConstIterator<typename T::Shard, true>;
+  using ConstReverseIterator =
+      GeneralSealedDSConstIterator<typename T::Shard, false>;
 
   SealedDS(SealedDS &&) = default;
   SealedDS &operator=(SealedDS &&) = delete;
@@ -205,6 +205,9 @@ class SealedDS {
   friend SealedDS<U> to_sealed_ds(U &&u);
   template <typename U>
   friend U to_unsealed_ds(SealedDS<U> &&sealed);
+  template <ShardedDataStructureBased U>
+  friend ShardedDSRange<typename U::Shard> make_sharded_ds_range(
+      const SealedDS<U> &sealed_ds);
 };
 
 template <typename T>

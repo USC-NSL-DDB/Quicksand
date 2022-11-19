@@ -19,7 +19,7 @@ class VectorTaskRangeImpl {
   VectorTaskRangeImpl &operator=(const VectorTaskRangeImpl &) = default;
   VectorTaskRangeImpl(VectorTaskRangeImpl &&) = default;
   VectorTaskRangeImpl &operator=(VectorTaskRangeImpl &&) = default;
-  T &&pop();
+  T pop();
   std::size_t size() const;
   bool empty() const;
   VectorTaskRangeImpl split();

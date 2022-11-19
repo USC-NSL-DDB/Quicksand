@@ -194,6 +194,11 @@ class GeneralShard {
       uint32_t block_size) requires ConstReverseIterable<Container>;
 };
 
+template <class T>
+concept GeneralShardBased = requires {
+  requires is_base_of_template_v<T, GeneralShard>;
+};
+
 }  // namespace nu
 
 #include "nu/impl/shard.ipp"
