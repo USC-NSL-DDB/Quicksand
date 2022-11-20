@@ -181,6 +181,11 @@ inline void Vector<T>::load(Archive &ar) {
   has_split_ = false;
 }
 
+template <typename T>
+inline std::vector<T> &Vector<T>::data() {
+  return data_;
+}
+
 template <typename T, typename LL>
 inline ShardedVector<T, LL>::ShardedVector() {}
 

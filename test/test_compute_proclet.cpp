@@ -10,11 +10,13 @@
 
 bool test_vector_task_range() {
   constexpr std::size_t kSize = 1 << 20;
+
   auto cp = nu::ComputeProclet<nu::VectorTaskRange<std::size_t>>();
   std::vector<std::size_t> inputs;
   for (auto i : std::views::iota(static_cast<std::size_t>(0), kSize)) {
     inputs.push_back(i);
   }
+
   auto outputs_vectors = cp.run(
       +[](nu::VectorTaskRange<std::size_t> &task_range) {
         std::vector<std::size_t> outputs;
@@ -24,18 +26,21 @@ bool test_vector_task_range() {
         return outputs;
       },
       nu::VectorTaskRange<std::size_t>(inputs));
+
   auto join_view = std::ranges::join_view(outputs_vectors);
   return std::vector<std::size_t>(join_view.begin(), join_view.end()) == inputs;
 }
 
 bool test_sharded_ds_range() {
   constexpr std::size_t kSize = 50 << 20;
+
   auto vec = nu::make_sharded_vector<std::size_t, std::false_type>();
   std::size_t sum = 0;
   for (std::size_t i = 0; i < kSize; i++) {
     vec.push_back(i);
     sum += i;
   }
+
   auto sealed_vec = nu::to_sealed_ds(std::move(vec));
   auto sharded_ds_range = nu::make_sharded_ds_range(sealed_vec);
   auto cp = nu::ComputeProclet<decltype(sharded_ds_range)>();
@@ -44,25 +49,28 @@ bool test_sharded_ds_range() {
         uint64_t sum = 0;
         while (!task_range.empty()) {
           auto shard_range = task_range.pop();
-	  for (const auto &data : shard_range) {
+          for (const auto &data : shard_range) {
             sum += data;
           }
         }
         return sum;
       },
       sharded_ds_range);
+
   return std::accumulate(outputs_vectors.begin(), outputs_vectors.end(),
                          static_cast<std::size_t>(0)) == sum;
 }
 
 bool test_cont_ds_range() {
   constexpr std::size_t kSize = 50 << 20;
+
   auto vec = nu::make_sharded_vector<std::size_t, std::false_type>();
   std::size_t sum = 0;
   for (std::size_t i = 0; i < kSize; i++) {
     vec.push_back(i);
     sum += i;
   }
+
   auto sealed_vec = nu::to_sealed_ds(std::move(vec));
   auto cont_ds_range = nu::make_contiguous_ds_range(sealed_vec);
   auto cp = nu::ComputeProclet<decltype(cont_ds_range)>();
@@ -75,12 +83,14 @@ bool test_cont_ds_range() {
         return sum;
       },
       cont_ds_range);
+
   return std::accumulate(outputs_vectors.begin(), outputs_vectors.end(),
                          static_cast<std::size_t>(0)) == sum;
 }
 
 bool test_zipped_ds_range() {
   constexpr std::size_t kSize = 50 << 20;
+
   auto vec0 = nu::make_sharded_vector<std::size_t, std::false_type>();
   auto vec1 = nu::make_sharded_vector<std::size_t, std::false_type>();
   std::size_t sum = 0;
@@ -89,6 +99,7 @@ bool test_zipped_ds_range() {
     vec1.push_back(kSize - i);
     sum += kSize;
   }
+
   auto sealed_vec0 = nu::to_sealed_ds(std::move(vec0));
   auto sealed_vec1 = nu::to_sealed_ds(std::move(vec1));
   auto zipped_ds_range = nu::make_zipped_ds_range(sealed_vec0, sealed_vec1);
@@ -103,13 +114,53 @@ bool test_zipped_ds_range() {
         return sum;
       },
       zipped_ds_range);
+
   return std::accumulate(outputs_vectors.begin(), outputs_vectors.end(),
                          static_cast<std::size_t>(0)) == sum;
 }
 
+bool test_sharded_vector_filtering() {
+  constexpr std::size_t kSize = 50 << 20;
+  constexpr static auto kFilterFn = [](std::size_t n) { return n % 2 == 0; };
+
+  auto vec = nu::make_sharded_vector<std::size_t, std::false_type>();
+  std::vector<std::size_t> expected;
+  for (std::size_t i = 0; i < kSize; i++) {
+    vec.push_back(i);
+    if (kFilterFn(i)) {
+      expected.push_back(i);
+    }
+  }
+
+  auto sealed_vec = nu::to_sealed_ds(std::move(vec));
+  auto sharded_vector_range = nu::make_sharded_ds_range(sealed_vec);
+  auto cp = nu::ComputeProclet<decltype(sharded_vector_range)>();
+  auto filtered_vecs = cp.run(
+      +[](decltype(sharded_vector_range) &task_range) {
+        auto filtered_vec =
+            nu::make_sharded_vector<std::size_t, std::false_type>();
+        while (!task_range.empty()) {
+          auto shard_range = task_range.pop();
+          for (const auto &data : shard_range) {
+            if (kFilterFn(data)) {
+              filtered_vec.push_back(data);
+            }
+          }
+        }
+        return filtered_vec;
+      },
+      sharded_vector_range);
+
+  for (auto &vec : filtered_vecs | std::views::drop(1)) {
+    filtered_vecs.front().concat(std::move(vec));
+  }
+  return filtered_vecs.front().collect().unwrap().data() == expected;
+}
+
 bool test_all() {
   return test_vector_task_range() && test_sharded_ds_range() &&
-         test_cont_ds_range() && test_zipped_ds_range();
+         test_cont_ds_range() && test_zipped_ds_range() &&
+         test_sharded_vector_filtering();
 }
 
 int main(int argc, char **argv) {

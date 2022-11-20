@@ -63,6 +63,7 @@ class Vector {
   void save(Archive &ar) const;
   template <class Archive>
   void load(Archive &ar);
+  std::vector<T> &data();
 
  private:
   std::vector<T> data_;
