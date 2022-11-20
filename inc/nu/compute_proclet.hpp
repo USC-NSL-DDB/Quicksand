@@ -1,11 +1,14 @@
 #pragma once
 
-#include <vector>
+#include <memory>
 #include <tuple>
+#include <type_traits>
+#include <vector>
 
 #include "nu/commons.hpp"
 #include "nu/task_range.hpp"
 #include "nu/utils/future.hpp"
+#include "nu/utils/mutex.hpp"
 
 namespace nu {
 
@@ -15,10 +18,12 @@ class ComputeProcletWorker {
   ComputeProcletWorker(States... states);
   template <typename RetT>
   RetT compute(RetT (*fn)(TR &, States...), TR task_range);
+  TR steal_work();
 
  private:
   std::tuple<States...> states_;
-  TR task_range_;
+  std::unique_ptr<TR> task_range_;
+  Mutex mutex_;
 };
 
 template <TaskRangeBased TR>

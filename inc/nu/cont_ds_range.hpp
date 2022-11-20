@@ -29,10 +29,9 @@ class ContiguousDSRangeImpl {
   ContiguousDSRangeImpl(ContiguousDSRangeImpl &&) = default;
   ContiguousDSRangeImpl &operator=(ContiguousDSRangeImpl &&) = default;
   Task pop();
-  std::size_t size() const;
+  ssize_t size() const;
   bool empty() const;
   ContiguousDSRangeImpl split();
-  void merge(ContiguousDSRangeImpl r_range);
   std::pair<Key, Key> initial_key_range() const;
   template <class Archive>
   void save(Archive &ar) const;
@@ -41,11 +40,13 @@ class ContiguousDSRangeImpl {
 
  private:
   ConstIterator cur_;
-  ConstIterator end_;
   std::vector<std::size_t> all_shard_keys_;
   std::pair<std::size_t, std::size_t> initial_key_range_;
+  std::size_t cur_key_;
+  template <GeneralShardBased... Shards>
+  friend class ZippedDSRangeImpl;
 
-  std::size_t get_cur_key();
+  ContiguousDSRangeImpl __split(std::size_t mid_key);
 };
 
 template <GeneralShardBased Shard>

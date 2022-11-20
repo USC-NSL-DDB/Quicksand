@@ -9,19 +9,23 @@
 #include "nu/zipped_ds_range.hpp"
 
 bool test_vector_task_range() {
-  auto cp = nu::ComputeProclet<nu::VectorTaskRange<int>>();
-  std::vector<int> inputs{1, 2, 3};
+  constexpr std::size_t kSize = 1 << 20;
+  auto cp = nu::ComputeProclet<nu::VectorTaskRange<std::size_t>>();
+  std::vector<std::size_t> inputs;
+  for (auto i : std::views::iota(static_cast<std::size_t>(0), kSize)) {
+    inputs.push_back(i);
+  }
   auto outputs_vectors = cp.run(
-      +[](nu::VectorTaskRange<int> &task_range) {
-        std::vector<int> outputs;
+      +[](nu::VectorTaskRange<std::size_t> &task_range) {
+        std::vector<std::size_t> outputs;
         while (!task_range.empty()) {
           outputs.emplace_back(task_range.pop());
         }
         return outputs;
       },
-      nu::VectorTaskRange<int>(inputs));
+      nu::VectorTaskRange<std::size_t>(inputs));
   auto join_view = std::ranges::join_view(outputs_vectors);
-  return std::vector<int>(join_view.begin(), join_view.end()) == inputs;
+  return std::vector<std::size_t>(join_view.begin(), join_view.end()) == inputs;
 }
 
 bool test_sharded_ds_range() {

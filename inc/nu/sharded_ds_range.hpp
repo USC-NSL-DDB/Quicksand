@@ -36,6 +36,7 @@ class ShardedDSRange : public VectorTaskRange<WeakProclet<Shard>> {
   using Task = ShardRange<Shard>;
 
   ShardedDSRange() = default;
+  ShardedDSRange(VectorTaskRange<WeakProclet<Shard>> &&vector_tr);
   ShardedDSRange(std::vector<WeakProclet<Shard>> shards);
   ShardedDSRange(const ShardedDSRange &) = default;
   ShardedDSRange &operator=(const ShardedDSRange &) = default;

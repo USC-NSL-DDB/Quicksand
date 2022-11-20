@@ -19,10 +19,9 @@ class VectorTaskRangeImpl {
   VectorTaskRangeImpl(VectorTaskRangeImpl &&) = default;
   VectorTaskRangeImpl &operator=(VectorTaskRangeImpl &&) = default;
   T pop();
-  std::size_t size() const;
+  ssize_t size() const;
   bool empty() const;
   VectorTaskRangeImpl split();
-  void merge(VectorTaskRangeImpl r_range);
   std::pair<Key, Key> initial_key_range() const;
   template <class Archive>
   void save(Archive &ar) const;
@@ -31,7 +30,8 @@ class VectorTaskRangeImpl {
 
  private:
   std::vector<T> tasks_;
-  size_t idx_;
+  std::size_t cur_idx_;
+  std::size_t end_idx_;
   std::size_t key_offset_;
 };
 

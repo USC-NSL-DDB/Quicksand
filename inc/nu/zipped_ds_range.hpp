@@ -22,7 +22,6 @@ class ZippedDSRangeImpl {
   std::size_t size() const;
   bool empty() const;
   ZippedDSRangeImpl split();
-  void merge(ZippedDSRangeImpl r_range);
   std::pair<Key, Key> initial_key_range() const;
   template <class Archive>
   void save(Archive &ar) const;

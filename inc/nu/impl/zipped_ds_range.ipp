@@ -4,7 +4,7 @@
 namespace nu {
 
 template <GeneralShardBased... Shards>
-ZippedDSRangeImpl<Shards...>::ZippedDSRangeImpl(
+inline ZippedDSRangeImpl<Shards...>::ZippedDSRangeImpl(
     std::tuple<ContiguousDSRange<Shards>...> cont_ds_ranges)
     : cont_ds_ranges_(std::move(cont_ds_ranges)) {
   auto initial_key_range = std::get<0>(cont_ds_ranges_).initial_key_range();
@@ -17,7 +17,8 @@ ZippedDSRangeImpl<Shards...>::ZippedDSRangeImpl(
 }
 
 template <GeneralShardBased... Shards>
-std::tuple<typename Shards::IterVal...> ZippedDSRangeImpl<Shards...>::pop() {
+inline std::tuple<typename Shards::IterVal...>
+ZippedDSRangeImpl<Shards...>::pop() {
   return std::apply(
       [](auto &... cont_ds_ranges) {
         return std::make_tuple(cont_ds_ranges.pop()...);
@@ -26,56 +27,50 @@ std::tuple<typename Shards::IterVal...> ZippedDSRangeImpl<Shards...>::pop() {
 }
 
 template <GeneralShardBased... Shards>
-std::size_t ZippedDSRangeImpl<Shards...>::size() const {
+inline std::size_t ZippedDSRangeImpl<Shards...>::size() const {
   return std::get<0>(cont_ds_ranges_).size();
 }
 
 template <GeneralShardBased... Shards>
-bool ZippedDSRangeImpl<Shards...>::empty() const {
+inline bool ZippedDSRangeImpl<Shards...>::empty() const {
   return std::get<0>(cont_ds_ranges_).empty();
 }
 
 template <GeneralShardBased... Shards>
-ZippedDSRangeImpl<Shards...> ZippedDSRangeImpl<Shards...>::split() {
+inline ZippedDSRangeImpl<Shards...> ZippedDSRangeImpl<Shards...>::split() {
+  auto first_split = std::get<0>(cont_ds_ranges_).split();
+  auto mid_key = first_split.initial_key_range().first;
+
   return ZippedDSRangeImpl(std::apply(
-      [](auto &... cont_ds_ranges) {
-        return std::make_tuple(cont_ds_ranges.split()...);
+      [&](auto &first, auto &... others) {
+        return std::make_tuple(std::move(first_split),
+                               others.impl().__split(mid_key)...);
       },
       cont_ds_ranges_));
 }
 
 template <GeneralShardBased... Shards>
-void ZippedDSRangeImpl<Shards...>::merge(ZippedDSRangeImpl r_range) {
-  [&]<typename T, T... Ints>(std::integer_sequence<T, Ints...> seqs) {
-    ((std::get<Ints>(cont_ds_ranges_)
-          .merge(std::move(std::get<Ints>(r_range.cont_ds_ranges_)))),
-     ...);
-  }
-  (std::make_index_sequence<sizeof...(Shards)>{});
-}
-
-template <GeneralShardBased... Shards>
-std::pair<std::size_t, std::size_t>
+inline std::pair<std::size_t, std::size_t>
 ZippedDSRangeImpl<Shards...>::initial_key_range() const {
   return std::get<0>(cont_ds_ranges_).initial_key_range();
 }
 
 template <GeneralShardBased... Shards>
 template <class Archive>
-void ZippedDSRangeImpl<Shards...>::save(Archive &ar) const {
+inline void ZippedDSRangeImpl<Shards...>::save(Archive &ar) const {
   std::apply([&](auto &... cont_ds_ranges) { ar(cont_ds_ranges...); },
              cont_ds_ranges_);
 }
 
 template <GeneralShardBased... Shards>
 template <class Archive>
-void ZippedDSRangeImpl<Shards...>::load(Archive &ar) {
+inline void ZippedDSRangeImpl<Shards...>::load(Archive &ar) {
   std::apply([&](auto &... cont_ds_ranges) { ar(cont_ds_ranges...); },
              cont_ds_ranges_);
 }
 
 template <ShardedDataStructureBased... Ts>
-ZippedDSRange<typename Ts::Shard...>
+inline ZippedDSRange<typename Ts::Shard...>
 make_zipped_ds_range(const SealedDS<Ts> &... sealed_dses) requires(
     ((SealedDS<Ts>::ConstIterator::kContiguous) && ...)) {
   return ZippedDSRange<typename Ts::Shard...>(

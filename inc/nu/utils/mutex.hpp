@@ -3,6 +3,7 @@
 #include <sync.h>
 
 namespace nu {
+
 class Mutex {
  public:
   Mutex();
@@ -22,6 +23,7 @@ class Mutex {
   void __lock();
   void __unlock();
 };
+
 }  // namespace nu
 
 #include "nu/impl/mutex.ipp"

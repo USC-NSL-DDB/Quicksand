@@ -40,6 +40,11 @@ inline ShardRange<Shard> ShardedDSRange<Shard>::pop() {
 
 template <GeneralShardBased Shard>
 inline ShardedDSRange<Shard>::ShardedDSRange(
+    VectorTaskRange<WeakProclet<Shard>> &&vector_tr)
+    : VectorTaskRange<WeakProclet<Shard>>(std::move(vector_tr)) {}
+
+template <GeneralShardBased Shard>
+inline ShardedDSRange<Shard>::ShardedDSRange(
     std::vector<WeakProclet<Shard>> shards)
     : VectorTaskRange<WeakProclet<Shard>>(std::move(shards)) {}
 
