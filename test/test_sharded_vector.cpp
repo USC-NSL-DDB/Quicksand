@@ -90,79 +90,34 @@ bool test_for_all() {
   return true;
 }
 
-template <typename T, typename LL>
-class BackInserterWorker {
- public:
-  static const std::size_t kNumElements = 1'000'000;
-  static const std::size_t kNumWorkers = 10;
+bool test_concat() {
+  constexpr int kSize = 50 << 20;
+  auto vec0 = make_sharded_vector<int, std::false_type>();
+  auto vec1 = make_sharded_vector<int, std::false_type>();
 
-  BackInserterWorker(nu::VectorBackInserter<T, LL> inserter, std::size_t wid)
-      : inserter_(std::move(inserter)), wid_(wid) {
-    if (wid < kNumWorkers - 1) {
-      auto next_wid = wid + 1;
-      nu::make_proclet<BackInserterWorker<int, std::false_type>>(
-          inserter_.split(next_wid), next_wid);
-    }
-
-    do_work();
+  for (int i = 0; i < kSize; i++) {
+    vec0.push_back(i);
+    vec1.push_back(i + kSize);
   }
 
-  void do_work() {
-    for (std::size_t i = 0; i < kNumElements; ++i) {
-      inserter_.push_back(wid_ * kNumElements + i);
-    }
-  }
-
- private:
-  nu::VectorBackInserter<T, LL> inserter_;
-  std::size_t wid_;
-};
-
-bool test_back_inserter() {
-  auto num_workers = BackInserterWorker<int, std::false_type>::kNumWorkers;
-  auto num_elems = BackInserterWorker<int, std::false_type>::kNumElements;
-
-  auto v = nu::make_sharded_vector<int, std::false_type>();
-  {
-    auto inserter = v.back_inserter();
-    auto worker = nu::make_proclet<BackInserterWorker<int, std::false_type>>(
-        std::move(inserter), 0);
-  }
-
-  // blocks until insertion is done
-  auto sealed = nu::to_sealed_ds(std::move(v));
-
-  auto expected_len = num_workers * num_elems;
-  if (sealed.size() != expected_len) {
+  vec0.concat(std::move(vec1));
+  auto sealed_vec = nu::to_sealed_ds(std::move(vec0));
+  if (sealed_vec.size() != kSize * 2) {
     return false;
   }
 
-  int expected = 0;
-  for (const auto elem : sealed) {
-    if (elem != expected) {
+  int idx = 0;
+  for (const auto &d: sealed_vec) {
+    if (d != idx++) {
       return false;
     }
-    ++expected;
   }
-
-  return true;
+  return idx == kSize * 2;
 }
 
 bool run_test() {
-  if (!test_push_and_set()) {
-    return false;
-  }
-  if (!test_vec_clear()) {
-    return false;
-  }
-  if (!test_for_all()) {
-    return false;
-  }
-  if (!test_back_inserter()) {
-    return false;
-  }
-
-  return true;
+  return test_push_and_set() && test_vec_clear() && test_for_all() &&
+         test_concat();
 }
 
 void do_work() {

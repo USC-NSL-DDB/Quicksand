@@ -327,6 +327,15 @@ ShardedDataStructure<Container, LL>::find_data(Key k) const
 }
 
 template <class Container, class LL>
+inline void ShardedDataStructure<Container, LL>::concat(
+    ShardedDataStructure &&tail) requires Container::kContiguousIterator {
+  flush();
+  tail.flush();
+  mapping_.run_async(&ShardingMapping::concat, tail.mapping_.get_weak());
+  tail.key_to_shards_.clear();
+}
+
+template <class Container, class LL>
 inline std::pair<
     std::optional<typename ShardedDataStructure<Container, LL>::Key>,
     std::optional<typename ShardedDataStructure<Container, LL>::Key>>
@@ -494,7 +503,7 @@ template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::flush_and_sync_mapping() {
   flush();
 
-  auto latest_mapping = mapping_.run(&ShardingMapping::get_all_shards);
+  auto latest_mapping = mapping_.run(&ShardingMapping::get_all_keys_and_shards);
   key_to_shards_.clear();
   for (auto &[k, s] : latest_mapping) {
     key_to_shards_.emplace(k, ShardAndReqs(s));

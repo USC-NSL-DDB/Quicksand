@@ -55,6 +55,8 @@ class ShardedDataStructure {
   Val back() const requires HasBack<Container>;
   void pop_back() requires PopBackAble<Container>;
   std::optional<IterVal> find_data(Key k) const requires Findable<Container>;
+  void concat(
+      ShardedDataStructure &&tail) requires Container::kContiguousIterator;
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...),
                S1s &&... states) requires HasVal<Container>;

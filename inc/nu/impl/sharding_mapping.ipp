@@ -83,16 +83,17 @@ GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
 
 template <class Shard>
 std::vector<std::pair<std::optional<typename Shard::Key>, WeakProclet<Shard>>>
-GeneralShardingMapping<Shard>::get_all_shards() {
-  std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
+GeneralShardingMapping<Shard>::get_all_keys_and_shards() {
+  std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
+      keys_and_shards;
 
   mutex_.lock();
   for (auto &[k, s] : mapping_) {
-    shards.emplace_back(k, s.get_weak());
+    keys_and_shards.emplace_back(k, s.get_weak());
   }
   mutex_.unlock();
 
-  return shards;
+  return keys_and_shards;
 }
 
 template <class Shard>
@@ -103,6 +104,20 @@ GeneralShardingMapping<Shard>::get_shard_for_key(std::optional<Key> key) {
   auto shard = iter->second.get_weak();
   mutex_.unlock();
   return shard;
+}
+
+template <class Shard>
+std::vector<Proclet<Shard>>
+GeneralShardingMapping<Shard>::acquire_all_shards() {
+  std::vector<Proclet<Shard>> shards;
+
+  mutex_.lock();
+  for (auto &[k, s] : mapping_) {
+    shards.emplace_back(std::move(s));
+  }
+  mutex_.unlock();
+
+  return shards;
 }
 
 template <class Shard>
@@ -139,6 +154,20 @@ WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
   mutex_.unlock();
 
   return new_weak_shard;
+}
+
+template <class Shard>
+void GeneralShardingMapping<Shard>::concat(
+    WeakProclet<GeneralShardingMapping>
+        tail) requires(Shard::GeneralContainer::kContiguousIterator) {
+  auto all_tail_shards =
+      tail.run_async(&GeneralShardingMapping::acquire_all_shards);
+  auto end_key = (--mapping_.end())->second.run(&Shard::split_at_end);
+
+  for (auto &tail_shard : all_tail_shards.get()) {
+    auto iter = mapping_.emplace(end_key, std::move(tail_shard));
+    end_key = iter->second.run(&Shard::rebase, end_key);
+  }
 }
 
 }  // namespace nu

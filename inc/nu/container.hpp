@@ -89,6 +89,12 @@ concept Reservable = requires(T t) {
 };
 
 template <class T>
+concept RebaseAble = requires(T t) {
+  { t.rebase(std::declval<typename T::Key>()) }
+  ->std::same_as<typename T::Key>;
+};
+
+template <class T>
 concept UInt64Convertable = requires(T t) {
   requires sizeof(T) == sizeof(uint64_t);
   requires std::is_trivially_copy_assignable_v<T>;
@@ -259,6 +265,9 @@ class GeneralContainerBase {
   }
   ConstReverseIterator crend() const requires ConstReverseIterable<Impl> {
     return impl_.crend();
+  }
+  Key rebase(Key new_l_key) requires RebaseAble<Impl> {
+    return impl_.rebase(new_l_key);
   }
   template <typename... S0s, typename... S1s>
   void pass_through(void (*fn)(Impl &, S0s...), S1s &&... states) {

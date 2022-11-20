@@ -105,6 +105,12 @@ inline void Vector<T>::merge(Vector vector) {
 }
 
 template <typename T>
+inline std::size_t Vector<T>::rebase(std::size_t new_l_key) {
+  l_key_ = new_l_key;
+  return l_key_ + size();
+}
+
+template <typename T>
 inline Vector<T>::ConstIterator Vector<T>::find(Key k) const {
   auto l_key = l_key_;
   auto r_key = l_key_ + data_.size();
@@ -176,162 +182,6 @@ inline void Vector<T>::load(Archive &ar) {
 }
 
 template <typename T, typename LL>
-VectorInsertCollection<T, LL>::VectorInsertCollection(
-    const ShardedVector<T, LL> &original)
-    : original_(original), ref_cnt_(0) {}
-
-template <typename T, typename LL>
-VectorInsertCollection<T, LL>::~VectorInsertCollection() {
-  flush();
-}
-
-template <typename T, typename LL>
-void VectorInsertCollection<T, LL>::inc_ref_cnt() {
-  mutex_.lock();
-  ref_cnt_++;
-  mutex_.unlock();
-}
-
-template <typename T, typename LL>
-void VectorInsertCollection<T, LL>::dec_ref_cnt() {
-  mutex_.lock();
-  ref_cnt_--;
-  mutex_.unlock();
-}
-
-template <typename T, typename LL>
-void VectorInsertCollection<T, LL>::submit_batch(std::size_t rank,
-                                                 ShardedVector<T, LL> elems) {
-  mutex_.lock();
-  vecs_.emplace(rank, std::move(elems));
-  mutex_.unlock();
-}
-template <typename T, typename LL>
-void VectorInsertCollection<T, LL>::flush() {
-  mutex_.lock();
-  assert(ref_cnt_ == 0);
-  // TODO: optimize
-  for (auto &[_, new_elems] : vecs_) {
-    auto sealed_elems = nu::to_sealed_ds(std::move(new_elems));
-    for (auto elem : sealed_elems) {
-      original_.emplace_back(std::move(elem));
-    }
-  }
-  mutex_.unlock();
-}
-
-template <typename T, typename LL>
-VectorBackInserter<T, LL>::VectorBackInserter() {}
-
-template <typename T, typename LL>
-VectorBackInserter<T, LL>::VectorBackInserter(
-    Proclet<VectorInsertCollection<T, LL>> state, std::size_t rank)
-    : state_(state), elems_(make_sharded_vector<T, LL>()), rank_(rank) {
-  state_.run(&VectorInsertCollection<T, LL>::inc_ref_cnt);
-}
-
-template <typename T, typename LL>
-VectorBackInserter<T, LL>::VectorBackInserter(
-    const VectorBackInserter<T, LL> &o)
-    : state_(o.state_), elems_(o.elems_), rank_(o.rank_) {
-  state_.run(&VectorInsertCollection<T, LL>::inc_ref_cnt);
-}
-
-template <typename T, typename LL>
-VectorBackInserter<T, LL> &VectorBackInserter<T, LL>::operator=(
-    const VectorBackInserter<T, LL> &o) {
-  flush();
-  state_ = o.state_;
-  elems_ = o.elems_;
-  rank_ = o.rank_;
-  state_.run(&VectorInsertCollection<T, LL>::inc_ref_cnt);
-  return *this;
-}
-
-template <typename T, typename LL>
-VectorBackInserter<T, LL>::VectorBackInserter(
-    VectorBackInserter<T, LL> &&o) noexcept
-    : state_(std::move(o.state_)),
-      elems_(std::move(o.elems_)),
-      rank_(std::move(o.rank_)) {}
-
-template <typename T, typename LL>
-VectorBackInserter<T, LL> &VectorBackInserter<T, LL>::operator=(
-    VectorBackInserter<T, LL> &&o) noexcept {
-  flush();
-  state_ = std::move(o.state_);
-  elems_ = std::move(o.elems_);
-  rank_ = std::move(o.rank_);
-  return *this;
-}
-
-template <typename T, typename LL>
-VectorBackInserter<T, LL>::~VectorBackInserter() {
-  flush();
-}
-
-template <typename T, typename LL>
-void VectorBackInserter<T, LL>::flush() {
-  if (!state_) {
-    return;
-  }
-
-  if (likely(elems_)) {
-    elems_.value().flush();
-    state_.run(
-        +[](VectorInsertCollection<T, LL> &s, std::size_t rank,
-            ShardedVector<T, LL> elems) {
-          s.submit_batch(rank, std::move(elems));
-          s.dec_ref_cnt();
-        },
-        rank_, elems_.value());
-  } else {
-    state_.run(&VectorInsertCollection<T, LL>::dec_ref_cnt);
-  }
-}
-
-template <typename T, typename LL>
-inline void VectorBackInserter<T, LL>::push_back(const T &elem) {
-  if (likely(elems_)) {
-    elems_.value().push_back(elem);
-  } else {
-    elems_ = make_sharded_vector<T, LL>();
-    elems_.value().push_back(elem);
-  }
-}
-
-template <typename T, typename LL>
-inline void VectorBackInserter<T, LL>::emplace_back(T &&elem) {
-  if (likely(elems_)) {
-    elems_.value().emplace_back(elem);
-  } else {
-    elems_ = make_sharded_vector<T, LL>();
-    elems_.value().emplace_back(elem);
-  }
-}
-
-template <typename T, typename LL>
-VectorBackInserter<T, LL> VectorBackInserter<T, LL>::split(
-    std::size_t next_inserter_rank) {
-  assert(next_inserter_rank > rank_);
-  return VectorBackInserter(state_, next_inserter_rank);
-}
-
-template <typename T, typename LL>
-template <class Archive>
-void VectorBackInserter<T, LL>::save(Archive &ar) const {
-  ar(state_, elems_, rank_);
-  const_cast<Proclet<VectorInsertCollection<T, LL>> &>(state_).run(
-      &VectorInsertCollection<T, LL>::inc_ref_cnt);
-}
-
-template <typename T, typename LL>
-template <class Archive>
-void VectorBackInserter<T, LL>::load(Archive &ar) {
-  ar(state_, elems_, rank_);
-}
-
-template <typename T, typename LL>
 inline ShardedVector<T, LL>::ShardedVector() {}
 
 template <typename T, typename LL>
@@ -353,13 +203,6 @@ inline void ShardedVector<T, LL>::push_back(const T &value) {
 template <typename T, typename LL>
 inline void ShardedVector<T, LL>::emplace_back(T &&value) {
   Base::emplace_back(std::move(value));
-}
-
-template <typename T, typename LL>
-inline VectorBackInserter<T, LL> ShardedVector<T, LL>::back_inserter() {
-  auto size = this->size();
-  auto state = make_proclet<VectorInsertCollection<T, LL>>(*this);
-  return VectorBackInserter(state, size);
 }
 
 template <typename T, typename LL>

@@ -166,6 +166,8 @@ class GeneralShard {
       std::size_t order) requires FindableByOrder<Container>;
   Container get_container_copy();
   ContainerHandle<Container> get_container_handle();
+  Key split_at_end() requires GeneralContainer::kContiguousIterator;
+  Key rebase(Key new_l_key) requires GeneralContainer::kContiguousIterator;
 
  private:
   constexpr static uint32_t kReserveProbeSize = 8192;

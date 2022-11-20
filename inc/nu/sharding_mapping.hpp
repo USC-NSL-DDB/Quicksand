@@ -21,12 +21,15 @@ class GeneralShardingMapping {
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
-  get_all_shards();
+  get_all_keys_and_shards();
   std::optional<WeakProclet<Shard>> get_shard_for_key(std::optional<Key> key);
+  std::vector<Proclet<Shard>> acquire_all_shards();
   void reserve_new_shard();
   WeakProclet<Shard> create_new_shard(std::optional<Key> l_key,
                                       std::optional<Key> r_key,
                                       bool reserve_space);
+  void concat(WeakProclet<GeneralShardingMapping> tail) requires(
+      Shard::GeneralContainer::kContiguousIterator);
   void inc_ref_cnt();
   void dec_ref_cnt();
   void seal();
@@ -38,6 +41,7 @@ class GeneralShardingMapping {
   WeakProclet<GeneralShardingMapping> self_;
   uint32_t max_shard_bytes_;
   uint32_t proclet_capacity_;
+
   std::multimap<std::optional<Key>, Proclet<Shard>> mapping_;
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;

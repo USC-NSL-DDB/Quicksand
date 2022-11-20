@@ -52,6 +52,7 @@ class Vector {
   ConstIterator find(Key k) const;
   void split(Key *mid_k, Vector *latter_half);
   void merge(Vector vector);
+  Key rebase(Key new_l_key);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   ConstIterator cbegin() const;
@@ -73,53 +74,6 @@ template <typename T, typename LL>
 class ShardedVector;
 
 template <typename T, typename LL>
-class VectorInsertCollection {
- public:
-  VectorInsertCollection(const ShardedVector<T, LL> &original);
-  ~VectorInsertCollection();
-
-  void inc_ref_cnt();
-  void dec_ref_cnt();
-  void submit_batch(std::size_t rank, ShardedVector<T, LL> elems);
-
- private:
-  std::map<std::size_t, ShardedVector<T, LL>> vecs_;
-  ShardedVector<T, LL> original_;
-  uint32_t ref_cnt_;
-  Mutex mutex_;
-
-  void flush();
-};
-
-template <typename T, typename LL>
-class VectorBackInserter {
- public:
-  VectorBackInserter();
-  VectorBackInserter(Proclet<VectorInsertCollection<T, LL>> state,
-                     std::size_t rank);
-  VectorBackInserter(const VectorBackInserter &);
-  VectorBackInserter &operator=(const VectorBackInserter &);
-  VectorBackInserter(VectorBackInserter &&) noexcept;
-  VectorBackInserter &operator=(VectorBackInserter &&) noexcept;
-  ~VectorBackInserter();
-
-  void push_back(const T &);
-  void emplace_back(T &&);
-  VectorBackInserter<T, LL> split(std::size_t rank);
-  template <class Archive>
-  void save(Archive &ar) const;
-  template <class Archive>
-  void load(Archive &ar);
-
- private:
-  Proclet<VectorInsertCollection<T, LL>> state_;
-  std::optional<ShardedVector<T, LL>> elems_;
-  std::size_t rank_;
-
-  void flush();
-};
-
-template <typename T, typename LL>
 class ShardedVector
     : public ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL> {
  public:
@@ -134,7 +88,6 @@ class ShardedVector
   void push_back(const T &value);
   void emplace_back(T &&value);
   void pop_back();
-  VectorBackInserter<T, LL> back_inserter();
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL>;

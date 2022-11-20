@@ -725,4 +725,26 @@ inline std::size_t GeneralShard<Container>::size() {
   return container_.size();
 }
 
+template <class Container>
+inline Container::Key GeneralShard<
+    Container>::split_at_end() requires GeneralContainer::kContiguousIterator {
+  if (r_key_) {
+    return *r_key_;
+  }
+
+  r_key_ = l_key_.value_or(0) + container_.size();
+  return *r_key_;
+}
+
+template <class Container>
+inline Container::Key GeneralShard<Container>::rebase(
+    Key new_l_key) requires GeneralContainer::kContiguousIterator {
+  l_key_ = new_l_key;
+  auto new_r_key = container_.rebase(new_l_key);
+  if (r_key_) {
+    r_key_ = new_r_key;
+  }
+  return new_r_key;
+}
+
 }  // namespace nu
