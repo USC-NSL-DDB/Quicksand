@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <map>
 #include <type_traits>
 
 #include "nu/proclet.hpp"
@@ -45,27 +46,35 @@ template <typename RetT, typename... S0s, typename... S1s>
 std::vector<RetT> ComputeProclet<TR>::run(RetT (*fn)(TR &, S0s...),
                                           TR task_range, S1s &&... states) {
   std::vector<Future<Proclet<ComputeProcletWorker<TR, S0s...>>>> workers;
-  std::vector<Future<std::vector<RetT>>> futures;
+  std::map<typename TR::Key, Future<std::vector<RetT>>> futures;
   std::vector<RetT> rets;
 
   for (uint32_t i = 0; i < 2; i++) {
     workers.emplace_back(
         nu::make_proclet_async<ComputeProcletWorker<TR, S0s...>>(states...));
   }
-  futures.emplace_back(workers[0].get().__run_async(
-      &ComputeProcletWorker<TR, S0s...>::template compute<RetT>, fn,
-      std::move(task_range)));
+
+  auto l_key = task_range.initial_key_range().first;
+  futures.try_emplace(
+      l_key, workers[0].get().__run_async(
+                 &ComputeProcletWorker<TR, S0s...>::template compute<RetT>, fn,
+                 std::move(task_range)));
   delay_us(10 * 1000);
+
   auto stealed_tr =
       workers[0].get().run(&ComputeProcletWorker<TR, S0s...>::steal_work);
-  futures.emplace_back(workers[1].get().__run_async(
-      &ComputeProcletWorker<TR, S0s...>::template compute<RetT>, fn,
-      std::move(stealed_tr)));
-  for (auto &future : futures) {
+  l_key = stealed_tr.initial_key_range().first;
+  futures.try_emplace(
+      l_key, workers[1].get().__run_async(
+                 &ComputeProcletWorker<TR, S0s...>::template compute<RetT>, fn,
+                 std::move(stealed_tr)));
+
+  for (auto &[_, future] : futures) {
     auto &future_val = future.get();
     rets.insert(rets.end(), std::make_move_iterator(future_val.begin()),
                 std::make_move_iterator(future_val.end()));
   }
+
   return rets;
 }
 
