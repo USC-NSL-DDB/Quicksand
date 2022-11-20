@@ -22,33 +22,44 @@ inline T VectorTaskRangeImpl<T>::pop() {
 }
 
 template <typename T>
-inline ssize_t VectorTaskRangeImpl<T>::size() const {
-  return static_cast<ssize_t>(rt::access_once(end_idx_)) -
-         static_cast<ssize_t>(cur_idx_);
+inline std::size_t VectorTaskRangeImpl<T>::size() const {
+  auto end_idx = rt::access_once(end_idx_);
+  auto cur_idx = cur_idx_;
+  if (likely(end_idx >= cur_idx)) {
+    return end_idx - cur_idx;
+  } else {
+    return 0;
+  }
 }
 
 template <typename T>
 inline bool VectorTaskRangeImpl<T>::empty() const {
-  return size() <= 0;
+  return !size();
 }
 
 template <typename T>
 inline VectorTaskRangeImpl<T> VectorTaskRangeImpl<T>::split() {
+retry:
+  auto orig_end_idx = end_idx_;
   auto mid_idx = (cur_idx_ + end_idx_) / 2;
   end_idx_ = mid_idx;
   mb();
-  if (likely(cur_idx_ < mid_idx)) {
-    VectorTaskRangeImpl r_range;
-    std::ranges::move(tasks_.begin() + mid_idx, tasks_.end(),
-                      std::back_inserter(r_range.tasks_));
-    tasks_.resize(mid_idx);
-    r_range.cur_idx_ = 0;
-    r_range.end_idx_ = r_range.tasks_.size();
-    r_range.key_offset_ = key_offset_ + mid_idx;
-    return r_range;
+  if (unlikely(cur_idx_ >= mid_idx)) {
+    end_idx_ = orig_end_idx;
+    if (unlikely(cur_idx_ == end_idx_)) {
+      return VectorTaskRangeImpl();
+    }
+    goto retry;
   }
-  // TODO
-  BUG();
+
+  VectorTaskRangeImpl r_range;
+  std::ranges::move(tasks_.begin() + mid_idx, tasks_.end(),
+                    std::back_inserter(r_range.tasks_));
+  tasks_.resize(mid_idx);
+  r_range.cur_idx_ = 0;
+  r_range.end_idx_ = r_range.tasks_.size();
+  r_range.key_offset_ = key_offset_ + mid_idx;
+  return r_range;
 }
 
 template <typename T>

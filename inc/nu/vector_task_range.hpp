@@ -19,7 +19,7 @@ class VectorTaskRangeImpl {
   VectorTaskRangeImpl(VectorTaskRangeImpl &&) = default;
   VectorTaskRangeImpl &operator=(VectorTaskRangeImpl &&) = default;
   T pop();
-  ssize_t size() const;
+  std::size_t size() const;
   bool empty() const;
   VectorTaskRangeImpl split();
   std::pair<Key, Key> initial_key_range() const;

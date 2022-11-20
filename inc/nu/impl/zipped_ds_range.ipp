@@ -44,7 +44,7 @@ inline ZippedDSRangeImpl<Shards...> ZippedDSRangeImpl<Shards...>::split() {
   return ZippedDSRangeImpl(std::apply(
       [&](auto &first, auto &... others) {
         return std::make_tuple(std::move(first_split),
-                               others.impl().__split(mid_key)...);
+                               others.impl().__split(mid_key).value()...);
       },
       cont_ds_ranges_));
 }

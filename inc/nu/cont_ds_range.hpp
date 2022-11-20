@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <utility>
 
 #include "nu/proclet.hpp"
@@ -20,7 +21,7 @@ class ContiguousDSRangeImpl {
   using ConstIterator = GeneralSealedDSConstIterator<Shard, true>;
   static_assert(ConstIterator::kContiguous);
 
-  ContiguousDSRangeImpl() = default;
+  ContiguousDSRangeImpl();
   ContiguousDSRangeImpl(
       std::shared_ptr<std::vector<WeakProclet<Shard>>> &shards,
       std::vector<std::size_t> all_shard_keys, std::size_t size);
@@ -29,7 +30,7 @@ class ContiguousDSRangeImpl {
   ContiguousDSRangeImpl(ContiguousDSRangeImpl &&) = default;
   ContiguousDSRangeImpl &operator=(ContiguousDSRangeImpl &&) = default;
   Task pop();
-  ssize_t size() const;
+  std::size_t size() const;
   bool empty() const;
   ContiguousDSRangeImpl split();
   std::pair<Key, Key> initial_key_range() const;
@@ -46,7 +47,7 @@ class ContiguousDSRangeImpl {
   template <GeneralShardBased... Shards>
   friend class ZippedDSRangeImpl;
 
-  ContiguousDSRangeImpl __split(std::size_t mid_key);
+  std::optional<ContiguousDSRangeImpl> __split(std::size_t mid_key);
 };
 
 template <GeneralShardBased Shard>

@@ -17,12 +17,12 @@ class ComputeProcletWorker {
  public:
   ComputeProcletWorker(States... states);
   template <typename RetT>
-  RetT compute(RetT (*fn)(TR &, States...), TR task_range);
+  std::vector<RetT> compute(RetT (*fn)(TR &, States...), TR task_range);
   TR steal_work();
 
  private:
   std::tuple<States...> states_;
-  std::unique_ptr<TR> task_range_;
+  TR task_range_;
   Mutex mutex_;
 };
 

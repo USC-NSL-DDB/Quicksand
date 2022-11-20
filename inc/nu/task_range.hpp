@@ -34,7 +34,7 @@ class TaskRange {
   TaskRange &operator=(TaskRange &&o) = default;
   ~TaskRange() {}
   Task pop() { return impl_.pop(); }
-  ssize_t size() const { return impl_.size(); }
+  std::size_t size() const { return impl_.size(); }
   bool empty() const { return impl_.empty(); }
   TaskRange split() { return impl_.split(); }
   std::pair<Key, Key> initial_key_range() const {

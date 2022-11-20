@@ -13,27 +13,31 @@ inline ComputeProcletWorker<TR, States...>::ComputeProcletWorker(
 
 template <class TR, typename... States>
 template <typename RetT>
-inline RetT ComputeProcletWorker<TR, States...>::compute(RetT (*fn)(TR &,
-                                                                    States...),
-                                                         TR task_range) {
-  task_range_.reset(new TR(std::move(task_range)));
-  if constexpr (std::is_same_v<RetT, void>) {
-    std::apply([&](auto &... states) { fn(*task_range_, states...); }, states_);
-  } else {
-    return std::apply(
-        [&](auto &... states) { return fn(*task_range_, states...); }, states_);
+inline std::vector<RetT> ComputeProcletWorker<TR, States...>::compute(
+    RetT (*fn)(TR &, States...), TR task_range) {
+  std::vector<RetT> rets;
+  task_range_ = std::move(task_range);
+
+  while (true) {
+    std::apply(
+        [&](auto &... states) {
+          rets.emplace_back(fn(task_range_, states...));
+        },
+        states_);
+
+    ScopedLock g(&mutex_);
+    if (likely(task_range_.empty())) {
+      break;
+    }
   }
-  ScopedLock g(&mutex_);
-  task_range_.reset();
+
+  return rets;
 }
 
 template <class TR, typename... States>
 inline TR ComputeProcletWorker<TR, States...>::steal_work() {
   ScopedLock g(&mutex_);
-  if (unlikely(!task_range_)) {
-    return TR();
-  }
-  return task_range_->split();
+  return task_range_.split();
 }
 
 template <class TR>
@@ -41,7 +45,7 @@ template <typename RetT, typename... S0s, typename... S1s>
 std::vector<RetT> ComputeProclet<TR>::run(RetT (*fn)(TR &, S0s...),
                                           TR task_range, S1s &&... states) {
   std::vector<Future<Proclet<ComputeProcletWorker<TR, S0s...>>>> workers;
-  std::vector<Future<RetT>> futures;
+  std::vector<Future<std::vector<RetT>>> futures;
   std::vector<RetT> rets;
 
   for (uint32_t i = 0; i < 2; i++) {
@@ -57,8 +61,11 @@ std::vector<RetT> ComputeProclet<TR>::run(RetT (*fn)(TR &, S0s...),
   futures.emplace_back(workers[1].get().__run_async(
       &ComputeProcletWorker<TR, S0s...>::template compute<RetT>, fn,
       std::move(stealed_tr)));
-  std::ranges::transform(futures, std::back_inserter(rets),
-                         [](auto &future) { return std::move(future.get()); });
+  for (auto &future : futures) {
+    auto &future_val = future.get();
+    rets.insert(rets.end(), std::make_move_iterator(future_val.begin()),
+                std::make_move_iterator(future_val.end()));
+  }
   return rets;
 }
 
