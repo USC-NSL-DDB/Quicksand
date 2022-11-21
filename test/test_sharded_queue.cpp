@@ -88,8 +88,7 @@ std::vector<std::vector<char>> make_batch(std::size_t size) {
 }
 
 bool test_batched_queue() {
-  // TODO: fix dequeue behavior when crossing shard boundary
-  constexpr std::size_t queue_sz = 10;
+  constexpr std::size_t queue_sz = 1 << 10;
   constexpr std::size_t batch_sz = 1'000'000;
 
   auto queue =
