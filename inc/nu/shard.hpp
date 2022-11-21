@@ -190,6 +190,7 @@ class GeneralShard {
   uint64_t initial_slab_usage_;
   std::size_t initial_size_;
   std::size_t size_thresh_;
+  bool deleted_;
 
   friend class ContainerHandle<Container>;
   template <GeneralShardBased S>
@@ -198,6 +199,7 @@ class GeneralShard {
   void split();
   bool should_split() const;
   void split_with_reader_lock();
+  void delete_self_with_reader_lock();
   bool bad_range(std::optional<Key> l_key, std::optional<Key> r_key);
   uint32_t __get_next_block_with_iters(
       std::vector<std::pair<IterVal, ConstIterator>>::iterator block_iter,

@@ -76,7 +76,8 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
       l_key_(l_key),
-      r_key_(r_key) {
+      r_key_(r_key),
+      deleted_(false) {
   {
     Caladan::PreemptGuard g;
     slab_ = get_runtime()->get_current_proclet_slab();
@@ -213,6 +214,17 @@ void GeneralShard<Container>::split_with_reader_lock() {
 }
 
 template <class Container>
+void GeneralShard<Container>::delete_self_with_reader_lock() {
+  rw_lock_.reader_unlock();
+  rw_lock_.writer_lock();
+  if (container_.empty() && !deleted_) {
+    deleted_ = true;
+    mapping_.run(&ShardingMapping::delete_shard, l_key_, r_key_);
+  }
+  rw_lock_.writer_unlock();
+}
+
+template <class Container>
 inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
                                                  std::optional<Key> r_key,
                                                  DataEntry entry) {
@@ -309,6 +321,10 @@ inline bool GeneralShard<Container>::try_pop_front(
   }
 
   container_.pop_front();
+  if (unlikely(container_.empty())) {
+    delete_self_with_reader_lock();
+    return true;
+  }
   rw_lock_.reader_unlock();
   return true;
 }
@@ -357,6 +373,10 @@ GeneralShard<Container>::try_dequeue(
   }
 
   Val v = container_.dequeue();
+  if (unlikely(container_.empty())) {
+    delete_self_with_reader_lock();
+    return v;
+  }
   rw_lock_.reader_unlock();
   return v;
 }

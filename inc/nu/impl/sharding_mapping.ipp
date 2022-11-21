@@ -19,7 +19,7 @@ GeneralShardingMapping<Shard>::~GeneralShardingMapping() {
 template <class Shard>
 void GeneralShardingMapping<Shard>::seal() {
   mutex_.lock();
-  BUG_ON(!ref_cnt_);                        // Cannot be sealed twice.
+  BUG_ON(!ref_cnt_);  // Cannot be sealed twice.
   while (Caladan::access_once(ref_cnt_) !=
          1) {  // Wait until there's only one ref.
     ref_cnt_cv_.wait(&mutex_);
@@ -58,10 +58,10 @@ void GeneralShardingMapping<Shard>::dec_ref_cnt() {
 }
 
 template <class Shard>
-std::vector<std::pair<std::optional<typename Shard::Key>, WeakProclet<Shard>>>
+std::vector<std::pair<std::optional<typename Shard::Key>, Proclet<Shard>>>
 GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
                                                    std::optional<Key> r_key) {
-  std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
+  std::vector<std::pair<std::optional<Key>, Proclet<Shard>>> shards;
   bool normal_range = (l_key != r_key);
 
   mutex_.lock();
@@ -74,7 +74,7 @@ GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
       break;
     }
 
-    shards.emplace_back(iter->first, iter->second.get_weak());
+    shards.emplace_back(iter->first, iter->second);
   }
   mutex_.unlock();
 
@@ -154,6 +154,17 @@ WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
   mutex_.unlock();
 
   return new_weak_shard;
+}
+
+template <class Shard>
+void GeneralShardingMapping<Shard>::delete_shard(std::optional<Key> l_key,
+                                                 std::optional<Key> r_key) {
+  mutex_.lock();
+  // TODO: for correctness we should probably check the r_key of the removed
+  // shard matches that of the argument. Below we assume there's only one shard
+  // per key, which is true for our current use case in queue.
+  mapping_.erase(l_key);
+  mutex_.unlock();
 }
 
 template <class Shard>

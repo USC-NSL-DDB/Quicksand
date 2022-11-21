@@ -225,8 +225,8 @@ retry:
   WeakProclet<Shard> shard;
   if constexpr (Front) {
     auto iter = key_to_shards_.begin();
-    shard = iter->second.shard;
-    l_key = std::optional<Key>();
+    shard = iter->second.shard.get_weak();
+    l_key = iter->first;
     r_key =
         (++iter != key_to_shards_.end()) ? iter->first : std::optional<Key>();
   } else {
@@ -353,7 +353,7 @@ ShardedDataStructure<Container, LL>::get_key_range(
 
 template <class Container, class LL>
 inline ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
-    WeakProclet<Shard> s)
+    Proclet<Shard> s)
     : shard(s), seq(0) {}
 
 template <class Container, class LL>
@@ -466,9 +466,9 @@ void ShardedDataStructure<Container, LL>::flush() {
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::sync_mapping(
-    std::optional<Key> l_key, std::optional<Key> r_key,
-    WeakProclet<Shard> shard) {
+void ShardedDataStructure<Container, LL>::sync_mapping(std::optional<Key> l_key,
+                                                       std::optional<Key> r_key,
+                                                       Proclet<Shard> shard) {
   auto range = r_key
                    ? key_to_shards_.equal_range(r_key)
                    : std::make_pair(key_to_shards_.end(), key_to_shards_.end());
@@ -675,7 +675,7 @@ ShardedDataStructure<Container, LL>::get_all_shards_info() {
   ret.reserve(key_to_shards_.size());
   ths.reserve(key_to_shards_.size());
   for (auto &[k, shard_and_reqs] : key_to_shards_) {
-    auto &shard = shard_and_reqs.shard;
+    auto shard = shard_and_reqs.shard.get_weak();
     ret.emplace_back(k, 0, shard);
     auto *size_ptr = &std::get<1>(ret.back());
     ths.emplace_back(
