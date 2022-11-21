@@ -61,15 +61,64 @@ bool test_size_and_empty() {
   return true;
 }
 
-bool run_test() {
-  if (!test_push_and_pop()) {
-    return false;
+std::vector<char> make_byte_vec(std::size_t size) {
+  std::vector<char> bytes;
+  bytes.reserve(size);
+
+  for (std::size_t i = 0; i < size; ++i) {
+    bytes.push_back(static_cast<char>(i));
   }
-  if (!test_size_and_empty()) {
-    return false;
+
+  return bytes;
+}
+
+std::vector<std::vector<char>> make_batch(std::size_t size) {
+  std::size_t elem_sz = 100'000;
+
+  assert(size > elem_sz);
+  std::size_t batch_sz = size / elem_sz;
+
+  std::vector<std::vector<char>> batch;
+  batch.reserve(batch_sz);
+  for (std::size_t i = 0; i < batch_sz; ++i) {
+    batch.emplace_back(make_byte_vec(elem_sz));
+  }
+
+  return batch;
+}
+
+bool test_batched_queue() {
+  // TODO: fix dequeue behavior when crossing shard boundary
+  constexpr std::size_t queue_sz = 10;
+  constexpr std::size_t batch_sz = 1'000'000;
+
+  auto queue =
+      make_sharded_queue<std::vector<std::vector<char>>, std::true_type>();
+
+  for (std::size_t i = 0; i < queue_sz; ++i) {
+    queue.push(make_batch(batch_sz));
+  }
+  queue.flush();
+
+  auto expected = make_batch(batch_sz);
+  for (std::size_t i = 0; i < queue_sz; ++i) {
+    if (queue.empty()) {
+      return false;
+    }
+    auto dequeued = queue.dequeue();
+    if (dequeued != expected) {
+      return false;
+    }
   }
 
   return true;
+}
+
+bool run_test() {
+  auto passed =
+      test_push_and_pop() && test_size_and_empty() && test_batched_queue();
+
+  return passed;
 }
 
 void do_work() {
