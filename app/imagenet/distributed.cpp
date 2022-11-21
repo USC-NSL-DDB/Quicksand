@@ -31,16 +31,6 @@ void load(std::string path, shard_type &imgs)
   std::cout << i << " images loaded" << std::endl;
 }
 
-void process(int thread_id, int thread_cnt, sealed_shard_type &sealed_imgs)
-{
-  //  for (size_t i = thread_id; i < sealed_imgs.size(); i += thread_cnt) {
-  //    kernel(sealed_imgs[i]);
-  //  }
-  for (auto &image : sealed_imgs) {
-    kernel(image);
-  }
-}
-
 void do_work() {
   auto imgs = nu::make_sharded_vector<Image, std::false_type>();
   std::string datapath = "/opt/kaiyan/imagenet/train_t3";
@@ -51,22 +41,8 @@ void do_work() {
   auto duration = duration_cast<milliseconds>(end - start);
   std::cout << "Image loading takes " << duration.count() << "ms" << std::endl;
 
-  int thread_cnt = 1;
-  std::vector<nu::Thread> threads;
-
-  auto sealed_imgs = nu::to_sealed_ds(std::move(imgs));
-  std::cout << sealed_imgs.size() << std::endl;
-
   start = high_resolution_clock::now();
-
-  for (int i = 0; i < thread_cnt; i++) {
-    threads.emplace_back([&, i, thread_cnt] { process(i, thread_cnt, sealed_imgs); });
-  }
-
-  for (auto &thread : threads) {
-    thread.join();
-  }
-
+  imgs.for_all(+[](const std::size_t &idx, Image &val) { kernel(val); });
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
   std::cout << "Image pre-processing takes " << duration.count() << "ms" << std::endl;
