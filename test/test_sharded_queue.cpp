@@ -98,7 +98,6 @@ bool test_batched_queue() {
   for (std::size_t i = 0; i < queue_sz; ++i) {
     queue.push(make_batch(batch_sz));
   }
-  queue.flush();
 
   auto expected = make_batch(batch_sz);
   for (std::size_t i = 0; i < queue_sz; ++i) {
