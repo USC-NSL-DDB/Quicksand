@@ -9,6 +9,8 @@ constexpr std::size_t kElemSz = 100'000;
 constexpr std::size_t kBatchSz = 1'000'000;
 constexpr std::size_t kNumBatches = 1 << 14;
 constexpr std::size_t kNumProducers = 4;
+constexpr std::size_t kNumConsumers = 2;
+constexpr uint64_t kConsumerPerElemWork = 500;
 
 class MockImage {
  public:
@@ -93,10 +95,37 @@ class Producer {
   }
 };
 
+class Consumer {
+ public:
+  using BatchType = Batch<MockImage>;
+
+  Consumer(nu::ShardedQueue<Batch<MockImage>, std::true_type> queue,
+           uint64_t work)
+      : queue_(std::move(queue)), work_(work) {}
+
+  void consume(std::size_t n_batches) {
+    for (std::size_t i = 0; i < n_batches; ++i) {
+      // TODO: this needs to block
+      auto batch = queue_.dequeue();
+      do_work(std::move(batch));
+    }
+  }
+
+ private:
+  nu::ShardedQueue<Batch<MockImage>, std::true_type> queue_;
+  uint64_t work_;
+
+  void do_work(Batch<MockImage> batch) {
+    auto target = microtime() + work_;
+    while (microtime() < target)
+      ;
+  }
+};
+
 struct Bench {
  public:
-  void bench_batched_queue() {
-    std::cout << "\tbench_batched_queue()" << std::endl;
+  void bench_batched_queue_produce() {
+    std::cout << "\tbench_batched_queue_produce()" << std::endl;
 
     std::size_t elems_per_producer = kNumBatches / kNumProducers;
 
@@ -124,11 +153,53 @@ struct Bench {
     std::cout << "\t\tShardedQueue: " << t1 - t0 << " us, " << ops << " OPS, "
               << bw << " MB/s" << std::endl;
   }
+
+  void bench_batched_queue_produce_consume() {
+    std::cout << "\tbench_batched_queue_produce_consume()" << std::endl;
+
+    std::size_t elems_per_producer = kNumBatches / kNumProducers;
+    std::size_t elems_per_consumer = kNumBatches / kNumConsumers;
+    std::size_t avg_batch_sz = kBatchSz / kElemSz;
+    uint64_t work_per_batch = kConsumerPerElemWork * avg_batch_sz;
+
+    auto queue = nu::make_sharded_queue<Batch<MockImage>, std::true_type>();
+
+    std::vector<nu::Proclet<Producer>> producers;
+    for (std::size_t i = 0; i < kNumProducers; ++i) {
+      producers.emplace_back(nu::make_proclet<Producer>(queue));
+    }
+    std::vector<nu::Proclet<Consumer>> consumers;
+    for (std::size_t i = 0; i < kNumConsumers; ++i) {
+      consumers.emplace_back(nu::make_proclet<Consumer>(queue, work_per_batch));
+    }
+
+    std::vector<nu::Future<void>> futures;
+    for (std::size_t i = 0; i < kNumProducers; ++i) {
+      futures.emplace_back(producers[i].run_async(
+          &Producer::produce, elems_per_producer, kBatchSz));
+    }
+    for (std::size_t i = 0; i < kNumConsumers; ++i) {
+      futures.emplace_back(
+          consumers[i].run_async(&Consumer::consume, elems_per_consumer));
+    }
+
+    auto t0 = microtime();
+    for (auto &future : futures) {
+      future.get();
+    }
+    auto t1 = microtime();
+
+    auto ops = static_cast<double>(kNumBatches * 1'000'000) / (t1 - t0);
+    auto bw = (ops / 1'000'000) * kBatchSz;
+    std::cout << "\t\tShardedQueue: " << t1 - t0 << " us, " << ops << " OPS, "
+              << bw << " MB/s" << std::endl;
+  }
 };
 
 int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv, [](int, char **) {
     Bench b;
-    b.bench_batched_queue();
+    // b.bench_batched_queue_produce();
+    b.bench_batched_queue_produce_consume();
   });
 }
