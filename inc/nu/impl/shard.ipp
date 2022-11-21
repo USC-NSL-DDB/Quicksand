@@ -345,6 +345,23 @@ inline bool GeneralShard<Container>::try_pop_back(
 }
 
 template <class Container>
+inline std::optional<typename Container::Val>
+GeneralShard<Container>::try_dequeue(
+    std::optional<Key> l_key,
+    std::optional<Key> r_key) requires DequeueAble<Container> {
+  rw_lock_.reader_lock();
+
+  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return std::nullopt;
+  }
+
+  Val v = container_.dequeue();
+  rw_lock_.reader_unlock();
+  return v;
+}
+
+template <class Container>
 std::optional<typename GeneralShard<Container>::ReqBatch>
 GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
   rw_lock_.reader_lock();

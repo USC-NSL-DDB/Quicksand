@@ -105,6 +105,9 @@ class GeneralShard {
       std::optional<Key> r_key) requires HasBack<Container>;
   bool try_pop_back(std::optional<Key> l_key,
                     std::optional<Key> r_key) requires PopBackAble<Container>;
+  std::optional<Val> try_dequeue(
+      std::optional<Key> l_key,
+      std::optional<Key> r_key) requires DequeueAble<Container>;
   std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);
   std::pair<bool, std::optional<IterVal>> find_data(
       Key k) requires Findable<Container>;

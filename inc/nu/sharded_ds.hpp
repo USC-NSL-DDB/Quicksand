@@ -54,6 +54,7 @@ class ShardedDataStructure {
   void pop_front() requires PopFrontAble<Container>;
   Val back() const requires HasBack<Container>;
   void pop_back() requires PopBackAble<Container>;
+  Val dequeue() requires DequeueAble<Container>;
   std::optional<IterVal> find_data(Key k) const requires Findable<Container>;
   void concat(
       ShardedDataStructure &&tail) requires Container::kContiguousIterator;

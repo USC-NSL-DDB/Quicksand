@@ -47,6 +47,14 @@ inline void Queue<T>::pop_front() {
 }
 
 template <typename T>
+inline Queue<T>::Val Queue<T>::dequeue() {
+  assert(queue_.size());
+  auto popped = queue_.front();
+  queue_.pop();
+  return popped;
+}
+
+template <typename T>
 template <typename... S0s, typename... S1s>
 inline void Queue<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
                               S1s &&... states) {
@@ -105,6 +113,11 @@ void ShardedQueue<T, LL>::push(const T &value) {
 template <typename T, typename LL>
 inline void ShardedQueue<T, LL>::pop() {
   Base::pop_front();
+}
+
+template <typename T, typename LL>
+inline T ShardedQueue<T, LL>::dequeue() {
+  return Base::dequeue();
 }
 
 template <typename T, typename LL>

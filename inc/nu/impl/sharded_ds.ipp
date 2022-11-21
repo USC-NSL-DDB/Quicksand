@@ -160,8 +160,7 @@ template <class Container, class LL>
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
     DataEntry entry) {
-[[maybe_unused]] retry:
-  typename KeyToShardsMapping::iterator iter;
+  [[maybe_unused]] retry : typename KeyToShardsMapping::iterator iter;
   if constexpr (HasVal<Container>) {
     iter = --key_to_shards_.upper_bound(entry.first);
   } else {
@@ -192,8 +191,7 @@ template <class Container, class LL>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
-[[maybe_unused]] retry:
-  if constexpr (LL::value) {
+  [[maybe_unused]] retry : if constexpr (LL::value) {
     // rbegin() is O(1) which is much faster than the O(logn) of --end().
     auto iter = key_to_shards_.rbegin();
     auto l_key = iter->first;
@@ -297,6 +295,12 @@ template <class Container, class LL>
 inline void ShardedDataStructure<
     Container, LL>::pop_back() requires PopBackAble<Container> {
   front_back_impl<false, void>(&Shard::try_pop_back);
+}
+
+template <class Container, class LL>
+inline Container::Val
+ShardedDataStructure<Container, LL>::dequeue() requires DequeueAble<Container> {
+  return front_back_impl<true, Val>(&Shard::try_dequeue);
 }
 
 template <class Container, class LL>

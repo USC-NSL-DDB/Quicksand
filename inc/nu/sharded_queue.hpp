@@ -27,6 +27,7 @@ class Queue {
   Val front() const;
   Val back() const;
   void pop_front();
+  Val dequeue();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   void split(Key *mid_k, Queue *latter_half);
@@ -54,6 +55,7 @@ class ShardedQueue
   T back() const;
   void push(const T &value);
   void pop();
+  T dequeue();
   // TODO: swap
   // void swap();
 

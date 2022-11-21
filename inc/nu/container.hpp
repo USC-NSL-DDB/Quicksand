@@ -47,6 +47,12 @@ concept PopFrontAble = requires(T t) {
 };
 
 template <class T>
+concept DequeueAble = requires(T t) {
+  { t.dequeue() }
+  ->std::same_as<typename T::Val>;
+};
+
+template <class T>
 concept HasBack = requires(T t) {
   { t.back() }
   ->std::same_as<typename T::Val>;
@@ -229,6 +235,9 @@ class GeneralContainerBase {
   }
   void pop_back() requires PopBackAble<Impl> {
     return synchronized<void>([&] { impl_.pop_back(); });
+  }
+  Val dequeue() requires DequeueAble<Impl> {
+    return synchronized<Val>([&] { return impl_.dequeue(); });
   }
   ConstIterator find_by_order(
       std::size_t order) requires FindableByOrder<Impl> {
