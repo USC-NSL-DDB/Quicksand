@@ -18,7 +18,7 @@ class GeneralShardingMapping {
 
   GeneralShardingMapping(uint32_t max_shard_bytes);
   ~GeneralShardingMapping();
-  std::vector<std::pair<std::optional<Key>, Proclet<Shard>>>
+  std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_all_keys_and_shards();

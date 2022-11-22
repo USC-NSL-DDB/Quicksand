@@ -466,9 +466,9 @@ void ShardedDataStructure<Container, LL>::flush() {
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::sync_mapping(std::optional<Key> l_key,
-                                                       std::optional<Key> r_key,
-                                                       Proclet<Shard> shard) {
+void ShardedDataStructure<Container, LL>::sync_mapping(
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    WeakProclet<Shard> shard) {
   auto range = r_key
                    ? key_to_shards_.equal_range(r_key)
                    : std::make_pair(key_to_shards_.end(), key_to_shards_.end());

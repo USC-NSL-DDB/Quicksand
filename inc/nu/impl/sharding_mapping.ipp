@@ -58,10 +58,10 @@ void GeneralShardingMapping<Shard>::dec_ref_cnt() {
 }
 
 template <class Shard>
-std::vector<std::pair<std::optional<typename Shard::Key>, Proclet<Shard>>>
+std::vector<std::pair<std::optional<typename Shard::Key>, WeakProclet<Shard>>>
 GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
                                                    std::optional<Key> r_key) {
-  std::vector<std::pair<std::optional<Key>, Proclet<Shard>>> shards;
+  std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
   bool normal_range = (l_key != r_key);
 
   mutex_.lock();
@@ -74,7 +74,7 @@ GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
       break;
     }
 
-    shards.emplace_back(iter->first, iter->second);
+    shards.emplace_back(iter->first, iter->second.get_weak());
   }
   mutex_.unlock();
 
@@ -139,6 +139,8 @@ WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
     if (likely(!reserved_shards_.empty())) {
       new_shard = std::move(reserved_shards_.top());
       reserved_shards_.pop();
+      ContainerAndMetadata<typename Shard::GeneralContainer> data;
+      new_shard.run(&Shard::set_range_and_data, l_key, r_key, data);
     }
     mutex_.unlock();
   } else {
@@ -163,7 +165,11 @@ void GeneralShardingMapping<Shard>::delete_shard(std::optional<Key> l_key,
   // TODO: for correctness we should probably check the r_key of the removed
   // shard matches that of the argument. Below we assume there's only one shard
   // per key, which is true for our current use case in queue.
-  mapping_.erase(l_key);
+  auto it = mapping_.find(l_key);
+  assert(it !=
+         mapping_.end() /* deleting a non-existent or already-deleted shard */);
+  reserved_shards_.emplace(std::move(it->second));
+  mapping_.erase(it);
   mutex_.unlock();
 }
 

@@ -110,6 +110,7 @@ void GeneralShard<Container>::set_range_and_data(
     ContainerAndMetadata<Container> container_and_metadata) {
   l_key_ = l_key;
   r_key_ = r_key;
+  deleted_ = false;
   container_ = std::move(container_and_metadata.container);
   initial_slab_usage_ = slab_->get_usage();
   initial_size_ = container_.size();
@@ -185,9 +186,9 @@ void GeneralShard<Container>::split() {
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::bad_range(std::optional<Key> l_key,
-                                               std::optional<Key> r_key) {
-  return (l_key < l_key_) || (r_key_ && (r_key > r_key_ || !r_key));
+inline bool GeneralShard<Container>::bad_range_or_deleted(
+    std::optional<Key> l_key, std::optional<Key> r_key) {
+  return deleted_ || (l_key < l_key_) || (r_key_ && (r_key > r_key_ || !r_key));
 }
 
 template <class Container>
@@ -230,7 +231,7 @@ inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
                                                  DataEntry entry) {
   rw_lock_.reader_lock();
 
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(bad_range_or_deleted(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -257,7 +258,7 @@ inline bool GeneralShard<Container>::try_emplace_back(
     Val v) requires EmplaceBackAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(bad_range_or_deleted(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -278,7 +279,7 @@ inline bool GeneralShard<Container>::try_emplace_front(
     std::optional<Key> l_key, std::optional<Key> r_key,
     Val v) requires EmplaceFrontAble<Container> {
   rw_lock_.reader_lock();
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(bad_range_or_deleted(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -299,7 +300,7 @@ GeneralShard<Container>::try_front(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires HasFront<Container> {
   rw_lock_.reader_lock();
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(bad_range_or_deleted(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
@@ -315,7 +316,7 @@ inline bool GeneralShard<Container>::try_pop_front(
     std::optional<Key> r_key) requires PopFrontAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(bad_range_or_deleted(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -334,7 +335,7 @@ inline std::optional<typename Container::Val> GeneralShard<Container>::try_back(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires HasBack<Container> {
   rw_lock_.reader_lock();
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(bad_range_or_deleted(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
@@ -350,7 +351,7 @@ inline bool GeneralShard<Container>::try_pop_back(
     std::optional<Key> r_key) requires PopBackAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(bad_range_or_deleted(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -367,7 +368,7 @@ GeneralShard<Container>::try_dequeue(
     std::optional<Key> r_key) requires DequeueAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(bad_range(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(bad_range_or_deleted(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
@@ -386,7 +387,8 @@ std::optional<typename GeneralShard<Container>::ReqBatch>
 GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
   rw_lock_.reader_lock();
 
-  if (unlikely(bad_range(std::move(batch.l_key), std::move(batch.r_key)))) {
+  if (unlikely(bad_range_or_deleted(std::move(batch.l_key),
+                                    std::move(batch.r_key)))) {
     rw_lock_.reader_unlock();
     return std::move(batch);
   }
@@ -412,8 +414,8 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
 template <class Container>
 inline std::pair<bool, std::optional<typename Container::IterVal>>
 GeneralShard<Container>::find_data(Key k) requires Findable<Container> {
-  bool bad_range = (k < l_key_) || (r_key_ && k > r_key_);
-  if (unlikely(bad_range)) {
+  bool bad_range_or_deleted = (k < l_key_) || (r_key_ && k > r_key_);
+  if (unlikely(bad_range_or_deleted)) {
     return std::make_pair(false, std::nullopt);
   }
 
@@ -427,8 +429,8 @@ template <class Container>
 inline std::tuple<bool, typename Container::IterVal,
                   typename Container::ConstIterator>
 GeneralShard<Container>::find(Key k) requires Findable<Container> {
-  bool bad_range = (k < l_key_) || (r_key_ && k > r_key_);
-  if (unlikely(bad_range)) {
+  bool bad_range_or_deleted = (k < l_key_) || (r_key_ && k > r_key_);
+  if (unlikely(bad_range_or_deleted)) {
     return std::make_tuple(false, Val(), container_.cend());
   }
 

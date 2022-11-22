@@ -95,7 +95,7 @@ class ShardedDataStructure {
 
   using ReqBatch = Shard::ReqBatch;
   struct ShardAndReqs {
-    Proclet<Shard> shard;
+    WeakProclet<Shard> shard;
     uint32_t seq;
     RemUniquePtr<RobExecutor<ReqBatch, std::optional<ReqBatch>>> flush_executor;
     std::vector<DataEntry> emplace_reqs;
@@ -134,7 +134,7 @@ class ShardedDataStructure {
   bool flush_one_batch(KeyToShardsMapping::iterator iter, bool drain);
   void handle_rejected_flush_batch(ReqBatch &batch);
   void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key,
-                    Proclet<Shard> shard);
+                    WeakProclet<Shard> shard);
   void flush_and_sync_mapping();
   std::pair<std::optional<Key>, std::optional<Key>> get_key_range(
       KeyToShardsMapping::iterator iter);
