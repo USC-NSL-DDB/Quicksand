@@ -217,12 +217,9 @@ void GeneralShard<Container>::split_with_reader_lock() {
 template <class Container>
 void GeneralShard<Container>::delete_self_with_reader_lock() {
   rw_lock_.reader_unlock();
-  rw_lock_.writer_lock();
   if (container_.empty() && !deleted_) {
-    deleted_ = true;
-    mapping_.run(&ShardingMapping::delete_shard, l_key_, r_key_);
+    deleted_ = mapping_.run(&ShardingMapping::delete_front_shard);
   }
-  rw_lock_.writer_unlock();
 }
 
 template <class Container>

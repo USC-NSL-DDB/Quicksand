@@ -61,6 +61,9 @@ template <typename T>
 inline void Queue<T>::emplace_back(Val v) {
   ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   queue_.push(v);
+  if (unlikely(queue_.size() == 1)) {
+    not_empty_.signal_all();
+  }
 }
 
 template <typename T>
@@ -78,6 +81,9 @@ template <typename T>
 inline Queue<T>::Val Queue<T>::dequeue() {
   ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
 
+  while (!queue_.size()) {
+    not_empty_.wait(&mutex_);
+  }
   assert(queue_.size());
   auto popped = queue_.front();
   queue_.pop();

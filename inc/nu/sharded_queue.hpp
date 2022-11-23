@@ -41,6 +41,7 @@ class Queue {
   std::queue<T> queue_;
   Key l_key_;
   Mutex mutex_;
+  CondVar not_empty_;
 };
 
 template <typename T, typename LL>

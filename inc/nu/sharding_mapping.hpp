@@ -28,7 +28,7 @@ class GeneralShardingMapping {
   WeakProclet<Shard> create_new_shard(std::optional<Key> l_key,
                                       std::optional<Key> r_key,
                                       bool reserve_space);
-  void delete_shard(std::optional<Key> l_key, std::optional<Key> r_key);
+  bool delete_front_shard();
   void concat(WeakProclet<GeneralShardingMapping> tail) requires(
       Shard::GeneralContainer::kContiguousIterator);
   void inc_ref_cnt();

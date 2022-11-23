@@ -112,9 +112,81 @@ bool test_batched_queue() {
   return true;
 }
 
+template <typename T>
+struct Producer {
+  Producer() {}
+  void produce(std::size_t n_elems, T elem,
+               nu::ShardedQueue<T, std::true_type> queue) {
+    for (std::size_t i = 0; i < n_elems; ++i) {
+      queue.push(elem);
+    }
+  }
+};
+
+template <typename T>
+struct Consumer {
+  Consumer() {}
+  std::vector<T> consume(std::size_t n_elems,
+                         nu::ShardedQueue<T, std::true_type> queue) {
+    std::vector<T> elems;
+    for (std::size_t i = 0; i < n_elems; ++i) {
+      elems.emplace_back(queue.dequeue());
+    }
+    return elems;
+  }
+};
+
+bool test_blocking_dequeue() {
+  constexpr std::size_t num_elems = 1 << 20;
+  constexpr int elem = 33;
+  constexpr std::size_t n_producers = 4;
+  constexpr std::size_t n_consumers = 32;
+
+  auto queue = make_sharded_queue<int, std::true_type>();
+  auto producers = std::vector<Proclet<Producer<int>>>{};
+  auto consumers = std::vector<Proclet<Consumer<int>>>{};
+
+  for (std::size_t i = 0; i < n_producers; ++i) {
+    producers.emplace_back(make_proclet<Producer<int>>());
+  }
+  for (std::size_t i = 0; i < n_consumers; ++i) {
+    consumers.emplace_back(make_proclet<Consumer<int>>());
+  }
+
+  auto consumer_futures = std::vector<nu::Future<std::vector<int>>>{};
+  for (auto &consumer : consumers) {
+    consumer_futures.emplace_back(consumer.run_async(
+        &Consumer<int>::consume, num_elems / n_consumers, queue));
+  }
+
+  auto producer_futures = std::vector<nu::Future<void>>{};
+  for (auto &producer : producers) {
+    producer_futures.emplace_back(producer.run_async(
+        &Producer<int>::produce, num_elems / n_producers, elem, queue));
+  }
+
+  for (auto &f : producer_futures) {
+    f.get();
+  }
+
+  auto dequeued = std::vector<int>{};
+  for (auto &f : consumer_futures) {
+    auto elems = f.get();
+    dequeued.insert(dequeued.end(), std::make_move_iterator(elems.begin()),
+                    std::make_move_iterator(elems.end()));
+  }
+
+  if (dequeued.size() != num_elems) {
+    return false;
+  }
+
+  return std::all_of(dequeued.cbegin(), dequeued.cend(),
+                     [](int x) { return x == elem; });
+}
+
 bool run_test() {
-  auto passed =
-      test_push_and_pop() && test_size_and_empty() && test_batched_queue();
+  auto passed = test_push_and_pop() && test_size_and_empty() &&
+                test_batched_queue() && test_blocking_dequeue();
 
   return passed;
 }

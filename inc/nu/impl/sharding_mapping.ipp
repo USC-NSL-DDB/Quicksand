@@ -159,18 +159,18 @@ WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
 }
 
 template <class Shard>
-void GeneralShardingMapping<Shard>::delete_shard(std::optional<Key> l_key,
-                                                 std::optional<Key> r_key) {
-  mutex_.lock();
-  // TODO: for correctness we should probably check the r_key of the removed
-  // shard matches that of the argument. Below we assume there's only one shard
-  // per key, which is true for our current use case in queue.
-  auto it = mapping_.find(l_key);
-  assert(it !=
-         mapping_.end() /* deleting a non-existent or already-deleted shard */);
+bool GeneralShardingMapping<Shard>::delete_front_shard() {
+  ScopedLock<Mutex> guard(&mutex_);
+  auto it = mapping_.begin();
+  if (unlikely(it == mapping_.end())) {
+    return false;
+  }
+  if (unlikely(it == --mapping_.end())) {
+    return false;  // keep tail shard alive
+  }
   reserved_shards_.emplace(std::move(it->second));
   mapping_.erase(it);
-  mutex_.unlock();
+  return true;
 }
 
 template <class Shard>
