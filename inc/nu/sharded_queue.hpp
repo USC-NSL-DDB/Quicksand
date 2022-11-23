@@ -14,10 +14,10 @@ class Queue {
   using Val = T;
 
   Queue();
-  Queue(const Queue &) = default;
-  Queue &operator=(const Queue &) = default;
-  Queue(Queue &&) noexcept = default;
-  Queue &operator=(Queue &&) noexcept = default;
+  Queue(const Queue &);
+  Queue &operator=(const Queue &);
+  Queue(Queue &&) noexcept;
+  Queue &operator=(Queue &&) noexcept;
 
   std::size_t size() const;
   bool empty() const;
@@ -40,11 +40,12 @@ class Queue {
  private:
   std::queue<T> queue_;
   Key l_key_;
+  Mutex mutex_;
 };
 
 template <typename T, typename LL>
 class ShardedQueue
-    : public ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL> {
+    : public ShardedDataStructure<GeneralContainer<Queue<T>>, LL> {
  public:
   ShardedQueue(const ShardedQueue &) = default;
   ShardedQueue &operator=(const ShardedQueue &) = default;
@@ -60,7 +61,7 @@ class ShardedQueue
   // void swap();
 
  private:
-  using Base = ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL>;
+  using Base = ShardedDataStructure<GeneralContainer<Queue<T>>, LL>;
 
   ShardedQueue();
   ShardedQueue(std::optional<typename Base::Hint> hint);

@@ -7,32 +7,59 @@ template <typename T>
 inline Queue<T>::Queue() : l_key_(0) {}
 
 template <typename T>
+inline Queue<T>::Queue(const Queue &o) : queue_(o.queue_), l_key_(o.l_key_) {}
+
+template <typename T>
+inline Queue<T> &Queue<T>::operator=(const Queue &o) {
+  l_key_ = o.l_key_;
+  queue_ = o.queue_;
+  return *this;
+}
+
+template <typename T>
+Queue<T>::Queue(Queue &&o) noexcept
+    : queue_(std::move(o.queue_)), l_key_(std::move(o.l_key_)) {}
+
+template <typename T>
+Queue<T> &Queue<T>::operator=(Queue &&o) noexcept {
+  l_key_ = std::move(o.l_key_);
+  queue_ = std::move(o.queue_);
+  return *this;
+}
+
+template <typename T>
 inline std::size_t Queue<T>::size() const {
+  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   return queue_.size();
 }
 
 template <typename T>
 inline bool Queue<T>::empty() const {
+  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   return queue_.empty();
 }
 
 template <typename T>
 inline void Queue<T>::emplace([[maybe_unused]] Key k, Val v) {
+  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   queue_.push(std::move(v));
 }
 
 template <typename T>
 inline Queue<T>::Val Queue<T>::front() const {
+  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   return queue_.front();
 }
 
 template <typename T>
 inline Queue<T>::Val Queue<T>::back() const {
+  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   return queue_.back();
 }
 
 template <typename T>
 inline void Queue<T>::emplace_back(Val v) {
+  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   queue_.push(v);
 }
 
@@ -43,14 +70,18 @@ inline void Queue<T>::emplace_back_batch(std::vector<Val> v) {
 
 template <typename T>
 inline void Queue<T>::pop_front() {
+  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   queue_.pop();
 }
 
 template <typename T>
 inline Queue<T>::Val Queue<T>::dequeue() {
+  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
+
   assert(queue_.size());
   auto popped = queue_.front();
   queue_.pop();
+
   return popped;
 }
 
@@ -69,6 +100,7 @@ inline void Queue<T>::split(Key *mid_k, Queue *latter_half) {
 
 template <typename T>
 inline void Queue<T>::merge(Queue queue) {
+  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   while (!queue.queue_.empty()) {
     queue_.emplace_back(queue.queue_.top());
     queue.queue_.pop();
