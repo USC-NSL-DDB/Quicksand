@@ -82,9 +82,9 @@ extern void thread_exit(void) __noreturn;
  * Used by Nu.
  */
 extern struct list_head all_migrating_ths;
-extern thread_t *thread_nu_create_with_buf(
+extern thread_t *thread_nu_create_with_args(
         void *proclet_stack, uint32_t proclet_stack_size,
-        thread_fn_t fn, void **buf, size_t buf_len);
+        thread_fn_t fn, void *args);
 extern bool thread_has_been_migrated(void);
 extern uint64_t thread_get_rsp(thread_t *th);
 extern void pause_migrating_ths_main(void *owner_proclet);

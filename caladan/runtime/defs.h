@@ -203,6 +203,18 @@ static inline uint64_t stack_init_to_rsp(struct stack *s, void (*exit_fn)(void))
 	return rsp;
 }
 
+static inline uint64_t nu_stack_init_to_rsp(void *stack)
+{
+	uint64_t rsp;
+
+	/* setup for usage as stack */
+	stack -= sizeof(void *);
+	*((void **)stack) = NULL; /* never returns */
+	rsp = (uint64_t)stack;
+	assert_rsp_aligned(rsp);
+	return rsp;
+}
+
 /**
  * stack_init_to_rsp_with_buf - sets up an exit handler and returns the top of
  * the stack, reserving space for a buffer above
@@ -230,26 +242,6 @@ stack_init_to_rsp_with_buf(struct stack *s, void **buf, size_t buf_len,
 	assert_rsp_aligned(rsp);
 	return rsp;
 }
-
-static inline uint64_t
-nu_stack_init_to_rsp_with_buf(void *stack, uint32_t stack_size, void **buf,
-			      size_t buf_len)
-{
-	uint64_t rsp;
-
-	/* reserve the buffer */
-	stack -= buf_len;
-	stack = (void *)align_down((uintptr_t)stack, RSP_ALIGNMENT);
-	*buf = stack;
-
-	/* setup for usage as stack */
-	stack -= sizeof(void *);
-	*((void **)stack) = NULL; /* never returns */
-	rsp = (uint64_t)stack;
-	assert_rsp_aligned(rsp);
-	return rsp;
-}
-
 
 /*
  * ioqueues

@@ -41,12 +41,12 @@ void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
   auto *proclet_stack = get_runtime()->stack_manager()->get();
   auto proclet_stack_addr = reinterpret_cast<uint64_t>(proclet_stack);
   assert(proclet_stack_addr % kStackAlignment == 0);
-  auto *th = get_runtime()->caladan()->thread_nu_create_with_buf(
-      proclet_stack, kStackSize, trampoline_in_proclet_env,
-      reinterpret_cast<void **>(&join_data_), sizeof(*join_data_));
   id_ = proclet_stack_addr;
+  join_data_ = new join_data(std::forward<F>(f), header);
+  BUG_ON(!join_data_);
+  auto *th = get_runtime()->caladan()->thread_nu_create_with_args(
+      proclet_stack, kStackSize, trampoline_in_proclet_env, join_data_);
   BUG_ON(!th);
-  new (join_data_) join_data(std::forward<F>(f), header);
   get_runtime()->caladan()->thread_ready(th);
 }
 

@@ -111,12 +111,11 @@ inline thread_t *Caladan::thread_create_with_buf(thread_fn_t fn, void **buf,
   return ::thread_create_with_buf(fn, buf, len);
 }
 
-inline thread_t *Caladan::thread_nu_create_with_buf(void *proclet_stack,
-                                                    uint32_t proclet_stack_size,
-                                                    thread_fn_t fn, void **buf,
-                                                    size_t buf_len) {
-  return ::thread_nu_create_with_buf(proclet_stack, proclet_stack_size, fn, buf,
-                                     buf_len);
+inline thread_t *Caladan::thread_nu_create_with_args(
+    void *proclet_stack, uint32_t proclet_stack_size, thread_fn_t fn,
+    void *args) {
+  return ::thread_nu_create_with_args(proclet_stack, proclet_stack_size, fn,
+                                      args);
 }
 
 inline thread_id_t Caladan::get_thread_id(thread_t *th) {
@@ -138,6 +137,10 @@ inline void *Caladan::thread_get_runtime_stack_base() {
 
 inline uint64_t Caladan::thread_get_rsp(thread_t *th) {
   return ::thread_get_rsp(th);
+}
+
+inline uint32_t Caladan::thread_get_creator_ip() {
+  return ::thread_get_creator_ip();
 }
 
 inline bool Caladan::thread_has_been_migrated() {

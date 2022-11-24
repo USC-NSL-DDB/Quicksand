@@ -41,10 +41,9 @@ class Caladan {
   void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
   thread_t *restore_thread(void *nu_state);
   thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
-  thread_t *thread_nu_create_with_buf(void *proclet_stack,
+  thread_t *thread_nu_create_with_args(void *proclet_stack,
                                       uint32_t proclet_stack_size,
-                                      thread_fn_t fn, void **buf,
-                                      size_t buf_len);
+                                      thread_fn_t fn, void *args);
   thread_id_t get_thread_id(thread_t *th);
   thread_id_t get_current_thread_id();
   ProcletHeader *thread_unset_owner_proclet(thread_t *th, bool update_monitor);
@@ -56,6 +55,7 @@ class Caladan {
   SlabAllocator *thread_set_proclet_slab(SlabAllocator *proclet_slab);
   void *thread_get_runtime_stack_base();
   uint64_t thread_get_rsp(thread_t *th);
+  uint32_t thread_get_creator_ip();
   bool thread_has_been_migrated();
   int32_t thread_hold_rcu(RCULock *rcu, bool flag);
   int32_t thread_unhold_rcu(RCULock *rcu, bool *flag);

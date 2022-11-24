@@ -1119,25 +1119,21 @@ thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t buf_len)
 	return th;
 }
 
-thread_t *thread_nu_create_with_buf(void *proclet_stack,
-                                    uint32_t proclet_stack_size, thread_fn_t fn,
-                                    void **buf, size_t buf_len)
+thread_t *thread_nu_create_with_args(void *proclet_stack,
+                                     uint32_t proclet_stack_size, thread_fn_t fn,
+                                     void *args)
 {
-	void *ptr;
 	thread_t *th = __thread_create();
 	if (unlikely(!th))
 		return NULL;
 
 	th->nu_state.proclet_slab = __self->nu_state.proclet_slab;
 	th->nu_state.owner_proclet = __self->nu_state.owner_proclet;
-	th->nu_state.tf.rsp =
-		nu_stack_init_to_rsp_with_buf(proclet_stack, proclet_stack_size,
-					      &ptr, buf_len);
-	th->nu_state.tf.rdi = (uint64_t)ptr;
+	th->nu_state.tf.rsp = nu_stack_init_to_rsp(proclet_stack);
+	th->nu_state.tf.rdi = (uint64_t)args;
 	/* just in case base pointers are enabled */
 	th->nu_state.tf.rbp = (uint64_t)0;
 	th->nu_state.tf.rip = (uint64_t)fn;
-	*buf = ptr;
 	gc_register_thread(th);
 	return th;
 }

@@ -17,7 +17,7 @@ Thread::trampoline_in_proclet_env(void *args) {
     d->cv.wait(&d->lock);
     d->lock.unlock();
   }
-  std::destroy_at(&d->func);
+  delete d;
 
   {
     Caladan::PreemptGuard g;
