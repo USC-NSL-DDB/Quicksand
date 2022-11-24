@@ -21,6 +21,7 @@ enum RPCReqEnum {
   kReportFreeResource,
   // Proclet server,
   kProcletCall,
+  kGCStack
 };
 
 using RPCReqType = uint8_t;

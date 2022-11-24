@@ -3,6 +3,8 @@
 #include <cstring>
 
 #include "nu/stack_manager.hpp"
+#include "nu/runtime.hpp"
+#include "nu/rpc_client_mgr.hpp"
 
 namespace nu {
 
@@ -35,15 +37,14 @@ StackManager::StackManager(VAddrRange stack_cluster)
 
 uint8_t *StackManager::get() { return cached_pool_.get(); }
 
-bool StackManager::not_in_range(uint8_t *stack) {
+bool StackManager::not_owned(uint8_t *stack) {
   auto addr = reinterpret_cast<uint64_t>(stack);
   return addr > range_.end || addr <= range_.start;
 }
 
 void StackManager::free(uint8_t *stack) {
-  if (not_in_range(stack)) {
+  if (not_owned(stack)) {
     stack -= kStackSize;
-    BUG_ON(munmap(stack, kStackSize) == -1);
     auto mmap_addr = mmap(stack, kStackSize, PROT_READ | PROT_WRITE,
                           MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
     BUG_ON(mmap_addr != stack);
@@ -51,8 +52,15 @@ void StackManager::free(uint8_t *stack) {
 }
 
 void StackManager::put(uint8_t *stack) {
-  if (unlikely(not_in_range(stack))) {
+  if (unlikely(not_owned(stack))) {
     free(stack);
+    auto ip = get_runtime()->caladan()->thread_get_creator_ip();
+    auto *rpc_client = get_runtime()->rpc_client_mgr()->get_by_ip(ip);
+    RPCReqGCStack rpc_req_gc_stack;
+    rpc_req_gc_stack.stack = stack;
+    RPCReturnBuffer return_buf;
+    auto rc = rpc_client->Call(to_span(rpc_req_gc_stack), &return_buf);
+    BUG_ON(rc != kOk);
     return;
   }
   cached_pool_.put(stack);

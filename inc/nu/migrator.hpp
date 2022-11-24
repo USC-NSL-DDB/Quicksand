@@ -42,10 +42,7 @@ struct RPCReqForward {
   RPCReqType rpc_type = kForward;
   RPCReturnCode rc;
   RPCReturner returner;
-  struct GCContext {
-    uint64_t stack_base;
-    ArchivePool<>::IASStream *ia_sstream;
-  } gc_ctx;
+  ArchivePool<>::IASStream *gc_ia_sstream;
   uint64_t payload_len;
   uint8_t payload[0];
 };
@@ -57,7 +54,7 @@ struct RPCReqMigrateThreadAndRetVal {
   void *dest_ret_val_ptr;
   uint64_t payload_len;
   uint8_t payload[0];
-};
+} __attribute__((packed));
 
 struct ProcletMigrationTask {
   ProcletHeader *header;

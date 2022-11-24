@@ -80,6 +80,12 @@ void RPCServer::run_background_loop() {
         get_runtime()->proclet_server()->parse_and_run_handler(args, returner);
         break;
       }
+      case kGCStack: {
+        auto &req = from_span<RPCReqGCStack>(args);
+        get_runtime()->stack_manager()->put(req.stack);
+        returner->Return(kOk);
+        break;
+      }
       default:
         BUG();
     }
