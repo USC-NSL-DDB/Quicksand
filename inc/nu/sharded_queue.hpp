@@ -27,7 +27,7 @@ class Queue {
   Val front() const;
   Val back() const;
   void pop_front();
-  Val dequeue();
+  std::optional<Val> try_dequeue();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   void split(Key *mid_k, Queue *latter_half);
@@ -41,7 +41,6 @@ class Queue {
   std::queue<T> queue_;
   Key l_key_;
   Mutex mutex_;
-  CondVar not_empty_;
 };
 
 template <typename T, typename LL>

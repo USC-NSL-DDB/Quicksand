@@ -173,7 +173,7 @@ template <class Container, class LL>
     auto succeed = shard.run(&Shard::try_emplace, l_key, r_key, entry);
 
     if (unlikely(!succeed)) {
-      sync_mapping(l_key, r_key, shard);
+      sync_mapping(l_key, r_key, shard, false /* prune_local */);
       goto retry;
     }
   } else {
@@ -200,7 +200,7 @@ ShardedDataStructure<Container, LL>::emplace_back(
     auto succeed = shard.run(&Shard::try_emplace_back, l_key, r_key, v);
 
     if (unlikely(!succeed)) {
-      sync_mapping(l_key, r_key, shard);
+      sync_mapping(l_key, r_key, shard, false /* prune_local */);
       goto retry;
     }
   }
@@ -225,7 +225,7 @@ retry:
   WeakProclet<Shard> shard;
   if constexpr (Front) {
     auto iter = key_to_shards_.begin();
-    shard = iter->second.shard.get_weak();
+    shard = iter->second.shard;
     l_key = iter->first;
     r_key =
         (++iter != key_to_shards_.end()) ? iter->first : std::optional<Key>();
@@ -246,7 +246,7 @@ retry:
   }
 
   if (unlikely(!succeed)) {
-    sync_mapping(l_key, r_key, shard);
+    sync_mapping(l_key, r_key, shard, false /* prune_local */);
     goto retry;
   }
 
@@ -300,7 +300,24 @@ inline void ShardedDataStructure<
 template <class Container, class LL>
 inline Container::Val
 ShardedDataStructure<Container, LL>::dequeue() requires DequeueAble<Container> {
-  return front_back_impl<true, Val>(&Shard::try_dequeue);
+retry:
+  auto iter = key_to_shards_.begin();
+  assert(iter != key_to_shards_.end());
+  auto shard = iter->second.shard;
+  auto l_key = iter->first;
+  auto r_key =
+      (++iter != key_to_shards_.end()) ? iter->first : std::optional<Key>();
+
+  auto val = shard.run(&Shard::try_dequeue, l_key, r_key);
+  bool succeed = val.has_value();
+
+  if (unlikely(!succeed)) {
+    timer_sleep(200);
+    sync_mapping(l_key, r_key, std::nullopt, true /* prune_local */);
+    goto retry;
+  }
+
+  return *val;
 }
 
 template <class Container, class LL>
@@ -316,7 +333,7 @@ retry:
 
   if (unlikely(!succeed)) {
     auto [l_key, r_key] = get_key_range(iter);
-    sync_mapping(l_key, r_key, shard);
+    sync_mapping(l_key, r_key, shard, false /* prune_local */);
     goto retry;
   }
 
@@ -449,7 +466,7 @@ void ShardedDataStructure<Container, LL>::reroute_reqs(
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::handle_rejected_flush_batch(
     ReqBatch &batch) {
-  sync_mapping(batch.l_key, batch.r_key, batch.shard);
+  sync_mapping(batch.l_key, batch.r_key, batch.shard, false);
   reroute_reqs(std::move(batch.emplace_reqs),
                std::move(batch.emplace_back_reqs));
 }
@@ -468,31 +485,34 @@ void ShardedDataStructure<Container, LL>::flush() {
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::sync_mapping(
     std::optional<Key> l_key, std::optional<Key> r_key,
-    WeakProclet<Shard> shard) {
+    std::optional<WeakProclet<Shard>> shard, bool prune_local) {
   auto range = r_key
                    ? key_to_shards_.equal_range(r_key)
                    : std::make_pair(key_to_shards_.end(), key_to_shards_.end());
   auto kts_iter = (l_key != r_key) ? range.first : range.second;
   auto &shard_and_reqs = (--kts_iter)->second;
-  auto current_shard = shard_and_reqs.shard;
-  if (unlikely(shard != current_shard)) {
-    // We've already got a newer mapping.
-    return;
+
+  auto emplace_reqs = std::move(shard_and_reqs.emplace_reqs);
+  shard_and_reqs.emplace_reqs.clear();
+
+  if (prune_local) {
+    key_to_shards_.erase(kts_iter);
   }
 
   auto latest_mapping =
       mapping_.run(&ShardingMapping::get_shards_in_range, l_key, r_key);
 
   auto lm_iter = latest_mapping.begin();
-  for (; lm_iter->second != shard; ++lm_iter)
-    ;
-  for (++lm_iter; lm_iter != latest_mapping.end(); ++lm_iter) {
+  if (shard.has_value()) {
+    for (; lm_iter != latest_mapping.end() && lm_iter->second != *shard;
+         ++lm_iter)
+      ;
+    if (lm_iter != latest_mapping.end()) ++lm_iter;
+  }
+  for (; lm_iter != latest_mapping.end(); ++lm_iter) {
     auto &[k, s] = *lm_iter;
     key_to_shards_.emplace(k, ShardAndReqs(s));
   }
-
-  auto emplace_reqs = std::move(shard_and_reqs.emplace_reqs);
-  shard_and_reqs.emplace_reqs.clear();
 
   std::vector<Val> emplace_back_reqs;
   if (!r_key) {

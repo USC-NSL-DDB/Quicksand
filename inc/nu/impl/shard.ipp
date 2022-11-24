@@ -370,7 +370,7 @@ GeneralShard<Container>::try_dequeue(
     return std::nullopt;
   }
 
-  Val v = container_.dequeue();
+  auto v = container_.try_dequeue();
   if (unlikely(container_.empty())) {
     delete_self_with_reader_lock();
     return v;

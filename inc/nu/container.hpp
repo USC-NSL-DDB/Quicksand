@@ -48,8 +48,8 @@ concept PopFrontAble = requires(T t) {
 
 template <class T>
 concept DequeueAble = requires(T t) {
-  { t.dequeue() }
-  ->std::same_as<typename T::Val>;
+  { t.try_dequeue() }
+  ->std::same_as<std::optional<typename T::Val>>;
 };
 
 template <class T>
@@ -236,8 +236,9 @@ class GeneralContainerBase {
   void pop_back() requires PopBackAble<Impl> {
     return synchronized<void>([&] { impl_.pop_back(); });
   }
-  Val dequeue() requires DequeueAble<Impl> {
-    return synchronized<Val>([&] { return impl_.dequeue(); });
+  std::optional<Val> try_dequeue() requires DequeueAble<Impl> {
+    return synchronized<std::optional<Val>>(
+        [&] { return impl_.try_dequeue(); });
   }
   ConstIterator find_by_order(
       std::size_t order) requires FindableByOrder<Impl> {
