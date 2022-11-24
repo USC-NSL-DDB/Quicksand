@@ -59,8 +59,8 @@ void OptionsDesc::add_either_constraint(std::string opt1, std::string opt2) {
     ("client,c", "client mode")
     ("controller,t", boost::program_options::value(&ctrl_ip_str)->default_value("18.18.1.1"), "controller ip")
     ("lpid,l", boost::program_options::value(&lpid)->required(), "logical process id")
-    ("memps", "react to memory pressure (only useful for server)")
-    ("cpups", "react to CPU pressure (only useful for server)");
+    ("nomemps", "don't react to memory pressure (only useful for server)")
+    ("nocpups", "don't react to CPU pressure (only useful for server)");
   add_either_constraint("server", "client");
 }
 
@@ -92,10 +92,10 @@ CaladanOptionsDesc::CaladanOptionsDesc(std::string default_ip, bool help)
 void write_options_to_file(std::string path, const AllOptionsDesc &desc) {
   write_options_to_file(path, desc.caladan);
   std::ofstream ofs(path, std::ios_base::app);
-  if (desc.vm.count("memps")) {
+  if (desc.vm.count("server") && !desc.vm.count("nomemps")) {
     ofs << "runtime_react_mem_pressure 1" << std::endl;
   }
-  if (desc.vm.count("cpups")) {
+  if (desc.vm.count("server") && !desc.vm.count("nocpups")) {
     ofs << "runtime_react_cpu_pressure 1" << std::endl;
   }
 }
