@@ -446,9 +446,8 @@ void Migrator::transmit(rt::TcpConn *c, ProcletHeader *proclet_header,
 
 bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
   if (unlikely(!get_runtime()->proclet_manager()->remove_for_migration(
-          proclet_header))) {
+          proclet_header)))
     return false;
-  }
   proclet_header->rcu_lock.writer_sync(/* poll = */ true);
   return true;
 }
@@ -576,13 +575,15 @@ uint32_t Migrator::__migrate(Resource resource,
     transmit_proclet_migration_tasks(conn, it, tasks.end());
 
     while (it != tasks.end()) {
+      auto *proclet_header = it++->header;
       loader_approval = receive_approval(conn);
+
       if (unlikely(!loader_approval ||
                    !get_runtime()->pressure_handler()->has_pressure())) {
+        skip_proclet(conn, proclet_header);
         break;
       }
 
-      auto *proclet_header = it++->header;
       if (unlikely(!try_mark_proclet_migrating(proclet_header))) {
         skip_proclet(conn, proclet_header);
         continue;
@@ -750,7 +751,8 @@ void Migrator::load_condvars(rt::TcpConn *c, ProcletHeader *proclet_header) {
   }
 }
 
-void Migrator::load_time(rt::TcpConn *c, ProcletHeader *proclet_header) {
+void Migrator::load_time_and_mark_proclet_present(
+    rt::TcpConn *c, ProcletHeader *proclet_header) {
   auto &time = proclet_header->time;
 
   int64_t sum_tsc;
@@ -763,6 +765,7 @@ void Migrator::load_time(rt::TcpConn *c, ProcletHeader *proclet_header) {
   auto loader_tsc = rdtscp(nullptr) - start_tsc;
   time.offset_tsc_ = sum_tsc - loader_tsc;
 
+  get_runtime()->proclet_manager()->insert(proclet_header);
   if (num_entries) {
     auto timer_entries = std::make_unique<timer_entry *[]>(num_entries);
     BUG_ON(c->ReadFull(timer_entries.get(), sizeof(timer_entry *) * num_entries,
@@ -846,8 +849,7 @@ void Migrator::load(rt::TcpConn *c) {
 
     load_mutexes(c, proclet_header);
     load_condvars(c, proclet_header);
-    load_time(c, proclet_header);
-    get_runtime()->proclet_manager()->insert(proclet_header);
+    load_time_and_mark_proclet_present(c, proclet_header);
     load_threads(c, proclet_header);
     loaded_proclets.emplace_back(proclet_header);
     // Wakeup the blocked threads.
@@ -860,11 +862,10 @@ void Migrator::load(rt::TcpConn *c) {
   }
 
   if (unlikely(!skipped_proclets.empty())) {
-    {
-      Caladan::PreemptGuard g;
+    preempt_enable();
+    mmap_th.Join();
+    preempt_disable();
 
-      mmap_th.Join();
-    }
     for (auto [proclet, size] : skipped_proclets) {
       get_runtime()->proclet_manager()->depopulate(proclet, size,
                                                    /* defer = */ false);

@@ -163,7 +163,8 @@ class Migrator {
       rt::TcpConn *c);
   void load_mutexes(rt::TcpConn *c, ProcletHeader *proclet_header);
   void load_condvars(rt::TcpConn *c, ProcletHeader *proclet_header);
-  void load_time(rt::TcpConn *c, ProcletHeader *proclet_header);
+  void load_time_and_mark_proclet_present(rt::TcpConn *c,
+                                          ProcletHeader *proclet_header);
   void load_threads(rt::TcpConn *c, ProcletHeader *proclet_header);
   thread_t *load_one_thread(rt::TcpConn *c, ProcletHeader *proclet_header);
   void aux_handlers_enable_polling(uint32_t dest_ip);
