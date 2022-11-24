@@ -9,9 +9,7 @@
 #include "ksched.h"
 #include "sched.h"
 
-#define MAX_INTERVAL_US 2000
-
-static bool ias_rp_preempt_core(struct ias_data *sd)
+static void ias_rp_preempt_core(struct ias_data *sd)
 {
 	unsigned int i, core;
 	struct thread *th;
@@ -20,12 +18,9 @@ static bool ias_rp_preempt_core(struct ias_data *sd)
 		if (!(*sd->p->active_threads[i]->preemptor))
 			break;
 
-	if (unlikely(i == sd->p->active_thread_count)) {
-		if (likely(ias_add_kthread(sd) == 0))
-			i = 0;
-		else
-			return false;
-	}
+	if (unlikely(i == sd->p->active_thread_count))
+		if (unlikely(ias_add_kthread(sd) != 0))
+			return;
 
 	core = sd->p->active_threads[i]->core;
 	/* Grant exclusive access by marking the core as reserved. */
@@ -34,14 +29,14 @@ static bool ias_rp_preempt_core(struct ias_data *sd)
 		bitmap_set(sd->reserved_report_handler_cores, core);
 	}
 
+	sd->p->resource_reporting->status = HANDLING;
+	barrier();
 	th = sd->p->active_threads[i];
 	*th->preemptor = sd->p->resource_reporting->handler;
 	barrier();
 	/* Handle the race condition of thread parking. */
 	ksched_run(core, th->tid);
-	BUG_ON(sched_yield_on_core(core) != 0);
-
-	return true;
+	sched_yield_on_core(core);
 }
 
 void ias_rp_poll(void)
@@ -64,13 +59,9 @@ void ias_rp_poll(void)
 			report->status = NONE;
 		}
 
-		if (report->status == NONE) {
-                        if (report->last_tsc + MAX_INTERVAL_US * cycles_per_us <
-			    now_tsc) {
-			        if (report->handler &&
-			            likely(ias_rp_preempt_core(sd)))
-			                report->status = HANDLING;
-			}
-		}
+		if (report->status == NONE)
+                        if (report->handler &&
+                            report->last_tsc + IAS_RP_INTERVAL_US * cycles_per_us < now_tsc)
+                                ias_rp_preempt_core(sd);
         }
 }

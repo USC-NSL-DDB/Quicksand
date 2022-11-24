@@ -10,9 +10,7 @@
 #include "ksched.h"
 #include "sched.h"
 
-#define MIN_PREEMPT_INTERVAL_US 100
-
-static bool ias_ps_preempt_core(struct ias_data *sd)
+static void ias_ps_preempt_core(struct ias_data *sd)
 {
 	unsigned int num_needed_cores, num_eligible_cores = 0, i, core;
 	void **preemptor_ptr;
@@ -24,12 +22,13 @@ static bool ias_ps_preempt_core(struct ias_data *sd)
 	num_needed_cores = *sd->p->num_resource_pressure_handlers;
 	while (num_eligible_cores < num_needed_cores) {
 		if (unlikely(ias_add_kthread(sd) != 0))
-			return false;
+			return;
 		th = sd->p->active_threads[sd->p->active_thread_count - 1];
 		num_eligible_cores += !(*th->preemptor);
 	}
 
 	/* Preempt the first num_needed_cores cores. */
+	sd->p->resource_pressure_info->status = HANDLING;
 	i = 0;
 	while (num_needed_cores) {
 		core = sd->p->active_threads[i]->core;
@@ -48,10 +47,8 @@ static bool ias_ps_preempt_core(struct ias_data *sd)
 		barrier();
 		/* Handle the race condition of thread parking. */
 		ksched_run(core, th->tid);
-		BUG_ON(sched_yield_on_core(core) != 0);
+		sched_yield_on_core(core);
 	}
-
-	return true;
 }
 
 void ias_ps_poll(uint64_t now_us)
@@ -121,10 +118,9 @@ done_pressure_update:
 
 		if (pressure->status == NONE && has_pressure) {
                         if (now_us - pressure->last_preempt_us >=
-			    MIN_PREEMPT_INTERVAL_US) {
+			    IAS_PS_INTERVAL_US) {
                                 pressure->last_preempt_us = now_us;
-                                if (likely(ias_ps_preempt_core(sd)))
-                                        pressure->status = HANDLING;
+                                ias_ps_preempt_core(sd);
                         }
 		}
         }

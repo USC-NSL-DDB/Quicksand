@@ -8,9 +8,7 @@ void set_resource_reporting_handler(thread_t *handler) {
 }
 
 void finish_resource_reporting(bool forced) {
-	if (forced) {
-		BUG_ON(resource_reporting->status != HANDLING);
+	if (forced)
 		resource_reporting->status = HANDLED;
-	}
 	resource_reporting->last_tsc = rdtsc();
 }

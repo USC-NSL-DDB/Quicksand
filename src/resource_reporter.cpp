@@ -24,10 +24,9 @@ ResourceReporter::ResourceReporter() : done_(false) {
   iokernel_forced_reporter_ = rt::Thread([&] {
     rt::access_once(launched) = true;
     while (!rt::access_once(done_)) {
-      {
-        rt::Preempt p;
-        rt::PreemptGuardAndPark gp(&p);
-      }
+      rt::Preempt p;
+      rt::PreemptGuardAndPark gp(&p);
+
       report_resource(/* forced =  */ true);
     }
   });
