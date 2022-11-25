@@ -133,23 +133,21 @@ bool test_sharded_vector_filtering() {
   }
 
   auto sealed_vec = nu::to_sealed_ds(std::move(vec));
-  auto sharded_vector_range = nu::make_sharded_ds_range(sealed_vec);
-  auto cp = nu::ComputeProclet<decltype(sharded_vector_range)>();
+  auto cont_vector_range = nu::make_contiguous_ds_range(sealed_vec);
+  auto cp = nu::ComputeProclet<decltype(cont_vector_range)>();
   auto filtered_vecs = cp.run(
-      +[](decltype(sharded_vector_range) &task_range) {
+      +[](decltype(cont_vector_range) &task_range) {
         auto filtered_vec =
             nu::make_sharded_vector<std::size_t, std::false_type>();
         while (!task_range.empty()) {
-          auto shard_range = task_range.pop();
-          for (const auto &data : shard_range) {
-            if (kFilterFn(data)) {
-              filtered_vec.push_back(data);
-            }
+          auto data = task_range.pop();
+          if (kFilterFn(data)) {
+            filtered_vec.push_back(data);
           }
         }
         return filtered_vec;
       },
-      sharded_vector_range);
+      cont_vector_range);
 
   for (auto &vec : filtered_vecs | std::views::drop(1)) {
     filtered_vecs.front().concat(std::move(vec));
