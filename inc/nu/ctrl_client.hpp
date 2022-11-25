@@ -50,6 +50,7 @@ class ControllerClient {
   void update_location(ProcletID id, NodeIP proclet_srv_ip);
   VAddrRange get_stack_cluster() const;
   void report_free_resource(Resource resource);
+  std::vector<std::pair<NodeIP, Resource>> get_free_resources();
 
  private:
   lpid_t lpid_;

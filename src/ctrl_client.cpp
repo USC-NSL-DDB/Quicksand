@@ -151,6 +151,21 @@ void ControllerClient::release_migration_dest(NodeIP ip) {
                               /* poll = */ true) != sizeof(req));
 }
 
+std::vector<std::pair<NodeIP, Resource>>
+ControllerClient::get_free_resources() {
+  using Pair = std::pair<NodeIP, Resource>;
+
+  RPCReqGetFreeResources req;
+  req.lpid = lpid_;
+  RPCReturnBuffer return_buf;
+  BUG_ON(rpc_client_->Call(to_span(req), &return_buf) != kOk);
+  auto raw_resp = return_buf.get_buf();
+  std::span<const Pair> resp(reinterpret_cast<const Pair *>(raw_resp.data()),
+                             raw_resp.size() / sizeof(Pair));
+  std::vector<Pair> free_resources(resp.begin(), resp.end());
+  return free_resources;
+}
+
 MigrationDest::MigrationDest(ControllerClient *client, NodeIP ip)
     : client_(client), ip_(ip) {}
 

@@ -115,6 +115,8 @@ std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
 }
 
 bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
+  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+
   if constexpr (kEnableBinaryVerification) {
     return lpid_to_md5_[lpid] == md5;
   } else {
@@ -251,6 +253,8 @@ void Controller::update_location(ProcletID id, NodeIP proclet_srv_ip) {
 
 void Controller::report_free_resource(lpid_t lpid, NodeIP ip,
                                       Resource free_resource) {
+  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+
   auto lp_info_iter = lpid_to_info_.find(lpid);
   BUG_ON(lp_info_iter == lpid_to_info_.end());
 
@@ -259,6 +263,22 @@ void Controller::report_free_resource(lpid_t lpid, NodeIP ip,
   BUG_ON(iter == node_statuses.end());
 
   iter->second.update_free_resource(free_resource);
+}
+
+std::vector<std::pair<NodeIP, Resource>> Controller::get_free_resources(
+    lpid_t lpid) {
+  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+
+  std::vector<std::pair<NodeIP, Resource>> free_resources;
+  auto lp_info_iter = lpid_to_info_.find(lpid);
+  BUG_ON(lp_info_iter == lpid_to_info_.end());
+
+  auto &node_statuses = lp_info_iter->second.node_statuses;
+  for (auto &[ip, status] : node_statuses) {
+    free_resources.emplace_back(ip, status.free_resource);
+  }
+
+  return free_resources;
 }
 
 void NodeStatus::update_free_resource(Resource resource) {

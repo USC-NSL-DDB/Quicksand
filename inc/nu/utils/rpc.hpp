@@ -73,7 +73,7 @@ class RPCReturner {
   RPCReturner() {}
   RPCReturner(void *rpc_server, std::size_t completion_data);
   void Return(RPCReturnCode rc, std::span<const std::byte> buf,
-              std::move_only_function<void()> deleter_fn);
+              std::move_only_function<void()> deleter_fn = nullptr);
   void Return(RPCReturnCode rc);
 
  private:

@@ -23,12 +23,14 @@ ControllerServer::ControllerServer()
       num_release_migration_dest_(0),
       num_update_location_(0),
       num_report_free_resource_(0),
+      num_get_free_resources_(0),
       done_(false) {
   if constexpr (kEnableLogging) {
     logging_thread_ = rt::Thread([&] {
       std::cout << "time_us register_node verify_md5 allocate_proclet "
                    "destroy_proclet resolve_proclet acquire_migration_dest "
-                   "release_migration_dest update_location"
+                   "release_migration_dest update_location report_free_resource "
+                   "get_free_resources"
                 << std::endl;
       while (!rt::access_once(done_)) {
         timer_sleep(kPrintIntervalUs);
@@ -37,6 +39,7 @@ ControllerServer::ControllerServer()
                   << num_destroy_proclet_ << " " << num_resolve_proclet_ << " "
                   << num_acquire_migration_dest_ << " "
                   << num_release_migration_dest_ << " " << num_update_location_
+                  << num_report_free_resource_ << " " << num_get_free_resources_
                   << std::endl;
       }
     });
@@ -159,15 +162,13 @@ ControllerServer::handle_allocate_proclet(const RPCReqAllocateProclet &req) {
   return resp;
 }
 
-std::unique_ptr<RPCRespDestroyProclet> ControllerServer::handle_destroy_proclet(
+void ControllerServer::handle_destroy_proclet(
     const RPCReqDestroyProclet &req) {
   if constexpr (kEnableLogging) {
     num_destroy_proclet_++;
   }
 
-  auto resp = std::make_unique_for_overwrite<RPCRespDestroyProclet>();
   ctrl_.destroy_proclet(req.heap_segment);
-  return resp;
 }
 
 std::unique_ptr<RPCRespResolveProclet> ControllerServer::handle_resolve_proclet(
@@ -217,6 +218,16 @@ void ControllerServer::handle_report_free_resource(
   }
 
   ctrl_.report_free_resource(req.lpid, req.ip, req.resource);
+}
+
+std::unique_ptr<std::vector<std::pair<NodeIP, Resource>>>
+ControllerServer::handle_get_free_resources(const RPCReqGetFreeResources &req) {
+  if constexpr (kEnableLogging) {
+    num_get_free_resources_++;
+  }
+
+  return std::make_unique<std::vector<std::pair<NodeIP, Resource>>>(
+      ctrl_.get_free_resources(req.lpid));
 }
 
 }  // namespace nu

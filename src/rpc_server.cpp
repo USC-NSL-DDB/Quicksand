@@ -60,10 +60,8 @@ void RPCServer::run_background_loop() {
       }
       case kDestroyProclet: {
         auto &req = from_span<RPCReqDestroyProclet>(args);
-        auto resp =
-            get_runtime()->controller_server()->handle_destroy_proclet(req);
-        auto span = to_span(*resp);
-        returner->Return(kOk, span, [resp = std::move(resp)] {});
+        get_runtime()->controller_server()->handle_destroy_proclet(req);
+        returner->Return(kOk);
         break;
       }
       case kResolveProclet: {
@@ -71,6 +69,14 @@ void RPCServer::run_background_loop() {
         auto resp =
             get_runtime()->controller_server()->handle_resolve_proclet(req);
         auto span = to_span(*resp);
+        returner->Return(kOk, span, [resp = std::move(resp)] {});
+        break;
+      }
+      case kGetFreeResources: {
+        auto &req = from_span<RPCReqGetFreeResources>(args);
+        auto resp =
+            get_runtime()->controller_server()->handle_get_free_resources(req);
+        auto span = std::as_bytes(std::span(*resp));
         returner->Return(kOk, span, [resp = std::move(resp)] {});
         break;
       }

@@ -20,7 +20,7 @@ extern "C" {
 
 namespace nu {
 
-// This is really a logical node as opposed to the real physical node.
+// This is a logical node instead of a physical node.
 struct NodeStatus {
   constexpr static float kEWMAWeight = 0.25;
 
@@ -71,6 +71,7 @@ class Controller {
   void release_migration_dest(lpid_t lpid, NodeIP ip);
   void update_location(ProcletID id, NodeIP proclet_srv_ip);
   void report_free_resource(lpid_t lpid, NodeIP ip, Resource free_resource);
+  std::vector<std::pair<NodeIP, Resource>> get_free_resources(lpid_t lpid);
 
  private:
   constexpr static auto kNumProcletSegmentBuckets =
