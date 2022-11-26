@@ -53,7 +53,7 @@ inline constexpr T div_round_up_unchecked(T dividend, T divisor) {
 }
 
 inline constexpr uint64_t round_up_to_power2(uint64_t x) {
-  return (1 << (bsr_64(x - 1) + 1));
+  return (1ULL << (bsr_64(x - 1) + 1));
 }
 
 template <typename T>
