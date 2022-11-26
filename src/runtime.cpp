@@ -53,14 +53,18 @@ Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid) {
 }
 
 Runtime::~Runtime() {
-  proclet_server_.reset();
-  controller_client_.reset();
-  proclet_manager_.reset();
   stack_manager_.reset();
-  rpc_client_mgr_.reset();
+  resource_reporter_.reset();
+  pressure_handler_.reset();
+  proclet_manager_.reset();
+  controller_client_.reset();
   migrator_.reset();
+  rpc_server_.reset();
+  proclet_server_.reset();
   archive_pool_.reset();
   caladan_.reset();
+  rpc_client_mgr_.reset();
+  controller_server_.reset();
   runtime_slab_.reset();
 }
 
@@ -84,15 +88,12 @@ void Runtime::init_runtime_heap() {
 void Runtime::init_as_controller() {
   controller_server_.reset(new decltype(controller_server_)::element_type());
   rpc_server_.reset(new decltype(rpc_server_)::element_type());
-  rpc_server_->run_background_loop();
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
   proclet_server_.reset(new decltype(proclet_server_)::element_type());
   rpc_server_.reset(new decltype(rpc_server_)::element_type());
-  rpc_server_->run_background_loop();
   migrator_.reset(new decltype(migrator_)::element_type());
-  migrator_->run_background_loop();
   controller_client_.reset(new decltype(controller_client_)::element_type(
       remote_ctrl_ip, kServer, lpid));
   proclet_manager_.reset(new decltype(proclet_manager_)::element_type());

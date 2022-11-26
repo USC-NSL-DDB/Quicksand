@@ -97,18 +97,18 @@ class Runtime {
 
  private:
   std::unique_ptr<SlabAllocator> runtime_slab_;
-  std::unique_ptr<ArchivePool<>> archive_pool_;
-  std::unique_ptr<StackManager> stack_manager_;
-  std::unique_ptr<ProcletServer> proclet_server_;
-  std::unique_ptr<ControllerClient> controller_client_;
   std::unique_ptr<ControllerServer> controller_server_;
-  std::unique_ptr<ProcletManager> proclet_manager_;
   std::unique_ptr<RPCClientMgr> rpc_client_mgr_;
-  std::unique_ptr<Migrator> migrator_;
+  std::unique_ptr<Caladan> caladan_;
+  std::unique_ptr<ArchivePool<>> archive_pool_;
+  std::unique_ptr<ProcletServer> proclet_server_;
   std::unique_ptr<RPCServer> rpc_server_;
+  std::unique_ptr<Migrator> migrator_;
+  std::unique_ptr<ControllerClient> controller_client_;
+  std::unique_ptr<ProcletManager> proclet_manager_;
   std::unique_ptr<PressureHandler> pressure_handler_;
   std::unique_ptr<ResourceReporter> resource_reporter_;
-  std::unique_ptr<Caladan> caladan_;
+  std::unique_ptr<StackManager> stack_manager_;
   friend int runtime_main_init(int, char **, std::function<void(int, char **)>);
   friend Runtime *get_runtime();
   friend int ctrl_main(int, char **);

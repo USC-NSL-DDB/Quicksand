@@ -111,7 +111,6 @@ class Migrator {
 
   Migrator();
   ~Migrator();
-  void run_background_loop();
   uint32_t migrate(Resource resource,
                    const std::vector<ProcletMigrationTask> &tasks);
   void reserve_conns(uint32_t dest_server_ip);
@@ -138,6 +137,7 @@ class Migrator {
   std::unordered_set<uint32_t> delayed_srv_ips_;
   rt::Thread th_;
 
+  void run_background_loop();
   void handle_copy_proclet(rt::TcpConn *c);
   void handle_load(rt::TcpConn *c);
   void handle_register_callback(rt::TcpConn *c);

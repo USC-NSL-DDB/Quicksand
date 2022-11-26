@@ -9,6 +9,8 @@
 
 namespace nu {
 
+RPCServer::RPCServer() { run_background_loop(); }
+
 void RPCServer::run_background_loop() {
   auto rpc_handler = [](std::span<std::byte> args, RPCReturner *returner) {
     auto &rpc_type = from_span<RPCReqType>(args);
@@ -39,13 +41,6 @@ void RPCServer::run_background_loop() {
         auto &req = from_span<RPCReqRegisterNode>(args);
         auto resp =
             get_runtime()->controller_server()->handle_register_node(req);
-        auto span = to_span(*resp);
-        returner->Return(kOk, span, [resp = std::move(resp)] {});
-        break;
-      }
-      case kVerifyMD5: {
-        auto &req = from_span<RPCReqVerifyMD5>(args);
-        auto resp = get_runtime()->controller_server()->handle_verify_md5(req);
         auto span = to_span(*resp);
         returner->Return(kOk, span, [resp = std::move(resp)] {});
         break;
