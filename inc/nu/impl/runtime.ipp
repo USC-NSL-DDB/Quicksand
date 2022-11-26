@@ -164,6 +164,7 @@ inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
 
   auto *old_header = caladan_->thread_set_owner_proclet(caladan_->thread_self(),
                                                         new_header, true);
+  barrier();
   if (!new_header) {
     return MigrationGuard(nullptr);
   } else if (new_header->status() != kAbsent) {
@@ -279,7 +280,8 @@ inline void runtime_check(Runtime *runtime) {
 #ifdef DEBUG
   if (Caladan::thread_self()) {
     auto *proclet_header = runtime->caladan()->thread_get_owner_proclet();
-    if (proclet_header && runtime->caladan()->preempt_enabled()) {
+    if (proclet_header && proclet_header->migratable &&
+        runtime->caladan()->preempt_enabled()) {
       assert(runtime->caladan()->thread_is_rcu_held(Caladan::thread_self(),
                                                     &proclet_header->rcu_lock));
     }
