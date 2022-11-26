@@ -1,9 +1,9 @@
-#include <runtime.h>
-
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+
+#include <sync.h>
 
 #include "nu/runtime.hpp"
 #include "nu/utils/slab.hpp"
@@ -19,6 +19,9 @@ uint16_t slab_id = kRuntimeSlabId + 1;
 static_assert(kBufSize >= kMaxSlabClassSize);
 
 bool run_with_size(uint64_t obj_size, uint64_t class_size) {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+
   class_size += sizeof(PtrHeader);
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
@@ -30,7 +33,8 @@ bool run_with_size(uint64_t obj_size, uint64_t class_size) {
   }
 
   for (uint64_t i = 0; i < count; i++) {
-    if (slab->allocate(obj_size) != buf + i * class_size + sizeof(PtrHeader)) {
+    auto ptr = slab->allocate(obj_size);
+    if (ptr != buf + i * class_size + sizeof(PtrHeader)) {
       return false;
     }
   }
@@ -58,6 +62,9 @@ bool run_max_size() {
 }
 
 bool run_more_than_buf_size() {
+  rt::Preempt p;
+  rt::PreemptGuard g(&p);
+
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 

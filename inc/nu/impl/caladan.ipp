@@ -1,3 +1,5 @@
+#include <net.h>
+
 namespace nu {
 
 inline Caladan::PreemptGuard::PreemptGuard() { preempt_disable(); }
@@ -248,6 +250,8 @@ inline void Caladan::timer_sleep_until(uint64_t deadline_us) {
 inline void Caladan::timer_sleep(uint64_t duration_us) {
   ::timer_sleep(duration_us);
 }
+
+inline uint32_t Caladan::get_ip() { return ::get_cfg_ip(); }
 
 }  // namespace nu
 

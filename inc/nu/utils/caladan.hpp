@@ -72,6 +72,7 @@ class Caladan {
   void timer_sleep_until(uint64_t deadline_us);
   void timer_sleep(uint64_t deadline_us);
   void timer_start(timer_entry *e, uint64_t deadline_us);
+  uint32_t get_ip();
 
   static thread_t *thread_self();
   template <typename T>

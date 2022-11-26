@@ -41,7 +41,6 @@ class ControllerClient {
   ControllerClient(NodeIP ctrl_server_ip, Runtime::Mode mode, lpid_t lpid);
   std::optional<std::pair<lpid_t, VAddrRange>> register_node(NodeIP ip,
                                                              MD5Val md5);
-  bool verify_md5(MD5Val md5);
   std::optional<std::pair<ProcletID, NodeIP>> allocate_proclet(
       uint64_t capacity, NodeIP ip_hint);
   void destroy_proclet(VAddrRange heap_segment);

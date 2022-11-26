@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <functional>
 
 #include "nu/commons.hpp"
 #include "nu/runtime_deleter.hpp"
@@ -76,6 +77,9 @@ class Proclet {
   friend class DistributedMemPool;
   template <TaskRangeBased TR>
   friend class ComputeProclet;
+  friend int runtime_main_init(
+      int argc, char **argv,
+      std::function<void(int argc, char **argv)> main_func);
 
   std::optional<Future<void>> update_ref_cnt(ProcletID id, int delta);
   template <typename... S1s>
@@ -112,6 +116,10 @@ class Proclet {
   friend Proclet<U> make_proclet_pinned_at(uint32_t ip, As &&... args);
   template <typename U, typename... As>
   friend Future<Proclet<U>> make_proclet_pinned_async_at(uint32_t ip,
+                                                         As &&... args);
+  template <typename U, typename... As>
+  friend Proclet<U> make_proclet_pinned_at_with_capacity(uint64_t capacity,
+                                                         uint32_t ip_hint,
                                                          As &&... args);
   template <typename U, typename... As>
   friend Proclet<U> make_proclet_with_capacity(uint64_t capacity,
@@ -161,6 +169,9 @@ template <typename T, typename... As>
 Proclet<T> make_proclet_pinned_at(uint32_t ip, As &&... args);
 template <typename T, typename... As>
 Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip, As &&... args);
+template <typename T, typename... As>
+Proclet<T> make_proclet_pinned_at_with_capacity(uint64_t capacity, uint32_t ip,
+                                                As &&... args);
 template <typename T, typename... As>
 Proclet<T> make_proclet_with_capacity(uint64_t capacity, As &&... args);
 template <typename T, typename... As>

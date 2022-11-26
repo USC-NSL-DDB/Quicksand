@@ -114,16 +114,6 @@ std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
   return std::make_pair(lpid, stack_cluster);
 }
 
-bool Controller::verify_md5(lpid_t lpid, MD5Val md5) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);
-
-  if constexpr (kEnableBinaryVerification) {
-    return lpid_to_md5_[lpid] == md5;
-  } else {
-    return true;
-  }
-}
-
 std::optional<std::pair<ProcletID, NodeIP>> Controller::allocate_proclet(
     uint64_t capacity, lpid_t lpid, NodeIP ip_hint) {
   rt::ScopedLock<rt::Mutex> lock(&mutex_);

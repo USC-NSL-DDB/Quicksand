@@ -15,7 +15,6 @@ namespace nu {
 
 ControllerServer::ControllerServer()
     : num_register_node_(0),
-      num_verify_md5_(0),
       num_allocate_proclet_(0),
       num_destroy_proclet_(0),
       num_resolve_proclet_(0),
@@ -27,20 +26,19 @@ ControllerServer::ControllerServer()
       done_(false) {
   if constexpr (kEnableLogging) {
     logging_thread_ = rt::Thread([&] {
-      std::cout << "time_us register_node verify_md5 allocate_proclet "
-                   "destroy_proclet resolve_proclet acquire_migration_dest "
-                   "release_migration_dest update_location report_free_resource "
-                   "get_free_resources"
-                << std::endl;
+      std::cout
+          << "time_us register_node allocate_proclet destroy_proclet"
+             "resolve_proclet acquire_migration_dest release_migration_dest"
+             "update_location report_free_resource get_free_resources"
+          << std::endl;
       while (!rt::access_once(done_)) {
         timer_sleep(kPrintIntervalUs);
         std::cout << microtime() << " " << num_register_node_ << " "
-                  << num_verify_md5_ << " " << num_allocate_proclet_ << " "
-                  << num_destroy_proclet_ << " " << num_resolve_proclet_ << " "
-                  << num_acquire_migration_dest_ << " "
-                  << num_release_migration_dest_ << " " << num_update_location_
-                  << num_report_free_resource_ << " " << num_get_free_resources_
-                  << std::endl;
+                  << num_allocate_proclet_ << " " << num_destroy_proclet_ << " "
+                  << num_resolve_proclet_ << " " << num_acquire_migration_dest_
+                  << " " << num_release_migration_dest_ << " "
+                  << num_update_location_ << num_report_free_resource_ << " "
+                  << num_get_free_resources_ << std::endl;
       }
     });
   }
@@ -130,17 +128,6 @@ std::unique_ptr<RPCRespRegisterNode> ControllerServer::handle_register_node(
   } else {
     resp->empty = true;
   }
-  return resp;
-}
-
-std::unique_ptr<RPCRespVerifyMD5> ControllerServer::handle_verify_md5(
-    const RPCReqVerifyMD5 &req) {
-  if constexpr (kEnableLogging) {
-    num_verify_md5_++;
-  }
-
-  auto resp = std::make_unique_for_overwrite<RPCRespVerifyMD5>();
-  resp->passed = ctrl_.verify_md5(req.lpid, req.md5);
   return resp;
 }
 

@@ -21,18 +21,10 @@ ControllerClient::ControllerClient(NodeIP ctrl_server_ip, Runtime::Mode mode,
   BUG_ON(!tcp_conn_);
 
   auto md5 = get_self_md5();
-
-  if (mode == Runtime::kServer) {
-    auto optional = register_node(get_cfg_ip(), md5);
-    BUG_ON(!optional);
-    BUG_ON(lpid_ && lpid_ != optional->first);
-    std::tie(lpid_, stack_cluster_) = *optional;
-  } else if (mode == Runtime::kClient) {
-    BUG_ON(!verify_md5(md5));
-    lpid_ = lpid;
-  } else {
-    BUG();
-  }
+  auto optional = register_node(get_cfg_ip(), md5);
+  BUG_ON(!optional);
+  BUG_ON(lpid_ && lpid_ != optional->first);
+  std::tie(lpid_, stack_cluster_) = *optional;
   std::cout << "running with lpid = " << lpid_ << std::endl;
 }
 
@@ -53,17 +45,6 @@ std::optional<std::pair<lpid_t, VAddrRange>> ControllerClient::register_node(
     auto stack_cluster = resp.stack_cluster;
     return std::make_pair(lpid, stack_cluster);
   }
-}
-
-bool ControllerClient::verify_md5(MD5Val md5) {
-  RPCReqVerifyMD5 req;
-  req.lpid = lpid_;
-  req.md5 = md5;
-  RPCReturnBuffer return_buf;
-  auto rc = rpc_client_->Call(to_span(req), &return_buf);
-  BUG_ON(rc != kOk);
-  auto &resp = from_span<RPCRespVerifyMD5>(return_buf.get_buf());
-  return resp.passed;
 }
 
 std::optional<std::pair<ProcletID, NodeIP>> ControllerClient::allocate_proclet(

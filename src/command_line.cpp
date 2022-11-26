@@ -53,15 +53,13 @@ void OptionsDesc::add_either_constraint(std::string opt1, std::string opt2) {
   either_constraints.emplace_back(opt1, opt2);
 }
 
-  NuOptionsDesc::NuOptionsDesc(bool help) : OptionsDesc("Nu arguments", help) {
+NuOptionsDesc::NuOptionsDesc(bool help) : OptionsDesc("Nu arguments", help) {
   desc.add_options()
-    ("server,s", "proclet server mode")
-    ("client,c", "client mode")
+    ("main,m", "execute the main function")
     ("controller,t", boost::program_options::value(&ctrl_ip_str)->default_value("18.18.1.1"), "controller ip")
     ("lpid,l", boost::program_options::value(&lpid)->required(), "logical process id")
-    ("nomemps", "don't react to memory pressure (only useful for server)")
-    ("nocpups", "don't react to CPU pressure (only useful for server)");
-  add_either_constraint("server", "client");
+    ("nomemps", "don't react to memory pressure")
+    ("nocpups", "don't react to CPU pressure");
 }
 
 CaladanOptionsDesc::CaladanOptionsDesc(std::string default_ip, bool help)
@@ -79,7 +77,7 @@ CaladanOptionsDesc::CaladanOptionsDesc(std::string default_ip, bool help)
     ("guaranteed,g", boost::program_options::value(&guaranteed)->default_value(0), "number of guaranteed kthreads (if conf unspecified)")
     ("spinning,p", boost::program_options::value(&spinning)->default_value(0), "number of spinning kthreads (if conf unspecified)")
     ("ip,i", ip_opt, "IP address (if conf unspecified)")
-    ("netmask,m", boost::program_options::value(&netmask)->default_value("255.255.255.0"), "netmask (if conf unspecified)")
+    ("netmask,n", boost::program_options::value(&netmask)->default_value("255.255.255.0"), "netmask (if conf unspecified)")
     ("gateway,w", boost::program_options::value(&gateway)->default_value("18.18.1.1"), "gateway address (if conf unspecified)");
   add_either_constraint("conf", "kthreads");
   add_either_constraint("conf", "guaranteed");
@@ -92,10 +90,10 @@ CaladanOptionsDesc::CaladanOptionsDesc(std::string default_ip, bool help)
 void write_options_to_file(std::string path, const AllOptionsDesc &desc) {
   write_options_to_file(path, desc.caladan);
   std::ofstream ofs(path, std::ios_base::app);
-  if (desc.vm.count("server") && !desc.vm.count("nomemps")) {
+  if (!desc.vm.count("nomemps")) {
     ofs << "runtime_react_mem_pressure 1" << std::endl;
   }
-  if (desc.vm.count("server") && !desc.vm.count("nocpups")) {
+  if (!desc.vm.count("nocpups")) {
     ofs << "runtime_react_cpu_pressure 1" << std::endl;
   }
 }

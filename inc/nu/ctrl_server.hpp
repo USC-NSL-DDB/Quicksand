@@ -31,16 +31,6 @@ struct RPCRespRegisterNode {
   VAddrRange stack_cluster;
 } __attribute__((packed));
 
-struct RPCReqVerifyMD5 {
-  RPCReqType rpc_type = kVerifyMD5;
-  lpid_t lpid;
-  MD5Val md5;
-} __attribute__((packed));
-
-struct RPCRespVerifyMD5 {
-  bool passed;
-} __attribute__((packed));
-
 struct RPCReqAllocateProclet {
   RPCReqType rpc_type = kAllocateProclet;
   uint64_t capacity;
@@ -117,7 +107,6 @@ class ControllerServer {
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   Controller ctrl_;
   std::atomic<uint64_t> num_register_node_;
-  std::atomic<uint64_t> num_verify_md5_;
   std::atomic<uint64_t> num_allocate_proclet_;
   std::atomic<uint64_t> num_destroy_proclet_;
   std::atomic<uint64_t> num_resolve_proclet_;
@@ -135,8 +124,6 @@ class ControllerServer {
 
   std::unique_ptr<RPCRespRegisterNode> handle_register_node(
       const RPCReqRegisterNode &req);
-  std::unique_ptr<RPCRespVerifyMD5> handle_verify_md5(
-      const RPCReqVerifyMD5 &req);
   std::unique_ptr<RPCRespAllocateProclet> handle_allocate_proclet(
       const RPCReqAllocateProclet &req);
   void handle_destroy_proclet(const RPCReqDestroyProclet &req);

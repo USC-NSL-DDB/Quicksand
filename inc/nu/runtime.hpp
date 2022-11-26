@@ -42,7 +42,7 @@ struct RPCReqReserveConns {
 
 class Runtime {
  public:
-  enum Mode { kClient, kServer, kController };
+  enum Mode { kMainServer, kServer, kController };
 
   ~Runtime();
   SlabAllocator *runtime_slab();
@@ -61,7 +61,6 @@ class Runtime {
   void init_runtime_heap();
   void init_as_controller();
   void init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid);
-  void init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid);
   template <typename Cls, typename... A0s, typename... A1s>
   bool run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                               A1s &&... args);
@@ -109,6 +108,7 @@ class Runtime {
   std::unique_ptr<PressureHandler> pressure_handler_;
   std::unique_ptr<ResourceReporter> resource_reporter_;
   std::unique_ptr<StackManager> stack_manager_;
+
   friend int runtime_main_init(int, char **, std::function<void(int, char **)>);
   friend Runtime *get_runtime();
   friend int ctrl_main(int, char **);

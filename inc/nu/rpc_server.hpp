@@ -11,7 +11,6 @@ enum RPCReqEnum {
   kMigrateThreadAndRetVal,
   // Controller
   kRegisterNode,
-  kVerifyMD5,
   kAllocateProclet,
   kDestroyProclet,
   kResolveProclet,

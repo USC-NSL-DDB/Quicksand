@@ -61,7 +61,6 @@ class Controller {
   std::optional<std::pair<lpid_t, VAddrRange>> register_node(NodeIP ip,
                                                              lpid_t lpid,
                                                              MD5Val md5);
-  bool verify_md5(lpid_t lpid, MD5Val md5);
   std::optional<std::pair<ProcletID, NodeIP>> allocate_proclet(
       uint64_t capacity, lpid_t lpid, NodeIP ip_hint);
   void destroy_proclet(VAddrRange heap_segment);

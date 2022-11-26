@@ -22,6 +22,7 @@ extern "C" {
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
 #include "nu/pressure_handler.hpp"
+#include "nu/proclet.hpp"
 #include "nu/proclet_server.hpp"
 #include "nu/resource_reporter.hpp"
 #include "nu/rpc_client_mgr.hpp"
@@ -37,8 +38,8 @@ Runtime::Runtime() {}
 Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid) {
   common_init();
 
-  if (mode == kClient) {
-    init_as_client(remote_ctrl_ip, lpid);
+  if (mode == kMainServer) {
+    init_as_server(remote_ctrl_ip, lpid);
   } else {
     if (mode == kController) {
       init_as_controller();
@@ -104,12 +105,6 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
   archive_pool_.reset(new decltype(archive_pool_)::element_type());
 }
 
-void Runtime::init_as_client(uint32_t remote_ctrl_ip, lpid_t lpid) {
-  controller_client_.reset(new decltype(controller_client_)::element_type(
-      remote_ctrl_ip, kClient, lpid));
-  archive_pool_.reset(new decltype(archive_pool_)::element_type());
-}
-
 void Runtime::common_init() {
   prealloc_threads_and_stacks(4 * kNumCores);
   init_runtime_heap();
@@ -153,8 +148,8 @@ int runtime_main_init(int argc, char **argv,
   AllOptionsDesc all_options_desc;
   all_options_desc.parse(argc, argv);
 
-  auto mode = all_options_desc.vm.count("server") ? nu::Runtime::Mode::kServer
-                                                  : nu::Runtime::Mode::kClient;
+  auto mode = all_options_desc.vm.count("main") ? nu::Runtime::Mode::kMainServer
+                                                : nu::Runtime::Mode::kServer;
   auto ctrl_ip = str_to_ip(all_options_desc.nu.ctrl_ip_str);
   auto lpid = all_options_desc.nu.lpid;
   auto conf_path = all_options_desc.caladan.conf_path;
@@ -176,7 +171,16 @@ int runtime_main_init(int argc, char **argv,
       }
     }
     new (get_runtime()) Runtime(ctrl_ip, mode, lpid);
-    main_func(argc, argv);
+    {
+      auto main_proclet = make_proclet_pinned_at_with_capacity<ErasedType>(
+          kMainProcletHeapSize, get_runtime()->caladan()->get_ip());
+      main_proclet.__run(
+          +[](ErasedType &_, int *argc_p, char ***argv_p,
+              std::function<void(int argc, char **argv)> *main_func_p) {
+            (*main_func_p)(*argc_p, *argv_p);
+          },
+          &argc, &argv, &main_func);
+    }
     std::destroy_at(get_runtime());
   });
 
