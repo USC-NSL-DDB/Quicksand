@@ -28,10 +28,16 @@ ProcletServer::ProcletServer() {
   }
 }
 
-ProcletServer::~ProcletServer() {}
+ProcletServer::~ProcletServer() {
+  while (unlikely(ref_cnt_.get())) {
+    rt::Yield();
+  }
+}
 
 void ProcletServer::parse_and_run_handler(std::span<std::byte> args,
                                           RPCReturner *returner) {
+  ref_cnt_.inc();
+
   auto *ia_sstream = get_runtime()->archive_pool()->get_ia_sstream();
   auto &[args_ss, ia] = *ia_sstream;
   args_ss.span({reinterpret_cast<char *>(args.data()), args.size()});
@@ -46,6 +52,10 @@ void ProcletServer::parse_and_run_handler(std::span<std::byte> args,
   }
 
   get_runtime()->archive_pool()->put_ia_sstream(ia_sstream);
+
+  ref_cnt_.dec();
 }
+
+void ProcletServer::dec_ref_cnt() { ref_cnt_.dec(); }
 
 }  // namespace nu

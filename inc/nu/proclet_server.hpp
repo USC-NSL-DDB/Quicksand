@@ -10,6 +10,7 @@ extern "C" {
 #include <sync.h>
 
 #include "nu/utils/archive_pool.hpp"
+#include "nu/utils/counter.hpp"
 #include "nu/utils/rpc.hpp"
 #include "nu/utils/trace_logger.hpp"
 
@@ -51,8 +52,11 @@ class ProcletServer {
                                   RPCReturner *returner);
 
   TraceLogger trace_logger_;
+  Counter ref_cnt_;
   friend class RPCServer;
+  friend class Migrator;
 
+  void dec_ref_cnt();
   static void forward(RPCReturnCode rc, RPCReturner *returner,
                       const void *payload, uint64_t payload_len);
   void parse_and_run_handler(std::span<std::byte> args, RPCReturner *returner);

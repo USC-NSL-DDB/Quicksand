@@ -931,6 +931,7 @@ void Migrator::forward_to_client(RPCReqForward &req) {
     req.returner.Return(req.rc);
   }
   get_runtime()->archive_pool()->put_ia_sstream(req.gc_ia_sstream);
+  get_runtime()->proclet_server()->dec_ref_cnt();
 }
 
 uint32_t Migrator::get_max_num_proclets_per_migration() const {
