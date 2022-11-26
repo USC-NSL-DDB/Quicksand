@@ -569,7 +569,7 @@ template <class Archive>
 inline void GeneralSealedDSConstIterator<Shard, Fwd>::save(Archive &ar) const {
   uint64_t shards_offset = shards_iter_ - shards_vec_begin();
   uint64_t block_offset = block_iter_ - block_.cbegin();
-  ar(shards_, shards_offset, block_.prefetched, block_offset,
+  ar(*shards_, shards_offset, block_.prefetched, block_offset,
      decltype(prefetch_executor_)(), prefetch_seq_);
 }
 
@@ -578,16 +578,18 @@ template <class Archive>
 inline void GeneralSealedDSConstIterator<Shard, Fwd>::save_move(Archive &ar) {
   uint64_t shards_offset = shards_iter_ - shards_vec_begin();
   uint64_t block_offset = block_iter_ - block_.cbegin();
-  ar(shards_, shards_offset, block_.prefetched, block_offset,
+  ar(std::move(*shards_), shards_offset, block_.prefetched, block_offset,
      std::move(prefetch_executor_), prefetch_seq_);
 }
 
 template <typename Shard, bool Fwd>
 template <class Archive>
 inline void GeneralSealedDSConstIterator<Shard, Fwd>::load(Archive &ar) {
+  ShardsVec shards;
   uint64_t shards_offset, block_offset;
-  ar(shards_, shards_offset, block_.prefetched, block_offset,
-     prefetch_executor_, prefetch_seq_);
+  ar(shards, shards_offset, block_.prefetched, block_offset, prefetch_executor_,
+     prefetch_seq_);
+  shards_.reset(new ShardsVec(std::move(shards)));
   shards_iter_ = shards_vec_begin() + shards_offset;
   block_iter_ = block_.cbegin() + block_offset;
 }
