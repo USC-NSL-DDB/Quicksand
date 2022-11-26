@@ -38,3 +38,8 @@ void add_resource_pressure_handler(resource_pressure_handler handler,
 	thread_args->handler_args = args;
 }
 
+void remove_all_resource_pressure_handlers(void)
+{
+	*num_resource_pressure_handlers = 0;
+}
+

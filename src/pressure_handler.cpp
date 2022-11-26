@@ -27,8 +27,13 @@ PressureHandler::PressureHandler() : mock_(false), done_(false) {
 
 PressureHandler::~PressureHandler() {
   done_ = true;
-  barrier();
+  remove_all_resource_pressure_handlers();
+  mb();
   update_th_.Join();
+  while (
+      unlikely(rt::access_once(resource_pressure_info->status) == HANDLING)) {
+    rt::Yield();
+  }
 }
 
 Utility::Utility() {}
