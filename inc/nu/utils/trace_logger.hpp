@@ -16,9 +16,9 @@ class TraceLogger {
  public:
   constexpr static uint32_t kNumBuckets = 11;
   constexpr static uint32_t kBucketIntervalUs = 50;
+  constexpr static auto kDefaultHeaderStr = "***********TraceLogger***********";
 
-  TraceLogger(std::string header_str =
-                  "*******************TraceLogger*******************");
+  TraceLogger(std::string header_str = kDefaultHeaderStr);
   ~TraceLogger();
   void enable_print(uint32_t interval_us);
   void disable_print();
@@ -41,6 +41,7 @@ class TraceLogger {
   bool done_;
 
   void check_disabled();
+  void print_thread_fn();
 };
 
 }  // namespace nu
