@@ -15,6 +15,7 @@ class CondVar {
   CondVar &operator=(const CondVar &) = delete;
   ~CondVar();
   void wait(Mutex *mutex);
+  void wait_and_unlock(Mutex *mutex);
   void wait(SpinLock *spin);
   void wait_and_unlock(SpinLock *spin);
   void signal();
@@ -25,7 +26,7 @@ class CondVar {
   friend class Migrator;
 
   list_head *get_waiters();
-  void signal_all_as(ProcletHeader *proclet_header);
+  void __wait_and_unlock(auto *l);
 };
 
 }  // namespace nu
