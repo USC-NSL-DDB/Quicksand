@@ -307,7 +307,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
                   ProcletServer::run_closure_locally<T, RetT, decltype(fn),
                                                      S1s...>(
                       &(*optional_callee_migration_guard),
-                      std::move(slab_guard), &ret, caller_header, callee_header,
+                      slab_guard, &ret, caller_header, callee_header,
                       fn, std::forward<S1s>(states)...);
             },
             copied_states);
@@ -319,7 +319,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
                   ProcletServer::run_closure_locally<T, RetT, decltype(fn),
                                                      S1s...>(
                       &(*optional_callee_migration_guard),
-                      std::move(slab_guard), nullptr, caller_header,
+                      slab_guard, nullptr, caller_header,
                       callee_header, fn, std::forward<S1s>(states)...);
             },
             copied_states);

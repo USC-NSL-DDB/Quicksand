@@ -314,6 +314,8 @@ MigrationGuard ProcletServer::run_closure_locally(
     auto optional_caller_guard = get_runtime()->reattach_and_disable_migration(
         caller_header, *callee_migration_guard);
     if (likely(optional_caller_guard)) {
+      ProcletSlabGuard slab_guard(&caller_header->slab);
+
       *caller_ptr = move_if_safe(std::move(ret));
       callee_migration_guard->reset();
       return std::move(*optional_caller_guard);
