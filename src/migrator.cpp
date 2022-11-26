@@ -97,9 +97,15 @@ void MigratorConnManager::put(uint32_t ip, rt::TcpConn *tcp_conn) {
   pool_map_[ip].push(tcp_conn);
 }
 
-Migrator::Migrator() { callback_triggered_ = true; }
+Migrator::Migrator() {
+  callback_triggered_ = true;
+  run_background_loop();
+}
 
-Migrator::~Migrator() { BUG(); }
+Migrator::~Migrator() {
+  tcp_queue_->Shutdown();
+  th_.Join();
+}
 
 void Migrator::handle_copy_proclet(rt::TcpConn *c) {
   ProcletHeader *proclet_header;
@@ -134,12 +140,14 @@ void Migrator::run_background_loop() {
   tcp_queue_.reset(
       rt::TcpQueue::Listen(addr, kTCPListenBackLog, kMigrationDSCP));
 
-  rt::Thread([&] {
+  th_ = rt::Thread([&] {
     rt::TcpConn *c;
-    while ((c = tcp_queue_->Accept())) {
-      rt::Thread([&, c] {
-        std::unique_ptr<rt::TcpConn> gc(c);
+    std::vector<rt::Thread> ths;
+    std::vector<std::unique_ptr<rt::TcpConn>> tcp_conns;
 
+    while ((c = tcp_queue_->Accept())) {
+      tcp_conns.emplace_back(c);
+      ths.emplace_back([&, c] {
         bool poll = false;
         while (true) {
           uint8_t type;
@@ -173,9 +181,16 @@ void Migrator::run_background_loop() {
           }
         }
         BUG_ON(c->Shutdown(SHUT_RDWR) < 0);
-      }).Detach();
+      });
     }
-  }).Detach();
+
+    for (auto &tcp_conn : tcp_conns) {
+      tcp_conn->Shutdown(SHUT_RDWR);
+    }
+    for (auto &th : ths) {
+      th.Join();
+    }
+  });
 }
 
 inline void throttle(uint64_t len, uint64_t real_us) {
