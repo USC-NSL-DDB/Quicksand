@@ -29,8 +29,8 @@ class RobExecutor {
 
   std::move_only_function<Ret(const Arg &)> fn_;
   std::vector<RobEntry> rob_;
-  Thread th_;
   bool done_;
+  Thread th_;
 };
 }  // namespace nu
 
