@@ -101,7 +101,7 @@ class ShardedDataStructure {
     std::vector<DataEntry> emplace_reqs;
 
     ShardAndReqs() = default;
-    ShardAndReqs(Proclet<Shard> s);
+    ShardAndReqs(WeakProclet<Shard> s);
     ShardAndReqs(const ShardAndReqs &);
     ShardAndReqs(ShardAndReqs &&) = default;
 

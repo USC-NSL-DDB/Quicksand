@@ -370,7 +370,7 @@ ShardedDataStructure<Container, LL>::get_key_range(
 
 template <class Container, class LL>
 inline ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
-    Proclet<Shard> s)
+    WeakProclet<Shard> s)
     : shard(s), seq(0) {}
 
 template <class Container, class LL>
