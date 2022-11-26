@@ -62,7 +62,7 @@ enum {
 struct resource_pressure_info {
 	uint8_t                 status;
 	bool                    mock;
-	uint64_t                last_preempt_us;
+	uint64_t                last_us;
 	uint32_t                to_release_mem_mbs;
 	bool                    cpu_pressure;
 };

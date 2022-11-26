@@ -10,6 +10,36 @@
 #include "ksched.h"
 #include "sched.h"
 
+static inline void ias_ps_repreempt(struct ias_data *sd)
+{
+	int i;
+
+	sd->p->resource_pressure_info->last_us = now_us;
+	for (i = 0; i < IAS_PS_MAX_NUM_HANDLERS; i++)
+		if (*sd->ps_preempt_ths[i]->preemptor)
+			sched_preempt(sd->ps_preempt_cores[i],
+				      sd->ps_preempt_ths[i]);
+}
+
+static inline void ias_ps_grant_exclusive_access(struct ias_data *sd,
+                                                 unsigned int core)
+{
+	if (!bitmap_test(sd->reserved_cores, core)) {
+		bitmap_set(sd->reserved_cores, core);
+		bitmap_set(sd->reserved_pressure_handler_cores, core);
+	}
+}
+
+static inline void ias_ps_ungrant_exclusive_access(struct ias_data *sd)
+{
+	int pos;
+
+	bitmap_for_each_set(sd->reserved_pressure_handler_cores, NCPU, pos) {
+		bitmap_clear(sd->reserved_pressure_handler_cores, pos);
+		bitmap_clear(sd->reserved_cores, pos);
+	}
+}
+
 static void ias_ps_preempt_core(struct ias_data *sd)
 {
 	unsigned int num_needed_cores, num_eligible_cores = 0, i, core;
@@ -27,31 +57,33 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 		num_eligible_cores += !(*th->preemptor);
 	}
 
-	/* Preempt the first num_needed_cores cores. */
+	sd->p->resource_pressure_info->last_us = now_us;
 	sd->p->resource_pressure_info->status = HANDLING;
+	mb();
+	if (unlikely(!ACCESS_ONCE(sd->p->num_resource_pressure_handlers))) {
+		sd->p->resource_pressure_info->status = NONE;
+		return;
+	}
+
+	/* Preempt the first num_needed_cores cores. */
 	i = 0;
+	BUG_ON(num_needed_cores > IAS_PS_MAX_NUM_HANDLERS);
 	while (num_needed_cores) {
 		core = sd->p->active_threads[i]->core;
 		th = sd->p->active_threads[i++];
 		preemptor_ptr = th->preemptor;
-
 		if (unlikely(*preemptor_ptr))
                         continue;
-
-		/* Grant exclusive access by marking the core as reserved. */
-		if (!bitmap_test(sd->reserved_cores, core)) {
-			bitmap_set(sd->reserved_cores, core);
-			bitmap_set(sd->reserved_pressure_handler_cores, core);
-		}
+		ias_ps_grant_exclusive_access(sd, core);
 		*preemptor_ptr = sd->p->resource_pressure_handlers[--num_needed_cores];
 		barrier();
-		/* Handle the race condition of thread parking. */
-		ksched_run(core, th->tid);
-		sched_yield_on_core(core);
+		sd->ps_preempt_cores[num_needed_cores] = core;
+		sd->ps_preempt_ths[num_needed_cores] = th;
+		sched_preempt(core, th);
 	}
 }
 
-void ias_ps_poll(uint64_t now_us)
+void ias_ps_poll(void)
 {
 	bool has_pressure;
 	struct sysinfo info;
@@ -59,7 +91,6 @@ void ias_ps_poll(uint64_t now_us)
 	struct congestion_info *congestion;
 	struct resource_pressure_info *pressure;
 	struct ias_data *sd;
-	int pos;
 
 	BUG_ON(sysinfo(&info) != 0);
 	used_swap_mbs = (info.totalswap - info.freeswap) / SIZE_MB;
@@ -78,7 +109,7 @@ void ias_ps_poll(uint64_t now_us)
 
 		if (pressure->mock) {
 			has_pressure = true;
-			goto done_pressure_update;
+			goto update_fsm;
 		}
 
 		/* Memory pressure. */
@@ -104,24 +135,18 @@ void ias_ps_poll(uint64_t now_us)
 			}
 		}
 
-done_pressure_update:
+	update_fsm:
 		if (pressure->status == HANDLED) {
-		        /* Take away the exclusive access. */
-	                bitmap_for_each_set(sd->reserved_pressure_handler_cores,
-					    NCPU, pos) {
-				bitmap_clear(sd->reserved_pressure_handler_cores,
-					     pos);
-				bitmap_clear(sd->reserved_cores, pos);
-	                }
+			ias_ps_ungrant_exclusive_access(sd);
 			pressure->status = NONE;
 		}
 
-		if (pressure->status == NONE && has_pressure) {
-                        if (now_us - pressure->last_preempt_us >=
-			    IAS_PS_INTERVAL_US) {
-                                pressure->last_preempt_us = now_us;
+		if (pressure->status == NONE && has_pressure)
+			if (pressure->last_us + IAS_PS_INTERVAL_US < now_us)
                                 ias_ps_preempt_core(sd);
-                        }
-		}
+
+		if (pressure->status == HANDLING &&
+		    pressure->last_us + IAS_PREEMPT_RETRY_US < now_us)
+                                ias_ps_repreempt(sd);
         }
 }

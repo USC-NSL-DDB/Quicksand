@@ -67,7 +67,7 @@ static int ias_attach(struct proc *p, struct sched_spec *sched_cfg)
 	sd->p = p;
 	sd->p->resource_pressure_info->status = NONE;
 	sd->p->resource_pressure_info->mock = false;
-	sd->p->resource_pressure_info->last_preempt_us = 0;
+	sd->p->resource_pressure_info->last_us = 0;
 	sd->p->resource_pressure_info->to_release_mem_mbs = 0;
 	sd->p->resource_pressure_info->cpu_pressure = false;
 	sd->threads_guaranteed = sched_cfg->guaranteed_cores;
@@ -549,7 +549,7 @@ static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 			ias_ht_poll();
 		ias_ts_poll();
 		if (!cfg.nops)
-			ias_ps_poll(now);
+			ias_ps_poll();
 		if (!cfg.norp)
 			ias_rp_poll();
 	}

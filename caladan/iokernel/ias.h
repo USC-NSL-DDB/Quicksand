@@ -21,8 +21,12 @@
 #define IAS_PS_CPU_THRESH_US            500
 /* the interval to trigger PS subcontroller */
 #define IAS_PS_INTERVAL_US              100
+/* the maximum number of PS handlers */
+#define IAS_PS_MAX_NUM_HANDLERS         3
 /* the interval to trigger RP subcontroller */
 #define IAS_RP_INTERVAL_US              100
+/* the interval to re-preempt cores (used by PS and RP) */
+#define IAS_PREEMPT_RETRY_US            50
 /* the time before the core-local cache is assumed to be evicted */
 #define IAS_LOC_EVICTED_US		100
 /* the debug info printing interval */
@@ -67,6 +71,14 @@ struct ias_data {
 	bool                    react_cpu_pressure;
 	/* used for monitoring the duration of cpu pressure */
 	uint64_t                cpu_pressure_start_us;
+
+	/* used for rp preemption */
+	unsigned int            rp_preempt_core;
+	struct thread           *rp_preempt_th;
+
+	/* used for ps preemption */
+	unsigned int            ps_preempt_cores[IAS_PS_MAX_NUM_HANDLERS];
+	struct thread           *ps_preempt_ths[IAS_PS_MAX_NUM_HANDLERS];
 };
 
 extern struct list_head all_procs;
@@ -121,7 +133,7 @@ extern float ias_bw_estimate_multiplier;
  * Resource Pressure (PS) subcontroller definitions
  */
 
-extern void ias_ps_poll(uint64_t now_us);
+extern void ias_ps_poll(void);
 
 /*
  * Resource Reporting (RP) subcontroller definitions
@@ -149,4 +161,3 @@ extern uint64_t ias_bw_sample_aborts;
 extern uint64_t ias_ht_punish_count;
 extern uint64_t ias_ht_relax_count;
 extern uint64_t ias_ts_yield_count;
-

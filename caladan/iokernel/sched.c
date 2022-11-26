@@ -207,6 +207,17 @@ int sched_run_on_core(struct proc *p, unsigned int core)
 	return __sched_run(s, th, core);
 }
 
+int sched_run_th_on_core(struct thread *th, unsigned int core)
+{
+	struct core_state *s = &state[core];
+
+	proc_get(th->p);
+	sched_enable_kthread(th, core);
+
+	/* issue the command to run the thread */
+	return __sched_run(s, th, core);
+}
+
 /**
  * sched_idle_on_core - makes a core go idle
  * @mwait_hint: the model-specific MWAIT idle state hint
@@ -277,6 +288,14 @@ int sched_yield_on_core(unsigned int core)
 	ACCESS_ONCE(th->q_ptrs->yield_rcu_gen) = th->metrics.rcu_gen;
 	ksched_enqueue_intr(core, KSCHED_INTR_YIELD);
 	return 0;
+}
+
+void sched_preempt(unsigned int core, struct thread *th)
+{
+	if (unlikely(state[core].idle))
+		sched_run_th_on_core(th, core);
+	else
+		sched_yield_on_core(core);
 }
 
 /**

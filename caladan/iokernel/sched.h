@@ -97,7 +97,7 @@ extern int sched_idle_on_core(uint32_t mwait_hint, unsigned int core);
 extern int sched_yield_on_core(unsigned int core);
 extern struct thread *sched_get_thread_on_core(unsigned int core);
 extern int sched_request_cooperative_cede(unsigned int core);
-extern int sched_yield_on_core(unsigned int core);
+extern void sched_preempt(unsigned int core, struct thread *th);
 
 static inline int sched_threads_active(struct proc *p)
 {
