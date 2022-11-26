@@ -41,7 +41,7 @@ void Mutex::__unlock() {
       proclet_header->blocked_syncer.remove(this);
     }
   } else {
-    get_runtime()->caladan()->wake_one_thread(&m_.waiters);
+    get_runtime()->caladan()->wakeup_one_waiter(&m_.waiters);
   }
 
   Caladan::spin_unlock_np(&m_.waiter_lock);

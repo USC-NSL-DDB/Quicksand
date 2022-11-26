@@ -50,7 +50,7 @@ class Caladan {
   ProcletHeader *thread_set_owner_proclet(thread_t *th,
                                           ProcletHeader *owner_proclet,
                                           bool update_monitor);
-  ProcletHeader *thread_get_owner_proclet();
+  ProcletHeader *thread_get_owner_proclet(thread_t *th = thread_self());
   SlabAllocator *thread_get_proclet_slab();
   SlabAllocator *thread_set_proclet_slab(SlabAllocator *proclet_slab);
   void *thread_get_runtime_stack_base();
@@ -65,8 +65,9 @@ class Caladan {
   bool thread_monitored();
   void thread_flush_all_monitor_cycles();
   void unblock_and_relax();
-  void wake_one_thread(list_head *waiters);
-  void wake_all_threads(list_head *waiters);
+  thread_t *pop_one_waiter(list_head *waiters);
+  std::vector<thread_t *> pop_all_waiters(list_head *waiters);
+  void wakeup_one_waiter(list_head *waiters);
   uint64_t rdtsc();
   uint64_t microtime();
   void timer_sleep_until(uint64_t deadline_us);

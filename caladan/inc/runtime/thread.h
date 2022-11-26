@@ -154,10 +154,10 @@ static inline void *thread_set_owner_proclet(thread_t *th, void *owner_proclet,
 	return old_owner_proclet;
 }
 
-static inline void *thread_get_owner_proclet(void)
+static inline void *thread_get_owner_proclet(thread_t *th)
 {
 	void **owner_proclet_p =
-		(void **)((uint64_t)__self + thread_owner_proclet_offset);
+		(void **)((uint64_t)th + thread_owner_proclet_offset);
 	return *owner_proclet_p;
 }
 

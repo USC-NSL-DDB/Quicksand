@@ -94,8 +94,8 @@ inline ProcletHeader *Caladan::thread_set_owner_proclet(
       ::thread_set_owner_proclet(th, owner_proclet, update_monitor));
 }
 
-inline ProcletHeader *Caladan::thread_get_owner_proclet() {
-  return reinterpret_cast<ProcletHeader *>(::thread_get_owner_proclet());
+inline ProcletHeader *Caladan::thread_get_owner_proclet(thread_t *th) {
+  return reinterpret_cast<ProcletHeader *>(::thread_get_owner_proclet(th));
 }
 
 inline SlabAllocator *Caladan::thread_get_proclet_slab(void) {
@@ -181,19 +181,21 @@ inline void Caladan::unblock_and_relax() {
   cpu_relax();
 }
 
-inline void Caladan::wake_one_thread(list_head *waiters) {
-  auto *th = reinterpret_cast<thread_t *>(
+inline thread_t *Caladan::pop_one_waiter(list_head *waiters) {
+  return reinterpret_cast<thread_t *>(
       const_cast<void *>(list_pop_(waiters, thread_link_offset)));
-  if (th) {
-    thread_ready(th);
-  }
 }
 
-inline void Caladan::wake_all_threads(list_head *waiters) {
-  while (auto *waketh = reinterpret_cast<thread_t *>(
-             const_cast<void *>(list_pop_(waiters, thread_link_offset)))) {
-    thread_ready(waketh);
+inline std::vector<thread_t *> Caladan::pop_all_waiters(list_head *waiters) {
+  std::vector<thread_t *> ths;
+  while (auto *th = pop_one_waiter(waiters)) {
+    ths.push_back(th);
   }
+  return ths;
+}
+
+inline void Caladan::wakeup_one_waiter(list_head *waiters) {
+  thread_ready(pop_one_waiter(waiters));
 }
 
 inline void Caladan::spin_lock_init(spinlock_t *spin) {

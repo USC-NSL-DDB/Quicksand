@@ -20,17 +20,6 @@ void CondVar::__wait_and_unlock(auto *l) {
 
   get_runtime()->caladan()->thread_park_and_unlock_np(&cv_.waiter_lock,
                                                       &cv_.waiters);
-
-  if (unlikely(list_empty(&cv_.waiters))) {
-    Caladan::spin_lock_np(&cv_.waiter_lock);
-    if (likely(list_empty(&cv_.waiters))) {
-      auto *proclet_header = get_runtime()->get_current_proclet_header();
-      if (proclet_header) {
-        proclet_header->blocked_syncer.remove(this);
-      }
-    }
-    Caladan::spin_unlock_np(&cv_.waiter_lock);
-  }
 }
 
 void CondVar::wait(Mutex *mutex) {
@@ -55,14 +44,40 @@ void CondVar::wait_and_unlock(SpinLock *spin) {
 
 void CondVar::signal() {
   Caladan::spin_lock_np(&cv_.waiter_lock);
-  get_runtime()->caladan()->wake_one_thread(&cv_.waiters);
+  auto *th = get_runtime()->caladan()->pop_one_waiter(&cv_.waiters);
+  if (th) {
+    if (unlikely(list_empty(&cv_.waiters))) {
+      auto *proclet_header =
+          get_runtime()->caladan()->thread_get_owner_proclet(th);
+      if (proclet_header) {
+        proclet_header->blocked_syncer.remove(this);
+      }
+    }
+    get_runtime()->caladan()->thread_ready(th);
+  }
   Caladan::spin_unlock_np(&cv_.waiter_lock);
 }
 
 void CondVar::signal_all() {
   Caladan::spin_lock_np(&cv_.waiter_lock);
-  get_runtime()->caladan()->wake_all_threads(&cv_.waiters);
-  Caladan::spin_unlock_np(&cv_.waiter_lock);
+   auto ths = get_runtime()->caladan()->pop_all_waiters(&cv_.waiters);
+   if (!ths.empty()) {
+     auto *proclet_header =
+         get_runtime()->caladan()->thread_get_owner_proclet(ths.front());
+#ifdef DEBUG
+     for (auto *th : ths) {
+       BUG_ON(proclet_header !=
+              get_runtime()->caladan()->thread_get_owner_proclet(th));
+     }
+#endif
+     if (proclet_header) {
+       proclet_header->blocked_syncer.remove(this);
+     }
+     for (auto *th : ths) {
+       get_runtime()->caladan()->thread_ready(th);
+     }
+   }
+   Caladan::spin_unlock_np(&cv_.waiter_lock);
 }
 
 }  // namespace nu
