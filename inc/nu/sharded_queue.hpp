@@ -64,14 +64,20 @@ class ShardedQueue
   using Base = ShardedDataStructure<GeneralContainer<Queue<T>>, LL>;
 
   ShardedQueue();
-  ShardedQueue(std::optional<typename Base::Hint> hint);
+  ShardedQueue(std::optional<typename Base::Hint> hint,
+               std::optional<std::size_t> size_bound);
   friend class ProcletServer;
   template <typename T1, typename LL1>
   friend ShardedQueue<T1, LL1> make_sharded_queue();
+  template <typename T1, typename LL1>
+  friend ShardedQueue<T1, LL1> make_sharded_queue(std::size_t);
 };
 
 template <typename T, typename LL>
 ShardedQueue<T, LL> make_sharded_queue();
+
+template <typename T, typename LL>
+ShardedQueue<T, LL> make_sharded_queue(std::size_t);
 
 }  // namespace nu
 

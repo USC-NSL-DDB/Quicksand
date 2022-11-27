@@ -124,8 +124,9 @@ inline ShardedQueue<T, LL>::ShardedQueue() {}
 
 template <typename T, typename LL>
 inline ShardedQueue<T, LL>::ShardedQueue(
-    std::optional<typename Base::Hint> hint)
-    : Base(hint) {}
+    std::optional<typename Base::Hint> hint,
+    std::optional<std::size_t> size_bound)
+    : Base(hint, size_bound) {}
 
 template <typename T, typename LL>
 inline T ShardedQueue<T, LL>::front() const {
@@ -139,7 +140,7 @@ inline T ShardedQueue<T, LL>::back() const {
 
 template <typename T, typename LL>
 void ShardedQueue<T, LL>::push(const T &value) {
-  Base::emplace_back(value);
+  Base::enqueue(value);
 }
 
 template <typename T, typename LL>
@@ -154,7 +155,15 @@ inline T ShardedQueue<T, LL>::dequeue() {
 
 template <typename T, typename LL>
 inline ShardedQueue<T, LL> make_sharded_queue() {
-  return ShardedQueue<T, LL>(std::nullopt);
+  auto hint = std::nullopt;
+  auto size_bound = std::nullopt;
+  return ShardedQueue<T, LL>(hint, size_bound);
+}
+
+template <typename T, typename LL>
+inline ShardedQueue<T, LL> make_sharded_queue(std::size_t size_bound) {
+  auto hint = std::nullopt;
+  return ShardedQueue<T, LL>(hint, size_bound);
 }
 
 }  // namespace nu
