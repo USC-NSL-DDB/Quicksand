@@ -18,7 +18,6 @@ enum RPCReqEnum {
   kReleaseMigrationDest,
   kUpdateLocation,
   kReportFreeResource,
-  kGetFreeResources,
   // Proclet server,
   kProcletCall,
   kGCStack

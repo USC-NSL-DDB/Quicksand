@@ -22,14 +22,13 @@ ControllerServer::ControllerServer()
       num_release_migration_dest_(0),
       num_update_location_(0),
       num_report_free_resource_(0),
-      num_get_free_resources_(0),
       done_(false) {
   if constexpr (kEnableLogging) {
     logging_thread_ = rt::Thread([&] {
       std::cout
           << "time_us register_node allocate_proclet destroy_proclet"
              "resolve_proclet acquire_migration_dest release_migration_dest"
-             "update_location report_free_resource get_free_resources"
+             "update_location report_free_resource"
           << std::endl;
       while (!rt::access_once(done_)) {
         timer_sleep(kPrintIntervalUs);
@@ -37,8 +36,8 @@ ControllerServer::ControllerServer()
                   << num_allocate_proclet_ << " " << num_destroy_proclet_ << " "
                   << num_resolve_proclet_ << " " << num_acquire_migration_dest_
                   << " " << num_release_migration_dest_ << " "
-                  << num_update_location_ << num_report_free_resource_ << " "
-                  << num_get_free_resources_ << std::endl;
+                  << num_update_location_ << num_report_free_resource_
+                  << std::endl;
       }
     });
   }
@@ -80,7 +79,7 @@ void ControllerServer::tcp_loop(rt::TcpConn *c) {
         ssize_t data_size = sizeof(req) - sizeof(rpc_type);
         BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
         auto resp = handle_acquire_migration_dest(req);
-        BUG_ON(c->WriteFull(resp.get(), sizeof(*resp)) != sizeof(*resp));
+        BUG_ON(c->WriteFull(&resp, sizeof(resp)) != sizeof(resp));
         break;
       }
       case kReleaseMigrationDest: {
@@ -101,7 +100,13 @@ void ControllerServer::tcp_loop(rt::TcpConn *c) {
         RPCReqReportFreeResource req;
         ssize_t data_size = sizeof(req) - sizeof(rpc_type);
         BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
-        handle_report_free_resource(req);
+        auto global_free_resources = handle_report_free_resource(req);
+        std::size_t num_nodes = global_free_resources.size();
+        const iovec iovecs[] = {
+            {&num_nodes, sizeof(num_nodes)},
+            {global_free_resources.data(),
+             std::span(global_free_resources).size_bytes()}};
+        BUG_ON(c->WritevFull(std::span(iovecs)) < 0);
         break;
       }
       default:
@@ -177,15 +182,14 @@ void ControllerServer::handle_update_location(const RPCReqUpdateLocation &req) {
   ctrl_.update_location(req.id, req.proclet_srv_ip);
 }
 
-std::unique_ptr<RPCRespAcquireMigrationDest>
-ControllerServer::handle_acquire_migration_dest(
+RPCRespAcquireMigrationDest ControllerServer::handle_acquire_migration_dest(
     const RPCReqAcquireMigrationDest &req) {
   if constexpr (kEnableLogging) {
     num_acquire_migration_dest_++;
   }
 
-  auto resp = std::make_unique_for_overwrite<RPCRespAcquireMigrationDest>();
-  resp->ip = ctrl_.acquire_migration_dest(req.lpid, req.src_ip, req.resource);
+  RPCRespAcquireMigrationDest resp;
+  resp.ip = ctrl_.acquire_migration_dest(req.lpid, req.src_ip, req.resource);
   return resp;
 }
 
@@ -198,23 +202,14 @@ void ControllerServer::handle_release_migration_dest(
   ctrl_.release_migration_dest(req.lpid, req.ip);
 }
 
-void ControllerServer::handle_report_free_resource(
+std::vector<std::pair<NodeIP, Resource>>
+ControllerServer::handle_report_free_resource(
     const RPCReqReportFreeResource &req) {
   if constexpr (kEnableLogging) {
     num_report_free_resource_++;
   }
 
-  ctrl_.report_free_resource(req.lpid, req.ip, req.resource);
-}
-
-std::unique_ptr<std::vector<std::pair<NodeIP, Resource>>>
-ControllerServer::handle_get_free_resources(const RPCReqGetFreeResources &req) {
-  if constexpr (kEnableLogging) {
-    num_get_free_resources_++;
-  }
-
-  return std::make_unique<std::vector<std::pair<NodeIP, Resource>>>(
-      ctrl_.get_free_resources(req.lpid));
+  return ctrl_.report_free_resource(req.lpid, req.ip, req.resource);
 }
 
 }  // namespace nu

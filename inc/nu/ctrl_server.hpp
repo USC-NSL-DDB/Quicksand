@@ -88,11 +88,6 @@ struct RPCReqReportFreeResource {
   Resource resource;
 } __attribute__((packed));
 
-struct RPCReqGetFreeResources {
-  RPCReqType rpc_type = kGetFreeResources;
-  lpid_t lpid;
-} __attribute__((packed));
-
 class ControllerServer {
  public:
   constexpr static bool kEnableLogging = false;
@@ -114,7 +109,6 @@ class ControllerServer {
   std::atomic<uint64_t> num_release_migration_dest_;
   std::atomic<uint64_t> num_update_location_;
   std::atomic<uint64_t> num_report_free_resource_;
-  std::atomic<uint64_t> num_get_free_resources_;
   rt::Thread logging_thread_;
   rt::Thread tcp_queue_thread_;
   std::vector<std::unique_ptr<rt::TcpConn>> tcp_conns_;
@@ -129,13 +123,12 @@ class ControllerServer {
   void handle_destroy_proclet(const RPCReqDestroyProclet &req);
   std::unique_ptr<RPCRespResolveProclet> handle_resolve_proclet(
       const RPCReqResolveProclet &req);
-  std::unique_ptr<RPCRespAcquireMigrationDest> handle_acquire_migration_dest(
+  RPCRespAcquireMigrationDest handle_acquire_migration_dest(
       const RPCReqAcquireMigrationDest &req);
   void handle_release_migration_dest(const RPCReqReleaseMigrationDest &req);
   void handle_update_location(const RPCReqUpdateLocation &req);
-  void handle_report_free_resource(const RPCReqReportFreeResource &req);
-  std::unique_ptr<std::vector<std::pair<NodeIP, Resource>>>
-  handle_get_free_resources(const RPCReqGetFreeResources &req);
+  std::vector<std::pair<NodeIP, Resource>> handle_report_free_resource(
+      const RPCReqReportFreeResource &req);
   void tcp_loop(rt::TcpConn *c);
 };
 }  // namespace nu

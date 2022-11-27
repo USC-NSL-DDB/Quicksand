@@ -67,14 +67,6 @@ void RPCServer::run_background_loop() {
         returner->Return(kOk, span, [resp = std::move(resp)] {});
         break;
       }
-      case kGetFreeResources: {
-        auto &req = from_span<RPCReqGetFreeResources>(args);
-        auto resp =
-            get_runtime()->controller_server()->handle_get_free_resources(req);
-        auto span = std::as_bytes(std::span(*resp));
-        returner->Return(kOk, span, [resp = std::move(resp)] {});
-        break;
-      }
       // Proclet server
       case kProcletCall: {
         args = args.subspan(sizeof(RPCReqType));

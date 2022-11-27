@@ -32,6 +32,13 @@ ResourceReporter::ResourceReporter() : done_(false) {
   });
 }
 
+std::vector<std::pair<NodeIP, Resource>>
+ResourceReporter::get_global_free_resources() {
+  rt::ScopedLock lock(&spin_);
+
+  return global_free_resources_;
+}
+
 ResourceReporter::~ResourceReporter() {
   done_ = true;
   barrier();
@@ -47,7 +54,13 @@ void ResourceReporter::report_resource(bool forced) {
                    (rt::RuntimeActiveCores() - rt::RuntimeSpinningCores())) +
       rt::RuntimeSpinningCores();
   resource.mem_mbs = rt::RuntimeFreeMemMbs();
-  get_runtime()->controller_client()->report_free_resource(resource);
+  auto global_free_resources =
+      get_runtime()->controller_client()->report_free_resource(resource);
+  {
+    rt::ScopedLock lock(&spin_);
+
+    global_free_resources_ = std::move(global_free_resources);
+  }
   finish_resource_reporting(forced);
 }
 

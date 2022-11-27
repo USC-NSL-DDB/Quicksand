@@ -69,8 +69,8 @@ class Controller {
                                 Resource resource);
   void release_migration_dest(lpid_t lpid, NodeIP ip);
   void update_location(ProcletID id, NodeIP proclet_srv_ip);
-  void report_free_resource(lpid_t lpid, NodeIP ip, Resource free_resource);
-  std::vector<std::pair<NodeIP, Resource>> get_free_resources(lpid_t lpid);
+  std::vector<std::pair<NodeIP, Resource>> report_free_resource(
+      lpid_t lpid, NodeIP ip, Resource free_resource);
 
  private:
   constexpr static auto kNumProcletSegmentBuckets =
