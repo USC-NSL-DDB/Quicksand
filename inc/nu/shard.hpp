@@ -190,7 +190,7 @@ class GeneralShard {
   uint64_t initial_slab_usage_;
   std::size_t initial_size_;
   std::size_t size_thresh_;
-  std::atomic<bool> deleted_;
+  bool deleted_;
 
   friend class ContainerHandle<Container>;
   template <GeneralShardBased S>
