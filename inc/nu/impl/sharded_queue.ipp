@@ -110,13 +110,13 @@ inline void Queue<T>::merge(Queue queue) {
 template <typename T>
 template <class Archive>
 inline void Queue<T>::save(Archive &ar) const {
-  ar(queue_);
+  ar(queue_, l_key_);
 }
 
 template <typename T>
 template <class Archive>
 inline void Queue<T>::load(Archive &ar) {
-  ar(queue_);
+  ar(queue_, l_key_);
 }
 
 template <typename T, typename LL>
