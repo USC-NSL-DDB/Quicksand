@@ -105,7 +105,6 @@ class Consumer {
 
   void consume(std::size_t n_batches) {
     for (std::size_t i = 0; i < n_batches; ++i) {
-      // TODO: this needs to block
       auto batch = queue_.dequeue();
       do_work(std::move(batch));
     }
