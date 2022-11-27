@@ -35,8 +35,8 @@ class ContainerHandle {
 template <class Container>
 struct ContainerAndMetadata {
   Container container;
-  std::size_t capacity;
-  uint64_t container_bucket_size;
+  std::size_t capacity = 0;
+  uint64_t container_bucket_size = 0;
 
   ContainerAndMetadata() = default;
   ContainerAndMetadata(const ContainerAndMetadata &);
