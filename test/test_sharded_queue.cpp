@@ -8,7 +8,6 @@
 using namespace nu;
 
 bool test_push_and_pop() {
-  std::cout << __LINE__ << std::endl;
   // TODO: increase test size when LL=false is implemented
   constexpr uint32_t k_size = 24 << 12;
   auto queue = make_sharded_queue<int, std::true_type>();
@@ -37,7 +36,6 @@ bool test_push_and_pop() {
 }
 
 bool test_size_and_empty() {
-  std::cout << __LINE__ << std::endl;
   constexpr uint32_t k_size = 24 << 12;
   auto queue = make_sharded_queue<int, std::true_type>();
 
@@ -90,21 +88,18 @@ std::vector<std::vector<char>> make_batch(std::size_t size) {
 }
 
 bool test_batched_queue() {
-  std::cout << __LINE__ << std::endl;
-  constexpr std::size_t queue_sz = 1 << 10;
+  constexpr std::size_t queue_sz = 1 << 12;
   constexpr std::size_t batch_sz = 1'000'000;
 
   auto queue =
       make_sharded_queue<std::vector<std::vector<char>>, std::true_type>();
 
   for (std::size_t i = 0; i < queue_sz; ++i) {
-    std::cout << i << std::endl;
     queue.push(make_batch(batch_sz));
   }
 
   auto expected = make_batch(batch_sz);
   for (std::size_t i = 0; i < queue_sz; ++i) {
-    std::cout << i << std::endl;
     if (queue.empty()) {
       return false;
     }
@@ -142,8 +137,6 @@ struct Consumer {
 };
 
 bool test_blocking_dequeue() {
-  std::cout << __LINE__ << std::endl;
-
   constexpr std::size_t num_elems = 1 << 20;
   constexpr int elem = 33;
   constexpr std::size_t n_producers = 4;
@@ -193,8 +186,7 @@ bool test_blocking_dequeue() {
 
 bool run_test() {
   auto passed = test_push_and_pop() && test_size_and_empty() &&
-                // test_batched_queue() &&
-                test_blocking_dequeue();
+                test_batched_queue() && test_blocking_dequeue();
 
   return passed;
 }
