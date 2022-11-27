@@ -13,20 +13,13 @@ extern "C" {
 namespace nu {
 
 ResourceReporter::ResourceReporter() : done_(false) {
-  voluntary_reporter_ = rt::Thread([&] {
-    while (!rt::access_once(done_)) {
-      timer_sleep(kReportResourceIntervalMs * kOneMilliSecond);
-      report_resource(/* forced = */ false);
-    }
-  });
-
-  iokernel_forced_reporter_ = rt::Thread([&] {
+  th_ = rt::Thread([&] {
     set_resource_reporting_handler(thread_self());
     while (!rt::access_once(done_)) {
       rt::Preempt p;
       rt::PreemptGuardAndPark gp(&p);
 
-      report_resource(/* forced =  */ true);
+      report_resource();
     }
     set_resource_reporting_handler(nullptr);
   });
@@ -42,11 +35,10 @@ ResourceReporter::get_global_free_resources() {
 ResourceReporter::~ResourceReporter() {
   done_ = true;
   barrier();
-  voluntary_reporter_.Join();
-  iokernel_forced_reporter_.Join();
+  th_.Join();
 }
 
-void ResourceReporter::report_resource(bool forced) {
+void ResourceReporter::report_resource() {
   Resource resource;
   resource.cores = std::min(rt::RuntimeGlobalIdleCores(),
                             rt::RuntimeMaxCores() - rt::RuntimeActiveCores());
@@ -58,7 +50,7 @@ void ResourceReporter::report_resource(bool forced) {
 
     global_free_resources_ = std::move(global_free_resources);
   }
-  finish_resource_reporting(forced);
+  finish_resource_reporting();
 }
 
 }  // namespace nu

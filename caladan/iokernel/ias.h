@@ -24,9 +24,9 @@
 /* the maximum number of PS handlers */
 #define IAS_PS_MAX_NUM_HANDLERS         3
 /* the interval to trigger RP subcontroller */
-#define IAS_RP_INTERVAL_US              100
+#define IAS_RP_INTERVAL_US              200
 /* the interval to re-preempt cores (used by PS and RP) */
-#define IAS_PREEMPT_RETRY_US            50
+#define IAS_PREEMPT_RETRY_US            100
 /* the time before the core-local cache is assumed to be evicted */
 #define IAS_LOC_EVICTED_US		100
 /* the debug info printing interval */
