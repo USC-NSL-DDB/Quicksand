@@ -14,12 +14,15 @@ extern "C" {
 #include "nu/ctrl_server.hpp"
 #include "nu/runtime.hpp"
 
+constexpr auto kDefaultNumGuaranteedCores = 2;
+constexpr auto kDefaultNumSpinningCores = 2;
 constexpr auto kIP = "18.18.1.1";
 
 namespace nu {
 
 int ctrl_main(int argc, char **argv) {
-  nu::CaladanOptionsDesc desc(kIP);
+  nu::CaladanOptionsDesc desc(kDefaultNumGuaranteedCores,
+                              kDefaultNumSpinningCores, kIP);
   desc.parse(argc, argv);
 
   auto conf_path = desc.conf_path;

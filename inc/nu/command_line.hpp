@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/program_options.hpp>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,7 +36,9 @@ struct CaladanOptionsDesc : public OptionsDesc {
   std::string netmask;
   std::string gateway;
 
-  CaladanOptionsDesc(std::string default_ip = "", bool help = true);
+  CaladanOptionsDesc(int default_guaranteed = 0, int default_spinning = 0,
+                     std::optional<std::string> default_ip = std::nullopt,
+                     bool help = true);
 };
 
 struct AllOptionsDesc : public OptionsDesc {
