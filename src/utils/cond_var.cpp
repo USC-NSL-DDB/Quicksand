@@ -8,6 +8,7 @@
 namespace nu {
 
 void CondVar::__wait_and_unlock(auto *l) {
+
   Caladan::spin_lock_np(&cv_.waiter_lock);
   l->unlock();
 
@@ -43,7 +44,9 @@ void CondVar::wait_and_unlock(SpinLock *spin) {
 }
 
 void CondVar::signal() {
-  Caladan::spin_lock_np(&cv_.waiter_lock);
+  Caladan::PreemptGuard g;
+
+  Caladan::spin_lock(&cv_.waiter_lock);
   auto *th = get_runtime()->caladan()->pop_one_waiter(&cv_.waiters);
   if (th) {
     if (unlikely(list_empty(&cv_.waiters))) {
@@ -53,31 +56,36 @@ void CondVar::signal() {
         proclet_header->blocked_syncer.remove(this);
       }
     }
+  }
+  Caladan::spin_unlock(&cv_.waiter_lock);
+
+  if (th) {
     get_runtime()->caladan()->thread_ready(th);
   }
-  Caladan::spin_unlock_np(&cv_.waiter_lock);
 }
 
 void CondVar::signal_all() {
-  Caladan::spin_lock_np(&cv_.waiter_lock);
-   auto ths = get_runtime()->caladan()->pop_all_waiters(&cv_.waiters);
-   if (!ths.empty()) {
-     auto *proclet_header =
-         get_runtime()->caladan()->thread_get_owner_proclet(ths.front());
+  Caladan::PreemptGuard g;
+
+  Caladan::spin_lock(&cv_.waiter_lock);
+  auto ths = get_runtime()->caladan()->pop_all_waiters(&cv_.waiters);
+  ProcletHeader *proclet_header;
+  if (!ths.empty()) {
+    proclet_header =
+        get_runtime()->caladan()->thread_get_owner_proclet(ths.front());
+    if (proclet_header) {
+      proclet_header->blocked_syncer.remove(this);
+    }
+  }
+  Caladan::spin_unlock(&cv_.waiter_lock);
+
+  for (auto *th : ths) {
 #ifdef DEBUG
-     for (auto *th : ths) {
-       BUG_ON(proclet_header !=
-              get_runtime()->caladan()->thread_get_owner_proclet(th));
-     }
+    BUG_ON(proclet_header !=
+           get_runtime()->caladan()->thread_get_owner_proclet(th));
 #endif
-     if (proclet_header) {
-       proclet_header->blocked_syncer.remove(this);
-     }
-     for (auto *th : ths) {
-       get_runtime()->caladan()->thread_ready(th);
-     }
-   }
-   Caladan::spin_unlock_np(&cv_.waiter_lock);
+    get_runtime()->caladan()->thread_ready(th);
+  }
 }
 
 }  // namespace nu
