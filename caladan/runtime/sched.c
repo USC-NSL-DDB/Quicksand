@@ -178,7 +178,8 @@ static bool work_available(struct kthread *k, uint64_t now_tsc)
 
 	return ACCESS_ONCE(k->rq_tail) != ACCESS_ONCE(k->rq_head) ||
 	       softirq_pending(k, now_tsc) ||
-	       !list_empty_volatile(&k->rq_deprioritized);
+	       !list_empty_volatile(&k->rq_deprioritized) ||
+               k->preemptor->th;
 }
 
 static void update_oldest_tsc(struct kthread *k)
