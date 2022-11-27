@@ -128,7 +128,7 @@ inline V GeneralShardedUnorderedMap<K, V, M, LL>::operator[](const K &key) {
 template <typename K, typename V, typename M, typename LL>
 inline GeneralShardedUnorderedMap<K, V, M, LL>::GeneralShardedUnorderedMap(
     std::optional<typename Base::Hint> hint)
-    : Base(hint) {}
+    : Base(hint, /* size_bound = */ std::nullopt) {}
 
 template <typename K, typename V, typename LL>
 inline ShardedUnorderedMap<K, V, LL> make_sharded_unordered_map() {

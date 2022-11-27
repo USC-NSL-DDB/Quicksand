@@ -3,9 +3,11 @@
 namespace nu {
 
 template <class Shard>
-GeneralShardMapping<Shard>::GeneralShardMapping(uint32_t max_shard_bytes)
+GeneralShardMapping<Shard>::GeneralShardMapping(
+    uint32_t max_shard_bytes, std::optional<uint32_t> max_shard_count)
     : max_shard_bytes_(max_shard_bytes),
       proclet_capacity_(max_shard_bytes_ * kProcletOverprovisionFactor),
+      max_shard_count_(max_shard_count),
       ref_cnt_(1) {
   Caladan::PreemptGuard g;
   self_ = get_runtime()->get_current_weak_proclet<GeneralShardMapping>();
@@ -130,12 +132,20 @@ void GeneralShardMapping<Shard>::reserve_new_shard() {
 }
 
 template <class Shard>
-WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
+std::optional<WeakProclet<Shard>> GeneralShardMapping<Shard>::create_new_shard(
     std::optional<Key> l_key, std::optional<Key> r_key, bool reserve_space) {
+  if (reached_size_bound()) {
+    return std::nullopt;
+  }
+
   Proclet<Shard> new_shard;
 
   if (!reserved_shards_.empty()) {
     mutex_.lock();
+    if (unlikely(reached_size_bound())) {
+      mutex_.unlock();
+      return std::nullopt;
+    }
     if (likely(!reserved_shards_.empty())) {
       new_shard = std::move(reserved_shards_.top());
       reserved_shards_.pop();
@@ -152,6 +162,10 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
   auto new_weak_shard = new_shard.get_weak();
 
   mutex_.lock();
+  if (unlikely(reached_size_bound())) {
+    mutex_.unlock();
+    return std::nullopt;
+  }
   mapping_.emplace(l_key, std::move(new_shard));
   mutex_.unlock();
 
@@ -170,6 +184,7 @@ bool GeneralShardMapping<Shard>::delete_front_shard() {
   }
   reserved_shards_.emplace(std::move(it->second));
   mapping_.erase(it);
+
   return true;
 }
 
@@ -185,6 +200,11 @@ void GeneralShardMapping<Shard>::concat(
     auto iter = mapping_.emplace(end_key, std::move(tail_shard));
     end_key = iter->second.run(&Shard::rebase, end_key);
   }
+}
+
+template <class Shard>
+inline bool GeneralShardMapping<Shard>::reached_size_bound() {
+  return (max_shard_count_.has_value() && mapping_.size() >= *max_shard_count_);
 }
 
 }  // namespace nu

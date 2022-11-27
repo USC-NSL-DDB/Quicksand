@@ -54,6 +54,7 @@ class ShardedDataStructure {
   void pop_front() requires PopFrontAble<Container>;
   Val back() const requires HasBack<Container>;
   void pop_back() requires PopBackAble<Container>;
+  void enqueue(Val v) requires DequeueAble<Container>;
   Val dequeue() requires DequeueAble<Container>;
   std::optional<IterVal> find_data(Key k) const requires Findable<Container>;
   void concat(
@@ -79,7 +80,8 @@ class ShardedDataStructure {
 
  protected:
   ShardedDataStructure();
-  ShardedDataStructure(std::optional<Hint> hint);
+  ShardedDataStructure(std::optional<Hint> hint,
+                       std::optional<std::size_t> size_bound);
   ShardedDataStructure(const ShardedDataStructure &);
   ShardedDataStructure &operator=(const ShardedDataStructure &);
   ShardedDataStructure(ShardedDataStructure &&) noexcept;

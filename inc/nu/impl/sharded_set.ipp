@@ -121,7 +121,7 @@ inline void GeneralSet<T, M>::load(Archive &ar) {
 template <typename T, typename M, typename LL>
 inline GeneralShardedSet<T, M, LL>::GeneralShardedSet(
     std::optional<typename Base::Hint> hint)
-    : Base(hint) {}
+    : Base(hint, /* size_bound = */ std::nullopt) {}
 
 template <typename T, typename LL>
 inline ShardedSet<T, LL> make_sharded_set() {

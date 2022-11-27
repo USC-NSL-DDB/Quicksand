@@ -138,7 +138,7 @@ GeneralShard<Container>::get_container_handle() {
 }
 
 template <class Container>
-void GeneralShard<Container>::split() {
+bool GeneralShard<Container>::split() {
   Key mid_k;
   std::unique_ptr<Container> latter_half_container;
   std::size_t new_container_capacity = 0;
@@ -163,13 +163,16 @@ void GeneralShard<Container>::split() {
 
   auto new_shard = mapping_.run(&ShardMapping::create_new_shard, mid_k, r_key_,
                                 /* reserve_space = */ false);
+  if (!new_shard) {
+    return false;
+  }
   ContainerAndMetadata<Container> container_and_metadata;
   container_and_metadata.container = std::move(*latter_half_container);
   container_and_metadata.capacity =
       std::max(new_container_capacity, latter_half_container->size());
   container_and_metadata.container_bucket_size = container_bucket_size_;
-  new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
-                container_and_metadata);
+  new_shard.value().run(&GeneralShard::set_range_and_data, mid_k, r_key_,
+                        container_and_metadata);
 
   r_key_ = mid_k;
 
@@ -183,6 +186,8 @@ void GeneralShard<Container>::split() {
       size_thresh_ = size;
     }
   }
+
+  return true;
 }
 
 template <class Container>
@@ -205,13 +210,15 @@ inline bool GeneralShard<Container>::should_split() const {
 }
 
 template <class Container>
-void GeneralShard<Container>::split_with_reader_lock() {
+bool GeneralShard<Container>::split_with_reader_lock() {
+  bool splitted = false;
   rw_lock_.reader_unlock();
   rw_lock_.writer_lock();
   if (should_split()) {
-    split();
+    splitted = split();
   }
   rw_lock_.writer_unlock();
+  return splitted;
 }
 
 template <class Container>
@@ -242,8 +249,7 @@ inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
   }
 
   if (unlikely(should_split())) {
-    split_with_reader_lock();
-    return true;
+    return split_with_reader_lock();
   }
 
   rw_lock_.reader_unlock();
@@ -264,8 +270,7 @@ inline bool GeneralShard<Container>::try_emplace_back(
 
   container_.emplace_back(std::move(v));
   if (unlikely(should_split())) {
-    split_with_reader_lock();
-    return true;
+    return split_with_reader_lock();
   }
 
   rw_lock_.reader_unlock();
@@ -285,8 +290,7 @@ inline bool GeneralShard<Container>::try_emplace_front(
 
   container_.push_front(std::move(v));
   if (unlikely(should_split())) {
-    split_with_reader_lock();
-    return true;
+    return split_with_reader_lock();
   }
 
   rw_lock_.reader_unlock();

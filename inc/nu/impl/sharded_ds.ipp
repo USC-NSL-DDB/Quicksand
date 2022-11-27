@@ -23,16 +23,21 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
-    std::optional<Hint> hint)
+    std::optional<Hint> hint, std::optional<std::size_t> size_bound)
     : max_num_vals_(0), max_num_data_entries_(0) {
   constexpr auto kMaxShardBytes =
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
   constexpr auto kMaxShardSize = kMaxShardBytes / sizeof(DataEntry);
 
-  mapping_ = make_proclet<ShardMapping>(kMaxShardBytes);
+  auto max_shard_count = size_bound.transform([](auto size_bound) {
+    return div_round_up_unchecked(size_bound,
+                                  static_cast<std::size_t>(kMaxShardBytes));
+  });
+
+  mapping_ = make_proclet<ShardMapping>(kMaxShardBytes, max_shard_count);
 
   std::vector<std::optional<Key>> keys;
-  std::vector<Future<WeakProclet<Shard>>> shard_futures;
+  std::vector<Future<std::optional<WeakProclet<Shard>>>> shard_futures;
   std::vector<Future<void>> reserve_futures;
 
   keys.push_back(std::nullopt);
@@ -69,7 +74,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   for (std::size_t i = 0; i < shard_futures.size(); i++) {
     auto &weak_shard = shard_futures[i].get();
     auto &key = keys[i];
-    key_to_shards_.emplace(key, ShardAndReqs(weak_shard));
+    assert(weak_shard.has_value());
+    key_to_shards_.emplace(key, ShardAndReqs(weak_shard.value()));
   }
 }
 
@@ -160,8 +166,7 @@ template <class Container, class LL>
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
     DataEntry entry) {
-[[maybe_unused]] retry:
-  typename KeyToShardsMapping::iterator iter;
+  [[maybe_unused]] retry : typename KeyToShardsMapping::iterator iter;
   if constexpr (HasVal<Container>) {
     iter = --key_to_shards_.upper_bound(entry.first);
   } else {
@@ -192,8 +197,7 @@ template <class Container, class LL>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
-[[maybe_unused]] retry:
-  if constexpr (LL::value) {
+  [[maybe_unused]] retry : if constexpr (LL::value) {
     // rbegin() is O(1) which is much faster than the O(logn) of --end().
     auto iter = key_to_shards_.rbegin();
     auto l_key = iter->first;
@@ -205,7 +209,8 @@ ShardedDataStructure<Container, LL>::emplace_back(
       sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
       goto retry;
     }
-  } else {
+  }
+  else {
     emplace_back_reqs_.emplace_back(std::move(v));
 
     if (unlikely(emplace_back_reqs_.size() >= max_num_vals_)) {
@@ -296,6 +301,23 @@ template <class Container, class LL>
 inline void ShardedDataStructure<
     Container, LL>::pop_back() requires PopBackAble<Container> {
   front_back_impl<false, void>(&Shard::try_pop_back);
+}
+
+template <class Container, class LL>
+inline void ShardedDataStructure<Container, LL>::enqueue(
+    Val v) requires DequeueAble<Container> {
+retry:
+  auto iter = key_to_shards_.rbegin();
+  auto l_key = iter->first;
+  auto r_key = std::optional<Key>();
+  auto shard = iter->second.shard;
+  auto succeed = shard.run(&Shard::try_emplace_back, l_key, r_key, v);
+
+  if (unlikely(!succeed)) {
+    sync_mapping(l_key, /* r_key = */ std::nullopt, /* shard = */ std::nullopt,
+                 /* prune_local = */ true);
+    goto retry;
+  }
 }
 
 template <class Container, class LL>

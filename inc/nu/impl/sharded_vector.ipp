@@ -213,7 +213,7 @@ inline void ShardedVector<T, LL>::emplace_back(T &&value) {
 template <typename T, typename LL>
 inline ShardedVector<T, LL>::ShardedVector(
     std::optional<typename Base::Hint> hint)
-    : Base(hint) {}
+    : Base(hint, /* size_bound = */ std::nullopt) {}
 
 template <typename T, typename LL>
 inline ShardedVector<T, LL> make_sharded_vector() {

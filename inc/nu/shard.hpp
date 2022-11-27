@@ -196,9 +196,9 @@ class GeneralShard {
   template <GeneralShardBased S>
   friend class ContiguousDSRangeImpl;
 
-  void split();
+  bool split();
   bool should_split() const;
-  void split_with_reader_lock();
+  bool split_with_reader_lock();
   void delete_self_with_reader_lock();
   bool bad_range_or_deleted(std::optional<Key> l_key, std::optional<Key> r_key);
   uint32_t __get_next_block_with_iters(

@@ -133,7 +133,7 @@ inline V GeneralShardedMap<K, V, M, LL>::operator[](const K &key) {
 template <typename K, typename V, typename M, typename LL>
 inline GeneralShardedMap<K, V, M, LL>::GeneralShardedMap(
     std::optional<typename Base::Hint> hint)
-    : Base(hint) {}
+    : Base(hint, /* size_bound = */ std::nullopt) {}
 
 template <typename K, typename V, typename LL>
 inline ShardedMap<K, V, LL> make_sharded_map() {
