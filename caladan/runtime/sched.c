@@ -386,10 +386,12 @@ static inline bool handle_preemptor(void)
 {
 	struct kthread *k = myk();
 
+	assert_spin_lock_held(&k->lock);
 	assert_preempt_disabled();
-	if (unlikely(*k->preemptor)) {
-		thread_ready_head_locked(*k->preemptor);
-		*k->preemptor = NULL;
+	if (unlikely(k->preemptor->th)) {
+		thread_ready_head_locked(k->preemptor->th,
+					 k->preemptor->ready_tsc);
+		k->preemptor->th = NULL;
 		return true;
 	}
 	return false;
@@ -414,6 +416,15 @@ static bool steal_work(struct kthread *l, struct kthread *r)
 		return false;
 	if (!spin_try_lock(&r->lock))
 		return false;
+
+	/* try to steal preemptor */
+	if (unlikely(r->preemptor->th)) {
+		thread_ready_head_locked(r->preemptor->th,
+					 r->preemptor->ready_tsc);
+		r->preemptor->th = NULL;
+		spin_unlock(&r->lock);
+		return true;
+	}
 
 #ifdef GC
 	if (unlikely(get_gc_gen() != r->local_gc_gen)) {
@@ -864,7 +875,7 @@ void thread_ready_locked(thread_t *th)
  * This function must be called with preemption disabled and the kthread lock
  * held.
  */
-void thread_ready_head_locked(thread_t *th)
+void thread_ready_head_locked(thread_t *th, uint64_t ready_tsc)
 {
 	struct kthread *k = myk();
 	thread_t *oldestth;
@@ -876,6 +887,7 @@ void thread_ready_head_locked(thread_t *th)
 
 	if (k->rq_head != k->rq_tail)
 		th->ready_tsc = k->rq[k->rq_tail % RUNTIME_RQ_SIZE]->ready_tsc;
+	th->ready_tsc = MIN(th->ready_tsc, ready_tsc);
 	oldestth = k->rq[--k->rq_tail % RUNTIME_RQ_SIZE];
 	k->rq[k->rq_tail % RUNTIME_RQ_SIZE] = th;
 	if (unlikely(k->rq_head - k->rq_tail > RUNTIME_RQ_SIZE)) {
@@ -965,7 +977,7 @@ static void thread_finish_cede(void)
 	/* mark ceded thread ready at head of runqueue */
 	spin_lock(&k->lock);
 	k->curr_th = NULL;
-	thread_ready_head_locked(myth);
+	thread_ready_head_locked(myth, -1);
 	spin_unlock(&k->lock);
 
 	/* increment the RCU generation number (even - pretend in sched) */

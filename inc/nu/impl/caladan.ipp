@@ -204,12 +204,18 @@ inline void Caladan::spin_lock_init(spinlock_t *spin) {
 
 inline void Caladan::spin_lock_np(spinlock_t *spin) { ::spin_lock_np(spin); }
 
+inline void Caladan::spin_lock(spinlock_t *spin) { ::spin_lock(spin); }
+
 inline bool Caladan::spin_try_lock_np(spinlock_t *spin) {
   return ::spin_try_lock_np(spin);
 }
 
 inline void Caladan::spin_unlock_np(spinlock_t *spin) {
   ::spin_unlock_np(spin);
+}
+
+inline void Caladan::spin_unlock(spinlock_t *spin) {
+  ::spin_unlock(spin);
 }
 
 inline bool Caladan::spin_lock_held(spinlock_t *spin) {

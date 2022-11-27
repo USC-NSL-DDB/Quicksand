@@ -211,7 +211,8 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 		if (!th->q_ptrs)
 			goto fail;
 
-		th->preemptor = (void **) shmptr_to_ptr(&reg, s->preemptor, sizeof(void *));
+		th->preemptor = (struct preemptor *) shmptr_to_ptr(&reg, s->preemptor,
+								   sizeof(struct preemptor));
 		if (!th->preemptor)
 			goto fail;
 

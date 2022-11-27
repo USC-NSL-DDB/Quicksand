@@ -1,4 +1,5 @@
 #include <asm/ops.h>
+#include <base/time.h>
 #include <runtime/report.h>
 
 struct resource_reporting *resource_reporting;

@@ -60,28 +60,28 @@ bool softirq_run_locked(struct kthread *k)
 	/* check for iokernel softirq work */
 	if (!k->iokernel_sched && softirq_iokernel_pending(k)) {
 		k->iokernel_sched = true;
-		thread_ready_head_locked(k->iokernel_softirq);
+		thread_ready_head_locked(k->iokernel_softirq, -1);
 		work_done = true;
 	}
 
 	/* check for directpath softirq work */
 	if (!k->directpath_sched && softirq_directpath_pending(k)) {
 		k->directpath_sched = true;
-		thread_ready_head_locked(k->directpath_softirq);
+		thread_ready_head_locked(k->directpath_softirq, -1);
 		work_done = true;
 	}
 
 	/* check for timer softirq work */
 	if (!k->timer_sched && softirq_timer_pending(k, now_tsc)) {
 		k->timer_sched = true;
-		thread_ready_head_locked(k->timer_softirq);
+		thread_ready_head_locked(k->timer_softirq, -1);
 		work_done = true;
 	}
 
 	/* check for storage softirq work */
 	if (!k->storage_sched && softirq_storage_pending(k)) {
 		k->storage_sched = true;
-		thread_ready_head_locked(k->storage_softirq);
+		thread_ready_head_locked(k->storage_softirq, -1);
 		work_done = true;
 	}
 

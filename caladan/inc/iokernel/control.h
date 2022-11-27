@@ -46,6 +46,11 @@ struct q_ptrs {
 BUILD_ASSERT(sizeof(struct q_ptrs) == 2 * CACHE_LINE_SIZE);
 BUILD_ASSERT(offsetof(struct q_ptrs, curr_grant_gen) % CACHE_LINE_SIZE == 0);
 
+struct preemptor {
+	void *th;
+	uint64_t ready_tsc;
+};
+
 struct congestion_info {
 	float			load;
 	uint64_t		delay_us;

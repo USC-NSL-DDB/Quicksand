@@ -109,7 +109,7 @@ static size_t estimate_shm_space(void)
 	ret += q * maxks;
 
 	// Preemptor
-	q = align_up(sizeof(struct thread *), CACHE_LINE_SIZE);
+	q = align_up(sizeof(struct preemptor), CACHE_LINE_SIZE);
 	ret += q * maxks;
 
 	ret = align_up(ret, PGSIZE_2MB);
@@ -251,7 +251,7 @@ int ioqueues_init(void)
 		ioqueue_alloc(&ts->txcmdq, COMMAND_QUEUE_MCOUNT, true);
 
 		iok_shm_alloc(sizeof(struct q_ptrs), CACHE_LINE_SIZE, &ts->q_ptrs);
-		iok_shm_alloc(sizeof(struct thread *), CACHE_LINE_SIZE, &ts->preemptor);
+		iok_shm_alloc(sizeof(struct preemptor), CACHE_LINE_SIZE, &ts->preemptor);
 
 		ts->rxq.wb = ts->q_ptrs;
 	}
@@ -360,11 +360,11 @@ int ioqueues_init_thread(void)
 	BUG_ON(ret);
 
 	myk()->q_ptrs = (struct q_ptrs *) shmptr_to_ptr(r, ts->q_ptrs,
-			sizeof(uint32_t));
+			sizeof(struct q_ptrs));
 	BUG_ON(!myk()->q_ptrs);
 
-	myk()->preemptor = (struct thread **) shmptr_to_ptr(r, ts->preemptor,
-			sizeof(struct thread *));
+	myk()->preemptor = (struct preemptor *) shmptr_to_ptr(r, ts->preemptor,
+			sizeof(struct preemptor));
 	BUG_ON(!myk()->preemptor);
 
 	return 0;

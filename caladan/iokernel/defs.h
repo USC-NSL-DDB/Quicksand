@@ -107,7 +107,7 @@ struct thread {
 	};
 	struct timer		timer_heap;
 	struct list_node	idle_link;
-	void                    **preemptor;
+	struct preemptor        *preemptor;
 
 	/* useful metrics for scheduling policies */
 	struct thread_metrics	metrics;

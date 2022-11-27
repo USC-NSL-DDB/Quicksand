@@ -433,7 +433,7 @@ struct kthread {
 	thread_t		*directpath_softirq;
 	thread_t		*timer_softirq;
 	thread_t		*storage_softirq;
-	thread_t                **preemptor;
+	struct preemptor        *preemptor;
 	bool			iokernel_sched;
 	bool			directpath_sched;
 	bool			timer_sched;
@@ -714,5 +714,5 @@ extern void sched_start(void) __noreturn;
 extern int thread_spawn_main(thread_fn_t fn, void *arg);
 extern void thread_cede(void);
 extern void thread_ready_locked(thread_t *th);
-extern void thread_ready_head_locked(thread_t *th);
+extern void thread_ready_head_locked(thread_t *th, uint64_t ready_tsc);
 extern void join_kthread(struct kthread *k);

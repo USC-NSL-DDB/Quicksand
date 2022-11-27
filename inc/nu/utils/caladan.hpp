@@ -80,8 +80,10 @@ class Caladan {
   static T volatile &access_once(T &t);
   static void spin_lock_init(spinlock_t *spin);
   static void spin_lock_np(spinlock_t *spin);
+  static void spin_lock(spinlock_t *spin);
   static bool spin_try_lock_np(spinlock_t *spin);
   static void spin_unlock_np(spinlock_t *spin);
+  static void spin_unlock(spinlock_t *spin);
   static bool spin_lock_held(spinlock_t *spin);
   static void mutex_init(mutex_t *mutex);
   static bool mutex_held(mutex_t *mutex);

@@ -21,12 +21,8 @@
 #define IAS_PS_CPU_THRESH_US            500
 /* the interval to trigger PS subcontroller */
 #define IAS_PS_INTERVAL_US              100
-/* the maximum number of PS handlers */
-#define IAS_PS_MAX_NUM_HANDLERS         3
 /* the interval to trigger RP subcontroller */
 #define IAS_RP_INTERVAL_US              200
-/* the interval to re-preempt cores (used by PS and RP) */
-#define IAS_PREEMPT_RETRY_US            100
 /* the time before the core-local cache is assumed to be evicted */
 #define IAS_LOC_EVICTED_US		100
 /* the debug info printing interval */
@@ -45,10 +41,7 @@ struct ias_data {
 	uint64_t		qdelay_us;
 	uint64_t                quantum_us;
 	struct list_node	all_link;
-
 	DEFINE_BITMAP(reserved_cores, NCPU);
-	DEFINE_BITMAP(reserved_pressure_handler_cores, NCPU);
-	DEFINE_BITMAP(reserved_report_handler_cores, NCPU);
 
 	/* thread usage limits */
 	int			threads_guaranteed;/* the number promised */
@@ -71,14 +64,6 @@ struct ias_data {
 	bool                    react_cpu_pressure;
 	/* used for monitoring the duration of cpu pressure */
 	uint64_t                cpu_pressure_start_us;
-
-	/* used for rp preemption */
-	unsigned int            rp_preempt_core;
-	struct thread           *rp_preempt_th;
-
-	/* used for ps preemption */
-	unsigned int            ps_preempt_cores[IAS_PS_MAX_NUM_HANDLERS];
-	struct thread           *ps_preempt_ths[IAS_PS_MAX_NUM_HANDLERS];
 };
 
 extern struct list_head all_procs;

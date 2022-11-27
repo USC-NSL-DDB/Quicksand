@@ -10,51 +10,21 @@
 #include "ksched.h"
 #include "sched.h"
 
-static inline void ias_ps_repreempt(struct ias_data *sd)
-{
-	int i;
-
-	sd->p->resource_pressure_info->last_us = now_us;
-	for (i = 0; i < IAS_PS_MAX_NUM_HANDLERS; i++)
-		if (*sd->ps_preempt_ths[i]->preemptor)
-			sched_preempt(sd->ps_preempt_cores[i],
-				      sd->ps_preempt_ths[i]);
-}
-
-static inline void ias_ps_grant_exclusive_access(struct ias_data *sd,
-                                                 unsigned int core)
-{
-	if (!bitmap_test(sd->reserved_cores, core)) {
-		bitmap_set(sd->reserved_cores, core);
-		bitmap_set(sd->reserved_pressure_handler_cores, core);
-	}
-}
-
-static inline void ias_ps_ungrant_exclusive_access(struct ias_data *sd)
-{
-	int pos;
-
-	bitmap_for_each_set(sd->reserved_pressure_handler_cores, NCPU, pos) {
-		bitmap_clear(sd->reserved_pressure_handler_cores, pos);
-		bitmap_clear(sd->reserved_cores, pos);
-	}
-}
-
 static void ias_ps_preempt_core(struct ias_data *sd)
 {
 	unsigned int num_needed_cores, num_eligible_cores = 0, i, core;
-	void **preemptor_ptr;
 	struct thread *th;
+	uint64_t now_tsc;
 
 	for (i = 0; i < sd->p->active_thread_count; i++)
-		num_eligible_cores += !(*sd->p->active_threads[i]->preemptor);
+		num_eligible_cores += !sd->p->active_threads[i]->preemptor->th;
 
 	num_needed_cores = *sd->p->num_resource_pressure_handlers;
 	while (num_eligible_cores < num_needed_cores) {
 		if (unlikely(ias_add_kthread(sd) != 0))
 			return;
 		th = sd->p->active_threads[sd->p->active_thread_count - 1];
-		num_eligible_cores += !(*th->preemptor);
+		num_eligible_cores += !th->preemptor->th;
 	}
 
 	sd->p->resource_pressure_info->last_us = now_us;
@@ -67,19 +37,17 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 
 	/* Preempt the first num_needed_cores cores. */
 	i = 0;
-	BUG_ON(num_needed_cores > IAS_PS_MAX_NUM_HANDLERS);
+	now_tsc = rdtsc();
 	while (num_needed_cores) {
 		core = sd->p->active_threads[i]->core;
 		th = sd->p->active_threads[i++];
-		preemptor_ptr = th->preemptor;
-		if (unlikely(*preemptor_ptr))
+		if (unlikely(th->preemptor->th))
                         continue;
-		ias_ps_grant_exclusive_access(sd, core);
-		*preemptor_ptr = sd->p->resource_pressure_handlers[--num_needed_cores];
+		th->preemptor->th =
+                        sd->p->resource_pressure_handlers[--num_needed_cores];
+		th->preemptor->ready_tsc = now_tsc;
 		barrier();
-		sd->ps_preempt_cores[num_needed_cores] = core;
-		sd->ps_preempt_ths[num_needed_cores] = th;
-		sched_preempt(core, th);
+		sched_yield_on_core(core);
 	}
 }
 
@@ -136,17 +104,11 @@ void ias_ps_poll(void)
 		}
 
 	update_fsm:
-		if (pressure->status == HANDLED) {
-			ias_ps_ungrant_exclusive_access(sd);
+		if (pressure->status == HANDLED)
 			pressure->status = NONE;
-		}
 
 		if (pressure->status == NONE && has_pressure)
 			if (pressure->last_us + IAS_PS_INTERVAL_US < now_us)
                                 ias_ps_preempt_core(sd);
-
-		if (pressure->status == HANDLING &&
-		    pressure->last_us + IAS_PREEMPT_RETRY_US < now_us)
-                                ias_ps_repreempt(sd);
         }
 }
