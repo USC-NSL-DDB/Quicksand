@@ -47,7 +47,11 @@ struct Key {
     std::reverse(data, data + sizeof(offset));
     return *this;
   }
+
+  friend std::ostream &operator<<(std::ostream &out, const Key &k);
 };
+
+std::ostream &operator<<(std::ostream &out, const Key &k) { return out; }
 
 struct Val {
   uint8_t data[kValLen];
