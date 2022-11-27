@@ -48,11 +48,8 @@ ResourceReporter::~ResourceReporter() {
 
 void ResourceReporter::report_resource(bool forced) {
   Resource resource;
-  resource.cores =
-      std::min(rt::RuntimeGlobalIdleCores(),
-               rt::RuntimeMaxCores() -
-                   (rt::RuntimeActiveCores() - rt::RuntimeSpinningCores())) +
-      rt::RuntimeSpinningCores();
+  resource.cores = std::min(rt::RuntimeGlobalIdleCores(),
+                            rt::RuntimeMaxCores() - rt::RuntimeActiveCores());
   resource.mem_mbs = rt::RuntimeFreeMemMbs();
   auto global_free_resources =
       get_runtime()->controller_client()->report_free_resource(resource);

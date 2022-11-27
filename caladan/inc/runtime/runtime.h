@@ -22,8 +22,6 @@ extern struct congestion_info *runtime_congestion;
 /* real-time resource pressure signals (shared with the iokernel) */
 extern struct resource_pressure_info *resource_pressure_info;
 
-extern int runtime_spinning_cores(void);
-
 /**
  * runtime_queue_us - returns the us of packet queueing delay + runtime queueing
  * delay

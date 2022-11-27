@@ -35,8 +35,6 @@ static __thread void *runtime_stack;
 /* a pointer to the bottom of the per-kthread (TLS) runtime stack */
 static __thread void *runtime_stack_base;
 
-static DEFINE_PERTHREAD(bool, thread_spinning);
-
 /* Flag to prevent watchdog from running */
 bool disable_watchdog;
 
@@ -580,7 +578,6 @@ static __noreturn __noinline void schedule(void)
 	l->rq_head = l->rq_tail = 0;
 
 again:
-	perthread_get(thread_spinning) = true;
 	prioritize_local_rcu_readers_locked();
 	pause_local_migrating_threads_locked();
 	if (handle_preemptor()) {
@@ -652,7 +649,6 @@ again:
 	goto again;
 
 done:
-	perthread_get(thread_spinning) = false;
 	/* pop off a thread and run it */
 	assert(l->rq_head != l->rq_tail);
 	th = l->rq[l->rq_tail++ % RUNTIME_RQ_SIZE];
@@ -1518,14 +1514,4 @@ void prealloc_threads_and_stacks(uint32_t num_mags)
 {
 	tcache_reserve(thread_tcache, num_mags);
 	tcache_reserve(stack_tcache, num_mags);
-}
-
-int runtime_spinning_cores(void)
-{
-	int i, num_spinning_cores = 0;
-
-	for_each_thread(i)
-		num_spinning_cores += perthread_get_remote(thread_spinning, i);
-
-	return num_spinning_cores;
 }
