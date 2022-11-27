@@ -14,7 +14,7 @@
 namespace nu {
 
 template <class Shard>
-class GeneralShardingMapping;
+class GeneralShardMapping;
 
 template <GeneralContainerBased Container>
 class GeneralShard;
@@ -65,7 +65,7 @@ class GeneralShard {
   using Val = Container::Val;
   using IterVal = Container::IterVal;
   using DataEntry = Container::DataEntry;
-  using ShardingMapping = GeneralShardingMapping<GeneralShard>;
+  using ShardMapping = GeneralShardMapping<GeneralShard>;
   using GeneralContainer = Container;
   using ConstIterator = Container::ConstIterator;
   using ConstReverseIterator = Container::ConstReverseIterator;
@@ -81,8 +81,8 @@ class GeneralShard {
     void serialize(Archive &ar);
   };
 
-  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_bytes);
-  GeneralShard(WeakProclet<ShardingMapping> mapping, uint32_t max_shard_bytes,
+  GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes);
+  GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes,
                std::optional<Key> l_key, std::optional<Key> r_key,
                bool reserve_space);
   ~GeneralShard();
@@ -180,7 +180,7 @@ class GeneralShard {
 
   const uint32_t max_shard_bytes_;
   uint32_t real_max_shard_bytes_;
-  WeakProclet<ShardingMapping> mapping_;
+  WeakProclet<ShardMapping> mapping_;
   std::optional<Key> l_key_;
   std::optional<Key> r_key_;
   Container container_;

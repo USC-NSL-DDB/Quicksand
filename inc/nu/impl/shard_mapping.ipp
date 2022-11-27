@@ -3,25 +3,25 @@
 namespace nu {
 
 template <class Shard>
-GeneralShardingMapping<Shard>::GeneralShardingMapping(uint32_t max_shard_bytes)
+GeneralShardMapping<Shard>::GeneralShardMapping(uint32_t max_shard_bytes)
     : max_shard_bytes_(max_shard_bytes),
       proclet_capacity_(max_shard_bytes_ * kProcletOverprovisionFactor),
       ref_cnt_(1) {
   Caladan::PreemptGuard g;
-  self_ = get_runtime()->get_current_weak_proclet<GeneralShardingMapping>();
+  self_ = get_runtime()->get_current_weak_proclet<GeneralShardMapping>();
 }
 
 template <class Shard>
-GeneralShardingMapping<Shard>::~GeneralShardingMapping() {
+GeneralShardMapping<Shard>::~GeneralShardMapping() {
   BUG_ON(ref_cnt_);
 }
 
 template <class Shard>
-void GeneralShardingMapping<Shard>::seal() {
+void GeneralShardMapping<Shard>::seal() {
   mutex_.lock();
   BUG_ON(!ref_cnt_);  // Cannot be sealed twice.
-  while (Caladan::access_once(ref_cnt_) !=
-         1) {  // Wait until there's only one ref.
+  while (Caladan::access_once(ref_cnt_) != 1) {
+    // Wait until there's only one ref.
     ref_cnt_cv_.wait(&mutex_);
   }
   ref_cnt_ = 0;
@@ -29,7 +29,7 @@ void GeneralShardingMapping<Shard>::seal() {
 }
 
 template <class Shard>
-void GeneralShardingMapping<Shard>::unseal() {
+void GeneralShardMapping<Shard>::unseal() {
   mutex_.lock();
   BUG_ON(ref_cnt_);
   ref_cnt_ = 1;
@@ -38,9 +38,10 @@ void GeneralShardingMapping<Shard>::unseal() {
 }
 
 template <class Shard>
-void GeneralShardingMapping<Shard>::inc_ref_cnt() {
+void GeneralShardMapping<Shard>::inc_ref_cnt() {
   mutex_.lock();
-  while (!Caladan::access_once(ref_cnt_)) {  // Wait until it is unsealed.
+  while (!Caladan::access_once(ref_cnt_)) {
+    // Wait until it is unsealed.
     ref_cnt_cv_.wait(&mutex_);
   }
   ref_cnt_++;
@@ -49,7 +50,7 @@ void GeneralShardingMapping<Shard>::inc_ref_cnt() {
 }
 
 template <class Shard>
-void GeneralShardingMapping<Shard>::dec_ref_cnt() {
+void GeneralShardMapping<Shard>::dec_ref_cnt() {
   mutex_.lock();
   BUG_ON(!ref_cnt_);
   ref_cnt_--;
@@ -59,8 +60,8 @@ void GeneralShardingMapping<Shard>::dec_ref_cnt() {
 
 template <class Shard>
 std::vector<std::pair<std::optional<typename Shard::Key>, WeakProclet<Shard>>>
-GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
-                                                   std::optional<Key> r_key) {
+GeneralShardMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
+                                                std::optional<Key> r_key) {
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>> shards;
   bool normal_range = (l_key != r_key);
 
@@ -83,7 +84,7 @@ GeneralShardingMapping<Shard>::get_shards_in_range(std::optional<Key> l_key,
 
 template <class Shard>
 std::vector<std::pair<std::optional<typename Shard::Key>, WeakProclet<Shard>>>
-GeneralShardingMapping<Shard>::get_all_keys_and_shards() {
+GeneralShardMapping<Shard>::get_all_keys_and_shards() {
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
       keys_and_shards;
 
@@ -97,8 +98,8 @@ GeneralShardingMapping<Shard>::get_all_keys_and_shards() {
 }
 
 template <class Shard>
-std::optional<WeakProclet<Shard>>
-GeneralShardingMapping<Shard>::get_shard_for_key(std::optional<Key> key) {
+std::optional<WeakProclet<Shard>> GeneralShardMapping<Shard>::get_shard_for_key(
+    std::optional<Key> key) {
   mutex_.lock();
   auto iter = --mapping_.upper_bound(key);
   auto shard = iter->second.get_weak();
@@ -107,8 +108,7 @@ GeneralShardingMapping<Shard>::get_shard_for_key(std::optional<Key> key) {
 }
 
 template <class Shard>
-std::vector<Proclet<Shard>>
-GeneralShardingMapping<Shard>::acquire_all_shards() {
+std::vector<Proclet<Shard>> GeneralShardMapping<Shard>::acquire_all_shards() {
   std::vector<Proclet<Shard>> shards;
 
   mutex_.lock();
@@ -121,7 +121,7 @@ GeneralShardingMapping<Shard>::acquire_all_shards() {
 }
 
 template <class Shard>
-void GeneralShardingMapping<Shard>::reserve_new_shard() {
+void GeneralShardMapping<Shard>::reserve_new_shard() {
   mutex_.lock();
   auto new_shard = make_proclet_with_capacity<Shard>(proclet_capacity_, self_,
                                                      max_shard_bytes_);
@@ -130,7 +130,7 @@ void GeneralShardingMapping<Shard>::reserve_new_shard() {
 }
 
 template <class Shard>
-WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
+WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
     std::optional<Key> l_key, std::optional<Key> r_key, bool reserve_space) {
   Proclet<Shard> new_shard;
 
@@ -159,14 +159,14 @@ WeakProclet<Shard> GeneralShardingMapping<Shard>::create_new_shard(
 }
 
 template <class Shard>
-bool GeneralShardingMapping<Shard>::delete_front_shard() {
+bool GeneralShardMapping<Shard>::delete_front_shard() {
   ScopedLock<Mutex> guard(&mutex_);
   auto it = mapping_.begin();
   if (unlikely(it == mapping_.end())) {
     return false;
   }
   if (unlikely(it == --mapping_.end())) {
-    return false;  // keep tail shard alive
+    return false;  // keep the tail shard alive
   }
   reserved_shards_.emplace(std::move(it->second));
   mapping_.erase(it);
@@ -174,11 +174,11 @@ bool GeneralShardingMapping<Shard>::delete_front_shard() {
 }
 
 template <class Shard>
-void GeneralShardingMapping<Shard>::concat(
-    WeakProclet<GeneralShardingMapping>
+void GeneralShardMapping<Shard>::concat(
+    WeakProclet<GeneralShardMapping>
         tail) requires(Shard::GeneralContainer::kContiguousIterator) {
   auto all_tail_shards =
-      tail.run_async(&GeneralShardingMapping::acquire_all_shards);
+      tail.run_async(&GeneralShardMapping::acquire_all_shards);
   auto end_key = (--mapping_.end())->second.run(&Shard::split_at_end);
 
   for (auto &tail_shard : all_tail_shards.get()) {

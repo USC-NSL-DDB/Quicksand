@@ -29,7 +29,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
   constexpr auto kMaxShardSize = kMaxShardBytes / sizeof(DataEntry);
 
-  mapping_ = make_proclet<ShardingMapping>(kMaxShardBytes);
+  mapping_ = make_proclet<ShardMapping>(kMaxShardBytes);
 
   std::vector<std::optional<Key>> keys;
   std::vector<Future<WeakProclet<Shard>>> shard_futures;
@@ -52,16 +52,16 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     if constexpr (EmplaceBackAble<Container>) {
       if (!curr_key) {
         shard_futures.emplace_back(mapping_.run_async(
-            &ShardingMapping::create_new_shard, std::move(curr_key),
+            &ShardMapping::create_new_shard, std::move(curr_key),
             std::optional<Key>(), /* reserve_space = */ true));
         shard_futures.back().get();
       } else {
         reserve_futures.emplace_back(
-            mapping_.run_async(&ShardingMapping::reserve_new_shard));
+            mapping_.run_async(&ShardMapping::reserve_new_shard));
       }
     } else {
       shard_futures.emplace_back(mapping_.run_async(
-          &ShardingMapping::create_new_shard, std::move(curr_key),
+          &ShardMapping::create_new_shard, std::move(curr_key),
           std::move(next_key), /* reserve_space = */ true));
     }
   }
@@ -80,7 +80,7 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
       key_to_shards_(o.key_to_shards_),
       max_num_vals_(o.max_num_vals_),
       max_num_data_entries_(o.max_num_data_entries_) {
-  mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
+  mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
 }
 
 template <class Container, class LL>
@@ -94,7 +94,7 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   max_num_vals_ = o.max_num_vals_;
   max_num_data_entries_ = o.max_num_data_entries_;
 
-  mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
+  mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
 
   return *this;
 }
@@ -130,7 +130,7 @@ void ShardedDataStructure<Container, LL>::reset() {
   if (mapping_) {
     flush();
     key_to_shards_.clear();
-    mapping_.run(&GeneralShardingMapping<Shard>::dec_ref_cnt);
+    mapping_.run(&GeneralShardMapping<Shard>::dec_ref_cnt);
   }
 }
 
@@ -352,7 +352,7 @@ inline void ShardedDataStructure<Container, LL>::concat(
     ShardedDataStructure &&tail) requires Container::kContiguousIterator {
   flush();
   tail.flush();
-  mapping_.run_async(&ShardingMapping::concat, tail.mapping_.get_weak());
+  mapping_.run_async(&ShardMapping::concat, tail.mapping_.get_weak());
   tail.key_to_shards_.clear();
 }
 
@@ -500,7 +500,7 @@ void ShardedDataStructure<Container, LL>::sync_mapping(
   }
 
   auto latest_mapping =
-      mapping_.run(&ShardingMapping::get_shards_in_range, l_key, r_key);
+      mapping_.run(&ShardMapping::get_shards_in_range, l_key, r_key);
 
   auto lm_iter = latest_mapping.begin();
   if (shard.has_value()) {
@@ -527,7 +527,7 @@ template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::flush_and_sync_mapping() {
   flush();
 
-  auto latest_mapping = mapping_.run(&ShardingMapping::get_all_keys_and_shards);
+  auto latest_mapping = mapping_.run(&ShardMapping::get_all_keys_and_shards);
   key_to_shards_.clear();
   for (auto &[k, s] : latest_mapping) {
     key_to_shards_.emplace(k, ShardAndReqs(s));
@@ -665,7 +665,7 @@ template <class Archive>
 inline void ShardedDataStructure<Container, LL>::__save(Archive &ar) {
   flush();
   ar(mapping_, key_to_shards_, max_num_vals_, max_num_data_entries_);
-  mapping_.run(&GeneralShardingMapping<Shard>::inc_ref_cnt);
+  mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
 }
 
 template <class Container, class LL>
@@ -711,12 +711,12 @@ ShardedDataStructure<Container, LL>::get_all_shards_info() {
 
 template <class Container, class LL>
 inline void ShardedDataStructure<Container, LL>::seal() {
-  mapping_.run(&ShardingMapping::seal);
+  mapping_.run(&ShardMapping::seal);
 }
 
 template <class Container, class LL>
 inline void ShardedDataStructure<Container, LL>::unseal() {
-  mapping_.run(&ShardingMapping::unseal);
+  mapping_.run(&ShardMapping::unseal);
 }
 
 }  // namespace nu

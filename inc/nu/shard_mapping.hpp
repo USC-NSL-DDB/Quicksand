@@ -12,12 +12,12 @@
 namespace nu {
 
 template <class Shard>
-class GeneralShardingMapping {
+class GeneralShardMapping {
  public:
   using Key = Shard::Key;
 
-  GeneralShardingMapping(uint32_t max_shard_bytes);
-  ~GeneralShardingMapping();
+  GeneralShardMapping(uint32_t max_shard_bytes);
+  ~GeneralShardMapping();
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
@@ -29,7 +29,7 @@ class GeneralShardingMapping {
                                       std::optional<Key> r_key,
                                       bool reserve_space);
   bool delete_front_shard();
-  void concat(WeakProclet<GeneralShardingMapping> tail) requires(
+  void concat(WeakProclet<GeneralShardMapping> tail) requires(
       Shard::GeneralContainer::kContiguousIterator);
   void inc_ref_cnt();
   void dec_ref_cnt();
@@ -39,7 +39,7 @@ class GeneralShardingMapping {
  private:
   constexpr static double kProcletOverprovisionFactor = 3;
 
-  WeakProclet<GeneralShardingMapping> self_;
+  WeakProclet<GeneralShardMapping> self_;
   uint32_t max_shard_bytes_;
   uint32_t proclet_capacity_;
 
@@ -52,4 +52,4 @@ class GeneralShardingMapping {
 
 }  // namespace nu
 
-#include "nu/impl/sharding_mapping.ipp"
+#include "nu/impl/shard_mapping.ipp"

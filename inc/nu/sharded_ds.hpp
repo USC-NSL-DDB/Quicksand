@@ -38,7 +38,7 @@ class ShardedDataStructure {
   using DataEntry = Container::DataEntry;
   using ContainerImpl = Container::Implementation;
   using Shard = GeneralShard<Container>;
-  using ShardingMapping = GeneralShardingMapping<Shard>;
+  using ShardMapping = GeneralShardMapping<Shard>;
 
   struct Hint {
     uint64_t num;
@@ -112,7 +112,7 @@ class ShardedDataStructure {
   };
   using KeyToShardsMapping = std::multimap<std::optional<Key>, ShardAndReqs>;
 
-  Proclet<ShardingMapping> mapping_;
+  Proclet<ShardMapping> mapping_;
   KeyToShardsMapping key_to_shards_;
   std::vector<Val> emplace_back_reqs_;
   std::queue<Future<std::optional<typename Shard::ReqBatch>>> flush_futures_;

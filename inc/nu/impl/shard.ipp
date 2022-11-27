@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "nu/sharding_mapping.hpp"
+#include "nu/shard_mapping.hpp"
 #include "nu/utils/caladan.hpp"
 #include "nu/utils/rob_executor.hpp"
 
@@ -61,13 +61,13 @@ inline void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
 }
 
 template <class Container>
-inline GeneralShard<Container>::GeneralShard(
-    WeakProclet<ShardingMapping> mapping, uint32_t max_shard_bytes)
+inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
+                                             uint32_t max_shard_bytes)
     : GeneralShard(mapping, max_shard_bytes, std::nullopt, std::nullopt,
                    false) {}
 
 template <class Container>
-GeneralShard<Container>::GeneralShard(WeakProclet<ShardingMapping> mapping,
+GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
                                       uint32_t max_shard_bytes,
                                       std::optional<Key> l_key,
                                       std::optional<Key> r_key,
@@ -161,8 +161,8 @@ void GeneralShard<Container>::split() {
     container_.split(&mid_k, latter_half_container.get());
   }
 
-  auto new_shard = mapping_.run(&ShardingMapping::create_new_shard, mid_k,
-                                r_key_, /* reserve_space = */ false);
+  auto new_shard = mapping_.run(&ShardMapping::create_new_shard, mid_k, r_key_,
+                                /* reserve_space = */ false);
   ContainerAndMetadata<Container> container_and_metadata;
   container_and_metadata.container = std::move(*latter_half_container);
   container_and_metadata.capacity =
@@ -218,7 +218,7 @@ template <class Container>
 void GeneralShard<Container>::delete_self_with_reader_lock() {
   rw_lock_.reader_unlock();
   if (container_.empty() && !deleted_) {
-    deleted_ = mapping_.run(&ShardingMapping::delete_front_shard);
+    deleted_ = mapping_.run(&ShardMapping::delete_front_shard);
   }
 }
 
