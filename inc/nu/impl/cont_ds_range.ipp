@@ -59,7 +59,7 @@ ContiguousDSRangeImpl<Shard>::__split(std::size_t mid_key) {
   mb();
   if (unlikely(cur_key_ >= mid_key)) {
     initial_key_range_.second = end_key;
-    if (unlikely(cur_key_ == end_key)) {
+    if (unlikely(cur_key_ + 1 >= end_key)) {
       return ContiguousDSRangeImpl();
     }
     return std::nullopt;

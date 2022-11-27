@@ -39,8 +39,11 @@ inline bool ZippedDSRangeImpl<Shards...>::empty() const {
 template <GeneralShardBased... Shards>
 inline ZippedDSRangeImpl<Shards...> ZippedDSRangeImpl<Shards...>::split() {
   auto first_split = std::get<0>(cont_ds_ranges_).split();
-  auto mid_key = first_split.initial_key_range().first;
+  if (unlikely(first_split.empty())) {
+    return ZippedDSRangeImpl();
+  }
 
+  auto mid_key = first_split.initial_key_range().first;
   return ZippedDSRangeImpl(std::apply(
       [&](auto &first, auto &... others) {
         return std::make_tuple(std::move(first_split),

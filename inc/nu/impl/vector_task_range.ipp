@@ -46,7 +46,7 @@ retry:
   mb();
   if (unlikely(cur_idx_ >= mid_idx)) {
     end_idx_ = orig_end_idx;
-    if (unlikely(cur_idx_ == end_idx_)) {
+    if (unlikely(cur_idx_ + 1 >= end_idx_)) {
       return VectorTaskRangeImpl();
     }
     goto retry;
