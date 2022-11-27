@@ -160,7 +160,8 @@ template <class Container, class LL>
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
     DataEntry entry) {
-  [[maybe_unused]] retry : typename KeyToShardsMapping::iterator iter;
+[[maybe_unused]] retry:
+  typename KeyToShardsMapping::iterator iter;
   if constexpr (HasVal<Container>) {
     iter = --key_to_shards_.upper_bound(entry.first);
   } else {
@@ -173,7 +174,7 @@ template <class Container, class LL>
     auto succeed = shard.run(&Shard::try_emplace, l_key, r_key, entry);
 
     if (unlikely(!succeed)) {
-      sync_mapping(l_key, r_key, shard, false /* prune_local */);
+      sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
       goto retry;
     }
   } else {
@@ -191,7 +192,8 @@ template <class Container, class LL>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
-  [[maybe_unused]] retry : if constexpr (LL::value) {
+[[maybe_unused]] retry:
+  if constexpr (LL::value) {
     // rbegin() is O(1) which is much faster than the O(logn) of --end().
     auto iter = key_to_shards_.rbegin();
     auto l_key = iter->first;
@@ -200,11 +202,10 @@ ShardedDataStructure<Container, LL>::emplace_back(
     auto succeed = shard.run(&Shard::try_emplace_back, l_key, r_key, v);
 
     if (unlikely(!succeed)) {
-      sync_mapping(l_key, r_key, shard, false /* prune_local */);
+      sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
       goto retry;
     }
-  }
-  else {
+  } else {
     emplace_back_reqs_.emplace_back(std::move(v));
 
     if (unlikely(emplace_back_reqs_.size() >= max_num_vals_)) {
@@ -246,7 +247,7 @@ retry:
   }
 
   if (unlikely(!succeed)) {
-    sync_mapping(l_key, r_key, shard, false /* prune_local */);
+    sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
     goto retry;
   }
 
@@ -313,7 +314,7 @@ retry:
 
   if (unlikely(!succeed)) {
     timer_sleep(200);
-    sync_mapping(l_key, r_key, std::nullopt, true /* prune_local */);
+    sync_mapping(l_key, r_key, std::nullopt, /* prune_local = */ true);
     goto retry;
   }
 
@@ -333,7 +334,7 @@ retry:
 
   if (unlikely(!succeed)) {
     auto [l_key, r_key] = get_key_range(iter);
-    sync_mapping(l_key, r_key, shard, false /* prune_local */);
+    sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
     goto retry;
   }
 
@@ -491,6 +492,11 @@ void ShardedDataStructure<Container, LL>::sync_mapping(
                    : std::make_pair(key_to_shards_.end(), key_to_shards_.end());
   auto kts_iter = (l_key != r_key) ? range.first : range.second;
   auto &shard_and_reqs = (--kts_iter)->second;
+  auto current_shard = shard_and_reqs.shard;
+  if (unlikely(shard != current_shard)) {
+    // We've already got a newer mapping.
+    return;
+  }
 
   auto emplace_reqs = std::move(shard_and_reqs.emplace_reqs);
   shard_and_reqs.emplace_reqs.clear();

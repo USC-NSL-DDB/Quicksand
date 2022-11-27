@@ -107,7 +107,7 @@ make_contiguous_ds_range(const SealedDS<T> &sealed_ds) requires(
   std::vector<std::size_t> all_shard_keys;
   std::ranges::transform(
       sealed_ds.keys_, std::back_inserter(all_shard_keys),
-      [](const auto &optional_key) { return *optional_key; });
+      [](const auto &optional_key) { return optional_key.value_or(0); });
   return ContiguousDSRange(ContiguousDSRangeImpl<typename T::Shard>(
       const_cast<SealedDS<T> &>(sealed_ds).shards_, std::move(all_shard_keys),
       sealed_ds.prefix_sum_sizes_.back()));
