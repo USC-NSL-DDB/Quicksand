@@ -40,6 +40,10 @@ inline ProcletServer *Runtime::proclet_server() {
   return proclet_server_.get();
 }
 
+inline ResourceReporter *Runtime::resource_reporter() {
+  return resource_reporter_.get();
+}
+
 inline Caladan *Runtime::caladan() { return caladan_.get(); }
 
 inline Migrator *Runtime::migrator() { return migrator_.get(); }

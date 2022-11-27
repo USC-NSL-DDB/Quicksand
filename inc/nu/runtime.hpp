@@ -55,6 +55,7 @@ class Runtime {
   Migrator *migrator();
   ControllerServer *controller_server();
   ProcletServer *proclet_server();
+  ResourceReporter *resource_reporter();
   Caladan *caladan();
   void reserve_conns(uint32_t ip);
   void common_init();

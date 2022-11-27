@@ -1,8 +1,10 @@
 #include <algorithm>
 #include <map>
+#include <queue>
 #include <type_traits>
 
 #include "nu/proclet.hpp"
+#include "nu/resource_reporter.hpp"
 #include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
@@ -48,26 +50,43 @@ std::vector<RetT> ComputeProclet<TR>::run(RetT (*fn)(TR &, S0s...),
   std::vector<Future<Proclet<ComputeProcletWorker<TR, S0s...>>>> workers;
   std::map<typename TR::Key, Future<std::vector<RetT>>> futures;
   std::vector<RetT> rets;
-
-  for (uint32_t i = 0; i < 2; i++) {
+  std::vector<std::pair<NodeIP, Resource>> global_free_resources;
+  {
+    Caladan::PreemptGuard g;
+    global_free_resources =
+        get_runtime()->resource_reporter()->get_global_free_resources();
+  }
+  for (auto &[ip, resource] : global_free_resources) {
+    for (uint32_t i = 0; i < resource.cores; i++) {
+      workers.emplace_back(
+          nu::make_proclet_async<ComputeProcletWorker<TR, S0s...>>(states...));
+    }
+  }
+  if (unlikely(workers.empty())) {
     workers.emplace_back(
         nu::make_proclet_async<ComputeProcletWorker<TR, S0s...>>(states...));
   }
 
-  auto l_key = task_range.initial_key_range().first;
-  futures.try_emplace(
-      l_key, workers[0].get().__run_async(
-                 &ComputeProcletWorker<TR, S0s...>::template compute<RetT>, fn,
-                 std::move(task_range)));
-  delay_us(10 * 1000);
+  auto cmp = [](const TR &a, const TR &b) { return a.size() < b.size(); };
+  std::priority_queue<TR, std::vector<TR>, decltype(cmp)> q(cmp);
+  q.emplace(std::move(task_range));
+  while (q.size() != workers.size()) {
+    auto biggest_tr = std::move(q.top());
+    q.pop();
+    auto new_tr = biggest_tr.split();
+    q.emplace(std::move(biggest_tr));
+    q.emplace(std::move(new_tr));
+  }
 
-  auto stealed_tr =
-      workers[0].get().run(&ComputeProcletWorker<TR, S0s...>::steal_work);
-  l_key = stealed_tr.initial_key_range().first;
-  futures.try_emplace(
-      l_key, workers[1].get().__run_async(
-                 &ComputeProcletWorker<TR, S0s...>::template compute<RetT>, fn,
-                 std::move(stealed_tr)));
+  for (auto &worker : workers) {
+    auto tr = std::move(q.top());
+    q.pop();
+    auto l_key = tr.initial_key_range().first;
+    futures.try_emplace(
+        l_key, worker.get().__run_async(
+                   &ComputeProcletWorker<TR, S0s...>::template compute<RetT>,
+                   fn, std::move(tr)));
+  }
 
   for (auto &[_, future] : futures) {
     auto &future_val = future.get();
