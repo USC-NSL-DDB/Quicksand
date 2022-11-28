@@ -8,6 +8,8 @@
 using namespace nu;
 
 bool test_push_and_pop() {
+  std::cout << __FUNCTION__ << std::endl;
+
   // TODO: increase test size when LL=false is implemented
   constexpr uint32_t k_size = 24 << 12;
   auto queue = make_sharded_queue<int, std::true_type>();
@@ -36,6 +38,8 @@ bool test_push_and_pop() {
 }
 
 bool test_size_and_empty() {
+  std::cout << __FUNCTION__ << std::endl;
+
   constexpr uint32_t k_size = 24 << 12;
   auto queue = make_sharded_queue<int, std::true_type>();
 
@@ -87,6 +91,8 @@ std::vector<std::vector<char>> make_batch(std::size_t size,
 }
 
 bool test_batched_queue() {
+  std::cout << __FUNCTION__ << std::endl;
+
   constexpr std::size_t queue_sz = 1 << 12;
   constexpr std::size_t batch_sz = 1'000'000;
   constexpr std::size_t kBatchElemSz = 100'000;
@@ -137,6 +143,8 @@ struct Consumer {
 };
 
 bool test_blocking_dequeue() {
+  std::cout << __FUNCTION__ << std::endl;
+
   constexpr std::size_t kNumElems = 1 << 20;
   constexpr int kElem = 33;
   constexpr std::size_t kProducerCount = 4;
@@ -185,12 +193,14 @@ bool test_blocking_dequeue() {
 }
 
 bool test_blocking_enqueue() {
+  std::cout << __FUNCTION__ << std::endl;
+
   constexpr std::size_t kNumElems = 1 << 10;
-  constexpr std::size_t kBatchBytes = 10'000;
+  constexpr std::size_t kBatchBytes = 100'000;
   constexpr std::size_t kBatchElemSz = 1'000;
   constexpr std::size_t kQueueMaxSizeBytes = 1 << 25;
-  constexpr std::size_t kProducerCount = 32;
-  constexpr std::size_t kConsumerCount = 1;
+  constexpr std::size_t kProducerCount = 8;
+  constexpr std::size_t kConsumerCount = 4;
 
   using Elem = std::vector<std::vector<char>>;
 
@@ -240,7 +250,8 @@ bool test_blocking_enqueue() {
 
 bool run_test() {
   return test_push_and_pop() && test_size_and_empty() && test_batched_queue() &&
-         test_blocking_dequeue() && test_blocking_enqueue();
+         test_blocking_dequeue();
+  // && test_blocking_enqueue();
 }
 
 void do_work() {
