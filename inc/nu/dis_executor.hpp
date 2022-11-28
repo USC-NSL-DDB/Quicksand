@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include <queue>
 #include <vector>
 
@@ -30,9 +31,11 @@ class DistributedExecutor {
     }
   };
 
-  constexpr static uint64_t kCheckWorkerIntervalUs = 200;
+  constexpr static uint64_t kCheckWorkersIntervalUs = 200;
+  constexpr static uint64_t kAddWorkersIntervalUs = 1000;
   RetT (*fn_)(TR &, States...);
-  std::vector<Worker> workers_;
+  bool almost_done_;
+  std::deque<Worker> workers_;
   Future<std::vector<RetT>> future_;
   std::priority_queue<Worker *, std::vector<Worker *>, VictimCmp> victims_;
   std::vector<std::pair<typename TR::Key, std::vector<RetT>>> all_pairs_;
@@ -40,7 +43,7 @@ class DistributedExecutor {
   friend DistributedExecutor<R, T, S0s...> make_distributed_executor(
       R (*fn)(T &, S0s...), T, S1s &&...);
 
-  DistributedExecutor() = default;
+  DistributedExecutor();
   template <typename... S1s>
   std::vector<RetT> run(RetT (*fn)(TR &, States...), TR task_range,
                         S1s &&... states);
@@ -49,10 +52,12 @@ class DistributedExecutor {
                    S1s &&... states);
   template <typename... S1s>
   void spawn_initial_workers(S1s &... states);
+  template <typename... S1s>
+  void add_workers(S1s &... states);
   void make_initial_dispatch(RetT (*fn)(TR &, States...), TR task_range);
-  void check_worker();
-  std::vector<RetT> concat_results();
+  void check_workers();
   bool check_futures_and_redispatch();
+  std::vector<RetT> concat_results();
 };
 
 template <typename RetT, TaskRangeBased TR, typename... S0s, typename... S1s>

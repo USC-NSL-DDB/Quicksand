@@ -4,6 +4,10 @@
 namespace nu {
 
 template <typename RetT, TaskRangeBased TR, typename... States>
+DistributedExecutor<RetT, TR, States...>::DistributedExecutor()
+    : almost_done_(false) {}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
 std::vector<RetT> &&DistributedExecutor<RetT, TR, States...>::get() {
   return std::move(future_.get());
 }
@@ -12,6 +16,21 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::spawn_initial_workers(
     S1s &... states) {
+  add_workers(states...);
+
+  if (unlikely(workers_.empty())) {
+    workers_.emplace_back(
+        nu::make_proclet<ComputeProclet<TR, States...>>(states...));
+  }
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+template <typename... S1s>
+void DistributedExecutor<RetT, TR, States...>::add_workers(S1s &... states) {
+  if (unlikely(almost_done_)) {
+    return;
+  }
+
   std::vector<std::pair<NodeIP, Resource>> global_free_resources;
   {
     Caladan::PreemptGuard g;
@@ -25,10 +44,6 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_workers(
       worker_futures.emplace_back(
           nu::make_proclet_async<ComputeProclet<TR, States...>>(states...));
     }
-  }
-  if (unlikely(workers_.empty())) {
-    worker_futures.emplace_back(
-        nu::make_proclet_async<ComputeProclet<TR, States...>>(states...));
   }
 
   std::ranges::transform(worker_futures, std::back_inserter(workers_),
@@ -62,7 +77,7 @@ void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-void DistributedExecutor<RetT, TR, States...>::check_worker() {
+void DistributedExecutor<RetT, TR, States...>::check_workers() {
   victims_ = decltype(victims_)();
   auto futures = workers_ | std::views::transform([](auto &worker) {
                    return worker.cp.run_async(
@@ -74,6 +89,8 @@ void DistributedExecutor<RetT, TR, States...>::check_worker() {
     worker.remaining_size = size;
     if (size) {
       victims_.push(&worker);
+    } else {
+      almost_done_ = true;
     }
   }
 }
@@ -96,8 +113,10 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
 
   for (auto &worker : workers_) {
     auto &future = worker.future;
-    if (future.is_ready()) {
-      all_pairs_.emplace_back(std::move(future.get()));
+    if (!future || future.is_ready()) {
+      if (future) {
+        all_pairs_.emplace_back(std::move(future.get()));
+      }
       if (!victims_.empty()) {
         auto *victim = victims_.top();
         victims_.pop();
@@ -122,12 +141,18 @@ std::vector<RetT> DistributedExecutor<RetT, TR, States...>::run(
   spawn_initial_workers(states...);
   make_initial_dispatch(fn, std::move(task_range));
 
-  uint64_t last_check_worker_us = 0;
+  uint64_t last_check_workers_us = Time::microtime();
+  uint64_t last_add_workers_us = last_check_workers_us;
   while (true) {
     auto now_us = Time::microtime();
-    if (now_us - last_check_worker_us >= kCheckWorkerIntervalUs) {
-      last_check_worker_us = now_us;
-      check_worker();
+    if (now_us - last_check_workers_us >= kCheckWorkersIntervalUs) {
+      last_check_workers_us = now_us;
+      check_workers();
+
+      if (now_us - last_add_workers_us >= kAddWorkersIntervalUs) {
+        last_add_workers_us = now_us;
+        add_workers(states...);
+      }
     }
 
     if (unlikely(!check_futures_and_redispatch())) {
