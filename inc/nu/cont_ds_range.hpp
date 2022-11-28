@@ -47,7 +47,8 @@ class ContiguousDSRangeImpl {
   template <GeneralShardBased... Shards>
   friend class ZippedDSRangeImpl;
 
-  std::optional<ContiguousDSRangeImpl> __split(std::size_t mid_key);
+  std::optional<ContiguousDSRangeImpl> __split(std::size_t mid_key,
+                                               bool no_race = false);
 };
 
 template <GeneralShardBased Shard>

@@ -53,11 +53,11 @@ retry:
 
 template <class Shard>
 std::optional<ContiguousDSRangeImpl<Shard>>
-ContiguousDSRangeImpl<Shard>::__split(std::size_t mid_key) {
+ContiguousDSRangeImpl<Shard>::__split(std::size_t mid_key, bool no_race) {
   auto end_key = initial_key_range_.second;
   initial_key_range_.second = mid_key;
   mb();
-  if (unlikely(cur_key_ >= mid_key)) {
+  if (unlikely(cur_key_ >= mid_key && !no_race)) {
     initial_key_range_.second = end_key;
     if (unlikely(cur_key_ + 1 >= end_key)) {
       return ContiguousDSRangeImpl();
