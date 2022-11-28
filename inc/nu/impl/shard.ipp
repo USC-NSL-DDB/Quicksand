@@ -109,6 +109,7 @@ template <class Container>
 void GeneralShard<Container>::set_range_and_data(
     std::optional<Key> l_key, std::optional<Key> r_key,
     ContainerAndMetadata<Container> container_and_metadata) {
+  rw_lock_.writer_lock();
   l_key_ = l_key;
   r_key_ = r_key;
   deleted_ = false;
@@ -118,6 +119,7 @@ void GeneralShard<Container>::set_range_and_data(
   initial_size_ = container_.size();
   container_bucket_size_ = container_and_metadata.container_bucket_size;
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
+  rw_lock_.writer_unlock();
 }
 
 template <class Container>
