@@ -15,10 +15,12 @@ inline ComputeProclet<TR, States...>::ComputeProclet(States... states)
 
 template <class TR, typename... States>
 template <typename RetT>
-inline std::vector<RetT> ComputeProclet<TR, States...>::compute(
-    RetT (*fn)(TR &, States...), TR task_range) {
+inline std::pair<typename TR::Key, std::vector<RetT>>
+ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
+                                       TR task_range) {
   std::vector<RetT> rets;
   task_range_ = std::move(task_range);
+  auto l_key = task_range_.initial_key_range().first;
 
   while (true) {
     std::apply(
@@ -33,7 +35,16 @@ inline std::vector<RetT> ComputeProclet<TR, States...>::compute(
     }
   }
 
-  return rets;
+  return std::make_pair(std::move(l_key), std::move(rets));
+}
+
+template <class TR, typename... States>
+template <typename RetT>
+inline std::pair<typename TR::Key, std::vector<RetT>>
+ComputeProclet<TR, States...>::steal_and_compute(
+    WeakProclet<ComputeProclet> victim, RetT (*fn)(TR &, States...)) {
+  auto task_range = victim.run(&ComputeProclet::split_tasks);
+  return compute(fn, std::move(task_range));
 }
 
 template <class TR, typename... States>

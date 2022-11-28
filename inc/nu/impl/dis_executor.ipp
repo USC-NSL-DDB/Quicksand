@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <ranges>
+
 namespace nu {
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -7,33 +10,41 @@ std::vector<RetT> &&DistributedExecutor<RetT, TR, States...>::get() {
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
-std::vector<RetT> DistributedExecutor<RetT, TR, States...>::run(
-    RetT (*fn)(TR &, States...), TR task_range, S1s &&... states) {
-  std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> workers;
-  std::map<typename TR::Key, Future<std::vector<RetT>>> futures;
-  std::vector<RetT> rets;
+void DistributedExecutor<RetT, TR, States...>::spawn_initial_workers(
+    S1s &... states) {
   std::vector<std::pair<NodeIP, Resource>> global_free_resources;
-
   {
     Caladan::PreemptGuard g;
     global_free_resources =
         get_runtime()->resource_reporter()->get_global_free_resources();
   }
+
+  std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
   for (auto &[ip, resource] : global_free_resources) {
     for (uint32_t i = 0; i < resource.cores; i++) {
-      workers.emplace_back(
+      worker_futures.emplace_back(
           nu::make_proclet_async<ComputeProclet<TR, States...>>(states...));
     }
   }
-  if (unlikely(workers.empty())) {
-    workers.emplace_back(
+  if (unlikely(workers_.empty())) {
+    worker_futures.emplace_back(
         nu::make_proclet_async<ComputeProclet<TR, States...>>(states...));
   }
 
+  std::ranges::transform(worker_futures, std::back_inserter(workers_),
+                         [](auto &worker_future) {
+                           return Worker{std::move(worker_future.get())};
+                         });
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
+    RetT (*fn)(TR &, States...), TR task_range) {
   auto cmp = [](const TR &a, const TR &b) { return a.size() < b.size(); };
   std::priority_queue<TR, std::vector<TR>, decltype(cmp)> q(cmp);
+
   q.emplace(std::move(task_range));
-  while (q.size() != workers.size()) {
+  while (q.size() != workers_.size()) {
     auto biggest_tr = std::move(q.top());
     q.pop();
     auto new_tr = biggest_tr.split();
@@ -41,23 +52,92 @@ std::vector<RetT> DistributedExecutor<RetT, TR, States...>::run(
     q.emplace(std::move(new_tr));
   }
 
-  for (auto &worker : workers) {
+  for (auto &worker : workers_) {
     auto tr = std::move(q.top());
     q.pop();
-    auto l_key = tr.initial_key_range().first;
-    futures.try_emplace(
-        l_key, worker.get().__run_async(
-                   &ComputeProclet<TR, States...>::template compute<RetT>, fn,
-                   std::move(tr)));
+    worker.future = worker.cp.__run_async(
+        &ComputeProclet<TR, States...>::template compute<RetT>, fn,
+        std::move(tr));
+  }
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+void DistributedExecutor<RetT, TR, States...>::check_worker() {
+  victims_ = decltype(victims_)();
+  auto futures = workers_ | std::views::transform([](auto &worker) {
+                   return worker.cp.run_async(
+                       &ComputeProclet<TR, States...>::remaining_size);
+                 });
+  for (auto t : std::views::zip(workers_, futures)) {
+    auto &worker = std::get<0>(t);
+    auto size = std::get<1>(t).get();
+    worker.remaining_size = size;
+    if (size) {
+      victims_.push(&worker);
+    }
+  }
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+std::vector<RetT> DistributedExecutor<RetT, TR, States...>::concat_results() {
+  std::ranges::sort(all_pairs_,
+                    [](auto &a, auto &b) { return a.first < b.first; });
+  std::vector<RetT> all_rets;
+  for (auto &[_, rets] : all_pairs_) {
+    all_rets.insert(all_rets.end(), std::make_move_iterator(rets.begin()),
+                    std::make_move_iterator(rets.end()));
+  }
+  return all_rets;
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
+  bool has_pending = false;
+
+  for (auto &worker : workers_) {
+    auto &future = worker.future;
+    if (future.is_ready()) {
+      all_pairs_.emplace_back(std::move(future.get()));
+      if (!victims_.empty()) {
+        auto *victim = victims_.top();
+        victims_.pop();
+        future = worker.cp.__run_async(
+            &ComputeProclet<TR, States...>::template steal_and_compute<RetT>,
+            victim->cp.get_weak(), fn_);
+        has_pending = true;
+      }
+    } else {
+      has_pending = true;
+    }
   }
 
-  for (auto &[_, future] : futures) {
-    auto &future_val = future.get();
-    rets.insert(rets.end(), std::make_move_iterator(future_val.begin()),
-                std::make_move_iterator(future_val.end()));
+  return has_pending;
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+template <typename... S1s>
+std::vector<RetT> DistributedExecutor<RetT, TR, States...>::run(
+    RetT (*fn)(TR &, States...), TR task_range, S1s &&... states) {
+  fn_ = fn;
+  spawn_initial_workers(states...);
+  make_initial_dispatch(fn, std::move(task_range));
+
+  uint64_t last_check_worker_us = 0;
+  while (true) {
+    auto now_us = Time::microtime();
+    if (now_us - last_check_worker_us >= kCheckWorkerIntervalUs) {
+      last_check_worker_us = now_us;
+      check_worker();
+    }
+
+    if (unlikely(!check_futures_and_redispatch())) {
+      break;
+    }
+
+    rt::Yield();
   }
 
-  return rets;
+  return concat_results();
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
