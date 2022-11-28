@@ -515,7 +515,7 @@ void ShardedDataStructure<Container, LL>::sync_mapping(
   auto kts_iter = (l_key != r_key) ? range.first : range.second;
   auto &shard_and_reqs = (--kts_iter)->second;
   auto current_shard = shard_and_reqs.shard;
-  if (unlikely(shard != current_shard)) {
+  if (unlikely(shard.has_value() && *shard != current_shard)) {
     // We've already got a newer mapping.
     return;
   }
