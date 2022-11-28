@@ -251,12 +251,21 @@ inline void Caladan::timer_start(timer_entry *e, uint64_t deadline_us) {
   ::timer_start(e, deadline_us);
 }
 
-inline void Caladan::timer_sleep_until(uint64_t deadline_us) {
-  ::timer_sleep_until(deadline_us);
+inline void Caladan::timer_sleep_until(uint64_t deadline_us,
+                                       bool high_priority) {
+  if (high_priority) {
+    ::timer_sleep_until_hp(deadline_us);
+  } else {
+    ::timer_sleep_until(deadline_us);
+  }
 }
 
-inline void Caladan::timer_sleep(uint64_t duration_us) {
-  ::timer_sleep(duration_us);
+inline void Caladan::timer_sleep(uint64_t duration_us, bool high_priority) {
+  if (high_priority) {
+    ::timer_sleep_hp(duration_us);
+  } else {
+    ::timer_sleep(duration_us);
+  }
 }
 
 inline uint32_t Caladan::get_ip() { return ::get_cfg_ip(); }

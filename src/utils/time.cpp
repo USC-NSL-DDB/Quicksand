@@ -23,7 +23,11 @@ void Time::timer_callback(unsigned long arg_addr) {
     time.entries_.erase(arg->iter);
   }
 
-  get_runtime()->caladan()->thread_ready(arg->th);
+  if (arg->high_priority) {
+    get_runtime()->caladan()->thread_ready_head(arg->th);
+  } else {
+    get_runtime()->caladan()->thread_ready(arg->th);
+  }
 }
 
 uint64_t Time::rdtsc() {
@@ -52,39 +56,40 @@ uint64_t Time::microtime() {
   }
 }
 
-void Time::sleep_until(uint64_t deadline_us) {
+void Time::sleep_until(uint64_t deadline_us, bool high_priority) {
   ProcletHeader *proclet_header;
   {
     Caladan::PreemptGuard g;
     proclet_header = get_runtime()->get_current_proclet_header();
   }
   if (proclet_header) {
-    proclet_header->time.proclet_env_sleep_until(deadline_us);
+    proclet_header->time.proclet_env_sleep_until(deadline_us, high_priority);
   } else {
-    get_runtime()->caladan()->timer_sleep_until(deadline_us);
-  };
+    get_runtime()->caladan()->timer_sleep_until(deadline_us, high_priority);
+  }
 }
 
-void Time::sleep(uint64_t duration_us) {
+void Time::sleep(uint64_t duration_us, bool high_priority) {
   ProcletHeader *proclet_header;
   {
     Caladan::PreemptGuard g;
     proclet_header = get_runtime()->get_current_proclet_header();
   }
   if (proclet_header) {
-    proclet_header->time.proclet_env_sleep(duration_us);
+    proclet_header->time.proclet_env_sleep(duration_us, high_priority);
   } else {
-    get_runtime()->caladan()->timer_sleep(duration_us);
-  };
+    get_runtime()->caladan()->timer_sleep(duration_us, high_priority);
+  }
 }
 
-void Time::proclet_env_sleep_until(uint64_t deadline_us) {
+void Time::proclet_env_sleep_until(uint64_t deadline_us, bool high_priority) {
   auto *e = new timer_entry();
   std::unique_ptr<timer_entry> e_gc(e);
   auto physical_us = to_physical_us(deadline_us);
   auto *arg = new TimerCallbackArg();
   std::unique_ptr<TimerCallbackArg> arg_gc(arg);
 
+  arg->high_priority = high_priority;
   arg->th = Caladan::thread_self();
   {
     Caladan::PreemptGuard g;

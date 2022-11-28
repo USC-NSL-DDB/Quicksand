@@ -21,8 +21,8 @@ class Time {
   static uint64_t rdtsc();
   static uint64_t microtime();
   static void delay(uint64_t us);
-  static void sleep_until(uint64_t deadline_us);
-  static void sleep(uint64_t duration_us);
+  static void sleep_until(uint64_t deadline_us, bool high_priority = false);
+  static void sleep(uint64_t duration_us, bool high_priority = false);
 
  private:
   int64_t offset_tsc_;
@@ -33,8 +33,8 @@ class Time {
   static void timer_callback(unsigned long arg_addr);
   uint64_t proclet_env_microtime();
   uint64_t proclet_env_rdtsc();
-  void proclet_env_sleep(uint64_t duration_us);
-  void proclet_env_sleep_until(uint64_t deadline_us);
+  void proclet_env_sleep(uint64_t duration_us, bool high_priority);
+  void proclet_env_sleep_until(uint64_t deadline_us, bool high_priority);
   uint64_t to_logical_tsc(uint64_t physical_tsc);
   uint64_t to_logical_us(uint64_t physical_us);
   uint64_t to_physical_tsc(uint64_t logical_tsc);
@@ -42,6 +42,7 @@ class Time {
 };
 
 struct TimerCallbackArg {
+  bool high_priority;
   thread_t *th;
   ProcletHeader *proclet_header;
   uint64_t logical_deadline_us;

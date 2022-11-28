@@ -66,7 +66,7 @@ Runtime::~Runtime() {
   caladan_.reset();
   rpc_client_mgr_.reset();
   controller_server_.reset();
-  runtime_slab_.reset();
+  runtime_slab_.reset(); 
 }
 
 void Runtime::init_runtime_heap() {

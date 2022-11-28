@@ -70,8 +70,8 @@ class Caladan {
   void wakeup_one_waiter(list_head *waiters);
   uint64_t rdtsc();
   uint64_t microtime();
-  void timer_sleep_until(uint64_t deadline_us);
-  void timer_sleep(uint64_t deadline_us);
+  void timer_sleep_until(uint64_t deadline_us, bool high_priority = false);
+  void timer_sleep(uint64_t deadline_us, bool high_priority = false);
   void timer_start(timer_entry *e, uint64_t deadline_us);
   uint32_t get_ip();
 

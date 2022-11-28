@@ -36,8 +36,8 @@ inline uint64_t Time::proclet_env_microtime() {
 
 inline uint64_t Time::proclet_env_rdtsc() { return to_logical_tsc(::rdtsc()); }
 
-inline void Time::proclet_env_sleep(uint64_t duration_us) {
-  proclet_env_sleep_until(proclet_env_microtime() + duration_us);
+inline void Time::proclet_env_sleep(uint64_t duration_us, bool high_priority) {
+  proclet_env_sleep_until(proclet_env_microtime() + duration_us, high_priority);
 }
 
 }  // namespace nu
