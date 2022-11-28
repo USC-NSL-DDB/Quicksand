@@ -19,7 +19,10 @@ inline std::pair<typename TR::Key, std::vector<RetT>>
 ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
                                        TR task_range) {
   std::vector<RetT> rets;
-  task_range_ = std::move(task_range);
+  {
+    ScopedLock g(&mutex_);
+    task_range_ = std::move(task_range);
+  }
   auto l_key = task_range_.initial_key_range().first;
 
   while (true) {
