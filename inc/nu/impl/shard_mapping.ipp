@@ -138,7 +138,7 @@ std::optional<WeakProclet<Shard>> GeneralShardMapping<Shard>::create_new_shard(
     return std::nullopt;
   }
 
-  Proclet<Shard> new_shard;
+  std::optional<Proclet<Shard>> new_shard;
 
   if (!reserved_shards_.empty()) {
     mutex_.lock();
@@ -147,26 +147,31 @@ std::optional<WeakProclet<Shard>> GeneralShardMapping<Shard>::create_new_shard(
       return std::nullopt;
     }
     if (likely(!reserved_shards_.empty())) {
-      new_shard = std::move(reserved_shards_.top());
+      new_shard = std::make_optional(std::move(reserved_shards_.top()));
       reserved_shards_.pop();
+      mutex_.unlock();
+
       ContainerAndMetadata<typename Shard::GeneralContainer> data;
-      new_shard.run(&Shard::set_range_and_data, l_key, r_key, data);
+      (*new_shard).run(&Shard::set_range_and_data, l_key, r_key, data);
+    } else {
+      mutex_.unlock();
     }
-    mutex_.unlock();
-  } else {
-    new_shard = make_proclet_with_capacity<Shard>(proclet_capacity_, self_,
-                                                  max_shard_bytes_, l_key,
-                                                  r_key, reserve_space);
   }
 
-  auto new_weak_shard = new_shard.get_weak();
+  if (!new_shard) {
+    new_shard = std::make_optional(make_proclet_with_capacity<Shard>(
+        proclet_capacity_, self_, max_shard_bytes_, l_key, r_key,
+        reserve_space));
+  }
+
+  auto new_weak_shard = (*new_shard).get_weak();
 
   mutex_.lock();
   if (unlikely(reached_size_bound())) {
     mutex_.unlock();
     return std::nullopt;
   }
-  mapping_.emplace(l_key, std::move(new_shard));
+  mapping_.emplace(l_key, std::move(*new_shard));
   mutex_.unlock();
 
   return new_weak_shard;
