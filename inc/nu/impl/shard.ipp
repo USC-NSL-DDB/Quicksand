@@ -184,6 +184,12 @@ bool GeneralShard<Container>::split() {
     // Grant slightly more memory to incorporate fragmentations in our slab
     // allocator.
     real_max_shard_bytes_ = cur_slab_usage + kSlabFragmentationHeadroom;
+
+    auto allocator_capacity = slab_->get_usage() + slab_->get_remaining();
+    auto max_shard_sz = allocator_capacity * 0.9;
+    if (real_max_shard_bytes_ > max_shard_sz) {
+      real_max_shard_bytes_ = max_shard_sz;
+    }
   } else if constexpr (Reservable<Container>) {
     auto size = container_.size();
     if (size > size_thresh_) {
