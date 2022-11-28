@@ -337,7 +337,8 @@ retry:
 
   if (unlikely(!succeed)) {
     timer_sleep(200);
-    sync_mapping(l_key, r_key, std::nullopt, /* prune_local = */ true);
+    sync_mapping(l_key, r_key, std::nullopt,
+                 /* prune_local = */ true);
     goto retry;
   }
 
