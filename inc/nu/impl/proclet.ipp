@@ -292,6 +292,9 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
     if (optional_callee_migration_guard) {
       // Fast path: the callee proclet is actually local, use function call.
 
+      constexpr auto kHasRetVal = !std::is_same_v<RetT, void>;
+      std::conditional_t<kHasRetVal, RetT, ErasedType> ret;
+
       ProcletSlabGuard slab_guard(&callee_header->slab);
       using StatesTuple = std::tuple<std::decay_t<S1s>...>;
       // Do copy for the most cases and only do move when we are sure it's
@@ -299,8 +302,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
       auto copied_states = StatesTuple(move_if_safe(std::forward<S1s>(states))...);
       caller_migration_guard.reset();
 
-      if constexpr (!std::is_same<RetT, void>::value) {
-        RetT ret;
+      if constexpr (kHasRetVal) {
         std::apply(
             [&](auto &&... states) {
               caller_migration_guard =
