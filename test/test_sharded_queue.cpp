@@ -7,6 +7,57 @@
 
 using namespace nu;
 
+std::vector<char> make_byte_vec(std::size_t size) {
+  std::vector<char> bytes;
+  bytes.reserve(size);
+
+  for (std::size_t i = 0; i < size; ++i) {
+    bytes.push_back(static_cast<char>(i));
+  }
+
+  return bytes;
+}
+
+std::vector<std::vector<char>> make_batch(std::size_t size,
+                                          std::size_t elem_sz) {
+  assert(size >= elem_sz);
+  std::size_t batch_sz = size / elem_sz;
+
+  std::vector<std::vector<char>> batch;
+  batch.reserve(batch_sz);
+  for (std::size_t i = 0; i < batch_sz; ++i) {
+    batch.emplace_back(make_byte_vec(elem_sz));
+  }
+
+  return batch;
+}
+
+template <typename T>
+struct Producer {
+  Producer() {}
+  void produce(std::size_t n_elems, T elem,
+               nu::ShardedQueue<T, std::true_type> queue) {
+    for (std::size_t i = 0; i < n_elems; ++i) {
+      queue.push(elem);
+    }
+  }
+};
+
+template <typename T>
+struct Consumer {
+  Consumer() {}
+  std::vector<T> consume(std::size_t n_elems,
+                         nu::ShardedQueue<T, std::true_type> queue) {
+    std::vector<T> elems;
+    for (std::size_t i = 0; i < n_elems; ++i) {
+      elems.emplace_back(queue.dequeue());
+    }
+    return elems;
+  }
+};
+
+// Tests
+
 bool test_push_and_pop() {
   std::cout << __FUNCTION__ << std::endl;
 
@@ -65,31 +116,6 @@ bool test_size_and_empty() {
   return true;
 }
 
-std::vector<char> make_byte_vec(std::size_t size) {
-  std::vector<char> bytes;
-  bytes.reserve(size);
-
-  for (std::size_t i = 0; i < size; ++i) {
-    bytes.push_back(static_cast<char>(i));
-  }
-
-  return bytes;
-}
-
-std::vector<std::vector<char>> make_batch(std::size_t size,
-                                          std::size_t elem_sz) {
-  assert(size >= elem_sz);
-  std::size_t batch_sz = size / elem_sz;
-
-  std::vector<std::vector<char>> batch;
-  batch.reserve(batch_sz);
-  for (std::size_t i = 0; i < batch_sz; ++i) {
-    batch.emplace_back(make_byte_vec(elem_sz));
-  }
-
-  return batch;
-}
-
 bool test_batched_queue() {
   std::cout << __FUNCTION__ << std::endl;
 
@@ -117,30 +143,6 @@ bool test_batched_queue() {
 
   return true;
 }
-
-template <typename T>
-struct Producer {
-  Producer() {}
-  void produce(std::size_t n_elems, T elem,
-               nu::ShardedQueue<T, std::true_type> queue) {
-    for (std::size_t i = 0; i < n_elems; ++i) {
-      queue.push(elem);
-    }
-  }
-};
-
-template <typename T>
-struct Consumer {
-  Consumer() {}
-  std::vector<T> consume(std::size_t n_elems,
-                         nu::ShardedQueue<T, std::true_type> queue) {
-    std::vector<T> elems;
-    for (std::size_t i = 0; i < n_elems; ++i) {
-      elems.emplace_back(queue.dequeue());
-    }
-    return elems;
-  }
-};
 
 bool test_blocking_dequeue() {
   std::cout << __FUNCTION__ << std::endl;
@@ -195,12 +197,12 @@ bool test_blocking_dequeue() {
 bool test_blocking_enqueue() {
   std::cout << __FUNCTION__ << std::endl;
 
-  constexpr std::size_t kNumElems = 1 << 10;
+  constexpr std::size_t kNumElems = 1 << 12;
   constexpr std::size_t kBatchBytes = 100'000;
   constexpr std::size_t kBatchElemSz = 1'000;
-  constexpr std::size_t kQueueMaxSizeBytes = 1 << 25;
-  constexpr std::size_t kProducerCount = 8;
-  constexpr std::size_t kConsumerCount = 4;
+  constexpr std::size_t kQueueMaxSizeBytes = 1 << 26;
+  constexpr std::size_t kProducerCount = 16;
+  constexpr std::size_t kConsumerCount = 8;
 
   using Elem = std::vector<std::vector<char>>;
 
@@ -250,8 +252,7 @@ bool test_blocking_enqueue() {
 
 bool run_test() {
   return test_push_and_pop() && test_size_and_empty() && test_batched_queue() &&
-         test_blocking_dequeue();
-  // && test_blocking_enqueue();
+         test_blocking_dequeue() && test_blocking_enqueue();
 }
 
 void do_work() {
