@@ -89,8 +89,8 @@ test_sharded_stack_src = test/test_sharded_stack.cpp
 test_sharded_stack_obj = $(test_sharded_stack_src:.cpp=.o)
 test_sharded_queue_src = test/test_sharded_queue.cpp
 test_sharded_queue_obj = $(test_sharded_queue_src:.cpp=.o)
-test_compute_proclet_src = test/test_compute_proclet.cpp
-test_compute_proclet_obj = $(test_compute_proclet_src:.cpp=.o)
+test_dis_executor_src = test/test_dis_executor.cpp
+test_dis_executor_obj = $(test_dis_executor_src:.cpp=.o)
 
 bench_rpc_tput_src = bench/bench_rpc_tput.cpp
 bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
@@ -151,7 +151,7 @@ bin/bench_proclet_call_bw bin/test_sharded_set bin/test_sharded_map \
 bin/test_sharded_unordered_map bin/bench_cpu_overloaded bin/test_iter \
 bin/bench_sharded_unordered_map bin/bench_sharded_map bin/test_sharded_unordered_set \
 bin/test_sharded_sorter bin/bench_sharded_sorter bin/test_sharded_stack \
-bin/test_sharded_queue bin/test_compute_proclet bin/test_continuous_migrate \
+bin/test_sharded_queue bin/test_dis_executor bin/test_continuous_migrate \
 bin/bench_sharded_queue
 
 %.d: %.cpp
@@ -225,8 +225,8 @@ bin/test_sharded_stack: $(test_sharded_stack_obj) $(librt_libs) $(RUNTIME_DEPS) 
 	$(LDXX) -o $@ $(test_sharded_stack_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_queue: $(test_sharded_queue_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_queue_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-bin/test_compute_proclet: $(test_compute_proclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(test_compute_proclet_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_dis_executor: $(test_dis_executor_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_dis_executor_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)

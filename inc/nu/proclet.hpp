@@ -75,8 +75,8 @@ class Proclet {
             uint64_t NumBuckets>
   friend class DistributedHashTable;
   friend class DistributedMemPool;
-  template <TaskRangeBased TR>
-  friend class ComputeProclet;
+  template <typename RetT, TaskRangeBased TR, typename... States>
+  friend class DistributedExecutor;
   friend int runtime_main_init(
       int argc, char **argv,
       std::function<void(int argc, char **argv)> main_func);

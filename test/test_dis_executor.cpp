@@ -1,7 +1,7 @@
 #include <iostream>
 #include <ranges>
 
-#include "nu/compute_proclet.hpp"
+#include "nu/dis_executor.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sharded_ds_range.hpp"
 #include "nu/sharded_vector.hpp"
@@ -11,13 +11,12 @@
 bool test_vector_task_range() {
   constexpr std::size_t kSize = 1 << 20;
 
-  auto cp = nu::ComputeProclet<nu::VectorTaskRange<std::size_t>>();
   std::vector<std::size_t> inputs;
   for (auto i : std::views::iota(static_cast<std::size_t>(0), kSize)) {
     inputs.push_back(i);
   }
 
-  auto outputs_vectors = cp.run(
+  auto dis_exec = nu::make_distributed_executor(
       +[](nu::VectorTaskRange<std::size_t> &task_range) {
         std::vector<std::size_t> outputs;
         while (!task_range.empty()) {
@@ -26,6 +25,7 @@ bool test_vector_task_range() {
         return outputs;
       },
       nu::VectorTaskRange<std::size_t>(inputs));
+  auto outputs_vectors = dis_exec.get();
 
   auto join_view = std::ranges::join_view(outputs_vectors);
   return std::vector<std::size_t>(join_view.begin(), join_view.end()) == inputs;
@@ -43,8 +43,7 @@ bool test_sharded_ds_range() {
 
   auto sealed_vec = nu::to_sealed_ds(std::move(vec));
   auto sharded_ds_range = nu::make_sharded_ds_range(sealed_vec);
-  auto cp = nu::ComputeProclet<decltype(sharded_ds_range)>();
-  auto outputs_vectors = cp.run(
+  auto dis_exec = nu::make_distributed_executor(
       +[](decltype(sharded_ds_range) &task_range) {
         uint64_t sum = 0;
         while (!task_range.empty()) {
@@ -56,6 +55,7 @@ bool test_sharded_ds_range() {
         return sum;
       },
       sharded_ds_range);
+  auto outputs_vectors = dis_exec.get();
 
   return std::accumulate(outputs_vectors.begin(), outputs_vectors.end(),
                          static_cast<std::size_t>(0)) == sum;
@@ -73,8 +73,7 @@ bool test_cont_ds_range() {
 
   auto sealed_vec = nu::to_sealed_ds(std::move(vec));
   auto cont_ds_range = nu::make_contiguous_ds_range(sealed_vec);
-  auto cp = nu::ComputeProclet<decltype(cont_ds_range)>();
-  auto outputs_vectors = cp.run(
+  auto dis_exec = nu::make_distributed_executor(
       +[](decltype(cont_ds_range) &task_range) {
         uint64_t sum = 0;
         while (!task_range.empty()) {
@@ -83,6 +82,7 @@ bool test_cont_ds_range() {
         return sum;
       },
       cont_ds_range);
+  auto outputs_vectors = dis_exec.get();
 
   return std::accumulate(outputs_vectors.begin(), outputs_vectors.end(),
                          static_cast<std::size_t>(0)) == sum;
@@ -103,8 +103,7 @@ bool test_zipped_ds_range() {
   auto sealed_vec0 = nu::to_sealed_ds(std::move(vec0));
   auto sealed_vec1 = nu::to_sealed_ds(std::move(vec1));
   auto zipped_ds_range = nu::make_zipped_ds_range(sealed_vec0, sealed_vec1);
-  auto cp = nu::ComputeProclet<decltype(zipped_ds_range)>();
-  auto outputs_vectors = cp.run(
+  auto dis_exec = nu::make_distributed_executor(
       +[](decltype(zipped_ds_range) &task_range) {
         uint64_t sum = 0;
         while (!task_range.empty()) {
@@ -114,6 +113,7 @@ bool test_zipped_ds_range() {
         return sum;
       },
       zipped_ds_range);
+  auto outputs_vectors = dis_exec.get();
 
   return std::accumulate(outputs_vectors.begin(), outputs_vectors.end(),
                          static_cast<std::size_t>(0)) == sum;
@@ -134,8 +134,7 @@ bool test_sharded_vector_filtering() {
 
   auto sealed_vec = nu::to_sealed_ds(std::move(vec));
   auto cont_vector_range = nu::make_contiguous_ds_range(sealed_vec);
-  auto cp = nu::ComputeProclet<decltype(cont_vector_range)>();
-  auto filtered_vecs = cp.run(
+  auto dis_exec = nu::make_distributed_executor(
       +[](decltype(cont_vector_range) &task_range) {
         auto filtered_vec =
             nu::make_sharded_vector<std::size_t, std::false_type>();
@@ -148,6 +147,7 @@ bool test_sharded_vector_filtering() {
         return filtered_vec;
       },
       cont_vector_range);
+  auto filtered_vecs = dis_exec.get();
 
   for (auto &vec : filtered_vecs | std::views::drop(1)) {
     filtered_vecs.front().concat(std::move(vec));

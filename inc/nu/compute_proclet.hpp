@@ -1,42 +1,27 @@
 #pragma once
 
-#include <memory>
 #include <tuple>
-#include <type_traits>
-#include <utility>
 #include <vector>
 
-#include "nu/commons.hpp"
+#include "nu/proclet.hpp"
 #include "nu/task_range.hpp"
-#include "nu/utils/future.hpp"
 #include "nu/utils/mutex.hpp"
 
 namespace nu {
 
 template <TaskRangeBased TR, typename... States>
-class ComputeProcletWorker {
+class ComputeProclet {
  public:
-  ComputeProcletWorker(States... states);
+  ComputeProclet(States... states);
   template <typename RetT>
   std::vector<RetT> compute(RetT (*fn)(TR &, States...), TR task_range);
-  TR steal_work();
+  TR split_tasks();
+  std::size_t remaining_size();
 
  private:
   std::tuple<States...> states_;
   TR task_range_;
   Mutex mutex_;
-};
-
-template <TaskRangeBased TR>
-class ComputeProclet {
- public:
-  ComputeProclet() = default;
-  template <typename RetT, typename... S0s, typename... S1s>
-  std::vector<RetT> run(RetT (*fn)(TR &, S0s...), TR task_range,
-                        S1s &&... states);
-  template <typename RetT, typename... S0s, typename... S1s>
-  Future<std::vector<RetT>> run_async(RetT (*fn)(TR &, S0s...), TR task_range,
-                                      S1s &&... states);
 };
 
 }  // namespace nu
