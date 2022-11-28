@@ -282,7 +282,7 @@ inline bool GeneralShard<Container>::try_emplace_back(
     Val v) requires EmplaceBackAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(full_ || should_reject(std::move(l_key), std::move(r_key)))) {
     if (full_) {
       split_with_reader_lock();
       return false;
