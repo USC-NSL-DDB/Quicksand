@@ -203,8 +203,7 @@ bool GeneralShard<Container>::split() {
 template <class Container>
 inline bool GeneralShard<Container>::should_reject(std::optional<Key> l_key,
                                                    std::optional<Key> r_key) {
-  return deleted_ || full_ || (l_key < l_key_) ||
-         (r_key_ && (r_key > r_key_ || !r_key));
+  return deleted_ || (l_key < l_key_) || (r_key_ && (r_key > r_key_ || !r_key));
 }
 
 template <class Container>
@@ -227,6 +226,8 @@ bool GeneralShard<Container>::split_with_reader_lock() {
   rw_lock_.writer_lock();
   if (should_split()) {
     splitted = split();
+  } else {
+    full_ = false;
   }
   rw_lock_.writer_unlock();
   return splitted;
@@ -248,7 +249,7 @@ inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
                                                  DataEntry entry) {
   rw_lock_.reader_lock();
 
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(full_ || should_reject(std::move(l_key), std::move(r_key)))) {
     if (full_) {
       split_with_reader_lock();
       return false;
