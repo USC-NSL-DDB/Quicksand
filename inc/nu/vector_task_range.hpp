@@ -19,10 +19,9 @@ class VectorTaskRangeImpl {
   VectorTaskRangeImpl(VectorTaskRangeImpl &&) = default;
   VectorTaskRangeImpl &operator=(VectorTaskRangeImpl &&) = default;
   T pop();
-  std::size_t size() const;
-  bool empty() const;
-  VectorTaskRangeImpl split();
-  std::pair<Key, Key> initial_key_range() const;
+  VectorTaskRangeImpl split(uint64_t last_n_elems);
+  Key l_key() const;
+  std::size_t initial_size() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
@@ -30,9 +29,8 @@ class VectorTaskRangeImpl {
 
  private:
   std::vector<T> tasks_;
-  std::size_t cur_idx_;
-  std::size_t end_idx_;
-  std::size_t key_offset_;
+  std::size_t cur_key_;
+  std::size_t l_key_;
 };
 
 template <typename T>

@@ -15,45 +15,39 @@ inline ComputeProclet<TR, States...>::ComputeProclet(States... states)
 
 template <class TR, typename... States>
 template <typename RetT>
-inline std::pair<typename TR::Key, std::vector<RetT>>
-ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
-                                       TR task_range) {
-  std::vector<RetT> rets;
+inline std::pair<typename TR::Key, RetT> ComputeProclet<TR, States...>::compute(
+    RetT (*fn)(TR &, States...), TR task_range) {
+  RetT ret;
   {
     ScopedLock g(&mutex_);
     task_range_ = std::move(task_range);
   }
-  auto l_key = task_range_.initial_key_range().first;
+  auto l_key = task_range_.l_key();
+  std::apply([&](auto &... states) { ret = fn(task_range_, states...); },
+             states_);
+  BUG_ON(!task_range_.empty());
+  task_range_.cleanup_steal();
 
-  while (true) {
-    std::apply(
-        [&](auto &... states) {
-          rets.emplace_back(fn(task_range_, states...));
-        },
-        states_);
-
-    ScopedLock g(&mutex_);
-    if (likely(task_range_.empty())) {
-      break;
-    }
-  }
-
-  return std::make_pair(std::move(l_key), std::move(rets));
+  return std::make_pair(std::move(l_key), std::move(ret));
 }
 
 template <class TR, typename... States>
 template <typename RetT>
-inline std::pair<typename TR::Key, std::vector<RetT>>
+inline std::pair<typename TR::Key, RetT>
 ComputeProclet<TR, States...>::steal_and_compute(
     WeakProclet<ComputeProclet> victim, RetT (*fn)(TR &, States...)) {
-  auto task_range = victim.run(&ComputeProclet::split_tasks);
+  auto task_range = victim.run(&ComputeProclet::steal_tasks);
   return compute(fn, std::move(task_range));
 }
 
 template <class TR, typename... States>
-inline TR ComputeProclet<TR, States...>::split_tasks() {
-  ScopedLock g(&mutex_);
-  return task_range_.split();
+inline TR ComputeProclet<TR, States...>::steal_tasks() {
+  if (unlikely(!mutex_.try_lock())) {
+    return TR();
+  }
+  auto ret = task_range_.steal();
+  mutex_.unlock();
+  return ret;
 }
 
 template <class TR, typename... States>
@@ -63,3 +57,4 @@ inline std::size_t ComputeProclet<TR, States...>::remaining_size() {
 }
 
 }  // namespace nu
+

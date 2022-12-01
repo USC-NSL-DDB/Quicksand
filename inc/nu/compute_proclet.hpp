@@ -14,13 +14,12 @@ class ComputeProclet {
  public:
   ComputeProclet(States... states);
   template <typename RetT>
-  std::pair<typename TR::Key, std::vector<RetT>> compute(RetT (*fn)(TR &,
-                                                                    States...),
-                                                         TR task_range);
+  std::pair<typename TR::Key, RetT> compute(RetT (*fn)(TR &, States...),
+                                            TR task_range);
   template <typename RetT>
-  std::pair<typename TR::Key, std::vector<RetT>> steal_and_compute(
+  std::pair<typename TR::Key, RetT> steal_and_compute(
       WeakProclet<ComputeProclet> victim, RetT (*fn)(TR &, States...));
-  TR split_tasks();
+  TR steal_tasks();
   std::size_t remaining_size();
 
  private:

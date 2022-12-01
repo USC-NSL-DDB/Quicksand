@@ -7,11 +7,12 @@ template <GeneralShardBased... Shards>
 inline ZippedDSRangeImpl<Shards...>::ZippedDSRangeImpl(
     std::tuple<ContiguousDSRange<Shards>...> cont_ds_ranges)
     : cont_ds_ranges_(std::move(cont_ds_ranges)) {
-  auto initial_key_range = std::get<0>(cont_ds_ranges_).initial_key_range();
+  auto l_key = std::get<0>(cont_ds_ranges_).l_key();
+  auto size = std::get<0>(cont_ds_ranges_).size();
   std::apply(
       [&](auto &... cont_ds_ranges) {
-        BUG_ON(((initial_key_range != cont_ds_ranges.initial_key_range()) |
-                ...));
+        BUG_ON(((l_key != cont_ds_ranges.l_key()) | ...));
+        BUG_ON(((size != cont_ds_ranges.size()) | ...));
       },
       cont_ds_ranges_);
 }
@@ -27,36 +28,23 @@ ZippedDSRangeImpl<Shards...>::pop() {
 }
 
 template <GeneralShardBased... Shards>
-inline std::size_t ZippedDSRangeImpl<Shards...>::size() const {
-  return std::get<0>(cont_ds_ranges_).size();
-}
-
-template <GeneralShardBased... Shards>
-inline bool ZippedDSRangeImpl<Shards...>::empty() const {
-  return std::get<0>(cont_ds_ranges_).empty();
-}
-
-template <GeneralShardBased... Shards>
-inline ZippedDSRangeImpl<Shards...> ZippedDSRangeImpl<Shards...>::split() {
-  auto first_split = std::get<0>(cont_ds_ranges_).split();
-  if (unlikely(first_split.empty())) {
-    return ZippedDSRangeImpl();
-  }
-
-  auto mid_key = first_split.initial_key_range().first;
+inline ZippedDSRangeImpl<Shards...> ZippedDSRangeImpl<Shards...>::split(
+    uint64_t last_n_elems) {
   return ZippedDSRangeImpl(std::apply(
-      [&](auto &first, auto &... others) {
-        return std::make_tuple(
-            std::move(first_split),
-            others.impl().__split(mid_key, /* no_race = */ true).value()...);
+      [&](auto &... cols) {
+        return std::make_tuple(cols.split(last_n_elems)...);
       },
       cont_ds_ranges_));
 }
 
 template <GeneralShardBased... Shards>
-inline std::pair<std::size_t, std::size_t>
-ZippedDSRangeImpl<Shards...>::initial_key_range() const {
-  return std::get<0>(cont_ds_ranges_).initial_key_range();
+inline std::size_t ZippedDSRangeImpl<Shards...>::l_key() const {
+  return std::get<0>(cont_ds_ranges_).l_key();
+}
+
+template <GeneralShardBased... Shards>
+inline std::size_t ZippedDSRangeImpl<Shards...>::initial_size() const {
+  return std::get<0>(cont_ds_ranges_).impl().initial_size();
 }
 
 template <GeneralShardBased... Shards>

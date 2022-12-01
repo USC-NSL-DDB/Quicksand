@@ -62,7 +62,7 @@ void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
   while (q.size() != workers_.size()) {
     auto biggest_tr = std::move(q.top());
     q.pop();
-    auto new_tr = biggest_tr.split();
+    auto new_tr = biggest_tr.split(biggest_tr.size() / 2);
     q.emplace(std::move(biggest_tr));
     q.emplace(std::move(new_tr));
   }
@@ -100,9 +100,9 @@ std::vector<RetT> DistributedExecutor<RetT, TR, States...>::concat_results() {
   std::ranges::sort(all_pairs_,
                     [](auto &a, auto &b) { return a.first < b.first; });
   std::vector<RetT> all_rets;
-  for (auto &[_, rets] : all_pairs_) {
-    all_rets.insert(all_rets.end(), std::make_move_iterator(rets.begin()),
-                    std::make_move_iterator(rets.end()));
+  all_rets.reserve(all_pairs_.size());
+  for (auto &[_, ret] : all_pairs_) {
+    all_rets.emplace_back(std::move(ret));
   }
   return all_rets;
 }
@@ -113,9 +113,12 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
 
   for (auto &worker : workers_) {
     auto &future = worker.future;
-    if (!future || future.is_ready()) {
+    if (future && !future.is_ready()) {
+      has_pending = true;
+    } else {
       if (future) {
         all_pairs_.emplace_back(std::move(future.get()));
+        auto gc = std::move(future);
       }
       if (!victims_.empty()) {
         auto *victim = victims_.top();
@@ -125,8 +128,6 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
             victim->cp.get_weak(), fn_);
         has_pending = true;
       }
-    } else {
-      has_pending = true;
     }
   }
 

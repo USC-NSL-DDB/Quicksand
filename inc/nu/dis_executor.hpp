@@ -22,7 +22,7 @@ class DistributedExecutor {
  private:
   struct Worker {
     Proclet<ComputeProclet<TR, States...>> cp;
-    Future<std::pair<typename TR::Key, std::vector<RetT>>> future;
+    Future<std::pair<typename TR::Key, RetT>> future;
     std::size_t remaining_size;
   };
   struct VictimCmp {
@@ -38,7 +38,7 @@ class DistributedExecutor {
   std::deque<Worker> workers_;
   Future<std::vector<RetT>> future_;
   std::priority_queue<Worker *, std::vector<Worker *>, VictimCmp> victims_;
-  std::vector<std::pair<typename TR::Key, std::vector<RetT>>> all_pairs_;
+  std::vector<std::pair<typename TR::Key, RetT>> all_pairs_;
   template <typename R, TaskRangeBased T, typename... S0s, typename... S1s>
   friend DistributedExecutor<R, T, S0s...> make_distributed_executor(
       R (*fn)(T &, S0s...), T, S1s &&...);

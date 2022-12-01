@@ -19,10 +19,9 @@ class ZippedDSRangeImpl {
   ZippedDSRangeImpl(ZippedDSRangeImpl &&) = default;
   ZippedDSRangeImpl &operator=(ZippedDSRangeImpl &&) = default;
   Task pop();
-  std::size_t size() const;
-  bool empty() const;
-  ZippedDSRangeImpl split();
-  std::pair<Key, Key> initial_key_range() const;
+  ZippedDSRangeImpl split(uint64_t last_n_elems);
+  Key l_key() const;
+  std::size_t initial_size() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>

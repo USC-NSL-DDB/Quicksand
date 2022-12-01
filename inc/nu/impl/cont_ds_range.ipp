@@ -5,7 +5,7 @@ namespace nu {
 
 template <class Shard>
 inline ContiguousDSRangeImpl<Shard>::ContiguousDSRangeImpl()
-    : initial_key_range_(0, 0), cur_key_(0) {}
+    : l_key_(0), r_key_(0) {}
 
 template <class Shard>
 inline ContiguousDSRangeImpl<Shard>::ContiguousDSRangeImpl(
@@ -13,71 +13,34 @@ inline ContiguousDSRangeImpl<Shard>::ContiguousDSRangeImpl(
     std::vector<std::size_t> all_shard_keys, std::size_t size)
     : cur_(shards, true),
       all_shard_keys_(std::move(all_shard_keys)),
-      initial_key_range_(0, size),
-      cur_key_(0) {}
+      l_key_(0),
+      r_key_(size) {}
 
 template <class Shard>
 inline Shard::IterVal ContiguousDSRangeImpl<Shard>::pop() {
   auto ret = std::move(*cur_);
   ++cur_;
-  ++cur_key_;
   return ret;
 }
 
 template <class Shard>
-inline std::size_t ContiguousDSRangeImpl<Shard>::size() const {
-  auto end_key = rt::access_once(initial_key_range_.second);
-  auto cur_key = cur_key_;
-  if (end_key >= cur_key) {
-    return end_key - cur_key;
-  } else {
-    return 0;
-  }
-}
-
-template <class Shard>
-inline bool ContiguousDSRangeImpl<Shard>::empty() const {
-  return !size();
-}
-
-template <class Shard>
-inline ContiguousDSRangeImpl<Shard> ContiguousDSRangeImpl<Shard>::split() {
-retry:
-  auto mid_key = (cur_key_ + initial_key_range_.second) / 2;
-  auto optional = __split(mid_key);
-  if (unlikely(!optional)) {
-    goto retry;
-  }
-  return std::move(*optional);
-}
-
-template <class Shard>
-std::optional<ContiguousDSRangeImpl<Shard>>
-ContiguousDSRangeImpl<Shard>::__split(std::size_t mid_key, bool no_race) {
-  auto end_key = initial_key_range_.second;
-  initial_key_range_.second = mid_key;
-  mb();
-  if (unlikely(cur_key_ >= mid_key && !no_race)) {
-    initial_key_range_.second = end_key;
-    if (unlikely(cur_key_ + 1 >= end_key)) {
-      return ContiguousDSRangeImpl();
-    }
-    return std::nullopt;
-  }
-
+inline ContiguousDSRangeImpl<Shard> ContiguousDSRangeImpl<Shard>::split(
+    uint64_t last_n_elems) {
   ContiguousDSRangeImpl r_range;
-  auto mid_shard_idx = std::upper_bound(all_shard_keys_.begin(),
-                                        all_shard_keys_.end(), mid_key) -
-                       all_shard_keys_.begin() - 1;
-  auto mid_shard_iter = cur_.shards_->begin() + mid_shard_idx;
-  auto find_tuple = mid_shard_iter->run(&Shard::find, mid_key);
+  auto split_key = r_key_ - last_n_elems;
+  auto split_shard_idx = std::upper_bound(all_shard_keys_.begin(),
+                                          all_shard_keys_.end(), split_key) -
+                         all_shard_keys_.begin() - 1;
+  auto split_shard_iter = cur_.shards_->begin() + split_shard_idx;
+  auto find_tuple = split_shard_iter->run(&Shard::find, split_key);
   BUG_ON(!std::get<0>(find_tuple));
   r_range.cur_ =
-      ConstIterator(cur_.shards_, mid_shard_iter, std::get<1>(find_tuple),
+      ConstIterator(cur_.shards_, split_shard_iter, std::get<1>(find_tuple),
                     std::get<2>(find_tuple));
   r_range.all_shard_keys_ = all_shard_keys_;
-  r_range.initial_key_range_ = std::make_pair(mid_key, end_key);
-  r_range.cur_key_ = mid_key;
+  r_range.l_key_ = split_key;
+  r_range.r_key_ = r_key_;
+  r_key_ = split_key;
 
   return r_range;
 }
@@ -85,19 +48,23 @@ ContiguousDSRangeImpl<Shard>::__split(std::size_t mid_key, bool no_race) {
 template <class Shard>
 template <class Archive>
 inline void ContiguousDSRangeImpl<Shard>::save(Archive &ar) const {
-  ar(cur_, all_shard_keys_, initial_key_range_, cur_key_);
+  ar(cur_, all_shard_keys_, l_key_, r_key_);
 }
 
 template <class Shard>
 template <class Archive>
 inline void ContiguousDSRangeImpl<Shard>::load(Archive &ar) {
-  ar(cur_, all_shard_keys_, initial_key_range_, cur_key_);
+  ar(cur_, all_shard_keys_, l_key_, r_key_);
 }
 
 template <class Shard>
-inline std::pair<std::size_t, std::size_t>
-ContiguousDSRangeImpl<Shard>::initial_key_range() const {
-  return initial_key_range_;
+inline std::size_t ContiguousDSRangeImpl<Shard>::l_key() const {
+  return l_key_;
+}
+
+template <class Shard>
+inline std::size_t ContiguousDSRangeImpl<Shard>::initial_size() const {
+  return r_key_ - l_key_;
 }
 
 template <ShardedDataStructureBased T>
