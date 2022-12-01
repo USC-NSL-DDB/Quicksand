@@ -22,7 +22,7 @@ class DistributedExecutor {
  private:
   struct Worker {
     Proclet<ComputeProclet<TR, States...>> cp;
-    Future<std::pair<typename TR::Key, RetT>> future;
+    Future<std::optional<std::pair<typename TR::Key, RetT>>> future;
     std::size_t remaining_size;
   };
   struct VictimCmp {

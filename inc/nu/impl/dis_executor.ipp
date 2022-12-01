@@ -70,9 +70,11 @@ void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
   for (auto &worker : workers_) {
     auto tr = std::move(q.top());
     q.pop();
-    worker.future = worker.cp.__run_async(
-        &ComputeProclet<TR, States...>::template compute<RetT>, fn,
-        std::move(tr));
+    if (!tr.empty()) {
+      worker.future = worker.cp.__run_async(
+          &ComputeProclet<TR, States...>::template compute<RetT>, fn,
+          std::move(tr));
+    }
   }
 }
 
@@ -117,7 +119,10 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
       has_pending = true;
     } else {
       if (future) {
-        all_pairs_.emplace_back(std::move(future.get()));
+        auto &optional_ret = future.get();
+        if (optional_ret) {
+          all_pairs_.emplace_back(std::move(*optional_ret));
+        }
         auto gc = std::move(future);
       }
       if (!victims_.empty()) {

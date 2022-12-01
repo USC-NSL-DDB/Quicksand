@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <tuple>
 #include <vector>
 
@@ -14,10 +15,10 @@ class ComputeProclet {
  public:
   ComputeProclet(States... states);
   template <typename RetT>
-  std::pair<typename TR::Key, RetT> compute(RetT (*fn)(TR &, States...),
-                                            TR task_range);
+  std::optional<std::pair<typename TR::Key, RetT>> compute(
+      RetT (*fn)(TR &, States...), TR task_range);
   template <typename RetT>
-  std::pair<typename TR::Key, RetT> steal_and_compute(
+  std::optional<std::pair<typename TR::Key, RetT>> steal_and_compute(
       WeakProclet<ComputeProclet> victim, RetT (*fn)(TR &, States...));
   TR steal_tasks();
   std::size_t remaining_size();

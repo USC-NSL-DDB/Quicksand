@@ -15,8 +15,13 @@ inline ComputeProclet<TR, States...>::ComputeProclet(States... states)
 
 template <class TR, typename... States>
 template <typename RetT>
-inline std::pair<typename TR::Key, RetT> ComputeProclet<TR, States...>::compute(
-    RetT (*fn)(TR &, States...), TR task_range) {
+inline std::optional<std::pair<typename TR::Key, RetT>>
+ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
+                                       TR task_range) {
+  if (unlikely(task_range.empty())) {
+    return std::nullopt;
+  }
+
   RetT ret;
   {
     ScopedLock g(&mutex_);
@@ -33,7 +38,7 @@ inline std::pair<typename TR::Key, RetT> ComputeProclet<TR, States...>::compute(
 
 template <class TR, typename... States>
 template <typename RetT>
-inline std::pair<typename TR::Key, RetT>
+inline std::optional<std::pair<typename TR::Key, RetT>>
 ComputeProclet<TR, States...>::steal_and_compute(
     WeakProclet<ComputeProclet> victim, RetT (*fn)(TR &, States...)) {
   auto task_range = victim.run(&ComputeProclet::steal_tasks);
