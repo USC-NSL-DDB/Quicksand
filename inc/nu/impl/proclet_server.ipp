@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <utility>
 #include <optional>
+#include <alloca.h>
 
 #include <net.h>
 
@@ -306,7 +307,9 @@ MigrationGuard ProcletServer::run_closure_locally(
   auto *obj = get_runtime()->get_root_obj<Cls>(to_proclet_id(callee_header));
 
   if constexpr (!std::is_same<RetT, void>::value) {
-    auto ret = callee_migration_guard->enable_for(
+    auto *ret_buf = alloca(sizeof(RetT));
+    auto *ret = new (ret_buf) RetT();
+    *ret = callee_migration_guard->enable_for(
         [&] { return fn_ptr(*obj, std::move(states)...); });
     callee_header->thread_cnt.dec_unsafe();
     callee_header->cpu_load.end_monitor();
@@ -315,8 +318,8 @@ MigrationGuard ProcletServer::run_closure_locally(
         caller_header, *callee_migration_guard);
     if (likely(optional_caller_guard)) {
       ProcletSlabGuard slab_guard(&caller_header->slab);
-
-      *caller_ptr = move_if_safe(std::move(ret));
+      *caller_ptr = move_if_safe(std::move(*ret));
+      std::destroy_at(ret);
       callee_migration_guard->reset();
       return std::move(*optional_caller_guard);
     }
@@ -324,13 +327,14 @@ MigrationGuard ProcletServer::run_closure_locally(
     RuntimeSlabGuard slab_guard;
 
     auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
-    oa_sstream->oa << std::move(ret);
+    oa_sstream->oa << std::move(*ret);
     auto ss_view = oa_sstream->ss.view();
     auto ret_val_span = std::span<const std::byte>(
         reinterpret_cast<const std::byte *>(ss_view.data()),
         oa_sstream->ss.tellp());
     RPCReturnBuffer ret_val_buf(ret_val_span);
 
+    std::destroy_at(ret);
     get_runtime()->detach(*callee_migration_guard);
     callee_migration_guard->reset();
     return Migrator::migrate_thread_and_ret_val<RetT>(
