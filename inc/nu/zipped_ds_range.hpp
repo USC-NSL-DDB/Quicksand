@@ -18,6 +18,7 @@ class ZippedDSRangeImpl {
   ZippedDSRangeImpl &operator=(const ZippedDSRangeImpl &) = default;
   ZippedDSRangeImpl(ZippedDSRangeImpl &&) = default;
   ZippedDSRangeImpl &operator=(ZippedDSRangeImpl &&) = default;
+  ZippedDSRangeImpl deep_copy();
   Task pop();
   ZippedDSRangeImpl split(uint64_t last_n_elems);
   Key l_key() const;

@@ -29,6 +29,21 @@ TaskRange<Impl> &TaskRange<Impl>::operator=(TaskRange &&o) noexcept {
 }
 
 template <class Impl>
+TaskRange<Impl> TaskRange<Impl>::deep_copy() {
+  TaskRange tr;
+
+  if constexpr (DeepCopyAble<Impl>) {
+    tr.impl_ = impl_.deep_copy();
+  } else {
+    tr.impl_ = impl_;
+  }
+  tr.size_ = size_;
+  BUG_ON(pending_steal_);
+
+  return tr;
+}
+
+template <class Impl>
 TaskRange<Impl>::~TaskRange() {
   BUG_ON(pending_steal_);
 }

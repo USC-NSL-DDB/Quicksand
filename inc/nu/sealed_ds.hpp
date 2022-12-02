@@ -41,6 +41,7 @@ class GeneralSealedDSConstIterator {
   GeneralSealedDSConstIterator(GeneralSealedDSConstIterator &&) noexcept;
   GeneralSealedDSConstIterator &operator=(
       GeneralSealedDSConstIterator &&) noexcept;
+  GeneralSealedDSConstIterator deep_copy();
   bool operator==(const GeneralSealedDSConstIterator &) const;
   GeneralSealedDSConstIterator &
   operator++() requires PreIncrementable<ContainerIter>;

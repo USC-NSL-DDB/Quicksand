@@ -286,6 +286,22 @@ GeneralSealedDSConstIterator<Shard, Fwd>
 }
 
 template <typename Shard, bool Fwd>
+GeneralSealedDSConstIterator<Shard, Fwd>
+GeneralSealedDSConstIterator<Shard, Fwd>::deep_copy() {
+  GeneralSealedDSConstIterator it;
+
+  if (shards_) {
+    it.shards_.reset(new ShardsVec());
+    *it.shards_ = *shards_;
+    it.shards_iter_ =
+        it.shards_vec_begin() + (shards_iter_ - shards_vec_begin());
+  }
+  it.block_ = block_;
+  it.block_iter_ = it.block_.cbegin() + (block_iter_ - block_.cbegin());
+  return it;
+}
+
+template <typename Shard, bool Fwd>
 inline GeneralSealedDSConstIterator<Shard, Fwd>::ShardsVecIter
 GeneralSealedDSConstIterator<Shard, Fwd>::shards_vec_begin() const {
   if constexpr (Fwd) {
@@ -567,31 +583,45 @@ GeneralSealedDSConstIterator<Shard, Fwd>::operator->() const {
 template <typename Shard, bool Fwd>
 template <class Archive>
 inline void GeneralSealedDSConstIterator<Shard, Fwd>::save(Archive &ar) const {
-  uint64_t shards_offset = shards_iter_ - shards_vec_begin();
+  int64_t shards_offset = shards_ ? shards_iter_ - shards_vec_begin() : -1;
   uint64_t block_offset = block_iter_ - block_.cbegin();
-  ar(*shards_, shards_offset, block_.prefetched, block_offset,
-     decltype(prefetch_executor_)(), prefetch_seq_);
+
+  if (shards_) {
+    ar(shards_offset, *shards_, block_.prefetched, block_offset,
+       decltype(prefetch_executor_)(), prefetch_seq_);
+  } else {
+    ar(shards_offset);
+  }
 }
 
 template <typename Shard, bool Fwd>
 template <class Archive>
 inline void GeneralSealedDSConstIterator<Shard, Fwd>::save_move(Archive &ar) {
-  uint64_t shards_offset = shards_iter_ - shards_vec_begin();
+  int64_t shards_offset = shards_ ? shards_iter_ - shards_vec_begin() : -1;
   uint64_t block_offset = block_iter_ - block_.cbegin();
-  ar(std::move(*shards_), shards_offset, block_.prefetched, block_offset,
-     std::move(prefetch_executor_), prefetch_seq_);
+
+  if (shards_) {
+    ar(shards_offset, std::move(*shards_), block_.prefetched, block_offset,
+       std::move(prefetch_executor_), prefetch_seq_);
+  } else {
+    ar(shards_offset);
+  }
 }
 
 template <typename Shard, bool Fwd>
 template <class Archive>
 inline void GeneralSealedDSConstIterator<Shard, Fwd>::load(Archive &ar) {
-  ShardsVec shards;
-  uint64_t shards_offset, block_offset;
-  ar(shards, shards_offset, block_.prefetched, block_offset, prefetch_executor_,
-     prefetch_seq_);
-  shards_.reset(new ShardsVec(std::move(shards)));
-  shards_iter_ = shards_vec_begin() + shards_offset;
-  block_iter_ = block_.cbegin() + block_offset;
+  int64_t shards_offset;
+  uint64_t block_offset;
+
+  ar(shards_offset);
+  if (shards_offset != -1) {
+    shards_.reset(new ShardsVec());
+    ar(*shards_, block_.prefetched, block_offset, prefetch_executor_,
+       prefetch_seq_);
+    shards_iter_ = shards_vec_begin() + shards_offset;
+    block_iter_ = block_.cbegin() + block_offset;
+  }
 }
 
 template <typename T>

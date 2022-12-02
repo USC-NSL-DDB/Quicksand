@@ -33,6 +33,7 @@ class TaskRange {
   TaskRange(TaskRange &&o) noexcept;
   TaskRange &operator=(TaskRange &&o) noexcept;
   ~TaskRange();
+  TaskRange deep_copy();
   template <typename F>
   void run(F &&f);
   Task pop();

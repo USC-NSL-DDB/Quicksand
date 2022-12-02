@@ -18,6 +18,15 @@ inline ZippedDSRangeImpl<Shards...>::ZippedDSRangeImpl(
 }
 
 template <GeneralShardBased... Shards>
+inline ZippedDSRangeImpl<Shards...> ZippedDSRangeImpl<Shards...>::deep_copy() {
+  return ZippedDSRangeImpl(std::apply(
+      [](auto &... cont_ds_ranges) {
+        return std::make_tuple(cont_ds_ranges.deep_copy()...);
+      },
+      cont_ds_ranges_));
+}
+
+template <GeneralShardBased... Shards>
 inline std::tuple<typename Shards::IterVal...>
 ZippedDSRangeImpl<Shards...>::pop() {
   return std::apply(

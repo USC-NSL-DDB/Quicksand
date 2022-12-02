@@ -4,6 +4,18 @@
 namespace nu {
 
 template <class Shard>
+inline ContiguousDSRangeImpl<Shard> ContiguousDSRangeImpl<Shard>::deep_copy() {
+  ContiguousDSRangeImpl impl;
+
+  impl.cur_ = cur_.deep_copy();
+  impl.all_shard_keys_ = all_shard_keys_;
+  impl.l_key_ = l_key_;
+  impl.r_key_ = r_key_;
+
+  return impl;
+}
+
+template <class Shard>
 inline ContiguousDSRangeImpl<Shard>::ContiguousDSRangeImpl()
     : l_key_(0), r_key_(0) {}
 

@@ -29,6 +29,7 @@ class ContiguousDSRangeImpl {
   ContiguousDSRangeImpl &operator=(const ContiguousDSRangeImpl &) = default;
   ContiguousDSRangeImpl(ContiguousDSRangeImpl &&) = default;
   ContiguousDSRangeImpl &operator=(ContiguousDSRangeImpl &&) = default;
+  ContiguousDSRangeImpl deep_copy();
   Task pop();
   ContiguousDSRangeImpl split(uint64_t last_n_elems);
   Key l_key() const;
