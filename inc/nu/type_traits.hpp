@@ -14,9 +14,6 @@ template <class T, template <class...> class Template>
 constexpr bool is_specialization_of_v =
     is_specialization_of<T, Template>::value;
 
-template <typename T>
-auto &&move_if_safe(T &&t);
-
 template <template <typename...> class C, typename... Ts>
 std::true_type is_base_of_template_impl(const C<Ts...> *);
 
@@ -75,6 +72,24 @@ template <class T>
 concept PreDecrementable = requires(T t) {
   {--t};
 };
+
+template <class T>
+concept DeepCopyAble = requires(T t) {
+  { t.deep_copy() }
+  ->std::same_as<T>;
+};
+
+template <class T>
+consteval bool is_move_safe();
+
+template <typename T>
+auto &&move_if_safe(T &&t) requires(is_move_safe<T &&>());
+
+template <typename T>
+auto move_if_safe(T &&t) requires DeepCopyAble<T>;
+
+template <typename T>
+auto &move_if_safe(T &&t);
 
 }  // namespace nu
 
