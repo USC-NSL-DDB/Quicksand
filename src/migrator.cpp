@@ -596,6 +596,11 @@ uint32_t Migrator::__migrate(Resource resource,
       if (unlikely(!loader_approval ||
                    !get_runtime()->pressure_handler()->has_pressure())) {
         skip_proclet(conn, proclet_header);
+        for (auto tmp_it = it--; tmp_it != tasks.end(); tmp_it++) {
+          auto *proclet_header = tmp_it->header;
+          receive_approval(conn);
+          skip_proclet(conn, proclet_header);
+        }
         break;
       }
 
@@ -611,16 +616,9 @@ uint32_t Migrator::__migrate(Resource resource,
     }
 
     send_done(conn);
-
-    for (auto tmp_it = it; tmp_it != tasks.end(); tmp_it++) {
-      auto *proclet_header = tmp_it->header;
-      receive_approval(conn);
-      skip_proclet(conn, proclet_header);
-    }
-
     aux_handlers_disable_polling();
 
-  } while (!loader_approval);
+  } while (unlikely(it != tasks.end() && !loader_approval));
 
   return it - tasks.begin();
 }
