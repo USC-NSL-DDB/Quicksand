@@ -76,6 +76,7 @@ void ias_ps_poll(void)
 		has_pressure = false;
 
 		if (pressure->mock) {
+			pressure->to_release_mem_mbs = INT_MAX;
 			has_pressure = true;
 			goto update_fsm;
 		}

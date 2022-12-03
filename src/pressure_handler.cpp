@@ -286,14 +286,11 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
 
 void PressureHandler::mock_set_pressure() {
   mock_ = true;
-  resource_pressure_info->to_release_mem_mbs =
-      std::numeric_limits<uint32_t>::max();
   store_release(&resource_pressure_info->mock, true);
 }
 
 void PressureHandler::mock_clear_pressure() {
   mock_ = false;
-  resource_pressure_info->to_release_mem_mbs = 0;
   store_release(&resource_pressure_info->mock, false);
 }
 

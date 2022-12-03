@@ -82,7 +82,7 @@ static inline int runtime_global_idle_cores(void)
 	return ACCESS_ONCE(runtime_congestion->idle_num_cores);
 }
 
-static inline bool runtime_to_release_mem_mbs(void)
+static inline int runtime_to_release_mem_mbs(void)
 {
 	return ACCESS_ONCE(resource_pressure_info->to_release_mem_mbs);
 }
