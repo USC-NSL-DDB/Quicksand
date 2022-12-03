@@ -54,19 +54,20 @@ Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid) {
 }
 
 Runtime::~Runtime() {
-  stack_manager_.reset();
-  resource_reporter_.reset();
-  pressure_handler_.reset();
-  proclet_manager_.reset();
-  controller_client_.reset();
-  migrator_.reset();
-  rpc_server_.reset();
-  proclet_server_.reset();
-  archive_pool_.reset();
-  caladan_.reset();
-  rpc_client_mgr_.reset();
-  controller_server_.reset();
-  runtime_slab_.reset(); 
+  delete stack_manager_;
+  delete resource_reporter_;
+  delete pressure_handler_;
+  delete proclet_manager_;
+  delete controller_client_;
+  delete migrator_;
+  delete rpc_server_;
+  delete proclet_server_;
+  delete archive_pool_;
+  delete caladan_;
+  delete rpc_client_mgr_;
+  delete controller_server_;
+  delete runtime_slab_;
+  store_release(&runtime_slab_, nullptr);
 }
 
 void Runtime::init_runtime_heap() {
@@ -81,36 +82,32 @@ void Runtime::init_runtime_heap() {
     auto rc = madvise(addr, kRuntimeHeapSize, MADV_DONTDUMP);
     BUG_ON(rc == -1);
   }
-  runtime_slab_.reset(new decltype(runtime_slab_)::element_type(
-      kRuntimeSlabId, addr, kRuntimeHeapSize,
-      /* aggressive_caching = */ true));
+  runtime_slab_ = new SlabAllocator(kRuntimeSlabId, addr, kRuntimeHeapSize,
+                                    /* aggressive_caching = */ true);
 }
 
 void Runtime::init_as_controller() {
-  controller_server_.reset(new decltype(controller_server_)::element_type());
-  rpc_server_.reset(new decltype(rpc_server_)::element_type());
+  controller_server_ = new ControllerServer();
+  rpc_server_ = new RPCServer();
 }
 
 void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
-  proclet_server_.reset(new decltype(proclet_server_)::element_type());
-  rpc_server_.reset(new decltype(rpc_server_)::element_type());
-  migrator_.reset(new decltype(migrator_)::element_type());
-  controller_client_.reset(new decltype(controller_client_)::element_type(
-      remote_ctrl_ip, kServer, lpid));
-  proclet_manager_.reset(new decltype(proclet_manager_)::element_type());
-  pressure_handler_.reset(new decltype(pressure_handler_)::element_type());
-  resource_reporter_.reset(new decltype(resource_reporter_)::element_type());
-  stack_manager_.reset(new decltype(stack_manager_)::element_type(
-      controller_client_->get_stack_cluster()));
-  archive_pool_.reset(new decltype(archive_pool_)::element_type());
+  proclet_server_ = new ProcletServer();
+  rpc_server_ = new RPCServer();
+  migrator_ = new Migrator();
+  controller_client_ = new ControllerClient(remote_ctrl_ip, kServer, lpid);
+  proclet_manager_ = new ProcletManager();
+  pressure_handler_ = new PressureHandler();
+  resource_reporter_ = new ResourceReporter();
+  stack_manager_ = new StackManager(controller_client_->get_stack_cluster());
+  archive_pool_ = new ArchivePool<>();
 }
 
 void Runtime::common_init() {
   prealloc_threads_and_stacks(4 * kNumCores);
   init_runtime_heap();
-  caladan_.reset(new decltype(caladan_)::element_type());
-  rpc_client_mgr_.reset(
-      new decltype(rpc_client_mgr_)::element_type(RPCServer::kPort));
+  caladan_ = new Caladan();
+  rpc_client_mgr_ = new RPCClientMgr(RPCServer::kPort);
 }
 
 void Runtime::reserve_conns(uint32_t ip) {
@@ -170,7 +167,7 @@ int runtime_main_init(int argc, char **argv,
         break;
       }
     }
-    new (get_runtime()) Runtime(ctrl_ip, mode, lpid);
+    new (get_runtime_nocheck()) Runtime(ctrl_ip, mode, lpid);
     {
       auto main_proclet = make_proclet_pinned_at_with_capacity<ErasedType>(
           kMainProcletHeapSize, get_runtime()->caladan()->get_ip());

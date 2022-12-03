@@ -16,40 +16,40 @@ extern "C" {
 
 namespace nu {
 
-inline SlabAllocator *Runtime::runtime_slab() { return runtime_slab_.get(); }
+inline SlabAllocator *Runtime::runtime_slab() { return runtime_slab_; }
 
-inline StackManager *Runtime::stack_manager() { return stack_manager_.get(); }
+inline StackManager *Runtime::stack_manager() { return stack_manager_; }
 
-inline ArchivePool<> *Runtime::archive_pool() { return archive_pool_.get(); }
+inline ArchivePool<> *Runtime::archive_pool() { return archive_pool_; }
 
-inline RPCClientMgr *Runtime::rpc_client_mgr() { return rpc_client_mgr_.get(); }
+inline RPCClientMgr *Runtime::rpc_client_mgr() { return rpc_client_mgr_; }
 
 inline ProcletManager *Runtime::proclet_manager() {
-  return proclet_manager_.get();
+  return proclet_manager_;
 }
 
 inline PressureHandler *Runtime::pressure_handler() {
-  return pressure_handler_.get();
+  return pressure_handler_;
 }
 
 inline ControllerClient *Runtime::controller_client() {
-  return controller_client_.get();
+  return controller_client_;
 }
 
 inline ProcletServer *Runtime::proclet_server() {
-  return proclet_server_.get();
+  return proclet_server_;
 }
 
 inline ResourceReporter *Runtime::resource_reporter() {
-  return resource_reporter_.get();
+  return resource_reporter_;
 }
 
-inline Caladan *Runtime::caladan() { return caladan_.get(); }
+inline Caladan *Runtime::caladan() { return caladan_; }
 
-inline Migrator *Runtime::migrator() { return migrator_.get(); }
+inline Migrator *Runtime::migrator() { return migrator_; }
 
 inline ControllerServer *Runtime::controller_server() {
-  return controller_server_.get();
+  return controller_server_;
 }
 
 inline SlabAllocator *Runtime::switch_slab(SlabAllocator *slab) {
@@ -293,11 +293,16 @@ inline void runtime_check(Runtime *runtime) {
 #endif
 }
 
-inline Runtime *get_runtime() {
-  static Runtime singleton_runtime;
+inline Runtime *get_runtime_nocheck() {
+  static std::byte buf[sizeof(Runtime)];
 
-  runtime_check(&singleton_runtime);
-  return &singleton_runtime;
+  return reinterpret_cast<Runtime *>(buf);
+}
+
+inline Runtime *get_runtime() {
+  auto *runtime = get_runtime_nocheck();
+  runtime_check(runtime);
+  return runtime;
 }
 
 }  // namespace nu
