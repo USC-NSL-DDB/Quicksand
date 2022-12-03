@@ -79,7 +79,7 @@ class Test {
   }
 
   bool mostly_equal(double real, double expected) {
-    return std::abs((real - expected) / real) < 0.1;
+    return std::abs((real - expected) / real) < 0.15;
   }
 
   bool run() {

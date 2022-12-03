@@ -7,7 +7,7 @@ namespace nu {
 inline CPULoad::CPULoad() {
   memset(cycles_, 0, sizeof(cycles_));
   memset(cnts_, 0, sizeof(cnts_));
-  last_decay_tsc_ = 0;
+  last_decay_tsc_ = rdtsc();
   cpu_load_ = 0;
 }
 

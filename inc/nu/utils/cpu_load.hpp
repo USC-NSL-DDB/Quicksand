@@ -7,7 +7,7 @@ namespace nu {
 class CPULoad {
  public:
   constexpr static uint32_t kSampleInterval = 32;  // Be power of 2 for speed.
-  constexpr static uint32_t kDecayIntervalUs = 20 * kOneMilliSecond;
+  constexpr static uint32_t kDecayIntervalUs = 100 * kOneMilliSecond;
   constexpr static float kEMWAWeight = 0.25;
 
   CPULoad();
