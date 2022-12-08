@@ -103,7 +103,6 @@ struct thread_nu_state {
 	uint32_t                monitor_cnt;
 	void                    *owner_proclet;
 	void                    *proclet_slab;
-	void                    *nu_thread;
 	struct rcu_context      rcu_ctxs[MAX_NUM_RCUS_HELD];
 	struct thread_tf	tf;
 };
