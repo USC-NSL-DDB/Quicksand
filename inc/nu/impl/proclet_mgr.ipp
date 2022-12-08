@@ -53,7 +53,7 @@ inline bool ProcletManager::remove_for_migration(void *proclet_base) {
 }
 
 inline bool ProcletManager::remove_for_destruction(void *proclet_base) {
-  return __remove(proclet_base, kPresent);
+  return __remove(proclet_base, kDestructing);
 }
 
 inline bool ProcletManager::__remove(void *proclet_base,
