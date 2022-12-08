@@ -464,6 +464,7 @@ bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
           proclet_header)))
     return false;
   proclet_header->rcu_lock.writer_sync(/* poll = */ true);
+
   return true;
 }
 
@@ -555,6 +556,11 @@ void skip_proclet(rt::TcpConn *conn, ProcletHeader *proclet_header) {
                          /* poll = */ true) < 0);
 }
 
+void issue_approval(rt::TcpConn *c, bool approval) {
+  BUG_ON(c->WriteFull(&approval, sizeof(approval), /* nt = */ false,
+                      /* poll = */ true) < 0);
+}
+
 bool receive_approval(rt::TcpConn *c) {
   bool approval;
   BUG_ON(c->ReadFull(&approval, sizeof(approval),
@@ -566,6 +572,12 @@ void send_done(rt::TcpConn *c) {
   bool dummy = false;
   BUG_ON(c->WriteFull(&dummy, sizeof(dummy), /* nt = */ false,
                       /* poll = */ true) < 0);
+}
+
+void receive_done(rt::TcpConn *c) {
+  bool dummy;
+  BUG_ON(c->ReadFull(&dummy, sizeof(dummy),
+                     /* nt = */ false, /* poll = */ true) <= 0);
 }
 
 uint32_t Migrator::__migrate(Resource resource,
@@ -617,6 +629,7 @@ uint32_t Migrator::__migrate(Resource resource,
 
     send_done(conn);
     aux_handlers_disable_polling();
+    receive_done(conn);
 
   } while (unlikely(it != tasks.end() && !loader_approval));
 
@@ -829,17 +842,6 @@ std::vector<ProcletMigrationTask> Migrator::load_proclet_migration_tasks(
   return tasks;
 }
 
-void issue_approval(rt::TcpConn *c, bool approval) {
-  BUG_ON(c->WriteFull(&approval, sizeof(approval), /* nt = */ false,
-                      /* poll = */ true) < 0);
-}
-
-void receive_done(rt::TcpConn *c) {
-  bool dummy;
-  BUG_ON(c->ReadFull(&dummy, sizeof(dummy),
-                     /* nt = */ false, /* poll = */ true) <= 0);
-}
-
 void Migrator::load(rt::TcpConn *c) {
   auto tasks = load_proclet_migration_tasks(c);
   rt::Thread mmap_th([tasks] {
@@ -869,11 +871,6 @@ void Migrator::load(rt::TcpConn *c) {
     proclet_header->cond_var.signal_all();
   }
 
-  receive_done(c);
-  for (auto *proclet_header : loaded_proclets) {
-    proclet_header->migratable = true;
-  }
-
   if (unlikely(!skipped_proclets.empty())) {
     preempt_enable();
     mmap_th.Join();
@@ -885,6 +882,12 @@ void Migrator::load(rt::TcpConn *c) {
     }
   } else {
     mmap_th.Detach();
+  }
+
+  send_done(c);
+  receive_done(c);
+  for (auto *proclet_header : loaded_proclets) {
+    proclet_header->migratable = true;
   }
 }
 
