@@ -283,6 +283,7 @@ template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   MigrationGuard caller_migration_guard;
+
   auto *caller_header = caller_migration_guard.header();
   if (caller_header) {
     auto callee_header = to_proclet_header(id_);
@@ -295,36 +296,39 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
       constexpr auto kHasRetVal = !std::is_same_v<RetT, void>;
       std::conditional_t<kHasRetVal, RetT, ErasedType> ret;
 
-      ProcletSlabGuard slab_guard(&callee_header->slab);
-      using StatesTuple = std::tuple<std::decay_t<S1s>...>;
-      // Do copy for the most cases and only do move when we are sure it's
-      // safe. For copy, we assume the type implements "deep copy".
-      auto copied_states = StatesTuple(move_if_safe(std::forward<S1s>(states))...);
-      caller_migration_guard.reset();
+      {
+        ProcletSlabGuard slab_guard(&callee_header->slab);
+        using StatesTuple = std::tuple<std::decay_t<S1s>...>;
+        // Do copy for the most cases and only do move when we are sure it's
+        // safe. For copy, we assume the type implements "deep copy".
+        auto copied_states =
+            StatesTuple(move_if_safe(std::forward<S1s>(states))...);
+        caller_migration_guard.reset();
+
+        std::apply(
+            [&](auto &&... states) {
+              if constexpr (kHasRetVal) {
+                caller_migration_guard =
+                    ProcletServer::run_closure_locally<T, RetT, decltype(fn),
+                                                       S1s...>(
+                        &(*optional_callee_migration_guard), slab_guard, &ret,
+                        caller_header, callee_header, fn,
+                        std::forward<S1s>(states)...);
+              } else {
+                caller_migration_guard =
+                    ProcletServer::run_closure_locally<T, RetT, decltype(fn),
+                                                       S1s...>(
+                        &(*optional_callee_migration_guard), slab_guard,
+                        nullptr, caller_header, callee_header, fn,
+                        std::forward<S1s>(states)...);
+              }
+            },
+            copied_states);
+      }
 
       if constexpr (kHasRetVal) {
-        std::apply(
-            [&](auto &&... states) {
-              caller_migration_guard =
-                  ProcletServer::run_closure_locally<T, RetT, decltype(fn),
-                                                     S1s...>(
-                      &(*optional_callee_migration_guard),
-                      slab_guard, &ret, caller_header, callee_header,
-                      fn, std::forward<S1s>(states)...);
-            },
-            copied_states);
         return ret;
       } else {
-        std::apply(
-            [&](auto &&... states) {
-              caller_migration_guard =
-                  ProcletServer::run_closure_locally<T, RetT, decltype(fn),
-                                                     S1s...>(
-                      &(*optional_callee_migration_guard),
-                      slab_guard, nullptr, caller_header,
-                      callee_header, fn, std::forward<S1s>(states)...);
-            },
-            copied_states);
         return;
       }
     }

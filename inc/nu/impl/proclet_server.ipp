@@ -23,17 +23,20 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
   auto &callee_slab = callee_header->slab;
   auto obj_space = callee_slab.yield(sizeof(Cls));
 
-  std::tuple<std::decay_t<As>...> args{std::decay_t<As>()...};
-
   {
     ProcletSlabGuard slab_guard(&callee_slab);
 
-    std::apply([&](auto &&... args) { ((ia_sstream->ia >> args), ...); }, args);
+    using ArgsTuple = std::tuple<std::decay_t<As>...>;
+    auto *args = reinterpret_cast<ArgsTuple *>(alloca(sizeof(ArgsTuple)));
+    new (args) ArgsTuple(std::decay_t<As>()...);
+    std::apply([&](auto &&... args) { ((ia_sstream->ia >> args), ...); },
+               *args);
 
     callee_guard->enable_for([&] {
       std::apply(
           [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
-          args);
+          *args);
+      std::destroy_at(args);
     });
   }
 
@@ -90,7 +93,9 @@ void ProcletServer::construct_proclet_locally(MigrationGuard &&caller_guard,
     // Do copy for the most cases and only do move when we are sure it's safe.
     // For copy, we assume the type implements "deep copy".
     using ArgsTuple = std::tuple<std::decay_t<As>...>;
-    ArgsTuple copied_args(move_if_safe(std::forward<As>(args))...);
+    auto *copied_args =
+        reinterpret_cast<ArgsTuple *>(alloca(sizeof(ArgsTuple)));
+    new (copied_args) ArgsTuple(move_if_safe(std::forward<As>(args))...);
 
     barrier();
     {
@@ -102,7 +107,8 @@ void ProcletServer::construct_proclet_locally(MigrationGuard &&caller_guard,
     callee_guard.enable_for([&] {
       std::apply(
           [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
-          copied_args);
+          *copied_args);
+      std::destroy_at(copied_args);
     });
   }
 
@@ -236,35 +242,35 @@ template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
 void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
                                   ArchivePool<>::IASStream *ia_sstream,
                                   RPCReturner returner) {
-  constexpr auto kNonVoidRetT = !std::is_same<RetT, void>::value;
-  std::conditional_t<kNonVoidRetT, RetT, ErasedType> ret;
-
   auto *callee_header = callee_guard->header();
+  ProcletSlabGuard callee_slab_guard(&callee_header->slab);
+
   callee_header->cpu_load.start_monitor();
   callee_header->thread_cnt.inc_unsafe();
 
-  {
-    ProcletSlabGuard slab_guard(&callee_header->slab);
+  constexpr auto kNonVoidRetT = !std::is_same<RetT, void>::value;
+  std::conditional_t<kNonVoidRetT, RetT, ErasedType> ret;
 
-    FnPtr fn;
-    ia_sstream->ia >> fn;
+  FnPtr fn;
+  ia_sstream->ia >> fn;
 
-    std::tuple<std::decay_t<S1s>...> states{std::decay_t<S1s>()...};
-    std::apply([&](auto &&... states) { ((ia_sstream->ia >> states), ...); },
-               states);
+  std::tuple<std::decay_t<S1s>...> states{std::decay_t<S1s>()...};
+  std::apply([&](auto &&... states) { ((ia_sstream->ia >> states), ...); },
+             states);
 
-    callee_guard->enable_for([&] {
-      std::apply(
-          [&](auto &&... states) {
-            if constexpr (kNonVoidRetT) {
-              ret = fn(*obj, std::move(states)...);
-            } else {
-              fn(*obj, std::move(states)...);
-            }
-          },
-          states);
-    });
-  }
+  callee_guard->enable_for([&] {
+    std::apply(
+        [&](auto &&... states) {
+          if constexpr (kNonVoidRetT) {
+            ret = fn(*obj, std::move(states)...);
+          } else {
+            fn(*obj, std::move(states)...);
+          }
+        },
+        states);
+  });
+
+  RuntimeSlabGuard runtime_slab_guard;
 
   auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
   if constexpr (kNonVoidRetT) {
@@ -307,10 +313,9 @@ MigrationGuard ProcletServer::run_closure_locally(
   auto *obj = get_runtime()->get_root_obj<Cls>(to_proclet_id(callee_header));
 
   if constexpr (!std::is_same<RetT, void>::value) {
-    auto *ret_buf = alloca(sizeof(RetT));
-    auto *ret = new (ret_buf) RetT();
-    *ret = callee_migration_guard->enable_for(
-        [&] { return fn_ptr(*obj, std::move(states)...); });
+    auto *ret = reinterpret_cast<RetT *>(alloca(sizeof(RetT)));
+    callee_migration_guard->enable_for(
+        [&] { new (ret) RetT(fn_ptr(*obj, std::move(states)...)); });
     callee_header->thread_cnt.dec_unsafe();
     callee_header->cpu_load.end_monitor();
 
