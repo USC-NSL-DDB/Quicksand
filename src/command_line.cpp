@@ -57,7 +57,7 @@ NuOptionsDesc::NuOptionsDesc(bool help) : OptionsDesc("Nu arguments", help) {
   desc.add_options()
     ("main,m", "execute the main function")
     ("controller,t", boost::program_options::value(&ctrl_ip_str)->default_value("18.18.1.1"), "controller ip")
-    ("lpid,l", boost::program_options::value(&lpid)->required(), "logical process id")
+    ("lpid,l", boost::program_options::value(&lpid)->required(), "logical process id (receive a free id if passing 0)")
     ("nomemps", "don't react to memory pressure")
     ("nocpups", "don't react to CPU pressure");
 }
