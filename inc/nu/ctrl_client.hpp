@@ -50,6 +50,7 @@ class ControllerClient {
   VAddrRange get_stack_cluster() const;
   std::vector<std::pair<NodeIP, Resource>> report_free_resource(
       Resource resource);
+  void destroy_lp();
 
  private:
   lpid_t lpid_;

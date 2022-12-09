@@ -29,11 +29,24 @@ RPCClient *RPCClientMgr::get_client(NodeInfo info) {
   return client.get();
 }
 
+void RPCClientMgr::remove_client(NodeInfo info) {
+  auto &client = rpc_clients_[info.id];
+  BUG_ON(!client);
+  client.reset();
+}
+
 RPCClient *RPCClientMgr::get_by_ip(NodeIP ip) {
   NodeInfo info;
   info.ip = ip;
   info.id = get_node_id_by_node_ip(ip);
   return get_client(info);
+}
+
+void RPCClientMgr::remove_by_ip(NodeIP ip) {
+  NodeInfo info;
+  info.ip = ip;
+  info.id = get_node_id_by_node_ip(ip);
+  remove_client(info);
 }
 
 RPCClientMgr::NodeInfo RPCClientMgr::get_info(ProcletID proclet_id) {

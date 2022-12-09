@@ -3,11 +3,12 @@ extern "C" {
 #include <runtime/net.h>
 }
 
-#include "nu/runtime.hpp"
 #include "nu/ctrl_client.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
 #include "nu/proclet_server.hpp"
+#include "nu/runtime.hpp"
+#include "nu/utils/caladan.hpp"
 
 namespace nu {
 
@@ -15,6 +16,7 @@ ControllerClient::ControllerClient(NodeIP ctrl_server_ip, Runtime::Mode mode,
                                    lpid_t lpid)
     : lpid_(lpid),
       rpc_client_(get_runtime()->rpc_client_mgr()->get_by_ip(ctrl_server_ip)) {
+
   netaddr laddr{.ip = 0, .port = 0};
   netaddr raddr{.ip = ctrl_server_ip, .port = ControllerServer::kPort};
   tcp_conn_.reset(rt::TcpConn::Dial(laddr, raddr));
@@ -141,6 +143,15 @@ void ControllerClient::release_migration_dest(NodeIP ip) {
   req.ip = ip;
   BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
                               /* poll = */ true) != sizeof(req));
+}
+
+void ControllerClient::destroy_lp() {
+  RPCReqDestroyLP req;
+  req.lpid = lpid_;
+  req.ip = get_runtime()->caladan()->get_ip();
+  RPCReturnBuffer return_buf;
+  auto rc = rpc_client_->Call(to_span(req), &return_buf);
+  BUG_ON(rc != kOk);
 }
 
 MigrationDest::MigrationDest(ControllerClient *client, NodeIP ip)

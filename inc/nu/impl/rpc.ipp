@@ -1,17 +1,13 @@
-#include "nu/runtime.hpp"
-
 namespace nu {
 
 namespace rpc_internal {
 
-class RPCServer {
+class RPCServerWorker {
  public:
-  RPCServer(std::unique_ptr<rt::TcpConn> c, nu::RPCHandler &handler)
-      : c_(std::move(c)), handler_(handler), close_(false) {}
-  ~RPCServer() {}
+  RPCServerWorker(std::unique_ptr<rt::TcpConn> c, nu::RPCHandler &handler,
+                  Counter &counter);
+  ~RPCServerWorker();
 
-  // Runs the RPCServer, returning when the connection is closed.
-  void Run();
   // Sends the return results of an RPC.
   void Return(RPCReturnCode rc, RPCReturnBuffer &&buf,
               std::size_t completion_data);
@@ -29,16 +25,19 @@ class RPCServer {
 
   rt::Spin lock_;
   std::unique_ptr<rt::TcpConn> c_;
+  nu::RPCHandler &handler_;
+  bool close_;
+  Counter &counter_;
   rt::ThreadWaker wake_sender_;
   std::vector<completion> completions_;
   float credits_;
   unsigned int demand_;
-  nu::RPCHandler &handler_;
-  bool close_;
+  rt::Thread sender_;
+  rt::Thread receiver_;
 };
 
-inline void RPCServer::Return(RPCReturnCode rc, RPCReturnBuffer &&buf,
-                              std::size_t completion_data) {
+inline void RPCServerWorker::Return(RPCReturnCode rc, RPCReturnBuffer &&buf,
+                                    std::size_t completion_data) {
   rt::SpinGuard guard(&lock_);
   completions_.emplace_back(rc, std::move(buf), completion_data);
   wake_sender_.Wake();
@@ -50,12 +49,6 @@ inline void RPCFlow::Call(std::span<const std::byte> src, RPCCompletion *c) {
   if (sent_count_ - recv_count_ < credits_) wake_sender_.Wake();
 }
 
-inline void RPCCompletion::Poll() const {
-  while (rt::access_once(poll_)) {
-    get_runtime()->caladan()->unblock_and_relax();
-  }
-}
-
 }  // namespace rpc_internal
 
 inline RPCReturner::RPCReturner(void *rpc_server, std::size_t completion_data)
@@ -64,13 +57,15 @@ inline RPCReturner::RPCReturner(void *rpc_server, std::size_t completion_data)
 inline void RPCReturner::Return(RPCReturnCode rc,
                                 std::span<const std::byte> buf,
                                 std::move_only_function<void()> deleter_fn) {
-  auto rpc_server = reinterpret_cast<rpc_internal::RPCServer *>(rpc_server_);
+  auto rpc_server =
+      reinterpret_cast<rpc_internal::RPCServerWorker *>(rpc_server_);
   rpc_server->Return(rc, RPCReturnBuffer(buf, std::move(deleter_fn)),
                      completion_data_);
 }
 
 inline void RPCReturner::Return(RPCReturnCode rc) {
-  auto rpc_server = reinterpret_cast<rpc_internal::RPCServer *>(rpc_server_);
+  auto rpc_server =
+      reinterpret_cast<rpc_internal::RPCServerWorker *>(rpc_server_);
   rpc_server->Return(rc, RPCReturnBuffer(), completion_data_);
 }
 

@@ -11,11 +11,14 @@ extern "C" {
 #include <thread.h>
 
 #include "nu/commons.hpp"
-#include "nu/runtime.hpp"
 #include "nu/ctrl.hpp"
 #include "nu/ctrl_server.hpp"
 #include "nu/migrator.hpp"
 #include "nu/proclet_server.hpp"
+#include "nu/rpc_client_mgr.hpp"
+#include "nu/runtime.hpp"
+#include "nu/utils/future.hpp"
+#include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
 
@@ -25,6 +28,8 @@ constexpr NodeIP get_proclet_segment_bucket_id(uint64_t capacity) {
   BUG_ON(bsr_capacity < bsr_min);
   return bsr_capacity - bsr_min;
 }
+
+LPInfo::LPInfo() : rr_iter(node_statuses.end()), destroying(false) {}
 
 Controller::Controller() {
   for (lpid_t lpid = 1; lpid < std::numeric_limits<lpid_t>::max(); lpid++) {
@@ -59,29 +64,35 @@ Controller::~Controller() {
 
 std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
     NodeIP ip, lpid_t lpid, MD5Val md5) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ScopedLock lock(&mutex_);
 
-  // TODO: should GC the allocated lpid and stack somehow through heartbeat or
-  // an explicit deregister_node() call.
   if (lpid) {
-    auto iter = free_lpids_.find(lpid);
-    if (iter == free_lpids_.end()) {
+    auto info_iter = lpid_to_info_.find(lpid);
+    if (info_iter != lpid_to_info_.end()) {
+      if (unlikely(info_iter->second.destroying)) {
+        return std::nullopt;
+      }
+    }
+
+    auto lpid_iter = free_lpids_.find(lpid);
+    if (lpid_iter == free_lpids_.end()) {
       if constexpr (kEnableBinaryVerification) {
         if (unlikely(lpid_to_md5_[lpid] != md5)) {
           return std::nullopt;
         }
       }
     } else {
-      free_lpids_.erase(iter);
+      free_lpids_.erase(lpid_iter);
       lpid_to_md5_[lpid] = md5;
     }
   } else {
     if (unlikely(free_lpids_.empty())) {
       return std::nullopt;
     }
-    auto begin_iter = free_lpids_.begin();
-    lpid = *begin_iter;
-    free_lpids_.erase(begin_iter);
+    auto begin_lpid_iter = free_lpids_.begin();
+    lpid = *begin_lpid_iter;
+    free_lpids_.erase(begin_lpid_iter);
+    lpid_to_md5_[lpid] = md5;
   }
 
   if (unlikely(free_stack_cluster_segments_.empty())) {
@@ -93,7 +104,7 @@ std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
   free_stack_cluster_segments_.pop();
 
   auto &node_statuses = lpid_to_info_[lpid].node_statuses;
-  for (auto [existing_node_ip, _] : node_statuses) {
+  for (const auto &[existing_node_ip, _] : node_statuses) {
     auto *client = get_runtime()->rpc_client_mgr()->get_by_ip(existing_node_ip);
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
@@ -102,7 +113,7 @@ std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
   }
 
   auto *client = get_runtime()->rpc_client_mgr()->get_by_ip(ip);
-  for (auto [existing_node_ip, _] : node_statuses) {
+  for (const auto &[existing_node_ip, _] : node_statuses) {
     RPCReqReserveConns req;
     RPCReturnBuffer return_buf;
     req.dest_server_ip = existing_node_ip;
@@ -114,9 +125,54 @@ std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
   return std::make_pair(lpid, stack_cluster);
 }
 
+void Controller::destroy_lp(lpid_t lpid, NodeIP requestor_ip) {
+  std::vector<Future<void>> futures;
+  std::map<lpid_t, LPInfo>::iterator info_iter;
+
+  {
+    ScopedLock lock(&mutex_);
+
+    BUG_ON(free_lpids_.count(lpid));
+    BUG_ON(!lpid_to_md5_.erase(lpid));
+
+    info_iter = lpid_to_info_.find(lpid);
+    BUG_ON(info_iter->second.destroying);
+    info_iter->second.destroying = true;
+
+    for (auto &[ip, status] : info_iter->second.node_statuses) {
+      while (unlikely(status.acquired)) {
+        status.cv.wait(&mutex_);
+      }
+
+      if (ip != requestor_ip) {
+        futures.emplace_back(async([ip] {
+          RPCReqShutdown req;
+          RPCReturnBuffer return_buf;
+          RPCReturnCode rc;
+          auto *client = get_runtime()->rpc_client_mgr()->get_by_ip(ip);
+          rc = client->Call(to_span(req), &return_buf);
+          BUG_ON(rc != kOk);
+        }));
+      }
+    }
+  }
+
+  futures.clear();
+
+  {
+    ScopedLock lock(&mutex_);
+
+    BUG_ON(!free_lpids_.emplace(lpid).second);
+    for (const auto &[ip, _] : info_iter->second.node_statuses) {
+      get_runtime()->rpc_client_mgr()->remove_by_ip(ip);
+    }
+    lpid_to_info_.erase(info_iter);
+  }
+}
+
 std::optional<std::pair<ProcletID, NodeIP>> Controller::allocate_proclet(
     uint64_t capacity, lpid_t lpid, NodeIP ip_hint) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ScopedLock lock(&mutex_);
 
   auto &bucket =
       free_proclet_heap_segments_[get_proclet_segment_bucket_id(capacity)];
@@ -149,7 +205,7 @@ std::optional<std::pair<ProcletID, NodeIP>> Controller::allocate_proclet(
 }
 
 void Controller::destroy_proclet(VAddrRange proclet_segment) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ScopedLock lock(&mutex_);
 
   auto capacity = proclet_segment.end - proclet_segment.start;
   auto &bucket =
@@ -165,7 +221,7 @@ void Controller::destroy_proclet(VAddrRange proclet_segment) {
 }
 
 NodeIP Controller::resolve_proclet(ProcletID id) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ScopedLock lock(&mutex_);
 
   auto iter = proclet_id_to_ip_.find(id);
   return iter != proclet_id_to_ip_.end() ? iter->second : 0;
@@ -173,7 +229,7 @@ NodeIP Controller::resolve_proclet(ProcletID id) {
 
 NodeIP Controller::select_node_for_proclet(lpid_t lpid, NodeIP ip_hint,
                                            const ProcletHeapSegment &segment) {
-  auto &[node_statuses, rr_iter] = lpid_to_info_[lpid];
+  auto &[node_statuses, rr_iter, _] = lpid_to_info_[lpid];
   BUG_ON(node_statuses.empty());
 
   if (ip_hint) {
@@ -197,9 +253,13 @@ NodeIP Controller::select_node_for_proclet(lpid_t lpid, NodeIP ip_hint,
 
 NodeIP Controller::acquire_migration_dest(lpid_t lpid, NodeIP requestor_ip,
                                           Resource resource) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ScopedLock lock(&mutex_);
 
-  auto &[node_statuses, rr_iter] = lpid_to_info_[lpid];
+  auto &[node_statuses, rr_iter, destroying] = lpid_to_info_[lpid];
+  if (unlikely(destroying)) {
+    return 0;
+  }
+
   auto initial_rr_iter = rr_iter;
   BUG_ON(node_statuses.empty());
 
@@ -222,19 +282,21 @@ again:
 }
 
 void Controller::release_migration_dest(lpid_t lpid, NodeIP ip) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ScopedLock lock(&mutex_);
 
-  auto &[node_statuses, _] = lpid_to_info_[lpid];
+  auto &node_statuses = lpid_to_info_[lpid].node_statuses;
   auto iter = node_statuses.find(ip);
   if (unlikely(iter == node_statuses.end())) {
     return;
   }
 
+  BUG_ON(!iter->second.acquired);
   iter->second.acquired = false;
+  iter->second.cv.signal();
 }
 
 void Controller::update_location(ProcletID id, NodeIP proclet_srv_ip) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  ScopedLock lock(&mutex_);
 
   auto iter = proclet_id_to_ip_.find(id);
   BUG_ON(iter == proclet_id_to_ip_.end());
@@ -243,10 +305,14 @@ void Controller::update_location(ProcletID id, NodeIP proclet_srv_ip) {
 
 std::vector<std::pair<NodeIP, Resource>> Controller::report_free_resource(
     lpid_t lpid, NodeIP ip, Resource free_resource) {
-  rt::ScopedLock<rt::Mutex> lock(&mutex_);
+  std::vector<std::pair<NodeIP, Resource>> global_free_resources;
+
+  ScopedLock lock(&mutex_);
 
   auto lp_info_iter = lpid_to_info_.find(lpid);
-  BUG_ON(lp_info_iter == lpid_to_info_.end());
+  if (unlikely(lp_info_iter == lpid_to_info_.end())) {
+    return global_free_resources;
+  }
 
   auto &node_statuses = lp_info_iter->second.node_statuses;
   auto iter = node_statuses.find(ip);
@@ -254,7 +320,6 @@ std::vector<std::pair<NodeIP, Resource>> Controller::report_free_resource(
 
   iter->second.update_free_resource(free_resource);
 
-  std::vector<std::pair<NodeIP, Resource>> global_free_resources;
   for (auto &[ip, status] : node_statuses) {
     global_free_resources.emplace_back(ip, status.free_resource);
   }

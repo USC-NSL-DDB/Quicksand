@@ -1,11 +1,11 @@
 #pragma once
 
-#include <sync.h>
-
 #include <limits>
 #include <memory>
 #include <unordered_map>
 #include <utility>
+
+#include <sync.h>
 
 #include "nu/runtime_alloc.hpp"
 #include "nu/utils/rcu_hash_map.hpp"
@@ -21,6 +21,7 @@ class RPCClientMgr {
   RPCClient *get_by_proclet_id(ProcletID proclet_id);
   RPCClient *get_by_ip(NodeIP ip);
   NodeIP get_ip_by_proclet_id(ProcletID proclet_id);
+  void remove_by_ip(NodeIP ip);
   void update_cache(ProcletID proclet_id, NodeIP ip);
   void invalidate_cache(ProcletID proclet_id, RPCClient *old_client);
 
@@ -50,6 +51,7 @@ class RPCClientMgr {
 
   NodeID get_node_id_by_node_ip(NodeIP ip);
   RPCClient *get_client(NodeInfo info);
+  void remove_client(NodeInfo info);
   NodeInfo get_info(ProcletID proclet_id);
 };
 }  // namespace nu

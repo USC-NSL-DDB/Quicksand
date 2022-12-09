@@ -27,6 +27,7 @@ class Mutex;
 class CondVar;
 class Time;
 struct ProcletHeader;
+class MigrationGuard;
 
 enum MigratorTCPOp_t {
   kCopyProclet,

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "nu/commons.hpp"
+#include "nu/utils/counter.hpp"
 
 namespace nu {
 
@@ -88,6 +89,8 @@ using RPCHandler = std::move_only_function<void(std::span<std::byte> args,
 using RPCCallback = std::move_only_function<void(ssize_t len, rt::TcpConn *c)>;
 
 namespace rpc_internal {
+
+class RPCServerWorker;
 
 // RPCCompletion manages the completion of an inflight request.
 class RPCCompletion {
@@ -174,9 +177,6 @@ class RPCFlow {
 
 }  // namespace rpc_internal
 
-// Initializes and runs the RPC server.
-void RPCServerInit(uint16_t port, RPCHandler &&handler, bool blocking = true);
-
 class RPCClient {
  public:
   ~RPCClient(){};
@@ -208,6 +208,21 @@ class RPCClient {
   // an array of per-kthread RPC flows.
   std::vector<std::unique_ptr<RPCFlow>> flows_;
   netaddr raddr_;
+};
+
+// RPCServerListener initializes and runs the RPC server.
+class RPCServerListener {
+ public:
+  RPCServerListener(uint16_t port, RPCHandler &&handler);
+  ~RPCServerListener();
+  void dec_ref_cnt() { counter_.dec(); }
+
+ private:
+  RPCHandler handler_;
+  std::unique_ptr<rt::TcpQueue> q_;
+  rt::Thread listener_;
+  std::vector<std::unique_ptr<rpc_internal::RPCServerWorker>> workers_;
+  Counter counter_;
 };
 
 }  // namespace nu

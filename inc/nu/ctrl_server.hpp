@@ -88,6 +88,12 @@ struct RPCReqReportFreeResource {
   Resource resource;
 } __attribute__((packed));
 
+struct RPCReqDestroyLP {
+  RPCReqType rpc_type = kDestroyLP;
+  lpid_t lpid;
+  NodeIP ip;
+} __attribute__((packed));
+
 class ControllerServer {
  public:
   constexpr static bool kEnableLogging = false;
@@ -109,6 +115,7 @@ class ControllerServer {
   std::atomic<uint64_t> num_release_migration_dest_;
   std::atomic<uint64_t> num_update_location_;
   std::atomic<uint64_t> num_report_free_resource_;
+  std::atomic<uint64_t> num_destroy_ip_;
   rt::Thread logging_thread_;
   rt::Thread tcp_queue_thread_;
   std::vector<std::unique_ptr<rt::TcpConn>> tcp_conns_;
@@ -129,6 +136,7 @@ class ControllerServer {
   void handle_update_location(const RPCReqUpdateLocation &req);
   std::vector<std::pair<NodeIP, Resource>> handle_report_free_resource(
       const RPCReqReportFreeResource &req);
+  void handle_destroy_lp(const RPCReqDestroyLP &req);
   void tcp_loop(rt::TcpConn *c);
 };
 }  // namespace nu

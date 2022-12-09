@@ -4,7 +4,7 @@
 #include <list>
 #include <set>
 #include <stack>
-#include <unordered_map>
+#include <map>
 #include <utility>
 
 extern "C" {
@@ -12,11 +12,12 @@ extern "C" {
 #include <runtime/tcp.h>
 }
 #include <net.h>
-#include <sync.h>
 
 #include "nu/commons.hpp"
 #include "nu/rpc_client_mgr.hpp"
+#include "nu/utils/cond_var.hpp"
 #include "nu/utils/md5.hpp"
+#include "nu/utils/mutex.hpp"
 
 namespace nu {
 
@@ -26,6 +27,7 @@ struct NodeStatus {
 
   bool acquired;
   Resource free_resource;
+  CondVar cv;
 
   bool has_enough_resource(Resource resource) const {
     return free_resource.cores >= resource.cores &&
@@ -43,8 +45,9 @@ struct Node {
 struct LPInfo {
   std::map<NodeIP, NodeStatus> node_statuses;
   std::map<NodeIP, NodeStatus>::iterator rr_iter;
+  bool destroying;
 
-  LPInfo() : rr_iter(node_statuses.end()) {}
+  LPInfo();
 };
 
 struct ProcletHeapSegment {
@@ -61,6 +64,7 @@ class Controller {
   std::optional<std::pair<lpid_t, VAddrRange>> register_node(NodeIP ip,
                                                              lpid_t lpid,
                                                              MD5Val md5);
+  void destroy_lp(lpid_t lpid, NodeIP requestor_ip);
   std::optional<std::pair<ProcletID, NodeIP>> allocate_proclet(
       uint64_t capacity, lpid_t lpid, NodeIP ip_hint);
   void destroy_proclet(VAddrRange heap_segment);
@@ -79,11 +83,11 @@ class Controller {
       free_proclet_heap_segments_[kNumProcletSegmentBuckets];
   std::stack<VAddrRange> free_stack_cluster_segments_;  // One segment per Node.
   std::set<lpid_t> free_lpids_;
-  std::unordered_map<lpid_t, MD5Val> lpid_to_md5_;
-  std::unordered_map<lpid_t, LPInfo> lpid_to_info_;
-  std::unordered_map<ProcletID, NodeIP> proclet_id_to_ip_;
+  std::map<lpid_t, MD5Val> lpid_to_md5_;
+  std::map<lpid_t, LPInfo> lpid_to_info_;
+  std::map<ProcletID, NodeIP> proclet_id_to_ip_;
   bool done_;
-  rt::Mutex mutex_;
+  Mutex mutex_;
 
   NodeIP select_node_for_proclet(lpid_t lpid, NodeIP ip_hint,
                                  const ProcletHeapSegment &segment);

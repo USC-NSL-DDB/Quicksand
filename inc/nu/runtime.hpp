@@ -39,6 +39,10 @@ struct RPCReqReserveConns {
   uint32_t dest_server_ip;
 } __attribute__((packed));
 
+struct RPCReqShutdown {
+  RPCReqType rpc_type = kShutdown;
+};
+
 class Runtime {
  public:
   enum Mode { kMainServer, kServer, kController };
@@ -51,13 +55,14 @@ class Runtime {
   PressureHandler *pressure_handler();
   ControllerClient *controller_client();
   RPCClientMgr *rpc_client_mgr();
+  RPCServer *rpc_server();
   Migrator *migrator();
   ControllerServer *controller_server();
   ProcletServer *proclet_server();
   ResourceReporter *resource_reporter();
   Caladan *caladan();
   void reserve_conns(uint32_t ip);
-  void common_init();
+  void init_base();
   void init_runtime_heap();
   void init_as_controller();
   void init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid);
@@ -93,6 +98,7 @@ class Runtime {
                         ArchivePool<>::IASStream *ia_sstream,
                         RPCReturner *returner);
   void send_rpc_resp_wrong_client(RPCReturner *returner);
+  void shutdown(RPCReturner *returner);
 
  private:
   SlabAllocator *runtime_slab_;
@@ -119,6 +125,8 @@ class Runtime {
                                        A1s &&... args);
   std::optional<MigrationGuard> __reattach_and_disable_migration(
       ProcletHeader *proclet_header);
+  void destroy();
+  void destroy_base();
 };
 
 class RuntimeSlabGuard {

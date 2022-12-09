@@ -22,13 +22,14 @@ ControllerServer::ControllerServer()
       num_release_migration_dest_(0),
       num_update_location_(0),
       num_report_free_resource_(0),
+      num_destroy_ip_(0),
       done_(false) {
   if constexpr (kEnableLogging) {
     logging_thread_ = rt::Thread([&] {
       std::cout
           << "time_us register_node allocate_proclet destroy_proclet"
              "resolve_proclet acquire_migration_dest release_migration_dest"
-             "update_location report_free_resource"
+             "update_location report_free_resource destroy_ip"
           << std::endl;
       while (!rt::access_once(done_)) {
         timer_sleep(kPrintIntervalUs);
@@ -36,8 +37,8 @@ ControllerServer::ControllerServer()
                   << num_allocate_proclet_ << " " << num_destroy_proclet_ << " "
                   << num_resolve_proclet_ << " " << num_acquire_migration_dest_
                   << " " << num_release_migration_dest_ << " "
-                  << num_update_location_ << num_report_free_resource_
-                  << std::endl;
+                  << num_update_location_ << " " << num_report_free_resource_
+                  << " " << num_destroy_ip_ << std::endl;
       }
     });
   }
@@ -210,6 +211,14 @@ ControllerServer::handle_report_free_resource(
   }
 
   return ctrl_.report_free_resource(req.lpid, req.ip, req.resource);
+}
+
+void ControllerServer::handle_destroy_lp(const RPCReqDestroyLP &req) {
+  if constexpr (kEnableLogging) {
+    num_destroy_ip_++;
+  }
+
+  return ctrl_.destroy_lp(req.lpid, req.ip);
 }
 
 }  // namespace nu

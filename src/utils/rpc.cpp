@@ -1,16 +1,13 @@
-extern "C" {
-#include <base/log.h>
-}
-
-#include <runtime.h>
-
 #include <type_traits>
 
-#include "nu/utils/rpc.hpp"
-
 extern "C" {
+#include <base/log.h>
 #include <runtime/timer.h>
 }
+#include <runtime.h>
+
+#include "nu/utils/rpc.hpp"
+#include "nu/runtime.hpp"
 
 namespace nu {
 
@@ -57,34 +54,15 @@ constexpr rpc_resp_hdr MakeUpdateResponse(unsigned int credits) {
   return rpc_resp_hdr{rpc_cmd::update, credits, 0, 0};
 }
 
-void RPCServerWorker(std::unique_ptr<rt::TcpConn> c, RPCHandler &handler) {
-  nu::rpc_internal::RPCServer s(std::move(c), handler);
-  s.Run();
-}
-
-void RPCServerListener(uint16_t port, RPCHandler &&handler, bool blocking) {
-  std::unique_ptr<rt::TcpQueue> q(rt::TcpQueue::Listen({0, port}, 4096));
-  BUG_ON(!q);
-
-  rt::Thread th([q = std::move(q), handler = std::move(handler)]() mutable {
-    while (true) {
-      std::unique_ptr<rt::TcpConn> c(q->Accept());
-      rt::Thread([c = std::move(c), &handler]() mutable {
-        RPCServerWorker(std::move(c), handler);
-      }).Detach();
-    }
-  });
-
-  if (blocking) {
-    th.Join();
-  } else {
-    th.Detach();
-  }
-}
-
 }  // namespace
 
 namespace rpc_internal {
+
+void RPCCompletion::Poll() const {
+  while (rt::access_once(poll_)) {
+    get_runtime()->caladan()->unblock_and_relax();
+  }
+}
 
 void RPCCompletion::Done(ssize_t len, rt::TcpConn *c) {
   if (unlikely(len < 0)) {
@@ -109,13 +87,28 @@ void RPCCompletion::Done(ssize_t len, rt::TcpConn *c) {
   w_.Wake();
 }
 
-void RPCServer::Run() {
-  rt::Thread th([this] { SendWorker(); });
-  ReceiveWorker();
-  th.Join();
+RPCServerWorker::RPCServerWorker(std::unique_ptr<rt::TcpConn> c,
+                                 nu::RPCHandler &handler, Counter &counter)
+    : c_(std::move(c)),
+      handler_(handler),
+      close_(false),
+      counter_(counter),
+      sender_([this] { SendWorker(); }),
+      receiver_([this] { ReceiveWorker(); }) {}
+
+RPCServerWorker::~RPCServerWorker() {
+  {
+    rt::SpinGuard guard(&lock_);
+    close_ = true;
+    wake_sender_.Wake();
+  }
+
+  sender_.Join();
+  c_->Shutdown(SHUT_RDWR);
+  receiver_.Join();
 }
 
-void RPCServer::SendWorker() {
+void RPCServerWorker::SendWorker() {
   std::vector<completion> completions;
   std::vector<iovec> iovecs;
   std::vector<rpc_resp_hdr> hdrs;
@@ -131,10 +124,8 @@ void RPCServer::SendWorker() {
                 std::back_inserter(completions));
       completions_.clear();
     }
-
     // Check if the connection is closed.
     if (unlikely(close_ && completions.empty())) break;
-
     // process each of the requests.
     iovecs.clear();
     hdrs.clear();
@@ -160,7 +151,7 @@ void RPCServer::SendWorker() {
   if (WARN_ON(c_->Shutdown(SHUT_WR))) c_->Abort();
 }
 
-void RPCServer::ReceiveWorker() {
+void RPCServerWorker::ReceiveWorker() {
   while (true) {
     // Read the request header.
     rpc_req_hdr hdr;
@@ -178,9 +169,12 @@ void RPCServer::ReceiveWorker() {
 
     // Spawn a handler with no argument data provided.
     if (hdr.len == 0) {
+      counter_.inc();
+      // TODO: avoid dynamic memory allocation.
       rt::Spawn([this, completion_data]() {
         auto returner = RPCReturner(this, completion_data);
         handler_(std::span<std::byte>{}, &returner);
+        counter_.dec();
       });
       continue;
     }
@@ -195,10 +189,13 @@ void RPCServer::ReceiveWorker() {
     }
 
     // Spawn a handler with argument data provided.
+    counter_.inc();
+    // TODO: avoid dynamic memory allocation.
     rt::Spawn(
         [this, completion_data, b = std::move(buf), len = hdr.len]() mutable {
           auto returner = RPCReturner(this, completion_data);
           handler_(std::span<std::byte>{b.get(), len}, &returner);
+          counter_.dec();
         });
   }
 
@@ -331,16 +328,35 @@ std::unique_ptr<RPCFlow> RPCFlow::New(unsigned int cpu_affinity,
 
 }  // namespace rpc_internal
 
-void RPCServerInit(uint16_t port, RPCHandler &&handler, bool blocking) {
-  RPCServerListener(port, std::move(handler), blocking);
-}
-
 std::unique_ptr<RPCClient> RPCClient::Dial(netaddr raddr) {
   std::vector<std::unique_ptr<RPCFlow>> v;
   for (unsigned int i = 0; i < rt::RuntimeMaxCores(); ++i) {
     v.emplace_back(RPCFlow::New(i, raddr));
   }
   return std::unique_ptr<RPCClient>(new RPCClient(std::move(v), raddr));
+}
+
+RPCServerListener::RPCServerListener(uint16_t port, RPCHandler &&handler)
+    : handler_(std::move(handler)) {
+  q_.reset(rt::TcpQueue::Listen({0, port}, 4096));
+  BUG_ON(!q_);
+
+  listener_ = rt::Thread([&]() mutable {
+    rt::TcpConn *c;
+    while ((c = q_->Accept())) {
+      workers_.emplace_back(new rpc_internal::RPCServerWorker(
+          std::unique_ptr<rt::TcpConn>(c), handler_, counter_));
+    }
+  });
+}
+
+RPCServerListener::~RPCServerListener() {
+  q_->Shutdown();
+  listener_.Join();
+
+  while (counter_.get()) {
+    rt::Yield();
+  }
 }
 
 }  // namespace nu

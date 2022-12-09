@@ -27,7 +27,11 @@ void ServerHandler(std::span<std::byte> args, nu::RPCReturner *returner) {
                    [b = std::move(buf)]() mutable {});
 }
 
-void RunServer() { nu::RPCServerInit(kPort, &ServerHandler); }
+void RunServer() {
+  nu::RPCServerListener listener(kPort, &ServerHandler);
+  rt::Preempt p;
+  rt::PreemptGuardAndPark gp(&p);
+}
 
 void RunClient(netaddr raddr, int threads, int samples, size_t buflen) {
   std::unique_ptr<nu::RPCClient> c = nu::RPCClient::Dial(raddr);

@@ -24,6 +24,8 @@ inline ArchivePool<> *Runtime::archive_pool() { return archive_pool_; }
 
 inline RPCClientMgr *Runtime::rpc_client_mgr() { return rpc_client_mgr_; }
 
+inline RPCServer *Runtime::rpc_server() { return rpc_server_; }
+
 inline ProcletManager *Runtime::proclet_manager() {
   return proclet_manager_;
 }

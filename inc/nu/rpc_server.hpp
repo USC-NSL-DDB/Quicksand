@@ -1,6 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
+#include <span>
+
+#include "nu/utils/rpc.hpp"
 
 namespace nu {
 
@@ -18,9 +22,11 @@ enum RPCReqEnum {
   kReleaseMigrationDest,
   kUpdateLocation,
   kReportFreeResource,
+  kDestroyLP,
   // Proclet server,
   kProcletCall,
-  kGCStack
+  kGCStack,
+  kShutdown
 };
 
 using RPCReqType = uint8_t;
@@ -32,7 +38,11 @@ class RPCServer {
   RPCServer();
 
  private:
-  void run_background_loop();
+  RPCServerListener listener_;
+  friend class Migrator;
+
+  void handler_fn(std::span<std::byte> args, RPCReturner *returner);
+  void dec_ref_cnt();
 };
 
 }  // namespace nu

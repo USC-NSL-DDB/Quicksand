@@ -5,7 +5,6 @@
 #include <functional>
 
 #include "nu/commons.hpp"
-#include "nu/runtime_deleter.hpp"
 #include "nu/task_range.hpp"
 #include "nu/type_traits.hpp"
 #include "nu/utils/future.hpp"
