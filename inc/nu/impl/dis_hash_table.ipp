@@ -311,7 +311,7 @@ make_dis_hash_table_pinned(uint32_t power_num_shards) {
   table.num_shards_ = (1 << power_num_shards);
   for (uint32_t i = 0; i < table.num_shards_; i++) {
     table.shards_.emplace_back(
-        make_proclet_pinned<typename TableType::HashTableShard>());
+        make_proclet<typename TableType::HashTableShard>(true));
   }
   return table;
 }

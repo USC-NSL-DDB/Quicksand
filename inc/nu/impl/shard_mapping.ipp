@@ -125,8 +125,8 @@ std::vector<Proclet<Shard>> GeneralShardMapping<Shard>::acquire_all_shards() {
 template <class Shard>
 void GeneralShardMapping<Shard>::reserve_new_shard() {
   mutex_.lock();
-  auto new_shard = make_proclet_with_capacity<Shard>(proclet_capacity_, self_,
-                                                     max_shard_bytes_);
+  auto new_shard = make_proclet<Shard>(std::tuple(self_, max_shard_bytes_),
+                                       false, proclet_capacity_);
   reserved_shards_.emplace(std::move(new_shard));
   mutex_.unlock();
 }
@@ -159,9 +159,10 @@ std::optional<WeakProclet<Shard>> GeneralShardMapping<Shard>::create_new_shard(
   }
 
   if (!new_shard) {
-    new_shard = std::make_optional(make_proclet_with_capacity<Shard>(
-        proclet_capacity_, self_, max_shard_bytes_, l_key, r_key,
-        reserve_space));
+    new_shard = std::make_optional(
+        make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_,
+                                                  l_key, r_key, reserve_space),
+                            false, proclet_capacity_));
   }
 
   auto new_weak_shard = (*new_shard).get_weak();

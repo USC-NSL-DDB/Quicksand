@@ -54,8 +54,8 @@ class CPUNestedObj {
   constexpr static uint32_t kTimeUs = kTime0Us + kTime1Us;
 
   CPUNestedObj()
-      : light_obj_(make_proclet_at<CPULightObj>(ip)),
-        heavy_obj_(make_proclet_at<CPUHeavyObj>(ip)) {}
+      : light_obj_(make_proclet<CPULightObj>(false, std::nullopt, ip)),
+        heavy_obj_(make_proclet<CPUHeavyObj>(false, std::nullopt, ip)) {}
 
   void compute() {
     delay_us(kTime0Us);
@@ -85,11 +85,11 @@ class Test {
   bool run() {
     bool passed = true;
 
-    auto light_obj = make_proclet_at<CPULightObj>(ip);
-    auto heavy_obj = make_proclet_at<CPUHeavyObj>(ip);
-    auto nested_obj = make_proclet_at<CPUNestedObj>(ip);
-    auto spin_obj = make_proclet_at<CPUSpinObj>(ip);
-    auto migration_obj = make_proclet_at<Test>(ip);
+    auto light_obj = make_proclet<CPULightObj>(false, std::nullopt, ip);
+    auto heavy_obj = make_proclet<CPUHeavyObj>(false, std::nullopt, ip);
+    auto nested_obj = make_proclet<CPUNestedObj>(false, std::nullopt, ip);
+    auto spin_obj = make_proclet<CPUSpinObj>(false, std::nullopt, ip);
+    auto migration_obj = make_proclet<Test>(false, std::nullopt, ip);
 
     auto spin_future = spin_obj.run_async(&CPUSpinObj::compute);
     for (uint32_t i = 0; i < 100000; i++) {

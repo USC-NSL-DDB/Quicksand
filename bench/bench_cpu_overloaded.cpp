@@ -21,7 +21,8 @@ void do_work() {
   std::vector<nu::Proclet<SpinWorker>> spin_workers;
   std::vector<nu::Future<void>> futures;
   for (uint32_t i = 0; i < kNumSpinWorkers; i++) {
-    spin_workers.emplace_back(nu::make_proclet_at<SpinWorker>(kSrcIp));
+    spin_workers.emplace_back(
+        nu::make_proclet<SpinWorker>(false, std::nullopt, kSrcIp));
   }
 
   for (uint32_t i = 0; i < kNumSpinWorkers; i++) {

@@ -30,7 +30,8 @@ void do_work() {
   std::vector<Proclet<Obj>> objs;
   // Subtract the main proclet.
   for (uint32_t i = 0; i < kMaxNumProclets - 1; i++) {
-    objs.emplace_back(make_proclet_with_capacity<Obj>(kMinProcletHeapSize, i));
+    objs.emplace_back(
+        make_proclet<Obj>(std::tuple(i), false, kMinProcletHeapSize));
   }
   for (uint32_t i = 0; i < kMaxNumProclets - 1; i++) {
     auto &obj = objs[i];

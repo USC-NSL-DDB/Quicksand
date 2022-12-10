@@ -19,8 +19,8 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_workers(
   add_workers(states...);
 
   if (unlikely(workers_.empty())) {
-    workers_.emplace_back(
-        nu::make_proclet<ComputeProclet<TR, States...>>(states...));
+    workers_.emplace_back(nu::make_proclet<ComputeProclet<TR, States...>>(
+        std::forward_as_tuple(states...)));
   }
 }
 
@@ -42,7 +42,8 @@ void DistributedExecutor<RetT, TR, States...>::add_workers(S1s &... states) {
   for (auto &[ip, resource] : global_free_resources) {
     for (uint32_t i = 0; i < resource.cores; i++) {
       worker_futures.emplace_back(
-          nu::make_proclet_async<ComputeProclet<TR, States...>>(states...));
+          nu::make_proclet_async<ComputeProclet<TR, States...>>(
+              std::forward_as_tuple(states...)));
     }
   }
 

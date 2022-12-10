@@ -88,7 +88,7 @@ class Proclet {
   static RetT invoke_remote_with_ret(MigrationGuard &&caller_guard,
                                      ProcletID id, S1s &&... states);
   template <typename... As>
-  static Proclet __create(uint64_t capacity, bool pinned, uint32_t ip_hint,
+  static Proclet __create(bool pinned, uint64_t capacity, NodeIP ip_hint,
                           As &&... args);
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
@@ -100,32 +100,19 @@ class Proclet {
   RetT __run(RetT (T::*md)(A0s...), A1s &&... args);
 
   template <typename U, typename... As>
-  friend Proclet<U> make_proclet(As &&... args);
+  friend Proclet<U> make_proclet(std::tuple<As...>, bool,
+                                 std::optional<uint64_t>,
+                                 std::optional<NodeIP>);
   template <typename U, typename... As>
-  friend Future<Proclet<U>> make_proclet_async(As &&... args);
-  template <typename U, typename... As>
-  friend Proclet<U> make_proclet_at(uint32_t ip, As &&... args);
-  template <typename U, typename... As>
-  friend Future<Proclet<U>> make_proclet_async_at(uint32_t ip, As &&... args);
-  template <typename U, typename... As>
-  friend Proclet<U> make_proclet_pinned(As &&... args);
-  template <typename U, typename... As>
-  friend Future<Proclet<U>> make_proclet_pinned_async(As &&... args);
-  template <typename U, typename... As>
-  friend Proclet<U> make_proclet_pinned_at(uint32_t ip, As &&... args);
-  template <typename U, typename... As>
-  friend Future<Proclet<U>> make_proclet_pinned_async_at(uint32_t ip,
-                                                         As &&... args);
-  template <typename U, typename... As>
-  friend Proclet<U> make_proclet_pinned_at_with_capacity(uint64_t capacity,
-                                                         uint32_t ip_hint,
-                                                         As &&... args);
-  template <typename U, typename... As>
-  friend Proclet<U> make_proclet_with_capacity(uint64_t capacity,
-                                               As &&... args);
-  template <typename U, typename... As>
-  friend Future<Proclet<U>> make_proclet_async_with_capacity(uint64_t capacity,
-                                                             As &&... args);
+  friend Future<Proclet<U>> make_proclet_async(std::tuple<As...>, bool,
+                                               std::optional<uint64_t>,
+                                               std::optional<NodeIP>);
+  template <typename U>
+  friend Proclet<U> make_proclet(bool, std::optional<uint64_t>,
+                                 std::optional<NodeIP>);
+  template <typename U>
+  friend Future<Proclet<U>> make_proclet_async(bool, std::optional<uint64_t>,
+                                               std::optional<NodeIP>);
 };
 
 template <typename T>
@@ -153,29 +140,22 @@ class WeakProclet : public Proclet<T> {
 };
 
 template <typename T, typename... As>
-Proclet<T> make_proclet(As &&... args);
+Proclet<T> make_proclet(std::tuple<As...> args_tuple, bool pinned = false,
+                        std::optional<uint64_t> capacity = std::nullopt,
+                        std::optional<uint32_t> ip_hint = std::nullopt);
 template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_async(As &&... args);
-template <typename T, typename... As>
-Proclet<T> make_proclet_at(uint32_t ip, As &&... args);
-template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_async_at(uint32_t ip, As &&... args);
-template <typename T, typename... As>
-Proclet<T> make_proclet_pinned(As &&... args);
-template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_pinned_async(As &&... args);
-template <typename T, typename... As>
-Proclet<T> make_proclet_pinned_at(uint32_t ip, As &&... args);
-template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_pinned_async_at(uint32_t ip, As &&... args);
-template <typename T, typename... As>
-Proclet<T> make_proclet_pinned_at_with_capacity(uint64_t capacity, uint32_t ip,
-                                                As &&... args);
-template <typename T, typename... As>
-Proclet<T> make_proclet_with_capacity(uint64_t capacity, As &&... args);
-template <typename T, typename... As>
-Future<Proclet<T>> make_proclet_async_with_capacity(uint64_t capacity,
-                                                    As &&... args);
+Future<Proclet<T>> make_proclet_async(
+    std::tuple<As...> args_tuple, bool pinned = false,
+    std::optional<uint64_t> capacity = std::nullopt,
+    std::optional<uint32_t> ip_hint = std::nullopt);
+template <typename T>
+Proclet<T> make_proclet(bool pinned = false,
+                        std::optional<uint64_t> capacity = std::nullopt,
+                        std::optional<uint32_t> ip_hint = std::nullopt);
+template <typename T>
+Future<Proclet<T>> make_proclet_async(
+    bool pinned = false, std::optional<uint64_t> capacity = std::nullopt,
+    std::optional<uint32_t> ip_hint = std::nullopt);
 
 }  // namespace nu
 

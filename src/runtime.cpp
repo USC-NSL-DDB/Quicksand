@@ -185,8 +185,8 @@ int runtime_main_init(int argc, char **argv,
     }
     new (get_runtime_nocheck()) Runtime(ctrl_ip, mode, lpid);
     {
-      auto main_proclet = make_proclet_pinned_at_with_capacity<ErasedType>(
-          kMainProcletHeapSize, get_runtime()->caladan()->get_ip());
+      auto main_proclet = make_proclet<ErasedType>(
+          true, kMainProcletHeapSize, get_runtime()->caladan()->get_ip());
       main_proclet.__run(
           +[](ErasedType &_, int *argc_p, char ***argv_p,
               std::function<void(int argc, char **argv)> *main_func_p) {

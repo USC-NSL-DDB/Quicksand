@@ -158,7 +158,8 @@ class Bench {
     std::vector<nu::Proclet<Worker>> workers;
 
     for (uint32_t i = 0; i < kNumThreads; i++) {
-      workers.emplace_back(nu::make_proclet<Worker>(*sp_ptr));
+      workers.emplace_back(
+          nu::make_proclet<Worker>(std::forward_as_tuple(*sp_ptr)));
     }
 
     std::vector<nu::Future<void>> futures;

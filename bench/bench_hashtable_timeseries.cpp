@@ -217,7 +217,7 @@ void do_work() {
   std::vector<Key> keys[kNumThreads];
 
   std::cout << "start initing..." << std::endl;
-  auto test = make_proclet_pinned<nu::Test>(32 * 1024);
+  auto test = make_proclet<nu::Test>(std::tuple(32 * 1024), true);
   init(&hash_table, keys);
   std::cout << "start benchmarking..." << std::endl;
   benchmark(&hash_table, keys, &test);

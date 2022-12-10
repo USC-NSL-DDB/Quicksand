@@ -132,7 +132,8 @@ struct Bench {
 
     std::vector<nu::Proclet<Producer>> producers;
     for (std::size_t i = 0; i < kNumProducers; ++i) {
-      producers.emplace_back(nu::make_proclet<Producer>(queue));
+      producers.emplace_back(
+          nu::make_proclet<Producer>(std::forward_as_tuple(queue)));
     }
 
     std::vector<nu::Future<void>> futures;
@@ -165,11 +166,13 @@ struct Bench {
 
     std::vector<nu::Proclet<Producer>> producers;
     for (std::size_t i = 0; i < kNumProducers; ++i) {
-      producers.emplace_back(nu::make_proclet<Producer>(queue));
+      producers.emplace_back(
+          nu::make_proclet<Producer>(std::forward_as_tuple(queue)));
     }
     std::vector<nu::Proclet<Consumer>> consumers;
     for (std::size_t i = 0; i < kNumConsumers; ++i) {
-      consumers.emplace_back(nu::make_proclet<Consumer>(queue, work_per_batch));
+      consumers.emplace_back(nu::make_proclet<Consumer>(
+          std::forward_as_tuple(queue, work_per_batch)));
     }
 
     std::vector<nu::Future<void>> futures;

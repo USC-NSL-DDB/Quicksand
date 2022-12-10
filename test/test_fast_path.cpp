@@ -33,8 +33,8 @@ class CallerObj {
 class Test {
  public:
   bool run_callee_migrated_test() {
-    auto caller_obj = make_proclet_pinned_at<CallerObj>(ip);
-    auto callee_obj = make_proclet_at<CalleeObj>(ip);
+    auto caller_obj = make_proclet<CallerObj>(true, std::nullopt, ip);
+    auto callee_obj = make_proclet<CalleeObj>(false, std::nullopt, ip);
     auto future = caller_obj.run_async(&CallerObj::foo, callee_obj);
     delay_us(500 * 1000);
     callee_obj.run(+[](CalleeObj &_) { Test::migrate(); });
@@ -42,8 +42,8 @@ class Test {
   }
 
   bool run_caller_migrated_test() {
-    auto caller_obj = make_proclet_at<CallerObj>(ip);
-    auto callee_obj = make_proclet_pinned_at<CalleeObj>(ip);
+    auto caller_obj = make_proclet<CallerObj>(false, std::nullopt, ip);
+    auto callee_obj = make_proclet<CalleeObj>(true, std::nullopt, ip);
     auto future = caller_obj.run_async(&CallerObj::foo, std::move(callee_obj));
     delay_us(500 * 1000);
     caller_obj.run(+[](CallerObj &_) { Test::migrate(); });
@@ -51,8 +51,8 @@ class Test {
   }
 
   bool run_both_migrated_test() {
-    auto caller_obj = make_proclet_at<CallerObj>(ip);
-    auto callee_obj = make_proclet_at<CalleeObj>(ip);
+    auto caller_obj = make_proclet<CallerObj>(false, std::nullopt, ip);
+    auto callee_obj = make_proclet<CalleeObj>(false, std::nullopt, ip);
     auto future = caller_obj.run_async(&CallerObj::foo, callee_obj);
     delay_us(500 * 1000);
     caller_obj.run(+[](CallerObj &_) { Test::migrate(); });

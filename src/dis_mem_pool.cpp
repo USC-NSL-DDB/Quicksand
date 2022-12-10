@@ -45,7 +45,8 @@ void DistributedMemPool::__handle_no_local_free_shard() {
 
   global_mutex_.lock();
   if (unlikely(global_free_shards_.empty())) {
-    global_free_shards_.emplace_back(make_proclet<Heap>(kShardSize));
+    global_free_shards_.emplace_back(
+        make_proclet<Heap>(std::tuple{kShardSize}));
   }
   auto free_shard = std::move(global_free_shards_.front());
   global_free_shards_.pop_front();

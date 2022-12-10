@@ -33,8 +33,8 @@ class Worker {
 
 bool run_test(nu::ShardedPartitioner<int, std::string> *sp) {
   {
-    auto p0 = make_proclet<Worker>(*sp);
-    auto p1 = make_proclet<Worker>(*sp);
+    auto p0 = make_proclet<Worker>(std::forward_as_tuple(*sp));
+    auto p1 = make_proclet<Worker>(std::forward_as_tuple(*sp));
 
     auto f0 = p0.run_async(&Worker::emplace, 0, kNumElements / 2);
     auto f1 = p1.run_async(&Worker::emplace, kNumElements / 2, kNumElements);

@@ -34,7 +34,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
                                   static_cast<std::size_t>(kMaxShardBytes));
   });
 
-  mapping_ = make_proclet<ShardMapping>(kMaxShardBytes, max_shard_count);
+  mapping_ =
+      make_proclet<ShardMapping>(std::tuple(kMaxShardBytes, max_shard_count));
 
   std::vector<std::optional<Key>> keys;
   std::vector<Future<std::optional<WeakProclet<Shard>>>> shard_futures;

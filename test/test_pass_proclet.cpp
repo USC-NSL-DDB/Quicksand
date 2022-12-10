@@ -44,7 +44,7 @@ void do_work() {
   std::vector<int> a{1, 2, 3, 4};
   std::vector<int> b{5, 6, 7, 8};
 
-  auto rem_vec = make_proclet<VecStore>(a, b);
+  auto rem_vec = make_proclet<VecStore>(std::forward_as_tuple(a, b));
   auto rem_adder = make_proclet<Adder>();
   auto c = rem_adder.run(
       +[](Adder &adder, Proclet<VecStore> rem_vec) {
