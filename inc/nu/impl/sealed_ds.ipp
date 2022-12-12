@@ -752,10 +752,9 @@ inline SealedDS<T>::ShardsVec::iterator SealedDS<T>::search_shard(T::Key k) {
 template <typename T>
 inline SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(T::Key k) {
   auto shard_iter = search_shard(k);
-  auto tuple = shard_iter->run(&Shard::find, k);
-  BUG_ON(!std::get<0>(tuple));
-  return ConstIterator(shards_, shard_iter, std::move(std::get<1>(tuple)),
-                       std::move(std::get<2>(tuple)));
+  auto p = shard_iter->run(&Shard::find, k);
+  return ConstIterator(shards_, shard_iter, std::move(p.first),
+                       std::move(p.second));
 }
 
 template <typename T>

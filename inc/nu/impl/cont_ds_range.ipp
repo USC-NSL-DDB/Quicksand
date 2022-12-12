@@ -44,11 +44,9 @@ inline ContiguousDSRangeImpl<Shard> ContiguousDSRangeImpl<Shard>::split(
                                           all_shard_keys_.end(), split_key) -
                          all_shard_keys_.begin() - 1;
   auto split_shard_iter = cur_.shards_->begin() + split_shard_idx;
-  auto find_tuple = split_shard_iter->run(&Shard::find, split_key);
-  BUG_ON(!std::get<0>(find_tuple));
+  auto find = split_shard_iter->run(&Shard::find, split_key);
   r_range.cur_ =
-      ConstIterator(cur_.shards_, split_shard_iter, std::get<1>(find_tuple),
-                    std::get<2>(find_tuple));
+      ConstIterator(cur_.shards_, split_shard_iter, find.first, find.second);
   r_range.all_shard_keys_ = all_shard_keys_;
   r_range.l_key_ = split_key;
   r_range.r_key_ = r_key_;

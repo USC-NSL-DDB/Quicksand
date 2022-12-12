@@ -209,6 +209,11 @@ inline bool GeneralShard<Container>::should_reject(std::optional<Key> l_key,
 }
 
 template <class Container>
+inline bool GeneralShard<Container>::should_reject(Key k) {
+  return deleted_ || (k < l_key_) || (r_key_ && k > r_key_);
+}
+
+template <class Container>
 inline bool GeneralShard<Container>::should_split() const {
   bool over_container_size = false;
   bool over_slab_size = false;
@@ -440,28 +445,28 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
 template <class Container>
 inline std::pair<bool, std::optional<typename Container::IterVal>>
 GeneralShard<Container>::find_data(Key k) requires Findable<Container> {
-  bool bad_range = (k < l_key_) || (r_key_ && k > r_key_);
-  if (unlikely(bad_range)) {
+  rw_lock_.reader_lock();
+
+  if (unlikely(should_reject(k))) {
+    rw_lock_.reader_unlock();
     return std::make_pair(false, std::nullopt);
   }
 
   auto iter = container_.find(std::move(k));
   auto val =
       (iter != container_.cend()) ? std::make_optional(*iter) : std::nullopt;
-  return std::make_pair(true, val);
+
+  rw_lock_.reader_unlock();
+  return std::make_pair(true, std::move(val));
 }
 
 template <class Container>
-inline std::tuple<bool, typename Container::IterVal,
-                  typename Container::ConstIterator>
+inline std::pair<typename Container::IterVal, typename Container::ConstIterator>
 GeneralShard<Container>::find(Key k) requires Findable<Container> {
-  bool bad_range = (k < l_key_) || (r_key_ && k > r_key_);
-  if (unlikely(bad_range)) {
-    return std::make_tuple(false, Val(), container_.cend());
-  }
-
+  // Currently, the invocation happens only after sealing the DS. Thus we can
+  // bypass all the redundant checks.
   auto iter = container_.find(std::move(k));
-  return std::make_tuple(true, *iter, iter);
+  return std::make_pair(*iter, std::move(iter));
 }
 
 template <class Container>

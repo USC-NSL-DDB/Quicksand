@@ -111,8 +111,7 @@ class GeneralShard {
   std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);
   std::pair<bool, std::optional<IterVal>> find_data(
       Key k) requires Findable<Container>;
-  std::tuple<bool, IterVal, ConstIterator> find(
-      Key k) requires Findable<Container>;
+  std::pair<IterVal, ConstIterator> find(Key k) requires Findable<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_front_block_with_iters(
       uint32_t block_size) requires ConstIterable<Container>;
   std::pair<std::vector<IterVal>, ConstIterator> get_front_block(
@@ -202,6 +201,7 @@ class GeneralShard {
   bool split_with_reader_lock();
   void delete_self_with_reader_lock();
   bool should_reject(std::optional<Key> l_key, std::optional<Key> r_key);
+  bool should_reject(Key k);
   uint32_t __get_next_block_with_iters(
       std::vector<std::pair<IterVal, ConstIterator>>::iterator block_iter,
       ConstIterator prev_iter,
