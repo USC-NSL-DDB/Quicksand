@@ -46,8 +46,9 @@ class ShardedDataStructure {
     std::function<void(Key &, uint64_t)> key_inc_fn;
   };
 
-  void emplace(Key k, Val v) requires HasVal<Container>;
-  void emplace(DataEntry entry);
+  void emplace(Key k, Val v)
+    requires (HasVal<Container> && EmplaceAble<Container>);
+  void emplace(DataEntry entry) requires(EmplaceAble<Container>);
   void emplace_back(Val v) requires EmplaceBackAble<Container>;
   void emplace_front(Val v) requires EmplaceFrontAble<Container>;
   Val front() const requires HasFront<Container>;

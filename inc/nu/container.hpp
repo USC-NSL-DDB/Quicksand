@@ -35,6 +35,32 @@ concept EmplaceBackAble = requires(T t) {
 };
 
 template <class T>
+concept EmplaceAbleByPair = requires(T t) {
+  {
+    t.emplace(std::declval<typename T::Key>(), std::declval<typename T::Val>())
+  }
+  ->std::same_as<void>;
+};
+
+template <class T>
+concept EmplaceAbleByKey = requires(T t) {
+  {
+    t.emplace(std::declval<typename T::Key>())
+  }
+  ->std::same_as<void>;
+};
+
+template <class T>
+concept EmplaceAble = requires(T t) {
+  requires(EmplaceAbleByPair<T> || EmplaceAbleByKey<T>);
+};
+
+template <class T>
+concept HasVal = requires {
+  requires !std::is_same_v<typename T::Val, ErasedType>;
+};
+
+template <class T>
 concept HasFront = requires(T t) {
   { t.front() }
   ->std::same_as<typename T::Val>;
@@ -124,11 +150,6 @@ concept ConstReverseIterable = requires(T t) {
   ->std::same_as<typename T::ConstReverseIterator>;
 };
 
-template <class T>
-concept HasVal = requires {
-  requires !std::is_same_v<typename T::Val, ErasedType>;
-};
-
 template <class Impl>
 using GeneralContainer = GeneralContainerBase<Impl, std::false_type>;
 
@@ -208,8 +229,11 @@ class GeneralContainerBase {
   void clear() requires ClearAble<Impl> {
     return synchronized<void>([&] { return impl_.clear(); });
   };
-  void emplace(Key k, Val v) requires HasVal<Impl> {
+  void emplace(Key k, Val v) requires(HasVal<Impl> && EmplaceAble<Impl>) {
     synchronized<void>([&] { impl_.emplace(std::move(k), std::move(v)); });
+  }
+  void emplace(Key k) requires (!HasVal<Impl> && EmplaceAble<Impl>) {
+    synchronized<void>([&] { impl_.emplace(std::move(k)); });
   }
   void emplace_back(Val v) requires EmplaceBackAble<Impl> {
     synchronized<void>([&] { impl_.emplace_back(std::move(v)); });

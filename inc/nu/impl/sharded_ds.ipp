@@ -160,13 +160,13 @@ void ShardedDataStructure<Container, LL>::update_max_num_vals() {
 
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
-    Key k, Val v) requires HasVal<Container> {
+    Key k, Val v) requires(HasVal<Container> && EmplaceAble<Container>) {
   emplace({std::move(k), std::move(v)});
 }
 
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
-    DataEntry entry) {
+    DataEntry entry) requires(EmplaceAble<Container>) {
   [[maybe_unused]] retry : typename KeyToShardsMapping::iterator iter;
   if constexpr (HasVal<Container>) {
     iter = --key_to_shards_.upper_bound(entry.first);
@@ -479,8 +479,10 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::reroute_reqs(
     std::vector<DataEntry> emplace_reqs, std::vector<Val> emplace_back_reqs) {
-  for (auto &req : emplace_reqs) {
-    emplace(std::move(req));
+  if constexpr (EmplaceAble<Container>) {
+    for (auto &req : emplace_reqs) {
+      emplace(std::move(req));
+    }
   }
   if constexpr (EmplaceBackAble<Container>) {
     for (auto &req : emplace_back_reqs) {

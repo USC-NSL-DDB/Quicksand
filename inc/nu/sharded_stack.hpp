@@ -6,7 +6,6 @@
 
 namespace nu {
 
-// LIFO Stack
 template <typename T>
 class Stack {
  public:
@@ -21,7 +20,6 @@ class Stack {
 
   std::size_t size() const;
   bool empty() const;
-  void emplace(Key k, Val v);
   Val back() const;
   void emplace_back(Val v);
   void emplace_back_batch(std::vector<Val> v);
@@ -36,7 +34,6 @@ class Stack {
   void load(Archive &ar);
 
  private:
-  // TODO: allow different container?
   std::stack<T> stack_;
   Key l_key_;
 };
@@ -53,8 +50,6 @@ class ShardedStack
   void push(const T &value);
   T top() const;
   void pop();
-  // TODO: swap
-  // void swap();
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Stack<T>>, LL>;

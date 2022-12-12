@@ -17,11 +17,6 @@ inline bool Stack<T>::empty() const {
 }
 
 template <typename T>
-inline void Stack<T>::emplace([[maybe_unused]] Key k, Val v) {
-  stack_.push(std::move(v));
-}
-
-template <typename T>
 inline Stack<T>::Val Stack<T>::back() const {
   return stack_.top();
 }

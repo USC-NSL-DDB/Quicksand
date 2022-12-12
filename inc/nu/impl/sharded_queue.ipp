@@ -40,12 +40,6 @@ inline bool Queue<T>::empty() const {
 }
 
 template <typename T>
-inline void Queue<T>::emplace([[maybe_unused]] Key k, Val v) {
-  ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
-  queue_.push(std::move(v));
-}
-
-template <typename T>
 inline Queue<T>::Val Queue<T>::front() const {
   ScopedLock<Mutex> guard(const_cast<Mutex *>(&mutex_));
   return queue_.front();

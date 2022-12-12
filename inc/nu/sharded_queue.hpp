@@ -6,7 +6,6 @@
 
 namespace nu {
 
-// FIFO Queue
 template <typename T>
 class Queue {
  public:
@@ -21,7 +20,6 @@ class Queue {
 
   std::size_t size() const;
   bool empty() const;
-  void emplace(Key k, Val v);
   void emplace_back(Val v);
   void emplace_back_batch(std::vector<Val> v);
   Val front() const;
@@ -57,8 +55,6 @@ class ShardedQueue
   void push(const T &value);
   void pop();
   T dequeue();
-  // TODO: swap
-  // void swap();
 
  private:
   using Base = ShardedDataStructure<GeneralContainer<Queue<T>>, LL>;

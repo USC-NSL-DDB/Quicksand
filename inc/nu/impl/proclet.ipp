@@ -554,5 +554,3 @@ inline Future<Proclet<T>> make_proclet_async(bool pinned,
 }
 
 }  // namespace nu
-
-
