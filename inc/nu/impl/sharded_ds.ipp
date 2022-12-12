@@ -75,7 +75,6 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   for (std::size_t i = 0; i < shard_futures.size(); i++) {
     auto &weak_shard = shard_futures[i].get();
     auto &key = keys[i];
-    assert(weak_shard.has_value());
     key_to_shards_.emplace(key, ShardAndReqs(weak_shard.value()));
   }
 }
@@ -167,7 +166,8 @@ template <class Container, class LL>
 template <class Container, class LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::emplace(
     DataEntry entry) requires(EmplaceAble<Container>) {
-  [[maybe_unused]] retry : typename KeyToShardsMapping::iterator iter;
+[[maybe_unused]] retry:
+  typename KeyToShardsMapping::iterator iter;
   if constexpr (HasVal<Container>) {
     iter = --key_to_shards_.upper_bound(entry.first);
   } else {
@@ -198,7 +198,8 @@ template <class Container, class LL>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
-  [[maybe_unused]] retry : if constexpr (LL::value) {
+[[maybe_unused]] retry:
+  if constexpr (LL::value) {
     // rbegin() is O(1) which is much faster than the O(logn) of --end().
     auto iter = key_to_shards_.rbegin();
     auto l_key = iter->first;
@@ -210,8 +211,7 @@ ShardedDataStructure<Container, LL>::emplace_back(
       sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
       goto retry;
     }
-  }
-  else {
+  } else {
     emplace_back_reqs_.emplace_back(std::move(v));
 
     if (unlikely(emplace_back_reqs_.size() >= max_num_vals_)) {

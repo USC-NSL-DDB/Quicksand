@@ -17,7 +17,7 @@ class GeneralShardMapping {
   using Key = Shard::Key;
 
   GeneralShardMapping(uint32_t max_shard_bytes,
-                      std::optional<uint32_t> max_shard_count);
+                      std::optional<uint32_t> max_shard_cnt);
   ~GeneralShardMapping();
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
@@ -43,9 +43,9 @@ class GeneralShardMapping {
   WeakProclet<GeneralShardMapping> self_;
   uint32_t max_shard_bytes_;
   uint32_t proclet_capacity_;
-  std::optional<uint32_t> max_shard_count_;
-
+  std::optional<uint32_t> max_shard_cnt_;
   std::multimap<std::optional<Key>, Proclet<Shard>> mapping_;
+  uint32_t pending_creations_;
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;
   std::stack<Proclet<Shard>> reserved_shards_;

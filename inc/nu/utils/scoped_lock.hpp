@@ -19,6 +19,12 @@ class ScopedLock {
       l_->unlock();
     }
   }
+  void reset() {
+    if (l_) {
+      l_->unlock();
+      l_ = nullptr;
+    }
+  }
 
  private:
   L *l_;

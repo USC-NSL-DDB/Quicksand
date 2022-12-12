@@ -167,18 +167,19 @@ bool GeneralShard<Container>::split() {
 
   auto new_shard = mapping_.run(&ShardMapping::create_new_shard, mid_k, r_key_,
                                 /* reserve_space = */ false);
-  if (!new_shard) {
+  if (unlikely(!new_shard)) {
     full_ = true;
     return false;
   }
+
   full_ = false;
   ContainerAndMetadata<Container> container_and_metadata;
   container_and_metadata.container = std::move(*latter_half_container);
   container_and_metadata.capacity =
       std::max(new_container_capacity, latter_half_container->size());
   container_and_metadata.container_bucket_size = container_bucket_size_;
-  new_shard.value().run(&GeneralShard::set_range_and_data, mid_k, r_key_,
-                        container_and_metadata);
+  new_shard->run(&GeneralShard::set_range_and_data, mid_k, r_key_,
+                 container_and_metadata);
 
   r_key_ = mid_k;
 
