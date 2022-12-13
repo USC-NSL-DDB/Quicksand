@@ -112,13 +112,14 @@ void GeneralShard<Container>::set_range_and_data(
   rw_lock_.writer_lock();
   l_key_ = l_key;
   r_key_ = r_key;
-  deleted_ = false;
-  full_ = false;
   container_ = std::move(container_and_metadata.container);
   initial_slab_usage_ = slab_->get_usage();
   initial_size_ = container_.size();
   container_bucket_size_ = container_and_metadata.container_bucket_size;
+  real_max_shard_bytes_ = max_shard_bytes_ / kAlmostFullThresh;
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
+  deleted_ = false;
+  full_ = false;
   rw_lock_.writer_unlock();
 }
 
@@ -183,21 +184,11 @@ bool GeneralShard<Container>::split() {
 
   r_key_ = mid_k;
 
-  if (cur_slab_usage > real_max_shard_bytes_) {
-    // Grant slightly more memory to incorporate fragmentations in our slab
-    // allocator.
-    real_max_shard_bytes_ = cur_slab_usage + kSlabFragmentationHeadroom;
-
-    auto allocator_capacity = slab_->get_usage() + slab_->get_remaining();
-    auto max_shard_sz = allocator_capacity * 0.9;
-    if (real_max_shard_bytes_ > max_shard_sz) {
-      real_max_shard_bytes_ = max_shard_sz;
-    }
-  } else if constexpr (Reservable<Container>) {
-    auto size = container_.size();
-    if (size > size_thresh_) {
-      size_thresh_ = size;
-    }
+  // In case it splits at the boundary.
+  real_max_shard_bytes_ = std::max(real_max_shard_bytes_,
+                                   static_cast<uint32_t>(slab_->get_usage()));
+  if constexpr (Reservable<Container>) {
+    size_thresh_ = std::max(size_thresh_, container_.size());
   }
 
   return true;
@@ -247,6 +238,10 @@ void GeneralShard<Container>::delete_self_with_reader_lock() {
   rw_lock_.writer_lock();
   if (container_.empty() && !deleted_) {
     deleted_ = mapping_.run(&ShardMapping::delete_front_shard);
+    if (deleted_) {
+      // Recycle memory.
+      container_ = Container();
+    }
   }
   rw_lock_.writer_unlock();
 }

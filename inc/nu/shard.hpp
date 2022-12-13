@@ -175,7 +175,6 @@ class GeneralShard {
   constexpr static uint32_t kReserveProbeSize = 8192;
   constexpr static float kReserveContainerSizeRatio = 0.5;
   constexpr static float kAlmostFullThresh = 0.95;
-  constexpr static uint32_t kSlabFragmentationHeadroom = (2 << 20);
 
   const uint32_t max_shard_bytes_;
   uint32_t real_max_shard_bytes_;
