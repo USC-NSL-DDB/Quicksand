@@ -50,7 +50,6 @@ class SlabAllocator {
   void *get_base() const noexcept;
   size_t get_usage() const noexcept;
   size_t get_remaining() const noexcept;
-  bool try_shrink(size_t new_len) noexcept;
   SlabId_t get_id() noexcept;
   static SlabAllocator *get_slab_by_id() noexcept;
   static void free(const void *ptr) noexcept;
@@ -89,7 +88,7 @@ class SlabAllocator {
   SlabId_t slab_id_;
   bool aggressive_caching_;
   const uint8_t *start_;
-  uint8_t *end_;
+  const uint8_t *end_;
   uint8_t *cur_;
   FreePtrsLinkedList slab_lists_[kMaxSlabClassShift];
   uint64_t global_free_bytes_;

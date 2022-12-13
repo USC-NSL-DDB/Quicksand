@@ -6,15 +6,6 @@
 
 namespace nu {
 
-inline DistributedMemPool::Heap::Heap(uint32_t shard_size) {
-  SlabAllocator *slab;
-  {
-    Caladan::PreemptGuard g;
-    slab = get_runtime()->get_current_proclet_slab();
-  }
-  BUG_ON(!slab->try_shrink(shard_size));
-}
-
 template <typename T, typename... As>
 inline RemRawPtr<T> DistributedMemPool::Heap::allocate_raw(As... args) {
   return RemRawPtr(new T(std::move(args)...));

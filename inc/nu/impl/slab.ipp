@@ -22,7 +22,7 @@ inline void SlabAllocator::init(SlabId_t slab_id, void *buf, uint64_t len,
   slab_id_ = slab_id;
   aggressive_caching_ = aggressive_caching;
   start_ = reinterpret_cast<const uint8_t *>(buf);
-  end_ = const_cast<uint8_t *>(start_) + len;
+  end_ = start_ + len;
   cur_ = const_cast<uint8_t *>(start_);
   global_free_bytes_ = 0;
 }
@@ -63,14 +63,6 @@ inline size_t SlabAllocator::get_usage() const noexcept {
 
 inline size_t SlabAllocator::get_remaining() const noexcept {
   return end_ - start_ - get_usage();
-}
-
-inline bool SlabAllocator::try_shrink(size_t new_len) noexcept {
-  if (cur_ > new_len + start_) {
-    return false;
-  }
-  end_ = const_cast<uint8_t *>(start_) + new_len;
-  return true;
 }
 
 inline SlabId_t SlabAllocator::get_id() noexcept { return slab_id_; }

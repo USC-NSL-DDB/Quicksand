@@ -60,7 +60,7 @@ class DistributedMemPool {
 
  private:
   struct Heap {
-    Heap(uint32_t shard_size);
+    Heap() = default;
     template <typename T, typename... As>
     RemRawPtr<T> allocate_raw(As... args);
     template <typename T, typename... As>
