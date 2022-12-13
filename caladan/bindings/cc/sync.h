@@ -16,21 +16,24 @@ namespace rt {
 // Force the compiler to access a memory location.
 template<typename T>
 T volatile &access_once(T &t) {
-  static_assert(std::is_integral<T>::value, "Integral required.");
+  static_assert(std::is_integral<T>::value || std::is_pointer<T>::value,
+                "Integral or pointer required.");
   return static_cast<T volatile &>(t);
 }
 
 // Force the compiler to read a memory location.
 template<typename T>
 T read_once(const T &p) {
-  static_assert(std::is_integral<T>::value, "Integral required.");
+  static_assert(std::is_integral<T>::value || std::is_pointer<T>::value,
+                "Integral or pointer required.");
   return static_cast<const T volatile &>(p);
 }
 
 // Force the compiler to write a memory location.
 template<typename T>
 void write_once(T &p, const T &val) {
-  static_assert(std::is_integral<T>::value, "Integral required.");
+  static_assert(std::is_integral<T>::value || std::is_pointer<T>::value,
+                "Integral or pointer required.");
   static_cast<T volatile &>(p) = val;
 }
 
