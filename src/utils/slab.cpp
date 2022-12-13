@@ -112,11 +112,12 @@ void *SlabAllocator::__allocate(size_t size) noexcept {
                    get_num_cache_entries(aggressive_caching_, slab_shift));
       while (slab_list.size() && cache_list.size() < num_cache_entries) {
         cache_list.push(slab_list.pop());
+        global_free_bytes_ -= get_slab_size(slab_shift);
       }
 
       auto remaining = num_cache_entries - cache_list.size();
       if (remaining) {
-        auto slab_size = (1ULL << (slab_shift + 1)) + sizeof(PtrHeader);
+        auto slab_size = get_slab_size(slab_shift);
         cur_ += slab_size * remaining;
         auto tmp = cur_;
         for (uint32_t i = 0; i < remaining; i++) {
@@ -192,6 +193,7 @@ inline void SlabAllocator::__do_free(const Caladan::PreemptGuard &g, void *ptr,
     auto &slab_list = slab_lists_[slab_shift];
     while (cache_list.size() > num_cache_entries / 2) {
       slab_list.push(cache_list.pop());
+      global_free_bytes_ += get_slab_size(slab_shift);
     }
   }
 }

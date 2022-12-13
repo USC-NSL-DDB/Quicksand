@@ -24,6 +24,7 @@ inline void SlabAllocator::init(SlabId_t slab_id, void *buf, uint64_t len,
   start_ = reinterpret_cast<const uint8_t *>(buf);
   end_ = const_cast<uint8_t *>(start_) + len;
   cur_ = const_cast<uint8_t *>(start_);
+  global_free_bytes_ = 0;
 }
 
 inline void *SlabAllocator::allocate(size_t size) noexcept {
@@ -40,8 +41,12 @@ inline void SlabAllocator::free(const void *ptr) noexcept {
   __free(ptr);
 }
 
-inline uint32_t SlabAllocator::get_slab_shift(uint64_t size) noexcept {
-  return std::max(bsr_64(size - 1), kMinSlabClassShift - 1);
+inline uint32_t SlabAllocator::get_slab_shift(uint64_t data_size) noexcept {
+  return std::max(bsr_64(data_size - 1), kMinSlabClassShift - 1);
+}
+
+inline uint64_t SlabAllocator::get_slab_size(uint32_t slab_shift) noexcept {
+  return (1ULL << (slab_shift + 1)) + sizeof(PtrHeader);
 }
 
 inline void *SlabAllocator::get_base() const noexcept {
@@ -49,11 +54,15 @@ inline void *SlabAllocator::get_base() const noexcept {
 }
 
 inline size_t SlabAllocator::get_usage() const noexcept {
-  return ACCESS_ONCE(cur_) - start_;
+  std::size_t ever_allocated = rt::access_once(cur_) - start_;
+  auto global_free_bytes =
+      static_cast<std::size_t>(rt::access_once(global_free_bytes_));
+  BUG_ON(ever_allocated < global_free_bytes);
+  return ever_allocated - global_free_bytes;
 }
 
 inline size_t SlabAllocator::get_remaining() const noexcept {
-  return end_ - ACCESS_ONCE(cur_);
+  return end_ - start_ - get_usage();
 }
 
 inline bool SlabAllocator::try_shrink(size_t new_len) noexcept {

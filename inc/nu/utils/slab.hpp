@@ -92,6 +92,7 @@ class SlabAllocator {
   uint8_t *end_;
   uint8_t *cur_;
   FreePtrsLinkedList slab_lists_[kMaxSlabClassShift];
+  uint64_t global_free_bytes_;
   CoreCache cache_lists_[kNumCores];
 #ifdef SLAB_TRANSFER_CACHE
   TransferredCoreCache transferred_caches_[kNumCores];
@@ -102,7 +103,8 @@ class SlabAllocator {
   static void __free(const void *ptr) noexcept;
   void __do_free(const Caladan::PreemptGuard &g, void *ptr,
                  uint32_t slab_shift) noexcept;
-  uint32_t get_slab_shift(uint64_t size) noexcept;
+  uint32_t get_slab_shift(uint64_t data_size) noexcept;
+  uint64_t get_slab_size(uint32_t slab_shift) noexcept;
   void drain_transferred_cache(const Caladan::PreemptGuard &g,
                                uint32_t slab_shift) noexcept;
 };
