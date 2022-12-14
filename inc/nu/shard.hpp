@@ -172,7 +172,8 @@ class GeneralShard {
   Key rebase(Key new_l_key) requires GeneralContainer::kContiguousIterator;
 
  private:
-  constexpr static uint32_t kReserveProbeSize = 8192;
+  constexpr static uint32_t kReserveProbeSize =
+      std::max(1UL, 65536 / sizeof(DataEntry));
   constexpr static float kReserveContainerSizeRatio = 0.5;
   constexpr static float kAlmostFullThresh = 0.95;
   constexpr static uint32_t kSlabFragmentationHeadroom = 2 << 20;
