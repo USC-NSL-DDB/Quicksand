@@ -89,6 +89,8 @@ constexpr T div_round_up_unchecked(T dividend, T divisor);
 constexpr uint64_t round_up_to_power2(uint64_t x);
 template <typename T>
 constexpr void ewma(double weight, T *result, T new_data);
+template <typename T>
+void move_append_vector(std::vector<T> &dest, std::vector<T> &src);
 
 template <class T>
 concept BoolIntegral = requires {

@@ -2,6 +2,7 @@ extern "C" {
 #include <asm/ops.h>
 }
 
+#include <algorithm>
 #include <limits>
 
 namespace nu {
@@ -63,6 +64,12 @@ inline constexpr void ewma(double weight, T *result, T new_data) {
   } else {
     *result = weight * new_data + (1 - weight) * (*result);
   }
+}
+
+template <typename T>
+void move_append_vector(std::vector<T> &dest, std::vector<T> &src) {
+  std::move(src.begin(), src.end(), std::back_inserter(dest));
+  src.clear();
 }
 
 }  // namespace nu

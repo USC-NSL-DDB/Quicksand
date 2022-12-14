@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/circular_buffer.hpp>
 #include <map>
 #include <optional>
 #include <stack>
@@ -12,6 +13,31 @@
 namespace nu {
 
 template <class Shard>
+struct LogEntry {
+  enum { kDelete, kInsert };
+  uint8_t op;
+  std::optional<typename Shard::Key> l_key;
+  WeakProclet<Shard> shard;
+  uint64_t seq;
+
+  template <class Archive>
+  void serialize(Archive &ar);
+};
+
+template <class Shard>
+class Log {
+ public:
+  Log(uint32_t size);
+  std::optional<std::vector<LogEntry<Shard>>> from(uint64_t start_seq);
+  void append(uint8_t op, std::optional<typename Shard::Key> l_key,
+              WeakProclet<Shard> shard);
+
+ private:
+  uint64_t seq_;
+  boost::circular_buffer<LogEntry<Shard>> cb_;
+};
+
+template <class Shard>
 class GeneralShardMapping {
  public:
   using Key = Shard::Key;
@@ -19,12 +45,11 @@ class GeneralShardMapping {
   GeneralShardMapping(uint32_t max_shard_bytes,
                       std::optional<uint32_t> max_shard_cnt);
   ~GeneralShardMapping();
-  std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
-  get_shards_in_range(std::optional<Key> l_key, std::optional<Key> r_key);
+  std::optional<std::vector<LogEntry<Shard>>> get_updates(uint64_t start_seq);
+  std::multimap<std::optional<Key>, WeakProclet<Shard>> get_mapping();
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_all_keys_and_shards();
   std::optional<WeakProclet<Shard>> get_shard_for_key(std::optional<Key> key);
-  std::vector<Proclet<Shard>> acquire_all_shards();
   void reserve_new_shard();
   std::optional<WeakProclet<Shard>> create_new_shard(std::optional<Key> l_key,
                                                      std::optional<Key> r_key,
@@ -39,6 +64,7 @@ class GeneralShardMapping {
 
  private:
   constexpr static double kProcletOverprovisionFactor = 3;
+  constexpr static uint32_t kLogSize = 256;
 
   WeakProclet<GeneralShardMapping> self_;
   uint32_t max_shard_bytes_;
@@ -49,9 +75,11 @@ class GeneralShardMapping {
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;
   std::stack<Proclet<Shard>> reserved_shards_;
+  Log<Shard> log_;
   Mutex mutex_;
 
   bool reached_size_bound();
+  std::vector<Proclet<Shard>> move_all_shards();
 };
 
 }  // namespace nu

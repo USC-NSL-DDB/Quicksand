@@ -57,7 +57,7 @@ inline ContainerAndMetadata<Container>::ContainerAndMetadata(
 template <class Container>
 template <class Archive>
 inline void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
-  ar(l_key, r_key, shard, emplace_back_reqs, emplace_reqs);
+  ar(mapping_seq, l_key, r_key, emplace_back_reqs, emplace_reqs);
 }
 
 template <class Container>
@@ -184,9 +184,12 @@ bool GeneralShard<Container>::split() {
 
   r_key_ = mid_k;
 
-  // In case it splits at the boundary.
-  real_max_shard_bytes_ = std::max(real_max_shard_bytes_,
-                                   static_cast<uint32_t>(slab_->get_usage()));
+  auto new_slab_usage = slab_->get_usage();
+  if (unlikely(new_slab_usage > real_max_shard_bytes_)) {
+    // Grant slightly more memory to incorporate fragmentations in our slab
+    // allocator.
+    real_max_shard_bytes_ = new_slab_usage + kSlabFragmentationHeadroom;
+  }
   if constexpr (Reservable<Container>) {
     size_thresh_ = std::max(size_thresh_, container_.size());
   }
@@ -213,6 +216,7 @@ inline bool GeneralShard<Container>::should_split() const {
   if constexpr (Reservable<Container>) {
     over_container_size = (container_.size() > size_thresh_);
   }
+
   over_slab_size = (slab_->get_usage() > real_max_shard_bytes_);
 
   return over_container_size || over_slab_size;

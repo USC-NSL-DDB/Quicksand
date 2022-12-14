@@ -116,6 +116,7 @@ class ShardedDataStructure {
   using KeyToShardsMapping = std::multimap<std::optional<Key>, ShardAndReqs>;
 
   Proclet<ShardMapping> mapping_;
+  uint64_t mapping_seq_;
   KeyToShardsMapping key_to_shards_;
   std::vector<Val> emplace_back_reqs_;
   std::queue<Future<std::optional<typename Shard::ReqBatch>>> flush_futures_;
@@ -136,8 +137,7 @@ class ShardedDataStructure {
                                 uint32_t *max_batch_size);
   bool flush_one_batch(KeyToShardsMapping::iterator iter, bool drain);
   void handle_rejected_flush_batch(ReqBatch &batch);
-  void sync_mapping(std::optional<Key> l_key, std::optional<Key> r_key,
-                    std::optional<WeakProclet<Shard>> shard, bool prune_local);
+  void sync_mapping();
   void flush_and_sync_mapping();
   std::pair<std::optional<Key>, std::optional<Key>> get_key_range(
       KeyToShardsMapping::iterator iter);

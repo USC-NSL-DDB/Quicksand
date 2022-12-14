@@ -77,12 +77,14 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     auto &key = keys[i];
     key_to_shards_.emplace(key, ShardAndReqs(weak_shard.value()));
   }
+  mapping_seq_ = shard_futures.size() - 1;
 }
 
 template <class Container, class LL>
 inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
     const ShardedDataStructure &o)
     : mapping_(o.mapping_),
+      mapping_seq_(o.mapping_seq_),
       key_to_shards_(o.key_to_shards_),
       max_num_vals_(o.max_num_vals_),
       max_num_data_entries_(o.max_num_data_entries_) {
@@ -96,6 +98,7 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   const_cast<ShardedDataStructure &>(o).flush();
 
   mapping_ = o.mapping_;
+  mapping_seq_ = o.mapping_seq_;
   key_to_shards_ = o.key_to_shards_;
   max_num_vals_ = o.max_num_vals_;
   max_num_data_entries_ = o.max_num_data_entries_;
@@ -109,6 +112,7 @@ template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     ShardedDataStructure &&o) noexcept
     : mapping_(std::move(o.mapping_)),
+      mapping_seq_(o.mapping_seq_),
       key_to_shards_(std::move(o.key_to_shards_)),
       emplace_back_reqs_(std::move(o.emplace_back_reqs_)),
       flush_futures_(std::move(o.flush_futures_)),
@@ -122,6 +126,7 @@ ShardedDataStructure<Container, LL>
   reset();
 
   mapping_ = std::move(o.mapping_);
+  mapping_seq_ = o.mapping_seq_;
   key_to_shards_ = std::move(o.key_to_shards_);
   emplace_back_reqs_ = std::move(o.emplace_back_reqs_);
   flush_futures_ = std::move(o.flush_futures_);
@@ -180,7 +185,7 @@ template <class Container, class LL>
     auto succeed = shard.run(&Shard::try_emplace, l_key, r_key, entry);
 
     if (unlikely(!succeed)) {
-      sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
+      sync_mapping();
       goto retry;
     }
   } else {
@@ -208,7 +213,7 @@ ShardedDataStructure<Container, LL>::emplace_back(
     auto succeed = shard.run(&Shard::try_emplace_back, l_key, r_key, v);
 
     if (unlikely(!succeed)) {
-      sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
+      sync_mapping();
       goto retry;
     }
   } else {
@@ -253,7 +258,7 @@ retry:
   }
 
   if (unlikely(!succeed)) {
-    sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
+    sync_mapping();
     goto retry;
   }
 
@@ -316,8 +321,7 @@ retry:
 
   if (unlikely(!succeed)) {
     timer_sleep(200);
-    sync_mapping(l_key, /* r_key = */ std::nullopt, /* shard = */ std::nullopt,
-                 /* prune_local = */ true);
+    sync_mapping();
     goto retry;
   }
 }
@@ -338,8 +342,7 @@ retry:
 
   if (unlikely(!succeed)) {
     timer_sleep(200);
-    sync_mapping(l_key, r_key, std::nullopt,
-                 /* prune_local = */ true);
+    sync_mapping();
     goto retry;
   }
 
@@ -359,7 +362,7 @@ retry:
 
   if (unlikely(!succeed)) {
     auto [l_key, r_key] = get_key_range(iter);
-    sync_mapping(l_key, r_key, shard, /* prune_local = */ false);
+    sync_mapping();
     goto retry;
   }
 
@@ -425,7 +428,7 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
   ReqBatch batch;
 
   auto &shard_and_reqs = iter->second;
-  batch.shard = shard_and_reqs.shard;
+  batch.mapping_seq = mapping_seq_;
   if (iter == --key_to_shards_.end()) {
     batch.emplace_back_reqs = std::move(emplace_back_reqs_);
     emplace_back_reqs_.clear();
@@ -436,7 +439,7 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
   std::tie(batch.l_key, batch.r_key) = get_key_range(iter);
 
   if (unlikely(!shard_and_reqs.flush_executor)) {
-    shard_and_reqs.flush_executor = batch.shard.run(+[](Shard &s) {
+    shard_and_reqs.flush_executor = shard_and_reqs.shard.run(+[](Shard &s) {
       return make_rem_unique<RobExecutor<ReqBatch, std::optional<ReqBatch>>>(
           [&](const ReqBatch &batch) { return s.try_handle_batch(batch); },
           kMaxNumInflightFlushes);
@@ -460,8 +463,8 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
 
   flush_futures_.emplace(shard_and_reqs.flush_executor.run_async(
       +[](RobExecutor<ReqBatch, std::optional<ReqBatch>> &rob_executor,
-          uint32_t seq, ReqBatch batch) {
-        return rob_executor.submit(seq, std::move(batch));
+          uint32_t rob_seq, ReqBatch batch) {
+        return rob_executor.submit(rob_seq, std::move(batch));
       },
       shard_and_reqs.seq++, std::move(batch)));
 
@@ -494,7 +497,9 @@ void ShardedDataStructure<Container, LL>::reroute_reqs(
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::handle_rejected_flush_batch(
     ReqBatch &batch) {
-  sync_mapping(batch.l_key, batch.r_key, batch.shard, false);
+  if (likely(batch.mapping_seq == mapping_seq_)) {
+    sync_mapping();
+  }
   reroute_reqs(std::move(batch.emplace_reqs),
                std::move(batch.emplace_back_reqs));
 }
@@ -511,47 +516,45 @@ void ShardedDataStructure<Container, LL>::flush() {
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::sync_mapping(
-    std::optional<Key> l_key, std::optional<Key> r_key,
-    std::optional<WeakProclet<Shard>> shard, bool prune_local) {
-  auto range = r_key
-                   ? key_to_shards_.equal_range(r_key)
-                   : std::make_pair(key_to_shards_.end(), key_to_shards_.end());
-  auto kts_iter = (l_key != r_key) ? range.first : range.second;
-  auto &shard_and_reqs = (--kts_iter)->second;
-  auto current_shard = shard_and_reqs.shard;
-  if (unlikely(shard.has_value() && *shard != current_shard)) {
-    // We've already got a newer mapping.
-    return;
+void ShardedDataStructure<Container, LL>::sync_mapping() {
+  std::vector<DataEntry> emplace_reqs;
+
+  auto updates = mapping_.run(&ShardMapping::get_updates, mapping_seq_ + 1);
+  if (likely(updates)) {
+    for (auto &entry : *updates) {
+      if (entry.op == LogEntry<Shard>::kInsert) {
+        auto it = key_to_shards_.emplace(entry.l_key, entry.shard);
+        if (it != key_to_shards_.begin()) {
+          move_append_vector(emplace_reqs, (--it)->second.emplace_reqs);
+        }
+      } else if (entry.op == LogEntry<Shard>::kDelete) {
+        auto [begin_it, end_it] = key_to_shards_.equal_range(entry.l_key);
+        auto it = begin_it;
+        for (;it != end_it; ++it) {
+          if (it->second.shard == entry.shard) {
+            break;
+          }
+        }
+        BUG_ON(it == end_it);
+
+        move_append_vector(emplace_reqs, it->second.emplace_reqs);
+        key_to_shards_.erase(it);
+      } else {
+        BUG();
+      }
+    }
+
+    if (!updates->empty()) {
+      BUG_ON(mapping_seq_ > updates->back().seq);
+      mapping_seq_ = updates->back().seq;
+    }
+  } else {
+    // TODO: implement it.
+    BUG();
   }
 
-  auto emplace_reqs = std::move(shard_and_reqs.emplace_reqs);
-  shard_and_reqs.emplace_reqs.clear();
-
-  if (prune_local) {
-    key_to_shards_.erase(kts_iter);
-  }
-
-  auto latest_mapping =
-      mapping_.run(&ShardMapping::get_shards_in_range, l_key, r_key);
-
-  auto lm_iter = latest_mapping.begin();
-  if (shard.has_value()) {
-    for (; lm_iter != latest_mapping.end() && lm_iter->second != *shard;
-         ++lm_iter)
-      ;
-    if (lm_iter != latest_mapping.end()) ++lm_iter;
-  }
-  for (; lm_iter != latest_mapping.end(); ++lm_iter) {
-    auto &[k, s] = *lm_iter;
-    key_to_shards_.emplace(k, ShardAndReqs(s));
-  }
-
-  std::vector<Val> emplace_back_reqs;
-  if (!r_key) {
-    emplace_back_reqs = std::move(emplace_back_reqs_);
-    emplace_back_reqs_.clear();
-  }
+  auto emplace_back_reqs = std::move(emplace_back_reqs_);
+  emplace_back_reqs_.clear();
 
   reroute_reqs(std::move(emplace_reqs), std::move(emplace_back_reqs));
 }
@@ -697,7 +700,8 @@ template <class Container, class LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::__save(Archive &ar) {
   flush();
-  ar(mapping_, key_to_shards_, max_num_vals_, max_num_data_entries_);
+  ar(mapping_, mapping_seq_, key_to_shards_, max_num_vals_,
+     max_num_data_entries_);
   mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
 }
 
@@ -710,7 +714,8 @@ inline void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
 template <class Container, class LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::load(Archive &ar) {
-  ar(mapping_, key_to_shards_, max_num_vals_, max_num_data_entries_);
+  ar(mapping_, mapping_seq_, key_to_shards_, max_num_vals_,
+     max_num_data_entries_);
 }
 
 template <class Container, class LL>
