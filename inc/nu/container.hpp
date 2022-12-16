@@ -25,13 +25,13 @@ concept GeneralContainerBased = requires {
 template <class T>
 concept EmplaceFrontAble = requires(T t) {
   { t.emplace_front(std::declval<typename T::Val>()) }
-  ->std::same_as<void>;
+  ->std::same_as<std::size_t>;
 };
 
 template <class T>
 concept EmplaceBackAble = requires(T t) {
   { t.emplace_back(std::declval<typename T::Val>()) }
-  ->std::same_as<void>;
+  ->std::same_as<std::size_t>;
 };
 
 template <class T>
@@ -39,7 +39,7 @@ concept EmplaceAbleByPair = requires(T t) {
   {
     t.emplace(std::declval<typename T::Key>(), std::declval<typename T::Val>())
   }
-  ->std::same_as<void>;
+  ->std::same_as<std::size_t>;
 };
 
 template <class T>
@@ -47,7 +47,7 @@ concept EmplaceAbleByKey = requires(T t) {
   {
     t.emplace(std::declval<typename T::Key>())
   }
-  ->std::same_as<void>;
+  ->std::same_as<std::size_t>;
 };
 
 template <class T>
@@ -69,12 +69,6 @@ concept HasFront = requires(T t) {
 template <class T>
 concept PopFrontAble = requires(T t) {
   { t.pop_front() }
-  ->std::same_as<void>;
-};
-
-template <class T>
-concept DequeueAble = requires(T t) {
-  { t.try_dequeue() }
   ->std::same_as<std::optional<typename T::Val>>;
 };
 
@@ -87,7 +81,7 @@ concept HasBack = requires(T t) {
 template <class T>
 concept PopBackAble = requires(T t) {
   { t.pop_back() }
-  ->std::same_as<void>;
+  ->std::same_as<std::optional<typename T::Val>>;
 };
 
 template <class T>
@@ -229,45 +223,46 @@ class GeneralContainerBase {
   void clear() requires ClearAble<Impl> {
     return synchronized<void>([&] { return impl_.clear(); });
   };
-  void emplace(Key k, Val v) requires(HasVal<Impl> && EmplaceAble<Impl>) {
-    synchronized<void>([&] { impl_.emplace(std::move(k), std::move(v)); });
+  std::size_t emplace(Key k, Val v) requires(HasVal<Impl> &&EmplaceAble<Impl>) {
+    return synchronized<std::size_t>(
+        [&] { return impl_.emplace(std::move(k), std::move(v)); });
   }
-  void emplace(Key k) requires (!HasVal<Impl> && EmplaceAble<Impl>) {
-    synchronized<void>([&] { impl_.emplace(std::move(k)); });
+  std::size_t emplace(Key k) requires(!HasVal<Impl> && EmplaceAble<Impl>) {
+    return synchronized<std::size_t>(
+        [&] { return impl_.emplace(std::move(k)); });
   }
-  void emplace_back(Val v) requires EmplaceBackAble<Impl> {
-    synchronized<void>([&] { impl_.emplace_back(std::move(v)); });
+  std::size_t emplace_front(Val v) requires EmplaceFrontAble<Impl> {
+    return synchronized<std::size_t>([&] { return impl_.emplace_front(v); });
   }
-  void emplace_back_batch(std::vector<Val> v) requires EmplaceBackAble<Impl> {
-    synchronized<void>([&] { impl_.emplace_back_batch(std::move(v)); });
+  std::size_t emplace_back(Val v) requires EmplaceBackAble<Impl> {
+    return synchronized<std::size_t>(
+        [&] { return impl_.emplace_back(std::move(v)); });
+  }
+  std::size_t emplace_back_batch(
+      std::vector<Val> v) requires EmplaceBackAble<Impl> {
+    return synchronized<std::size_t>(
+        [&] { return impl_.emplace_back_batch(std::move(v)); });
   }
   ConstIterator find(Key k) const requires Findable<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
   }
-  Val front() const requires HasFront<Impl> {
-    return synchronized<Val>([&] { return impl_.front(); });
-  }
-  void emplace_front(Val v) requires EmplaceFrontAble<Impl> {
-    return synchronized<void>([&] { impl_.emplace_front(v); });
-  }
-  void pop_front() requires PopFrontAble<Impl> {
-    return synchronized<void>([&] { impl_.pop_front(); });
-  }
-  Val back() const requires HasBack<Impl> {
-    return synchronized<Val>([&] { return impl_.back(); });
-  }
-  void pop_back() requires PopBackAble<Impl> {
-    return synchronized<void>([&] { impl_.pop_back(); });
-  }
-  std::optional<Val> try_dequeue() requires DequeueAble<Impl> {
-    return synchronized<std::optional<Val>>(
-        [&] { return impl_.try_dequeue(); });
-  }
   ConstIterator find_by_order(
       std::size_t order) requires FindableByOrder<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find_by_order(order); });
+  }
+  Val front() const requires HasFront<Impl> {
+    return synchronized<Val>([&] { return impl_.front(); });
+  }
+  std::optional<Val> pop_front() requires PopFrontAble<Impl> {
+    return synchronized<std::optional<Val>>([&] { return impl_.pop_front(); });
+  }
+  Val back() const requires HasBack<Impl> {
+    return synchronized<Val>([&] { return impl_.back(); });
+  }
+  std::optional<Val> pop_back() requires PopBackAble<Impl> {
+    return synchronized<std::optional<Val>>([&] { return impl_.pop_back(); });
   }
   void split(Key *mid_k, ContainerType *latter_half) {
     return synchronized<void>([&] { impl_.split(mid_k, &latter_half->impl_); });
@@ -315,14 +310,16 @@ class GeneralContainerBase {
   void load(Archive &ar) {
     impl_.load(ar);
   }
-  void emplace_batch(std::vector<DataEntry> reqs);
 
  private:
   Impl impl_;
   Mutex mutex_;
+  template <GeneralContainerBased Container>
+  friend class GeneralShard;
 
   template <typename RetT, typename F>
   RetT synchronized(F &&f) const;
+  std::size_t emplace_batch(std::vector<DataEntry> reqs);
 };
 
 }  // namespace nu

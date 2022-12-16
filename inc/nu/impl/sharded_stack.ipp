@@ -22,18 +22,28 @@ inline Stack<T>::Val Stack<T>::back() const {
 }
 
 template <typename T>
-inline void Stack<T>::emplace_back(Val v) {
-  stack_.push(v);
+inline std::size_t Stack<T>::emplace_back(Val v) {
+  stack_.push(std::move(v));
+  return stack_.size();
 }
 
 template <typename T>
-inline void Stack<T>::emplace_back_batch(std::vector<Val> v) {
-  BUG();
+inline std::size_t Stack<T>::emplace_back_batch(std::vector<Val> vec) {
+  for (auto &v : vec) {
+    stack_.push(std::move(v));
+  }
+
+  return stack_.size();
 }
 
 template <typename T>
-inline void Stack<T>::pop_back() {
+inline std::optional<T> Stack<T>::pop_back() {
+  if (unlikely(stack_.empty())) {
+    return std::nullopt;
+  }
+  auto ret = std::move(stack_.top());
   stack_.pop();
+  return ret;
 }
 
 template <typename T>
@@ -94,8 +104,8 @@ inline T ShardedStack<T, LL>::top() const {
 }
 
 template <typename T, typename LL>
-inline void ShardedStack<T, LL>::pop() {
-  Base::pop_back();
+inline T ShardedStack<T, LL>::pop() {
+  return Base::pop_back();
 }
 
 template <typename T, typename LL>

@@ -50,7 +50,7 @@ struct Consumer {
                          nu::ShardedQueue<T, std::true_type> queue) {
     std::vector<T> elems;
     for (std::size_t i = 0; i < n_elems; ++i) {
-      elems.emplace_back(queue.dequeue());
+      elems.emplace_back(queue.pop());
     }
     return elems;
   }
@@ -135,7 +135,7 @@ bool test_batched_queue() {
     if (queue.empty()) {
       return false;
     }
-    auto dequeued = queue.dequeue();
+    auto dequeued = queue.pop();
     if (dequeued != expected) {
       return false;
     }

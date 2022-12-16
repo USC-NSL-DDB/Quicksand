@@ -43,8 +43,9 @@ inline void GeneralUnorderedMap<K, V, M>::clear() {
 }
 
 template <typename K, typename V, typename M>
-inline void GeneralUnorderedMap<K, V, M>::emplace(Key k, Val v) {
+inline std::size_t GeneralUnorderedMap<K, V, M>::emplace(Key k, Val v) {
   map_.emplace(std::move(k), std::move(v));
+  return map_.size();
 }
 
 template <typename K, typename V, typename M>

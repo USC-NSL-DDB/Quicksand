@@ -20,12 +20,11 @@ class Queue {
 
   std::size_t size() const;
   bool empty() const;
-  void emplace_back(Val v);
-  void emplace_back_batch(std::vector<Val> v);
+  std::size_t emplace_back(Val v);
+  std::size_t emplace_back_batch(std::vector<Val> vec);
   Val front() const;
   Val back() const;
-  void pop_front();
-  std::optional<Val> try_dequeue();
+  std::optional<Val> pop_front();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   void split(Key *mid_k, Queue *latter_half);
@@ -52,8 +51,7 @@ class ShardedQueue
   T front() const;
   T back() const;
   void push(const T &value);
-  void pop();
-  T dequeue();
+  T pop();
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL>;

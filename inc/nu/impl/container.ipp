@@ -16,9 +16,9 @@ inline RetT GeneralContainerBase<Impl, Synchronized>::synchronized(
 }
 
 template <class Impl, class Synchronized>
-inline void GeneralContainerBase<Impl, Synchronized>::emplace_batch(
+inline std::size_t GeneralContainerBase<Impl, Synchronized>::emplace_batch(
     std::vector<DataEntry> reqs) {
-  synchronized<void>([&]() {
+  return synchronized<std::size_t>([&]() {
     for (auto &req : reqs) {
       if constexpr (HasVal<Impl>) {
         impl_.emplace(std::move(req.first), std::move(req.second));
@@ -26,6 +26,7 @@ inline void GeneralContainerBase<Impl, Synchronized>::emplace_batch(
         impl_.emplace(std::move(req));
       }
     }
+    return impl_.size();
   });
 }
 

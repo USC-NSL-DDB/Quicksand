@@ -37,8 +37,8 @@ class Partitioner {
   void reserve(std::size_t capacity);
   bool empty() const;
   void clear();
-  void emplace(K k, V v) requires HasVal<Partitioner>;
-  void emplace(K k) requires(!HasVal<Partitioner>);
+  std::size_t emplace(K k, V v) requires HasVal<Partitioner>;
+  std::size_t emplace(K k) requires(!HasVal<Partitioner>);
   void split(K *mid_k, Partitioner *latter_half);
   void merge(Partitioner partitioner);
   template <typename... S0s, typename... S1s>

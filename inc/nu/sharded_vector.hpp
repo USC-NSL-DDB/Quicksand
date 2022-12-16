@@ -46,9 +46,9 @@ class Vector {
   void reserve(std::size_t size);
   bool empty() const;
   void clear();
-  void emplace(Key k, Val v);
-  void emplace_back(Val v);
-  void emplace_back_batch(std::vector<Val> v);
+  std::size_t emplace(Key k, Val v);
+  std::size_t emplace_back(Val v);
+  std::size_t emplace_back_batch(std::vector<Val> v);
   ConstIterator find(Key k) const;
   void split(Key *mid_k, Vector *latter_half);
   void merge(Vector vector);
@@ -88,7 +88,6 @@ class ShardedVector
   void set(std::size_t index, T value);
   void push_back(const T &value);
   void emplace_back(T &&value);
-  void pop_back();
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL>;

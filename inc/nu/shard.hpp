@@ -8,8 +8,10 @@
 
 #include "nu/container.hpp"
 #include "nu/rem_unique_ptr.hpp"
+#include "nu/utils/cond_var.hpp"
 #include "nu/utils/read_skewed_lock.hpp"
 #include "nu/utils/rob_executor.hpp"
+#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 
@@ -98,16 +100,15 @@ class GeneralShard {
       std::optional<Key> r_key) requires HasFront<Container>;
   bool try_emplace_front(std::optional<Key> l_key, std::optional<Key> r_key,
                          Val v) requires EmplaceFrontAble<Container>;
-  bool try_pop_front(std::optional<Key> l_key,
-                     std::optional<Key> r_key) requires PopFrontAble<Container>;
+  std::optional<Val> try_pop_front(
+      std::optional<Key> l_key,
+      std::optional<Key> r_key) requires PopFrontAble<Container>;
   std::optional<Val> try_back(
       std::optional<Key> l_key,
       std::optional<Key> r_key) requires HasBack<Container>;
-  bool try_pop_back(std::optional<Key> l_key,
-                    std::optional<Key> r_key) requires PopBackAble<Container>;
-  std::optional<Val> try_dequeue(
+  std::optional<Val> try_pop_back(
       std::optional<Key> l_key,
-      std::optional<Key> r_key) requires DequeueAble<Container>;
+      std::optional<Key> r_key) requires PopBackAble<Container>;
   std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);
   std::pair<bool, std::optional<IterVal>> find_data(
       Key k) requires Findable<Container>;
@@ -190,6 +191,8 @@ class GeneralShard {
   uint64_t initial_slab_usage_;
   std::size_t initial_size_;
   std::size_t size_thresh_;
+  SpinLock empty_spin_;
+  CondVar empty_cv_;
   bool deleted_;
   bool full_;
 
@@ -198,7 +201,7 @@ class GeneralShard {
   friend class ContiguousDSRangeImpl;
 
   bool split();
-  bool should_split() const;
+  bool should_split(std::size_t size) const;
   bool split_with_reader_lock();
   void delete_self_with_reader_lock();
   bool should_reject(std::optional<Key> l_key, std::optional<Key> r_key);

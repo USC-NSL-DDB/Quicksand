@@ -83,19 +83,22 @@ inline void Vector<T>::clear() {
 }
 
 template <typename T>
-inline void Vector<T>::emplace(Key k, Val v) {
+inline std::size_t Vector<T>::emplace(Key k, Val v) {
   data_[k - l_key_] = std::move(v);
+  return data_.size();
 }
 
 template <typename T>
-inline void Vector<T>::emplace_back(Val v) {
+inline std::size_t Vector<T>::emplace_back(Val v) {
   data_.emplace_back(std::move(v));
+  return data_.size();
 }
 
 template <typename T>
-inline void Vector<T>::emplace_back_batch(std::vector<Val> v) {
+inline std::size_t Vector<T>::emplace_back_batch(std::vector<Val> v) {
   data_.insert(data_.end(), make_move_iterator(v.begin()),
                make_move_iterator(v.end()));
+  return data_.size();
 }
 
 template <typename T>

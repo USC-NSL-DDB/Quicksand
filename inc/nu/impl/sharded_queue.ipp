@@ -27,28 +27,28 @@ inline Queue<T>::Val Queue<T>::back() const {
 }
 
 template <typename T>
-inline void Queue<T>::emplace_back(Val v) {
-  queue_.push(v);
+inline std::size_t Queue<T>::emplace_back(Val v) {
+  queue_.push(std::move(v));
+  return queue_.size();
 }
 
 template <typename T>
-inline void Queue<T>::emplace_back_batch(std::vector<Val> v) {
-  BUG();
+inline std::size_t Queue<T>::emplace_back_batch(std::vector<Val> vec) {
+  for (auto &v : vec) {
+    queue_.push(std::move(v));
+  }
+
+  return queue_.size();
 }
 
 template <typename T>
-inline void Queue<T>::pop_front() {
-  queue_.pop();
-}
-
-template <typename T>
-inline std::optional<typename Queue<T>::Val> Queue<T>::try_dequeue() {
-  if (!queue_.size()) {
+inline std::optional<T> Queue<T>::pop_front() {
+  if (unlikely(queue_.empty())) {
     return std::nullopt;
   }
-  auto popped = queue_.front();
+  auto ret = std::move(queue_.front());
   queue_.pop();
-  return popped;
+  return ret;
 }
 
 template <typename T>
@@ -105,17 +105,12 @@ inline T ShardedQueue<T, LL>::back() const {
 
 template <typename T, typename LL>
 void ShardedQueue<T, LL>::push(const T &value) {
-  Base::enqueue(value);
+  Base::emplace_back(value);
 }
 
 template <typename T, typename LL>
-inline void ShardedQueue<T, LL>::pop() {
-  Base::pop_front();
-}
-
-template <typename T, typename LL>
-inline T ShardedQueue<T, LL>::dequeue() {
-  return Base::dequeue();
+inline T ShardedQueue<T, LL>::pop() {
+  return Base::pop_front();
 }
 
 template <typename T, typename LL>

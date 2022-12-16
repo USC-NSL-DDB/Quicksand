@@ -206,21 +206,20 @@ std::optional<WeakProclet<Shard>> GeneralShardMapping<Shard>::create_new_shard(
 }
 
 template <class Shard>
-bool GeneralShardMapping<Shard>::delete_front_shard() {
+void GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
+                                              WeakProclet<Shard> shard) {
   ScopedLock<Mutex> lock(&mutex_);
 
-  auto it = mapping_.begin();
-  if (unlikely(it == mapping_.end())) {
-    return false;
+  auto [begin_it, end_it] = mapping_.equal_range(l_key);
+  for (auto it = begin_it; it != end_it; ++it) {
+    if (it->second == shard) {
+      log_.append(LogEntry<Shard>::kDelete, it->first, shard);
+      reserved_shards_.emplace(std::move(it->second));
+      mapping_.erase(it);
+      return;
+    }
   }
-  if (unlikely(it == --mapping_.end())) {
-    return false;  // keep the tail shard alive
-  }
-  log_.append(LogEntry<Shard>::kDelete, it->first, it->second.get_weak());
-  reserved_shards_.emplace(std::move(it->second));
-  mapping_.erase(it);
-
-  return true;
+  BUG();
 }
 
 template <class Shard>

@@ -3,6 +3,7 @@
 #include "nu/shard_mapping.hpp"
 #include "nu/utils/caladan.hpp"
 #include "nu/utils/rob_executor.hpp"
+#include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
 
@@ -209,12 +210,12 @@ inline bool GeneralShard<Container>::should_reject(Key k) {
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::should_split() const {
+inline bool GeneralShard<Container>::should_split(std::size_t size) const {
   bool over_container_size = false;
   bool over_slab_size = false;
 
   if constexpr (Reservable<Container>) {
-    over_container_size = (container_.size() > size_thresh_);
+    over_container_size = (size > size_thresh_);
   }
 
   over_slab_size = (slab_->get_usage() > real_max_shard_bytes_);
@@ -227,7 +228,7 @@ bool GeneralShard<Container>::split_with_reader_lock() {
   bool splitted = false;
   rw_lock_.reader_unlock();
   rw_lock_.writer_lock();
-  if (should_split()) {
+  if (likely(should_split(container_.size()))) {
     splitted = split();
   } else {
     full_ = false;
@@ -241,11 +242,13 @@ void GeneralShard<Container>::delete_self_with_reader_lock() {
   rw_lock_.reader_unlock();
   rw_lock_.writer_lock();
   if (container_.empty() && !deleted_) {
-    deleted_ = mapping_.run(&ShardMapping::delete_front_shard);
-    if (deleted_) {
-      // Recycle memory.
-      container_ = Container();
+    WeakProclet<GeneralShard<Container>> self;
+    {
+      Caladan::PreemptGuard g;
+      self = get_runtime()->get_current_weak_proclet<GeneralShard<Container>>();
     }
+    mapping_.run(&ShardMapping::delete_shard, l_key_, self);
+    container_ = Container();
   }
   rw_lock_.writer_unlock();
 }
@@ -265,13 +268,14 @@ inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
     return false;
   }
 
+  std::size_t size;
   if constexpr (HasVal<Container>) {
-    container_.emplace(std::move(entry.first), std::move(entry.second));
+    size = container_.emplace(std::move(entry.first), std::move(entry.second));
   } else {
-    container_.emplace(std::move(entry));
+    size = container_.emplace(std::move(entry));
   }
 
-  if (unlikely(should_split())) {
+  if (unlikely(should_split(size))) {
     split_with_reader_lock();
     return true;
   }
@@ -296,8 +300,15 @@ inline bool GeneralShard<Container>::try_emplace_back(
     return false;
   }
 
-  container_.emplace_back(std::move(v));
-  if (unlikely(should_split())) {
+  auto size = container_.emplace_back(std::move(v));
+
+  if (unlikely(size == 1)) {
+    ScopedLock lock(&empty_spin_);
+
+    empty_cv_.signal();
+  }
+
+  if (unlikely(should_split(size))) {
     split_with_reader_lock();
     return true;
   }
@@ -317,8 +328,15 @@ inline bool GeneralShard<Container>::try_emplace_front(
     return false;
   }
 
-  container_.push_front(std::move(v));
-  if (unlikely(should_split())) {
+  auto size = container_.emplace_front(std::move(v));
+
+  if (unlikely(size == 1)) {
+    ScopedLock lock(&empty_spin_);
+
+    empty_cv_.signal();
+  }
+
+  if (unlikely(should_split(size))) {
     return split_with_reader_lock();
   }
 
@@ -343,23 +361,37 @@ GeneralShard<Container>::try_front(
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::try_pop_front(
+inline std::optional<typename Container::Val>
+GeneralShard<Container>::try_pop_front(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires PopFrontAble<Container> {
+retry:
   rw_lock_.reader_lock();
 
   if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
-    return false;
+    return std::nullopt;
   }
 
-  container_.pop_front();
-  if (unlikely(container_.empty())) {
-    delete_self_with_reader_lock();
-    return true;
+  auto front = container_.pop_front();
+  if (unlikely(!front)) {
+    if (r_key_) {
+      delete_self_with_reader_lock();
+      return std::nullopt;
+    } else {
+      rw_lock_.reader_unlock();
+      ScopedLock lock(&empty_spin_);
+
+      while (container_.empty()) {
+        empty_cv_.wait(&empty_spin_);
+      }
+      goto retry;
+    }
   }
+
   rw_lock_.reader_unlock();
-  return true;
+
+  return front;
 }
 
 template <class Container>
@@ -378,26 +410,11 @@ inline std::optional<typename Container::Val> GeneralShard<Container>::try_back(
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::try_pop_back(
+inline std::optional<typename Container::Val>
+GeneralShard<Container>::try_pop_back(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires PopBackAble<Container> {
-  rw_lock_.reader_lock();
-
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
-    rw_lock_.reader_unlock();
-    return false;
-  }
-
-  container_.pop_back();
-  rw_lock_.reader_unlock();
-  return true;
-}
-
-template <class Container>
-inline std::optional<typename Container::Val>
-GeneralShard<Container>::try_dequeue(
-    std::optional<Key> l_key,
-    std::optional<Key> r_key) requires DequeueAble<Container> {
+retry:
   rw_lock_.reader_lock();
 
   if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
@@ -405,13 +422,25 @@ GeneralShard<Container>::try_dequeue(
     return std::nullopt;
   }
 
-  auto v = container_.try_dequeue();
-  if (unlikely(container_.empty())) {
-    delete_self_with_reader_lock();
-    return v;
+  auto back = container_.pop_back();
+  if (unlikely(!back)) {
+    if (r_key_) {
+      delete_self_with_reader_lock();
+      return std::nullopt;
+    } else {
+      rw_lock_.reader_unlock();
+      ScopedLock lock(&empty_spin_);
+
+      while (container_.empty()) {
+        empty_cv_.wait(&empty_spin_);
+      }
+      goto retry;
+    }
   }
+
   rw_lock_.reader_unlock();
-  return v;
+
+  return back;
 }
 
 template <class Container>
@@ -424,16 +453,23 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
     return std::move(batch);
   }
 
+  std::size_t size = 0;
+
   if constexpr (EmplaceBackAble<Container>) {
     if (!batch.emplace_back_reqs.empty()) {
-      container_.emplace_back_batch(std::move(batch.emplace_back_reqs));
+      auto batch_size = batch.emplace_back_reqs.size();
+      size = container_.emplace_back_batch(std::move(batch.emplace_back_reqs));
+      if (unlikely(size == batch_size)) {
+        ScopedLock lock(&empty_spin_);
+        empty_cv_.signal();
+      }
     }
   }
   if (!batch.emplace_reqs.empty()) {
-    container_.emplace_batch(std::move(batch.emplace_reqs));
+    size = container_.emplace_batch(std::move(batch.emplace_reqs));
   }
 
-  if (unlikely(should_split())) {
+  if (unlikely(should_split(size))) {
     split_with_reader_lock();
     return std::nullopt;
   }

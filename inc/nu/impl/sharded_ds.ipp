@@ -274,9 +274,9 @@ inline void ShardedDataStructure<Container, LL>::emplace_front(
 }
 
 template <class Container, class LL>
-inline void ShardedDataStructure<
+inline Container::Val ShardedDataStructure<
     Container, LL>::pop_front() requires PopFrontAble<Container> {
-  run_at_border<true, void>(&Shard::try_pop_front);
+  return run_at_border<true, Val>(&Shard::try_pop_front);
 }
 
 template <class Container, class LL>
@@ -292,49 +292,9 @@ ShardedDataStructure<Container, LL>::__back() requires HasBack<Container> {
 }
 
 template <class Container, class LL>
-inline void ShardedDataStructure<
+inline Container::Val ShardedDataStructure<
     Container, LL>::pop_back() requires PopBackAble<Container> {
-  run_at_border<false, void>(&Shard::try_pop_back);
-}
-
-template <class Container, class LL>
-inline void ShardedDataStructure<Container, LL>::enqueue(
-    Val v) requires DequeueAble<Container> {
-retry:
-  auto iter = key_to_shards_.rbegin();
-  auto l_key = iter->first;
-  auto r_key = std::optional<Key>();
-  auto shard = iter->second.shard;
-  auto succeed = shard.run(&Shard::try_emplace_back, l_key, r_key, v);
-
-  if (unlikely(!succeed)) {
-    timer_sleep(200);
-    sync_mapping();
-    goto retry;
-  }
-}
-
-template <class Container, class LL>
-inline Container::Val
-ShardedDataStructure<Container, LL>::dequeue() requires DequeueAble<Container> {
-retry:
-  auto iter = key_to_shards_.begin();
-  assert(iter != key_to_shards_.end());
-  auto shard = iter->second.shard;
-  auto l_key = iter->first;
-  auto r_key =
-      (++iter != key_to_shards_.end()) ? iter->first : std::optional<Key>();
-
-  auto val = shard.run(&Shard::try_dequeue, l_key, r_key);
-  bool succeed = val.has_value();
-
-  if (unlikely(!succeed)) {
-    timer_sleep(200);
-    sync_mapping();
-    goto retry;
-  }
-
-  return *val;
+  return run_at_border<false, Val>(&Shard::try_pop_back);
 }
 
 template <class Container, class LL>
