@@ -205,17 +205,7 @@ ShardedDataStructure<Container, LL>::emplace_back(
     Val v) requires EmplaceBackAble<Container> {
 [[maybe_unused]] retry:
   if constexpr (LL::value) {
-    // rbegin() is O(1) which is much faster than the O(logn) of --end().
-    auto iter = key_to_shards_.rbegin();
-    auto l_key = iter->first;
-    auto r_key = std::optional<Key>();
-    auto shard = iter->second.shard;
-    auto succeed = shard.run(&Shard::try_emplace_back, l_key, r_key, v);
-
-    if (unlikely(!succeed)) {
-      sync_mapping();
-      goto retry;
-    }
+    run_at_border<false, void>(&Shard::try_emplace_back, v);
   } else {
     emplace_back_reqs_.emplace_back(std::move(v));
 
@@ -227,18 +217,18 @@ ShardedDataStructure<Container, LL>::emplace_back(
   }
 }
 
-// TODO: all front/back operations only implemented for LL so far
 template <class Container, class LL>
-template <bool Front, typename RetT, typename Func, class... Args>
-RetT ShardedDataStructure<Container, LL>::front_back_impl(Func func,
-                                                          Args &... args) {
+template <bool Front, typename RetT, typename F, typename... As>
+RetT ShardedDataStructure<Container, LL>::run_at_border(F f, As &&... args) {
 retry:
   std::optional<Key> l_key, r_key;
   WeakProclet<Shard> shard;
+
   if constexpr (Front) {
     auto iter = key_to_shards_.begin();
     shard = iter->second.shard;
     l_key = iter->first;
+    // TODO: memoize r_key to avoid the O(logn)'s ++iter.
     r_key =
         (++iter != key_to_shards_.end()) ? iter->first : std::optional<Key>();
   } else {
@@ -248,16 +238,8 @@ retry:
     r_key = std::optional<Key>();
   }
 
-  auto val = shard.run(func, l_key, r_key, args...);
-
-  bool succeed;
-  if constexpr (!std::is_same_v<RetT, void>) {
-    succeed = val.has_value();
-  } else {
-    succeed = val;
-  }
-
-  if (unlikely(!succeed)) {
+  auto val = shard.run(f, l_key, r_key, std::forward<As>(args)...);
+  if (unlikely(!val)) {
     sync_mapping();
     goto retry;
   }
@@ -276,19 +258,25 @@ inline Container::Val ShardedDataStructure<Container, LL>::front() const
 template <class Container, class LL>
 inline Container::Val
 ShardedDataStructure<Container, LL>::__front() requires HasFront<Container> {
-  return front_back_impl<true, Val>(&Shard::try_front);
+  return run_at_border<true, Val>(&Shard::try_front);
 }
 
 template <class Container, class LL>
 inline void ShardedDataStructure<Container, LL>::emplace_front(
     Val v) requires EmplaceFrontAble<Container> {
-  front_back_impl<true, void>(&Shard::try_emplace_front, v);
+[[maybe_unused]] retry:
+  if constexpr (LL::value) {
+    run_at_border<true, void>(&Shard::try_emplace_front, v);
+  } else {
+    // TODO: implement batching.
+    BUG();
+  }
 }
 
 template <class Container, class LL>
 inline void ShardedDataStructure<
     Container, LL>::pop_front() requires PopFrontAble<Container> {
-  front_back_impl<true, void>(&Shard::try_pop_front);
+  run_at_border<true, void>(&Shard::try_pop_front);
 }
 
 template <class Container, class LL>
@@ -300,13 +288,13 @@ inline Container::Val ShardedDataStructure<Container, LL>::back() const
 template <class Container, class LL>
 inline Container::Val
 ShardedDataStructure<Container, LL>::__back() requires HasBack<Container> {
-  return front_back_impl<false, Val>(&Shard::try_back);
+  return run_at_border<false, Val>(&Shard::try_back);
 }
 
 template <class Container, class LL>
 inline void ShardedDataStructure<
     Container, LL>::pop_back() requires PopBackAble<Container> {
-  front_back_impl<false, void>(&Shard::try_pop_back);
+  run_at_border<false, void>(&Shard::try_pop_back);
 }
 
 template <class Container, class LL>

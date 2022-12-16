@@ -128,8 +128,8 @@ class ShardedDataStructure {
   std::size_t __size();
   Val __front() requires HasFront<Container>;
   Val __back() requires HasBack<Container>;
-  template <bool FrontBack, typename RetT, typename Func, class... Args>
-  RetT front_back_impl(Func func, Args &... args);
+  template <bool Front, typename RetT, typename F, typename... As>
+  RetT run_at_border(F f, As &&... args);
   std::optional<IterVal> __find_data(Key k) requires Findable<Container>;
   void reset();
   void set_shard_and_batch_size(uint32_t *max_shard_bytes,
