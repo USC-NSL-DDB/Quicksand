@@ -58,7 +58,7 @@ inline ContainerAndMetadata<Container>::ContainerAndMetadata(
 template <class Container>
 template <class Archive>
 inline void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
-  ar(mapping_seq, l_key, r_key, emplace_back_reqs, emplace_reqs);
+  ar(mapping_seq, l_key, r_key, push_back_reqs, insert_reqs);
 }
 
 template <class Container>
@@ -254,9 +254,9 @@ void GeneralShard<Container>::delete_self_with_reader_lock() {
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
-                                                 std::optional<Key> r_key,
-                                                 DataEntry entry) {
+inline bool GeneralShard<Container>::try_insert(
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    DataEntry entry) requires InsertAble<Container> {
   rw_lock_.reader_lock();
 
   if (unlikely(full_ || should_reject(std::move(l_key), std::move(r_key)))) {
@@ -270,9 +270,9 @@ inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
 
   std::size_t size;
   if constexpr (HasVal<Container>) {
-    size = container_.emplace(std::move(entry.first), std::move(entry.second));
+    size = container_.insert(std::move(entry.first), std::move(entry.second));
   } else {
-    size = container_.emplace(std::move(entry));
+    size = container_.insert(std::move(entry));
   }
 
   if (unlikely(should_split(size))) {
@@ -286,9 +286,9 @@ inline bool GeneralShard<Container>::try_emplace(std::optional<Key> l_key,
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::try_emplace_back(
+inline bool GeneralShard<Container>::try_push_back(
     std::optional<Key> l_key, std::optional<Key> r_key,
-    Val v) requires EmplaceBackAble<Container> {
+    Val v) requires PushBackAble<Container> {
   rw_lock_.reader_lock();
 
   if (unlikely(full_ || should_reject(std::move(l_key), std::move(r_key)))) {
@@ -300,7 +300,7 @@ inline bool GeneralShard<Container>::try_emplace_back(
     return false;
   }
 
-  auto size = container_.emplace_back(std::move(v));
+  auto size = container_.push_back(std::move(v));
 
   if (unlikely(size == 1)) {
     ScopedLock lock(&empty_spin_);
@@ -319,16 +319,16 @@ inline bool GeneralShard<Container>::try_emplace_back(
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::try_emplace_front(
+inline bool GeneralShard<Container>::try_push_front(
     std::optional<Key> l_key, std::optional<Key> r_key,
-    Val v) requires EmplaceFrontAble<Container> {
+    Val v) requires PushFrontAble<Container> {
   rw_lock_.reader_lock();
   if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return false;
   }
 
-  auto size = container_.emplace_front(std::move(v));
+  auto size = container_.push_front(std::move(v));
 
   if (unlikely(size == 1)) {
     ScopedLock lock(&empty_spin_);
@@ -455,18 +455,18 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
 
   std::size_t size = 0;
 
-  if constexpr (EmplaceBackAble<Container>) {
-    if (!batch.emplace_back_reqs.empty()) {
-      auto batch_size = batch.emplace_back_reqs.size();
-      size = container_.emplace_back_batch(std::move(batch.emplace_back_reqs));
+  if constexpr (PushBackAble<Container>) {
+    if (!batch.push_back_reqs.empty()) {
+      auto batch_size = batch.push_back_reqs.size();
+      size = container_.push_back_batch(std::move(batch.push_back_reqs));
       if (unlikely(size == batch_size)) {
         ScopedLock lock(&empty_spin_);
         empty_cv_.signal();
       }
     }
   }
-  if (!batch.emplace_reqs.empty()) {
-    size = container_.emplace_batch(std::move(batch.emplace_reqs));
+  if (!batch.insert_reqs.empty()) {
+    size = container_.insert_batch(std::move(batch.insert_reqs));
   }
 
   if (unlikely(should_split(size))) {
@@ -480,7 +480,7 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
 
 template <class Container>
 inline std::pair<bool, std::optional<typename Container::IterVal>>
-GeneralShard<Container>::find_data(Key k) requires Findable<Container> {
+GeneralShard<Container>::find_data(Key k) requires FindAble<Container> {
   rw_lock_.reader_lock();
 
   if (unlikely(should_reject(k))) {
@@ -498,7 +498,7 @@ GeneralShard<Container>::find_data(Key k) requires Findable<Container> {
 
 template <class Container>
 inline std::pair<typename Container::IterVal, typename Container::ConstIterator>
-GeneralShard<Container>::find(Key k) requires Findable<Container> {
+GeneralShard<Container>::find(Key k) requires FindAble<Container> {
   // Currently, the invocation happens only after sealing the DS. Thus we can
   // bypass all the redundant checks.
   auto iter = container_.find(std::move(k));
@@ -508,7 +508,7 @@ GeneralShard<Container>::find(Key k) requires Findable<Container> {
 template <class Container>
 inline std::optional<typename Container::IterVal>
 GeneralShard<Container>::find_data_by_order(
-    std::size_t order) requires FindableByOrder<Container> {
+    std::size_t order) requires FindAbleByOrder<Container> {
   // Currently, the invocation happens only after sealing the DS. Thus we can
   // bypass all the redundant checks.
   auto iter = container_.find_by_order(order);

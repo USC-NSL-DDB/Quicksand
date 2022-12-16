@@ -186,9 +186,10 @@ class SealedDS {
 
   bool empty() const;
   std::size_t size() const;
-  ConstIterator find_iter(T::Key k) const;
+  ConstIterator find_iter(T::Key k) const
+      requires FindAble<typename T::ContainerImpl>;
   std::optional<typename T::IterVal> find_data_by_order(
-      std::size_t order) requires FindableByOrder<typename T::ContainerImpl>;
+      std::size_t order) requires FindAbleByOrder<typename T::ContainerImpl>;
 
  private:
   using Shard = T::Shard;
@@ -204,7 +205,8 @@ class SealedDS {
   ConstReverseIterator crend_;
 
   SealedDS(T &&t);
-  ConstIterator __find_iter(T::Key k);
+  ConstIterator __find_iter(
+      T::Key k) requires FindAble<typename T::ContainerImpl>;
   T &&unseal();
   ShardsVec::iterator search_shard(T::Key k);
   template <typename U>

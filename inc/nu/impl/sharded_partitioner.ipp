@@ -129,8 +129,8 @@ void Partitioner<K, V>::reserve(std::size_t capacity) {
 }
 
 template <typename K, typename V>
-inline std::size_t Partitioner<K, V>::emplace(
-    K k, V v) requires HasVal<Partitioner> {
+inline std::size_t Partitioner<K, V>::insert(K k,
+                                             V v) requires HasVal<Partitioner> {
   if (unlikely(size_ == capacity_)) {
     reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));
   }
@@ -143,7 +143,7 @@ inline std::size_t Partitioner<K, V>::emplace(
 }
 
 template <typename K, typename V>
-inline std::size_t Partitioner<K, V>::emplace(K k) requires(
+inline std::size_t Partitioner<K, V>::insert(K k) requires(
     !HasVal<Partitioner>) {
   if (unlikely(size_ == capacity_)) {
     reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));

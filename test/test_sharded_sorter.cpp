@@ -10,7 +10,7 @@ bool run_sort_kv_pairs() {
   auto sharded_sorter = nu::make_sharded_sorter<int, int>();
 
   for (int i : std::views::iota(0, kNumElements) | std::views::reverse) {
-    sharded_sorter.emplace(i, i);
+    sharded_sorter.insert(i, i);
   }
   auto sharded_sorted = sharded_sorter.sort();
 
@@ -29,7 +29,7 @@ bool run_sort_keys() {
   auto sharded_sorter = nu::make_sharded_sorter<int>();
 
   for (int i : std::views::iota(0, kNumElements) | std::views::reverse) {
-    sharded_sorter.emplace(i);
+    sharded_sorter.insert(i);
   }
   auto sharded_sorted = sharded_sorter.sort();
 

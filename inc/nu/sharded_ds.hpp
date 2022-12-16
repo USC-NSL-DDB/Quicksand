@@ -46,16 +46,20 @@ class ShardedDataStructure {
     std::function<void(Key &, uint64_t)> key_inc_fn;
   };
 
-  void emplace(Key k, Val v)
-    requires (HasVal<Container> && EmplaceAble<Container>);
-  void emplace(DataEntry entry) requires(EmplaceAble<Container>);
-  void emplace_back(Val v) requires EmplaceBackAble<Container>;
-  void emplace_front(Val v) requires EmplaceFrontAble<Container>;
+  template <typename K, typename V>
+  void insert(K &&k, V &&v)
+    requires(HasVal<Container> && InsertAble<Container>);
+  void insert(const DataEntry &entry) requires InsertAble<Container>;
+  void insert(DataEntry &&entry) requires InsertAble<Container>;
+  void push_front(const Val &v) requires PushFrontAble<Container>;
+  void push_front(Val &&v) requires PushFrontAble<Container>;
+  void push_back(const Val &v) requires PushBackAble<Container>;
+  void push_back(Val &&v) requires PushBackAble<Container>;
   Val front() const requires HasFront<Container>;
   Val pop_front() requires PopFrontAble<Container>;
   Val back() const requires HasBack<Container>;
   Val pop_back() requires PopBackAble<Container>;
-  std::optional<IterVal> find_data(Key k) const requires Findable<Container>;
+  std::optional<IterVal> find_data(Key k) const requires FindAble<Container>;
   void concat(
       ShardedDataStructure &&tail) requires Container::kContiguousIterator;
   template <typename... S0s, typename... S1s>
@@ -99,7 +103,7 @@ class ShardedDataStructure {
     WeakProclet<Shard> shard;
     uint32_t seq;
     RemUniquePtr<RobExecutor<ReqBatch, std::optional<ReqBatch>>> flush_executor;
-    std::vector<DataEntry> emplace_reqs;
+    std::vector<DataEntry> insert_reqs;
 
     ShardAndReqs() = default;
     ShardAndReqs(WeakProclet<Shard> s);
@@ -116,7 +120,7 @@ class ShardedDataStructure {
   Proclet<ShardMapping> mapping_;
   uint64_t mapping_seq_;
   KeyToShardsMapping key_to_shards_;
-  std::vector<Val> emplace_back_reqs_;
+  std::vector<Val> push_back_reqs_;
   std::queue<Future<std::optional<typename Shard::ReqBatch>>> flush_futures_;
   uint64_t max_num_vals_;
   uint64_t max_num_data_entries_;
@@ -126,9 +130,15 @@ class ShardedDataStructure {
   std::size_t __size();
   Val __front() requires HasFront<Container>;
   Val __back() requires HasBack<Container>;
+  template <typename D>
+  void __insert(D &&entry) requires InsertAble<Container>;
+  template <typename V>
+  void __push_front(V &&v) requires PushFrontAble<Container>;
+  template <typename V>
+  void __push_back(V &&v) requires PushBackAble<Container>;
   template <bool Front, typename RetT, typename F, typename... As>
   RetT run_at_border(F f, As &&... args);
-  std::optional<IterVal> __find_data(Key k) requires Findable<Container>;
+  std::optional<IterVal> __find_data(Key k) requires FindAble<Container>;
   void reset();
   void set_shard_and_batch_size(uint32_t *max_shard_bytes,
                                 uint32_t *max_shard_size,
@@ -143,8 +153,8 @@ class ShardedDataStructure {
   get_all_shards_info();
   void seal();
   void unseal();
-  void reroute_reqs(std::vector<DataEntry> emplace_reqs,
-                    std::vector<Val> emplace_back_reqs);
+  void reroute_reqs(std::vector<DataEntry> insert_reqs,
+                    std::vector<Val> push_back_reqs);
   template <typename... S1s>
   void __for_all(auto *fn, S1s &&... states);
   template <class Archive>

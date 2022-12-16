@@ -75,7 +75,7 @@ class Worker {
   void do_work(uint32_t wid) {
     auto num_elems_per_th = kNumElements / kNumThreads;
     for (uint32_t i = 0; i < num_elems_per_th; i++) {
-      sp_.emplace(wid * num_elems_per_th + i, i);
+      sp_.insert(wid * num_elems_per_th + i, i);
     }
   }
 
@@ -131,7 +131,7 @@ class Bench {
   void single_thread(nu::ShardedPartitioner<Key, Val> *sp_ptr) {
     auto t0 = microtime();
     for (uint32_t i = 0; i < kNumElements; i++) {
-      sp_ptr->emplace(i, i);
+      sp_ptr->insert(i, i);
     }
     auto t1 = microtime();
     auto mops = static_cast<double>(kNumElements) / (t1 - t0);

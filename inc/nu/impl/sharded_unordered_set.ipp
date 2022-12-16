@@ -40,7 +40,7 @@ inline void GeneralUnorderedSet<T, M>::clear() {
 }
 
 template <typename T, typename M>
-inline std::size_t GeneralUnorderedSet<T, M>::emplace(Key k) {
+inline std::size_t GeneralUnorderedSet<T, M>::insert(Key k) {
   set_.insert(std::move(k));
   return set_.size();
 }

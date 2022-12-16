@@ -15,21 +15,21 @@ inline ShardedSorter<K, V> &ShardedSorter<K, V>::operator=(ShardedSorter &&o) {
 }
 
 template <typename K, typename V>
-inline void ShardedSorter<K, V>::emplace(
+inline void ShardedSorter<K, V>::insert(
     K k) requires std::is_same_v<V, ErasedType> {
-  sharded_pn_.emplace(std::move(k));
+  sharded_pn_.insert(std::move(k));
 }
 
 template <typename K, typename V>
-inline void ShardedSorter<K, V>::emplace(K k, V v) requires(
+inline void ShardedSorter<K, V>::insert(K k, V v) requires(
     !std::is_same_v<V, ErasedType>) {
-  sharded_pn_.emplace(std::move(k), std::move(v));
+  sharded_pn_.insert(std::move(k), std::move(v));
 }
 
 template <typename K, typename V>
-inline void ShardedSorter<K, V>::emplace(std::pair<K, V> p) requires(
+inline void ShardedSorter<K, V>::insert(std::pair<K, V> p) requires(
     !std::is_same_v<V, ErasedType>) {
-  sharded_pn_.emplace(std::move(p));
+  sharded_pn_.insert(std::move(p));
 }
 
 template <typename K, typename V>

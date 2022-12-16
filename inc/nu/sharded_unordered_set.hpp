@@ -34,7 +34,7 @@ class GeneralUnorderedSet {
   void reserve(std::size_t size);
   bool empty() const;
   void clear();
-  std::size_t emplace(Key k);
+  std::size_t insert(Key k);
   ConstIterator find(Key k) const;
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, S0s...), S1s &&... states);

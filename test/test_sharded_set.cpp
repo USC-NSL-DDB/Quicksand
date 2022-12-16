@@ -38,8 +38,8 @@ bool test_insert_elems_ordering(std::vector<T> &elems) {
   auto s = make_sharded_set<T, LL>();
 
   for (auto &elem : elems) {
-    s.emplace(elem);
-    expected_set.emplace(elem);
+    s.insert(elem);
+    expected_set.insert(elem);
   }
 
   auto collected = s.collect();
@@ -61,7 +61,7 @@ template <typename T, typename LL>
 bool test_range_insert(T start, T end) {
   auto s = make_sharded_set<T, LL>();
   for (int i = start; i < end; i++) {
-    s.emplace(i);
+    s.insert(i);
   }
   auto collected = s.collect();
   int expected = start;
@@ -76,7 +76,7 @@ template <typename T, typename LL>
 bool test_reverse_range_insert(T start, T end) {
   auto s = make_sharded_set<T, LL>();
   for (int i = end; i >= start; i--) {
-    s.emplace(i);
+    s.insert(i);
   }
   auto collected = s.collect();
   int expected = start;
@@ -103,13 +103,13 @@ bool test_size() {
   if (s.size() != 0) return false;
 
   for (std::size_t i = 0; i < num_elems; i++) {
-    s.emplace(i);
+    s.insert(i);
   }
 
   if (s.size() != num_elems) return false;
 
   for (std::size_t i = 0; i < num_elems; i++) {
-    s.emplace(i);
+    s.insert(i);
   }
 
   if (s.size() != num_elems) return false;
@@ -122,7 +122,7 @@ bool test_clear() {
   auto s = make_sharded_set<std::size_t, std::false_type>();
 
   for (std::size_t i = 0; i < num_elems; i++) {
-    s.emplace(i);
+    s.insert(i);
   }
   s.clear();
 
@@ -137,20 +137,20 @@ bool test_iter() {
   auto s = make_sharded_set<std::size_t, std::false_type>();
 
   for (std::size_t i = 0; i < num_elems; ++i) {
-    s.emplace(i);
-    expected.emplace(i);
+    s.insert(i);
+    expected.insert(i);
   }
 
   auto sealed_set = to_sealed_ds(std::move(s));
   for (auto it = sealed_set.cbegin(); it != sealed_set.cend(); ++it) {
-    iterated.emplace(*it);
+    iterated.insert(*it);
   }
   if (iterated != expected) return false;
 
   iterated.clear();
 
   for (auto it = sealed_set.crbegin(); it != sealed_set.crend(); ++it) {
-    iterated.emplace(*it);
+    iterated.insert(*it);
   }
   if (iterated != expected) return false;
   return true;
@@ -161,7 +161,7 @@ bool test_multi_set() {
 
   auto s = make_sharded_multi_set<std::size_t, std::false_type>();
   for (std::size_t i = 0; i < num_elems; i++) {
-    s.emplace(0);
+    s.insert(0);
   }
 
   auto sealed_set = to_sealed_ds(std::move(s));

@@ -23,36 +23,34 @@ concept GeneralContainerBased = requires {
 };
 
 template <class T>
-concept EmplaceFrontAble = requires(T t) {
-  { t.emplace_front(std::declval<typename T::Val>()) }
+concept PushFrontAble = requires(T t) {
+  { t.push_front(std::declval<typename T::Val>()) }
   ->std::same_as<std::size_t>;
 };
 
 template <class T>
-concept EmplaceBackAble = requires(T t) {
-  { t.emplace_back(std::declval<typename T::Val>()) }
+concept PushBackAble = requires(T t) {
+  { t.push_back(std::declval<typename T::Val>()) }
   ->std::same_as<std::size_t>;
 };
 
 template <class T>
-concept EmplaceAbleByPair = requires(T t) {
+concept InsertAbleByPair = requires(T t) {
+  { t.insert(std::declval<typename T::Key>(), std::declval<typename T::Val>()) }
+  ->std::same_as<std::size_t>;
+};
+
+template <class T>
+concept InsertAbleByKey = requires(T t) {
   {
-    t.emplace(std::declval<typename T::Key>(), std::declval<typename T::Val>())
+    t.insert(std::declval<typename T::Key>())
   }
   ->std::same_as<std::size_t>;
 };
 
 template <class T>
-concept EmplaceAbleByKey = requires(T t) {
-  {
-    t.emplace(std::declval<typename T::Key>())
-  }
-  ->std::same_as<std::size_t>;
-};
-
-template <class T>
-concept EmplaceAble = requires(T t) {
-  requires(EmplaceAbleByPair<T> || EmplaceAbleByKey<T>);
+concept InsertAble = requires(T t) {
+  requires(InsertAbleByPair<T> || InsertAbleByKey<T>);
 };
 
 template <class T>
@@ -91,13 +89,13 @@ concept ClearAble = requires(T t) {
 };
 
 template <class T>
-concept Findable = requires(T t) {
+concept FindAble = requires(T t) {
   { t.find(std::declval<typename T::Key>()) }
   ->std::same_as<typename T::ConstIterator>;
 };
 
 template <class T>
-concept FindableByOrder = requires(T t) {
+concept FindAbleByOrder = requires(T t) {
   { t.find_by_order(std::declval<std::size_t>()) }
   ->std::same_as<typename T::ConstIterator>;
 };
@@ -223,32 +221,32 @@ class GeneralContainerBase {
   void clear() requires ClearAble<Impl> {
     return synchronized<void>([&] { return impl_.clear(); });
   };
-  std::size_t emplace(Key k, Val v) requires(HasVal<Impl> &&EmplaceAble<Impl>) {
+  std::size_t insert(Key k, Val v) requires(HasVal<Impl> && InsertAble<Impl>) {
     return synchronized<std::size_t>(
-        [&] { return impl_.emplace(std::move(k), std::move(v)); });
+        [&] { return impl_.insert(std::move(k), std::move(v)); });
   }
-  std::size_t emplace(Key k) requires(!HasVal<Impl> && EmplaceAble<Impl>) {
+  std::size_t insert(Key k) requires(!HasVal<Impl> && InsertAble<Impl>) {
     return synchronized<std::size_t>(
-        [&] { return impl_.emplace(std::move(k)); });
+        [&] { return impl_.insert(std::move(k)); });
   }
-  std::size_t emplace_front(Val v) requires EmplaceFrontAble<Impl> {
-    return synchronized<std::size_t>([&] { return impl_.emplace_front(v); });
+  std::size_t push_front(Val v) requires PushFrontAble<Impl> {
+    return synchronized<std::size_t>([&] { return impl_.push_front(v); });
   }
-  std::size_t emplace_back(Val v) requires EmplaceBackAble<Impl> {
+  std::size_t push_back(Val v) requires PushBackAble<Impl> {
     return synchronized<std::size_t>(
-        [&] { return impl_.emplace_back(std::move(v)); });
+        [&] { return impl_.push_back(std::move(v)); });
   }
-  std::size_t emplace_back_batch(
-      std::vector<Val> v) requires EmplaceBackAble<Impl> {
+  std::size_t push_back_batch(
+      std::vector<Val> v) requires PushBackAble<Impl> {
     return synchronized<std::size_t>(
-        [&] { return impl_.emplace_back_batch(std::move(v)); });
+        [&] { return impl_.push_back_batch(std::move(v)); });
   }
-  ConstIterator find(Key k) const requires Findable<Impl> {
+  ConstIterator find(Key k) const requires FindAble<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
   }
   ConstIterator find_by_order(
-      std::size_t order) requires FindableByOrder<Impl> {
+      std::size_t order) requires FindAbleByOrder<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find_by_order(order); });
   }
@@ -319,7 +317,8 @@ class GeneralContainerBase {
 
   template <typename RetT, typename F>
   RetT synchronized(F &&f) const;
-  std::size_t emplace_batch(std::vector<DataEntry> reqs);
+  std::size_t insert_batch(
+      std::vector<DataEntry> reqs) requires InsertAble<Impl>;
 };
 
 }  // namespace nu

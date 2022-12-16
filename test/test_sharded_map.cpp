@@ -15,7 +15,7 @@ bool test_size_and_clear() {
   if (sm.size() != 0) return false;
 
   for (std::size_t i = 0; i < kNumElements; i++) {
-    sm.emplace(i, i);
+    sm.insert(i, i);
   }
   if (sm.size() != kNumElements) return false;
 
@@ -28,7 +28,7 @@ bool test_size_and_clear() {
 bool test_iter() {
   auto sm = make_sharded_map<std::size_t, std::size_t, std::false_type>();
   for (std::size_t i = 0; i < kNumElements; i++) {
-    sm.emplace(i, i);
+    sm.insert(i, i);
   }
 
   auto sealed_sm = to_sealed_ds(std::move(sm));

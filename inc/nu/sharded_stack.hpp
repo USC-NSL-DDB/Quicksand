@@ -21,8 +21,8 @@ class Stack {
   std::size_t size() const;
   bool empty() const;
   Val back() const;
-  std::size_t emplace_back(Val v);
-  std::size_t emplace_back_batch(std::vector<Val> vec);
+  std::size_t push_back(Val v);
+  std::size_t push_back_batch(std::vector<Val> vec);
   std::optional<Val> pop_back();
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
@@ -48,6 +48,7 @@ class ShardedStack
   ShardedStack &operator=(ShardedStack &&) noexcept = default;
 
   void push(const T &value);
+  void push(T &&value);
   T top() const;
   T pop();
 

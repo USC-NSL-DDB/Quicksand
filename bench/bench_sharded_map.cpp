@@ -16,7 +16,7 @@ void bench_insert_ints() {
 
     auto insertion_time = time([&] {
       for (int i = 0; i < num_pairs; i++) {
-        m.emplace(i, i);
+        m.insert(i, i);
       }
       m.flush();
     });

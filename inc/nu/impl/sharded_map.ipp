@@ -48,7 +48,7 @@ inline void GeneralMap<K, V, M>::clear() {
 }
 
 template <typename K, typename V, typename M>
-inline std::size_t GeneralMap<K, V, M>::emplace(Key k, Val v) {
+inline std::size_t GeneralMap<K, V, M>::insert(Key k, Val v) {
   map_.emplace(std::move(k), std::move(v));
   return map_.size();
 }
@@ -117,18 +117,6 @@ template <typename K, typename V, typename M>
 template <class Archive>
 inline void GeneralMap<K, V, M>::load(Archive &ar) {
   ar(map_);
-}
-
-template <typename K, typename V, typename M, typename LL>
-inline V GeneralShardedMap<K, V, M, LL>::operator[](const K &key) {
-  auto found = this->find_data(key);
-  if (found.has_value()) {
-    return found->second;
-  } else {
-    auto default_val = V();
-    this->emplace(key, default_val);
-    return default_val;
-  }
 }
 
 template <typename K, typename V, typename M, typename LL>

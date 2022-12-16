@@ -83,19 +83,19 @@ inline void Vector<T>::clear() {
 }
 
 template <typename T>
-inline std::size_t Vector<T>::emplace(Key k, Val v) {
+inline std::size_t Vector<T>::insert(Key k, Val v) {
   data_[k - l_key_] = std::move(v);
   return data_.size();
 }
 
 template <typename T>
-inline std::size_t Vector<T>::emplace_back(Val v) {
-  data_.emplace_back(std::move(v));
+inline std::size_t Vector<T>::push_back(Val v) {
+  data_.push_back(std::move(v));
   return data_.size();
 }
 
 template <typename T>
-inline std::size_t Vector<T>::emplace_back_batch(std::vector<Val> v) {
+inline std::size_t Vector<T>::push_back_batch(std::vector<Val> v) {
   data_.insert(data_.end(), make_move_iterator(v.begin()),
                make_move_iterator(v.end()));
   return data_.size();
@@ -200,17 +200,7 @@ inline T ShardedVector<T, LL>::operator[](std::size_t index) const {
 
 template <typename T, typename LL>
 inline void ShardedVector<T, LL>::set(std::size_t index, T value) {
-  Base::emplace(index, std::move(value));
-}
-
-template <typename T, typename LL>
-inline void ShardedVector<T, LL>::push_back(const T &value) {
-  Base::emplace_back(value);
-}
-
-template <typename T, typename LL>
-inline void ShardedVector<T, LL>::emplace_back(T &&value) {
-  Base::emplace_back(std::move(value));
+  Base::insert(index, std::move(value));
 }
 
 template <typename T, typename LL>

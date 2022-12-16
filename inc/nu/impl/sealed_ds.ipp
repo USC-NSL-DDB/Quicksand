@@ -722,13 +722,14 @@ inline std::size_t SealedDS<T>::size() const {
 }
 
 template <typename T>
-inline SealedDS<T>::ConstIterator SealedDS<T>::find_iter(T::Key k) const {
+inline SealedDS<T>::ConstIterator SealedDS<T>::find_iter(T::Key k) const
+    requires FindAble<typename T::ContainerImpl> {
   return const_cast<SealedDS *>(this)->__find_iter(std::move(k));
 }
 
 template <typename T>
 std::optional<typename T::IterVal> SealedDS<T>::find_data_by_order(
-    std::size_t order) requires FindableByOrder<typename T::ContainerImpl> {
+    std::size_t order) requires FindAbleByOrder<typename T::ContainerImpl> {
   auto iter = std::ranges::upper_bound(prefix_sum_sizes_, order);
 
   if (iter == prefix_sum_sizes_.end()) {
@@ -750,7 +751,8 @@ inline SealedDS<T>::ShardsVec::iterator SealedDS<T>::search_shard(T::Key k) {
 }
 
 template <typename T>
-inline SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(T::Key k) {
+inline SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(
+    T::Key k) requires FindAble<typename T::ContainerImpl> {
   auto shard_iter = search_shard(k);
   auto p = shard_iter->run(&Shard::find, k);
   return ConstIterator(shards_, shard_iter, std::move(p.first),

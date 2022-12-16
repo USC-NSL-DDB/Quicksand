@@ -76,8 +76,8 @@ class GeneralShard {
     uint64_t mapping_seq;
     std::optional<Key> l_key;
     std::optional<Key> r_key;
-    std::vector<Val> emplace_back_reqs;
-    std::vector<DataEntry> emplace_reqs;
+    std::vector<Val> push_back_reqs;
+    std::vector<DataEntry> insert_reqs;
 
     template <class Archive>
     void serialize(Archive &ar);
@@ -91,15 +91,15 @@ class GeneralShard {
   void set_range_and_data(
       std::optional<Key> l_key, std::optional<Key> r_key,
       ContainerAndMetadata<Container> container_and_metadata);
-  bool try_emplace(std::optional<Key> l_key, std::optional<Key> r_key,
-                   DataEntry entry);
-  bool try_emplace_back(std::optional<Key> l_key, std::optional<Key> r_key,
-                        Val v) requires EmplaceBackAble<Container>;
+  bool try_insert(std::optional<Key> l_key, std::optional<Key> r_key,
+                  DataEntry entry) requires InsertAble<Container>;
+  bool try_push_back(std::optional<Key> l_key, std::optional<Key> r_key,
+                     Val v) requires PushBackAble<Container>;
   std::optional<Val> try_front(
       std::optional<Key> l_key,
       std::optional<Key> r_key) requires HasFront<Container>;
-  bool try_emplace_front(std::optional<Key> l_key, std::optional<Key> r_key,
-                         Val v) requires EmplaceFrontAble<Container>;
+  bool try_push_front(std::optional<Key> l_key, std::optional<Key> r_key,
+                      Val v) requires PushFrontAble<Container>;
   std::optional<Val> try_pop_front(
       std::optional<Key> l_key,
       std::optional<Key> r_key) requires PopFrontAble<Container>;
@@ -111,8 +111,8 @@ class GeneralShard {
       std::optional<Key> r_key) requires PopBackAble<Container>;
   std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);
   std::pair<bool, std::optional<IterVal>> find_data(
-      Key k) requires Findable<Container>;
-  std::pair<IterVal, ConstIterator> find(Key k) requires Findable<Container>;
+      Key k) requires FindAble<Container>;
+  std::pair<IterVal, ConstIterator> find(Key k) requires FindAble<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_front_block_with_iters(
       uint32_t block_size) requires ConstIterable<Container>;
   std::pair<std::vector<IterVal>, ConstIterator> get_front_block(
@@ -166,7 +166,7 @@ class GeneralShard {
   bool empty();
   std::size_t size();
   std::optional<IterVal> find_data_by_order(
-      std::size_t order) requires FindableByOrder<Container>;
+      std::size_t order) requires FindAbleByOrder<Container>;
   Container get_container_copy();
   ContainerHandle<Container> get_container_handle();
   Key split_at_end() requires GeneralContainer::kContiguousIterator;

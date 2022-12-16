@@ -42,7 +42,7 @@ class GeneralMap {
   std::size_t size() const;
   bool empty() const;
   void clear();
-  std::size_t emplace(Key k, Val v);
+  std::size_t insert(Key k, Val v);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   ConstIterator find(Key k) const;
@@ -81,8 +81,6 @@ class GeneralShardedMap
   GeneralShardedMap &operator=(const GeneralShardedMap &) = default;
   GeneralShardedMap(GeneralShardedMap &&) noexcept = default;
   GeneralShardedMap &operator=(GeneralShardedMap &&) noexcept = default;
-
-  V operator[](const K &);
 
  private:
   using Base =

@@ -20,7 +20,7 @@ void run_sharded_sorter() {
   barrier();
 
   for (Key i : std::views::iota(0ULL, kNumElements) | std::views::reverse) {
-    sharded_sorter.emplace(i, Val());
+    sharded_sorter.insert(i, Val());
   }
 
   barrier();

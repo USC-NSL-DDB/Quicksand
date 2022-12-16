@@ -20,8 +20,8 @@ class Queue {
 
   std::size_t size() const;
   bool empty() const;
-  std::size_t emplace_back(Val v);
-  std::size_t emplace_back_batch(std::vector<Val> vec);
+  std::size_t push_back(Val v);
+  std::size_t push_back_batch(std::vector<Val> vec);
   Val front() const;
   Val back() const;
   std::optional<Val> pop_front();
@@ -48,9 +48,10 @@ class ShardedQueue
   ShardedQueue(ShardedQueue &&) noexcept = default;
   ShardedQueue &operator=(ShardedQueue &&) noexcept = default;
 
+  void push(const T &value);
+  void push(T &&value);
   T front() const;
   T back() const;
-  void push(const T &value);
   T pop();
 
  private:

@@ -15,7 +15,7 @@ bool test_size_and_clear() {
   if (sm.size() != 0) return false;
 
   for (std::size_t i = 0; i < kNumElements; i++) {
-    sm.emplace(i, i);
+    sm.insert(i, i);
   }
   if (sm.size() != kNumElements) return false;
 
@@ -33,14 +33,14 @@ bool test_iter() {
       make_sharded_unordered_map<std::size_t, std::size_t, std::false_type>();
 
   for (std::size_t i = 0; i < kNumElements; i++) {
-    sm.emplace(i, i);
+    sm.insert(i, i);
     expected.emplace(i, i);
   }
 
   auto sealed_sm = to_sealed_ds(std::move(sm));
 
   for (auto it = sealed_sm.cbegin(); it != sealed_sm.cend(); ++it) {
-    iterated.emplace(*it);
+    iterated.insert(*it);
   }
 
   return expected == iterated;

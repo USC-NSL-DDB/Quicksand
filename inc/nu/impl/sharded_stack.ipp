@@ -22,13 +22,13 @@ inline Stack<T>::Val Stack<T>::back() const {
 }
 
 template <typename T>
-inline std::size_t Stack<T>::emplace_back(Val v) {
+inline std::size_t Stack<T>::push_back(Val v) {
   stack_.push(std::move(v));
   return stack_.size();
 }
 
 template <typename T>
-inline std::size_t Stack<T>::emplace_back_batch(std::vector<Val> vec) {
+inline std::size_t Stack<T>::push_back_batch(std::vector<Val> vec) {
   for (auto &v : vec) {
     stack_.push(std::move(v));
   }
@@ -64,7 +64,7 @@ inline void Stack<T>::merge(Stack stack) {
   // Needs temporary storage to preserve LIFO order
   std::vector<T> t(stack.size());
   while (!stack.stack_.empty()) {
-    t.emplace_back(stack.stack_.top());
+    t.push_back(stack.stack_.top());
     stack.stack_.pop();
   }
 
@@ -95,7 +95,12 @@ inline ShardedStack<T, LL>::ShardedStack(
 
 template <typename T, typename LL>
 inline void ShardedStack<T, LL>::push(const T &value) {
-  Base::emplace_back(value);
+  Base::push_back(value);
+}
+
+template <typename T, typename LL>
+inline void ShardedStack<T, LL>::push(T &&value) {
+  Base::push_back(std::move(value));
 }
 
 template <typename T, typename LL>

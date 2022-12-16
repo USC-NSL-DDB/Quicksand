@@ -20,9 +20,9 @@ class ShardedSorter {
   ShardedSorter &operator=(const ShardedSorter &) = delete;
   ShardedSorter(ShardedSorter &&);
   ShardedSorter &operator=(ShardedSorter &&);
-  void emplace(K k) requires std::is_same_v<V, ErasedType>;
-  void emplace(K k, V v) requires(!std::is_same_v<V, ErasedType>);
-  void emplace(std::pair<K, V> p) requires(!std::is_same_v<V, ErasedType>);
+  void insert(K k) requires std::is_same_v<V, ErasedType>;
+  void insert(K k, V v) requires(!std::is_same_v<V, ErasedType>);
+  void insert(std::pair<K, V> p) requires(!std::is_same_v<V, ErasedType>);
   ShardedSorted<K, V> sort();
 
  private:
