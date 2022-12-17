@@ -4,6 +4,7 @@
 #include "nu/runtime.hpp"
 #include "nu/sealed_ds.hpp"
 #include "nu/sharded_queue.hpp"
+#include "nu/utils/time.hpp"
 
 using namespace nu;
 
@@ -34,7 +35,7 @@ std::vector<std::vector<char>> make_batch(std::size_t size,
 
 template <typename T>
 struct Producer {
-  Producer() {}
+  Producer() = default;
   void produce(std::size_t n_elems, T elem,
                nu::ShardedQueue<T, std::true_type> queue) {
     for (std::size_t i = 0; i < n_elems; ++i) {
@@ -44,13 +45,39 @@ struct Producer {
 };
 
 template <typename T>
-struct Consumer {
-  Consumer() {}
+struct BlockingConsumer {
+  BlockingConsumer() = default;
   std::vector<T> consume(std::size_t n_elems,
                          nu::ShardedQueue<T, std::true_type> queue) {
     std::vector<T> elems;
+
     for (std::size_t i = 0; i < n_elems; ++i) {
       elems.emplace_back(queue.pop());
+    }
+    return elems;
+  }
+};
+
+template <typename T>
+struct NonBlockingConsumer {
+  constexpr static std::size_t kBatchSize = 2;
+
+  NonBlockingConsumer() = default;
+  std::vector<T> consume(std::size_t n_elems,
+                         nu::ShardedQueue<T, std::true_type> queue) {
+    std::vector<T> elems;
+
+    while (n_elems) {
+    retry:
+      auto popped = queue.try_pop(std::min(kBatchSize, n_elems));
+      if (unlikely(popped.empty())) {
+        Time::sleep(200);
+        goto retry;
+      }
+      for (auto &d : popped) {
+        elems.emplace_back(std::move(d));
+      }
+      n_elems -= popped.size();
     }
     return elems;
   }
@@ -134,7 +161,10 @@ bool test_batched_queue() {
   return true;
 }
 
-bool test_blocking_dequeue() {
+template <bool Blocking>
+bool test_dequeue() {
+  using Consumer = std::conditional_t<Blocking, BlockingConsumer<int>,
+                                      NonBlockingConsumer<int>>;
   constexpr std::size_t kNumElems = 1 << 20;
   constexpr int kElem = 33;
   constexpr std::size_t kProducerCount = 4;
@@ -142,19 +172,19 @@ bool test_blocking_dequeue() {
 
   auto queue = make_sharded_queue<int, std::true_type>();
   auto producers = std::vector<Proclet<Producer<int>>>{};
-  auto consumers = std::vector<Proclet<Consumer<int>>>{};
+  auto consumers = std::vector<Proclet<Consumer>>{};
 
   for (std::size_t i = 0; i < kProducerCount; ++i) {
     producers.emplace_back(make_proclet<Producer<int>>());
   }
   for (std::size_t i = 0; i < kConsumerCount; ++i) {
-    consumers.emplace_back(make_proclet<Consumer<int>>());
+    consumers.emplace_back(make_proclet<Consumer>());
   }
 
   auto consumer_futures = std::vector<nu::Future<std::vector<int>>>{};
   for (auto &consumer : consumers) {
     consumer_futures.emplace_back(consumer.run_async(
-        &Consumer<int>::consume, kNumElems / kConsumerCount, queue));
+        &Consumer::consume, kNumElems / kConsumerCount, queue));
   }
 
   auto producer_futures = std::vector<nu::Future<void>>{};
@@ -196,13 +226,13 @@ bool test_blocking_enqueue() {
 
   auto queue = make_sharded_queue<Elem, std::true_type>(kQueueMaxSizeBytes);
   auto producers = std::vector<Proclet<Producer<Elem>>>{};
-  auto consumers = std::vector<Proclet<Consumer<Elem>>>{};
+  auto consumers = std::vector<Proclet<BlockingConsumer<Elem>>>{};
 
   for (std::size_t i = 0; i < kProducerCount; ++i) {
     producers.emplace_back(make_proclet<Producer<Elem>>());
   }
   for (std::size_t i = 0; i < kConsumerCount; ++i) {
-    consumers.emplace_back(make_proclet<Consumer<Elem>>());
+    consumers.emplace_back(make_proclet<BlockingConsumer<Elem>>());
   }
 
   auto producer_futures = std::vector<nu::Future<void>>{};
@@ -214,7 +244,7 @@ bool test_blocking_enqueue() {
   auto consumer_futures = std::vector<nu::Future<std::vector<Elem>>>{};
   for (auto &consumer : consumers) {
     consumer_futures.emplace_back(consumer.run_async(
-        &Consumer<Elem>::consume, kNumElems / kConsumerCount, queue));
+        &BlockingConsumer<Elem>::consume, kNumElems / kConsumerCount, queue));
   }
 
   for (auto &f : producer_futures) {
@@ -238,7 +268,8 @@ bool test_blocking_enqueue() {
 
 bool run_test() {
   return test_push_and_pop() && test_size_and_empty() && test_batched_queue() &&
-         test_blocking_dequeue() && test_blocking_enqueue();
+         test_dequeue</* Blocking = */ false>() &&
+         test_dequeue</* Blocking = */ true>() && test_blocking_enqueue();
 }
 
 void do_work() {

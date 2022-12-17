@@ -325,6 +325,13 @@ inline Container::Val ShardedDataStructure<
 }
 
 template <class Container, class LL>
+inline std::vector<typename Container::Val>
+ShardedDataStructure<Container, LL>::try_pop_front(
+    std::size_t num) requires TryPopFrontAble<Container> {
+  return run_at_border<true, std::vector<Val>>(&Shard::try_try_pop_front, num);
+}
+
+template <class Container, class LL>
 inline Container::Val ShardedDataStructure<Container, LL>::back() const
     requires HasBack<Container> {
   return const_cast<ShardedDataStructure *>(this)->__back();
@@ -340,6 +347,13 @@ template <class Container, class LL>
 inline Container::Val ShardedDataStructure<
     Container, LL>::pop_back() requires PopBackAble<Container> {
   return run_at_border<false, Val>(&Shard::try_pop_back);
+}
+
+template <class Container, class LL>
+inline std::vector<typename Container::Val>
+ShardedDataStructure<Container, LL>::try_pop_back(
+    std::size_t num) requires TryPopBackAble<Container> {
+  return run_at_border<true, std::vector<Val>>(&Shard::try_try_pop_back, num);
 }
 
 template <class Container, class LL>

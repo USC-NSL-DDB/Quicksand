@@ -47,6 +47,19 @@ inline std::optional<T> Stack<T>::pop_back() {
 }
 
 template <typename T>
+inline std::vector<T> Stack<T>::try_pop_back(std::size_t num) {
+  std::vector<T> elems;
+
+  num = std::min(num, stack_.size());
+  elems.reserve(num);
+  while (num--) {
+    elems.emplace_back(stack_.top());
+    stack_.pop();
+  }
+  return elems;
+}
+
+template <typename T>
 template <typename... S0s, typename... S1s>
 inline void Stack<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
                               S1s &&... states) {
@@ -111,6 +124,11 @@ inline T ShardedStack<T, LL>::top() const {
 template <typename T, typename LL>
 inline T ShardedStack<T, LL>::pop() {
   return Base::pop_back();
+}
+
+template <typename T, typename LL>
+inline std::vector<T> ShardedStack<T, LL>::try_pop(std::size_t num) {
+  return Base::try_pop_back(num);
 }
 
 template <typename T, typename LL>

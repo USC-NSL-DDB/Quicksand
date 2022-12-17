@@ -8,7 +8,6 @@
 using namespace nu;
 
 bool test_push_and_pop() {
-  // TODO: increase test size when LL=false is implemented
   constexpr uint32_t k_size = 24 << 12;
   auto stack = make_sharded_stack<int, std::true_type>();
 
@@ -20,7 +19,6 @@ bool test_push_and_pop() {
     return false;
   }
 
-  // FIXME: This may fail if merge is not implemented
   top -= 1 << 10;
   for (uint32_t i = 0; i < (1 << 10); i++) {
     stack.pop();

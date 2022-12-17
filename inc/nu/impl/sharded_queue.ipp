@@ -52,6 +52,19 @@ inline std::optional<T> Queue<T>::pop_front() {
 }
 
 template <typename T>
+inline std::vector<T> Queue<T>::try_pop_front(std::size_t num) {
+  std::vector<T> elems;
+
+  num = std::min(num, queue_.size());
+  elems.reserve(num);
+  while (num--) {
+    elems.emplace_back(std::move(queue_.front()));
+    queue_.pop();
+  }
+  return elems;
+}
+
+template <typename T>
 template <typename... S0s, typename... S1s>
 inline void Queue<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
                               S1s &&... states) {
@@ -116,6 +129,11 @@ void ShardedQueue<T, LL>::push(T &&value) {
 template <typename T, typename LL>
 inline T ShardedQueue<T, LL>::pop() {
   return Base::pop_front();
+}
+
+template <typename T, typename LL>
+inline std::vector<T> ShardedQueue<T, LL>::try_pop(std::size_t num) {
+  return Base::try_pop_front(num);
 }
 
 template <typename T, typename LL>

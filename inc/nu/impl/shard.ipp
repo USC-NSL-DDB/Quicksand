@@ -375,6 +375,28 @@ retry:
 }
 
 template <class Container>
+inline std::optional<std::vector<typename Container::Val>>
+GeneralShard<Container>::try_try_pop_front(
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    std::size_t num) requires TryPopFrontAble<Container> {
+  rw_lock_.reader_lock();
+
+  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return std::nullopt;
+  }
+
+  auto front_elems = container_.try_pop_front(num);
+  if (unlikely(front_elems.size() < num && r_key_)) {
+    delete_self_with_reader_lock();
+  } else {
+    rw_lock_.reader_unlock();
+  }
+
+  return front_elems;
+}
+
+template <class Container>
 inline std::optional<typename Container::Val> GeneralShard<Container>::try_back(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires HasBack<Container> {
@@ -420,6 +442,28 @@ retry:
   rw_lock_.reader_unlock();
 
   return back;
+}
+
+template <class Container>
+inline std::optional<std::vector<typename Container::Val>>
+GeneralShard<Container>::try_try_pop_back(
+    std::optional<Key> l_key, std::optional<Key> r_key,
+    std::size_t num) requires TryPopBackAble<Container> {
+  rw_lock_.reader_lock();
+
+  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return std::nullopt;
+  }
+
+  auto back_elems = container_.try_pop_back(num);
+  if (unlikely(back_elems.size() < num && r_key_)) {
+    delete_self_with_reader_lock();
+  } else {
+    rw_lock_.reader_unlock();
+  }
+
+  return back_elems;
 }
 
 template <class Container>

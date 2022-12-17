@@ -71,6 +71,12 @@ concept PopFrontAble = requires(T t) {
 };
 
 template <class T>
+concept TryPopFrontAble = requires(T t) {
+  { t.try_pop_front(std::declval<std::size_t>()) }
+  ->std::same_as<std::vector<typename T::Val>>;
+};
+
+template <class T>
 concept HasBack = requires(T t) {
   { t.back() }
   ->std::same_as<typename T::Val>;
@@ -80,6 +86,12 @@ template <class T>
 concept PopBackAble = requires(T t) {
   { t.pop_back() }
   ->std::same_as<std::optional<typename T::Val>>;
+};
+
+template <class T>
+concept TryPopBackAble = requires(T t) {
+  { t.try_pop_back(std::declval<std::size_t>()) }
+  ->std::same_as<std::vector<typename T::Val>>;
 };
 
 template <class T>
@@ -256,11 +268,20 @@ class GeneralContainerBase {
   std::optional<Val> pop_front() requires PopFrontAble<Impl> {
     return synchronized<std::optional<Val>>([&] { return impl_.pop_front(); });
   }
+  std::vector<Val> try_pop_front(
+      std::size_t num) requires TryPopFrontAble<Impl> {
+    return synchronized<std::vector<Val>>(
+        [&] { return impl_.try_pop_front(num); });
+  }
   Val back() const requires HasBack<Impl> {
     return synchronized<Val>([&] { return impl_.back(); });
   }
   std::optional<Val> pop_back() requires PopBackAble<Impl> {
     return synchronized<std::optional<Val>>([&] { return impl_.pop_back(); });
+  }
+  std::vector<Val> try_pop_back(std::size_t num) requires TryPopBackAble<Impl> {
+    return synchronized<std::vector<Val>>(
+        [&] { return impl_.try_pop_back(num); });
   }
   void split(Key *mid_k, ContainerType *latter_half) {
     return synchronized<void>([&] { impl_.split(mid_k, &latter_half->impl_); });

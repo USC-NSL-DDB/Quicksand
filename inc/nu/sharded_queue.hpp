@@ -25,6 +25,7 @@ class Queue {
   Val front() const;
   Val back() const;
   std::optional<Val> pop_front();
+  std::vector<Val> try_pop_front(std::size_t num);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   void split(Key *mid_k, Queue *latter_half);
@@ -53,6 +54,7 @@ class ShardedQueue
   T front() const;
   T back() const;
   T pop();
+  std::vector<T> try_pop(std::size_t num);
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL>;
