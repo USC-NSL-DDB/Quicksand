@@ -89,9 +89,9 @@ inline ShardedQueue<T, LL>::ShardedQueue() {}
 
 template <typename T, typename LL>
 inline ShardedQueue<T, LL>::ShardedQueue(
-    std::optional<typename Base::Hint> hint,
+    std::optional<typename Base::ShardingHint> sharding_hint,
     std::optional<std::size_t> size_bound)
-    : Base(hint, size_bound) {}
+    : Base(sharding_hint, size_bound) {}
 
 template <typename T, typename LL>
 inline T ShardedQueue<T, LL>::front() const {

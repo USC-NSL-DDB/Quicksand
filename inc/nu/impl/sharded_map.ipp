@@ -121,8 +121,8 @@ inline void GeneralMap<K, V, M>::load(Archive &ar) {
 
 template <typename K, typename V, typename M, typename LL>
 inline GeneralShardedMap<K, V, M, LL>::GeneralShardedMap(
-    std::optional<typename Base::Hint> hint)
-    : Base(hint, /* size_bound = */ std::nullopt) {}
+    std::optional<typename Base::ShardingHint> sharding_hint)
+    : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
 
 template <typename K, typename V, typename LL>
 inline ShardedMap<K, V, LL> make_sharded_map() {

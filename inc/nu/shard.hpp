@@ -194,15 +194,14 @@ class GeneralShard {
   SpinLock empty_spin_;
   CondVar empty_cv_;
   bool deleted_;
-  bool full_;
 
   friend class ContainerHandle<Container>;
   template <GeneralShardBased S>
   friend class ContiguousDSRangeImpl;
 
-  bool split();
+  void split();
   bool should_split(std::size_t size) const;
-  bool split_with_reader_lock();
+  void split_with_reader_lock();
   void delete_self_with_reader_lock();
   bool should_reject(std::optional<Key> l_key, std::optional<Key> r_key);
   bool should_reject(Key k);

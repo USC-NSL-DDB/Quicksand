@@ -40,7 +40,7 @@ class ShardedDataStructure {
   using Shard = GeneralShard<Container>;
   using ShardMapping = GeneralShardMapping<Shard>;
 
-  struct Hint {
+  struct ShardingHint {
     uint64_t num;
     Key estimated_min_key;
     std::function<void(Key &, uint64_t)> key_inc_fn;
@@ -83,7 +83,7 @@ class ShardedDataStructure {
 
  protected:
   ShardedDataStructure();
-  ShardedDataStructure(std::optional<Hint> hint,
+  ShardedDataStructure(std::optional<ShardingHint> sharding_hint,
                        std::optional<std::size_t> size_bound);
   ShardedDataStructure(const ShardedDataStructure &);
   ShardedDataStructure &operator=(const ShardedDataStructure &);

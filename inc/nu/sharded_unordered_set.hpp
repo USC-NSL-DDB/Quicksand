@@ -81,7 +81,8 @@ class GeneralShardedUnorderedSet
       ShardedDataStructure<GeneralLockedContainer<GeneralUnorderedSet<T, M>>,
                            LL>;
   GeneralShardedUnorderedSet() = default;
-  GeneralShardedUnorderedSet(std::optional<typename Base::Hint> hint);
+  GeneralShardedUnorderedSet(
+      std::optional<typename Base::ShardingHint> sharding_hint);
 
   friend class ProcletServer;
   template <typename T1, typename LL1>

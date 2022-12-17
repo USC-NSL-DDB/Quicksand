@@ -56,7 +56,7 @@ class ShardedStack
   using Base = ShardedDataStructure<GeneralLockedContainer<Stack<T>>, LL>;
 
   ShardedStack();
-  ShardedStack(std::optional<typename Base::Hint> hint);
+  ShardedStack(std::optional<typename Base::ShardingHint> sharding_hint);
   friend class ProcletServer;
   template <typename T1, typename LL1>
   friend ShardedStack<T1, LL1> make_sharded_stack();

@@ -91,7 +91,7 @@ class ShardedPartitioner
       ShardedDataStructure<PartitionerContainer<K, V>, std::false_type>;
 
   ShardedPartitioner() = default;
-  ShardedPartitioner(std::optional<typename Base::Hint> hint);
+  ShardedPartitioner(std::optional<typename Base::ShardingHint> sharding_hint);
 
   friend class ProcletServer;
   template <typename K1, typename V1>

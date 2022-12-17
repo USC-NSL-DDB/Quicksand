@@ -90,7 +90,7 @@ class ShardedVector
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Vector<T>>, LL>;
 
-  ShardedVector(std::optional<typename Base::Hint> hint);
+  ShardedVector(std::optional<typename Base::ShardingHint> sharding_hint);
   friend class ProcletServer;
   template <typename T1, typename LL1>
   friend class VectorBackInserter;

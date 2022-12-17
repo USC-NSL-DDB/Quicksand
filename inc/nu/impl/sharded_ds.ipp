@@ -23,31 +23,33 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
-    std::optional<Hint> hint, std::optional<std::size_t> size_bound)
+    std::optional<ShardingHint> sharding_hint,
+    std::optional<std::size_t> size_bound)
     : max_num_vals_(0), max_num_data_entries_(0) {
   constexpr auto kMaxShardBytes =
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
   constexpr auto kMaxShardSize = kMaxShardBytes / sizeof(DataEntry);
 
   auto max_shard_count = size_bound.transform([](auto size_bound) {
-    return div_round_up_unchecked(size_bound,
-                                  static_cast<std::size_t>(kMaxShardBytes));
+    return std::max(2UL,  // Have to be at least 2 shards to avoid deadlock.
+                    div_round_up_unchecked(
+                        size_bound, static_cast<std::size_t>(kMaxShardBytes)));
   });
 
   mapping_ =
       make_proclet<ShardMapping>(std::tuple(kMaxShardBytes, max_shard_count));
 
   std::vector<std::optional<Key>> keys;
-  std::vector<Future<std::optional<WeakProclet<Shard>>>> shard_futures;
+  std::vector<Future<WeakProclet<Shard>>> shard_futures;
   std::vector<Future<void>> reserve_futures;
 
   keys.push_back(std::nullopt);
-  if (hint) {
-    auto k = hint->estimated_min_key;
-    auto num_shards = (hint->num - 1) / kMaxShardSize + 1;
+  if (sharding_hint) {
+    auto k = sharding_hint->estimated_min_key;
+    auto num_shards = (sharding_hint->num - 1) / kMaxShardSize + 1;
     for (std::size_t i = 0; i < num_shards; i++) {
       keys.push_back(k);
-      hint->key_inc_fn(k, kMaxShardSize);
+      sharding_hint->key_inc_fn(k, kMaxShardSize);
     }
   }
 
@@ -75,7 +77,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   for (std::size_t i = 0; i < shard_futures.size(); i++) {
     auto &weak_shard = shard_futures[i].get();
     auto &key = keys[i];
-    key_to_shards_.emplace(key, ShardAndReqs(weak_shard.value()));
+    key_to_shards_.emplace(key, ShardAndReqs(weak_shard));
   }
   mapping_seq_ = shard_futures.size() - 1;
 }

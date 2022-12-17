@@ -276,8 +276,8 @@ inline Partitioner<K, V>::DataEntry *Partitioner<K, V>::data() {
 
 template <typename K, typename V>
 inline ShardedPartitioner<K, V>::ShardedPartitioner(
-    std::optional<typename Base::Hint> hint)
-    : Base(hint, /* size_bound = */ std::nullopt) {}
+    std::optional<typename Base::ShardingHint> sharding_hint)
+    : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
 
 template <typename K, typename V>
 inline ShardedPartitioner<K, V> make_sharded_partitioner() {
@@ -290,7 +290,7 @@ inline ShardedPartitioner<K, V> make_sharded_partitioner(
     std::function<void(K &, uint64_t)> key_inc_fn) {
   return ShardedPartitioner<K, V>(
       std::make_optional<typename ShardedDataStructure<
-          PartitionerContainer<K, V>, std::false_type>::Hint>(
+          PartitionerContainer<K, V>, std::false_type>::ShardingHint>(
           num, std::move(estimated_min_key), std::move(key_inc_fn)));
 }
 

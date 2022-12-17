@@ -205,8 +205,8 @@ inline void ShardedVector<T, LL>::set(std::size_t index, T value) {
 
 template <typename T, typename LL>
 inline ShardedVector<T, LL>::ShardedVector(
-    std::optional<typename Base::Hint> hint)
-    : Base(hint, /* size_bound = */ std::nullopt) {}
+    std::optional<typename Base::ShardingHint> sharding_hint)
+    : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
 
 template <typename T, typename LL>
 inline ShardedVector<T, LL> make_sharded_vector() {
@@ -215,7 +215,7 @@ inline ShardedVector<T, LL> make_sharded_vector() {
 
 template <typename T, typename LL>
 inline ShardedVector<T, LL> make_sharded_vector(uint64_t reserved_count) {
-  return ShardedVector<T, LL>(typename ShardedVector<T, LL>::Base::Hint(
+  return ShardedVector<T, LL>(typename ShardedVector<T, LL>::Base::ShardingHint(
       reserved_count, 0, [](Vector<T>::Key &k, uint64_t off) { k += off; }));
 }
 

@@ -83,7 +83,8 @@ class GeneralShardedUnorderedMap
       ShardedDataStructure<GeneralLockedContainer<GeneralUnorderedMap<K, V, M>>,
                            LL>;
   GeneralShardedUnorderedMap() = default;
-  GeneralShardedUnorderedMap(std::optional<typename Base::Hint> hint);
+  GeneralShardedUnorderedMap(
+      std::optional<typename Base::ShardingHint> sharding_hint);
 
   friend class ProcletServer;
   template <typename K1, typename V1, typename LL1>

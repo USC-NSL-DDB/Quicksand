@@ -58,7 +58,7 @@ class ShardedQueue
   using Base = ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL>;
 
   ShardedQueue();
-  ShardedQueue(std::optional<typename Base::Hint> hint,
+  ShardedQueue(std::optional<typename Base::ShardingHint> sharding_hint,
                std::optional<std::size_t> size_bound);
   friend class ProcletServer;
   template <typename T1, typename LL1>

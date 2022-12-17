@@ -86,7 +86,7 @@ class GeneralShardedMap
   using Base =
       ShardedDataStructure<GeneralLockedContainer<GeneralMap<K, V, M>>, LL>;
   GeneralShardedMap() = default;
-  GeneralShardedMap(std::optional<typename Base::Hint> hint);
+  GeneralShardedMap(std::optional<typename Base::ShardingHint> sharding_hint);
 
   friend class ProcletServer;
   template <typename K1, typename V1, typename LL1>

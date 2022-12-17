@@ -127,7 +127,7 @@ GeneralShardMapping<Shard>::get_all_keys_and_shards() {
 }
 
 template <class Shard>
-std::optional<WeakProclet<Shard>> GeneralShardMapping<Shard>::get_shard_for_key(
+WeakProclet<Shard> GeneralShardMapping<Shard>::get_shard_for_key(
     std::optional<Key> key) {
   ScopedLock lock(&mutex_);
 
@@ -160,13 +160,13 @@ void GeneralShardMapping<Shard>::reserve_new_shard() {
 }
 
 template <class Shard>
-std::optional<WeakProclet<Shard>> GeneralShardMapping<Shard>::create_new_shard(
+WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
     std::optional<Key> l_key, std::optional<Key> r_key, bool reserve_space) {
   {
     ScopedLock lock(&mutex_);
 
-    if (reached_size_bound()) {
-      return std::nullopt;
+    while (out_of_shards()) {
+      oos_cv_.wait(&mutex_);
     }
     pending_creations_++;
   }
@@ -216,6 +216,7 @@ void GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
       log_.append(LogEntry<Shard>::kDelete, it->first, shard);
       reserved_shards_.emplace(std::move(it->second));
       mapping_.erase(it);
+      oos_cv_.signal();
       return;
     }
   }
@@ -238,7 +239,7 @@ void GeneralShardMapping<Shard>::concat(
 }
 
 template <class Shard>
-inline bool GeneralShardMapping<Shard>::reached_size_bound() {
+inline bool GeneralShardMapping<Shard>::out_of_shards() {
   if (max_shard_cnt_) {
     auto curr_cnt = mapping_.size() + pending_creations_;
     BUG_ON(curr_cnt > *max_shard_cnt_);

@@ -86,7 +86,7 @@ class GeneralShardedSet
   using Base =
       ShardedDataStructure<GeneralLockedContainer<GeneralSet<T, M>>, LL>;
   GeneralShardedSet() = default;
-  GeneralShardedSet(std::optional<typename Base::Hint> hint);
+  GeneralShardedSet(std::optional<typename Base::ShardingHint> sharding_hint);
 
   friend class ProcletServer;
   template <typename T1, typename LL1>

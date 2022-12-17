@@ -78,8 +78,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      deleted_(false),
-      full_(false) {
+      deleted_(false) {
   {
     Caladan::PreemptGuard g;
     slab_ = get_runtime()->get_current_proclet_slab();
@@ -120,7 +119,6 @@ void GeneralShard<Container>::set_range_and_data(
   real_max_shard_bytes_ = max_shard_bytes_ / kAlmostFullThresh;
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
   deleted_ = false;
-  full_ = false;
   rw_lock_.writer_unlock();
 }
 
@@ -144,7 +142,7 @@ GeneralShard<Container>::get_container_handle() {
 }
 
 template <class Container>
-bool GeneralShard<Container>::split() {
+void GeneralShard<Container>::split() {
   Key mid_k;
   std::unique_ptr<Container> latter_half_container;
   std::size_t new_container_capacity = 0;
@@ -169,19 +167,13 @@ bool GeneralShard<Container>::split() {
 
   auto new_shard = mapping_.run(&ShardMapping::create_new_shard, mid_k, r_key_,
                                 /* reserve_space = */ false);
-  if (unlikely(!new_shard)) {
-    full_ = true;
-    return false;
-  }
-
-  full_ = false;
   ContainerAndMetadata<Container> container_and_metadata;
   container_and_metadata.container = std::move(*latter_half_container);
   container_and_metadata.capacity =
       std::max(new_container_capacity, latter_half_container->size());
   container_and_metadata.container_bucket_size = container_bucket_size_;
-  new_shard->run(&GeneralShard::set_range_and_data, mid_k, r_key_,
-                 container_and_metadata);
+  new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
+                container_and_metadata);
 
   r_key_ = mid_k;
 
@@ -194,8 +186,6 @@ bool GeneralShard<Container>::split() {
   if constexpr (Reservable<Container>) {
     size_thresh_ = std::max(size_thresh_, container_.size());
   }
-
-  return true;
 }
 
 template <class Container>
@@ -224,17 +214,13 @@ inline bool GeneralShard<Container>::should_split(std::size_t size) const {
 }
 
 template <class Container>
-bool GeneralShard<Container>::split_with_reader_lock() {
-  bool splitted = false;
+void GeneralShard<Container>::split_with_reader_lock() {
   rw_lock_.reader_unlock();
   rw_lock_.writer_lock();
   if (likely(should_split(container_.size()))) {
-    splitted = split();
-  } else {
-    full_ = false;
+    split();
   }
   rw_lock_.writer_unlock();
-  return splitted;
 }
 
 template <class Container>
@@ -259,11 +245,7 @@ inline bool GeneralShard<Container>::try_insert(
     DataEntry entry) requires InsertAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(full_ || should_reject(std::move(l_key), std::move(r_key)))) {
-    if (full_) {
-      split_with_reader_lock();
-      return false;
-    }
+  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -291,11 +273,7 @@ inline bool GeneralShard<Container>::try_push_back(
     Val v) requires PushBackAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(full_ || should_reject(std::move(l_key), std::move(r_key)))) {
-    if (full_) {
-      split_with_reader_lock();
-      return false;
-    }
+  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -337,7 +315,8 @@ inline bool GeneralShard<Container>::try_push_front(
   }
 
   if (unlikely(should_split(size))) {
-    return split_with_reader_lock();
+    split_with_reader_lock();
+    return true;
   }
 
   rw_lock_.reader_unlock();
@@ -461,7 +440,7 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
       size = container_.push_back_batch(std::move(batch.push_back_reqs));
       if (unlikely(size == batch_size)) {
         ScopedLock lock(&empty_spin_);
-        empty_cv_.signal();
+        empty_cv_.signal_all();
       }
     }
   }
