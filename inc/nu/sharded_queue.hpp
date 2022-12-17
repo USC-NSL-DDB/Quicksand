@@ -24,7 +24,6 @@ class Queue {
   std::size_t push_back_batch(std::vector<Val> vec);
   Val front() const;
   Val back() const;
-  std::optional<Val> pop_front();
   std::vector<Val> try_pop_front(std::size_t num);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);

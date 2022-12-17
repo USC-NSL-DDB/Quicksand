@@ -37,16 +37,6 @@ inline std::size_t Stack<T>::push_back_batch(std::vector<Val> vec) {
 }
 
 template <typename T>
-inline std::optional<T> Stack<T>::pop_back() {
-  if (unlikely(stack_.empty())) {
-    return std::nullopt;
-  }
-  auto ret = std::move(stack_.top());
-  stack_.pop();
-  return ret;
-}
-
-template <typename T>
 inline std::vector<T> Stack<T>::try_pop_back(std::size_t num) {
   std::vector<T> elems;
 

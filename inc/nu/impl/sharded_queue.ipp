@@ -42,16 +42,6 @@ inline std::size_t Queue<T>::push_back_batch(std::vector<Val> vec) {
 }
 
 template <typename T>
-inline std::optional<T> Queue<T>::pop_front() {
-  if (unlikely(queue_.empty())) {
-    return std::nullopt;
-  }
-  auto ret = std::move(queue_.front());
-  queue_.pop();
-  return ret;
-}
-
-template <typename T>
 inline std::vector<T> Queue<T>::try_pop_front(std::size_t num) {
   std::vector<T> elems;
 

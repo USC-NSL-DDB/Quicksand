@@ -345,7 +345,7 @@ template <class Container>
 inline std::optional<typename Container::Val>
 GeneralShard<Container>::try_pop_front(
     std::optional<Key> l_key,
-    std::optional<Key> r_key) requires PopFrontAble<Container> {
+    std::optional<Key> r_key) requires TryPopFrontAble<Container> {
   rw_lock_.reader_lock();
 
 retry:
@@ -354,8 +354,8 @@ retry:
     return std::nullopt;
   }
 
-  auto front = container_.pop_front();
-  if (unlikely(!front)) {
+  auto front = container_.try_pop_front(1);
+  if (unlikely(front.empty())) {
     if (r_key_) {
       delete_self_with_reader_lock();
       return std::nullopt;
@@ -371,12 +371,12 @@ retry:
 
   rw_lock_.reader_unlock();
 
-  return front;
+  return front.front();
 }
 
 template <class Container>
 inline std::optional<std::vector<typename Container::Val>>
-GeneralShard<Container>::try_try_pop_front(
+GeneralShard<Container>::try_pop_front_nb(
     std::optional<Key> l_key, std::optional<Key> r_key,
     std::size_t num) requires TryPopFrontAble<Container> {
   rw_lock_.reader_lock();
@@ -415,7 +415,7 @@ template <class Container>
 inline std::optional<typename Container::Val>
 GeneralShard<Container>::try_pop_back(
     std::optional<Key> l_key,
-    std::optional<Key> r_key) requires PopBackAble<Container> {
+    std::optional<Key> r_key) requires TryPopBackAble<Container> {
   rw_lock_.reader_lock();
 
 retry:
@@ -424,8 +424,8 @@ retry:
     return std::nullopt;
   }
 
-  auto back = container_.pop_back();
-  if (unlikely(!back)) {
+  auto back = container_.try_pop_back(1);
+  if (unlikely(back.empty())) {
     if (r_key_) {
       delete_self_with_reader_lock();
       return std::nullopt;
@@ -441,12 +441,12 @@ retry:
 
   rw_lock_.reader_unlock();
 
-  return back;
+  return back.front();
 }
 
 template <class Container>
 inline std::optional<std::vector<typename Container::Val>>
-GeneralShard<Container>::try_try_pop_back(
+GeneralShard<Container>::try_pop_back_nb(
     std::optional<Key> l_key, std::optional<Key> r_key,
     std::size_t num) requires TryPopBackAble<Container> {
   rw_lock_.reader_lock();

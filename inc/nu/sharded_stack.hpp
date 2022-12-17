@@ -23,7 +23,6 @@ class Stack {
   Val back() const;
   std::size_t push_back(Val v);
   std::size_t push_back_batch(std::vector<Val> vec);
-  std::optional<Val> pop_back();
   std::vector<Val> try_pop_back(std::size_t num);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);

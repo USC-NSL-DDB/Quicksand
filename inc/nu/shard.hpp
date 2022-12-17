@@ -102,8 +102,8 @@ class GeneralShard {
                       Val v) requires PushFrontAble<Container>;
   std::optional<Val> try_pop_front(
       std::optional<Key> l_key,
-      std::optional<Key> r_key) requires PopFrontAble<Container>;
-  std::optional<std::vector<Val>> try_try_pop_front(
+      std::optional<Key> r_key) requires TryPopFrontAble<Container>;
+  std::optional<std::vector<Val>> try_pop_front_nb(
       std::optional<Key> l_key, std::optional<Key> r_key,
       std::size_t num) requires TryPopFrontAble<Container>;
   std::optional<Val> try_back(
@@ -111,8 +111,8 @@ class GeneralShard {
       std::optional<Key> r_key) requires HasBack<Container>;
   std::optional<Val> try_pop_back(
       std::optional<Key> l_key,
-      std::optional<Key> r_key) requires PopBackAble<Container>;
-  std::optional<std::vector<Val>> try_try_pop_back(
+      std::optional<Key> r_key) requires TryPopBackAble<Container>;
+  std::optional<std::vector<Val>> try_pop_back_nb(
       std::optional<Key> l_key, std::optional<Key> r_key,
       std::size_t num) requires TryPopBackAble<Container>;
   std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);

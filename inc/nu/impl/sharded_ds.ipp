@@ -320,7 +320,7 @@ inline void ShardedDataStructure<Container, LL>::__push_front(
 
 template <class Container, class LL>
 inline Container::Val ShardedDataStructure<
-    Container, LL>::pop_front() requires PopFrontAble<Container> {
+    Container, LL>::pop_front() requires TryPopFrontAble<Container> {
   return run_at_border<true, Val>(&Shard::try_pop_front);
 }
 
@@ -328,7 +328,7 @@ template <class Container, class LL>
 inline std::vector<typename Container::Val>
 ShardedDataStructure<Container, LL>::try_pop_front(
     std::size_t num) requires TryPopFrontAble<Container> {
-  return run_at_border<true, std::vector<Val>>(&Shard::try_try_pop_front, num);
+  return run_at_border<true, std::vector<Val>>(&Shard::try_pop_front_nb, num);
 }
 
 template <class Container, class LL>
@@ -345,7 +345,7 @@ ShardedDataStructure<Container, LL>::__back() requires HasBack<Container> {
 
 template <class Container, class LL>
 inline Container::Val ShardedDataStructure<
-    Container, LL>::pop_back() requires PopBackAble<Container> {
+    Container, LL>::pop_back() requires TryPopBackAble<Container> {
   return run_at_border<false, Val>(&Shard::try_pop_back);
 }
 
@@ -353,7 +353,7 @@ template <class Container, class LL>
 inline std::vector<typename Container::Val>
 ShardedDataStructure<Container, LL>::try_pop_back(
     std::size_t num) requires TryPopBackAble<Container> {
-  return run_at_border<true, std::vector<Val>>(&Shard::try_try_pop_back, num);
+  return run_at_border<true, std::vector<Val>>(&Shard::try_pop_back_nb, num);
 }
 
 template <class Container, class LL>

@@ -56,11 +56,11 @@ class ShardedDataStructure {
   void push_back(const Val &v) requires PushBackAble<Container>;
   void push_back(Val &&v) requires PushBackAble<Container>;
   Val front() const requires HasFront<Container>;
-  Val pop_front() requires PopFrontAble<Container>;
+  Val pop_front() requires TryPopFrontAble<Container>;
   std::vector<Val> try_pop_front(
       std::size_t elems) requires TryPopFrontAble<Container>;
   Val back() const requires HasBack<Container>;
-  Val pop_back() requires PopBackAble<Container>;
+  Val pop_back() requires TryPopBackAble<Container>;
   std::vector<Val> try_pop_back(
       std::size_t elems) requires TryPopBackAble<Container>;
   std::optional<IterVal> find_data(Key k) const requires FindAble<Container>;
