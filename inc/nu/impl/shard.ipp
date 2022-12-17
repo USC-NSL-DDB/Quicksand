@@ -86,16 +86,16 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
 
   if constexpr (Reservable<Container>) {
     if (reserve_space) {
-      auto old_slab_usage = slab_->get_usage();
+      auto old_slab_usage = slab_->get_cur_usage();
       container_.reserve(kReserveProbeSize);
-      auto new_slab_usage = slab_->get_usage();
+      auto new_slab_usage = slab_->get_cur_usage();
       container_bucket_size_ =
           std::ceil(static_cast<float>(new_slab_usage - old_slab_usage) /
                     kReserveProbeSize);
       auto reserve_size =
           max_shard_bytes * kReserveContainerSizeRatio / container_bucket_size_;
       container_.reserve(reserve_size);
-      initial_slab_usage_ = slab_->get_usage();
+      initial_slab_usage_ = slab_->get_cur_usage();
       initial_size_ = 0;
       size_thresh_ = kAlmostFullThresh * reserve_size;
     }
@@ -113,7 +113,7 @@ void GeneralShard<Container>::set_range_and_data(
   l_key_ = l_key;
   r_key_ = r_key;
   container_ = std::move(container_and_metadata.container);
-  initial_slab_usage_ = slab_->get_usage();
+  initial_slab_usage_ = slab_->get_cur_usage();
   initial_size_ = container_.size();
   container_bucket_size_ = container_and_metadata.container_bucket_size;
   real_max_shard_bytes_ = max_shard_bytes_ / kAlmostFullThresh;
@@ -146,7 +146,7 @@ void GeneralShard<Container>::split() {
   Key mid_k;
   std::unique_ptr<Container> latter_half_container;
   std::size_t new_container_capacity = 0;
-  auto cur_slab_usage = slab_->get_usage();
+  auto cur_slab_usage = slab_->get_cur_usage();
 
   if constexpr (Reservable<Container>) {
     auto diff_data_size = cur_slab_usage - initial_slab_usage_;
@@ -177,7 +177,7 @@ void GeneralShard<Container>::split() {
 
   r_key_ = mid_k;
 
-  auto new_slab_usage = slab_->get_usage();
+  auto new_slab_usage = slab_->get_cur_usage();
   if (unlikely(new_slab_usage > real_max_shard_bytes_)) {
     // Grant slightly more memory to incorporate fragmentations in our slab
     // allocator.
@@ -208,7 +208,7 @@ inline bool GeneralShard<Container>::should_split(std::size_t size) const {
     over_container_size = (size > size_thresh_);
   }
 
-  over_slab_size = (slab_->get_usage() > real_max_shard_bytes_);
+  over_slab_size = (slab_->get_cur_usage() > real_max_shard_bytes_);
 
   return over_container_size || over_slab_size;
 }

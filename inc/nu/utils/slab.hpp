@@ -48,6 +48,7 @@ class SlabAllocator {
   void *allocate(size_t size) noexcept;
   void *yield(size_t size) noexcept;
   void *get_base() const noexcept;
+  size_t get_cur_usage() const noexcept;
   size_t get_usage() const noexcept;
   size_t get_remaining() const noexcept;
   SlabId_t get_id() noexcept;

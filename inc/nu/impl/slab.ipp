@@ -53,12 +53,16 @@ inline void *SlabAllocator::get_base() const noexcept {
   return const_cast<uint8_t *>(start_);
 }
 
-inline size_t SlabAllocator::get_usage() const noexcept {
-  std::size_t ever_allocated = rt::access_once(cur_) - start_;
+inline size_t SlabAllocator::get_cur_usage() const noexcept {
+  auto total_usage = get_usage();
   auto global_free_bytes =
       static_cast<std::size_t>(rt::access_once(global_free_bytes_));
-  BUG_ON(ever_allocated < global_free_bytes);
-  return ever_allocated - global_free_bytes;
+  BUG_ON(total_usage < global_free_bytes);
+  return total_usage - global_free_bytes;
+}
+
+inline size_t SlabAllocator::get_usage() const noexcept {
+  return rt::access_once(cur_) - start_;
 }
 
 inline size_t SlabAllocator::get_remaining() const noexcept {
