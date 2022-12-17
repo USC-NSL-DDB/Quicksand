@@ -9,9 +9,9 @@
 #include "nu/container.hpp"
 #include "nu/rem_unique_ptr.hpp"
 #include "nu/utils/cond_var.hpp"
+#include "nu/utils/mutex.hpp"
 #include "nu/utils/read_skewed_lock.hpp"
 #include "nu/utils/rob_executor.hpp"
-#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 
@@ -191,7 +191,7 @@ class GeneralShard {
   uint64_t initial_slab_usage_;
   std::size_t initial_size_;
   std::size_t size_thresh_;
-  SpinLock empty_spin_;
+  Mutex empty_mutex_;
   CondVar empty_cv_;
   bool deleted_;
 

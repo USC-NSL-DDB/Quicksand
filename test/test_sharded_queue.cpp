@@ -56,12 +56,7 @@ struct Consumer {
   }
 };
 
-// Tests
-
 bool test_push_and_pop() {
-  std::cout << __FUNCTION__ << std::endl;
-
-  // TODO: increase test size when LL=false is implemented
   constexpr uint32_t k_size = 24 << 12;
   auto queue = make_sharded_queue<int, std::true_type>();
 
@@ -76,7 +71,6 @@ bool test_push_and_pop() {
     return false;
   }
 
-  // FIXME: This may fail if merge is not implemented
   front += 1 << 10;
   for (uint32_t i = 0; i < (1 << 10); i++) {
     queue.pop();
@@ -89,8 +83,6 @@ bool test_push_and_pop() {
 }
 
 bool test_size_and_empty() {
-  std::cout << __FUNCTION__ << std::endl;
-
   constexpr uint32_t k_size = 24 << 12;
   auto queue = make_sharded_queue<int, std::true_type>();
 
@@ -117,8 +109,6 @@ bool test_size_and_empty() {
 }
 
 bool test_batched_queue() {
-  std::cout << __FUNCTION__ << std::endl;
-
   constexpr std::size_t queue_sz = 1 << 12;
   constexpr std::size_t batch_sz = 1'000'000;
   constexpr std::size_t kBatchElemSz = 100'000;
@@ -145,8 +135,6 @@ bool test_batched_queue() {
 }
 
 bool test_blocking_dequeue() {
-  std::cout << __FUNCTION__ << std::endl;
-
   constexpr std::size_t kNumElems = 1 << 20;
   constexpr int kElem = 33;
   constexpr std::size_t kProducerCount = 4;
@@ -195,8 +183,6 @@ bool test_blocking_dequeue() {
 }
 
 bool test_blocking_enqueue() {
-  std::cout << __FUNCTION__ << std::endl;
-
   constexpr std::size_t kNumElems = 1 << 12;
   constexpr std::size_t kBatchBytes = 100'000;
   constexpr std::size_t kBatchElemSz = 1'000;

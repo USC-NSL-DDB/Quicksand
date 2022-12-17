@@ -234,7 +234,9 @@ void GeneralShard<Container>::delete_self_with_reader_lock() {
       self = get_runtime()->get_current_weak_proclet<GeneralShard<Container>>();
     }
     mapping_.run(&ShardMapping::delete_shard, l_key_, self);
+    // Recycle heap space.
     container_ = Container();
+    deleted_ = true;
   }
   rw_lock_.writer_unlock();
 }
@@ -281,9 +283,9 @@ inline bool GeneralShard<Container>::try_push_back(
   auto size = container_.push_back(std::move(v));
 
   if (unlikely(size == 1)) {
-    ScopedLock lock(&empty_spin_);
+    ScopedLock lock(&empty_mutex_);
 
-    empty_cv_.signal();
+    empty_cv_.signal_all();
   }
 
   if (unlikely(should_split(size))) {
@@ -309,9 +311,9 @@ inline bool GeneralShard<Container>::try_push_front(
   auto size = container_.push_front(std::move(v));
 
   if (unlikely(size == 1)) {
-    ScopedLock lock(&empty_spin_);
+    ScopedLock lock(&empty_mutex_);
 
-    empty_cv_.signal();
+    empty_cv_.signal_all();
   }
 
   if (unlikely(should_split(size))) {
@@ -344,9 +346,9 @@ inline std::optional<typename Container::Val>
 GeneralShard<Container>::try_pop_front(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires PopFrontAble<Container> {
-retry:
   rw_lock_.reader_lock();
 
+retry:
   if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
@@ -358,11 +360,10 @@ retry:
       delete_self_with_reader_lock();
       return std::nullopt;
     } else {
-      rw_lock_.reader_unlock();
-      ScopedLock lock(&empty_spin_);
+      ScopedLock lock(&empty_mutex_);
 
       while (container_.empty()) {
-        empty_cv_.wait(&empty_spin_);
+        empty_cv_.wait(&empty_mutex_);
       }
       goto retry;
     }
@@ -393,9 +394,9 @@ inline std::optional<typename Container::Val>
 GeneralShard<Container>::try_pop_back(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires PopBackAble<Container> {
-retry:
   rw_lock_.reader_lock();
 
+retry:
   if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
@@ -407,11 +408,10 @@ retry:
       delete_self_with_reader_lock();
       return std::nullopt;
     } else {
-      rw_lock_.reader_unlock();
-      ScopedLock lock(&empty_spin_);
+      ScopedLock lock(&empty_mutex_);
 
       while (container_.empty()) {
-        empty_cv_.wait(&empty_spin_);
+        empty_cv_.wait(&empty_mutex_);
       }
       goto retry;
     }
@@ -439,7 +439,8 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
       auto batch_size = batch.push_back_reqs.size();
       size = container_.push_back_batch(std::move(batch.push_back_reqs));
       if (unlikely(size == batch_size)) {
-        ScopedLock lock(&empty_spin_);
+        ScopedLock lock(&empty_mutex_);
+
         empty_cv_.signal_all();
       }
     }
