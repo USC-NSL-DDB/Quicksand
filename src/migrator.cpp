@@ -931,8 +931,8 @@ void Migrator::forward_to_client(RPCReqForward &req) {
   } else {
     req.returner.Return(req.rc);
   }
+  delete (req.gc_ia_sstream->ss.span().data() - sizeof(RPCReqType));
   get_runtime()->archive_pool()->put_ia_sstream(req.gc_ia_sstream);
-  delete req.gc_ia_sstream->ss.span().data();
   get_runtime()->rpc_server()->dec_ref_cnt();
   get_runtime()->proclet_server()->dec_ref_cnt();
 }
