@@ -144,6 +144,7 @@ bool test_sharded_vector_filtering() {
             filtered_vec.push_back(data);
           }
         }
+        filtered_vec.flush();
         return filtered_vec;
       },
       cont_vector_range);

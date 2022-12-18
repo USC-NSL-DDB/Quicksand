@@ -468,12 +468,14 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
     pop_flush_futures();
   }
 
-  flush_futures_.emplace(shard_and_reqs.flush_executor.run_async(
-      +[](RobExecutor<ReqBatch, std::optional<ReqBatch>> &rob_executor,
-          uint32_t rob_seq, ReqBatch batch) {
-        return rob_executor.submit(rob_seq, std::move(batch));
-      },
-      shard_and_reqs.seq++, std::move(batch)));
+  if (!batch.empty()) {
+    flush_futures_.emplace(shard_and_reqs.flush_executor.run_async(
+        +[](RobExecutor<ReqBatch, std::optional<ReqBatch>> &rob_executor,
+            uint32_t rob_seq, ReqBatch batch) {
+          return rob_executor.submit(rob_seq, std::move(batch));
+        },
+        shard_and_reqs.seq++, std::move(batch)));
+  }
 
   while (drain && !flush_futures_.empty()) {
     pop_flush_futures();

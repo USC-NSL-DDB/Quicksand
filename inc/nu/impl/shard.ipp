@@ -56,6 +56,11 @@ inline ContainerAndMetadata<Container>::ContainerAndMetadata(
 }
 
 template <class Container>
+inline bool GeneralShard<Container>::ReqBatch::empty() const {
+  return push_back_reqs.empty() && insert_reqs.empty();
+}
+
+template <class Container>
 template <class Archive>
 inline void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
   ar(mapping_seq, l_key, r_key, push_back_reqs, insert_reqs);

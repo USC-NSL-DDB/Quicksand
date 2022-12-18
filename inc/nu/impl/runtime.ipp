@@ -174,11 +174,17 @@ inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
   if (!new_header) {
     return MigrationGuard(nullptr);
   } else if (new_header->status() != kAbsent) {
-    auto nesting_cnt = new_header->rcu_lock.reader_lock(g);
-    if (likely(new_header->status() != kAbsent || nesting_cnt > 1)) {
+    new_header->rcu_lock.reader_lock(g);
+    if (likely(new_header->status() != kAbsent)) {
       return MigrationGuard(new_header);
     }
     new_header->rcu_lock.reader_unlock(g);
+  }
+
+  if (unlikely(caladan()->thread_is_rcu_held(Caladan::thread_self(),
+                                             &new_header->rcu_lock))) {
+    new_header->rcu_lock.reader_lock(g);
+    return MigrationGuard(new_header);
   }
 
   caladan_->thread_set_owner_proclet(caladan_->thread_self(), old_header,

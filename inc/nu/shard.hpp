@@ -79,6 +79,7 @@ class GeneralShard {
     std::vector<Val> push_back_reqs;
     std::vector<DataEntry> insert_reqs;
 
+    bool empty() const;
     template <class Archive>
     void serialize(Archive &ar);
   };
