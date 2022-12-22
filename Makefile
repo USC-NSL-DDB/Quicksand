@@ -132,6 +132,8 @@ bench_sharded_sorter_src = bench/bench_sharded_sorter.cpp
 bench_sharded_sorter_obj = $(bench_sharded_sorter_src:.cpp=.o)
 bench_sharded_queue_src = bench/bench_sharded_queue.cpp
 bench_sharded_queue_obj = $(bench_sharded_queue_src:.cpp=.o)
+bench_dis_executor_src = bench/bench_dis_executor.cpp
+bench_dis_executor_obj = $(bench_dis_executor_src:.cpp=.o)
 
 ctrl_main_src = src/ctrl_main.cpp
 ctrl_main_obj = $(ctrl_main_src:.cpp=.o)
@@ -152,7 +154,7 @@ bin/test_sharded_unordered_map bin/bench_cpu_overloaded bin/test_iter \
 bin/bench_sharded_unordered_map bin/bench_sharded_map bin/test_sharded_unordered_set \
 bin/test_sharded_sorter bin/bench_sharded_sorter bin/test_sharded_stack \
 bin/test_sharded_queue bin/test_dis_executor bin/test_continuous_migrate \
-bin/bench_sharded_queue
+bin/bench_sharded_queue bin/bench_dis_executor
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -266,6 +268,8 @@ bin/bench_sharded_sorter: $(bench_sharded_sorter_obj) $(librt_libs) $(RUNTIME_DE
 	$(LDXX) -o $@ $(bench_sharded_sorter_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_sharded_queue: $(bench_sharded_queue_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_sharded_queue_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_dis_executor: $(bench_dis_executor_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_dis_executor_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/ctrl_main: $(ctrl_main_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(ctrl_main_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
