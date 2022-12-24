@@ -1,3 +1,2 @@
-1. fix the timeout issue in tcp stack which affects the phoenix/nu-multi result when num_nodes=4.
-2. replace rt::Thread with nu::Thread otherwise the thread won't be migratable.
-3. use the stanalone controller and specify lpid.
+1. replace rt::Thread with nu::Thread otherwise the thread won't be migratable.
+2. use the stanalone controller and specify lpid.
