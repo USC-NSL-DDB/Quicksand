@@ -164,8 +164,11 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 	if (!p->resource_pressure_info || !p->num_resource_pressure_handlers ||
 	    !p->resource_pressure_handlers)
 		goto fail;
-	memset(p->resource_pressure_info, 0,
-                sizeof(*p->resource_pressure_info));
+	p->resource_pressure_info->mock = false;
+	p->resource_pressure_info->last_us = 0;
+	p->resource_pressure_info->to_release_mem_mbs = 0;
+	p->resource_pressure_info->cpu_pressure = false;
+	p->resource_pressure_info->status = HANDLING;
 
 	p->resource_reporting =
                 shmptr_to_ptr(&reg, hdr.resource_reporting,
@@ -174,7 +177,7 @@ static struct proc *control_create_proc(mem_key_t key, size_t len,
 		goto fail;
 	p->resource_reporting->handler = NULL;
 	p->resource_reporting->last_tsc = 0;
-	p->resource_reporting->status = NONE;
+	p->resource_reporting->status = HANDLING;
 
 	/* initialize the threads */
 	for (i = 0; i < hdr.thread_count; i++) {

@@ -65,11 +65,6 @@ static int ias_attach(struct proc *p, struct sched_spec *sched_cfg)
 		return -ENOMEM;
 	memset(sd, 0, sizeof(*sd));
 	sd->p = p;
-	sd->p->resource_pressure_info->status = NONE;
-	sd->p->resource_pressure_info->mock = false;
-	sd->p->resource_pressure_info->last_us = 0;
-	sd->p->resource_pressure_info->to_release_mem_mbs = 0;
-	sd->p->resource_pressure_info->cpu_pressure = false;
 	sd->threads_guaranteed = sched_cfg->guaranteed_cores;
 	sd->threads_max = sched_cfg->max_cores;
 	sd->threads_limit = sched_cfg->max_cores;

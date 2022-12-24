@@ -85,10 +85,12 @@ void PressureHandler::update_sorted_proclets() {
 }
 
 void PressureHandler::register_handlers() {
-  add_resource_pressure_handler(main_handler, nullptr);
-  for (uint32_t i = 0; i < kNumAuxHandlers; i++) {
-    add_resource_pressure_handler(aux_handler, &aux_handler_states_[i]);
+  resource_pressure_closure closures[kNumAuxHandlers + 1];
+  closures[0] = {main_handler, nullptr};
+  for (uint32_t i = 1; i < kNumAuxHandlers + 1; i++) {
+    closures[i] = {aux_handler, &aux_handler_states_[i - 1]};
   }
+  create_resource_pressure_handlers(closures, kNumAuxHandlers + 1);
 }
 
 void PressureHandler::main_handler(void *unused) {

@@ -6,6 +6,7 @@ struct resource_reporting *resource_reporting;
 
 void set_resource_reporting_handler(thread_t *handler) {
 	resource_reporting->handler = handler;
+	store_release(&resource_reporting->status, NONE);
 }
 
 void finish_resource_reporting(void) {

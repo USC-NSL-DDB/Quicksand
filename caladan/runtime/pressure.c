@@ -9,37 +9,36 @@ uint8_t *num_resource_pressure_handlers;
 /* the pressure handlers */
 struct thread **resource_pressure_handlers;
 
-struct handler_thread_args {
-	resource_pressure_handler handler;
-	void *handler_args;
-};
-
 static void thread_wrapper(void *args)
 {
-	struct handler_thread_args *thread_args =
-		(struct handler_thread_args *)args;
+	struct resource_pressure_closure *closure =
+		(struct resource_pressure_closure *)args;
 
 	while (true) {
 		preempt_disable();
-		thread_args->handler(thread_args->handler_args);
+		closure->fn(closure->args);
 		thread_park_and_preempt_enable();
 	}
 }
 
-void add_resource_pressure_handler(resource_pressure_handler handler,
-                                   void *args)
+void create_resource_pressure_handlers(
+	struct resource_pressure_closure *closures,
+	int num_closures)
 {
-	struct handler_thread_args *thread_args;
+	struct resource_pressure_closure *closure;
+	int i;
 
-	resource_pressure_handlers[(*num_resource_pressure_handlers)++] =
-		thread_create_with_buf(thread_wrapper, (void **)&thread_args,
-				       sizeof(struct handler_thread_args));
-	thread_args->handler = handler;
-	thread_args->handler_args = args;
+	for (i = 0; i < num_closures; i++) {
+		resource_pressure_handlers[i] =
+			thread_create_with_buf(thread_wrapper, (void **)&closure,
+					       sizeof(struct resource_pressure_closure));
+		*closure = closures[i];
+	}
+	*num_resource_pressure_handlers = num_closures;
+	store_release(&resource_pressure_info->status, NONE);
 }
 
 void remove_all_resource_pressure_handlers(void)
 {
 	*num_resource_pressure_handlers = 0;
 }
-
