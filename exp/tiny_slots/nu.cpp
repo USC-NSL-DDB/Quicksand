@@ -1,16 +1,27 @@
-#include "nu/resource_reporter.hpp"
+#include <vector>
+
+#include "runtime.h"
+
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
-#include "nu/utils/time.hpp"
+
+class Obj {
+ public:
+  void run() {
+    while (1)
+      ;
+  }
+};
 
 void do_work() {
-  while (1) {
-    nu::Time::sleep(nu::kOneSecond);
-    auto free_resources =
-        nu::get_runtime()->resource_reporter()->get_global_free_resources();
-    std::cout << "******************" << std::endl;
-    for (auto &[_, resource] : free_resources) {
-      std::cout << resource.cores << " " << resource.mem_mbs << std::endl;
-    }
+  auto num_proclets = rt::RuntimeMaxCores();
+  std::cout << num_proclets << std::endl;
+  std::vector<nu::Proclet<Obj>> proclets;
+  std::vector<nu::Future<void>> futures;
+
+  for (uint32_t i = 0; i < num_proclets; i++) {
+    proclets.push_back(nu::make_proclet<Obj>());
+    futures.push_back(proclets.back().run_async(&Obj::run));
   }
 }
 
