@@ -42,6 +42,8 @@ struct ias_data {
 	uint64_t                quantum_us;
 	struct list_node	all_link;
 	DEFINE_BITMAP(reserved_cores, NCPU);
+	DEFINE_BITMAP(reserved_ps_cores, NCPU);
+	DEFINE_BITMAP(reserved_rp_cores, NCPU);
 
 	/* thread usage limits */
 	int			threads_guaranteed;/* the number promised */
@@ -83,6 +85,7 @@ extern int ias_idle_on_core(unsigned int core);
 extern bool ias_can_add_kthread(struct ias_data *sd, bool ignore_ht_punish_cores);
 extern int ias_add_kthread(struct ias_data *sd);
 extern int ias_add_kthread_on_core(unsigned int core);
+extern int ias_run_kthread_on_core(struct ias_data *sd, unsigned int core);
 
 
 /*

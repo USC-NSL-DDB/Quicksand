@@ -10,21 +10,29 @@
 #include "ksched.h"
 #include "sched.h"
 
+static bool is_eligible(struct ias_data *sd, struct thread *th)
+{
+	return th == sched_get_thread_on_core(th->core) &&
+	       !th->preemptor->th &&
+	       !bitmap_test(sd->reserved_rp_cores, th->core);
+}
+
 static void ias_ps_preempt_core(struct ias_data *sd)
 {
-	unsigned int num_needed_cores, num_eligible_cores = 0, i, core;
+	unsigned int num_needed_cores, num_eligible_cores = 0, i;
 	struct thread *th;
 	uint64_t now_tsc;
+	bool is_lc = sd->is_lc;
 
+	sd->is_lc = true;
 	for (i = 0; i < sd->p->active_thread_count; i++)
-		num_eligible_cores += !sd->p->active_threads[i]->preemptor->th;
+		num_eligible_cores += is_eligible(sd, sd->p->active_threads[i]);
 
 	num_needed_cores = *sd->p->num_resource_pressure_handlers;
 	while (num_eligible_cores < num_needed_cores) {
 		if (unlikely(ias_add_kthread(sd) != 0))
-			return;
-		th = sd->p->active_threads[sd->p->active_thread_count - 1];
-		num_eligible_cores += !th->preemptor->th;
+			goto done;
+		num_eligible_cores++;
 	}
 
 	sd->p->resource_pressure_info->last_us = now_us;
@@ -32,23 +40,30 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 	mb();
 	if (unlikely(!ACCESS_ONCE(sd->p->num_resource_pressure_handlers))) {
 		sd->p->resource_pressure_info->status = NONE;
-		return;
+		goto done;
 	}
 
 	/* Preempt the first num_needed_cores cores. */
 	i = 0;
 	now_tsc = rdtsc();
 	while (num_needed_cores) {
-		core = sd->p->active_threads[i]->core;
 		th = sd->p->active_threads[i++];
-		if (unlikely(th->preemptor->th))
+		if (unlikely(!is_eligible(sd, th)))
                         continue;
 		th->preemptor->th =
                         sd->p->resource_pressure_handlers[--num_needed_cores];
 		th->preemptor->ready_tsc = now_tsc;
 		barrier();
-		sched_yield_on_core(core);
+		/* Grant exclusive access by marking the core as reserved. */
+		if (!bitmap_test(sd->reserved_cores, th->core)) {
+			bitmap_set(sd->reserved_cores, th->core);
+			bitmap_set(sd->reserved_ps_cores, th->core);
+		}
+		sched_yield_on_core(th->core);
 	}
+
+done:
+	sd->is_lc = is_lc;
 }
 
 void ias_ps_poll(void)
@@ -59,6 +74,7 @@ void ias_ps_poll(void)
 	struct congestion_info *congestion;
 	struct resource_pressure_info *pressure;
 	struct ias_data *sd;
+	int pos;
 
 	BUG_ON(sysinfo(&info) != 0);
 	used_swap_mbs = (info.totalswap - info.freeswap) / SIZE_MB;
@@ -105,8 +121,14 @@ void ias_ps_poll(void)
 		}
 
 	update_fsm:
-		if (pressure->status == HANDLED)
+		if (pressure->status == HANDLED) {
+	                /* Take away the exclusive access. */
+	                bitmap_for_each_set(sd->reserved_ps_cores, NCPU, pos) {
+				bitmap_clear(sd->reserved_ps_cores, pos);
+				bitmap_clear(sd->reserved_cores, pos);
+	                }
 			pressure->status = NONE;
+		}
 
 		if (pressure->status == NONE && has_pressure)
 			if (pressure->last_us + IAS_PS_INTERVAL_US < now_us)

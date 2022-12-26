@@ -9,20 +9,28 @@
 #include "ksched.h"
 #include "sched.h"
 
+static bool is_eligible(struct ias_data *sd, struct thread *th)
+{
+	return th == sched_get_thread_on_core(th->core) &&
+	       !th->preemptor->th &&
+	       !bitmap_test(sd->reserved_ps_cores, th->core);
+}
+
 static void ias_rp_preempt_core(struct ias_data *sd, uint64_t now_tsc)
 {
-	unsigned int i, core;
+	unsigned int i;
 	struct thread *th;
+	bool is_lc = sd->is_lc;
 
+	sd->is_lc = true;
 	for (i = 0; i < sd->p->active_thread_count; i++)
-		if (!sd->p->active_threads[i]->preemptor->th)
-			break;
+		if (is_eligible(sd, sd->p->active_threads[i]))
+		        break;
 
 	if (unlikely(i == sd->p->active_thread_count))
 		if (unlikely(ias_add_kthread(sd) != 0))
-			return;
+			goto done;
 
-	core = sd->p->active_threads[i]->core;
 	sd->p->resource_reporting->last_tsc = now_tsc;
 	sd->p->resource_reporting->status = HANDLING;
 	barrier();
@@ -30,19 +38,34 @@ static void ias_rp_preempt_core(struct ias_data *sd, uint64_t now_tsc)
 	th->preemptor->th = sd->p->resource_reporting->handler;
 	th->preemptor->ready_tsc = now_tsc;
 	barrier();
-	sched_yield_on_core(core);
+	/* Grant exclusive access by marking the core as reserved. */
+	if (!bitmap_test(sd->reserved_cores, th->core)) {
+		bitmap_set(sd->reserved_cores, th->core);
+		bitmap_set(sd->reserved_rp_cores, th->core);
+	}
+	sched_yield_on_core(th->core);
+
+done:
+	sd->is_lc = is_lc;
 }
 
 void ias_rp_poll(void)
 {
 	struct ias_data *sd;
+	int pos;
 	struct resource_reporting *report;
 	uint64_t now_tsc = rdtsc();
 
 	ias_for_each_proc(sd) {
 		report = sd->p->resource_reporting;
-		if (report->status == HANDLED)
+		if (report->status == HANDLED) {
+                        /* Take away the exclusive access. */
+                        bitmap_for_each_set(sd->reserved_rp_cores, NCPU, pos) {
+                                bitmap_clear(sd->reserved_rp_cores, pos);
+                                bitmap_clear(sd->reserved_cores, pos);
+                        }
 			report->status = NONE;
+		}
 
 		if (report->status == NONE)
                         if (report->handler &&

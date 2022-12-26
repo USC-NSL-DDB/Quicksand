@@ -146,7 +146,7 @@ static void ias_detach(struct proc *p)
 	free(sd);
 }
 
-static int ias_run_kthread_on_core(struct ias_data *sd, unsigned int core)
+int ias_run_kthread_on_core(struct ias_data *sd, unsigned int core)
 {
 	int ret;
 
