@@ -19,20 +19,27 @@ static bool is_eligible(struct ias_data *sd, struct thread *th)
 
 static void ias_ps_preempt_core(struct ias_data *sd)
 {
-	unsigned int num_needed_cores, num_eligible_cores = 0, i;
+	unsigned int i, num_needed_cores = *sd->p->num_resource_pressure_handlers;
+	struct thread *selected[num_needed_cores];
+	unsigned int num_selected = 0;
 	struct thread *th;
 	uint64_t now_tsc;
 	bool is_lc = sd->is_lc;
 
 	sd->is_lc = true;
-	for (i = 0; i < sd->p->active_thread_count; i++)
-		num_eligible_cores += is_eligible(sd, sd->p->active_threads[i]);
+	for (i = 0;
+	     i < sd->p->active_thread_count && num_selected < num_needed_cores;
+	     i++) {
+		th = sd->p->active_threads[i];
+		if (is_eligible(sd, th))
+			selected[num_selected++] = th;
+	}
 
-	num_needed_cores = *sd->p->num_resource_pressure_handlers;
-	while (num_eligible_cores < num_needed_cores) {
+	while (num_selected < num_needed_cores) {
 		if (unlikely(ias_add_kthread(sd) != 0))
 			goto done;
-		num_eligible_cores++;
+		selected[num_selected++] =
+			sd->p->active_threads[sd->p->active_thread_count - 1];
 	}
 
 	sd->p->resource_pressure_info->last_us = now_us;
@@ -44,12 +51,10 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 	}
 
 	/* Preempt the first num_needed_cores cores. */
-	i = 0;
 	now_tsc = rdtsc();
-	while (num_needed_cores) {
-		th = sd->p->active_threads[i++];
-		if (unlikely(!is_eligible(sd, th)))
-                        continue;
+	BUG_ON(num_selected != num_needed_cores);
+	for (i = 0; i < num_selected; i++) {
+		th = selected[i];
 		th->preemptor->th =
                         sd->p->resource_pressure_handlers[--num_needed_cores];
 		th->preemptor->ready_tsc = now_tsc;
