@@ -28,7 +28,14 @@ extern "C" {
 
 namespace nu {
 
-enum ProcletStatus { kAbsent = 0, kPresent, kDestructing };
+enum ProcletStatus {
+  kAbsent = 0,
+  kPopulating,
+  kDepopulating,
+  kMigrating,
+  kPresent,
+  kDestructing,
+};
 // Proclet statuses are stored out of band so that they are always accessible
 // even if the proclets are not present locally.
 extern uint8_t proclet_statuses[kMaxNumProclets];

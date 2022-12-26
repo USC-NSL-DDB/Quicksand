@@ -42,12 +42,6 @@ void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
   RuntimeSlabGuard guard;
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
 
-  {
-    // Sync with get_proclet_info() inovked by PressureHandler.
-    ScopedLock lock(&spin_);
-    proclet_header->status() = kAbsent;
-  }
-
   // Deregister its slab ID.
   std::destroy_at(&proclet_header->slab);
 

@@ -49,7 +49,7 @@ inline void ProcletManager::insert(void *proclet_base) {
 }
 
 inline bool ProcletManager::remove_for_migration(void *proclet_base) {
-  return __remove(proclet_base, kAbsent);
+  return __remove(proclet_base, kMigrating);
 }
 
 inline bool ProcletManager::remove_for_destruction(void *proclet_base) {
