@@ -105,6 +105,7 @@ void write_options_to_file(std::string path, const CaladanOptionsDesc &desc) {
   constexpr auto kMTU = 9000;
   constexpr auto kQDelayUs = 10;
   constexpr auto kLogLevel = 0;
+  constexpr auto kPriority = "be";
 
   std::ofstream ofs(path);
   ofs << "host_addr " << desc.ip << std::endl;
@@ -114,6 +115,7 @@ void write_options_to_file(std::string path, const CaladanOptionsDesc &desc) {
   ofs << "runtime_kthreads " << desc.kthreads << std::endl;
   ofs << "runtime_guaranteed_kthreads " << desc.guaranteed << std::endl;
   ofs << "runtime_spinning_kthreads " << desc.spinning << std::endl;
+  ofs << "runtime_priority " << kPriority << std::endl;
   ofs << "runtime_qdelay_us " << kQDelayUs << std::endl;
   ofs << "enable_directpath 1" << std::endl;
   ofs << "log_level " << kLogLevel << std::endl;
