@@ -15,9 +15,9 @@ class Obj {
 
 void do_work() {
   auto num_proclets = rt::RuntimeMaxCores();
-  std::cout << num_proclets << std::endl;
   std::vector<nu::Proclet<Obj>> proclets;
   std::vector<nu::Future<void>> futures;
+  proclets.reserve(num_proclets);
 
   for (uint32_t i = 0; i < num_proclets; i++) {
     proclets.push_back(nu::make_proclet<Obj>());
