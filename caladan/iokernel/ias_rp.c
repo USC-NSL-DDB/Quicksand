@@ -21,15 +21,18 @@ static void ias_rp_preempt_core(struct ias_data *sd, uint64_t now_tsc)
 	unsigned int i;
 	struct thread *th;
 	bool is_lc = sd->is_lc;
+	bool added = false;
 
 	sd->is_lc = true;
 	for (i = 0; i < sd->p->active_thread_count; i++)
 		if (is_eligible(sd, sd->p->active_threads[i]))
 		        break;
 
-	if (unlikely(i == sd->p->active_thread_count))
+	if (unlikely(i == sd->p->active_thread_count)) {
 		if (unlikely(ias_add_kthread(sd) != 0))
 			goto done;
+		added = true;
+	}
 
 	sd->p->resource_reporting->last_tsc = now_tsc;
 	sd->p->resource_reporting->status = HANDLING;
@@ -43,7 +46,8 @@ static void ias_rp_preempt_core(struct ias_data *sd, uint64_t now_tsc)
 		bitmap_set(sd->reserved_cores, th->core);
 		bitmap_set(sd->reserved_rp_cores, th->core);
 	}
-	sched_yield_on_core(th->core);
+	if (!added)
+		sched_yield_on_core(th->core);
 
 done:
 	sd->is_lc = is_lc;
