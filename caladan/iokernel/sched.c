@@ -608,6 +608,9 @@ static int sched_try_fast_rewake(struct thread *th)
 	if (unlikely(th->p->kill))
 		return -EINVAL;
 
+	if (unlikely(th->preemptor->th))
+		goto rewake;
+
 	/*
 	 * If the kthread has yielded voluntarily but still has pending I/O
 	 * requests in flight, we can just wake it back up directly without

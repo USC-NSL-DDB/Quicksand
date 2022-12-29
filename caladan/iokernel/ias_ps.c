@@ -21,7 +21,7 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 {
 	unsigned int i, num_needed_cores = *sd->p->num_resource_pressure_handlers;
 	struct thread *selected[num_needed_cores];
-	unsigned int num_selected = 0, num_added = 0;
+	unsigned int num_selected = 0;
 	struct thread *th;
 	uint64_t now_tsc;
 	bool is_lc = sd->is_lc;
@@ -35,7 +35,6 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 			selected[num_selected++] = th;
 	}
 
-	num_added = num_needed_cores - num_selected;
 	while (num_selected < num_needed_cores) {
 		if (unlikely(ias_add_kthread(sd) != 0))
 			goto done;
@@ -51,11 +50,11 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 		goto done;
 	}
 
-	/* Preempt the first num_needed_cores cores. */
 	now_tsc = rdtsc();
 	BUG_ON(num_selected != num_needed_cores);
 	for (i = 0; i < num_selected; i++) {
 		th = selected[i];
+		BUG_ON(th->preemptor->th);
 		th->preemptor->th =
                         sd->p->resource_pressure_handlers[--num_needed_cores];
 		th->preemptor->ready_tsc = now_tsc;
@@ -65,8 +64,7 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 			bitmap_set(sd->reserved_cores, th->core);
 			bitmap_set(sd->reserved_ps_cores, th->core);
 		}
-		if (i < num_selected - num_added)
-			sched_yield_on_core(th->core);
+		sched_yield_on_core(th->core);
 	}
 
 done:
