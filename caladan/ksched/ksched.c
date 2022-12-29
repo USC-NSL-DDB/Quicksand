@@ -414,9 +414,9 @@ static void do_yield(void)
 
 static void ksched_ipi_runtime_ipi(void *arg)
 {
-	struct ksched_runtime_intr_req *req = arg;
+	int opcode = (uintptr_t)arg;
 
-	switch (req->opcode) {
+	switch (opcode) {
 	case RUNTIME_INTR_YIELD:
 		do_yield();
 		break;
@@ -425,7 +425,7 @@ static void ksched_ipi_runtime_ipi(void *arg)
 		break;
 	default:
 		WARN_ONCE(1, "Invalid opcode (%d) in ksched_ipi_runtime_intr()\n",
-			     (int)req->opcode);
+			     opcode);
 	}
 }
 
@@ -448,7 +448,8 @@ static long ksched_runtime_intr(struct ksched_runtime_intr_req __user *ureq)
 		return -EFAULT;
 	}
   
-	smp_call_function_many(mask, ksched_ipi_runtime_ipi, &req, req.wait);
+	smp_call_function_many(mask, ksched_ipi_runtime_ipi,
+			       (void *)(uintptr_t)req.opcode, req.wait);
 	free_cpumask_var(mask);
 	return smp_processor_id();
 }
