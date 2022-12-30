@@ -766,4 +766,41 @@ inline void ShardedDataStructure<Container, LL>::unseal() {
   mapping_.run(&ShardMapping::unseal);
 }
 
+template <PushBackAble Container, BoolIntegral LL>
+BackInsertIterator<Container, LL>::BackInsertIterator(
+    ShardedDataStructure<Container, LL> &ds)
+    : ds_(ds) {}
+
+template <PushBackAble Container, BoolIntegral LL>
+BackInsertIterator<Container, LL>
+    &BackInsertIterator<Container, LL>::operator++() {
+  return *this;
+}
+
+template <PushBackAble Container, BoolIntegral LL>
+BackInsertIterator<Container, LL>
+    &BackInsertIterator<Container, LL>::operator*() {
+  return *this;
+}
+
+template <PushBackAble Container, BoolIntegral LL>
+inline BackInsertIterator<Container, LL>
+    &BackInsertIterator<Container, LL>::operator=(const Val &val) {
+  ds_.push_back(val);
+  return *this;
+}
+
+template <PushBackAble Container, BoolIntegral LL>
+inline BackInsertIterator<Container, LL>
+    &BackInsertIterator<Container, LL>::operator=(Val &&val) {
+  ds_.push_back(std::move(val));
+  return *this;
+}
+
+template <PushBackAble Container, BoolIntegral LL>
+BackInsertIterator<Container, LL> back_inserter(
+    ShardedDataStructure<Container, LL> &sharded_ds) {
+  return BackInsertIterator(sharded_ds);
+};
+
 }  // namespace nu

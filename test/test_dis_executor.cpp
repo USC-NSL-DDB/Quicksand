@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iterator>
 #include <ranges>
 
 #include "nu/dis_executor.hpp"
@@ -138,11 +139,8 @@ bool test_sharded_vector_filtering() {
       +[](decltype(cont_vector_range) &elems) {
         auto filtered_vec =
             nu::make_sharded_vector<std::size_t, std::false_type>();
-        for (auto elem : elems) {
-          if (kFilterFn(elem)) {
-            filtered_vec.push_back(elem);
-          }
-        }
+        std::copy_if(elems.begin(), elems.end(),
+                     nu::back_inserter(filtered_vec), kFilterFn);
         filtered_vec.flush();
         return filtered_vec;
       },

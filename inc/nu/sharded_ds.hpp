@@ -167,6 +167,25 @@ class ShardedDataStructure {
   void update_max_num_vals();
 };
 
+template <PushBackAble Container, BoolIntegral LL>
+class BackInsertIterator {
+ public:
+  using Val = ShardedDataStructure<Container, LL>::Val;
+
+  BackInsertIterator(ShardedDataStructure<Container, LL> &ds);
+  BackInsertIterator<Container, LL> &operator++();
+  BackInsertIterator<Container, LL> &operator*();
+  BackInsertIterator<Container, LL> &operator=(const Val &val);
+  BackInsertIterator<Container, LL> &operator=(Val &&val);
+
+ private:
+  ShardedDataStructure<Container, LL> &ds_;
+};
+
+template <PushBackAble Container, BoolIntegral LL>
+BackInsertIterator<Container, LL> back_inserter(
+    ShardedDataStructure<Container, LL> &sharded_ds);
+
 }  // namespace nu
 
 #include "nu/impl/sharded_ds.ipp"
