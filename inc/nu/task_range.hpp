@@ -1,10 +1,10 @@
 #pragma once
 
+#include <sync.h>
+
 #include <atomic>
 #include <cstddef>
 #include <utility>
-
-#include <sync.h>
 
 #include "nu/type_traits.hpp"
 #include "nu/utils/cond_var.hpp"
@@ -19,6 +19,8 @@ template <class T>
 concept TaskRangeBased = requires {
   requires is_base_of_template_v<T, TaskRange>;
 };
+template <class Impl>
+class TaskRangeIterator;
 
 template <class Impl>
 class TaskRange {
@@ -52,6 +54,8 @@ class TaskRange {
   }
   Impl &impl() { return impl_; }
   const Impl &impl() const { return impl_; }
+  TaskRangeIterator<Impl> begin() const;
+  TaskRangeIterator<Impl> end() const;
 
  private:
   Impl impl_;
@@ -64,6 +68,21 @@ class TaskRange {
   friend class ComputeProclet;
 
   void cleanup_steal();
+};
+
+template <class Impl>
+class TaskRangeIterator {
+ public:
+  using Task = TaskRange<Impl>::Task;
+
+  TaskRangeIterator(TaskRange<Impl> &range, bool end = false);
+  bool operator==(const TaskRangeIterator<Impl> &o);
+  Task operator*() const;
+  TaskRangeIterator<Impl> &operator++();
+
+ private:
+  TaskRange<Impl> &range_;
+  std::optional<Task> curr_;
 };
 
 }  // namespace nu

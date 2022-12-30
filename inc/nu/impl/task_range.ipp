@@ -96,4 +96,40 @@ TaskRange<Impl> TaskRange<Impl>::steal() {
   steal_size_ = 0;
   return impl_.split(steal_size);
 }
+
+template <class Impl>
+TaskRangeIterator<Impl> TaskRange<Impl>::begin() const {
+  return TaskRangeIterator(const_cast<TaskRange<Impl> &>(*this));
+}
+
+template <class Impl>
+TaskRangeIterator<Impl> TaskRange<Impl>::end() const {
+  return TaskRangeIterator(const_cast<TaskRange<Impl> &>(*this),
+                           /* end = */ true);
+}
+
+template <class Impl>
+TaskRangeIterator<Impl>::TaskRangeIterator(TaskRange<Impl> &range, bool end)
+    : range_(range) {
+  curr_ =
+      (end || range_.empty()) ? std::nullopt : std::make_optional(range_.pop());
+}
+
+template <class Impl>
+inline bool TaskRangeIterator<Impl>::operator==(
+    const TaskRangeIterator<Impl> &o) {
+  return curr_ == o.curr_;
+}
+
+template <class Impl>
+inline TaskRangeIterator<Impl>::Task TaskRangeIterator<Impl>::operator*()
+    const {
+  return std::move(*curr_);
+}
+
+template <class Impl>
+inline TaskRangeIterator<Impl> &TaskRangeIterator<Impl>::operator++() {
+  curr_ = range_.empty() ? std::nullopt : std::make_optional(range_.pop());
+  return *this;
+}
 }  // namespace nu

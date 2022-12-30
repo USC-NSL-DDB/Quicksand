@@ -135,13 +135,12 @@ bool test_sharded_vector_filtering() {
   auto sealed_vec = nu::to_sealed_ds(std::move(vec));
   auto cont_vector_range = nu::make_contiguous_ds_range(sealed_vec);
   auto dis_exec = nu::make_distributed_executor(
-      +[](decltype(cont_vector_range) &task_range) {
+      +[](decltype(cont_vector_range) &elems) {
         auto filtered_vec =
             nu::make_sharded_vector<std::size_t, std::false_type>();
-        while (!task_range.empty()) {
-          auto data = task_range.pop();
-          if (kFilterFn(data)) {
-            filtered_vec.push_back(data);
+        for (auto elem : elems) {
+          if (kFilterFn(elem)) {
+            filtered_vec.push_back(elem);
           }
         }
         filtered_vec.flush();
