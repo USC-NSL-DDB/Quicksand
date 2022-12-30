@@ -32,7 +32,7 @@ static void handle_sigusr1(int s, siginfo_t *si, void *c)
 
 	preempt_disable();
 	STAT(PREEMPTIONS)++;
-	WARN_ON_ONCE(!preempt_cede_needed(myk()));
+	/* WARN_ON_ONCE(!preempt_cede_needed(myk())); */
 	thread_cede();
 }
 
