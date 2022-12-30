@@ -1,7 +1,5 @@
 #pragma once
 
-#include <sync.h>
-
 #include <atomic>
 #include <cstddef>
 #include <utility>
