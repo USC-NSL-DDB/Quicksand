@@ -23,34 +23,36 @@ static void set_preempt_needed(void)
 /* handles preemptive cede signals from the iokernel */
 static void handle_sigusr1(int s, siginfo_t *si, void *c)
 {
-	STAT(PREEMPTIONS)++;
-
 	/* resume execution if preemption is disabled */
 	if (!preempt_enabled()) {
+		STAT(PREEMPTIONS)++;
 		set_preempt_needed();
 		return;
 	}
 
-	// WARN_ON_ONCE(!preempt_cede_needed(myk()));
-
 	preempt_disable();
+	STAT(PREEMPTIONS)++;
+	WARN_ON_ONCE(!preempt_cede_needed(myk()));
 	thread_cede();
 }
 
 /* handles preemptive yield signals from the iokernel */
 static void handle_sigusr2(int s, siginfo_t *si, void *c)
 {
-	STAT(PREEMPTIONS)++;
-
 	/* resume execution if preemption is disabled */
 	if (!preempt_enabled()) {
+		STAT(PREEMPTIONS)++;
 		set_preempt_needed();
 		return;
 	}
 
+	preempt_disable();
 	/* check if yield request is still relevant */
-	if (!preempt_yield_needed(myk()))
+	if (!preempt_yield_needed(myk())) {
+		preempt_enable_nocheck();
 		return;
+	}
+	preempt_enable_nocheck();
 
 	thread_yield();
 }
