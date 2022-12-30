@@ -480,13 +480,6 @@ sched_measure_kthread_delay(struct thread *th, uint64_t *thread_delay,
 	sched_measure_hardware_delay(th, &th->storage_hwq, true, has_work,
 		                         standing_queue, &tmp);
 	*thread_delay += tmp;
-
-	/* NU: detect the preemptor */
-	if (th->preemptor->th) {
-		*has_work = true;
-		*standing_queue = true;
-		*thread_delay += calc_delay_tsc(th->preemptor->ready_tsc);
-	}
 }
 
 #define EWMA_WEIGHT     0.1f

@@ -178,8 +178,7 @@ static bool work_available(struct kthread *k, uint64_t now_tsc)
 
 	return ACCESS_ONCE(k->rq_tail) != ACCESS_ONCE(k->rq_head) ||
 	       softirq_pending(k, now_tsc) ||
-	       !list_empty_volatile(&k->rq_deprioritized) ||
-               k->preemptor->th;
+	       !list_empty_volatile(&k->rq_deprioritized);
 }
 
 static void update_oldest_tsc(struct kthread *k)
@@ -417,15 +416,6 @@ static bool steal_work(struct kthread *l, struct kthread *r)
 		return false;
 	if (!spin_try_lock(&r->lock))
 		return false;
-
-	/* try to steal preemptor */
-	if (unlikely(r->preemptor->th)) {
-		thread_ready_head_locked(r->preemptor->th,
-					 r->preemptor->ready_tsc);
-		r->preemptor->th = NULL;
-		spin_unlock(&r->lock);
-		return true;
-	}
 
 #ifdef GC
 	if (unlikely(get_gc_gen() != r->local_gc_gen)) {
