@@ -281,15 +281,25 @@ again:
   return rr_iter++->first;
 }
 
-void Controller::release_migration_dest(lpid_t lpid, NodeIP ip) {
+bool Controller::acquire_node(lpid_t lpid, NodeIP ip) {
   ScopedLock lock(&mutex_);
 
   auto &node_statuses = lpid_to_info_[lpid].node_statuses;
   auto iter = node_statuses.find(ip);
-  if (unlikely(iter == node_statuses.end())) {
-    return;
+  BUG_ON(iter == node_statuses.end());
+  if (unlikely(iter->second.acquired)) {
+    return false;
   }
+  iter->second.acquired = true;
+  return true;
+}
 
+void Controller::release_node(lpid_t lpid, NodeIP ip) {
+  ScopedLock lock(&mutex_);
+
+  auto &node_statuses = lpid_to_info_[lpid].node_statuses;
+  auto iter = node_statuses.find(ip);
+  BUG_ON(iter == node_statuses.end());
   BUG_ON(!iter->second.acquired);
   iter->second.acquired = false;
   iter->second.cv.signal();

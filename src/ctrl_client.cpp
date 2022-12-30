@@ -83,7 +83,7 @@ NodeIP ControllerClient::resolve_proclet(ProcletID id) {
   return resp.ip;
 }
 
-MigrationDest ControllerClient::acquire_migration_dest(Resource resource) {
+NodeGuard ControllerClient::acquire_migration_dest(Resource resource) {
   rt::SpinGuard g(&spin_);
 
   RPCReqAcquireMigrationDest req;
@@ -96,7 +96,22 @@ MigrationDest ControllerClient::acquire_migration_dest(Resource resource) {
   RPCRespAcquireMigrationDest resp;
   BUG_ON(tcp_conn_->ReadFull(&resp, sizeof(resp), /* nt = */ false,
                              /* poll = */ true) != sizeof(resp));
-  return MigrationDest(this, resp.ip);
+  return NodeGuard(this, resp.ip);
+}
+
+NodeGuard ControllerClient::acquire_node() {
+  rt::SpinGuard g(&spin_);
+
+  RPCReqAcquireNode req;
+  req.lpid = lpid_;
+  req.ip = get_cfg_ip();
+  BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
+                              /* poll = */ true) != sizeof(req));
+
+  RPCRespAcquireNode resp;
+  BUG_ON(tcp_conn_->ReadFull(&resp, sizeof(resp), /* nt = */ false,
+                             /* poll = */ true) != sizeof(resp));
+  return NodeGuard(this, resp.succeed ? req.ip : 0);
 }
 
 void ControllerClient::update_location(ProcletID id, NodeIP proclet_srv_ip) {
@@ -135,10 +150,10 @@ std::vector<std::pair<NodeIP, Resource>> ControllerClient::report_free_resource(
   return global_free_resources;
 }
 
-void ControllerClient::release_migration_dest(NodeIP ip) {
+void ControllerClient::release_node(NodeIP ip) {
   rt::SpinGuard g(&spin_);
 
-  RPCReqReleaseMigrationDest req;
+  RPCReqReleaseNode req;
   req.lpid = lpid_;
   req.ip = ip;
   BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
@@ -154,13 +169,17 @@ void ControllerClient::destroy_lp() {
   BUG_ON(rc != kOk);
 }
 
-MigrationDest::MigrationDest(ControllerClient *client, NodeIP ip)
+NodeGuard::NodeGuard(ControllerClient *client, NodeIP ip)
     : client_(client), ip_(ip) {}
 
-MigrationDest::~MigrationDest() { client_->release_migration_dest(ip_); }
+NodeGuard::~NodeGuard() {
+  if (ip_) {
+    client_->release_node(ip_);
+  }
+}
 
-MigrationDest::operator bool() const { return ip_; }
+NodeGuard::operator bool() const { return ip_; }
 
-NodeIP MigrationDest::get_ip() const { return ip_; }
+NodeIP NodeGuard::get_ip() const { return ip_; }
 
 }  // namespace nu

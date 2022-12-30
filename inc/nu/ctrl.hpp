@@ -71,7 +71,8 @@ class Controller {
   NodeIP resolve_proclet(ProcletID id);
   NodeIP acquire_migration_dest(lpid_t lpid, NodeIP requestor_ip,
                                 Resource resource);
-  void release_migration_dest(lpid_t lpid, NodeIP ip);
+  bool acquire_node(lpid_t lpid, NodeIP ip);
+  void release_node(lpid_t lpid, NodeIP ip);
   void update_location(ProcletID id, NodeIP proclet_srv_ip);
   std::vector<std::pair<NodeIP, Resource>> report_free_resource(
       lpid_t lpid, NodeIP ip, Resource free_resource);

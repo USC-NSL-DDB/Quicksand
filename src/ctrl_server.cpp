@@ -19,7 +19,8 @@ ControllerServer::ControllerServer()
       num_destroy_proclet_(0),
       num_resolve_proclet_(0),
       num_acquire_migration_dest_(0),
-      num_release_migration_dest_(0),
+      num_acquire_node_(0),
+      num_release_node_(0),
       num_update_location_(0),
       num_report_free_resource_(0),
       num_destroy_ip_(0),
@@ -28,7 +29,7 @@ ControllerServer::ControllerServer()
     logging_thread_ = rt::Thread([&] {
       std::cout
           << "time_us register_node allocate_proclet destroy_proclet"
-             "resolve_proclet acquire_migration_dest release_migration_dest"
+             "resolve_proclet acquire_migration_dest acquire_node release_node"
              "update_location report_free_resource destroy_ip"
           << std::endl;
       while (!rt::access_once(done_)) {
@@ -36,7 +37,7 @@ ControllerServer::ControllerServer()
         std::cout << microtime() << " " << num_register_node_ << " "
                   << num_allocate_proclet_ << " " << num_destroy_proclet_ << " "
                   << num_resolve_proclet_ << " " << num_acquire_migration_dest_
-                  << " " << num_release_migration_dest_ << " "
+                  << " " << num_acquire_node_ << " " << num_release_node_ << " "
                   << num_update_location_ << " " << num_report_free_resource_
                   << " " << num_destroy_ip_ << std::endl;
       }
@@ -83,11 +84,19 @@ void ControllerServer::tcp_loop(rt::TcpConn *c) {
         BUG_ON(c->WriteFull(&resp, sizeof(resp)) != sizeof(resp));
         break;
       }
-      case kReleaseMigrationDest: {
-        RPCReqReleaseMigrationDest req;
+      case kAcquireNode: {
+        RPCReqAcquireNode req;
         ssize_t data_size = sizeof(req) - sizeof(rpc_type);
         BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
-        handle_release_migration_dest(req);
+        auto resp = handle_acquire_node(req);
+        BUG_ON(c->WriteFull(&resp, sizeof(resp)) != sizeof(resp));
+        break;
+      }
+      case kReleaseNode: {
+        RPCReqReleaseNode req;
+        ssize_t data_size = sizeof(req) - sizeof(rpc_type);
+        BUG_ON(c->ReadFull(&req.rpc_type + 1, data_size) != data_size);
+        handle_release_node(req);
         break;
       }
       case kUpdateLocation: {
@@ -194,13 +203,23 @@ RPCRespAcquireMigrationDest ControllerServer::handle_acquire_migration_dest(
   return resp;
 }
 
-void ControllerServer::handle_release_migration_dest(
-    const RPCReqReleaseMigrationDest &req) {
+RPCRespAcquireNode ControllerServer::handle_acquire_node(
+    const RPCReqAcquireNode &req) {
   if constexpr (kEnableLogging) {
-    num_release_migration_dest_++;
+    num_acquire_node_++;
   }
 
-  ctrl_.release_migration_dest(req.lpid, req.ip);
+  RPCRespAcquireNode resp;
+  resp.succeed = ctrl_.acquire_node(req.lpid, req.ip);
+  return resp;
+}
+
+void ControllerServer::handle_release_node(const RPCReqReleaseNode &req) {
+  if constexpr (kEnableLogging) {
+    num_release_node_++;
+  }
+
+  ctrl_.release_node(req.lpid, req.ip);
 }
 
 std::vector<std::pair<NodeIP, Resource>>

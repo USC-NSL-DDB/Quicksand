@@ -75,8 +75,18 @@ struct RPCRespAcquireMigrationDest {
   NodeIP ip;
 } __attribute__((packed));
 
-struct RPCReqReleaseMigrationDest {
-  RPCReqType rpc_type = kReleaseMigrationDest;
+struct RPCReqAcquireNode {
+  RPCReqType rpc_type = kAcquireNode;
+  lpid_t lpid;
+  NodeIP ip;
+} __attribute__((packed));
+
+struct RPCRespAcquireNode {
+  bool succeed;
+} __attribute__((packed));
+
+struct RPCReqReleaseNode {
+  RPCReqType rpc_type = kReleaseNode;
   lpid_t lpid;
   NodeIP ip;
 } __attribute__((packed));
@@ -112,7 +122,8 @@ class ControllerServer {
   std::atomic<uint64_t> num_destroy_proclet_;
   std::atomic<uint64_t> num_resolve_proclet_;
   std::atomic<uint64_t> num_acquire_migration_dest_;
-  std::atomic<uint64_t> num_release_migration_dest_;
+  std::atomic<uint64_t> num_acquire_node_;
+  std::atomic<uint64_t> num_release_node_;
   std::atomic<uint64_t> num_update_location_;
   std::atomic<uint64_t> num_report_free_resource_;
   std::atomic<uint64_t> num_destroy_ip_;
@@ -132,7 +143,8 @@ class ControllerServer {
       const RPCReqResolveProclet &req);
   RPCRespAcquireMigrationDest handle_acquire_migration_dest(
       const RPCReqAcquireMigrationDest &req);
-  void handle_release_migration_dest(const RPCReqReleaseMigrationDest &req);
+  RPCRespAcquireNode handle_acquire_node(const RPCReqAcquireNode &req);
+  void handle_release_node(const RPCReqReleaseNode &req);
   void handle_update_location(const RPCReqUpdateLocation &req);
   std::vector<std::pair<NodeIP, Resource>> handle_report_free_resource(
       const RPCReqReportFreeResource &req);

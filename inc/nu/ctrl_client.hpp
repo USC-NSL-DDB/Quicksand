@@ -22,9 +22,9 @@ namespace nu {
 
 class ControllerClient;
 
-class MigrationDest {
+class NodeGuard {
  public:
-  ~MigrationDest();
+  ~NodeGuard();
   operator bool() const;
   NodeIP get_ip() const;
 
@@ -33,7 +33,7 @@ class MigrationDest {
   NodeIP ip_;
   friend class ControllerClient;
 
-  MigrationDest(ControllerClient *client, NodeIP ip);
+  NodeGuard(ControllerClient *client, NodeIP ip);
 };
 
 class ControllerClient {
@@ -45,7 +45,8 @@ class ControllerClient {
       uint64_t capacity, NodeIP ip_hint);
   void destroy_proclet(VAddrRange heap_segment);
   NodeIP resolve_proclet(ProcletID id);
-  MigrationDest acquire_migration_dest(Resource resource);
+  NodeGuard acquire_node();
+  NodeGuard acquire_migration_dest(Resource resource);
   void update_location(ProcletID id, NodeIP proclet_srv_ip);
   VAddrRange get_stack_cluster() const;
   std::vector<std::pair<NodeIP, Resource>> report_free_resource(
@@ -58,8 +59,8 @@ class ControllerClient {
   RPCClient *rpc_client_;
   std::unique_ptr<rt::TcpConn> tcp_conn_;
   rt::Spin spin_;
-  friend class MigrationDest;
+  friend class NodeGuard;
 
-  void release_migration_dest(NodeIP ip);
+  void release_node(NodeIP ip);
 };
 }  // namespace nu

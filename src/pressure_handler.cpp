@@ -6,6 +6,7 @@
 #include <thread.h>
 
 #include "nu/commons.hpp"
+#include "nu/ctrl_client.hpp"
 #include "nu/runtime.hpp"
 #include "nu/migrator.hpp"
 #include "nu/pressure_handler.hpp"
@@ -98,6 +99,11 @@ void PressureHandler::main_handler(void *unused) {
 }
 
 void PressureHandler::__main_handler() {
+  auto node_guard = get_runtime()->controller_client()->acquire_node();
+  if (unlikely(!node_guard)) {
+    goto done;
+  }
+
   while (has_pressure()) {
     if constexpr (kEnableLogging) {
       std::cout << "Detect pressure = { .mem_mbs = "
@@ -128,6 +134,7 @@ void PressureHandler::__main_handler() {
     }
   }
 
+done:
   pause_aux_handlers();
 
   // Tell iokernel that the pressure has been handled.
