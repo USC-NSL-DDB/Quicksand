@@ -619,8 +619,6 @@ bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
     t0 = microtime();
   }
 
-  proclet_header->pending_load_cnt += kTransmitProcletNumThreads;
-
   uint8_t type;
   BUG_ON(c->ReadFull(&type, sizeof(type), /* nt = */ false,
                      /* poll = */ true) <= 0);
@@ -634,6 +632,7 @@ bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
                                           /* migratable = */ false,
                                           /* from_migration = */ true);
 
+  proclet_header->pending_load_cnt += kTransmitProcletNumThreads;
   while (proclet_header->pending_load_cnt.load()) {
     get_runtime()->caladan()->unblock_and_relax();
   }
