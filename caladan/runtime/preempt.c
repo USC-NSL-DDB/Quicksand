@@ -39,6 +39,8 @@ static void handle_sigusr1(int s, siginfo_t *si, void *c)
 /* handles preemptive yield signals from the iokernel */
 static void handle_sigusr2(int s, siginfo_t *si, void *c)
 {
+	struct kthread *k;
+
 	/* resume execution if preemption is disabled */
 	if (!preempt_enabled()) {
 		STAT(PREEMPTIONS)++;
@@ -46,16 +48,14 @@ static void handle_sigusr2(int s, siginfo_t *si, void *c)
 		return;
 	}
 
-	preempt_disable();
+	k = getk();
 	/* check if yield request is still relevant */
-	if (!preempt_yield_needed(myk())) {
-		preempt_enable_nocheck();
+	if (!preempt_yield_needed(k)) {
+		putk();
 		return;
 	}
-	clear_preempt_yield_needed(myk());
-	preempt_enable_nocheck();
-
-	thread_yield();
+	clear_preempt_yield_needed(k);
+	thread_yield_and_preempt_enable();
 }
 
 /**
