@@ -600,6 +600,9 @@ static void __check_net_softirq(void *raw_args)
 		return;
 	}
 
+	/* shed work to other threads */
+	shed_work();
+
 	/* unblock ongoing prioritization */
 	prioritize_local_rcu_readers();
 

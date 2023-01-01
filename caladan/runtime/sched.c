@@ -397,6 +397,49 @@ static inline bool handle_preemptor(void)
 	return false;
 }
 
+void shed_work(void)
+{
+	struct kthread *l = myk();
+	struct kthread *r;
+	int i, j, start_idx, num;
+
+	assert_preempt_disabled();
+
+	spin_lock(&l->lock);
+	softirq_run_locked(l);
+
+	if (l->rq_head == l->rq_tail)
+		goto done;
+
+	start_idx = rand_crc32c((uintptr_t)l);
+	for (i = 0; i < maxks; i++) {
+		r = ks[(start_idx + i) % maxks];
+		if (l == r || r->parked || !spin_try_lock(&r->lock))
+			continue;
+		if (unlikely(r->parked)) {
+			spin_unlock(&r->lock);
+			continue;
+		}
+
+		num = MIN(l->rq_head - l->rq_tail,
+			  RUNTIME_RQ_SIZE - (r->rq_head - r->rq_tail));
+		for (j = 0; j < num; j++)
+			r->rq[r->rq_head++ % RUNTIME_RQ_SIZE] =
+				l->rq[l->rq_tail++ % RUNTIME_RQ_SIZE];
+
+		ACCESS_ONCE(l->q_ptrs->rq_tail) += num;
+		update_oldest_tsc(l);
+		ACCESS_ONCE(r->q_ptrs->rq_head) += num;
+		update_oldest_tsc(r);
+
+		spin_unlock(&r->lock);
+		if (l->rq_tail == l->rq_head)
+			break;
+	}
+done:
+	spin_unlock(&l->lock);
+}
+
 static bool steal_work(struct kthread *l, struct kthread *r)
 {
 	thread_t *th;

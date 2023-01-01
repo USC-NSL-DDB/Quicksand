@@ -104,6 +104,7 @@ extern void thread_flush_all_monitor_cycles(void);
 extern int32_t thread_hold_rcu(void *rcu, bool flag);
 extern int32_t thread_unhold_rcu(void *rcu, bool *flag);
 extern bool thread_is_rcu_held(thread_t *th, void *rcu);
+extern void shed_work(void);
 
 inline void thread_start_monitor_cycles(void)
 {
