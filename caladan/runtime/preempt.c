@@ -52,6 +52,7 @@ static void handle_sigusr2(int s, siginfo_t *si, void *c)
 		preempt_enable_nocheck();
 		return;
 	}
+	clear_preempt_yield_needed(myk());
 	preempt_enable_nocheck();
 
 	thread_yield();

@@ -1343,7 +1343,6 @@ retry:
 void pause_migrating_ths_main(void *owner_proclet)
 {
 	int i;
-	bool intr = false;
 	cpu_set_t mask;
 	struct kthread *k;
 	uint64_t wait_start_us;
@@ -1363,14 +1362,11 @@ void pause_migrating_ths_main(void *owner_proclet)
 		         * The (ultra rare) race condition will be handled
 		         * by the fallback path below.
 		         */
-			if (!can_handle_pause_req(k)) {
-				intr = true;
-				kthread_enqueue_intr(&mask, k);
-			}
+			if (!can_handle_pause_req(k))
+				kthread_enqueue_yield_intr(&mask, k);
 		}
 	}
-	if (intr)
-		kthread_send_yield_intrs(&mask);
+	kthread_send_yield_intrs(&mask);
 
 	wait_start_us = microtime();
 	while (ACCESS_ONCE(global_pause_req_mask)) {

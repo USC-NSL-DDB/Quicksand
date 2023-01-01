@@ -296,6 +296,12 @@ bool kthread_enqueue_intr(cpu_set_t *mask, struct kthread *k)
 	return true;
 }
 
+void kthread_enqueue_yield_intr(cpu_set_t *mask, struct kthread *k)
+{
+	if (kthread_enqueue_intr(mask, k))
+		set_preempt_yield_needed(k);
+}
+
 void kthread_yield_all_cores(void)
 {
 	int i;
@@ -303,12 +309,6 @@ void kthread_yield_all_cores(void)
 
 	CPU_ZERO(&mask);
 	for (i = 0; i < maxks; i++)
-		if (kthread_enqueue_intr(&mask, ks[i]))
-			/*
-			 * Ideally we should add a new field to struct kthread for
-			 * self-issued yield requests. For now, we just piggyback on
-			 * iokernel's field.
-			 */
-			ks[i]->q_ptrs->yield_rcu_gen = ks[i]->rcu_gen;
+		kthread_enqueue_yield_intr(&mask, ks[i]);
 	kthread_send_yield_intrs(&mask);
 }

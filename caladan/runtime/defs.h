@@ -452,7 +452,7 @@ struct kthread {
 	bool                    pause_req;
 	bool                    prioritize_req;
 	uint64_t                last_softirq_tsc;
-	unsigned long		pad4[1];
+	bool                    runtime_preempt_req;
 
 	/* 12th cache-line, statistics counters */
 	uint64_t		stats[STAT_NR];
@@ -510,9 +510,19 @@ static inline bool preempt_cede_needed(struct kthread *k)
 /* preempt_yield_needed - check if current uthread should yield */
 static inline bool preempt_yield_needed(struct kthread *k)
 {
-        return ACCESS_ONCE(k->q_ptrs->yield_rcu_gen) == k->rcu_gen;
+        return ACCESS_ONCE(k->q_ptrs->yield_rcu_gen) == k->rcu_gen ||
+               k->runtime_preempt_req;
 }
 
+static inline void set_preempt_yield_needed(struct kthread *k)
+{
+        ACCESS_ONCE(k->runtime_preempt_req) = true;
+}
+
+static inline void clear_preempt_yield_needed(struct kthread *k)
+{
+        ACCESS_ONCE(k->runtime_preempt_req) = false;
+}
 
 DECLARE_SPINLOCK(klock);
 extern unsigned int spinks;
@@ -530,6 +540,7 @@ extern void kthread_park(bool voluntary);
 extern void kthread_wait_to_attach(void);
 extern void kthread_yield_all_cores(void);
 extern bool kthread_enqueue_intr(cpu_set_t *mask, struct kthread *k);
+extern void kthread_enqueue_yield_intr(cpu_set_t *mask, struct kthread *k);
 extern void kthread_send_yield_intrs(cpu_set_t *mask);
 
 struct cpu_record {
