@@ -538,6 +538,8 @@ void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
 
 void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
   rt::Spawn([proclet_header] {
+    ScopedLock l(&proclet_header->populate_mutex());
+
     get_runtime()->proclet_manager()->cleanup(proclet_header,
                                               /* for_migration = */ true);
     proclet_header->status() = kAbsent;
@@ -631,6 +633,7 @@ bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
   get_runtime()->proclet_manager()->setup(proclet_header, capacity,
                                           /* migratable = */ false,
                                           /* from_migration = */ true);
+
   while (proclet_header->pending_load_cnt.load()) {
     get_runtime()->caladan()->unblock_and_relax();
   }
@@ -815,14 +818,15 @@ std::vector<ProcletMigrationTask> Migrator::load_proclet_migration_tasks(
 
 void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
   for (auto &[header, _, size] : tasks) {
-    while (unlikely(header->status() != kAbsent)) {
-      barrier();
+    if (likely(header->status() == kAbsent)) {
+      header->status() = kPopulating;
     }
-    header->status() = kPopulating;
   }
 
   rt::Spawn([tasks] {
     for (auto &[header, _, size] : tasks) {
+      ScopedLock l(&header->populate_mutex());
+
       if (likely(header->status() == kPopulating)) {
         get_runtime()->proclet_manager()->madvise_populate(header, size);
       }
@@ -832,9 +836,14 @@ void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
 
 void Migrator::depopulate_proclet(ProcletHeader *proclet_header,
                                   uint64_t size) {
+  if (unlikely(proclet_header->status() != kPopulating)) {
+    return;
+  }
   proclet_header->status() = kDepopulating;
 
   rt::Spawn([proclet_header, size] {
+    ScopedLock l(&proclet_header->populate_mutex());
+
     get_runtime()->proclet_manager()->depopulate(proclet_header, size,
                                                  /* defer = */ false);
     proclet_header->status() = kAbsent;
@@ -847,7 +856,8 @@ void Migrator::load(rt::TcpConn *c) {
 
   std::vector<ProcletHeader *> loaded_proclets;
   for (auto &[proclet_header, capacity, size] : tasks) {
-    bool approval = !get_runtime()->pressure_handler()->has_real_pressure();
+    bool approval = proclet_header->status() == kPopulating &&
+                    !get_runtime()->pressure_handler()->has_real_pressure();
     issue_approval(c, approval);
 
     if (unlikely(!load_proclet(c, proclet_header, capacity))) {

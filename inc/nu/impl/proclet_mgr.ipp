@@ -8,6 +8,11 @@ namespace nu {
 
 inline ProcletHeader::~ProcletHeader() {}
 
+inline uint64_t ProcletHeader::global_idx() const {
+  return (reinterpret_cast<uint64_t>(this) - kMinProcletHeapVAddr) /
+         kMinProcletHeapSize;
+}
+
 inline uint64_t ProcletHeader::size() const {
   auto size_in_bytes = reinterpret_cast<uint64_t>(slab.get_base()) +
                        slab.get_usage() - reinterpret_cast<uint64_t>(this);
@@ -15,15 +20,15 @@ inline uint64_t ProcletHeader::size() const {
 }
 
 inline uint8_t &ProcletHeader::status() {
-  auto idx = (reinterpret_cast<uint64_t>(this) - kMinProcletHeapVAddr) /
-             kMinProcletHeapSize;
-  return proclet_statuses[idx];
+  return proclet_statuses[global_idx()];
 }
 
 inline uint8_t ProcletHeader::status() const {
-  auto idx = (reinterpret_cast<uint64_t>(this) - kMinProcletHeapVAddr) /
-             kMinProcletHeapSize;
-  return proclet_statuses[idx];
+  return proclet_statuses[global_idx()];
+}
+
+inline Mutex &ProcletHeader::populate_mutex() {
+  return proclet_populate_mutex[global_idx()];
 }
 
 inline VAddrRange ProcletHeader::range() const {
