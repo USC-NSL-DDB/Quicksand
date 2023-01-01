@@ -60,10 +60,7 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 		th->preemptor->ready_tsc = now_tsc;
 		barrier();
 		/* Grant exclusive access by marking the core as reserved. */
-		if (!bitmap_test(sd->reserved_cores, th->core)) {
-			bitmap_set(sd->reserved_cores, th->core);
-			bitmap_set(sd->reserved_ps_cores, th->core);
-		}
+		bitmap_set(sd->reserved_ps_cores, th->core);
 		sched_yield_on_core(th->core);
 	}
 
@@ -128,10 +125,8 @@ void ias_ps_poll(void)
 	update_fsm:
 		if (pressure->status == HANDLED) {
 	                /* Take away the exclusive access. */
-	                bitmap_for_each_set(sd->reserved_ps_cores, NCPU, pos) {
+	                bitmap_for_each_set(sd->reserved_ps_cores, NCPU, pos)
 				bitmap_clear(sd->reserved_ps_cores, pos);
-				bitmap_clear(sd->reserved_cores, pos);
-	                }
 			pressure->status = NONE;
 		}
 

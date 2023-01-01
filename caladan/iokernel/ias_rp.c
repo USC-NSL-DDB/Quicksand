@@ -41,10 +41,7 @@ static void ias_rp_preempt_core(struct ias_data *sd, uint64_t now_tsc)
 	th->preemptor->ready_tsc = now_tsc;
 	barrier();
 	/* Grant exclusive access by marking the core as reserved. */
-	if (!bitmap_test(sd->reserved_cores, th->core)) {
-		bitmap_set(sd->reserved_cores, th->core);
-		bitmap_set(sd->reserved_rp_cores, th->core);
-	}
+	bitmap_set(sd->reserved_rp_cores, th->core);
 	sched_yield_on_core(th->core);
 
 done:
@@ -62,10 +59,8 @@ void ias_rp_poll(void)
 		report = sd->p->resource_reporting;
 		if (report->status == HANDLED) {
                         /* Take away the exclusive access. */
-                        bitmap_for_each_set(sd->reserved_rp_cores, NCPU, pos) {
+                        bitmap_for_each_set(sd->reserved_rp_cores, NCPU, pos)
                                 bitmap_clear(sd->reserved_rp_cores, pos);
-                                bitmap_clear(sd->reserved_cores, pos);
-                        }
 			report->status = NONE;
 		}
 

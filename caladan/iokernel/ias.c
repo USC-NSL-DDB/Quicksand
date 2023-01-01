@@ -232,7 +232,9 @@ static bool ias_can_preempt_core(struct ias_data *sd, unsigned int core)
 	if (sd == cur)
 		return false;
 	/* can't preempt if the current task reserved this core */
-	if (bitmap_test(cur->reserved_cores, core))
+	if (bitmap_test(cur->reserved_cores, core)    ||
+	    bitmap_test(cur->reserved_ps_cores, core) ||
+	    bitmap_test(cur->reserved_rp_cores, core))
 		return false;
 	/* BE tasks can't preempt LC tasks */
 	if (cur->is_lc && !sd->is_lc)
