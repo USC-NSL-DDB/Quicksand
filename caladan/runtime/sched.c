@@ -964,9 +964,9 @@ void thread_ready_head(thread_t *th)
 		k->rq_head--;
 		STAT(RQ_OVERFLOW)++;
 	}
-	spin_unlock(&k->lock);
 	ACCESS_ONCE(k->q_ptrs->oldest_tsc) = th->ready_tsc;
 	ACCESS_ONCE(k->q_ptrs->rq_head)++;
+	spin_unlock(&k->lock);
 	putk();
 }
 
@@ -989,8 +989,8 @@ void thread_ready(thread_t *th)
 	if (unlikely(k->rq_head - rq_tail >= RUNTIME_RQ_SIZE)) {
 		assert(k->rq_head - rq_tail == RUNTIME_RQ_SIZE);
 		list_add_tail(&k->rq_overflow, &th->link);
-		spin_unlock(&k->lock);
 		ACCESS_ONCE(k->q_ptrs->rq_head)++;
+		spin_unlock(&k->lock);
 		putk();
 		STAT(RQ_OVERFLOW)++;
 		return;
@@ -999,8 +999,8 @@ void thread_ready(thread_t *th)
 	store_release(&k->rq_head, k->rq_head + 1);
 	if (k->rq_head - load_acquire(&k->rq_tail) == 1)
 		ACCESS_ONCE(k->q_ptrs->oldest_tsc) = th->ready_tsc;
-	spin_unlock(&k->lock);
 	ACCESS_ONCE(k->q_ptrs->rq_head)++;
+	spin_unlock(&k->lock);
 	putk();
 }
 
