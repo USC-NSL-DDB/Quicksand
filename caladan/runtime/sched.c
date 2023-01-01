@@ -227,6 +227,13 @@ static void __pause_migrating_threads_locked(struct kthread *k)
 	}
 
 	k->q_ptrs->rq_tail += num_paused;
+
+	list_for_each(&k->migrating_ths, th, link) {
+		if (unlikely(th->thread_running)) {
+			while (load_acquire(&th->thread_running))
+				cpu_relax();
+		}
+	}
 	store_release(&k->pause_req, false);
 }
 
