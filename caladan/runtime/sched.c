@@ -385,11 +385,12 @@ static bool handle_pending_prioritize_req(struct kthread *k)
 static inline bool handle_preemptor(void)
 {
 	struct kthread *k = myk();
+	thread_t *th = k->preemptor->th;
 
 	assert_spin_lock_held(&k->lock);
 	assert_preempt_disabled();
-	if (unlikely(k->preemptor->th)) {
-		thread_ready_head_locked(k->preemptor->th,
+	if (unlikely(th && !th->thread_running)) {
+		thread_ready_head_locked(th,
 					 k->preemptor->ready_tsc);
 		k->preemptor->th = NULL;
 		return true;
