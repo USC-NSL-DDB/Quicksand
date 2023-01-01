@@ -769,13 +769,13 @@ static __always_inline void enter_schedule(thread_t *curth)
 
 	spin_lock(&k->lock);
 
-	prioritize_local_rcu_readers_locked();
-	pause_local_migrating_threads_locked();
 	handle_preemptor();
 
 	/* slow path: switch from the uthread stack to the runtime stack */
 	if (k->rq_head == k->rq_tail ||
 	    preempt_cede_needed(k) ||
+	    has_pending_prioritize_req(k) ||
+	    has_pending_pause_req(k) ||
 #ifdef GC
 	    get_gc_gen() != k->local_gc_gen ||
 #endif
