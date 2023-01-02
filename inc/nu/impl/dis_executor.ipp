@@ -297,10 +297,6 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
         last_queue_len = queue_len;
       }
     }
-
-    if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
-      last_check_queue_us = now_us;
-    }
     rt::Yield();
   }
 
