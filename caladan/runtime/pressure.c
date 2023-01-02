@@ -15,7 +15,6 @@ static void thread_wrapper(void *args)
 		(struct resource_pressure_closure *)args;
 
 	while (true) {
-		preempt_disable();
 		closure->fn(closure->args);
 		thread_park_and_preempt_enable();
 	}

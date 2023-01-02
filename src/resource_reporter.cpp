@@ -15,12 +15,13 @@ namespace nu {
 ResourceReporter::ResourceReporter() : done_(false) {
   th_ = rt::Thread([&] {
     set_resource_reporting_handler(thread_self());
-    while (!rt::access_once(done_)) {
-      rt::Preempt p;
-      rt::PreemptGuardAndPark gp(&p);
 
+    rt::Preempt p;
+    rt::PreemptGuard g(&p);
+    do {
+      thread_park_and_preempt_enable();
       report_resource();
-    }
+    } while (!rt::access_once(done_));
     set_resource_reporting_handler(nullptr);
   });
 }

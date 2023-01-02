@@ -400,6 +400,7 @@ static inline bool handle_preemptor(void)
 		thread_ready_head_locked(th,
 					 k->preemptor->ready_tsc);
 		k->preemptor->th = NULL;
+		preempt_disable();
 		return true;
 	}
 	return false;
@@ -776,13 +777,12 @@ static __always_inline void enter_schedule(thread_t *curth)
 
 	spin_lock(&k->lock);
 
-	handle_preemptor();
-
 	/* slow path: switch from the uthread stack to the runtime stack */
 	if (k->rq_head == k->rq_tail ||
 	    preempt_cede_needed(k) ||
 	    has_pending_prioritize_req(k) ||
 	    has_pending_pause_req(k) ||
+	    k->preemptor->th ||
 #ifdef GC
 	    get_gc_gen() != k->local_gc_gen ||
 #endif
