@@ -28,7 +28,7 @@ proclet_obj = $(proclet_src:.cpp=.o)
 dis_executor_src = dis_executor.cpp
 dis_executor_obj = $(dis_executor_src:.cpp=.o)
 
-all: caladan proclet
+all: caladan proclet dis_executor
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
