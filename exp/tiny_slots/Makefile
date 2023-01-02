@@ -22,18 +22,23 @@ dep = $(obj:.o=.d)
 caladan_src = caladan.cpp
 caladan_obj = $(caladan_src:.cpp=.o)
 
-nu_src = nu.cpp
-nu_obj = $(nu_src:.cpp=.o)
+proclet_src = proclet.cpp
+proclet_obj = $(proclet_src:.cpp=.o)
 
-all: caladan nu
+dis_executor_src = dis_executor.cpp
+dis_executor_obj = $(dis_executor_src:.cpp=.o)
+
+all: caladan proclet
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-nu: $(nu_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
-	$(LDXX) -o $@ $(nu_obj) $(lib_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+proclet: $(proclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(proclet_obj) $(lib_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+dis_executor: $(dis_executor_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(dis_executor_obj) $(lib_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 caladan: $(caladan_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(caladan_obj) $(lib_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
@@ -43,4 +48,4 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) nu caladan *.o
+	rm -f $(dep) proclet dis_executor caladan *.o
