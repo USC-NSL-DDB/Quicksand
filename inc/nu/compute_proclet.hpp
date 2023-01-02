@@ -29,6 +29,7 @@ class ComputeProclet {
       WeakProclet<ComputeProclet> victim, RetT (*fn)(TR &, States...));
   TR steal_tasks();
   std::size_t remaining_size();
+  std::size_t processed_size();
 
  private:
   std::tuple<States...> states_;

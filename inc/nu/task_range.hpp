@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <optional>
 #include <utility>
 
 #include "nu/type_traits.hpp"
@@ -17,6 +18,7 @@ template <class T>
 concept TaskRangeBased = requires {
   requires is_base_of_template_v<T, TaskRange>;
 };
+
 template <class Impl>
 class TaskRangeIterator;
 
@@ -25,6 +27,7 @@ class TaskRange {
  public:
   using Key = Impl::Key;
   using Task = Impl::Task;
+  using Implementation = Impl;
 
   TaskRange() : impl_() {}
   TaskRange(Impl impl) : impl_(std::move(impl)), size_(impl_.initial_size()) {}
@@ -38,6 +41,7 @@ class TaskRange {
   void run(F &&f);
   Task pop();
   std::size_t size() const { return size_; }
+  std::size_t processed_size() const { return processed_size_; }
   bool empty() const { return !size(); }
   TaskRange split(uint64_t last_n_elems);
   TaskRange steal();
@@ -58,6 +62,7 @@ class TaskRange {
  private:
   Impl impl_;
   std::size_t size_ = 0;
+  std::size_t processed_size_ = 0;
   bool pending_steal_ = false;
   uint64_t steal_size_;
   CondVar cv_;

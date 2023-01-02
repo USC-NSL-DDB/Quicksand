@@ -60,6 +60,7 @@ Impl::Task TaskRange<Impl>::pop() {
 
   auto ret = impl_.pop();
   size_--;
+  processed_size_++;
   return ret;
 }
 
