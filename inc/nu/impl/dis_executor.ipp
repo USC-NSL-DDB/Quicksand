@@ -8,8 +8,13 @@ DistributedExecutor<RetT, TR, States...>::DistributedExecutor()
     : almost_done_(false) {}
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-std::vector<RetT> &&DistributedExecutor<RetT, TR, States...>::get() {
-  return std::move(future_.get());
+DistributedExecutor<RetT, TR, States...>::MovedResult
+DistributedExecutor<RetT, TR, States...>::get() {
+  if constexpr (std::is_void_v<MovedResult>) {
+    return;
+  } else {
+    return std::move(future_.get());
+  }
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -99,15 +104,20 @@ void DistributedExecutor<RetT, TR, States...>::check_workers() {
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-std::vector<RetT> DistributedExecutor<RetT, TR, States...>::concat_results() {
-  std::ranges::sort(all_pairs_,
-                    [](auto &a, auto &b) { return a.first < b.first; });
-  std::vector<RetT> all_rets;
-  all_rets.reserve(all_pairs_.size());
-  for (auto &[_, ret] : all_pairs_) {
-    all_rets.emplace_back(std::move(ret));
+DistributedExecutor<RetT, TR, States...>::Result
+DistributedExecutor<RetT, TR, States...>::concat_results() {
+  if constexpr (std::is_same_v<Result, void>) {
+    return;
+  } else {
+    std::ranges::sort(all_pairs_,
+                      [](auto &a, auto &b) { return a.first < b.first; });
+    std::vector<RetT> all_rets;
+    all_rets.reserve(all_pairs_.size());
+    for (auto &[_, ret] : all_pairs_) {
+      all_rets.emplace_back(std::move(ret));
+    }
+    return all_rets;
   }
-  return all_rets;
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -142,8 +152,9 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
-std::vector<RetT> DistributedExecutor<RetT, TR, States...>::run(
-    RetT (*fn)(TR &, States...), TR task_range, S1s &&... states) {
+DistributedExecutor<RetT, TR, States...>::Result
+DistributedExecutor<RetT, TR, States...>::run(RetT (*fn)(TR &, States...),
+                                              TR task_range, S1s &&... states) {
   fn_ = fn;
   spawn_initial_workers(states...);
   make_initial_dispatch(fn, std::move(task_range));

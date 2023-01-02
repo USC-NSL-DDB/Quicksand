@@ -2,6 +2,7 @@
 
 #include <deque>
 #include <queue>
+#include <type_traits>
 #include <vector>
 
 #include "nu/compute_proclet.hpp"
@@ -13,16 +14,22 @@ namespace nu {
 template <typename RetT, TaskRangeBased TR, typename... States>
 class DistributedExecutor {
  public:
-  std::vector<RetT> &&get();
+  using Result =
+      std::conditional_t<std::is_void_v<RetT>, void, std::vector<RetT>>;
+  using MovedResult =
+      std::conditional_t<std::is_void_v<Result>, void, std::vector<RetT> &&>;
+
   DistributedExecutor(const DistributedExecutor &) = delete;
   DistributedExecutor &operator=(const DistributedExecutor &) = delete;
   DistributedExecutor(DistributedExecutor &&) = default;
   DistributedExecutor &operator=(DistributedExecutor &&) = default;
 
+  MovedResult get();
+
  private:
   struct Worker {
     Proclet<ComputeProclet<TR, States...>> cp;
-    Future<std::optional<std::pair<typename TR::Key, RetT>>> future;
+    Future<std::optional<compute_proclet_result<TR, RetT>>> future;
     std::size_t remaining_size;
   };
   struct VictimCmp {
@@ -36,17 +43,17 @@ class DistributedExecutor {
   RetT (*fn_)(TR &, States...);
   bool almost_done_;
   std::deque<Worker> workers_;
-  Future<std::vector<RetT>> future_;
+  Future<Result> future_;
   std::priority_queue<Worker *, std::vector<Worker *>, VictimCmp> victims_;
-  std::vector<std::pair<typename TR::Key, RetT>> all_pairs_;
+  std::vector<compute_proclet_result<TR, RetT>> all_pairs_;
+
   template <typename R, TaskRangeBased T, typename... S0s, typename... S1s>
   friend DistributedExecutor<R, T, S0s...> make_distributed_executor(
       R (*fn)(T &, S0s...), T, S1s &&...);
 
   DistributedExecutor();
   template <typename... S1s>
-  std::vector<RetT> run(RetT (*fn)(TR &, States...), TR task_range,
-                        S1s &&... states);
+  Result run(RetT (*fn)(TR &, States...), TR task_range, S1s &&... states);
   template <typename... S1s>
   void start_async(RetT (*fn)(TR &, States...), TR task_range,
                    S1s &&... states);
@@ -57,7 +64,7 @@ class DistributedExecutor {
   void make_initial_dispatch(RetT (*fn)(TR &, States...), TR task_range);
   void check_workers();
   bool check_futures_and_redispatch();
-  std::vector<RetT> concat_results();
+  Result concat_results();
 };
 
 template <typename RetT, TaskRangeBased TR, typename... S0s, typename... S1s>

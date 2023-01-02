@@ -15,30 +15,39 @@ inline ComputeProclet<TR, States...>::ComputeProclet(States... states)
 
 template <class TR, typename... States>
 template <typename RetT>
-inline std::optional<std::pair<typename TR::Key, RetT>>
+inline std::optional<compute_proclet_result<TR, RetT>>
 ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
                                        TR task_range) {
   if (unlikely(task_range.empty())) {
     return std::nullopt;
   }
-
-  RetT ret;
   {
     ScopedLock g(&mutex_);
     task_range_ = std::move(task_range);
   }
   auto l_key = task_range_.l_key();
-  std::apply([&](auto &... states) { ret = fn(task_range_, states...); },
-             states_);
-  BUG_ON(!task_range_.empty());
-  task_range_.cleanup_steal();
 
-  return std::make_pair(std::move(l_key), std::move(ret));
+  if constexpr (std::is_void_v<RetT>) {
+    std::apply([&](auto &... states) { fn(task_range_, states...); }, states_);
+    BUG_ON(!task_range_.empty());
+    task_range_.cleanup_steal();
+
+    return std::move(l_key);
+
+  } else {
+    RetT ret;
+    std::apply([&](auto &... states) { ret = fn(task_range_, states...); },
+               states_);
+    BUG_ON(!task_range_.empty());
+    task_range_.cleanup_steal();
+
+    return std::make_pair(std::move(l_key), std::move(ret));
+  }
 }
 
 template <class TR, typename... States>
 template <typename RetT>
-inline std::optional<std::pair<typename TR::Key, RetT>>
+inline std::optional<compute_proclet_result<TR, RetT>>
 ComputeProclet<TR, States...>::steal_and_compute(
     WeakProclet<ComputeProclet> victim, RetT (*fn)(TR &, States...)) {
   auto task_range = victim.run(&ComputeProclet::steal_tasks);
