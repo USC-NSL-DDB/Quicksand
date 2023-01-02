@@ -62,6 +62,8 @@ class ShardedQueue
   ShardedQueue(std::optional<typename Base::ShardingHint> sharding_hint,
                std::optional<std::size_t> size_bound);
   friend class ProcletServer;
+  template <typename T1, BoolIntegral LL1, BoolIntegral Insertable>
+  friend class QueueTaskRangeImpl;
   template <typename T1, typename LL1>
   friend ShardedQueue<T1, LL1> make_sharded_queue();
   template <typename T1, typename LL1>

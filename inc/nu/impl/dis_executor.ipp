@@ -193,6 +193,130 @@ void DistributedExecutor<RetT, TR, States...>::start_async(
   });
 }
 
+template <typename RetT, TaskRangeBased TR, typename... States>
+template <typename... S1s>
+void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
+    S1s &... states) {
+  workers_.emplace_back(
+      Worker{.cp = nu::make_proclet<ComputeProclet<TR, States...>>(
+                 std::forward_as_tuple(states...)),
+             .spawned_time = Time::microtime()});
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+template <typename... S1s>
+void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
+    std::size_t target, S1s &... states) {
+  target = std::max(target, static_cast<std::size_t>(1));
+  if (target < workers_.size()) {
+    workers_.resize(target);
+  } else {
+    std::vector<std::pair<NodeIP, Resource>> global_free_resources;
+    {
+      Caladan::PreemptGuard g;
+      global_free_resources =
+          get_runtime()->resource_reporter()->get_global_free_resources();
+    }
+
+    std::size_t gap = target - workers_.size();
+    std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
+    for (auto &[ip, resource] : global_free_resources) {
+      for (uint32_t i = 0; i < resource.cores; i++) {
+        worker_futures.emplace_back(
+            nu::make_proclet_async<ComputeProclet<TR, States...>>(
+                std::forward_as_tuple(states...)));
+        if (worker_futures.size() == gap) {
+          break;
+        }
+      }
+    }
+
+    std::ranges::transform(worker_futures, std::back_inserter(workers_),
+                           [](auto &worker_future) {
+                             return Worker{.cp = std::move(worker_future.get()),
+                                           .spawned_time = Time::microtime()};
+                           });
+  }
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+uint64_t DistributedExecutor<RetT, TR, States...>::check_queue_workers() {
+  victims_ = decltype(victims_)();
+  auto processed_sizes = workers_ | std::views::transform([](auto &worker) {
+                           return worker.cp.run_async(
+                               &ComputeProclet<TR, States...>::processed_size);
+                         });
+  auto total_tp_ms = 0;
+  auto time_now = Time::microtime();
+  for (auto t : std::views::zip(workers_, processed_sizes)) {
+    auto &worker = std::get<0>(t);
+    auto size = std::get<1>(t).get();
+    worker.processed_size = size;
+
+    auto tp_ms = size / (time_now - worker.spawned_time);
+    total_tp_ms += tp_ms;
+  }
+
+  auto avg_tp_ms = total_tp_ms / workers_.size();
+  return avg_tp_ms;
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+template <typename... S1s>
+DistributedExecutor<RetT, TR, States...>::Result
+DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
+                                                    TR task_range,
+                                                    S1s &&... states) {
+  using TaskRangeImpl = typename TR::Implementation;
+  constexpr bool kIsProducer = TaskRangeImpl::Writeable::value;
+
+  uint64_t last_check_queue_us = Time::microtime();
+  uint64_t last_check_worker_us = last_check_queue_us;
+  std::size_t last_queue_len = 0;
+
+  spawn_initial_queue_workers();
+
+  while (true) {
+    auto now_us = Time::microtime();
+
+    if (now_us - last_check_worker_us >= kCheckWorkersIntervalUs) {
+      last_check_worker_us = now_us;
+      // auto avg_tp_ms = check_queue_workers();
+
+      if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
+        last_check_queue_us = now_us;
+
+        auto queue_len = task_range.impl().queue_length();
+        if (queue_len > last_queue_len * 2) {
+          if (kIsProducer) {
+            adjust_queue_workers(workers_.size() * 0.7, states...);
+          } else {
+            adjust_queue_workers(workers_.size() * 2, states...);
+          }
+        }
+        last_queue_len = queue_len;
+      }
+    }
+
+    if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
+      last_check_queue_us = now_us;
+    }
+    rt::Yield();
+  }
+
+  return concat_results();
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+template <typename... S1s>
+void DistributedExecutor<RetT, TR, States...>::start_queue_async(
+    RetT (*fn)(TR &, States...), TR task_range, S1s &&... states) {
+  future_ = nu::async([&, fn, task_range = std::move(task_range),
+                       ... states = std::forward<S1s>(states)]() mutable {
+    return run_queue(fn, std::move(task_range), std::forward<S1s>(states)...);
+  });
+}
+
 template <typename RetT, TaskRangeBased TR, typename... S0s, typename... S1s>
 DistributedExecutor<RetT, TR, S0s...> make_distributed_executor(
     RetT (*fn)(TR &, S0s...), TR task_range, S1s &&... states) {
@@ -200,4 +324,14 @@ DistributedExecutor<RetT, TR, S0s...> make_distributed_executor(
   dis_exec.start_async(fn, std::move(task_range), std::forward<S1s>(states)...);
   return dis_exec;
 }
+
+template <typename RetT, QueueRangeBased QR, typename... S0s, typename... S1s>
+DistributedExecutor<RetT, TaskRange<QR>, S0s...> make_distributed_executor(
+    RetT (*fn)(TaskRange<QR> &, S0s...), TaskRange<QR> queue_range,
+    S1s &&... states) {
+  DistributedExecutor<RetT, TaskRange<QR>, S0s...> dis_exec;
+  dis_exec.start_queue_async(fn, std::move(queue_range),
+                             std::forward<S1s>(states)...);
+  return dis_exec;
 }
+}  // namespace nu

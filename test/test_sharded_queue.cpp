@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
+#include <type_traits>
 
+#include "nu/dis_executor.hpp"
+#include "nu/queue_range.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sealed_ds.hpp"
 #include "nu/sharded_queue.hpp"
@@ -264,6 +267,34 @@ bool test_blocking_enqueue() {
 
   return std::all_of(dequeued.cbegin(), dequeued.cend(),
                      [&](auto x) { return x == elem; });
+}
+
+bool test_rate_matching() {
+  // TODO: check correctness
+
+  auto queue = nu::make_sharded_queue<int, std::true_type>();
+
+  auto produce_rng = nu::make_writeable_queue_range(queue);
+  auto consume_rng = nu::make_queue_range(queue);
+
+  auto producers = nu::make_distributed_executor(
+      +[](decltype(produce_rng) &rng) {
+        while (true) {
+          auto inserter = rng.pop();
+          inserter = 33;
+        }
+      },
+      produce_rng);
+
+  auto consumers = nu::make_distributed_executor(
+      +[](decltype(consume_rng) &rng) {
+        while (true) {
+          rng.pop();
+        }
+      },
+      consume_rng);
+
+  return true;
 }
 
 bool run_test() {
