@@ -412,9 +412,7 @@ void shed_work(void)
 	struct kthread *r;
 	int i, j, start_idx, num;
 
-	assert_preempt_disabled();
-
-	spin_lock(&l->lock);
+	spin_lock_np(&l->lock);
 	softirq_run_locked(l);
 
 	if (l->rq_head == l->rq_tail)
@@ -446,7 +444,7 @@ void shed_work(void)
 			break;
 	}
 done:
-	spin_unlock(&l->lock);
+	spin_unlock_np(&l->lock);
 }
 
 static bool steal_work(struct kthread *l, struct kthread *r)
