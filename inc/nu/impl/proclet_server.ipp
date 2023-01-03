@@ -178,9 +178,9 @@ void ProcletServer::update_ref_cnt(ArchivePool<>::IASStream *ia_sstream,
     // Wait for other concurrent cnt updating threads to finish.
     proclet_header->rcu_lock.writer_sync();
     auto vaddr_range = proclet_header->range();
-    release_proclet(vaddr_range);
     get_runtime()->proclet_manager()->cleanup(proclet_base,
                                               /* for_migration = */ false);
+    release_proclet(vaddr_range);
   }
 
   if (proclet_not_found) {
@@ -218,9 +218,9 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
       });
     }
     callee_header->status() = kAbsent;
-    release_proclet(callee_header->range());
     get_runtime()->proclet_manager()->cleanup(callee_header,
                                               /* for_migration = */ false);
+    release_proclet(callee_header->range());
   }
 
   optional_caller_guard = get_runtime()->reattach_and_disable_migration(
