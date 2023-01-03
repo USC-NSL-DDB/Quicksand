@@ -118,13 +118,11 @@ void *SlabAllocator::__allocate(size_t size) noexcept {
       auto remaining = num_cache_entries - cache_list.size();
       if (remaining) {
         auto slab_size = get_slab_size(slab_shift);
+        remaining = std::min(remaining, (end_ - cur_) / slab_size);
         cur_ += slab_size * remaining;
         auto tmp = cur_;
         for (uint32_t i = 0; i < remaining; i++) {
           tmp -= slab_size;
-          if (unlikely(tmp + slab_size > end_)) {
-            continue;
-          }
           cache_list.push(tmp);
         }
       }
