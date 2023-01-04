@@ -153,12 +153,6 @@ void ProcletServer::__update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
   get_runtime()->send_rpc_resp_ok(oa_sstream, ia_sstream, &returner);
 }
 
-inline void release_proclet(VAddrRange vaddr_range) {
-  get_runtime()->caladan()->thread_spawn([vaddr_range] {
-    get_runtime()->controller_client()->destroy_proclet(vaddr_range);
-  });
-}
-
 template <typename Cls>
 void ProcletServer::update_ref_cnt(ArchivePool<>::IASStream *ia_sstream,
                                    RPCReturner *returner) {
@@ -177,10 +171,10 @@ void ProcletServer::update_ref_cnt(ArchivePool<>::IASStream *ia_sstream,
   if (destructed) {
     // Wait for other concurrent cnt updating threads to finish.
     proclet_header->rcu_lock.writer_sync();
-    auto vaddr_range = proclet_header->range();
     get_runtime()->proclet_manager()->cleanup(proclet_base,
                                               /* for_migration = */ false);
-    release_proclet(vaddr_range);
+    get_runtime()->controller_client()->destroy_proclet(
+        proclet_header->range());
   }
 
   if (proclet_not_found) {
@@ -220,7 +214,7 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
     callee_header->status() = kAbsent;
     get_runtime()->proclet_manager()->cleanup(callee_header,
                                               /* for_migration = */ false);
-    release_proclet(callee_header->range());
+    get_runtime()->controller_client()->destroy_proclet(callee_header->range());
   }
 
   optional_caller_guard = get_runtime()->reattach_and_disable_migration(
