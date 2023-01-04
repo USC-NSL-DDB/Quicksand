@@ -31,6 +31,10 @@ class DistributedExecutor {
   struct Worker {
     Worker();
     Worker(Proclet<ComputeProclet<TR, States...>> cp);
+    void compute_async(RetT (*fn)(TR &, States...), TR);
+    void steal_and_compute_async(WeakProclet<ComputeProclet<TR, States...>>,
+                                 RetT (*fn)(TR &, States...));
+
     Proclet<ComputeProclet<TR, States...>> cp;
     Future<std::optional<compute_proclet_result<TR, RetT>>> future;
     std::size_t remaining_size;

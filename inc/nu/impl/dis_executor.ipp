@@ -11,6 +11,23 @@ DistributedExecutor<RetT, TR, States...>::Worker::Worker(
     : cp(std::move(cp)), spawned_time(Time::microtime()) {}
 
 template <typename RetT, TaskRangeBased TR, typename... States>
+void DistributedExecutor<RetT, TR, States...>::Worker::compute_async(
+    RetT (*fn)(TR &, States...), TR tr) {
+  future =
+      cp.__run_async(&ComputeProclet<TR, States...>::template compute<RetT>, fn,
+                     std::move(tr));
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+void DistributedExecutor<RetT, TR, States...>::Worker::steal_and_compute_async(
+    WeakProclet<ComputeProclet<TR, States...>> victim,
+    RetT (*fn)(TR &, States...)) {
+  future = cp.__run_async(
+      &ComputeProclet<TR, States...>::template steal_and_compute<RetT>, victim,
+      fn);
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::DistributedExecutor()
     : almost_done_(false) {}
 
@@ -84,9 +101,7 @@ void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
     auto tr = std::move(q.top());
     q.pop();
     if (!tr.empty()) {
-      worker.future = worker.cp.__run_async(
-          &ComputeProclet<TR, States...>::template compute<RetT>, fn,
-          std::move(tr));
+      worker.compute_async(fn, std::move(tr));
     }
   }
 }
@@ -146,9 +161,7 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
       if (!victims_.empty()) {
         auto *victim = victims_.top();
         victims_.pop();
-        future = worker.cp.__run_async(
-            &ComputeProclet<TR, States...>::template steal_and_compute<RetT>,
-            victim->cp.get_weak(), fn_);
+        worker.steal_and_compute_async(victim->cp.get_weak(), fn_);
         has_pending = true;
       }
     }
@@ -206,9 +219,7 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
     TR task_range, S1s &... states) {
   auto worker = Worker(nu::make_proclet<ComputeProclet<TR, States...>>(
       std::forward_as_tuple(states...)));
-  worker.future = worker.cp.__run_async(
-      &ComputeProclet<TR, States...>::template compute<RetT>, fn_, task_range,
-      states...);
+  worker.compute_async(fn_, std::move(task_range));
   workers_.push_back(std::move(worker));
 }
 
@@ -240,14 +251,12 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
       }
     }
 
-    std::ranges::transform(
-        worker_futures, std::back_inserter(workers_), [&](auto &worker_future) {
-          auto w = Worker(std::move(worker_future.get()));
-          w.future = w.cp.__run_async(
-              &ComputeProclet<TR, States...>::template compute<RetT>, fn_,
-              task_range, states...);
-          return w;
-        });
+    std::ranges::transform(worker_futures, std::back_inserter(workers_),
+                           [&](auto &worker_future) {
+                             auto w = Worker(std::move(worker_future.get()));
+                             w.compute_async(fn_, task_range);
+                             return w;
+                           });
   }
 }
 
