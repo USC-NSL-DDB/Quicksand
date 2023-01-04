@@ -141,9 +141,9 @@ void Runtime::destroy() {
   delete resource_reporter_;
   delete pressure_handler_;
   delete proclet_manager_;
-  delete controller_client_;
   delete migrator_;
   delete proclet_server_;
+  delete controller_client_;
   delete archive_pool_;
   delete controller_server_;
 }
