@@ -29,6 +29,8 @@ class DistributedExecutor {
 
  private:
   struct Worker {
+    Worker();
+    Worker(Proclet<ComputeProclet<TR, States...>> cp);
     Proclet<ComputeProclet<TR, States...>> cp;
     Future<std::optional<compute_proclet_result<TR, RetT>>> future;
     std::size_t remaining_size;

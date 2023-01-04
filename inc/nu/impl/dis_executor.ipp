@@ -2,6 +2,13 @@
 #include <ranges>
 
 namespace nu {
+template <typename RetT, TaskRangeBased TR, typename... States>
+DistributedExecutor<RetT, TR, States...>::Worker::Worker() {}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+DistributedExecutor<RetT, TR, States...>::Worker::Worker(
+    Proclet<ComputeProclet<TR, States...>> cp)
+    : cp(std::move(cp)), spawned_time(Time::microtime()) {}
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::DistributedExecutor()
@@ -54,7 +61,7 @@ void DistributedExecutor<RetT, TR, States...>::add_workers(S1s &... states) {
 
   std::ranges::transform(worker_futures, std::back_inserter(workers_),
                          [](auto &worker_future) {
-                           return Worker{std::move(worker_future.get())};
+                           return Worker(std::move(worker_future.get()));
                          });
 }
 
@@ -197,9 +204,8 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
     TR task_range, S1s &... states) {
-  auto worker = Worker{.cp = nu::make_proclet<ComputeProclet<TR, States...>>(
-                           std::forward_as_tuple(states...)),
-                       .spawned_time = Time::microtime()};
+  auto worker = Worker(nu::make_proclet<ComputeProclet<TR, States...>>(
+      std::forward_as_tuple(states...)));
   worker.future = worker.cp.__run_async(
       &ComputeProclet<TR, States...>::template compute<RetT>, fn_, task_range,
       states...);
@@ -210,9 +216,6 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
     std::size_t target, TR task_range, S1s &... states) {
-  using TaskRangeImpl = typename TR::Implementation;
-  constexpr bool kIsProducer = TaskRangeImpl::Writeable::value;
-
   target = std::max(target, static_cast<std::size_t>(1));
   if (target < workers_.size()) {
     workers_.resize(target);
@@ -239,8 +242,7 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
 
     std::ranges::transform(
         worker_futures, std::back_inserter(workers_), [&](auto &worker_future) {
-          auto w = Worker{.cp = std::move(worker_future.get()),
-                          .spawned_time = Time::microtime()};
+          auto w = Worker(std::move(worker_future.get()));
           w.future = w.cp.__run_async(
               &ComputeProclet<TR, States...>::template compute<RetT>, fn_,
               task_range, states...);
