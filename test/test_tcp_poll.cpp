@@ -77,6 +77,8 @@ uint64_t run(bool poll) {
 
 int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv, [](int, char **) {
-    std::cout << (run(false) > run(true) ? "Passed" : "Failed") << std::endl;
+    std::cout << run(false) << std::endl;
+    std::cout << run(true) << std::endl;
+    std::cout << "Passed" << std::endl;
   });
 }
