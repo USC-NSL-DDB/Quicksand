@@ -37,10 +37,12 @@ class ProcletServer {
   static void construct_proclet_locally(MigrationGuard &&caller_guard,
                                         void *base, uint64_t size, bool pinned,
                                         As &&... args);
-  template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+  template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+            typename... S1s>
   static void run_closure(ArchivePool<>::IASStream *ia_sstream,
                           RPCReturner *returner);
-  template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+  template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+            typename... S1s>
   static MigrationGuard run_closure_locally(
       MigrationGuard *callee_migration_guard,
       const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
@@ -69,7 +71,8 @@ class ProcletServer {
                                ArchivePool<>::IASStream *ia_sstream,
                                RPCReturner returner, int delta,
                                bool *destructed);
-  template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+  template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+            typename... S1s>
   static void __run_closure(MigrationGuard *callee_guard, Cls *obj,
                             ArchivePool<>::IASStream *ia_sstream,
                             RPCReturner returner);

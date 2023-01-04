@@ -232,7 +232,8 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wuninitialized"
 
-template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+          typename... S1s>
 void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
                                   ArchivePool<>::IASStream *ia_sstream,
                                   RPCReturner returner) {
@@ -251,8 +252,7 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
   std::tuple<std::decay_t<S1s>...> states{std::decay_t<S1s>()...};
   std::apply([&](auto &&... states) { ((ia_sstream->ia >> states), ...); },
              states);
-
-  callee_guard->enable_for([&] {
+  auto apply_fn = [&] {
     std::apply(
         [&](auto &&... states) {
           if constexpr (kNonVoidRetT) {
@@ -262,7 +262,13 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
           }
         },
         states);
-  });
+  };
+
+  if constexpr (MigrEn) {
+    callee_guard->enable_for([&] { apply_fn(); });
+  } else {
+    apply_fn();
+  }
 
   RuntimeSlabGuard runtime_slab_guard;
 
@@ -278,7 +284,8 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
 
 #pragma GCC diagnostic pop
 
-template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+          typename... S1s>
 void ProcletServer::run_closure(ArchivePool<>::IASStream *ia_sstream,
                                 RPCReturner *returner) {
   ProcletID id;
@@ -287,15 +294,16 @@ void ProcletServer::run_closure(ArchivePool<>::IASStream *ia_sstream,
   auto *proclet_header = to_proclet_header(id);
 
   bool proclet_not_found = !get_runtime()->run_within_proclet_env<Cls>(
-      proclet_header, __run_closure<Cls, RetT, FnPtr, S1s...>, ia_sstream,
-      *returner);
+      proclet_header, __run_closure<MigrEn, Cls, RetT, FnPtr, S1s...>,
+      ia_sstream, *returner);
 
   if (proclet_not_found) {
     get_runtime()->send_rpc_resp_wrong_client(returner);
   }
 }
 
-template <typename Cls, typename RetT, typename FnPtr, typename... S1s>
+template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
+          typename... S1s>
 MigrationGuard ProcletServer::run_closure_locally(
     MigrationGuard *callee_migration_guard,
     const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
@@ -308,8 +316,12 @@ MigrationGuard ProcletServer::run_closure_locally(
 
   if constexpr (!std::is_same<RetT, void>::value) {
     auto *ret = reinterpret_cast<RetT *>(alloca(sizeof(RetT)));
-    callee_migration_guard->enable_for(
-        [&] { new (ret) RetT(fn_ptr(*obj, std::move(states)...)); });
+    if constexpr (MigrEn) {
+      callee_migration_guard->enable_for(
+          [&] { new (ret) RetT(fn_ptr(*obj, std::move(states)...)); });
+    } else {
+      new (ret) RetT(fn_ptr(*obj, std::move(states)...));
+    }
     callee_header->thread_cnt.dec_unsafe();
     callee_header->cpu_load.end_monitor();
 
@@ -340,8 +352,12 @@ MigrationGuard ProcletServer::run_closure_locally(
         std::move(ret_val_buf), to_proclet_id(caller_header), caller_ptr,
         [&] { get_runtime()->archive_pool()->put_oa_sstream(oa_sstream); });
   } else {
-    callee_migration_guard->enable_for(
-        [&] { fn_ptr(*obj, std::move(states)...); });
+    if constexpr (MigrEn) {
+      callee_migration_guard->enable_for(
+          [&] { fn_ptr(*obj, std::move(states)...); });
+    } else {
+      fn_ptr(*obj, std::move(states)...);
+    }
     callee_header->thread_cnt.dec_unsafe();
     callee_header->cpu_load.end_monitor();
 
