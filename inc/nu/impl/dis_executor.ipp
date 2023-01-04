@@ -11,7 +11,7 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::MovedResult
 DistributedExecutor<RetT, TR, States...>::get() {
   if constexpr (std::is_void_v<MovedResult>) {
-    return;
+    future_.get();
   } else {
     return std::move(future_.get());
   }
