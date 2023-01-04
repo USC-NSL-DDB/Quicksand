@@ -74,11 +74,11 @@ class DistributedExecutor {
   template <typename... S1s>
   void spawn_initial_workers(S1s &... states);
   template <typename... S1s>
-  void spawn_initial_queue_workers(S1s &... states);
+  void spawn_initial_queue_workers(TR task_range, S1s &... states);
   template <typename... S1s>
   void add_workers(S1s &... states);
   template <typename... S1s>
-  void adjust_queue_workers(std::size_t target, S1s &... states);
+  void adjust_queue_workers(std::size_t target, TR task_range, S1s &... states);
   void make_initial_dispatch(RetT (*fn)(TR &, States...), TR task_range);
   void check_workers();
   uint64_t check_queue_workers();

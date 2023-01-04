@@ -196,17 +196,23 @@ void DistributedExecutor<RetT, TR, States...>::start_async(
 template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
-    S1s &... states) {
-  workers_.emplace_back(
-      Worker{.cp = nu::make_proclet<ComputeProclet<TR, States...>>(
-                 std::forward_as_tuple(states...)),
-             .spawned_time = Time::microtime()});
+    TR task_range, S1s &... states) {
+  auto worker = Worker{.cp = nu::make_proclet<ComputeProclet<TR, States...>>(
+                           std::forward_as_tuple(states...)),
+                       .spawned_time = Time::microtime()};
+  worker.future = worker.cp.__run_async(
+      &ComputeProclet<TR, States...>::template compute<RetT>, fn_, task_range,
+      states...);
+  workers_.push_back(std::move(worker));
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
-    std::size_t target, S1s &... states) {
+    std::size_t target, TR task_range, S1s &... states) {
+  using TaskRangeImpl = typename TR::Implementation;
+  constexpr bool kIsProducer = TaskRangeImpl::Writeable::value;
+
   target = std::max(target, static_cast<std::size_t>(1));
   if (target < workers_.size()) {
     workers_.resize(target);
@@ -231,11 +237,15 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
       }
     }
 
-    std::ranges::transform(worker_futures, std::back_inserter(workers_),
-                           [](auto &worker_future) {
-                             return Worker{.cp = std::move(worker_future.get()),
-                                           .spawned_time = Time::microtime()};
-                           });
+    std::ranges::transform(
+        worker_futures, std::back_inserter(workers_), [&](auto &worker_future) {
+          auto w = Worker{.cp = std::move(worker_future.get()),
+                          .spawned_time = Time::microtime()};
+          w.future = w.cp.__run_async(
+              &ComputeProclet<TR, States...>::template compute<RetT>, fn_,
+              task_range, states...);
+          return w;
+        });
   }
 }
 
@@ -267,6 +277,7 @@ DistributedExecutor<RetT, TR, States...>::Result
 DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
                                                     TR task_range,
                                                     S1s &&... states) {
+  fn_ = fn;
   using TaskRangeImpl = typename TR::Implementation;
   constexpr bool kIsProducer = TaskRangeImpl::Writeable::value;
 
@@ -274,7 +285,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   uint64_t last_check_worker_us = last_check_queue_us;
   std::size_t last_queue_len = 0;
 
-  spawn_initial_queue_workers();
+  spawn_initial_queue_workers(task_range, states...);
 
   while (true) {
     auto now_us = Time::microtime();
@@ -289,9 +300,9 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
         auto queue_len = task_range.impl().queue_length();
         if (queue_len > last_queue_len * 2) {
           if (kIsProducer) {
-            adjust_queue_workers(workers_.size() * 0.7, states...);
+            adjust_queue_workers(workers_.size() * 0.7, task_range, states...);
           } else {
-            adjust_queue_workers(workers_.size() * 2, states...);
+            adjust_queue_workers(workers_.size() * 2, task_range, states...);
           }
         }
         last_queue_len = queue_len;
