@@ -131,7 +131,6 @@ template <class Container>
 inline Container GeneralShard<Container>::get_container_copy() {
   rw_lock_.reader_lock();
 
-  Caladan::PreemptGuard g;
   RuntimeSlabGuard slab_guard;
 
   Container c = container_;
@@ -149,7 +148,6 @@ GeneralShard<Container>::get_container_handle() {
 template <class Container>
 void GeneralShard<Container>::split() {
   Key mid_k;
-  std::unique_ptr<Container> latter_half_container;
   std::size_t new_container_capacity = 0;
   auto cur_slab_usage = slab_->get_cur_usage();
 
@@ -161,24 +159,28 @@ void GeneralShard<Container>::split() {
         max_shard_bytes_ / (data_size + container_bucket_size_);
   }
 
-  BUG_ON(container_.empty());
   {
-    Caladan::PreemptGuard g;
-    RuntimeSlabGuard slab_guard;
+    MigrationGuard migration_guard;
+    std::unique_ptr<Container> latter_half_container;
+    {
+      RuntimeSlabGuard slab_guard;
 
-    latter_half_container.reset(new Container());
-    container_.split(&mid_k, latter_half_container.get());
+      latter_half_container.reset(new Container());
+      BUG_ON(container_.empty());
+      container_.split(&mid_k, latter_half_container.get());
+    }
+
+    auto new_shard =
+        mapping_.run(&ShardMapping::create_new_shard, mid_k, r_key_,
+                     /* reserve_space = */ false);
+    ContainerAndMetadata<Container> container_and_metadata;
+    container_and_metadata.container = std::move(*latter_half_container);
+    container_and_metadata.capacity =
+        std::max(new_container_capacity, latter_half_container->size());
+    container_and_metadata.container_bucket_size = container_bucket_size_;
+    new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
+                  container_and_metadata);
   }
-
-  auto new_shard = mapping_.run(&ShardMapping::create_new_shard, mid_k, r_key_,
-                                /* reserve_space = */ false);
-  ContainerAndMetadata<Container> container_and_metadata;
-  container_and_metadata.container = std::move(*latter_half_container);
-  container_and_metadata.capacity =
-      std::max(new_container_capacity, latter_half_container->size());
-  container_and_metadata.container_bucket_size = container_bucket_size_;
-  new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
-                container_and_metadata);
 
   r_key_ = mid_k;
 
