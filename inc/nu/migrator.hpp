@@ -104,7 +104,7 @@ class Migrator {
   constexpr static uint32_t kTransmitProcletNumThreads = 3;
   constexpr static uint32_t kDefaultNumReservedConns = 8;
   constexpr static uint32_t kPort = 8002;
-  constexpr static float kMaxPctProcletPerMigration = 0.03;
+  constexpr static uint32_t kMaxNumProcletsPerMigration = 32;
   constexpr static float kMigrationThrottleGBs = 0;
   constexpr static uint32_t kMigrationDelayUs = 0;
 
@@ -119,7 +119,6 @@ class Migrator {
                                   uint64_t payload_len, const void *payload,
                                   ArchivePool<>::IASStream *ia_sstream);
   void forward_to_client(RPCReqForward &req);
-  uint32_t get_max_num_proclets_per_migration() const;
   template <typename RetT>
   [[nodiscard]] static MigrationGuard migrate_thread_and_ret_val(
       RPCReturnBuffer &&ret_val_buf, ProcletID dest_id, RetT *dest_ret_val_ptr,

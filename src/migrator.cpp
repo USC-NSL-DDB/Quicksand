@@ -501,15 +501,13 @@ uint32_t Migrator::migrate(Resource resource,
     callback();
   }
 
-  const uint32_t max_num_proclets_per_migration =
-      get_max_num_proclets_per_migration();
   const uint32_t num_total_proclets = tasks.size();
   uint32_t num_migrated_proclets = 0;
   std::vector<ProcletMigrationTask> choosen_tasks;
 
   while (num_total_proclets - num_migrated_proclets > 0) {
     uint32_t num_choosen_proclets =
-        std::min(max_num_proclets_per_migration,
+        std::min(kMaxNumProcletsPerMigration,
                  num_total_proclets - num_migrated_proclets);
     auto ratio = static_cast<float>(num_choosen_proclets) / num_total_proclets;
     Resource choosen_resource;
@@ -919,12 +917,6 @@ void Migrator::forward_to_client(RPCReqForward &req) {
   get_runtime()->archive_pool()->put_ia_sstream(req.gc_ia_sstream);
   get_runtime()->rpc_server()->dec_ref_cnt();
   get_runtime()->proclet_server()->dec_ref_cnt();
-}
-
-uint32_t Migrator::get_max_num_proclets_per_migration() const {
-  return Migrator::kMaxPctProcletPerMigration *
-             get_runtime()->proclet_manager()->get_num_present_proclets() +
-         1;
 }
 
 __attribute__((noinline)) void Migrator::transmit_thread_and_ret_val(
