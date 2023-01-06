@@ -79,9 +79,6 @@ static inline void ksched_enqueue_intr(unsigned int core, int type)
 {
 	unsigned int signum;
 
-        if (CPU_ISSET(core, &ksched_set) && ksched_shm[core].signum == SIGUSR1)
-                return;
-
 	switch (type) {
 	case KSCHED_INTR_CEDE:
 		signum = SIGUSR1;

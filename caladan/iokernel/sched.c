@@ -263,10 +263,11 @@ int sched_request_cooperative_cede(unsigned int core)
 int sched_yield_on_core(unsigned int core)
 {
 	struct thread *th;
+	struct core_state *s = &state[core];
 
-	th = sched_get_thread_on_core(core);
-	if (!th)
+	if (unlikely(s->wait))
 		return -ENOENT;
+	th = s->cur_th;
 
 	/* check to make sure the last yield request finished */
 	if (th->last_yield_rcu_gen == th->metrics.rcu_gen)
