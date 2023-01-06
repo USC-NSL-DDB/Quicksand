@@ -411,15 +411,15 @@ void shed_work(void)
 	struct kthread *l = myk();
 	struct kthread *r;
 	int i, j, start_idx, num;
+	thread_t *th;
 
 	spin_lock_np(&l->lock);
 	softirq_run_locked(l);
 
-	if (l->rq_head == l->rq_tail)
-		goto done;
-
 	start_idx = rand_crc32c((uintptr_t)l);
-	for (i = 0; i < maxks; i++) {
+	for (i = 0;
+	     i < maxks && (l->rq_head != l->rq_tail || !list_empty(&l->rq_overflow));
+	     i++) {
 		r = ks[(start_idx + i) % maxks];
 		if (l == r || r->parked || !spin_try_lock(&r->lock))
 			continue;
@@ -434,16 +434,22 @@ void shed_work(void)
 			r->rq[r->rq_head++ % RUNTIME_RQ_SIZE] =
 				l->rq[l->rq_tail++ % RUNTIME_RQ_SIZE];
 
+		while (true) {
+			th = list_pop(&l->rq_overflow, thread_t, link);
+			if (!th)
+				break;
+			list_add_tail(&r->rq_overflow, &th->link);
+			num++;
+		}
+
 		ACCESS_ONCE(l->q_ptrs->rq_tail) += num;
 		update_oldest_tsc(l);
 		ACCESS_ONCE(r->q_ptrs->rq_head) += num;
 		update_oldest_tsc(r);
 
 		spin_unlock(&r->lock);
-		if (l->rq_tail == l->rq_head)
-			break;
 	}
-done:
+
 	spin_unlock_np(&l->lock);
 }
 
