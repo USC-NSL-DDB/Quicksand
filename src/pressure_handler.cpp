@@ -10,6 +10,7 @@
 #include "nu/runtime.hpp"
 #include "nu/migrator.hpp"
 #include "nu/pressure_handler.hpp"
+#include "nu/utils/caladan.hpp"
 
 constexpr static bool kEnableLogging = false;
 
@@ -80,10 +81,14 @@ void PressureHandler::update_sorted_proclets() {
     }
   }
 
-  std::atomic_exchange(&cpu_pressure_sorted_proclets_,
-                       new_cpu_pressure_sorted_proclets);
-  std::atomic_exchange(&mem_pressure_sorted_proclets_,
-                       new_mem_pressure_sorted_proclets);
+  {
+    Caladan::PreemptGuard g;
+
+    std::atomic_exchange(&cpu_pressure_sorted_proclets_,
+                         new_cpu_pressure_sorted_proclets);
+    std::atomic_exchange(&mem_pressure_sorted_proclets_,
+                         new_mem_pressure_sorted_proclets);
+  }
 }
 
 void PressureHandler::register_handlers() {
@@ -279,7 +284,9 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
       }
     }
   };
+
   bool cpu_pressure = min_num_proclets;
+  assert_preempt_disabled();
   if (cpu_pressure) {
     traverse_fn(std::atomic_load(&cpu_pressure_sorted_proclets_));
   } else {
