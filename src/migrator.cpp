@@ -576,7 +576,7 @@ uint32_t Migrator::__migrate(Resource resource,
 
     auto migration_conn = migrator_conn_mgr_.get(migration_dest.get_ip());
     auto *conn = migration_conn.get_tcp_conn();
-    aux_handlers_enable_polling(migration_dest.get_ip());
+    bool aux_handlers_enabled = false;
 
     uint8_t type = kMigrate;
     BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
@@ -594,13 +594,20 @@ uint32_t Migrator::__migrate(Resource resource,
         continue;
       }
 
+      if (unlikely(!aux_handlers_enabled)) {
+        aux_handlers_enabled = true;
+        aux_handlers_enable_polling(migration_dest.get_ip());
+      }
+
       pause_migrating_threads(proclet_header);
       transmit(conn, proclet_header, &all_migrating_ths);
       gc_migrated_threads();
       post_migration_cleanup(proclet_header);
     }
 
-    aux_handlers_disable_polling();
+    if (aux_handlers_enabled) {
+      aux_handlers_disable_polling();
+    }
 
   } while (unlikely(it != tasks.end() && !loader_approval));
 
