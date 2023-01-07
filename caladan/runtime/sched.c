@@ -1571,3 +1571,19 @@ void prealloc_threads_and_stacks(uint32_t num_mags)
 	tcache_reserve(thread_tcache, num_mags);
 	tcache_reserve(stack_tcache, num_mags);
 }
+
+void unblock_spin(void)
+{
+	/* shed work to other threads */
+	shed_work();
+
+	/* unblock ongoing prioritization */
+	prioritize_local_rcu_readers();
+
+	/* unblock ongoing migration */
+	pause_local_migrating_threads();
+
+	/* respond to arp reqs */
+	iokernel_softirq_poll(getk());
+	putk();
+}

@@ -411,11 +411,7 @@ struct kthread {
 	unsigned int		rcu_gen;
 	unsigned int		curr_cpu;
 	thread_t		*curr_th;
-#ifdef GC
-	uint64_t		local_gc_gen;
-#else
-	unsigned long		pad1[1];
-#endif
+	atomic_t                iokernel_softirq_busy;
 
 	/* 3rd cache-line */
 	struct lrpc_chan_out	txpktq;
@@ -614,6 +610,7 @@ extern struct cfg_arp_static_entry static_entries[MAX_ARP_STATIC_ENTRIES];
 
 extern void net_rx_softirq(struct rx_net_hdr **hdrs, unsigned int nr);
 extern void net_rx_softirq_direct(struct mbuf **ms, unsigned int nr);
+extern void iokernel_softirq_poll(struct kthread *k);
 
 struct trans_entry;
 struct net_driver_ops {

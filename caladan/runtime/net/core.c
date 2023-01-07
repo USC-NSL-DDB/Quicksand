@@ -229,12 +229,15 @@ void net_rx_batch(struct mbuf **ms, unsigned int nr)
 	}
 }
 
-static void iokernel_softirq_poll(struct kthread *k)
+void iokernel_softirq_poll(struct kthread *k)
 {
 	struct rx_net_hdr *hdr;
 	struct mbuf *m;
 	uint64_t cmd;
 	unsigned long payload;
+
+	if (unlikely(!atomic_cmpxchg(&k->iokernel_softirq_busy, 0, 1)))
+		return;
 
 	while (true) {
 		if (!lrpc_recv(&k->rxq, &cmd, &payload))
@@ -261,6 +264,8 @@ static void iokernel_softirq_poll(struct kthread *k)
 			panic("net: invalid RXQ cmd '%ld'", cmd);
 		}
 	}
+
+	atomic_write(&k->iokernel_softirq_busy, 0);
 }
 
 static void iokernel_softirq(void *arg)

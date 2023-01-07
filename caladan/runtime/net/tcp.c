@@ -600,14 +600,7 @@ static void __check_net_softirq(void *raw_args)
 		return;
 	}
 
-	/* shed work to other threads */
-	shed_work();
-
-	/* unblock ongoing prioritization */
-	prioritize_local_rcu_readers();
-
-	/* unblock ongoing migration */
-	pause_local_migrating_threads();
+	unblock_spin();
 
 	/* check all ks which handles the race condition of flow table updates */
 	if (unlikely(now_us - args->last_check_all_us >= RUNTIME_WATCHDOG_US)) {

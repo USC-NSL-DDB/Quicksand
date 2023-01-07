@@ -176,9 +176,7 @@ inline void Caladan::thread_flush_all_monitor_cycles() {
 }
 
 inline void Caladan::unblock_and_relax() {
-  shed_work();
-  pause_local_migrating_threads();
-  prioritize_local_rcu_readers();
+  unblock_spin();
   cpu_relax();
 }
 
