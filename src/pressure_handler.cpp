@@ -15,7 +15,8 @@ constexpr static bool kEnableLogging = false;
 
 namespace nu {
 
-PressureHandler::PressureHandler() : mock_(false), done_(false) {
+PressureHandler::PressureHandler()
+    : active_handlers_{0}, mock_(false), done_(false) {
   register_handlers();
 
   update_th_ = rt::Thread([&] {
@@ -99,6 +100,8 @@ void PressureHandler::main_handler(void *unused) {
 }
 
 void PressureHandler::__main_handler() {
+  active_handlers_ += kNumAuxHandlers + 1;
+
   auto node_guard = get_runtime()->controller_client()->acquire_node();
   if (unlikely(!node_guard)) {
     goto done;
@@ -136,24 +139,15 @@ void PressureHandler::__main_handler() {
 
 done:
   pause_aux_handlers();
-
-  // Tell iokernel that the pressure has been handled.
-  auto &pressure = *resource_pressure_info;
-  pressure.mock = false;
-  store_release(&pressure.status, HANDLED);
+  if (--active_handlers_ == 0) {
+    set_handled();
+  }
 }
 
 void PressureHandler::pause_aux_handlers() {
   // Pause aux pressure handlers.
   for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
     rt::access_once(aux_handler_states_[i].done) = true;
-  }
-
-  // Wait for aux pressure handlers to exit.
-  for (uint32_t i = 0; i < PressureHandler::kNumAuxHandlers; i++) {
-    while (rt::access_once(aux_handler_states_[i].done)) {
-      get_runtime()->caladan()->unblock_and_relax();
-    }
   }
 }
 
@@ -194,9 +188,7 @@ void PressureHandler::dispatch_aux_pause_task(uint32_t handler_id) {
   store_release(&state.task_pending, true);
 }
 
-void PressureHandler::aux_handler(void *args) {
-  auto *state = reinterpret_cast<AuxHandlerState *>(args);
-
+void PressureHandler::__aux_handler(AuxHandlerState *state) {
   // Serve tasks.
   while (!rt::access_once(state->done)) {
     if (unlikely(load_acquire(&state->task_pending))) {
@@ -216,6 +208,22 @@ void PressureHandler::aux_handler(void *args) {
   state->conn.release();
   // Prepare for the next start.
   store_release(&state->done, false);
+
+  if (--active_handlers_ == 0) {
+    set_handled();
+  }
+}
+
+void PressureHandler::aux_handler(void *args) {
+  get_runtime()->pressure_handler()->__aux_handler(
+      reinterpret_cast<AuxHandlerState *>(args));
+}
+
+void PressureHandler::set_handled() {
+  // Tell iokernel that the pressure has been handled.
+  auto &pressure = *resource_pressure_info;
+  pressure.mock = false;
+  store_release(&pressure.status, HANDLED);
 }
 
 std::pair<std::vector<ProcletMigrationTask>, Resource>

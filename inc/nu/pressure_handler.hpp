@@ -1,3 +1,4 @@
+#include <atomic>
 #include <climits>
 #include <cstddef>
 #include <memory>
@@ -54,6 +55,7 @@ class PressureHandler {
   void mock_clear_pressure();
   bool has_pressure();
   bool has_real_pressure();
+  void set_handled();
 
  private:
   struct CmpMemUtil {
@@ -71,6 +73,7 @@ class PressureHandler {
   std::shared_ptr<std::multiset<Utility, CmpCpuUtil>>
       cpu_pressure_sorted_proclets_;
   rt::Thread update_th_;
+  std::atomic<int> active_handlers_;
   AuxHandlerState aux_handler_states_[kNumAuxHandlers];
   bool mock_;
   bool done_;
@@ -79,8 +82,9 @@ class PressureHandler {
       uint32_t min_num_proclets, uint32_t min_mem_mbs);
   void update_sorted_proclets();
   void register_handlers();
-  void __main_handler();
   void pause_aux_handlers();
+  void __main_handler();
+  void __aux_handler(AuxHandlerState *state);
   static void main_handler(void *unused);
   static void aux_handler(void *args);
 };
