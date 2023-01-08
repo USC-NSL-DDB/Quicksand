@@ -29,11 +29,7 @@ struct NodeStatus {
   Resource free_resource;
   CondVar cv;
 
-  bool has_enough_resource(Resource resource) const {
-    return free_resource.cores >= resource.cores &&
-           free_resource.mem_mbs >= resource.mem_mbs;
-  }
-
+  bool has_enough_resource(Resource resource) const;
   void update_free_resource(Resource resource);
 };
 
@@ -95,3 +91,5 @@ class Controller {
   bool update_node(std::set<Node>::iterator iter);
 };
 }  // namespace nu
+
+#include "nu/impl/ctrl.ipp"
