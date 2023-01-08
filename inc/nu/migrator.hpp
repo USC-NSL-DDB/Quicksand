@@ -163,7 +163,7 @@ class Migrator {
   std::vector<ProcletMigrationTask> load_proclet_migration_tasks(
       rt::TcpConn *c);
   void populate_proclets(std::vector<ProcletMigrationTask> &tasks);
-  void depopulate_proclet(ProcletHeader *proclet_header, uint64_t size);
+  void depopulate_proclet(ProcletHeader *proclet_header);
   void load_mutexes(rt::TcpConn *c, ProcletHeader *proclet_header);
   void load_condvars(rt::TcpConn *c, ProcletHeader *proclet_header);
   void load_time_and_mark_proclet_present(rt::TcpConn *c,

@@ -32,6 +32,7 @@ enum ProcletStatus {
   kAbsent = 0,
   kPopulating,
   kDepopulating,
+  kCleaning,
   kMigrating,
   kPresent,
   kDestructing,
@@ -40,7 +41,7 @@ enum ProcletStatus {
 // Proclet statuses are stored out of band so that they are always accessible
 // even if the proclets are not present locally.
 extern uint8_t proclet_statuses[kMaxNumProclets];
-extern Mutex proclet_populate_mutex[kMaxNumProclets];
+extern SpinLock proclet_populate_spin[kMaxNumProclets];
 
 struct ProcletHeader {
   ~ProcletHeader();
@@ -49,6 +50,7 @@ struct ProcletHeader {
   CPULoad cpu_load;
 
   // Max heap size.
+  uint64_t populate_size;
   uint64_t capacity;
 
   // For synchronization.
@@ -82,7 +84,7 @@ struct ProcletHeader {
   uint64_t size() const;
   uint8_t &status();
   uint8_t status() const;
-  Mutex &populate_mutex();
+  SpinLock &populate_spin();
   VAddrRange range() const;
 };
 
