@@ -27,8 +27,8 @@ inline uint8_t ProcletHeader::status() const {
   return proclet_statuses[global_idx()];
 }
 
-inline SpinLock &ProcletHeader::populate_spin() {
-  return proclet_populate_spin[global_idx()];
+inline SpinLock &ProcletHeader::migration_spin() {
+  return proclet_migration_spin[global_idx()];
 }
 
 inline VAddrRange ProcletHeader::range() const {

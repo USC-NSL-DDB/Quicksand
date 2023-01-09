@@ -9,7 +9,7 @@
 
 constexpr uint32_t kPort = 8010;
 constexpr uint32_t kNumNodes = 2;
-constexpr uint32_t kSlotUs = 100 * rt::kMilliseconds;
+constexpr uint32_t kSlotUs = 10 * rt::kMilliseconds;
 
 std::atomic<uint32_t> num_active_ths;
 std::atomic<uint64_t> yield_ddl;

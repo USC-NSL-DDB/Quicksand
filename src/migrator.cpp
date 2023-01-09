@@ -115,6 +115,17 @@ void Migrator::handle_copy_proclet(rt::TcpConn *c) {
                           {&len, sizeof(len)}};
   BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false, /* poll = */ true) <=
          0);
+
+  auto status = load_acquire(&proclet_header->status());
+  if (unlikely(status == kDepopulating || status == kCleaning)) {
+    ScopedLock l(&proclet_header->migration_spin());
+
+    if (proclet_header->status() == kCleaning) {
+      std::destroy_at(&proclet_header->slab);
+    }
+    proclet_header->status() = kAbsent;
+  }
+
   BUG_ON(c->ReadFull(reinterpret_cast<uint8_t *>(start_addr), len,
                      /* nt = */ true, /* poll = */ true) <= 0);
   proclet_header->pending_load_cnt--;
@@ -395,19 +406,17 @@ void Migrator::transmit_threads(rt::TcpConn *c,
 }
 
 void Migrator::transmit_proclet_migration_tasks(
-    rt::TcpConn *c, std::vector<ProcletMigrationTask>::const_iterator begin,
-    std::vector<ProcletMigrationTask>::const_iterator end) {
-  uint64_t size = (end - begin) * sizeof(decltype(*begin));
-  if (size) {
-    auto *begin_raw_ptr = reinterpret_cast<const void *>(&*begin);
-    const iovec iovecs[] = {{&size, sizeof(size)},
-                            {const_cast<void *>(begin_raw_ptr), size}};
-    BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ false,
-                         /* poll = */ true) < 0);
-  } else {
-    BUG_ON(c->WriteFull(&size, sizeof(size), /* nt = */ false,
-                        /* poll = */ true) < 0);
-  }
+    rt::TcpConn *c, const std::vector<ProcletMigrationTask> &tasks) {
+  uint8_t type = kMigrate;
+  uint64_t size = tasks.size();
+  BUG_ON(!size);
+
+  const iovec iovecs[] = {{&type, sizeof(type)},
+                          {&size, sizeof(size)},
+                          {const_cast<ProcletMigrationTask *>(tasks.data()),
+                           size * sizeof(ProcletMigrationTask)}};
+  BUG_ON(c->WritevFull(std::span(iovecs), /* nt = */ false,
+                       /* poll = */ true) < 0);
 }
 
 void Migrator::update_proclet_location(rt::TcpConn *c,
@@ -535,31 +544,32 @@ void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
 }
 
 void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
-  proclet_header->status() = kCleaning;
-
   rt::Spawn([proclet_header] {
-    ScopedLock l(&proclet_header->populate_spin());
+    if (load_acquire(&proclet_header->status()) == kCleaning) {
+      ScopedLock l(&proclet_header->migration_spin());
 
-    if (proclet_header->status() == kCleaning) {
-      get_runtime()->proclet_manager()->cleanup(proclet_header,
-                                                /* for_migration = */ true);
-      proclet_header->status() = kAbsent;
+      if (likely(proclet_header->status() == kCleaning)) {
+        get_runtime()->proclet_manager()->cleanup(proclet_header,
+                                                  /* for_migration = */ true);
+        proclet_header->status() = kAbsent;
+      }
     }
   });
 }
 
-void skip_proclet(rt::TcpConn *conn, ProcletHeader *proclet_header) {
+static inline void skip_proclet(rt::TcpConn *conn,
+                                ProcletHeader *proclet_header) {
   uint8_t type = kSkipProclet;
   BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
                          /* poll = */ true) < 0);
 }
 
-void issue_approval(rt::TcpConn *c, bool approval) {
+static inline void issue_approval(rt::TcpConn *c, bool approval) {
   BUG_ON(c->WriteFull(&approval, sizeof(approval), /* nt = */ false,
                       /* poll = */ true) < 0);
 }
 
-bool receive_approval(rt::TcpConn *c) {
+static inline bool receive_approval(rt::TcpConn *c) {
   bool approval;
   BUG_ON(c->ReadFull(&approval, sizeof(approval),
                      /* nt = */ false, /* poll = */ true) <= 0);
@@ -568,52 +578,51 @@ bool receive_approval(rt::TcpConn *c) {
 
 uint32_t Migrator::__migrate(Resource resource,
                              const std::vector<ProcletMigrationTask> &tasks) {
-  auto it = tasks.begin();
-  bool loader_approval = true;
+  auto migration_dest =
+      get_runtime()->controller_client()->acquire_migration_dest(resource);
+  if (unlikely(!migration_dest)) {
+    return 0;
+  }
 
-  do {
-    auto migration_dest =
-        get_runtime()->controller_client()->acquire_migration_dest(resource);
-    if (unlikely(!migration_dest)) {
+  auto migration_conn = migrator_conn_mgr_.get(migration_dest.get_ip());
+  auto *conn = migration_conn.get_tcp_conn();
+  transmit_proclet_migration_tasks(conn, tasks);
+
+  bool aux_handlers_enabled = false;
+  auto it = tasks.begin();
+  for (; it != tasks.end(); ++it) {
+    auto *proclet_header = it->header;
+    if (unlikely(it != tasks.begin() && !receive_approval(conn))) {
       break;
     }
 
-    auto migration_conn = migrator_conn_mgr_.get(migration_dest.get_ip());
-    auto *conn = migration_conn.get_tcp_conn();
-    bool aux_handlers_enabled = false;
+    if (unlikely(!get_runtime()->pressure_handler()->has_pressure() ||
+                 !try_mark_proclet_migrating(proclet_header))) {
+      skip_proclet(conn, proclet_header);
+      continue;
+    }
 
-    uint8_t type = kMigrate;
-    BUG_ON(conn->WriteFull(&type, sizeof(type), /* nt = */ false,
-                           /* poll = */ true) < 0);
-    transmit_proclet_migration_tasks(conn, it, tasks.end());
+    if (unlikely(!aux_handlers_enabled)) {
+      aux_handlers_enabled = true;
+      aux_handlers_enable_polling(migration_dest.get_ip());
+    }
 
-    while (it != tasks.end()) {
-      auto *proclet_header = it++->header;
-      loader_approval = receive_approval(conn);
+    pause_migrating_threads(proclet_header);
+    {
+      ScopedLock l(&proclet_header->migration_spin());
 
-      if (unlikely(!loader_approval ||
-                   !get_runtime()->pressure_handler()->has_pressure() ||
-                   !try_mark_proclet_migrating(proclet_header))) {
-        skip_proclet(conn, proclet_header);
-        continue;
-      }
-
-      if (unlikely(!aux_handlers_enabled)) {
-        aux_handlers_enabled = true;
-        aux_handlers_enable_polling(migration_dest.get_ip());
-      }
-
-      pause_migrating_threads(proclet_header);
       transmit(conn, proclet_header, &all_migrating_ths);
       gc_migrated_threads();
-      post_migration_cleanup(proclet_header);
+      proclet_header->status() = kCleaning;
     }
+    post_migration_cleanup(proclet_header);
+  }
 
-    if (aux_handlers_enabled) {
-      aux_handlers_disable_polling();
-    }
+  if (aux_handlers_enabled) {
+    aux_handlers_disable_polling();
+  }
 
-  } while (unlikely(it != tasks.end() && !loader_approval));
+  receive_approval(conn);
 
   return it - tasks.begin();
 }
@@ -815,18 +824,17 @@ std::vector<ProcletMigrationTask> Migrator::load_proclet_migration_tasks(
   BUG_ON(c->ReadFull(&size, sizeof(size), /* nt = */ false,
                      /* poll = */ true) <= 0);
 
-  if (size) {
-    tasks.resize(size / sizeof(ProcletMigrationTask));
-    BUG_ON(c->ReadFull(&tasks[0], size, /* nt = */ false,
-                       /* poll = */ true) <= 0);
-  }
+  tasks.resize(size);
+  BUG_ON(c->ReadFull(&tasks[0], size * sizeof(ProcletMigrationTask),
+                     /* nt = */ false,
+                     /* poll = */ true) <= 0);
 
   return tasks;
 }
 
 void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
   for (auto &[header, _, size] : tasks) {
-    ScopedLock l(&header->populate_spin());
+    ScopedLock l(&header->migration_spin());
 
     if (unlikely(header->status() == kCleaning)) {
       std::destroy_at(&header->slab);
@@ -837,10 +845,12 @@ void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
 
   rt::Spawn([tasks] {
     for (auto &[header, _, size] : tasks) {
-      ScopedLock l(&header->populate_spin());
+      if (load_acquire(&header->status()) == kPopulating) {
+        ScopedLock l(&header->migration_spin());
 
-      if (likely(header->status() == kPopulating)) {
-        get_runtime()->proclet_manager()->madvise_populate(header, size);
+        if (likely(header->status() == kPopulating)) {
+          get_runtime()->proclet_manager()->madvise_populate(header, size);
+        }
       }
     }
   });
@@ -848,15 +858,18 @@ void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
 
 void Migrator::depopulate_proclet(ProcletHeader *proclet_header) {
   proclet_header->status() = kDepopulating;
+  mb();
 
   rt::Spawn([proclet_header] {
-    ScopedLock l(&proclet_header->populate_spin());
+    if (load_acquire(&proclet_header->status()) == kDepopulating) {
+      ScopedLock l(&proclet_header->migration_spin());
 
-    if (proclet_header->status() == kDepopulating) {
-      get_runtime()->proclet_manager()->depopulate(
-          proclet_header, proclet_header->populate_size,
-          /* defer = */ false);
-      proclet_header->status() = kAbsent;
+      if (likely(proclet_header->status() == kDepopulating)) {
+        get_runtime()->proclet_manager()->depopulate(
+            proclet_header, proclet_header->populate_size,
+            /* defer = */ false);
+        proclet_header->status() = kAbsent;
+      }
     }
   });
 }
@@ -865,11 +878,21 @@ void Migrator::load(rt::TcpConn *c) {
   auto tasks = load_proclet_migration_tasks(c);
   populate_proclets(tasks);
 
-  std::vector<ProcletHeader *> loaded_proclets;
-  for (auto &[proclet_header, capacity, size] : tasks) {
-    bool approval = !get_runtime()->pressure_handler()->has_real_pressure();
-    issue_approval(c, approval);
+  bool approval = true;
+  for (auto it = tasks.begin(); it != tasks.end(); ++it) {
+    if (unlikely(!approval)) {
+      for (; it != tasks.end(); ++it) {
+        depopulate_proclet(it->header);
+      }
+      break;
+    }
+    
+    if (it != tasks.end() - 1) {
+      approval = !get_runtime()->pressure_handler()->has_real_pressure();
+      issue_approval(c, approval);
+    }
 
+    auto &[proclet_header, capacity, _] = *it;
     if (unlikely(!load_proclet(c, proclet_header, capacity))) {
       depopulate_proclet(proclet_header);
       continue;
@@ -879,11 +902,12 @@ void Migrator::load(rt::TcpConn *c) {
     load_condvars(c, proclet_header);
     load_time_and_mark_proclet_present(c, proclet_header);
     load_threads(c, proclet_header);
-    loaded_proclets.emplace_back(proclet_header);
     // Wakeup the blocked threads.
     proclet_header->cond_var.signal_all();
     proclet_header->migratable = true;
   }
+
+  issue_approval(c, true);
 }
 
 void Migrator::reserve_conns(uint32_t dest_server_ip) {

@@ -41,7 +41,7 @@ enum ProcletStatus {
 // Proclet statuses are stored out of band so that they are always accessible
 // even if the proclets are not present locally.
 extern uint8_t proclet_statuses[kMaxNumProclets];
-extern SpinLock proclet_populate_spin[kMaxNumProclets];
+extern SpinLock proclet_migration_spin[kMaxNumProclets];
 
 struct ProcletHeader {
   ~ProcletHeader();
@@ -84,7 +84,7 @@ struct ProcletHeader {
   uint64_t size() const;
   uint8_t &status();
   uint8_t status() const;
-  SpinLock &populate_spin();
+  SpinLock &migration_spin();
   VAddrRange range() const;
 };
 

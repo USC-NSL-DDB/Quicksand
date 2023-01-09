@@ -16,7 +16,7 @@ extern "C" {
 namespace nu {
 
 uint8_t proclet_statuses[kMaxNumProclets];
-SpinLock proclet_populate_spin[kMaxNumProclets];
+SpinLock proclet_migration_spin[kMaxNumProclets];
 
 ProcletManager::ProcletManager() {
   num_present_proclets_ = 0;

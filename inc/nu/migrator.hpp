@@ -149,8 +149,7 @@ class Migrator {
   void transmit_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header);
   void transmit_proclet_migration_tasks(
-      rt::TcpConn *c, std::vector<ProcletMigrationTask>::const_iterator begin,
-      std::vector<ProcletMigrationTask>::const_iterator end);
+      rt::TcpConn *c, const std::vector<ProcletMigrationTask> &tasks);
   void transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes);
   void transmit_condvars(rt::TcpConn *c, std::vector<CondVar *> condvars);
   void transmit_time(rt::TcpConn *c, Time *time);
