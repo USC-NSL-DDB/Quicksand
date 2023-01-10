@@ -34,8 +34,8 @@ void do_work() {
       +[](nu::VectorTaskRange<std::size_t> &task_range) {
         std::vector<std::size_t> outputs;
         while (!task_range.empty()) {
-	  task_range.pop();
-	  compute();
+          task_range.pop();
+          compute();
         }
         return outputs;
       },
