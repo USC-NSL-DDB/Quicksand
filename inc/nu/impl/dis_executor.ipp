@@ -228,9 +228,10 @@ template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
     std::size_t target, TR task_range, S1s &... states) {
   target = std::max(target, static_cast<std::size_t>(1));
+
   if (target < workers_.size()) {
     workers_.resize(target);
-  } else {
+  } else if (target > workers_.size()) {
     std::vector<std::pair<NodeIP, Resource>> global_free_resources;
     {
       Caladan::PreemptGuard g;
@@ -313,27 +314,38 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
         last_add_worker_us = now_us;
 
         float scale_factor = queue_len / prev_queue_len;
-        if (queue_len > prev_queue_len * kImbalanceThreshold) {
-          if (kIsProducer) {
+        if constexpr (kIsProducer) {
+          if (queue_len > prev_queue_len * kImbalanceThreshold) {
             auto num_workers =
-                static_cast<float>(workers_.size()) / scale_factor;
+                std::min(static_cast<float>(workers_.size()) / scale_factor,
+                         static_cast<float>(workers_.size() - 1));
             adjust_queue_workers(num_workers, task_range, states...);
-          } else {
+          } else if (queue_len < prev_queue_len / kImbalanceThreshold) {
             auto num_workers =
-                static_cast<float>(workers_.size()) * scale_factor;
+                std::max(static_cast<float>(workers_.size()) * scale_factor,
+                         static_cast<float>(workers_.size() + 1));
             adjust_queue_workers(num_workers, task_range, states...);
+          } else if (queue_len < 1) {
+            adjust_queue_workers(workers_.size() + 1, task_range, states...);
           }
-        } else if (queue_len < prev_queue_len / kImbalanceThreshold) {
-          if (kIsProducer) {
-            auto num_workers =
-                static_cast<float>(workers_.size()) * scale_factor;
-            adjust_queue_workers(num_workers, task_range, states...);
+        } else {
+          if (queue_len > 1) {
+            if (queue_len > prev_queue_len * kImbalanceThreshold) {
+              auto num_workers =
+                  std::max(static_cast<float>(workers_.size()) * scale_factor,
+                           static_cast<float>(workers_.size() + 1));
+              adjust_queue_workers(num_workers, task_range, states...);
+            } else if (queue_len < prev_queue_len / kImbalanceThreshold) {
+              auto num_workers =
+                  std::min(static_cast<float>(workers_.size()) / scale_factor,
+                           static_cast<float>(workers_.size() - 1));
+              adjust_queue_workers(num_workers, task_range, states...);
+            }
           } else {
-            auto num_workers =
-                static_cast<float>(workers_.size()) / scale_factor;
-            adjust_queue_workers(num_workers, task_range, states...);
+            adjust_queue_workers(workers_.size() - 1, task_range, states...);
           }
         }
+
         prev_queue_len = queue_len;
       }
     }
