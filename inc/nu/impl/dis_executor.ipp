@@ -290,16 +290,16 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   fn_ = fn;
   using TaskRangeImpl = typename TR::Implementation;
   constexpr bool kIsProducer = TaskRangeImpl::Writeable::value;
+  constexpr float kImbalanceThreshold = 1.2;
 
   uint64_t last_check_queue_us = Time::microtime();
   uint64_t last_check_worker_us = last_check_queue_us;
-  std::size_t last_queue_len = 0;
+  float last_queue_len = 0;
 
   spawn_initial_queue_workers(task_range, states...);
 
   while (true) {
     auto now_us = Time::microtime();
-
     if (now_us - last_check_worker_us >= kCheckWorkersIntervalUs) {
       last_check_worker_us = now_us;
       // auto avg_tp_ms = check_queue_workers();
@@ -307,14 +307,31 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
       if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
         last_check_queue_us = now_us;
 
-        auto queue_len = task_range.impl().queue_length();
-        if (queue_len > last_queue_len * 2) {
+        float queue_len = static_cast<float>(task_range.impl().queue_length());
+        float scale_factor = queue_len / last_queue_len;
+
+        if (queue_len > last_queue_len * kImbalanceThreshold) {
           if (kIsProducer) {
-            adjust_queue_workers(workers_.size() * 0.7, task_range, states...);
+            auto num_workers =
+                static_cast<float>(workers_.size()) / scale_factor;
+            adjust_queue_workers(num_workers, task_range, states...);
           } else {
-            adjust_queue_workers(workers_.size() * 2, task_range, states...);
+            auto num_workers =
+                static_cast<float>(workers_.size()) * scale_factor;
+            adjust_queue_workers(num_workers, task_range, states...);
+          }
+        } else if (queue_len < last_queue_len / kImbalanceThreshold) {
+          if (kIsProducer) {
+            auto num_workers =
+                static_cast<float>(workers_.size()) * scale_factor;
+            adjust_queue_workers(num_workers, task_range, states...);
+          } else {
+            auto num_workers =
+                static_cast<float>(workers_.size()) / scale_factor;
+            adjust_queue_workers(num_workers, task_range, states...);
           }
         }
+
         last_queue_len = queue_len;
       }
     }
