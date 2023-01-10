@@ -219,8 +219,8 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
     TR task_range, S1s &... states) {
   auto worker = Worker(nu::make_proclet<ComputeProclet<TR, States...>>(
       std::forward_as_tuple(states...)));
-  worker.compute_async(fn_, std::move(task_range));
   workers_.push_back(std::move(worker));
+  workers_.back().compute_async(fn_, std::move(task_range));
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -251,12 +251,11 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
       }
     }
 
-    std::ranges::transform(worker_futures, std::back_inserter(workers_),
-                           [&](auto &worker_future) {
-                             auto w = Worker(std::move(worker_future.get()));
-                             w.compute_async(fn_, task_range);
-                             return w;
-                           });
+    for (auto &f : worker_futures) {
+      auto w = Worker(std::move(f.get()));
+      workers_.push_back(std::move(w));
+      workers_.back().compute_async(fn_, task_range);
+    }
   }
 }
 
