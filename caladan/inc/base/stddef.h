@@ -58,20 +58,24 @@
  *
  * Arguments @a and @b are evaluated exactly once
  */
+#ifndef MAX
 #define MAX(a, b) \
 	({__typeof(a) _a = (a); \
 	  __typeof(b) _b = (b); \
 	  _a > _b ? _a : _b;})
+#endif
 
 /**
  * MIN - picks the minimum of two expressions
  *
  * Arguments @a and @b are evaluated exactly once
  */
+#ifndef MIN
 #define MIN(a, b) \
 	({__typeof(a) _a = (a); \
 	  __typeof(b) _b = (b); \
 	  _a < _b ? _a : _b;})
+#endif
 
 /**
  * is_power_of_two - determines if an integer is a power of two
