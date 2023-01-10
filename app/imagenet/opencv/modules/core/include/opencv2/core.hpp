@@ -3354,6 +3354,14 @@ struct ParamType<_Tp, typename std::enable_if< std::is_enum<_Tp>::value >::type>
 
 //! @} core_basic
 
+CV_EXPORTS void destroyTraceManager();
+CV_EXPORTS void destroyCodecs();
+CV_INLINE void cleanup()
+{
+    destroyCodecs();
+    destroyTraceManager();
+}
+
 } //namespace cv
 
 #include "opencv2/core/operations.hpp"

@@ -911,15 +911,12 @@ bool TraceManager::isActivated()
     return activated;
 }
 
-
-static TraceManager* getTraceManagerCallOnce()
-{
-    static TraceManager globalInstance;
-    return &globalInstance;
-}
 TraceManager& getTraceManager()
 {
-    CV_SINGLETON_LAZY_INIT_REF(TraceManager, getTraceManagerCallOnce())
+    static uint8_t buf[sizeof(TraceManager)];
+    static auto *trace_manager = new (buf) TraceManager();
+
+    return *trace_manager;
 }
 
 void parallelForSetRootRegion(const Region& rootRegion, const TraceManagerThreadLocal& root_ctx)
@@ -1142,4 +1139,13 @@ void traceArg(const TraceArg&, double) {};
 
 #endif
 
-}}}} // namespace
+}}}
+
+CV_EXPORTS void destroyTraceManager()
+{
+    using namespace utils::trace::details;
+
+    getTraceManager().~TraceManager();
+}
+
+} // namespace

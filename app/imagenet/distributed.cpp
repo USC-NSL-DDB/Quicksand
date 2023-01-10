@@ -33,7 +33,7 @@ void load(std::string path, shard_type &imgs)
 
 void do_work() {
   auto imgs = nu::make_sharded_vector<Image, std::false_type>();
-  std::string datapath = "/opt/kaiyan/imagenet/train_t3";
+  std::string datapath = "train_t3";
 
   auto start = high_resolution_clock::now();
   load(datapath, imgs);
@@ -46,6 +46,7 @@ void do_work() {
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
   std::cout << "Image pre-processing takes " << duration.count() << "ms" << std::endl;
+  cv::cleanup();
 }
 
 int main(int argc, char **argv)
