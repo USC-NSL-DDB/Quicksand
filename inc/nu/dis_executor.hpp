@@ -48,7 +48,7 @@ class DistributedExecutor {
   };
 
   constexpr static uint64_t kCheckWorkersIntervalUs = 200;
-  constexpr static uint64_t kCheckQueueIntervalUs = 1000;
+  constexpr static uint64_t kCheckQueueIntervalUs = 200;
   constexpr static uint64_t kAddWorkersIntervalUs = 1000;
   RetT (*fn_)(TR &, States...);
   bool almost_done_;

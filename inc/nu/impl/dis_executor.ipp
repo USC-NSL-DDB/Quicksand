@@ -241,7 +241,7 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
     std::size_t gap = target - workers_.size();
     std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
     for (auto &[ip, resource] : global_free_resources) {
-      for (uint32_t i = 0; i < resource.cores; i++) {
+      for (uint32_t i = 0; i < static_cast<uint32_t>(resource.cores); i++) {
         worker_futures.emplace_back(
             nu::make_proclet_async<ComputeProclet<TR, States...>>(
                 std::forward_as_tuple(states...)));
@@ -291,26 +291,29 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   using TaskRangeImpl = typename TR::Implementation;
   constexpr bool kIsProducer = TaskRangeImpl::Writeable::value;
   constexpr float kImbalanceThreshold = 1.2;
+  constexpr double kEWMAWeight = 0.2;
 
   uint64_t last_check_queue_us = Time::microtime();
-  uint64_t last_check_worker_us = last_check_queue_us;
-  float last_queue_len = 0;
+  uint64_t last_add_worker_us = last_check_queue_us;
+  float queue_len = 0;
+  float prev_queue_len = 0;
 
   spawn_initial_queue_workers(task_range, states...);
 
   while (true) {
     auto now_us = Time::microtime();
-    if (now_us - last_check_worker_us >= kCheckWorkersIntervalUs) {
-      last_check_worker_us = now_us;
-      // auto avg_tp_ms = check_queue_workers();
 
-      if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
-        last_check_queue_us = now_us;
+    if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
+      last_check_queue_us = now_us;
 
-        float queue_len = static_cast<float>(task_range.impl().queue_length());
-        float scale_factor = queue_len / last_queue_len;
+      float curr_len = static_cast<float>(task_range.impl().queue_length());
+      ewma(kEWMAWeight, &queue_len, curr_len);
 
-        if (queue_len > last_queue_len * kImbalanceThreshold) {
+      if (now_us - last_add_worker_us >= kAddWorkersIntervalUs) {
+        last_add_worker_us = now_us;
+
+        float scale_factor = queue_len / prev_queue_len;
+        if (queue_len > prev_queue_len * kImbalanceThreshold) {
           if (kIsProducer) {
             auto num_workers =
                 static_cast<float>(workers_.size()) / scale_factor;
@@ -320,7 +323,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
                 static_cast<float>(workers_.size()) * scale_factor;
             adjust_queue_workers(num_workers, task_range, states...);
           }
-        } else if (queue_len < last_queue_len / kImbalanceThreshold) {
+        } else if (queue_len < prev_queue_len / kImbalanceThreshold) {
           if (kIsProducer) {
             auto num_workers =
                 static_cast<float>(workers_.size()) * scale_factor;
@@ -331,10 +334,10 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
             adjust_queue_workers(num_workers, task_range, states...);
           }
         }
-
-        last_queue_len = queue_len;
+        prev_queue_len = queue_len;
       }
     }
+
     rt::Yield();
   }
 
