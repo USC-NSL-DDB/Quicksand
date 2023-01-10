@@ -11,6 +11,12 @@
 
 using namespace nu;
 
+void busy_spin(uint64_t duration_us) {
+  auto target = microtime() + duration_us;
+  while (microtime() < target)
+    ;
+}
+
 std::vector<char> make_byte_vec(std::size_t size) {
   std::vector<char> bytes;
   bytes.reserve(size);
@@ -282,6 +288,7 @@ bool test_rate_matching() {
         while (true) {
           auto inserter = rng.pop();
           inserter = 33;
+          busy_spin(100);
         }
       },
       produce_rng);
@@ -290,9 +297,13 @@ bool test_rate_matching() {
       +[](decltype(consume_rng) &rng) {
         while (true) {
           rng.pop();
+          busy_spin(1000);
         }
       },
       consume_rng);
+
+  consumers.get();
+  producers.get();
 
   return true;
 }
