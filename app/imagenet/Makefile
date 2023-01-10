@@ -4,15 +4,18 @@ CALADAN_PATH=$(NU_PATH)/caladan
 ROOT_PATH=$(CALADAN_PATH)
 include $(CALADAN_PATH)/build/shared.mk
 
+OPENCV_PATH=opencv/install
+
 NCORES = $(shell nproc)
 
-INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/
+INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/ \
+       -I$(OPENCV_PATH)/include/opencv4
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offsetof \
-                     -DNCORES=$(NCORES) $(shell pkg-config --cflags opencv4) \
-										 -Wno-deprecated-enum-enum-conversion   # supress warnings from opencv library
-override LDFLAGS += -lcrypto -lpthread -lboost_program_options $(shell pkg-config --libs opencv4) \
-										 -lnuma
+                     -DNCORES=$(NCORES) -DSLAB_TRANSFER_CACHE \
+                     -Wno-deprecated-enum-enum-conversion
+override LDFLAGS += -lcrypto -lpthread -lboost_program_options -lnuma \
+                    -L$(OPENCV_PATH)/lib -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
 lib_nu = $(NU_PATH)/libnu.a
