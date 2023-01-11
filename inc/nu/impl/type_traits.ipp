@@ -9,7 +9,7 @@ template <typename T>
 class RemSharedPtr;
 
 template <class T>
-inline consteval bool is_move_safe() {
+inline consteval bool is_safe_to_move() {
   return std::is_rvalue_reference_v<T> &&
          // TODO: add more safe-to-move types.
          (is_specialization_of_v<std::decay_t<T>, Proclet> ||
@@ -19,23 +19,28 @@ inline consteval bool is_move_safe() {
 }
 
 template <typename T>
-inline auto &&move_if_safe(T &&t) requires(is_move_safe<T &&>()) {
+inline T &&pass_across_proclet(T &&t) requires(is_safe_to_move<T &&>()) {
   return std::move(t);
 }
 
 template <typename T>
-inline auto move_if_safe(T &&t) requires DeepCopyAble<T> {
-  return t.deep_copy();
+inline std::decay_t<T> pass_across_proclet(T &&t) requires DeepCopyAble<T> {
+  if constexpr (std::is_rvalue_reference_v<T &&>) {
+    T tmp = std::move(t);
+    return tmp.deep_copy();
+  } else {
+    return t.deep_copy();
+  }
 }
 
 template <typename T>
-inline T &to_lvalue_ref(T &&t) {
-  return t;
-}
-
-template <typename T>
-inline auto &move_if_safe(T &&t) {
-  return to_lvalue_ref(t);
+inline std::decay_t<T> pass_across_proclet(T &&t) {
+  if constexpr (std::is_rvalue_reference_v<T &&>) {
+    T tmp = std::move(t);
+    return static_cast<T &>(tmp);
+  } else {
+    return t;
+  }
 }
 
 }  // namespace nu

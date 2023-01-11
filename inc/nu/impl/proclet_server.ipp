@@ -95,7 +95,7 @@ void ProcletServer::construct_proclet_locally(MigrationGuard &&caller_guard,
     using ArgsTuple = std::tuple<std::decay_t<As>...>;
     auto *copied_args =
         reinterpret_cast<ArgsTuple *>(alloca(sizeof(ArgsTuple)));
-    new (copied_args) ArgsTuple(move_if_safe(std::forward<As>(args))...);
+    new (copied_args) ArgsTuple(pass_across_proclet(std::forward<As>(args))...);
 
     barrier();
     {
@@ -303,12 +303,12 @@ void ProcletServer::run_closure(ArchivePool<>::IASStream *ia_sstream,
 }
 
 template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-          typename... S1s>
+          typename... Ss>
 MigrationGuard ProcletServer::run_closure_locally(
     MigrationGuard *callee_migration_guard,
     const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
     ProcletHeader *caller_header, ProcletHeader *callee_header, FnPtr fn_ptr,
-    S1s &&... states) {
+    Ss &... states) {
   callee_header->cpu_load.start_monitor();
   callee_header->thread_cnt.inc_unsafe();
 
@@ -329,7 +329,7 @@ MigrationGuard ProcletServer::run_closure_locally(
         caller_header, *callee_migration_guard);
     if (likely(optional_caller_guard)) {
       ProcletSlabGuard slab_guard(&caller_header->slab);
-      *caller_ptr = move_if_safe(std::move(*ret));
+      *caller_ptr = pass_across_proclet(std::move(*ret));
       std::destroy_at(ret);
       callee_migration_guard->reset();
       return std::move(*optional_caller_guard);

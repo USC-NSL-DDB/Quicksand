@@ -42,12 +42,12 @@ class ProcletServer {
   static void run_closure(ArchivePool<>::IASStream *ia_sstream,
                           RPCReturner *returner);
   template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-            typename... S1s>
+            typename... Ss>
   static MigrationGuard run_closure_locally(
       MigrationGuard *callee_migration_guard,
       const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
       ProcletHeader *caller_header, ProcletHeader *callee_header, FnPtr fn_ptr,
-      S1s &&... states);
+      Ss &... states);
 
  private:
   using GenericHandler = void (*)(ArchivePool<>::IASStream *ia_sstream,
