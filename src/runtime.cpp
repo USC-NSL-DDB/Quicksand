@@ -28,7 +28,6 @@ extern "C" {
 #include "nu/rpc_client_mgr.hpp"
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
-#include "nu/runtime_deleter.hpp"
 #include "nu/utils/slab.hpp"
 
 namespace nu {
@@ -207,39 +206,3 @@ int runtime_main_init(int argc, char **argv,
 }
 
 }  // namespace nu
-
-inline void *__new(size_t size) {
-  nu::Caladan::PreemptGuard g;
-  void *ptr;
-  auto *slab = nu::Caladan::thread_self()
-                   ? nu::get_runtime()->caladan()->thread_get_proclet_slab()
-                   : nullptr;
-  if (slab) {
-    ptr = slab->allocate(size);
-  } else if (auto *runtime_slab = nu::get_runtime()->runtime_slab()) {
-    ptr = runtime_slab->allocate(size);
-  } else {
-    ptr = malloc(size);
-  }
-  return ptr;
-}
-
-void *operator new(size_t size) throw() {
-  auto *ptr = __new(size);
-  BUG_ON(size && !ptr);
-  return ptr;
-}
-
-void *operator new(size_t size, const std::nothrow_t &nothrow_value) noexcept {
-  return __new(size);
-}
-
-void operator delete(void *ptr) noexcept {
-  nu::Caladan::PreemptGuard g;
-
-  if (nu::get_runtime()->runtime_slab()) {
-    nu::SlabAllocator::free(ptr);
-  } else {
-    free(ptr);
-  }
-}
