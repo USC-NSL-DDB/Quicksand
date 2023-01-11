@@ -4,10 +4,12 @@ cd ../..
 source ./shared.sh
 
 all_passed=1
-CLIENT_IP="18.18.1.4"
+MAIN_SERVER_IP="18.18.1.4"
 SERVER1_IP="18.18.1.2"
 SERVER2_IP="18.18.1.3"
 LPID=1
+
+export OPENCV_LIB_PATH=$ROOT_PATH/app/imagenet/opencv/install/lib
 
 function prepare {
     kill_iokerneld
@@ -17,16 +19,16 @@ function prepare {
     sudo sync; sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
 }
 
-function run_client {
-    sudo stdbuf -o0 sh -c "ulimit -c unlimited; $1 -c -l $LPID -i $CLIENT_IP"
+function run_main_server {
+    sudo "LD_LIBRARY_PATH=$OPENCV_LIB_PATH" stdbuf -o0 sh -c "ulimit -c unlimited; $1 -m -l $LPID -i $MAIN_SERVER_IP"
 }
 
 function run_server1 {
-    sudo stdbuf -o0 sh -c "ulimit -c unlimited; $1 -s -l $LPID -i $SERVER1_IP"
+    sudo "LD_LIBRARY_PATH=$OPENCV_LIB_PATH" stdbuf -o0 sh -c "ulimit -c unlimited; $1 -l $LPID -i $SERVER1_IP"
 }
 
 function run_server2 {
-    sudo stdbuf -o0 sh -c "ulimit -c unlimited; $1 -s -l $LPID -i $SERVER2_IP"
+    sudo "LD_LIBRARY_PATH=$OPENCV_LIB_PATH" stdbuf -o0 sh -c "ulimit -c unlimited; $1 -l $LPID -i $SERVER2_IP"
 }
 
 function run_test {
@@ -44,7 +46,7 @@ function run_test {
     disown -r
     sleep 3    
 
-    run_client $BIN
+    run_main_server $BIN
     ret=0
 
     kill_process $1

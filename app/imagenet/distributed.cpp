@@ -33,7 +33,7 @@ void load(std::string path, shard_type &imgs)
 
 void do_work() {
   auto imgs = nu::make_sharded_vector<Image, std::false_type>();
-  std::string datapath = "train_t3";
+  std::string datapath = "/opt/kaiyan/imagenet/train_t3";
 
   auto start = high_resolution_clock::now();
   load(datapath, imgs);
