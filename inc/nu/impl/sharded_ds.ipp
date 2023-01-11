@@ -270,7 +270,7 @@ retry:
     r_key = std::optional<Key>();
   }
 
-  auto val = shard.run(f, l_key, r_key, std::forward<As>(args)...);
+  auto val = shard.run(f, l_key, r_key, args...);
   if (unlikely(!val)) {
     sync_mapping();
     goto retry;
