@@ -286,8 +286,7 @@ bool Controller::acquire_node(lpid_t lpid, NodeIP ip) {
 
   auto &node_statuses = lpid_to_info_[lpid].node_statuses;
   auto iter = node_statuses.find(ip);
-  BUG_ON(iter == node_statuses.end());
-  if (unlikely(iter->second.acquired)) {
+  if (unlikely(iter == node_statuses.end() || iter->second.acquired)) {
     return false;
   }
   iter->second.acquired = true;
@@ -326,7 +325,9 @@ std::vector<std::pair<NodeIP, Resource>> Controller::report_free_resource(
 
   auto &node_statuses = lp_info_iter->second.node_statuses;
   auto iter = node_statuses.find(ip);
-  BUG_ON(iter == node_statuses.end());
+  if (unlikely(iter == node_statuses.end())) {
+    return global_free_resources;
+  }
 
   iter->second.update_free_resource(free_resource);
 
