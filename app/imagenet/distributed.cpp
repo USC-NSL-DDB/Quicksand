@@ -46,6 +46,8 @@ void do_work() {
 
   auto sealed_imgs = nu::to_sealed_ds(std::move(imgs));
   auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
+
+  start = high_resolution_clock::now();
   auto dis_exec = nu::make_distributed_executor(
       +[](decltype(imgs_range) &imgs_range) {
         while (!imgs_range.empty()) {
@@ -54,8 +56,6 @@ void do_work() {
         }
       },
       imgs_range);
-
-  start = high_resolution_clock::now();
   dis_exec.get();
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
