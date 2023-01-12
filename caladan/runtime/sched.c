@@ -256,7 +256,7 @@ void pause_local_migrating_threads(void)
 
 	if (has_pending_pause_req(l)) {
 		spin_lock(&l->lock);
-		__pause_migrating_threads_locked(l);
+		pause_local_migrating_threads_locked();
 		spin_unlock(&l->lock);
 	}
 	putk();
@@ -319,7 +319,7 @@ void prioritize_local_rcu_readers(void)
 
 	if (has_pending_prioritize_req(l)) {
 		spin_lock(&l->lock);
-		__prioritize_rcu_readers_locked(l);
+		prioritize_local_rcu_readers_locked();
 		spin_unlock(&l->lock);
 	}
 	putk();
