@@ -6,37 +6,20 @@
 #include <string>
 #include <thread>
 
+#include <nu/pressure_handler.hpp>
+#include <nu/runtime.hpp>
+#include <nu/sealed_ds.hpp>
+#include <nu/sharded_vector.hpp>
+#include <nu/sharded_vector.hpp>
+#include <nu/dis_executor.hpp>
+
 #include "image_kernel.hpp"
-#include "nu/pressure_handler.hpp"
-#include "nu/runtime.hpp"
-#include "nu/sealed_ds.hpp"
-#include "nu/sharded_vector.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
 using shard_type = nu::ShardedVector<imagenet::Image, std::false_type>;
 using sealed_shard_type = nu::SealedDS<shard_type>;
 using namespace std::chrono;
 using namespace imagenet;
-
-class Worker {
- public:
-  Worker(shard_type imgs) : imgs_(std::move(imgs)) {}
-
-  void run() {
-    auto sealed_imgs = nu::to_sealed_ds(std::move(imgs_));
-    for (const auto &img : sealed_imgs) {
-      kernel(img);
-      {
-        rt::Preempt p;
-        rt::PreemptGuard g(&p);
-        nu::get_runtime()->pressure_handler()->mock_set_pressure();
-      }
-    }
-  }
-
- private:
-  shard_type imgs_;
-};
 
 void load(std::string path, shard_type &imgs) {
   int i = 0;
@@ -61,10 +44,19 @@ void do_work() {
   auto duration = duration_cast<milliseconds>(end - start);
   std::cout << "Image loading takes " << duration.count() << "ms" << std::endl;
 
-  auto worker =
-      nu::make_proclet<Worker>(std::tuple(std::move(imgs)));
+  auto sealed_imgs = nu::to_sealed_ds(std::move(imgs));
+  auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
+  auto dis_exec = nu::make_distributed_executor(
+      +[](decltype(imgs_range) &imgs_range) {
+        while (!imgs_range.empty()) {
+          auto img = imgs_range.pop();
+          kernel(img);
+        }
+      },
+      imgs_range);
+
   start = high_resolution_clock::now();
-  worker.run(&Worker::run);
+  dis_exec.get();
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
   std::cout << "Image pre-processing takes " << duration.count() << "ms"
