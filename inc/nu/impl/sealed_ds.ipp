@@ -578,7 +578,8 @@ void GeneralSealedDSConstIterator<Shard, Fwd>::update_prefetch_cnt(
     const Block &block) {
   if (block) {
     auto item_size = block.size_bytes() / block.size();
-    prefetch_cnt_per_thread_ = kPrefetchBytesPerThread / item_size;
+    prefetch_cnt_per_thread_ =
+        std::max(1UL, kPrefetchBytesPerThread / item_size);
   }
 }
 
