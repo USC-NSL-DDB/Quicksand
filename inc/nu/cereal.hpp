@@ -102,6 +102,8 @@ struct SizeArchive {
   uint64_t size = 0;
 };
 
+uint64_t get_size(const auto &t);
+
 namespace traits {
 
 template <class T>

@@ -5,16 +5,6 @@
 
 #include "nu/utils/thread.hpp"
 
-namespace {
-
-inline uint64_t get_size(const auto &t) {
-  cereal::SizeArchive size_ar;
-  size_ar(t);
-  return size_ar.size;
-}
-
-}  // namespace
-
 namespace nu {
 
 template <class Container, class LL>
@@ -155,13 +145,14 @@ ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::update_max_num_data_entries(
     KeyToShardsMapping::iterator iter) {
-  max_num_data_entries_ =
-      kBatchingMaxBatchBytes / get_size(iter->second.insert_reqs.back());
+  max_num_data_entries_ = kBatchingMaxBatchBytes /
+                          cereal::get_size(iter->second.insert_reqs.back());
 }
 
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::update_max_num_vals() {
-  max_num_vals_ = kBatchingMaxBatchBytes / get_size(push_back_reqs_.back());
+  max_num_vals_ =
+      kBatchingMaxBatchBytes / cereal::get_size(push_back_reqs_.back());
 }
 
 template <class Container, class LL>
