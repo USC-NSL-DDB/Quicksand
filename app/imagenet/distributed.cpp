@@ -1,14 +1,15 @@
-#include <filesystem>
-#include <string>
-#include <iostream>
-#include <fstream>
 #include <chrono>
-#include <thread>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <iterator>
+#include <string>
+#include <thread>
 
 #include "image_kernel.hpp"
-
+#include "nu/pressure_handler.hpp"
 #include "nu/runtime.hpp"
+#include "nu/sealed_ds.hpp"
 #include "nu/sharded_vector.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
@@ -17,8 +18,27 @@ using sealed_shard_type = nu::SealedDS<shard_type>;
 using namespace std::chrono;
 using namespace imagenet;
 
-void load(std::string path, shard_type &imgs)
-{
+class Worker {
+ public:
+  Worker(shard_type imgs) : imgs_(std::move(imgs)) {}
+
+  void run() {
+    auto sealed_imgs = nu::to_sealed_ds(std::move(imgs_));
+    for (const auto &img : sealed_imgs) {
+      kernel(img);
+      {
+        rt::Preempt p;
+        rt::PreemptGuard g(&p);
+        nu::get_runtime()->pressure_handler()->mock_set_pressure();
+      }
+    }
+  }
+
+ private:
+  shard_type imgs_;
+};
+
+void load(std::string path, shard_type &imgs) {
   int i = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
@@ -41,15 +61,17 @@ void do_work() {
   auto duration = duration_cast<milliseconds>(end - start);
   std::cout << "Image loading takes " << duration.count() << "ms" << std::endl;
 
+  auto worker =
+      nu::make_proclet<Worker>(std::tuple(std::move(imgs)));
   start = high_resolution_clock::now();
-  imgs.for_all(+[](const std::size_t &idx, Image &val) { kernel(val); });
+  worker.run(&Worker::run);
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
-  std::cout << "Image pre-processing takes " << duration.count() << "ms" << std::endl;
+  std::cout << "Image pre-processing takes " << duration.count() << "ms"
+            << std::endl;
   cv::cleanup();
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv, [](int, char **) { do_work(); });
 }

@@ -15,7 +15,7 @@ override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offse
                      -DNCORES=$(NCORES) -DSLAB_TRANSFER_CACHE \
                      -Wno-deprecated-enum-enum-conversion
 override LDFLAGS += -lcrypto -lpthread -lboost_program_options -lnuma \
-                    -L$(OPENCV_PATH)/lib -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
+                    -L$(OPENCV_PATH)/lib -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -ldl
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
 lib_nu = $(NU_PATH)/libnu.a
