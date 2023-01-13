@@ -87,7 +87,7 @@ class DistributedExecutor {
   void adjust_queue_workers(std::size_t target, TR task_range, S1s &... states);
   void make_initial_dispatch(RetT (*fn)(TR &, States...), TR task_range);
   void check_workers();
-  uint64_t check_queue_workers();
+  float check_queue_workers();
   bool check_futures_and_redispatch();
   Result concat_results();
 };

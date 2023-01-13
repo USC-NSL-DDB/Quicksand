@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <ranges>
 
 namespace nu {
@@ -269,24 +270,24 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-uint64_t DistributedExecutor<RetT, TR, States...>::check_queue_workers() {
+float DistributedExecutor<RetT, TR, States...>::check_queue_workers() {
   victims_ = decltype(victims_)();
   auto processed_sizes = workers_ | std::views::transform([](auto &worker) {
                            return worker.cp.run_async(
                                &ComputeProclet<TR, States...>::processed_size);
                          });
-  auto total_tp_ms = 0;
+  float total_tp_ms = 0;
   auto time_now = Time::microtime();
   for (auto t : std::views::zip(workers_, processed_sizes)) {
     auto &worker = std::get<0>(t);
     auto size = std::get<1>(t).get();
     worker.processed_size = size;
 
-    auto tp_ms = size / (time_now - worker.spawned_time);
+    float tp_ms = static_cast<float>(1000 * size) /
+                  static_cast<float>(time_now - worker.spawned_time);
     total_tp_ms += tp_ms;
   }
-
-  auto avg_tp_ms = total_tp_ms / workers_.size();
+  float avg_tp_ms = total_tp_ms / workers_.size();
   return avg_tp_ms;
 }
 
