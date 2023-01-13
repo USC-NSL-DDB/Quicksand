@@ -12,8 +12,7 @@ INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -
        -I$(OPENCV_PATH)/include/opencv4
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offsetof \
-                     -DNCORES=$(NCORES) -DSLAB_TRANSFER_CACHE \
-                     -Wno-deprecated-enum-enum-conversion
+                     -Wno-deprecated-enum-enum-conversion -DNCORES=$(NCORES)
 override LDFLAGS += -lcrypto -lpthread -lboost_program_options -lnuma \
                     -L$(OPENCV_PATH)/lib -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -ldl
 

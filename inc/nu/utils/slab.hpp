@@ -14,18 +14,11 @@
 
 namespace nu {
 
-#ifdef SLAB_TRANSFER_CACHE
 struct PtrHeader {
   uint64_t size : 56;
   uint64_t core_id : 8;
   SlabId_t slab_id;
 };
-#else
-struct PtrHeader {
-  uint64_t size;
-  SlabId_t slab_id;
-};
-#endif
 
 // It's the constraint placed by GCC for enabling vectorization optimizations.
 constexpr static uint32_t kAlignment = 16;
@@ -39,24 +32,23 @@ class SlabAllocator {
   constexpr static uint64_t kCacheSizeCutoff = 1024;
   static_assert((1 << kMinSlabClassShift) % kAlignment == 0);
 
-  SlabAllocator() noexcept;
+  SlabAllocator();
   SlabAllocator(SlabId_t slab_id, void *buf, size_t len,
-                bool aggressive_caching = false) noexcept;
-  ~SlabAllocator() noexcept;
+                bool aggressive_caching = false);
+  ~SlabAllocator();
   void init(SlabId_t slab_id, void *buf, size_t len,
-            bool aggressive_caching = false) noexcept;
-  void *allocate(size_t size) noexcept;
-  void *yield(size_t size) noexcept;
-  void *get_base() const noexcept;
-  size_t get_cur_usage() const noexcept;
-  size_t get_usage() const noexcept;
-  size_t get_remaining() const noexcept;
-  SlabId_t get_id() noexcept;
-  static SlabAllocator *get_slab_by_id() noexcept;
-  static void free(const void *ptr) noexcept;
-  static void register_slab_by_id(SlabAllocator *slab,
-                                  SlabId_t slab_id) noexcept;
-  static void deregister_slab_by_id(SlabId_t slab_id) noexcept;
+            bool aggressive_caching = false);
+  void *allocate(size_t size);
+  void *yield(size_t size);
+  void *get_base() const;
+  size_t get_cur_usage() const;
+  size_t get_usage() const;
+  size_t get_remaining() const;
+  SlabId_t get_id();
+  static SlabAllocator *get_slab_by_id();
+  static void free(const void *ptr);
+  static void register_slab_by_id(SlabAllocator *slab, SlabId_t slab_id);
+  static void deregister_slab_by_id(SlabId_t slab_id);
 
  private:
   class FreePtrsLinkedList {
@@ -94,19 +86,20 @@ class SlabAllocator {
   FreePtrsLinkedList slab_lists_[kMaxSlabClassShift];
   uint64_t global_free_bytes_;
   CoreCache cache_lists_[kNumCores];
-#ifdef SLAB_TRANSFER_CACHE
   TransferredCoreCache transferred_caches_[kNumCores];
-#endif
   SpinLock spin_;
 
-  void *__allocate(size_t size) noexcept;
-  static void __free(const void *ptr) noexcept;
-  void __do_free(const Caladan::PreemptGuard &g, void *ptr,
-                 uint32_t slab_shift) noexcept;
-  uint32_t get_slab_shift(uint64_t data_size) noexcept;
-  uint64_t get_slab_size(uint32_t slab_shift) noexcept;
+  uint32_t get_slab_shift(uint64_t data_size);
+  uint64_t get_slab_size(uint32_t slab_shift);
+  void *__allocate(size_t size);
+  static void __free(const void *ptr);
+  void __do_free(const Caladan::PreemptGuard &g, PtrHeader *ptr,
+                 uint32_t slab_shift);
+  void free_to_cache_list(const Caladan::PreemptGuard &g, PtrHeader *hdr,
+                          uint32_t slab_shift);
+  void free_to_transferred_cache_list(PtrHeader *hdr, uint32_t slab_shift);
   void drain_transferred_cache(const Caladan::PreemptGuard &g,
-                               uint32_t slab_shift) noexcept;
+                               uint32_t slab_shift);
 };
 }  // namespace nu
 
