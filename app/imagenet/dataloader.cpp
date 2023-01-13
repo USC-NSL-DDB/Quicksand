@@ -13,6 +13,47 @@ using directory_iterator = std::filesystem::recursive_directory_iterator;
 using namespace std::chrono;
 using namespace imagenet;
 
+DataLoader::DataLoader(std::string path, int batch_size) {
+  batch_size_ = batch_size;
+  progress_ = 0;
+  imgs_ = nu::make_sharded_vector<Image, std::false_type>();
+
+  int i = 0;
+  for (const auto &file_ : directory_iterator(path)) {
+    if (file_.is_regular_file()) {
+      const auto fname = file_.path().string();
+      Image image(fname);
+      imgs_.push_back(image);
+      i++;
+    }
+  }
+  std::cout << "DataLoader: " << i << " images loaded" << std::endl;
+}
+
+void DataLoader::process_all() {
+  auto sealed_imgs = nu::to_sealed_ds(std::move(imgs_));
+  auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
+
+  auto dis_exec = nu::make_distributed_executor(
+      +[](decltype(imgs_range) &imgs_range) {
+        while (!imgs_range.empty()) {
+          auto img = imgs_range.pop();
+          kernel(img);
+        }
+      },
+      imgs_range);
+  dis_exec.get();
+
+  imgs_ = nu::to_unsealed_ds(std::move(sealed_imgs));
+  // shardedVector.size() self blocks
+  // progress_ = imgs_.size();
+  cv::cleanup();
+}
+
+Batch DataLoader::next() {
+  return Batch();
+}
+
 BaselineDataLoader::BaselineDataLoader(std::string path, int batch_size, int nthreads) {
   batch_size_ = batch_size;
   nthreads_ = nthreads;

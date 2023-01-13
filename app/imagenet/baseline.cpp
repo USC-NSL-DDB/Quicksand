@@ -10,19 +10,20 @@ using namespace imagenet;
 
 std::string datapath = "/opt/kaiyan/imagenet/train_t3";
 constexpr auto kNumThreads = 1000;
+constexpr auto batch_size = 1;
 
 void do_work() {
   auto start = high_resolution_clock::now();
-  auto dataloader = BaselineDataLoader(datapath, 1, kNumThreads);
+  auto dataloader = BaselineDataLoader(datapath, batch_size, kNumThreads);
   auto end = high_resolution_clock::now();
   auto duration = duration_cast<milliseconds>(end - start);
-  std::cout << "Image loading takes " << duration.count() << "ms" << std::endl;
+  std::cout << "BaselineDataLoader: Image loading takes " << duration.count() << "ms" << std::endl;
 
   start = high_resolution_clock::now();
   dataloader.process_all();
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
-  std::cout << "Image pre-processing takes " << duration.count() << "ms"
+  std::cout << "BaselineDataLoader: Image pre-processing takes " << duration.count() << "ms"
             << std::endl;
 }
 
