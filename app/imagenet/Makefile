@@ -24,8 +24,10 @@ src = $(lib_src)
 obj = $(src:.cpp=.o)
 dep = $(obj:.o=.d)
 
-image_kernel_src = image_kernel.cpp
-image_kernel_obj = $(image_kernel_src:.cpp=.o)
+image_src = image.cpp
+image_obj = $(image_src:.cpp=.o)
+dataloader_src = dataloader_src.cpp
+dataloader_obj = $(dataloader_src:.cpp=.o)
 baseline_src = baseline.cpp
 baseline_obj = $(baseline_src:.cpp=.o)
 distributed_src = distributed.cpp
@@ -38,11 +40,11 @@ all: baseline distributed
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-baseline: $(baseline_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_kernel_obj)
-	$(LDXX) -o $@ $(baseline_obj) $(image_kernel_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+baseline: $(baseline_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_obj) $(dataloader_obj)
+	$(LDXX) -o $@ $(baseline_obj) $(image_obj) $(dataloader_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
-distributed: $(distributed_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_kernel_obj)
-	$(LDXX) -o $@ $(distributed_obj) $(image_kernel_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+distributed: $(distributed_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_obj) $(dataloader_obj)
+	$(LDXX) -o $@ $(distributed_obj) $(image_obj) $(dataloader_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)
@@ -50,4 +52,4 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) baseline baseline.o distributed distributed.o image_kernel.o
+	rm -f $(dep) baseline baseline.o distributed distributed.o image.o dataloader.o

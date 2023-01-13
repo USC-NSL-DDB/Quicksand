@@ -1,67 +1,36 @@
-#include <filesystem>
-#include <opencv2/opencv.hpp>
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <chrono>
-#include <thread>
-#include <iterator>
-
-#include "image_kernel.hpp"
-
-using directory_iterator = std::filesystem::recursive_directory_iterator;
-using namespace std::chrono;
-using namespace imagenet;
+#include "dataloader.hpp"
 
 std::string datapath = "/opt/kaiyan/imagenet/train_t3";
+constexpr auto kNumThreads = 1000;
 
-std::vector<Image> imgs;
-
-void load(std::string path)
-{
-  int i = 0;
-  for (const auto &file_ : directory_iterator(path)) {
-    if (file_.is_regular_file()) {
-      const auto fname = file_.path().string();
-      Image image(fname);
-      imgs.push_back(image);
-      i++;
-    }
-  }
-  std::cout << i << " images loaded" << std::endl;
-}
-
-void process(int thread_id, int thread_cnt)
-{
-  for (size_t i = thread_id; i < imgs.size(); i += thread_cnt) {
-    kernel(imgs[i]);
-  }
-}
-
-int main(int argc, char **argv)
-{
+void do_work() {
   auto start = high_resolution_clock::now();
-  load(datapath);
+  auto dataloader = BaselineDataLoader(datapath, 1, kNumThreads);
   auto end = high_resolution_clock::now();
   auto duration = duration_cast<milliseconds>(end - start);
   std::cout << "Image loading takes " << duration.count() << "ms" << std::endl;
 
-  int thread_cnt = 4;
-  std::vector<std::thread> threads;
-
   start = high_resolution_clock::now();
-
-  for (int i = 0; i < thread_cnt; i++) {
-    threads.push_back(std::thread(process, i, thread_cnt));
-  }
-
-  for (auto &thread : threads) {
-    thread.join();
-  }
-
+  dataloader.process_all();
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
-  std::cout << "Image pre-processing takes " << duration.count() << "ms" << std::endl;
+  std::cout << "Image pre-processing takes " << duration.count() << "ms"
+            << std::endl;
+}
+
+int main(int argc, char **argv) {
+  int ret;
+
+  if (argc < 2) {
+    std::cerr << "usage: [cfg_file]" << std::endl;
+    return -EINVAL;
+  }
+
+  ret = rt::RuntimeInit(argv[1], [] { do_work(); });
+  if (ret) {
+    std::cerr << "failed to start runtime" << std::endl;
+    return ret;
+  }
 
   return 0;
 }
