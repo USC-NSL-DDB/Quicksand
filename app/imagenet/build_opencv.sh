@@ -9,6 +9,8 @@ rm -rf install
 mkdir install
 
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_opencv_tracking=OFF -DCMAKE_INSTALL_PREFIX=../install ..
+cmake -DCMAKE_BUILD_TYPE=Release -DWITH_IPP=OFF -DWITH_TBB=OFF \
+      -DWITH_OPENMP=OFF -DWITH_PTHREADS_PF=OFF -DCV_TRACE=OFF \
+      -DCMAKE_INSTALL_PREFIX=../install ..
 cmake --build . --target install -j
 
