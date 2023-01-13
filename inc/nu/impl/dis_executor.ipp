@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <ranges>
 
 namespace nu {
@@ -230,6 +231,14 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
   target = std::max(target, static_cast<std::size_t>(1));
 
   if (target < workers_.size()) {
+    auto futures = std::vector<nu::Future<void>>{};
+    for (std::size_t i = target; i < workers_.size(); i++) {
+      futures.push_back(std::move(
+          workers_[i].cp.run_async(&ComputeProclet<TR, States...>::abort)));
+    }
+    for (auto &f : futures) {
+      f.get();
+    }
     workers_.resize(target);
   } else if (target > workers_.size()) {
     std::vector<std::pair<NodeIP, Resource>> global_free_resources;
@@ -261,24 +270,24 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-uint64_t DistributedExecutor<RetT, TR, States...>::check_queue_workers() {
+float DistributedExecutor<RetT, TR, States...>::check_queue_workers() {
   victims_ = decltype(victims_)();
   auto processed_sizes = workers_ | std::views::transform([](auto &worker) {
                            return worker.cp.run_async(
                                &ComputeProclet<TR, States...>::processed_size);
                          });
-  auto total_tp_ms = 0;
+  float total_tp_ms = 0;
   auto time_now = Time::microtime();
   for (auto t : std::views::zip(workers_, processed_sizes)) {
     auto &worker = std::get<0>(t);
     auto size = std::get<1>(t).get();
     worker.processed_size = size;
 
-    auto tp_ms = size / (time_now - worker.spawned_time);
+    float tp_ms = static_cast<float>(1000 * size) /
+                  static_cast<float>(time_now - worker.spawned_time);
     total_tp_ms += tp_ms;
   }
-
-  auto avg_tp_ms = total_tp_ms / workers_.size();
+  float avg_tp_ms = total_tp_ms / workers_.size();
   return avg_tp_ms;
 }
 
@@ -291,7 +300,6 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   fn_ = fn;
   using TaskRangeImpl = typename TR::Implementation;
   constexpr bool kIsProducer = TaskRangeImpl::Writeable::value;
-  constexpr float kImbalanceThreshold = 1.2;
   constexpr double kEWMAWeight = 0.2;
 
   uint64_t last_check_queue_us = Time::microtime();
@@ -300,6 +308,10 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   float prev_queue_len = 0;
 
   spawn_initial_queue_workers(task_range, states...);
+
+  // TODO: dynamically tune these bounds
+  std::size_t queue_len_target_min = 10;
+  std::size_t queue_len_target_max = 100;
 
   while (true) {
     auto now_us = Time::microtime();
@@ -310,38 +322,38 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
       float curr_len = static_cast<float>(task_range.impl().queue_length());
       ewma(kEWMAWeight, &queue_len, curr_len);
 
-      if (now_us - last_add_worker_us >= kAddWorkersIntervalUs) {
+      if (now_us - last_add_worker_us >= kAddQueueWorkersIntervalUs) {
         last_add_worker_us = now_us;
 
         float scale_factor = queue_len / prev_queue_len;
         if constexpr (kIsProducer) {
-          if (queue_len > prev_queue_len * kImbalanceThreshold) {
+          if (queue_len > queue_len_target_max && queue_len > prev_queue_len) {
             auto num_workers =
                 std::min(static_cast<float>(workers_.size()) / scale_factor,
                          static_cast<float>(workers_.size() - 1));
             adjust_queue_workers(num_workers, task_range, states...);
-          } else if (queue_len < prev_queue_len / kImbalanceThreshold) {
+          } else if (prev_queue_len > queue_len_target_max &&
+                     queue_len < prev_queue_len) {
             auto num_workers =
                 std::max(static_cast<float>(workers_.size()) * scale_factor,
                          static_cast<float>(workers_.size() + 1));
             adjust_queue_workers(num_workers, task_range, states...);
-          } else if (queue_len < 1) {
+          } else if (queue_len < queue_len_target_min) {
             adjust_queue_workers(workers_.size() + 1, task_range, states...);
           }
         } else {
-          if (queue_len > 1) {
-            if (queue_len > prev_queue_len * kImbalanceThreshold) {
-              auto num_workers =
-                  std::max(static_cast<float>(workers_.size()) * scale_factor,
-                           static_cast<float>(workers_.size() + 1));
-              adjust_queue_workers(num_workers, task_range, states...);
-            } else if (queue_len < prev_queue_len / kImbalanceThreshold) {
-              auto num_workers =
-                  std::min(static_cast<float>(workers_.size()) / scale_factor,
-                           static_cast<float>(workers_.size() - 1));
-              adjust_queue_workers(num_workers, task_range, states...);
-            }
-          } else {
+          if (queue_len > queue_len_target_max && queue_len > prev_queue_len) {
+            auto num_workers =
+                std::max(static_cast<float>(workers_.size()) * scale_factor,
+                         static_cast<float>(workers_.size() + 1));
+            adjust_queue_workers(num_workers, task_range, states...);
+          } else if (prev_queue_len > queue_len_target_max &&
+                     queue_len < prev_queue_len) {
+            auto num_workers =
+                std::min(static_cast<float>(workers_.size()) / scale_factor,
+                         static_cast<float>(workers_.size() - 1));
+            adjust_queue_workers(num_workers, task_range, states...);
+          } else if (queue_len < queue_len_target_min) {
             adjust_queue_workers(workers_.size() - 1, task_range, states...);
           }
         }

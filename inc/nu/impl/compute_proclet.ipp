@@ -65,6 +65,12 @@ inline TR ComputeProclet<TR, States...>::steal_tasks() {
 }
 
 template <class TR, typename... States>
+void ComputeProclet<TR, States...>::abort() {
+  ScopedLock g(&mutex_);
+  task_range_.clear();
+}
+
+template <class TR, typename... States>
 inline std::size_t ComputeProclet<TR, States...>::remaining_size() {
   ScopedLock g(&mutex_);
   return task_range_.size();

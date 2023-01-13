@@ -8,7 +8,7 @@ NCORES = $(shell nproc)
 
 INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/
 
-override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -DNCORES=$(NCORES) -DSLAB_TRANSFER_CACHE
+override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -DNCORES=$(NCORES)
 override LDFLAGS += -L$(NU_PATH)/glibc/build/install/lib
 override LDFLAGS += -lcrypto -lpthread -lboost_program_options -lnuma
 

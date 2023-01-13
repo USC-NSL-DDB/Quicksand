@@ -80,16 +80,16 @@ concept DeepCopyAble = requires(T t) {
 };
 
 template <class T>
-consteval bool is_move_safe();
+consteval bool is_safe_to_move();
 
 template <typename T>
-auto &&move_if_safe(T &&t) requires(is_move_safe<T &&>());
+T &&pass_across_proclet(T &&t) requires(is_safe_to_move<T &&>());
 
 template <typename T>
-auto move_if_safe(T &&t) requires DeepCopyAble<T>;
+std::decay_t<T> pass_across_proclet(T &&t) requires DeepCopyAble<T>;
 
 template <typename T>
-auto &move_if_safe(T &&t);
+std::decay_t<T> pass_across_proclet(T &&t);
 
 }  // namespace nu
 

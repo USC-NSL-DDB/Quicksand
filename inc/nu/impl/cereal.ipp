@@ -103,12 +103,14 @@ void SizeArchive::operator()(T &&t) {
     size += t.size;
   } else if constexpr (nu::is_specialization_of_v<D, cereal::NameValuePair>) {
     this->operator()(t.value);
-  } else if constexpr (std::is_trivially_copyable_v<D>) {
+  } else if constexpr (nu::is_specialization_of_v<D, cereal::SizeTag>) {
     size += sizeof(D);
   } else if constexpr (HasBuiltinSerialize<SizeArchive, D>) {
     t.serialize(*this);
   } else if constexpr (HasBuiltinSave<SizeArchive, D>) {
     t.save(*this);
+  } else if constexpr (is_memcpy_safe<D>()) {
+    size += sizeof(D);
   } else {
     cereal::save(*this, std::forward<T>(t));
   }
@@ -117,6 +119,12 @@ void SizeArchive::operator()(T &&t) {
 template <typename... Ts>
 void SizeArchive::operator()(Ts &&... ts) requires(sizeof...(Ts) > 1) {
   ((this->operator()(ts)), ...);
+}
+
+inline uint64_t get_size(const auto &t) {
+  SizeArchive size_ar;
+  size_ar(t);
+  return size_ar.size;
 }
 
 }  // namespace cereal

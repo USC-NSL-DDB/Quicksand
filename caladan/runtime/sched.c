@@ -256,7 +256,7 @@ void pause_local_migrating_threads(void)
 
 	if (has_pending_pause_req(l)) {
 		spin_lock(&l->lock);
-		__pause_migrating_threads_locked(l);
+		pause_local_migrating_threads_locked();
 		spin_unlock(&l->lock);
 	}
 	putk();
@@ -319,7 +319,7 @@ void prioritize_local_rcu_readers(void)
 
 	if (has_pending_prioritize_req(l)) {
 		spin_lock(&l->lock);
-		__prioritize_rcu_readers_locked(l);
+		prioritize_local_rcu_readers_locked();
 		spin_unlock(&l->lock);
 	}
 	putk();
@@ -340,9 +340,7 @@ static void pop_deprioritized_threads_locked(struct kthread *k)
 static inline bool can_handle_pause_req(struct kthread *k) {
 	thread_t *th = k->curr_th;
 
-	if (th && th->nu_state.owner_proclet == pause_req_owner_proclet)
-		return false;
-	return true;
+	return !th || th->nu_state.owner_proclet != pause_req_owner_proclet;
 }
 
 static bool handle_pending_pause_req(struct kthread *k)
@@ -427,6 +425,8 @@ void shed_work(void)
 			spin_unlock(&r->lock);
 			continue;
 		}
+		prioritize_local_rcu_readers_locked();
+		pause_local_migrating_threads_locked();
 
 		num = MIN(l->rq_head - l->rq_tail,
 			  RUNTIME_RQ_SIZE - (r->rq_head - r->rq_tail));
@@ -1574,14 +1574,14 @@ void prealloc_threads_and_stacks(uint32_t num_mags)
 
 void unblock_spin(void)
 {
-	/* shed work to other threads */
-	shed_work();
-
 	/* unblock ongoing prioritization */
 	prioritize_local_rcu_readers();
 
 	/* unblock ongoing migration */
 	pause_local_migrating_threads();
+
+	/* shed work to other threads */
+	shed_work();
 
 	/* respond to arp reqs */
 	iokernel_softirq_poll(getk());

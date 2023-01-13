@@ -3359,7 +3359,6 @@ CV_EXPORTS void destroyCodecs();
 CV_INLINE void cleanup()
 {
     destroyCodecs();
-    destroyTraceManager();
 }
 
 } //namespace cv

@@ -1,15 +1,19 @@
-#include <filesystem>
-#include <string>
-#include <iostream>
-#include <fstream>
 #include <chrono>
-#include <thread>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <iterator>
+#include <string>
+#include <thread>
+
+#include <nu/pressure_handler.hpp>
+#include <nu/runtime.hpp>
+#include <nu/sealed_ds.hpp>
+#include <nu/sharded_vector.hpp>
+#include <nu/sharded_vector.hpp>
+#include <nu/dis_executor.hpp>
 
 #include "image_kernel.hpp"
-
-#include "nu/runtime.hpp"
-#include "nu/sharded_vector.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
 using shard_type = nu::ShardedVector<imagenet::Image, std::false_type>;
@@ -17,8 +21,7 @@ using sealed_shard_type = nu::SealedDS<shard_type>;
 using namespace std::chrono;
 using namespace imagenet;
 
-void load(std::string path, shard_type &imgs)
-{
+void load(std::string path, shard_type &imgs) {
   int i = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
@@ -41,15 +44,26 @@ void do_work() {
   auto duration = duration_cast<milliseconds>(end - start);
   std::cout << "Image loading takes " << duration.count() << "ms" << std::endl;
 
+  auto sealed_imgs = nu::to_sealed_ds(std::move(imgs));
+  auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
+
   start = high_resolution_clock::now();
-  imgs.for_all(+[](const std::size_t &idx, Image &val) { kernel(val); });
+  auto dis_exec = nu::make_distributed_executor(
+      +[](decltype(imgs_range) &imgs_range) {
+        while (!imgs_range.empty()) {
+          auto img = imgs_range.pop();
+          kernel(img);
+        }
+      },
+      imgs_range);
+  dis_exec.get();
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
-  std::cout << "Image pre-processing takes " << duration.count() << "ms" << std::endl;
+  std::cout << "Image pre-processing takes " << duration.count() << "ms"
+            << std::endl;
   cv::cleanup();
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv, [](int, char **) { do_work(); });
 }

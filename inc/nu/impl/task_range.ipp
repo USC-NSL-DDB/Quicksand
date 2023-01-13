@@ -11,6 +11,7 @@ template <class Impl>
 TaskRange<Impl> &TaskRange<Impl>::operator=(const TaskRange &o) {
   impl_ = o.impl_;
   size_ = o.size_;
+  cleared_ = o.cleared_;
   BUG_ON(pending_steal_ || o.pending_steal_);
   return *this;
 }
@@ -24,6 +25,7 @@ template <class Impl>
 TaskRange<Impl> &TaskRange<Impl>::operator=(TaskRange &&o) noexcept {
   impl_ = std::move(o.impl_);
   size_ = o.size_;
+  cleared_ = o.cleared_;
   BUG_ON(pending_steal_ || o.pending_steal_);
   return *this;
 }
@@ -38,6 +40,7 @@ TaskRange<Impl> TaskRange<Impl>::deep_copy() {
     tr.impl_ = impl_;
   }
   tr.size_ = size_;
+  tr.cleared_ = cleared_;
   BUG_ON(pending_steal_);
 
   return tr;
@@ -62,6 +65,12 @@ Impl::Task TaskRange<Impl>::pop() {
   size_--;
   processed_size_++;
   return ret;
+}
+
+template <class Impl>
+void TaskRange<Impl>::clear() {
+  cleared_ = true;
+  barrier();
 }
 
 template <class Impl>

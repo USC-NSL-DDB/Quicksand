@@ -1141,11 +1141,4 @@ void traceArg(const TraceArg&, double) {};
 
 }}}
 
-CV_EXPORTS void destroyTraceManager()
-{
-    using namespace utils::trace::details;
-
-    getTraceManager().~TraceManager();
-}
-
 } // namespace

@@ -95,6 +95,8 @@ class GeneralSealedDSConstIterator {
     ConstIterator cend() const;
     ContainerIter get_front_container_iter() const;
     ContainerIter get_back_container_iter() const;
+    uint64_t size() const;
+    uint64_t size_bytes() const;
     auto to_gid(ConstIterator iter) const;
     auto to_gid(ConstReverseIterator iter) const;
 
@@ -108,16 +110,14 @@ class GeneralSealedDSConstIterator {
   struct PrefetchReq {
     std::optional<ContainerIter> iter_update;
     bool next;
+    uint32_t cnt;
 
     template <class Archive>
     void serialize(Archive &ar);
   };
 
   constexpr static uint32_t kMaxNumInflightPrefetches = 8;
-  constexpr static uint32_t kPrefetchEntrySize =
-      kContiguous ? sizeof(IterVal) : sizeof(std::pair<IterVal, ContainerIter>);
-  constexpr static uint32_t kPrefetchSizePerThread =
-      (64 << 10) / kPrefetchEntrySize;
+  constexpr static uint32_t kPrefetchBytesPerThread = (64 << 10);
 
   std::shared_ptr<ShardsVec> shards_;
   ShardsVecIter shards_iter_;
@@ -130,6 +130,7 @@ class GeneralSealedDSConstIterator {
   boost::circular_buffer<std::variant<Future<Block>, Block>>
       prefetched_prev_blocks_;
   int32_t prefetch_seq_;
+  uint32_t prefetch_cnt_per_thread_;
 
   template <ShardedDataStructureBased U>
   friend class SealedDS;
@@ -150,10 +151,13 @@ class GeneralSealedDSConstIterator {
   Future<Block> submit_prefetch_req(PrefetchReq prefetch_req);
   void inc_slow_path();
   void dec_slow_path();
+  void update_prefetch_cnt(const Block &block);
   static Block::Prefetched prefetch_next_block(Shard *shard,
-                                               ContainerIter *container_iter);
+                                               ContainerIter *container_iter,
+                                               uint32_t cnt);
   static Block::Prefetched prefetch_prev_block(Shard *shard,
-                                               ContainerIter *container_iter);
+                                               ContainerIter *container_iter,
+                                               uint32_t cnt);
   static Block unwrap_block_variant(
       std::variant<Future<Block>, Block> *variant);
 };

@@ -28,6 +28,7 @@ class ComputeProclet {
   std::optional<compute_proclet_result<TR, RetT>> steal_and_compute(
       WeakProclet<ComputeProclet> victim, RetT (*fn)(TR &, States...));
   TR steal_tasks();
+  void abort();
   std::size_t remaining_size();
   std::size_t processed_size();
 
