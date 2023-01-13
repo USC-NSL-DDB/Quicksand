@@ -230,6 +230,14 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
   target = std::max(target, static_cast<std::size_t>(1));
 
   if (target < workers_.size()) {
+    auto futures = std::vector<nu::Future<void>>{};
+    for (std::size_t i = target; i < workers_.size(); i++) {
+      futures.push_back(std::move(
+          workers_[i].cp.run_async(&ComputeProclet<TR, States...>::abort)));
+    }
+    for (auto &f : futures) {
+      f.get();
+    }
     workers_.resize(target);
   } else if (target > workers_.size()) {
     std::vector<std::pair<NodeIP, Resource>> global_free_resources;
