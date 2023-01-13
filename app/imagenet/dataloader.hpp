@@ -3,7 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <fstream>
 
-#include "image_kernel.hpp"
+#include "image.hpp"
 
 namespace imagenet {
 
@@ -11,18 +11,18 @@ using Batch = std::vector<Image>;
 
 // class DataLoader {
 //  public:
-//   DataLoader(std::string path, size_t batch_size);
+//   DataLoader(std::string path, int batch_size);
 //   void process_all();
 //   Image next();
 
 //  private:
 //   std::vector<Image> imgs_;
-//   size_t batch_size_;
+//   int batch_size_;
 // };
 
 class BaselineDataLoader {
  public:
-  BaselineDataLoader(std::string path, size_t batch_size, size_t nthreads_);
+  BaselineDataLoader(std::string path, int batch_size, int nthreads_);
   void process_all();
   Batch next();
 
@@ -30,7 +30,7 @@ class BaselineDataLoader {
   void process(int tid);
 
   std::vector<Image> imgs_;
-  size_t batch_size_, nthreads_, progress_;
-}
+  int batch_size_, nthreads_, progress_;
+};
 
 }

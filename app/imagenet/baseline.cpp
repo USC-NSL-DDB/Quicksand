@@ -1,4 +1,12 @@
+#include <chrono>
+
+#include <thread.h>
+#include <runtime.h>
+
 #include "dataloader.hpp"
+
+using namespace std::chrono;
+using namespace imagenet;
 
 std::string datapath = "/opt/kaiyan/imagenet/train_t3";
 constexpr auto kNumThreads = 1000;

@@ -13,9 +13,10 @@ using directory_iterator = std::filesystem::recursive_directory_iterator;
 using namespace std::chrono;
 using namespace imagenet;
 
-BaselineDataLoader::BaselineDataLoader(std::path, size_t batch_size) {
+BaselineDataLoader::BaselineDataLoader(std::string path, int batch_size, int nthreads) {
   batch_size_ = batch_size;
-  progress_ = 0
+  nthreads_ = nthreads;
+  progress_ = 0;
 
   int i = 0;
   for (const auto &file_ : directory_iterator(path)) {
@@ -29,10 +30,10 @@ BaselineDataLoader::BaselineDataLoader(std::path, size_t batch_size) {
   std::cout << "BaselineDataLoader: " << i << " images loaded" << std::endl;
 }
 
-void BaselineDataLoader::process() {
-  auto num_imgs_per_thread = (imgs_.size() - 1) / kNumThreads + 1;
-  auto start_idx = num_imgs__per_thread * tid;
-  auto end_idx = std::min(imgs_.size(), start_idx + num_imgs__per_thread);
+void BaselineDataLoader::process(int tid) {
+  auto num_imgs_per_thread = (imgs_.size() - 1) / nthreads_ + 1;
+  auto start_idx = num_imgs_per_thread * tid;
+  auto end_idx = std::min(imgs_.size(), start_idx + num_imgs_per_thread);
 
   for (size_t i = start_idx; i < end_idx; i++) {
     kernel(imgs_[i]);
@@ -42,7 +43,7 @@ void BaselineDataLoader::process() {
 void BaselineDataLoader::process_all() {
   std::vector<rt::Thread> threads;
   for (int i = 0; i < nthreads_; i++) {
-    threads.emplace_back([tid = i] { process(tid); });
+    threads.emplace_back([tid = i, this] { process(tid); });
   }
   for (auto &thread : threads) {
     thread.Join();
@@ -51,6 +52,6 @@ void BaselineDataLoader::process_all() {
   progress_ = imgs_.size();
 }
 
-Batch BaselineDataloader::next() {
+Batch BaselineDataLoader::next() {
   return Batch();
 }

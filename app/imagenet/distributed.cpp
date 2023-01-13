@@ -13,7 +13,7 @@
 #include <nu/sharded_vector.hpp>
 #include <nu/dis_executor.hpp>
 
-#include "image_kernel.hpp"
+#include "image.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
 using shard_type = nu::ShardedVector<imagenet::Image, std::false_type>;

@@ -25,7 +25,7 @@ dep = $(obj:.o=.d)
 
 image_src = image.cpp
 image_obj = $(image_src:.cpp=.o)
-dataloader_src = dataloader_src.cpp
+dataloader_src = dataloader.cpp
 dataloader_obj = $(dataloader_src:.cpp=.o)
 baseline_src = baseline.cpp
 baseline_obj = $(baseline_src:.cpp=.o)
