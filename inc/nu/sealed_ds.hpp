@@ -160,6 +160,7 @@ class GeneralSealedDSConstIterator {
                                                uint32_t cnt);
   static Block unwrap_block_variant(
       std::variant<Future<Block>, Block> *variant);
+  IterVal &&move_deref();
 };
 
 template <ShardedDataStructureBased T>

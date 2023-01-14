@@ -606,6 +606,17 @@ GeneralSealedDSConstIterator<Shard, Fwd>::operator->() const {
 }
 
 template <typename Shard, bool Fwd>
+[[gnu::always_inline]] inline GeneralSealedDSConstIterator<Shard, Fwd>::IterVal
+    &&
+    GeneralSealedDSConstIterator<Shard, Fwd>::move_deref() {
+  if constexpr (kContiguous) {
+    return std::move(const_cast<IterVal &>(*std::to_address(block_iter_)));
+  } else {
+    return std::move(const_cast<IterVal &>(block_iter_->first));
+  }
+}
+
+template <typename Shard, bool Fwd>
 template <class Archive>
 inline void GeneralSealedDSConstIterator<Shard, Fwd>::save(Archive &ar) const {
   int64_t shards_offset = shards_ ? shards_iter_ - shards_vec_begin() : -1;

@@ -30,7 +30,7 @@ inline ContiguousDSRangeImpl<Shard>::ContiguousDSRangeImpl(
 
 template <class Shard>
 inline Shard::IterVal ContiguousDSRangeImpl<Shard>::pop() {
-  auto ret = std::move(*cur_);
+  auto ret = cur_.move_deref();
   ++cur_;
   return ret;
 }
