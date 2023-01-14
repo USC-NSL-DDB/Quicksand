@@ -218,10 +218,29 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
     TR task_range, S1s &... states) {
-  auto worker = Worker(nu::make_proclet<ComputeProclet<TR, States...>>(
-      std::forward_as_tuple(states...)));
-  workers_.push_back(std::move(worker));
-  workers_.back().compute_async(fn_, std::move(task_range));
+  std::vector<std::pair<NodeIP, Resource>> global_free_resources;
+  {
+    Caladan::PreemptGuard g;
+    global_free_resources =
+        get_runtime()->resource_reporter()->get_global_free_resources();
+  }
+
+  std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
+  for (auto &[ip, resource] : global_free_resources) {
+    for (uint32_t i = 0; i < resource.cores / 2; i++) {
+      worker_futures.emplace_back(
+          nu::make_proclet_async<ComputeProclet<TR, States...>>(
+              std::forward_as_tuple(states...)));
+    }
+  }
+
+  std::ranges::transform(worker_futures, std::back_inserter(workers_),
+                         [](auto &worker_future) {
+                           return Worker(std::move(worker_future.get()));
+                         });
+  for (auto &w : workers_) {
+    w.compute_async(fn_, task_range);
+  }
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
