@@ -73,7 +73,7 @@ void bench_rate_match() {
   auto producers = nu::make_distributed_executor(
       +[](decltype(produce_rng) &rng, uint64_t t_scale_up,
           uint64_t t_scale_down) {
-        while (true) {
+        while (!rng.empty()) {
           auto inserter = rng.pop();
           inserter = 33;
 
@@ -89,7 +89,7 @@ void bench_rate_match() {
 
   auto consumers = nu::make_distributed_executor(
       +[](decltype(consume_rng) &rng) {
-        while (true) {
+        while (!rng.empty()) {
           rng.pop();
           compute_us<kNormalDelayUs>();
         }
