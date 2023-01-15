@@ -20,9 +20,9 @@
 /* the threshold of cpu pressure duration to trigger migration */
 #define IAS_PS_CPU_THRESH_US            500
 /* the interval to trigger PS subcontroller */
-#define IAS_PS_INTERVAL_US              100
+#define IAS_PS_INTERVAL_US              500
 /* the interval to trigger RP subcontroller */
-#define IAS_RP_INTERVAL_US              200
+#define IAS_RP_INTERVAL_US              250
 /* the time before the core-local cache is assumed to be evicted */
 #define IAS_LOC_EVICTED_US		100
 /* the debug info printing interval */
