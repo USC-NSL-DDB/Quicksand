@@ -81,7 +81,9 @@ struct ProcletHeader {
   SlabAllocator slab;
 
   uint64_t global_idx() const;
-  uint64_t size() const;
+  uint64_t total_mem_size() const;
+  uint64_t heap_size() const;
+  uint64_t stack_size() const;
   uint8_t &status();
   uint8_t status() const;
   SpinLock &migration_spin();

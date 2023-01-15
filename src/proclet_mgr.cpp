@@ -47,7 +47,7 @@ void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
   std::destroy_at(&proclet_header->slab);
 
   bool defer = !for_migration;
-  depopulate(proclet_base, proclet_header->size(), defer);
+  depopulate(proclet_base, proclet_header->heap_size(), defer);
 }
 
 void ProcletManager::depopulate(void *proclet_base, uint64_t size, bool defer) {

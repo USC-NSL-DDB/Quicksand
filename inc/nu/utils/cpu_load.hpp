@@ -24,6 +24,7 @@ class CPULoad {
   } cnts_[kNumCores];
   uint64_t last_decay_tsc_;
   float cpu_load_;
+  bool first_call_;
 
   void decay(uint64_t now_tsc);
 };

@@ -13,10 +13,17 @@ inline uint64_t ProcletHeader::global_idx() const {
          kMinProcletHeapSize;
 }
 
-inline uint64_t ProcletHeader::size() const {
-  auto size_in_bytes = reinterpret_cast<uint64_t>(slab.get_base()) +
-                       slab.get_usage() - reinterpret_cast<uint64_t>(this);
-  return size_in_bytes;
+inline uint64_t ProcletHeader::heap_size() const {
+  return reinterpret_cast<uint64_t>(slab.get_base()) + slab.get_usage() -
+         reinterpret_cast<uint64_t>(this);
+}
+
+inline uint64_t ProcletHeader::stack_size() const {
+  return thread_cnt.get() * kStackSize;
+}
+
+inline uint64_t ProcletHeader::total_mem_size() const {
+  return heap_size() + stack_size();
 }
 
 inline uint8_t &ProcletHeader::status() {

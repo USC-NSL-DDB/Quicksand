@@ -25,16 +25,13 @@ struct AuxHandlerState {
 
 struct Utility {
   Utility();
-  Utility(ProcletHeader *proclet_header, uint64_t size, uint64_t thread_cnt,
-          float cpu_load);
+  Utility(ProcletHeader *proclet_header, uint64_t mem_size, float cpu_load);
 
   constexpr static uint32_t kFixedCostUs = 25;
   constexpr static uint32_t kNetBwGbps = 100;
   ProcletHeader *header;
   float mem_pressure_util;
   float cpu_pressure_util;
-  uint64_t mem_size;
-  float cpu_load;
 };
 
 class PressureHandler {

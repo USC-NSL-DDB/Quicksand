@@ -9,6 +9,7 @@ inline CPULoad::CPULoad() {
   memset(cnts_, 0, sizeof(cnts_));
   last_decay_tsc_ = rdtsc();
   cpu_load_ = 0;
+  first_call_ = true;
 }
 
 inline void CPULoad::start_monitor() {
@@ -31,8 +32,11 @@ inline void CPULoad::flush_all() {
 
 inline float CPULoad::get_load() const {
   auto now_tsc = rdtsc();
-  if (unlikely(now_tsc >= last_decay_tsc_ + kDecayIntervalUs * cycles_per_us)) {
-    const_cast<CPULoad *>(this)->decay(now_tsc);
+  if (unlikely(first_call_ ||
+               now_tsc >= last_decay_tsc_ + kDecayIntervalUs * cycles_per_us)) {
+    auto *mut_this = const_cast<CPULoad *>(this);
+    mut_this->first_call_ = false;
+    mut_this->decay(now_tsc);
   }
 
   return cpu_load_;
