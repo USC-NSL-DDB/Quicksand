@@ -750,12 +750,16 @@ static inline void __update_monitor_cycles(uint64_t now_tsc)
 {
 	thread_t *curth = thread_self();
 	struct aligned_cycles *cycles;
+	uint64_t run_start_tsc;
 
 	if (curth->nu_state.monitor_cnt) {
 		cycles = get_aligned_cycles(curth->nu_state.owner_proclet);
 		if (cycles) {
-			cycles[read_cpu()].c += now_tsc - curth->run_start_tsc;
-			curth->run_start_tsc = now_tsc;
+			run_start_tsc = curth->run_start_tsc;
+			if (likely(now_tsc > run_start_tsc)) {
+				cycles[read_cpu()].c += now_tsc - run_start_tsc;
+				curth->run_start_tsc = now_tsc;
+			}
 		}
 	}
 }
@@ -1473,7 +1477,7 @@ void thread_flush_all_monitor_cycles(void)
 {
        int i;
        thread_t *th;
-       uint64_t curr_tsc = rdtsc();
+       uint64_t curr_tsc = rdtsc(), run_start_tsc;
        struct aligned_cycles *cycles;
 
        for (i = 0; i < maxks; i++) {
@@ -1481,8 +1485,11 @@ void thread_flush_all_monitor_cycles(void)
 	      if (th && th->nu_state.monitor_cnt) {
                      cycles = get_aligned_cycles(th->nu_state.owner_proclet);
                      if (cycles) {
-                            cycles[i].c += curr_tsc - th->run_start_tsc;
-                            th->run_start_tsc = curr_tsc;
+                            run_start_tsc = th->run_start_tsc;
+                            if (likely(curr_tsc > run_start_tsc)) {
+                                   cycles[i].c += curr_tsc - run_start_tsc;
+                                   th->run_start_tsc = curr_tsc;
+                            }
                      }
 	      }
        }
