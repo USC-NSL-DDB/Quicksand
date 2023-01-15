@@ -75,8 +75,8 @@ class PerfAcquireMigrationDestAdapter : public PerfAdapter {
 
   bool serve_req(PerfThreadState *state, const PerfRequest *req) {
     Resource resource{0, 0};
-    auto ip = client_->acquire_migration_dest(resource);
-    BUG_ON(!ip);
+    auto [dest_guard, _] = client_->acquire_migration_dest(resource);
+    BUG_ON(!dest_guard);
     return true;
   }
 
