@@ -83,7 +83,8 @@ NodeIP ControllerClient::resolve_proclet(ProcletID id) {
   return resp.ip;
 }
 
-NodeGuard ControllerClient::acquire_migration_dest(Resource resource) {
+std::pair<NodeGuard, Resource> ControllerClient::acquire_migration_dest(
+    Resource resource) {
   rt::SpinGuard g(&spin_);
 
   RPCReqAcquireMigrationDest req;
@@ -96,7 +97,11 @@ NodeGuard ControllerClient::acquire_migration_dest(Resource resource) {
   RPCRespAcquireMigrationDest resp;
   BUG_ON(tcp_conn_->ReadFull(&resp, sizeof(resp), /* nt = */ false,
                              /* poll = */ true) != sizeof(resp));
-  return NodeGuard(this, resp.ip);
+  auto ip = resp.ip;
+  resource = resp.resource;
+  return std::pair<NodeGuard, Resource>(std::piecewise_construct,
+                                        std::make_tuple(this, ip),
+                                        std::make_tuple(resource));
 }
 
 NodeGuard ControllerClient::acquire_node() {

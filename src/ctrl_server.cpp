@@ -199,7 +199,9 @@ RPCRespAcquireMigrationDest ControllerServer::handle_acquire_migration_dest(
   }
 
   RPCRespAcquireMigrationDest resp;
-  resp.ip = ctrl_.acquire_migration_dest(req.lpid, req.src_ip, req.resource);
+  auto pair = ctrl_.acquire_migration_dest(req.lpid, req.src_ip, req.resource);
+  resp.ip = pair.first;
+  resp.resource = pair.second;
   return resp;
 }
 

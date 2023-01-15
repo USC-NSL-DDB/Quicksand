@@ -24,6 +24,11 @@ class ControllerClient;
 
 class NodeGuard {
  public:
+  NodeGuard(ControllerClient *client, NodeIP ip);
+  NodeGuard(const NodeGuard &) = delete;
+  NodeGuard(NodeGuard &&) = delete;
+  NodeGuard &operator=(const NodeGuard &) = delete;
+  NodeGuard &operator=(NodeGuard &&) = delete;
   ~NodeGuard();
   operator bool() const;
   NodeIP get_ip() const;
@@ -31,9 +36,6 @@ class NodeGuard {
  private:
   ControllerClient *client_;
   NodeIP ip_;
-  friend class ControllerClient;
-
-  NodeGuard(ControllerClient *client, NodeIP ip);
 };
 
 class ControllerClient {
@@ -46,7 +48,7 @@ class ControllerClient {
   void destroy_proclet(VAddrRange heap_segment);
   NodeIP resolve_proclet(ProcletID id);
   NodeGuard acquire_node();
-  NodeGuard acquire_migration_dest(Resource resource);
+  std::pair<NodeGuard, Resource> acquire_migration_dest(Resource resource);
   void update_location(ProcletID id, NodeIP proclet_srv_ip);
   VAddrRange get_stack_cluster() const;
   std::vector<std::pair<NodeIP, Resource>> report_free_resource(

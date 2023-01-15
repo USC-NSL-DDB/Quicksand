@@ -7,8 +7,7 @@ inline bool NodeStatus::has_enough_resource(Resource resource) const {
     return false;
   }
 
-  if (!static_cast<int>(free_resource.cores) &&
-      static_cast<int>(resource.cores)) {
+  if (free_resource.cores < kMinNumCores) {
     return false;
   }
 

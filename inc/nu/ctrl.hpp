@@ -24,6 +24,7 @@ namespace nu {
 // This is a logical node instead of a physical node.
 struct NodeStatus {
   constexpr static float kEWMAWeight = 0.25;
+  constexpr static uint32_t kMinNumCores = 3;
 
   bool acquired;
   Resource free_resource;
@@ -65,8 +66,9 @@ class Controller {
       uint64_t capacity, lpid_t lpid, NodeIP ip_hint);
   void destroy_proclet(VAddrRange heap_segment);
   NodeIP resolve_proclet(ProcletID id);
-  NodeIP acquire_migration_dest(lpid_t lpid, NodeIP requestor_ip,
-                                Resource resource);
+  std::pair<NodeIP, Resource> acquire_migration_dest(lpid_t lpid,
+                                                     NodeIP requestor_ip,
+                                                     Resource resource);
   bool acquire_node(lpid_t lpid, NodeIP ip);
   void release_node(lpid_t lpid, NodeIP ip);
   void update_location(ProcletID id, NodeIP proclet_srv_ip);

@@ -73,6 +73,7 @@ struct RPCReqAcquireMigrationDest {
 
 struct RPCRespAcquireMigrationDest {
   NodeIP ip;
+  Resource resource;
 } __attribute__((packed));
 
 struct RPCReqAcquireNode {

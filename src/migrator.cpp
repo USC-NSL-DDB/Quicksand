@@ -524,13 +524,25 @@ uint32_t Migrator::migrate(Resource resource,
         static_cast<uint32_t>(ratio * resource.cores + 0.5);
     choosen_resource.mem_mbs =
         static_cast<uint32_t>(ratio * resource.mem_mbs + 0.5);
+
+    auto [dest_guard, dest_resource] =
+        get_runtime()->controller_client()->acquire_migration_dest(resource);
+    if (unlikely(!dest_guard)) {
+      break;
+    }
+
+    if (unlikely(dest_resource.cores < choosen_resource.cores)) {
+      num_choosen_proclets = static_cast<float>(dest_resource.cores) /
+                             choosen_resource.cores * num_choosen_proclets;
+    }
     choosen_tasks.clear();
     for (uint32_t i = 0; i < num_choosen_proclets; i++) {
       choosen_tasks.push_back(tasks[num_migrated_proclets + i]);
     }
-    auto delta = __migrate(choosen_resource, choosen_tasks);
+
+    auto delta = __migrate(dest_guard, choosen_tasks);
     num_migrated_proclets += delta;
-    if (delta < choosen_tasks.size()) {
+    if (unlikely(!delta)) {
       break;
     }
   }
@@ -576,16 +588,14 @@ static inline bool receive_approval(rt::TcpConn *c) {
   return approval;
 }
 
-uint32_t Migrator::__migrate(Resource resource,
+uint32_t Migrator::__migrate(const NodeGuard &dest_guard,
                              const std::vector<ProcletMigrationTask> &tasks) {
-  auto migration_dest =
-      get_runtime()->controller_client()->acquire_migration_dest(resource);
-  if (unlikely(!migration_dest)) {
+  if (unlikely(tasks.empty())) {
     return 0;
   }
 
-  auto migration_conn = migrator_conn_mgr_.get(migration_dest.get_ip());
-  auto *conn = migration_conn.get_tcp_conn();
+  auto conn_guard = migrator_conn_mgr_.get(dest_guard.get_ip());
+  auto *conn = conn_guard.get_tcp_conn();
   transmit_proclet_migration_tasks(conn, tasks);
 
   bool aux_handlers_enabled = false;
@@ -604,7 +614,7 @@ uint32_t Migrator::__migrate(Resource resource,
 
     if (unlikely(!aux_handlers_enabled)) {
       aux_handlers_enabled = true;
-      aux_handlers_enable_polling(migration_dest.get_ip());
+      aux_handlers_enable_polling(dest_guard.get_ip());
     }
 
     pause_migrating_threads(proclet_header);

@@ -251,13 +251,13 @@ NodeIP Controller::select_node_for_proclet(lpid_t lpid, NodeIP ip_hint,
   return rr_iter++->first;
 }
 
-NodeIP Controller::acquire_migration_dest(lpid_t lpid, NodeIP requestor_ip,
-                                          Resource resource) {
+std::pair<NodeIP, Resource> Controller::acquire_migration_dest(
+    lpid_t lpid, NodeIP requestor_ip, Resource resource) {
   ScopedLock lock(&mutex_);
 
   auto &[node_statuses, rr_iter, destroying] = lpid_to_info_[lpid];
   if (unlikely(destroying)) {
-    return 0;
+    return std::make_pair(0, Resource{});
   }
 
   auto initial_rr_iter = rr_iter;
@@ -272,13 +272,15 @@ again:
       !rr_iter->second.has_enough_resource(resource)) {
     rr_iter++;
     if (unlikely(rr_iter == initial_rr_iter)) {
-      return 0;
+      return std::make_pair(0, Resource{});
     }
     goto again;
   }
 
   rr_iter->second.acquired = true;
-  return rr_iter++->first;
+  auto pair = std::pair(rr_iter->first, rr_iter->second.free_resource);
+  rr_iter++;
+  return pair;
 }
 
 bool Controller::acquire_node(lpid_t lpid, NodeIP ip) {
