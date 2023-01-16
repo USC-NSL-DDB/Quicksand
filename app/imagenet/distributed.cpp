@@ -9,7 +9,7 @@ std::string datapath = "/opt/kaiyan/imagenet/train_t3";
 constexpr auto batch_size = 1;
 
 void do_work() {
-  auto imgs = nu::make_sharded_vector<Image, std::false_type>();
+  auto imgs = nu::make_sharded_vector<RawImage, std::false_type>();
 
   auto start = high_resolution_clock::now();
   auto dataloader = DataLoader(datapath, batch_size);

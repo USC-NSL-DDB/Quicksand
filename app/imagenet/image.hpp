@@ -5,9 +5,9 @@
 
 namespace imagenet {
 
-struct Image {
-  Image();
-  Image(std::string path);
+struct RawImage {
+  RawImage();
+  RawImage(std::string path);
   std::vector<char> data;
 
   template <class Archive>
@@ -21,6 +21,22 @@ struct Image {
   }
 };
 
-cv::Mat kernel(Image image);
+struct Image {
+  Image();
+  Image(cv::Mat data);
+  std::vector<char> data;
+
+  template <class Archive>
+  void save(Archive &ar) const {
+    ar(data);
+  }
+
+  template <class Archive>
+  void load(Archive &ar) {
+    ar(data);
+  }
+};
+
+Image kernel(RawImage image);
 
 }
