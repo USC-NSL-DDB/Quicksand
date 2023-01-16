@@ -193,9 +193,9 @@ void Mat::setDefaultAllocator(MatAllocator* allocator)
     getDefaultAllocatorMatRef() = allocator;
 }
 
+static StdMatAllocator g_stdAllocator;
 MatAllocator* Mat::getStdAllocator()
 {
-    static StdMatAllocator g_stdAllocator;
     return &g_stdAllocator;
 }
 

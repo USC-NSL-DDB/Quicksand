@@ -911,12 +911,10 @@ bool TraceManager::isActivated()
     return activated;
 }
 
+static TraceManager g_trace_manager;
 TraceManager& getTraceManager()
 {
-    static uint8_t buf[sizeof(TraceManager)];
-    static auto *trace_manager = new (buf) TraceManager();
-
-    return *trace_manager;
+    return g_trace_manager;
 }
 
 void parallelForSetRootRegion(const Region& rootRegion, const TraceManagerThreadLocal& root_ctx)
