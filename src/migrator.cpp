@@ -859,6 +859,9 @@ void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
         ScopedLock l(&header->migration_spin());
 
         if (likely(header->status() == kPopulating)) {
+          if (unlikely(get_runtime()->pressure_handler()->has_mem_pressure())) {
+            break;
+          }
           get_runtime()->proclet_manager()->madvise_populate(header, size);
         }
       }

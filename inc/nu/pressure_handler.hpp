@@ -50,6 +50,8 @@ class PressureHandler {
   void dispatch_aux_pause_task(uint32_t handler_id);
   void mock_set_pressure();
   void mock_clear_pressure();
+  bool has_cpu_pressure();
+  bool has_mem_pressure();
   bool has_pressure();
   bool has_real_pressure();
   void set_handled();
