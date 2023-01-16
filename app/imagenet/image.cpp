@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "image_kernel.hpp"
+#include "image.hpp"
 
 namespace imagenet {
 
