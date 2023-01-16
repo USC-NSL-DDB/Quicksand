@@ -37,7 +37,9 @@ cv::Mat kernel(Image image) {
 
   cv::normalize(img, img, 0, 1, cv::NORM_MINMAX, CV_32F);
 
-  return img;
+  // cloning the cropped image allows opencv to free unused memory
+  cv::Mat ret = img.clone();
+  return ret;
 }
 
 }

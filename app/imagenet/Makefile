@@ -32,7 +32,7 @@ baseline_obj = $(baseline_src:.cpp=.o)
 distributed_src = distributed.cpp
 distributed_obj = $(distributed_src:.cpp=.o)
 
-all: baseline distributed
+all: baseline distributed memtest
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -45,10 +45,13 @@ baseline: $(baseline_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_obj) 
 distributed: $(distributed_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_obj) $(dataloader_obj)
 	$(LDXX) -o $@ $(distributed_obj) $(image_obj) $(dataloader_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
+memtest: memtest.o $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_obj) $(dataloader_obj)
+	$(LDXX) -o $@ memtest.o $(image_obj) $(dataloader_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)
 endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) baseline baseline.o distributed distributed.o image.o dataloader.o
+	rm -f $(dep) baseline baseline.o distributed distributed.o image.o dataloader.o memtest memtest.o
