@@ -203,18 +203,21 @@ struct ImageCodecInitializer
     std::vector<ImageEncoder> encoders;
 };
 
+static ImageCodecInitializer g_codecs;
+
 static
 ImageCodecInitializer& getCodecs()
 {
-    static uint8_t buf[sizeof(ImageCodecInitializer)];
-    static auto *codecs = new (buf) ImageCodecInitializer();
-
-    return *codecs;
+    return g_codecs;
 }
 
 CV_EXPORTS void destroyCodecs()
 {
-    getCodecs().~ImageCodecInitializer();
+    std::vector<ImageDecoder> tmp_decoders;
+    std::vector<ImageEncoder> tmp_encoders;
+
+    getCodecs().decoders.swap(tmp_decoders);
+    getCodecs().encoders.swap(tmp_encoders);
 }
 
 /**
