@@ -45,7 +45,7 @@ static void ias_ps_preempt_core(struct ias_data *sd)
 	sd->p->resource_pressure_info->last_us = now_us;
 	sd->p->resource_pressure_info->status = HANDLING;
 	mb();
-	if (unlikely(!ACCESS_ONCE(sd->p->num_resource_pressure_handlers))) {
+	if (unlikely(!ACCESS_ONCE(*sd->p->num_resource_pressure_handlers))) {
 		sd->p->resource_pressure_info->status = NONE;
 		goto done;
 	}
