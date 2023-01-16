@@ -2,9 +2,13 @@
 
 #include <queue>
 
+#include "queue_range.hpp"
 #include "sharded_ds.hpp"
 
 namespace nu {
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+class DistributedExecutor;
 
 template <typename T>
 class Queue {
@@ -54,6 +58,12 @@ class ShardedQueue
   T back() const;
   T pop();
   std::vector<T> try_pop(std::size_t num);
+  template <typename ProduceFn, typename... States>
+  DistributedExecutor<void, WriteableQueueRange<T, LL>, ProduceFn, States...>
+  produce(ProduceFn produce_fn, States... states);
+  template <typename ConsumeFn, typename... States>
+  DistributedExecutor<void, QueueRange<T, LL>, ConsumeFn, States...> consume(
+      ConsumeFn consume_fn, States... states);
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL>;
