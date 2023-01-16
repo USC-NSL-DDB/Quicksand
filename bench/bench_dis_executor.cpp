@@ -60,41 +60,28 @@ void bench_rate_match() {
 
   constexpr uint32_t kNormalDelayUs = 1000;
   constexpr uint32_t kBurstDelayUs = 100;
+  constexpr int kInsertElem = 123;
 
   auto queue = nu::make_sharded_queue<int, std::true_type>();
 
-  auto produce_rng = nu::make_writeable_queue_range(queue);
-  auto consume_rng = nu::make_queue_range(queue);
-
   auto t0 = microtime();
-  auto t_scale_up = t0 + nu::kOneSecond * 3;
-  auto t_scale_down = t0 + nu::kOneSecond * 6;
+  auto t_scale_up = t0 + nu::kOneSecond * 10;
+  auto t_scale_down = t0 + nu::kOneSecond * 15;
 
-  auto producers = nu::make_distributed_executor(
-      +[](decltype(produce_rng) &rng, uint64_t t_scale_up,
-          uint64_t t_scale_down) {
-        while (!rng.empty()) {
-          auto inserter = rng.pop();
-          inserter = 33;
-
-          auto curr = microtime();
-          if (curr >= t_scale_up && curr <= t_scale_down) {
-            compute_us<kBurstDelayUs>();
-          } else {
-            compute_us<kNormalDelayUs>();
-          }
-        }
-      },
-      produce_rng, t_scale_up, t_scale_down);
-
-  auto consumers = nu::make_distributed_executor(
-      +[](decltype(consume_rng) &rng) {
-        while (!rng.empty()) {
-          rng.pop();
+  auto producers = queue.produce(
+      +[](uint64_t t_scale_up, uint64_t t_scale_down) {
+        auto curr = microtime();
+        if (curr >= t_scale_up && curr < t_scale_down) {
+          compute_us<kBurstDelayUs>();
+        } else {
           compute_us<kNormalDelayUs>();
         }
+        return kInsertElem;
       },
-      consume_rng);
+      t_scale_up, t_scale_down);
+
+  auto consumers =
+      queue.consume(+[](int elem) { compute_us<kNormalDelayUs>(); });
 
   consumers.get();
   producers.get();
