@@ -3,6 +3,7 @@
 #include <ranges>
 
 namespace nu {
+
 template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::Worker::Worker() {}
 
@@ -70,10 +71,11 @@ void DistributedExecutor<RetT, TR, States...>::add_workers(S1s &... states) {
 
   std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
   for (auto &[ip, resource] : global_free_resources) {
-    for (uint32_t i = 0; i < resource.cores; i++) {
+    auto num_workers = static_cast<uint32_t>(resource.cores);
+    for (uint32_t i = 0; i < num_workers; i++) {
       worker_futures.emplace_back(
           nu::make_proclet_async<ComputeProclet<TR, States...>>(
-              std::forward_as_tuple(states...)));
+              std::forward_as_tuple(states...), false, std::nullopt, ip));
     }
   }
 
@@ -227,10 +229,11 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
 
   std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
   for (auto &[ip, resource] : global_free_resources) {
-    for (uint32_t i = 0; i < resource.cores / 2; i++) {
+    auto num_workers = static_cast<uint32_t>(resource.cores / 2);
+    for (uint32_t i = 0; i < num_workers; i++) {
       worker_futures.emplace_back(
           nu::make_proclet_async<ComputeProclet<TR, States...>>(
-              std::forward_as_tuple(states...)));
+              std::forward_as_tuple(states...), false, std::nullopt, ip));
     }
   }
 
@@ -270,10 +273,11 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
     std::size_t gap = target - workers_.size();
     std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
     for (auto &[ip, resource] : global_free_resources) {
-      for (uint32_t i = 0; i < static_cast<uint32_t>(resource.cores); i++) {
+      auto num_workers = static_cast<uint32_t>(resource.cores);
+      for (uint32_t i = 0; i < num_workers; i++) {
         worker_futures.emplace_back(
             nu::make_proclet_async<ComputeProclet<TR, States...>>(
-                std::forward_as_tuple(states...)));
+                std::forward_as_tuple(states...), false, std::nullopt, ip));
         if (worker_futures.size() == gap) {
           break;
         }
