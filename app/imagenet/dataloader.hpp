@@ -17,7 +17,7 @@ namespace imagenet {
 using Batch = std::vector<RawImage>;
 using shard_vec_type = nu::ShardedVector<RawImage, std::false_type>;
 using sealed_shard_vec_type = nu::SealedDS<shard_vec_type>;
-// using shard_queue_type = nu::ShardedQueue<cv::Mat, std::true_type>;
+using shard_queue_type = nu::ShardedQueue<Image, std::true_type>;
 
 class DataLoader {
  public:
@@ -31,7 +31,7 @@ class DataLoader {
 
  private:
   shard_vec_type imgs_;
-  // shard_queue_type queue_;
+  shard_queue_type queue_;
   int batch_size_, progress_;
 };
 

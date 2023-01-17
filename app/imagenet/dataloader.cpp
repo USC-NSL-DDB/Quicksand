@@ -13,11 +13,12 @@ using directory_iterator = std::filesystem::recursive_directory_iterator;
 using namespace std::chrono;
 using namespace imagenet;
 
-DataLoader::DataLoader(std::string path, int batch_size) {
-  batch_size_ = batch_size;
-  progress_ = 0;
-  imgs_ = nu::make_sharded_vector<RawImage, std::false_type>();
-
+DataLoader::DataLoader(std::string path, int batch_size)
+: imgs_{nu::make_sharded_vector<RawImage, std::false_type>()}
+, queue_{nu::make_sharded_queue<Image, std::true_type>()}
+, batch_size_{batch_size}
+, progress_{0}
+{
   int i = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
@@ -39,18 +40,17 @@ void DataLoader::process_all() {
   auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
 
   auto dis_exec = nu::make_distributed_executor(
-      +[](decltype(imgs_range) &imgs_range) {
+      +[](decltype(imgs_range) &imgs_range, decltype(queue_) queue_) {
         while (!imgs_range.empty()) {
           auto img = imgs_range.pop();
-          kernel(img);
+          queue_.push(kernel(img));
+          // std::cout << "pushed" << std::endl;
         }
       },
-      imgs_range);
+      imgs_range, queue_);
   dis_exec.get();
 
   imgs_ = nu::to_unsealed_ds(std::move(sealed_imgs));
-  // shardedVector.size() self blocks
-  // progress_ = imgs_.size();
 }
 
 Image DataLoader::next() {
