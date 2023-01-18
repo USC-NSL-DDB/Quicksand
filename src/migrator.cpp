@@ -568,7 +568,7 @@ void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
 }
 
 void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
-  rt::Spawn([proclet_header] {
+  constexpr static auto cleanup_fn = [](ProcletHeader *proclet_header) {
     if (load_acquire(&proclet_header->status()) == kCleaning) {
       ScopedLock l(&proclet_header->migration_spin());
 
@@ -578,7 +578,13 @@ void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
         proclet_header->status() = kAbsent;
       }
     }
-  });
+  };
+
+  if (unlikely(get_runtime()->pressure_handler()->has_cpu_pressure())) {
+    cleanup_fn(proclet_header);
+  } else {
+    rt::Spawn([proclet_header] { cleanup_fn(proclet_header); });
+  }
 }
 
 static inline void skip_proclet(rt::TcpConn *conn,
