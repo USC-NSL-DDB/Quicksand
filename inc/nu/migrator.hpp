@@ -105,7 +105,7 @@ class Migrator {
   constexpr static uint32_t kTransmitProcletNumThreads = 3;
   constexpr static uint32_t kDefaultNumReservedConns = 8;
   constexpr static uint32_t kPort = 8002;
-  constexpr static uint32_t kMaxNumProcletsPerMigration = 64;
+  constexpr static uint32_t kMaxNumProcletsPerMigration = 32;
   constexpr static float kMigrationThrottleGBs = 0;
   constexpr static uint32_t kMigrationDelayUs = 0;
 

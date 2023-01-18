@@ -512,6 +512,7 @@ uint32_t Migrator::migrate(Resource resource,
     callback();
   }
 
+  std::set<NodeIP> dests;
   const uint32_t num_total_proclets = tasks.size();
   uint32_t num_migrated_proclets = 0;
   std::vector<ProcletMigrationTask> choosen_tasks;
@@ -532,9 +533,11 @@ uint32_t Migrator::migrate(Resource resource,
     auto [dest_guard, dest_resource] =
         get_runtime()->controller_client()->acquire_migration_dest(
             has_mem_pressure, resource);
-    if (unlikely(!dest_guard)) {
+    auto dest_ip = dest_guard.get_ip();
+    if (unlikely(!dest_guard || dests.contains(dest_ip))) {
       break;
     }
+    dests.insert(dest_ip);
 
     if (unlikely(dest_resource.cores < choosen_resource.cores ||
                  dest_resource.mem_mbs < choosen_resource.mem_mbs)) {
@@ -554,9 +557,6 @@ uint32_t Migrator::migrate(Resource resource,
 
     auto delta = __migrate(dest_guard, has_mem_pressure, choosen_tasks);
     num_migrated_proclets += delta;
-    if (unlikely(!delta)) {
-      break;
-    }
   }
 
   return num_migrated_proclets;
@@ -614,6 +614,7 @@ uint32_t Migrator::__migrate(const NodeGuard &dest_guard, bool has_mem_pressure,
 
   auto conn_guard = migrator_conn_mgr_.get(dest_guard.get_ip());
   auto *conn = conn_guard.get_tcp_conn();
+  BUG_ON(conn->HasPendingDataToRead());
   transmit_proclet_migration_tasks(conn, has_mem_pressure, tasks);
 
   bool aux_handlers_enabled = false;
