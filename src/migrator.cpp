@@ -406,12 +406,14 @@ void Migrator::transmit_threads(rt::TcpConn *c,
 }
 
 void Migrator::transmit_proclet_migration_tasks(
-    rt::TcpConn *c, const std::vector<ProcletMigrationTask> &tasks) {
+    rt::TcpConn *c, bool has_mem_pressure,
+    const std::vector<ProcletMigrationTask> &tasks) {
   uint8_t type = kMigrate;
   uint64_t size = tasks.size();
   BUG_ON(!size);
 
   const iovec iovecs[] = {{&type, sizeof(type)},
+                          {&has_mem_pressure, sizeof(has_mem_pressure)},
                           {&size, sizeof(size)},
                           {const_cast<ProcletMigrationTask *>(tasks.data()),
                            size * sizeof(ProcletMigrationTask)}};
@@ -525,22 +527,32 @@ uint32_t Migrator::migrate(Resource resource,
     choosen_resource.mem_mbs =
         static_cast<uint32_t>(ratio * resource.mem_mbs + 0.5);
 
+    auto has_mem_pressure =
+        get_runtime()->pressure_handler()->has_mem_pressure();
     auto [dest_guard, dest_resource] =
-        get_runtime()->controller_client()->acquire_migration_dest(resource);
+        get_runtime()->controller_client()->acquire_migration_dest(
+            has_mem_pressure, resource);
     if (unlikely(!dest_guard)) {
       break;
     }
 
-    if (unlikely(dest_resource.cores < choosen_resource.cores)) {
-      num_choosen_proclets = static_cast<float>(dest_resource.cores) /
-                             choosen_resource.cores * num_choosen_proclets;
+    if (unlikely(dest_resource.cores < choosen_resource.cores ||
+                 dest_resource.mem_mbs < choosen_resource.mem_mbs)) {
+      auto downscale_factor = std::min(
+          1.0f, (dest_resource.mem_mbs - NodeStatus::kMemMBsLowWaterMark) /
+                    choosen_resource.mem_mbs);
+      if (!has_mem_pressure) {
+        downscale_factor = std::min(
+            downscale_factor, dest_resource.cores / choosen_resource.cores);
+      }
+      num_choosen_proclets *= downscale_factor;
     }
     choosen_tasks.clear();
     for (uint32_t i = 0; i < num_choosen_proclets; i++) {
       choosen_tasks.push_back(tasks[num_migrated_proclets + i]);
     }
 
-    auto delta = __migrate(dest_guard, choosen_tasks);
+    auto delta = __migrate(dest_guard, has_mem_pressure, choosen_tasks);
     num_migrated_proclets += delta;
     if (unlikely(!delta)) {
       break;
@@ -588,7 +600,7 @@ static inline bool receive_approval(rt::TcpConn *c) {
   return approval;
 }
 
-uint32_t Migrator::__migrate(const NodeGuard &dest_guard,
+uint32_t Migrator::__migrate(const NodeGuard &dest_guard, bool has_mem_pressure,
                              const std::vector<ProcletMigrationTask> &tasks) {
   if (unlikely(tasks.empty())) {
     return 0;
@@ -596,7 +608,7 @@ uint32_t Migrator::__migrate(const NodeGuard &dest_guard,
 
   auto conn_guard = migrator_conn_mgr_.get(dest_guard.get_ip());
   auto *conn = conn_guard.get_tcp_conn();
-  transmit_proclet_migration_tasks(conn, tasks);
+  transmit_proclet_migration_tasks(conn, has_mem_pressure, tasks);
 
   bool aux_handlers_enabled = false;
   auto it = tasks.begin();
@@ -826,20 +838,24 @@ void Migrator::load_threads(rt::TcpConn *c, ProcletHeader *proclet_header) {
   }
 }
 
-std::vector<ProcletMigrationTask> Migrator::load_proclet_migration_tasks(
-    rt::TcpConn *c) {
-  std::vector<ProcletMigrationTask> tasks;
+std::pair<bool, std::vector<ProcletMigrationTask>>
+Migrator::load_proclet_migration_tasks(rt::TcpConn *c) {
+  bool has_mem_pressure;
   uint64_t size;
+  std::vector<ProcletMigrationTask> tasks;
 
-  BUG_ON(c->ReadFull(&size, sizeof(size), /* nt = */ false,
-                     /* poll = */ true) <= 0);
+  const iovec iovecs[] = {{&has_mem_pressure, sizeof(has_mem_pressure)},
+                          {&size, sizeof(size)}};
+
+  BUG_ON(c->ReadvFull(std::span(iovecs), /* nt = */ false, /* poll = */ true) <=
+         0);
 
   tasks.resize(size);
   BUG_ON(c->ReadFull(&tasks[0], size * sizeof(ProcletMigrationTask),
                      /* nt = */ false,
                      /* poll = */ true) <= 0);
 
-  return tasks;
+  return std::make_pair(has_mem_pressure, std::move(tasks));
 }
 
 void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
@@ -888,7 +904,7 @@ void Migrator::depopulate_proclet(ProcletHeader *proclet_header) {
 }
 
 void Migrator::load(rt::TcpConn *c) {
-  auto tasks = load_proclet_migration_tasks(c);
+  auto [has_mem_pressure, tasks] = load_proclet_migration_tasks(c);
   populate_proclets(tasks);
 
   bool approval = true;
@@ -899,9 +915,11 @@ void Migrator::load(rt::TcpConn *c) {
       }
       break;
     }
-    
+
     if (it != tasks.end() - 1) {
-      approval = !get_runtime()->pressure_handler()->has_real_pressure();
+      approval = has_mem_pressure
+                     ? !get_runtime()->pressure_handler()->has_mem_pressure()
+                     : !get_runtime()->pressure_handler()->has_real_pressure();
       issue_approval(c, approval);
     }
 

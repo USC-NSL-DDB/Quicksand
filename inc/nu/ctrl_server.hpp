@@ -68,6 +68,7 @@ struct RPCReqAcquireMigrationDest {
   RPCReqType rpc_type = kAcquireMigrationDest;
   lpid_t lpid;
   NodeIP src_ip;
+  bool has_mem_pressure;
   Resource resource;
 } __attribute__((packed));
 

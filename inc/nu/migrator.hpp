@@ -150,7 +150,8 @@ class Migrator {
   void transmit_stack_cluster_mmap_task(rt::TcpConn *c);
   void transmit_proclet(rt::TcpConn *c, ProcletHeader *proclet_header);
   void transmit_proclet_migration_tasks(
-      rt::TcpConn *c, const std::vector<ProcletMigrationTask> &tasks);
+      rt::TcpConn *c, bool has_mem_pressure,
+      const std::vector<ProcletMigrationTask> &tasks);
   void transmit_mutexes(rt::TcpConn *c, std::vector<Mutex *> mutexes);
   void transmit_condvars(rt::TcpConn *c, std::vector<CondVar *> condvars);
   void transmit_time(rt::TcpConn *c, Time *time);
@@ -160,8 +161,8 @@ class Migrator {
   void load(rt::TcpConn *c);
   bool load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
                     uint64_t capacity);
-  std::vector<ProcletMigrationTask> load_proclet_migration_tasks(
-      rt::TcpConn *c);
+  std::pair<bool, std::vector<ProcletMigrationTask>>
+  load_proclet_migration_tasks(rt::TcpConn *c);
   void populate_proclets(std::vector<ProcletMigrationTask> &tasks);
   void depopulate_proclet(ProcletHeader *proclet_header);
   void load_mutexes(rt::TcpConn *c, ProcletHeader *proclet_header);
@@ -173,7 +174,7 @@ class Migrator {
   void aux_handlers_enable_polling(uint32_t dest_ip);
   void aux_handlers_disable_polling();
   void callback();
-  uint32_t __migrate(const NodeGuard &dest_guard,
+  uint32_t __migrate(const NodeGuard &dest_guard, bool has_mem_pressure,
                      const std::vector<ProcletMigrationTask> &tasks);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);

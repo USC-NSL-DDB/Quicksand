@@ -116,7 +116,7 @@ void PressureHandler::__main_handler() {
     }
 
     auto min_num_proclets =
-        rt::RuntimeCpuPressure()
+        has_cpu_pressure()
             ? get_runtime()->migrator()->kMaxNumProcletsPerMigration
             : 0;
     auto min_mem_mbs = rt::RuntimeToReleaseMemMbs();

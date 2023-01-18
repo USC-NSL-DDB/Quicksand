@@ -84,12 +84,13 @@ NodeIP ControllerClient::resolve_proclet(ProcletID id) {
 }
 
 std::pair<NodeGuard, Resource> ControllerClient::acquire_migration_dest(
-    Resource resource) {
+    bool has_mem_pressure, Resource resource) {
   rt::SpinGuard g(&spin_);
 
   RPCReqAcquireMigrationDest req;
   req.lpid = lpid_;
   req.src_ip = get_cfg_ip();
+  req.has_mem_pressure = has_mem_pressure;
   req.resource = resource;
   BUG_ON(tcp_conn_->WriteFull(&req, sizeof(req), /* nt = */ false,
                               /* poll = */ true) != sizeof(req));

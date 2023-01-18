@@ -252,7 +252,8 @@ NodeIP Controller::select_node_for_proclet(lpid_t lpid, NodeIP ip_hint,
 }
 
 std::pair<NodeIP, Resource> Controller::acquire_migration_dest(
-    lpid_t lpid, NodeIP requestor_ip, Resource resource) {
+    lpid_t lpid, NodeIP requestor_ip, bool has_mem_pressure,
+    Resource resource) {
   ScopedLock lock(&mutex_);
 
   auto &[node_statuses, rr_iter, destroying] = lpid_to_info_[lpid];
@@ -263,20 +264,46 @@ std::pair<NodeIP, Resource> Controller::acquire_migration_dest(
   auto initial_rr_iter = rr_iter;
   BUG_ON(node_statuses.empty());
 
-again:
-  if (unlikely(rr_iter == node_statuses.end())) {
-    rr_iter = node_statuses.begin();
+  auto search_fn = [&](auto filter_fn) {
+    do {
+      if (unlikely(rr_iter == node_statuses.end())) {
+        rr_iter = node_statuses.begin();
+      }
+      if (rr_iter->first != requestor_ip && !rr_iter->second.acquired &&
+          filter_fn(rr_iter->second)) {
+        return true;
+      }
+    } while (++rr_iter != initial_rr_iter);
+    return false;
+  };
+
+  // Round 1: search for any candidate node that has enough resource.
+  if (search_fn([&](const auto &node) {
+        return node.has_enough_resource(resource);
+      })) {
+    goto found;
   }
 
-  if (rr_iter->first == requestor_ip || rr_iter->second.acquired ||
-      !rr_iter->second.has_enough_resource(resource)) {
-    rr_iter++;
-    if (unlikely(rr_iter == initial_rr_iter)) {
-      return std::make_pair(0, Resource{});
+  // Round 2: if it's memory pressure, search for any candidate that has enough
+  // memory.
+  if (has_mem_pressure) {
+    if (search_fn([&](const auto &node) {
+          return node.has_enough_mem_resource(resource);
+        })) {
+      goto found;
     }
-    goto again;
   }
 
+  // Round 3: search for any candidate that is not congested.
+  if (search_fn([&](const auto &node) { return node.is_not_congested(); })) {
+    goto found;
+  }
+
+  // Oof, no candidate found.
+  return std::make_pair(0, Resource{});
+
+found:
+  // Found a candidate.
   rr_iter->second.acquired = true;
   auto pair = std::pair(rr_iter->first, rr_iter->second.free_resource);
   rr_iter++;

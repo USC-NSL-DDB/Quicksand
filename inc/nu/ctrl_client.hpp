@@ -48,7 +48,8 @@ class ControllerClient {
   void destroy_proclet(VAddrRange heap_segment);
   NodeIP resolve_proclet(ProcletID id);
   NodeGuard acquire_node();
-  std::pair<NodeGuard, Resource> acquire_migration_dest(Resource resource);
+  std::pair<NodeGuard, Resource> acquire_migration_dest(bool has_mem_pressure,
+                                                        Resource resource);
   void update_location(ProcletID id, NodeIP proclet_srv_ip);
   VAddrRange get_stack_cluster() const;
   std::vector<std::pair<NodeIP, Resource>> report_free_resource(

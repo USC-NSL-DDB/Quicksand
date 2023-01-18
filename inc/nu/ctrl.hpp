@@ -24,13 +24,17 @@ namespace nu {
 // This is a logical node instead of a physical node.
 struct NodeStatus {
   constexpr static float kEWMAWeight = 0.25;
-  constexpr static uint32_t kMinNumCores = 3;
+  constexpr static uint32_t kMemMBsLowWaterMark = 1024;
+  constexpr static uint32_t kNumCoresLowWaterMark = 3;
 
   bool acquired;
   Resource free_resource;
   CondVar cv;
 
+  bool has_enough_cpu_resource(Resource resource) const;
+  bool has_enough_mem_resource(Resource resource) const;
   bool has_enough_resource(Resource resource) const;
+  bool is_not_congested() const;
   void update_free_resource(Resource resource);
 };
 
@@ -68,6 +72,7 @@ class Controller {
   NodeIP resolve_proclet(ProcletID id);
   std::pair<NodeIP, Resource> acquire_migration_dest(lpid_t lpid,
                                                      NodeIP requestor_ip,
+                                                     bool has_mem_pressure,
                                                      Resource resource);
   bool acquire_node(lpid_t lpid, NodeIP ip);
   void release_node(lpid_t lpid, NodeIP ip);
