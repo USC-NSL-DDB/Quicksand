@@ -80,7 +80,7 @@ void ias_ps_poll(void)
 
 	BUG_ON(sysinfo(&info) != 0);
 	used_swap_mbs = (info.totalswap - info.freeswap) / SIZE_MB;
-	free_ram_mbs = info.freeram / SIZE_MB - used_swap_mbs;
+	free_ram_mbs = (int64_t)info.freeram / SIZE_MB - used_swap_mbs;
 	if (free_ram_mbs < IAS_PS_MEM_LOW_MB)
 		to_release_mem_mbs = IAS_PS_MEM_LOW_MB - free_ram_mbs;
 	else
@@ -89,7 +89,7 @@ void ias_ps_poll(void)
 	ias_for_each_proc(sd) {
 		pressure = sd->p->resource_pressure_info;
 		congestion = sd->p->congestion_info;
-		congestion->free_mem_mbs = free_ram_mbs;
+		congestion->free_mem_mbs = MAX(0, free_ram_mbs);
 		congestion->idle_num_cores = ias_num_idle_cores;
 		has_pressure = false;
 
