@@ -230,43 +230,40 @@ std::pair<std::vector<ProcletMigrationTask>, Resource>
 PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
   bool done = false;
   Resource resource{.cores = 0, .mem_mbs = 0};
-  auto comp = [](const ProcletMigrationTask &x, const ProcletMigrationTask &y) {
-    return x.header < y.header;
-  };
-  std::set<ProcletMigrationTask, decltype(comp)> picked_tasks;
+  std::vector<ProcletMigrationTask> picked_tasks;
+  std::set<ProcletHeader *> dedupper;
 
   auto pick_fn = [&](ProcletHeader *header) {
-    bool migratable;
-    uint64_t capacity, mem_size, heap_size;
-    float cpu_load;
-
     auto optional = get_runtime()->proclet_manager()->get_proclet_info(
         header, std::function([&](const ProcletHeader *header) {
-          migratable = header->migratable;
-          capacity = header->capacity;
-          heap_size = header->heap_size();
-          mem_size = header->total_mem_size();
-          cpu_load = header->cpu_load.get_load();
-          return true;
+          return std::make_tuple(header->migratable, header->capacity,
+                                 header->heap_size(), header->total_mem_size(),
+                                 header->cpu_load.get_load());
         }));
-
-    if (likely(optional && migratable)) {
-      auto [_, succeed] = picked_tasks.emplace(header, capacity, heap_size);
-      if (likely(succeed)) {
+    if (likely(optional)) {
+      auto &[migratable, capacity, heap_size, mem_size, cpu_load] = *optional;
+      if (likely(migratable && !dedupper.contains(header))) {
+        dedupper.insert(header);
+        picked_tasks.emplace_back(header, capacity, heap_size);
         resource.mem_mbs += mem_size / static_cast<float>(kOneMB);
         resource.cores += cpu_load;
         done = ((resource.mem_mbs >= min_mem_mbs) &&
                 (picked_tasks.size() >= min_num_proclets));
       }
     }
+
+    return optional.has_value();
   };
 
   auto traverse_fn = [&]<typename T>(T &&sorted_proclets) {
     if (sorted_proclets) {
       auto iter = sorted_proclets->begin();
       while (iter != sorted_proclets->end() && !done) {
-        pick_fn(iter->header);
-        iter = sorted_proclets->erase(iter);
+        if (pick_fn(iter->header)) {
+          ++iter;
+        } else {
+          iter = sorted_proclets->erase(iter);
+        }
       }
     }
   };
@@ -289,9 +286,7 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
     }
   }
 
-  std::vector<ProcletMigrationTask> dedupped_tasks(picked_tasks.begin(),
-                                                   picked_tasks.end());
-  return std::make_pair(std::move(dedupped_tasks), resource);
+  return std::make_pair(std::move(picked_tasks), resource);
 }
 
 void PressureHandler::mock_set_pressure() {
