@@ -3,11 +3,15 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <type_traits>
 
+#include "nu/cont_ds_range.hpp"
 #include "nu/dis_executor.hpp"
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
+#include "nu/sealed_ds.hpp"
 #include "nu/sharded_queue.hpp"
+#include "nu/sharded_vector.hpp"
 #include "nu/utils/time.hpp"
 #include "nu/vector_task_range.hpp"
 
@@ -55,8 +59,8 @@ void bench_vector_task_range() {
   std::cout << "\t" << t1 - t0 << std::endl;
 }
 
-void bench_rate_match() {
-  std::cout << "bench_rate_match" << std::endl;
+void bench_rate_match_with_synthetic_input() {
+  std::cout << __FUNCTION__ << std::endl;
 
   constexpr uint32_t kNormalDelayUs = 1000;
   constexpr uint32_t kBurstDelayUs = 100;
@@ -85,6 +89,46 @@ void bench_rate_match() {
 
   consumers.get();
   producers.get();
+}
+
+template <typename T, typename LL, typename ProcessFn, typename ConsumeFn>
+void bench_rate_match(nu::ShardedVector<T, LL> input, ProcessFn process_fn,
+                      ConsumeFn consume_fn) {
+  auto input_rng =
+      nu::make_contiguous_ds_range(nu::to_sealed_ds(std::move(input)));
+  auto queue = nu::make_sharded_queue<T, std::true_type>();
+
+  auto producers = nu::make_distributed_executor(
+      +[](decltype(input_rng) &input_rng, decltype(queue) queue,
+          decltype(process_fn) process_fn) {
+        while (!input_rng.empty()) {
+          auto elem = input_rng.pop();
+          auto processed = process_fn(std::move(elem));
+          queue.push(std::move(processed));
+        }
+      },
+      input_rng, queue, process_fn);
+
+  auto consumers = queue.consume(consume_fn);
+
+  consumers.get();
+  producers.get();
+}
+
+void bench_rate_match_with_int_vec() {
+  constexpr std::size_t kNumElems = 1 << 10;
+  constexpr auto kProcessFn = [](std::size_t elem) {
+    compute_us<1000>();
+    return elem;
+  };
+  constexpr auto kConsumeFn = [](std::size_t elem) { compute_us<1000>(); };
+
+  auto input = nu::make_sharded_vector<std::size_t, std::false_type>();
+  for (auto i : std::views::iota(static_cast<std::size_t>(0), kNumElems)) {
+    input.push_back(i);
+  }
+
+  bench_rate_match(input, +kProcessFn, +kConsumeFn);
 }
 
 void do_work() {
