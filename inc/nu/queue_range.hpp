@@ -45,6 +45,7 @@ class QueueTaskRangeImpl {
   Key l_key() const;
   std::size_t initial_size() const;
   std::size_t queue_length() const;
+  const ShardedQueue<T, LL> &queue() const;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>

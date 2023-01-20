@@ -42,6 +42,12 @@ std::size_t QueueTaskRangeImpl<T, LL, Insertable>::queue_length() const {
 }
 
 template <typename T, BoolIntegral LL, BoolIntegral Insertable>
+const ShardedQueue<T, LL> &QueueTaskRangeImpl<T, LL, Insertable>::queue()
+    const {
+  return queue_;
+}
+
+template <typename T, BoolIntegral LL, BoolIntegral Insertable>
 template <class Archive>
 void QueueTaskRangeImpl<T, LL, Insertable>::save(Archive &ar) const {
   ar(queue_);

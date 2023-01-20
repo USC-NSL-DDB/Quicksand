@@ -6,9 +6,10 @@
 #include <vector>
 
 #include "nu/compute_proclet.hpp"
+#include "nu/queue_range.hpp"
+#include "nu/sharded_queue.hpp"
 #include "nu/task_range.hpp"
 #include "nu/utils/future.hpp"
-#include "queue_range.hpp"
 
 namespace nu {
 
@@ -61,6 +62,10 @@ class DistributedExecutor {
   template <typename R, TaskRangeBased T, typename... S0s, typename... S1s>
   friend DistributedExecutor<R, T, S0s...> make_distributed_executor(
       R (*fn)(T &, S0s...), T, S1s &&...);
+  template <typename R, TaskRangeBased T, ShardedQueueBased Q, typename... S0s,
+            typename... S1s>
+  friend DistributedExecutor<R, T, Q, S0s...> make_distributed_executor(
+      R (*fn)(T &, Q, S0s...), T task_range, Q queue, S1s &&... states);
   template <typename R, QueueRangeBased QR, typename... S0s, typename... S1s>
   friend DistributedExecutor<R, TaskRange<QR>, S0s...>
   make_distributed_executor(R (*fn)(TaskRange<QR> &, S0s...),
@@ -72,11 +77,11 @@ class DistributedExecutor {
   template <typename... S1s>
   void start_async(RetT (*fn)(TR &, States...), TR task_range,
                    S1s &&... states);
-  template <typename... S1s>
-  Result run_queue(RetT (*fn)(TR &, States...), TR task_range,
+  template <BoolIntegral IsProducer, ShardedQueueBased Q, typename... S1s>
+  Result run_queue(RetT (*fn)(TR &, States...), TR task_range, Q queue,
                    S1s &&... states);
-  template <typename... S1s>
-  void start_queue_async(RetT (*fn)(TR &, States...), TR task_range,
+  template <BoolIntegral IsProducer, ShardedQueueBased Q, typename... S1s>
+  void start_queue_async(RetT (*fn)(TR &, States...), TR task_range, Q queue,
                          S1s &&... states);
   template <typename... S1s>
   void spawn_initial_workers(S1s &... states);
@@ -96,6 +101,11 @@ class DistributedExecutor {
 template <typename RetT, TaskRangeBased TR, typename... S0s, typename... S1s>
 DistributedExecutor<RetT, TR, S0s...> make_distributed_executor(
     RetT (*fn)(TR &, S0s...), TR task_range, S1s &&... states);
+
+template <typename RetT, TaskRangeBased TR, ShardedQueueBased Q,
+          typename... S0s, typename... S1s>
+DistributedExecutor<RetT, TR, Q, S0s...> make_distributed_executor(
+    RetT (*fn)(TR &, Q, S0s...), TR task_range, Q queue, S1s &&... states);
 
 template <typename RetT, QueueRangeBased QR, typename... S0s, typename... S1s>
 DistributedExecutor<RetT, TaskRange<QR>, S0s...> make_distributed_executor(

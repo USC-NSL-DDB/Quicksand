@@ -315,15 +315,14 @@ float DistributedExecutor<RetT, TR, States...>::check_queue_workers() {
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-template <typename... S1s>
+template <BoolIntegral IsProducer, ShardedQueueBased Q, typename... S1s>
 DistributedExecutor<RetT, TR, States...>::Result
 DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
-                                                    TR task_range,
+                                                    TR task_range, Q queue,
                                                     S1s &&... states) {
-  fn_ = fn;
-  using TaskRangeImpl = typename TR::Implementation;
-  constexpr bool kIsProducer = TaskRangeImpl::Writeable::value;
   constexpr double kEWMAWeight = 0.2;
+
+  fn_ = fn;
 
   uint64_t last_check_queue_us = Time::microtime();
   uint64_t last_add_worker_us = last_check_queue_us;
@@ -342,13 +341,13 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
     if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
       last_check_queue_us = now_us;
 
-      float curr_len = static_cast<float>(task_range.impl().queue_length());
+      float curr_len = static_cast<float>(queue.size());
       ewma(kEWMAWeight, &queue_len, curr_len);
 
       if (now_us - last_add_worker_us >= kAddQueueWorkersIntervalUs) {
         last_add_worker_us = now_us;
 
-        if constexpr (kIsProducer) {
+        if constexpr (IsProducer::value) {
           if (queue_len > queue_len_target_max && queue_len > prev_queue_len) {
             float scale_factor = queue_len / prev_queue_len;
             auto num_workers =
@@ -387,12 +386,15 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-template <typename... S1s>
+template <BoolIntegral IsProducer, ShardedQueueBased Q, typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::start_queue_async(
-    RetT (*fn)(TR &, States...), TR task_range, S1s &&... states) {
+    RetT (*fn)(TR &, States...), TR task_range, Q queue, S1s &&... states) {
   future_ = nu::async([&, fn, task_range = std::move(task_range),
+                       queue = std::move(queue),
                        ... states = std::forward<S1s>(states)]() mutable {
-    return run_queue(fn, std::move(task_range), std::forward<S1s>(states)...);
+    return run_queue<IsProducer, Q, S1s...>(fn, std::move(task_range),
+                                            std::move(queue),
+                                            std::forward<S1s>(states)...);
   });
 }
 
@@ -404,13 +406,29 @@ DistributedExecutor<RetT, TR, S0s...> make_distributed_executor(
   return dis_exec;
 }
 
+template <typename RetT, TaskRangeBased TR, ShardedQueueBased Q,
+          typename... S0s, typename... S1s>
+DistributedExecutor<RetT, TR, Q, S0s...> make_distributed_executor(
+    RetT (*fn)(TR &, Q, S0s...), TR task_range, Q queue, S1s &&... states) {
+  DistributedExecutor<RetT, TR, Q, S0s...> dis_exec;
+  Q queue_cp_arg = queue;
+  dis_exec.template start_queue_async</* IsProducer = */ std::true_type, Q, Q,
+                                      S1s...>(
+      fn, std::move(task_range), std::move(queue), std::move(queue_cp_arg),
+      std::forward<S1s>(states)...);
+  return dis_exec;
+}
+
 template <typename RetT, QueueRangeBased QR, typename... S0s, typename... S1s>
 DistributedExecutor<RetT, TaskRange<QR>, S0s...> make_distributed_executor(
     RetT (*fn)(TaskRange<QR> &, S0s...), TaskRange<QR> queue_range,
     S1s &&... states) {
   DistributedExecutor<RetT, TaskRange<QR>, S0s...> dis_exec;
-  dis_exec.start_queue_async(fn, std::move(queue_range),
-                             std::forward<S1s>(states)...);
+  auto queue = queue_range.impl().queue();
+  dis_exec.template start_queue_async</* IsProducer = */ typename QR::Writeable,
+                                      decltype(queue), S1s...>(
+      fn, std::move(queue_range), std::move(queue),
+      std::forward<S1s>(states)...);
   return dis_exec;
 }
 }  // namespace nu

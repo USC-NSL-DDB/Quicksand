@@ -10,6 +10,19 @@ namespace nu {
 template <typename RetT, TaskRangeBased TR, typename... States>
 class DistributedExecutor;
 
+template <typename T, typename LL>
+class ShardedQueue;
+
+template <class Q>
+concept ShardedQueueBased = requires {
+  requires is_base_of_template_v<Q, ShardedQueue>;
+};
+
+template <typename RetT, QueueRangeBased QR, typename... S0s, typename... S1s>
+DistributedExecutor<RetT, TaskRange<QR>, S0s...> make_distributed_executor(
+    RetT (*fn)(TaskRange<QR> &, S0s...), TaskRange<QR> queue_range,
+    S1s &&... states);
+
 template <typename T>
 class Queue {
  public:
