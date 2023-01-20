@@ -252,42 +252,62 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
     std::size_t target, TR task_range, S1s &... states) {
   target = std::max(target, static_cast<std::size_t>(1));
 
-  if (target < workers_.size()) {
+  if (target < workers_size_) {
     auto futures = std::vector<nu::Future<void>>{};
-    for (std::size_t i = target; i < workers_.size(); i++) {
+    for (std::size_t i = target; i < workers_size_; i++) {
       futures.push_back(std::move(
-          workers_[i].cp.run_async(&ComputeProclet<TR, States...>::abort)));
+          workers_[i].cp.run_async(&ComputeProclet<TR, States...>::suspend)));
     }
     for (auto &f : futures) {
       f.get();
     }
-    workers_.resize(target);
-  } else if (target > workers_.size()) {
-    std::vector<std::pair<NodeIP, Resource>> global_free_resources;
-    {
-      Caladan::PreemptGuard g;
-      global_free_resources =
-          get_runtime()->resource_reporter()->get_global_free_resources();
-    }
+    workers_size_ = target;
+  } else if (target > workers_size_) {
+    if (workers_size_ < workers_.size()) {
+      std::size_t target = std::min(workers_.size(), target);
 
-    std::size_t gap = target - workers_.size();
-    std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
-    for (auto &[ip, resource] : global_free_resources) {
-      auto num_workers = static_cast<uint32_t>(resource.cores);
-      for (uint32_t i = 0; i < num_workers; i++) {
-        worker_futures.emplace_back(
-            nu::make_proclet_async<ComputeProclet<TR, States...>>(
-                std::forward_as_tuple(states...), false, std::nullopt, ip));
-        if (worker_futures.size() == gap) {
-          break;
+      auto futures = std::vector<nu::Future<void>>{};
+      for (std::size_t i = workers_size_; i < target; i++) {
+        futures.push_back(std::move(
+            workers_[i].cp.run_async(&ComputeProclet<TR, States...>::resume)));
+      }
+
+      for (auto &f : futures) {
+        f.get();
+      }
+      workers_size_ = target;
+    }
+    if (target > workers_size_) {
+      BUG_ON(workers_size_ != workers_.size());
+
+      std::vector<std::pair<NodeIP, Resource>> global_free_resources;
+      {
+        Caladan::PreemptGuard g;
+        global_free_resources =
+            get_runtime()->resource_reporter()->get_global_free_resources();
+      }
+
+      std::size_t gap = target - workers_.size();
+      std::vector<Future<Proclet<ComputeProclet<TR, States...>>>>
+          worker_futures;
+      for (auto &[ip, resource] : global_free_resources) {
+        auto num_workers = static_cast<uint32_t>(resource.cores);
+        for (uint32_t i = 0; i < num_workers; i++) {
+          worker_futures.emplace_back(
+              nu::make_proclet_async<ComputeProclet<TR, States...>>(
+                  std::forward_as_tuple(states...), false, std::nullopt, ip));
+          if (worker_futures.size() == gap) {
+            break;
+          }
         }
       }
-    }
 
-    for (auto &f : worker_futures) {
-      auto w = Worker(std::move(f.get()));
-      workers_.push_back(std::move(w));
-      workers_.back().compute_async(fn_, task_range);
+      for (auto &f : worker_futures) {
+        auto w = Worker(std::move(f.get()));
+        workers_.push_back(std::move(w));
+        workers_.back().compute_async(fn_, task_range);
+      }
+      workers_size_ = workers_.size();
     }
   }
 }

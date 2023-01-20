@@ -1,4 +1,5 @@
 #include "nu/utils/scoped_lock.hpp"
+#include "sync.h"
 
 namespace nu {
 
@@ -53,6 +54,10 @@ TaskRange<Impl>::~TaskRange() {
 
 template <class Impl>
 Impl::Task TaskRange<Impl>::pop() {
+  while (unlikely(rt::access_once(suspended_))) {
+    rt::Yield();
+  }
+
   if (unlikely(rt::access_once(pending_steal_))) {
     steal_size_ = size_ / 2;
     size_ -= steal_size_;
@@ -70,6 +75,18 @@ Impl::Task TaskRange<Impl>::pop() {
 template <class Impl>
 void TaskRange<Impl>::clear() {
   cleared_ = true;
+  barrier();
+}
+
+template <class Impl>
+void TaskRange<Impl>::suspend() {
+  suspended_ = true;
+  barrier();
+}
+
+template <class Impl>
+void TaskRange<Impl>::resume() {
+  suspended_ = false;
   barrier();
 }
 

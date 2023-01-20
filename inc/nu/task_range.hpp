@@ -41,6 +41,8 @@ class TaskRange {
   void run(F &&f);
   Task pop();
   void clear();
+  void suspend();
+  void resume();
   std::size_t size() const { return size_; }
   std::size_t processed_size() const { return processed_size_; }
   bool empty() const { return Caladan::access_once(cleared_) || !size(); }
@@ -66,6 +68,7 @@ class TaskRange {
   std::size_t processed_size_ = 0;
   bool pending_steal_ = false;
   bool cleared_ = false;
+  bool suspended_ = false;
   uint64_t steal_size_;
   CondVar cv_;
   Mutex mutex_;

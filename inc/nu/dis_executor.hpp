@@ -55,6 +55,7 @@ class DistributedExecutor {
   RetT (*fn_)(TR &, States...);
   bool almost_done_;
   std::deque<Worker> workers_;
+  std::size_t workers_size_ = 0;
   Future<Result> future_;
   std::priority_queue<Worker *, std::vector<Worker *>, VictimCmp> victims_;
   std::vector<compute_proclet_result<TR, RetT>> all_pairs_;
