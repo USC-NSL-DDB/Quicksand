@@ -105,7 +105,6 @@ class Migrator {
   constexpr static uint32_t kTransmitProcletNumThreads = 3;
   constexpr static uint32_t kDefaultNumReservedConns = 8;
   constexpr static uint32_t kPort = 8002;
-  constexpr static uint32_t kMaxNumProcletsPerMigration = 32;
   constexpr static float kMigrationThrottleGBs = 0;
   constexpr static uint32_t kMigrationDelayUs = 0;
 
@@ -113,8 +112,8 @@ class Migrator {
 
   Migrator();
   ~Migrator();
-  uint32_t migrate(Resource resource,
-                   const std::vector<ProcletMigrationTask> &tasks);
+  uint32_t migrate(
+      const std::vector<std::pair<ProcletMigrationTask, Resource>> &tasks);
   void reserve_conns(uint32_t dest_server_ip);
   void forward_to_original_server(RPCReturnCode rc, RPCReturner *returner,
                                   uint64_t payload_len, const void *payload,
@@ -174,7 +173,7 @@ class Migrator {
   void aux_handlers_enable_polling(uint32_t dest_ip);
   void aux_handlers_disable_polling();
   void callback();
-  uint32_t __migrate(const NodeGuard &dest_guard, bool has_mem_pressure,
+  uint32_t __migrate(const NodeGuard &dest_guard, bool mem_pressure,
                      const std::vector<ProcletMigrationTask> &tasks);
   void pause_migrating_threads(ProcletHeader *proclet_header);
   void post_migration_cleanup(ProcletHeader *proclet_header);

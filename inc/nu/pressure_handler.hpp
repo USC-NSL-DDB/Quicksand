@@ -40,6 +40,7 @@ class PressureHandler {
       Migrator::kTransmitProcletNumThreads - 1;
   constexpr static uint32_t kSortedProcletsUpdateIntervalMs = 100;
   constexpr static uint32_t kHandlerSleepUs = 100;
+  constexpr static uint32_t kMinNumProcletsOnCPUPressure = 32;
 
   PressureHandler();
   ~PressureHandler();
@@ -77,7 +78,7 @@ class PressureHandler {
   bool mock_;
   bool done_;
 
-  std::pair<std::vector<ProcletMigrationTask>, Resource> pick_tasks(
+  std::vector<std::pair<ProcletMigrationTask, Resource>> pick_tasks(
       uint32_t min_num_proclets, uint32_t min_mem_mbs);
   void update_sorted_proclets();
   void register_handlers();

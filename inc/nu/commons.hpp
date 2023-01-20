@@ -23,6 +23,12 @@ struct ProcletHeader;
 struct Resource {
   float cores;
   float mem_mbs;
+
+  Resource &operator+=(const Resource &o) {
+    cores += o.cores;
+    mem_mbs += o.mem_mbs;
+    return *this;
+  }
 };
 
 struct VAddrRange {

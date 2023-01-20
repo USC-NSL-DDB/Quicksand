@@ -116,17 +116,15 @@ void PressureHandler::__main_handler() {
     }
 
     auto min_num_proclets =
-        has_cpu_pressure()
-            ? get_runtime()->migrator()->kMaxNumProcletsPerMigration
-            : 0;
+        has_cpu_pressure() ? kMinNumProcletsOnCPUPressure : 0;
     auto min_mem_mbs = rt::RuntimeToReleaseMemMbs();
-    auto [tasks, resource] = pick_tasks(min_num_proclets, min_mem_mbs);
-    if (likely(!tasks.empty())) {
-      auto num_migrated = get_runtime()->migrator()->migrate(resource, tasks);
+    auto picked_tasks = pick_tasks(min_num_proclets, min_mem_mbs);
+    if (likely(!picked_tasks.empty())) {
+      auto num_migrated = get_runtime()->migrator()->migrate(picked_tasks);
       if constexpr (kEnableLogging) {
         std::cout << "Migrate " << num_migrated << " proclets." << std::endl;
       }
-      if (unlikely(num_migrated != tasks.size())) {
+      if (unlikely(num_migrated != picked_tasks.size())) {
         break;
       }
     } else {
@@ -226,11 +224,11 @@ void PressureHandler::set_handled() {
   store_release(&pressure.status, HANDLED);
 }
 
-std::pair<std::vector<ProcletMigrationTask>, Resource>
+std::vector<std::pair<ProcletMigrationTask, Resource>>
 PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
   bool done = false;
-  Resource resource{.cores = 0, .mem_mbs = 0};
-  std::vector<ProcletMigrationTask> picked_tasks;
+  uint32_t total_mem_mbs = 0;
+  std::vector<std::pair<ProcletMigrationTask, Resource>> picked_tasks;
   std::set<ProcletHeader *> dedupper;
 
   auto pick_fn = [&](ProcletHeader *header) {
@@ -244,10 +242,12 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
       auto &[migratable, capacity, heap_size, mem_size, cpu_load] = *optional;
       if (likely(migratable && !dedupper.contains(header))) {
         dedupper.insert(header);
-        picked_tasks.emplace_back(header, capacity, heap_size);
-        resource.mem_mbs += mem_size / static_cast<float>(kOneMB);
-        resource.cores += cpu_load;
-        done = ((resource.mem_mbs >= min_mem_mbs) &&
+        ProcletMigrationTask task(header, capacity, heap_size);
+        auto mem_mbs = mem_size / static_cast<float>(kOneMB);
+        Resource resource(cpu_load, mem_mbs);
+        picked_tasks.emplace_back(std::move(task), std::move(resource));
+        total_mem_mbs += mem_mbs;
+        done = ((total_mem_mbs >= min_mem_mbs) &&
                 (picked_tasks.size() >= min_num_proclets));
       }
     }
@@ -286,7 +286,7 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
     }
   }
 
-  return std::make_pair(std::move(picked_tasks), resource);
+  return picked_tasks;
 }
 
 void PressureHandler::mock_set_pressure() {

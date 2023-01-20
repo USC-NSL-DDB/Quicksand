@@ -294,11 +294,6 @@ std::pair<NodeIP, Resource> Controller::acquire_migration_dest(
     }
   }
 
-  // Round 3: search for any candidate that is not congested.
-  if (search_fn([&](const auto &node) { return node.is_not_congested(); })) {
-    goto found;
-  }
-
   // Oof, no candidate found.
   return std::make_pair(0, Resource{});
 

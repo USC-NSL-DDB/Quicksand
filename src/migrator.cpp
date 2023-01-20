@@ -505,61 +505,51 @@ void Migrator::callback() {
   }
 }
 
-uint32_t Migrator::migrate(Resource resource,
-                           const std::vector<ProcletMigrationTask> &tasks) {
+uint32_t Migrator::migrate(
+    const std::vector<std::pair<ProcletMigrationTask, Resource>> &tasks) {
   if (!callback_triggered_) {
     callback_triggered_ = true;
     callback();
   }
 
-  std::set<NodeIP> dests;
-  const uint32_t num_total_proclets = tasks.size();
-  uint32_t num_migrated_proclets = 0;
-  std::vector<ProcletMigrationTask> choosen_tasks;
+  std::set<NodeIP> congested_dests;
+  auto it = tasks.begin();
+  std::vector<ProcletMigrationTask> cur_round_tasks;
 
-  while (num_total_proclets - num_migrated_proclets > 0) {
-    uint32_t num_choosen_proclets =
-        std::min(kMaxNumProcletsPerMigration,
-                 num_total_proclets - num_migrated_proclets);
-    auto ratio = static_cast<float>(num_choosen_proclets) / num_total_proclets;
-    Resource choosen_resource;
-    choosen_resource.cores =
-        static_cast<uint32_t>(ratio * resource.cores + 0.5);
-    choosen_resource.mem_mbs =
-        static_cast<uint32_t>(ratio * resource.mem_mbs + 0.5);
-
+  while (it != tasks.end() &&
+         get_runtime()->pressure_handler()->has_pressure()) {
     auto has_mem_pressure =
         get_runtime()->pressure_handler()->has_mem_pressure();
     auto [dest_guard, dest_resource] =
         get_runtime()->controller_client()->acquire_migration_dest(
-            has_mem_pressure, resource);
+            has_mem_pressure, it->second);
     auto dest_ip = dest_guard.get_ip();
-    if (unlikely(!dest_guard || dests.contains(dest_ip))) {
+    if (unlikely(!dest_guard || congested_dests.contains(dest_ip))) {
       break;
     }
-    dests.insert(dest_ip);
 
-    if (unlikely(dest_resource.cores < choosen_resource.cores ||
-                 dest_resource.mem_mbs < choosen_resource.mem_mbs)) {
-      auto downscale_factor = std::min(
-          1.0f, (dest_resource.mem_mbs - NodeStatus::kMemMBsLowWaterMark) /
-                    choosen_resource.mem_mbs);
+    cur_round_tasks.clear();
+    Resource cur_round_resource{.cores = 0, .mem_mbs = 0};
+    for (auto tmp = it; tmp != tasks.end(); ++tmp) {
+      cur_round_resource += tmp->second;
+      bool too_much = cur_round_resource.mem_mbs > dest_resource.mem_mbs;
       if (!has_mem_pressure) {
-        downscale_factor = std::min(
-            downscale_factor, dest_resource.cores / choosen_resource.cores);
+        too_much |= cur_round_resource.cores > dest_resource.cores;
       }
-      num_choosen_proclets *= downscale_factor;
-    }
-    choosen_tasks.clear();
-    for (uint32_t i = 0; i < num_choosen_proclets; i++) {
-      choosen_tasks.push_back(tasks[num_migrated_proclets + i]);
+      if (too_much) {
+        break;
+      }
+      cur_round_tasks.push_back(tmp->first);
     }
 
-    auto delta = __migrate(dest_guard, has_mem_pressure, choosen_tasks);
-    num_migrated_proclets += delta;
+    auto delta = __migrate(dest_guard, has_mem_pressure, cur_round_tasks);
+    if (unlikely(delta < cur_round_tasks.size())) {
+      congested_dests.insert(dest_ip);
+    }
+    it += delta;
   }
 
-  return num_migrated_proclets;
+  return it - tasks.begin();
 }
 
 void Migrator::pause_migrating_threads(ProcletHeader *proclet_header) {
@@ -606,16 +596,17 @@ static inline bool receive_approval(rt::TcpConn *c) {
   return approval;
 }
 
-uint32_t Migrator::__migrate(const NodeGuard &dest_guard, bool has_mem_pressure,
+uint32_t Migrator::__migrate(const NodeGuard &dest_guard, bool mem_pressure,
                              const std::vector<ProcletMigrationTask> &tasks) {
   if (unlikely(tasks.empty())) {
     return 0;
   }
 
+  auto *pressure_handler = get_runtime()->pressure_handler();
   auto conn_guard = migrator_conn_mgr_.get(dest_guard.get_ip());
   auto *conn = conn_guard.get_tcp_conn();
   BUG_ON(conn->HasPendingDataToRead());
-  transmit_proclet_migration_tasks(conn, has_mem_pressure, tasks);
+  transmit_proclet_migration_tasks(conn, mem_pressure, tasks);
 
   bool aux_handlers_enabled = false;
   auto it = tasks.begin();
@@ -625,7 +616,9 @@ uint32_t Migrator::__migrate(const NodeGuard &dest_guard, bool has_mem_pressure,
       break;
     }
 
-    if (unlikely(!get_runtime()->pressure_handler()->has_pressure() ||
+    bool has_pressure = mem_pressure ? pressure_handler->has_mem_pressure()
+                                     : pressure_handler->has_pressure();
+    if (unlikely(!has_pressure ||
                  !try_mark_proclet_migrating(proclet_header))) {
       skip_proclet(conn, proclet_header);
       continue;
