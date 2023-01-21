@@ -54,8 +54,11 @@ TaskRange<Impl>::~TaskRange() {
 
 template <class Impl>
 Impl::Task TaskRange<Impl>::pop() {
-  while (unlikely(rt::access_once(suspended_))) {
-    rt::Yield();
+  if (unlikely(rt::access_once(suspended_))) {
+    ScopedLock lock(&mutex_);
+    while (rt::access_once(suspended_)) {
+      cv_.wait(&mutex_);
+    }
   }
 
   if (unlikely(rt::access_once(pending_steal_))) {
@@ -80,14 +83,18 @@ void TaskRange<Impl>::clear() {
 
 template <class Impl>
 void TaskRange<Impl>::suspend() {
+  ScopedLock lock(&mutex_);
   suspended_ = true;
   barrier();
+  cv_.signal();
 }
 
 template <class Impl>
 void TaskRange<Impl>::resume() {
+  ScopedLock lock(&mutex_);
   suspended_ = false;
   barrier();
+  cv_.signal();
 }
 
 template <class Impl>
