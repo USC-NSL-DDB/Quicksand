@@ -244,6 +244,7 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
   for (auto &w : workers_) {
     w.compute_async(fn_, task_range);
   }
+  workers_size_ = workers_.size();
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -264,10 +265,10 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
     workers_size_ = target;
   } else if (target > workers_size_) {
     if (workers_size_ < workers_.size()) {
-      std::size_t target = std::min(workers_.size(), target);
+      std::size_t scale_up_target = std::min(workers_.size(), target);
 
       auto futures = std::vector<nu::Future<void>>{};
-      for (std::size_t i = workers_size_; i < target; i++) {
+      for (std::size_t i = workers_size_; i < scale_up_target; i++) {
         futures.push_back(std::move(
             workers_[i].cp.run_async(&ComputeProclet<TR, States...>::resume)));
       }
@@ -275,11 +276,9 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
       for (auto &f : futures) {
         f.get();
       }
-      workers_size_ = target;
+      workers_size_ = scale_up_target;
     }
     if (target > workers_size_) {
-      BUG_ON(workers_size_ != workers_.size());
-
       std::vector<std::pair<NodeIP, Resource>> global_free_resources;
       {
         Caladan::PreemptGuard g;
@@ -371,27 +370,29 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
           if (queue_len > queue_len_target_max && queue_len > prev_queue_len) {
             float scale_factor = queue_len / prev_queue_len;
             auto num_workers =
-                std::min(static_cast<float>(workers_.size()) / scale_factor,
-                         static_cast<float>(workers_.size() - 1));
+                std::min(static_cast<float>(workers_size_) / scale_factor,
+                         static_cast<float>(workers_size_ - 1));
             adjust_queue_workers(num_workers, task_range, states...);
           } else if (queue_len < queue_len_target_min) {
-            adjust_queue_workers(workers_.size() + 1, task_range, states...);
+            adjust_queue_workers(workers_size_ + 1, task_range, states...);
           } else {
             // discover remaining capacity
-            adjust_queue_workers(workers_.size() + 1, task_range, states...);
+            adjust_queue_workers(workers_size_ + 1, task_range, states...);
           }
         } else {
           if (queue_len > queue_len_target_max && queue_len > prev_queue_len) {
             float scale_factor = queue_len / prev_queue_len;
             auto num_workers =
-                std::max(static_cast<float>(workers_.size()) * scale_factor,
-                         static_cast<float>(workers_.size() + 1));
+                std::max(static_cast<float>(workers_size_) * scale_factor,
+                         static_cast<float>(workers_size_ + 1));
             adjust_queue_workers(num_workers, task_range, states...);
           } else if (queue_len < queue_len_target_min) {
-            adjust_queue_workers(workers_.size() - 1, task_range, states...);
+            preempt_disable();
+            preempt_enable();
+            adjust_queue_workers(workers_size_ - 1, task_range, states...);
           } else {
             // discover remaining capacity
-            adjust_queue_workers(workers_.size() + 1, task_range, states...);
+            adjust_queue_workers(workers_size_ + 1, task_range, states...);
           }
         }
 
