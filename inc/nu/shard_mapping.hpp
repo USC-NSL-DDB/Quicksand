@@ -4,6 +4,7 @@
 #include <map>
 #include <optional>
 #include <stack>
+#include <variant>
 #include <vector>
 
 #include "nu/shard.hpp"
@@ -31,6 +32,7 @@ class Log {
   std::optional<std::vector<LogEntry<Shard>>> from(uint64_t start_seq);
   void append(uint8_t op, std::optional<typename Shard::Key> l_key,
               WeakProclet<Shard> shard);
+  uint64_t last_seq() const;
 
  private:
   uint64_t seq_;
@@ -41,12 +43,15 @@ template <class Shard>
 class GeneralShardMapping {
  public:
   using Key = Shard::Key;
+  using LogUpdates = std::vector<LogEntry<Shard>>;
+  using Snapshot =
+      std::pair<uint64_t,
+                std::multimap<std::optional<Key>, WeakProclet<Shard>>>;
 
   GeneralShardMapping(uint32_t max_shard_bytes,
                       std::optional<uint32_t> max_shard_cnt);
   ~GeneralShardMapping();
-  std::optional<std::vector<LogEntry<Shard>>> get_updates(uint64_t start_seq);
-  std::multimap<std::optional<Key>, WeakProclet<Shard>> get_mapping();
+  std::variant<LogUpdates, Snapshot> get_updates(uint64_t start_seq);
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_all_keys_and_shards();
   WeakProclet<Shard> get_shard_for_key(std::optional<Key> key);
@@ -81,6 +86,7 @@ class GeneralShardMapping {
 
   bool out_of_shards();
   std::vector<Proclet<Shard>> move_all_shards();
+  Snapshot get_snapshot(const ScopedLock<Mutex> &lock);
 };
 
 }  // namespace nu

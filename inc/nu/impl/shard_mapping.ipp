@@ -36,6 +36,11 @@ std::optional<std::vector<LogEntry<Shard>>> Log<Shard>::from(
 }
 
 template <class Shard>
+uint64_t Log<Shard>::last_seq() const {
+  return seq_ - 1;
+}
+
+template <class Shard>
 void Log<Shard>::append(uint8_t op, std::optional<typename Shard::Key> l_key,
                         WeakProclet<Shard> shard) {
   cb_.push_back(LogEntry<Shard>{op, std::move(l_key), shard, seq_++});
@@ -102,11 +107,30 @@ void GeneralShardMapping<Shard>::dec_ref_cnt() {
 }
 
 template <class Shard>
-std::optional<std::vector<LogEntry<Shard>>>
+std::variant<typename GeneralShardMapping<Shard>::LogUpdates,
+             typename GeneralShardMapping<Shard>::Snapshot>
 GeneralShardMapping<Shard>::get_updates(uint64_t start_seq) {
   ScopedLock lock(&mutex_);
 
-  return log_.from(start_seq);
+  auto optional_log_updates = log_.from(start_seq);
+  if (likely(optional_log_updates)) {
+    return *optional_log_updates;
+  } else {
+    return get_snapshot(lock);
+  }
+}
+
+template <class Shard>
+typename GeneralShardMapping<Shard>::Snapshot
+GeneralShardMapping<Shard>::get_snapshot(const ScopedLock<Mutex> &lock) {
+  Snapshot snapshot;
+
+  snapshot.first = log_.last_seq();
+  for (auto &[k, p] : mapping_) {
+    snapshot.second.emplace(k, p.get_weak());
+  }
+
+  return snapshot;
 }
 
 template <class Shard>

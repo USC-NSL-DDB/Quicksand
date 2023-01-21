@@ -14,6 +14,7 @@
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/unordered_set.hpp>
 #include <cereal/types/utility.hpp>
+#include <cereal/types/variant.hpp>
 #include <cereal/types/vector.hpp>
 #include <concepts>
 #include <type_traits>

@@ -518,9 +518,12 @@ void ShardedDataStructure<Container, LL>::flush() {
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::sync_mapping() {
   std::vector<DataEntry> insert_reqs;
+  uint64_t latest_seq = 0;
 
-  auto updates = mapping_.run(&ShardMapping::get_updates, mapping_seq_ + 1);
-  if (likely(updates)) {
+  auto v = mapping_.run(&ShardMapping::get_updates, mapping_seq_ + 1);
+
+  typename ShardMapping::LogUpdates *updates;
+  if (likely(updates = std::get_if<typename ShardMapping::LogUpdates>(&v))) {
     for (auto &entry : *updates) {
       if (entry.op == LogEntry<Shard>::kInsert) {
         auto it = key_to_shards_.emplace(entry.l_key, entry.shard);
@@ -530,7 +533,7 @@ void ShardedDataStructure<Container, LL>::sync_mapping() {
       } else if (entry.op == LogEntry<Shard>::kDelete) {
         auto [begin_it, end_it] = key_to_shards_.equal_range(entry.l_key);
         auto it = begin_it;
-        for (;it != end_it; ++it) {
+        for (; it != end_it; ++it) {
           if (it->second.shard == entry.shard) {
             break;
           }
@@ -545,14 +548,24 @@ void ShardedDataStructure<Container, LL>::sync_mapping() {
     }
 
     if (!updates->empty()) {
-      BUG_ON(mapping_seq_ > updates->back().seq);
-      mapping_seq_ = updates->back().seq;
+      latest_seq = updates->back().seq;
     }
   } else {
-    // TODO: implement it.
-    BUG();
+    auto &snapshot = std::get<typename ShardMapping::Snapshot>(v);
+    for (auto &[k, s] : key_to_shards_) {
+      move_append_vector(insert_reqs, s.insert_reqs);
+    }
+    key_to_shards_.clear();
+    for (auto &[k, s] : snapshot.second) {
+      key_to_shards_.emplace(k, std::move(s));
+    }
+    latest_seq = snapshot.first;
   }
 
+  if (latest_seq) {
+    BUG_ON(mapping_seq_ > latest_seq);
+    mapping_seq_ = latest_seq;
+  }
   auto push_back_reqs = std::move(push_back_reqs_);
   push_back_reqs_.clear();
 
