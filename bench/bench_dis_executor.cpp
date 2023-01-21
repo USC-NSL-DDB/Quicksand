@@ -116,13 +116,18 @@ void bench_rate_match(nu::ShardedVector<T, LL> input, ProcessFn process_fn,
 }
 
 void bench_rate_match_with_int_vec() {
+  std::cout << __FUNCTION__ << std::endl;
+
+  constexpr uint64_t kConsumeTime = 4000;
+  constexpr uint64_t kProcessTime = 3500;
+
   constexpr std::size_t kNumElems = 1 << 10;
   constexpr auto kProcessFn = [](std::size_t elem) {
-    compute_us<1000>();
+    compute_us<kProcessTime>();
     return elem;
   };
   constexpr auto kConsumeFn = [](std::size_t elem) {
-    compute_us<1000>();
+    compute_us<kConsumeTime>();
   };
 
   auto input = nu::make_sharded_vector<std::size_t, std::false_type>();
