@@ -94,8 +94,8 @@ void bench_rate_match_with_synthetic_input() {
 template <typename T, typename LL, typename ProcessFn, typename ConsumeFn>
 void bench_rate_match(nu::ShardedVector<T, LL> input, ProcessFn process_fn,
                       ConsumeFn consume_fn) {
-  auto input_rng =
-      nu::make_contiguous_ds_range(nu::to_sealed_ds(std::move(input)));
+  auto sealed_input = nu::to_sealed_ds(std::move(input));
+  auto input_rng = nu::make_contiguous_ds_range(sealed_input);
   auto queue = nu::make_sharded_queue<T, std::true_type>();
 
   auto producers = nu::make_distributed_executor(
@@ -121,19 +121,21 @@ void bench_rate_match_with_int_vec() {
     compute_us<1000>();
     return elem;
   };
-  constexpr auto kConsumeFn = [](std::size_t elem) { compute_us<1000>(); };
+  constexpr auto kConsumeFn = [](std::size_t elem) {
+    compute_us<1000>();
+  };
 
   auto input = nu::make_sharded_vector<std::size_t, std::false_type>();
   for (auto i : std::views::iota(static_cast<std::size_t>(0), kNumElems)) {
     input.push_back(i);
   }
 
-  bench_rate_match(input, +kProcessFn, +kConsumeFn);
+  bench_rate_match(std::move(input), +kProcessFn, +kConsumeFn);
 }
 
 void do_work() {
-  bench_vector_task_range();
-  // bench_rate_match();
+  // bench_vector_task_range();
+  bench_rate_match_with_int_vec();
 }
 
 int main(int argc, char **argv) {
