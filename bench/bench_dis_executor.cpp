@@ -5,6 +5,7 @@
 #include <iostream>
 #include <type_traits>
 
+#include "nu/commons.hpp"
 #include "nu/cont_ds_range.hpp"
 #include "nu/dis_executor.hpp"
 #include "nu/proclet.hpp"
@@ -24,6 +25,25 @@ void compute_us() {
     asm volatile("nop");
   }
 }
+
+template <typename Item>
+class MockGPU {
+ public:
+  static constexpr uint32_t kProcessDelayUs = 3500;
+
+  MockGPU() {}
+  void run(nu::ShardedQueue<Item, std::true_type> queue) {
+    while (!rt::access_once(stopped_)) {
+      process(std::move(queue.pop()));
+    }
+  }
+  void stop() { stopped_ = true; }
+
+ private:
+  void process(Item &&item) { compute_us<kProcessDelayUs>(); }
+
+  bool stopped_ = false;
+};
 
 void bench_vector_task_range() {
   std::cout << "bench_vector_task_range" << std::endl;
@@ -121,7 +141,7 @@ void bench_rate_match_with_int_vec() {
   constexpr uint64_t kConsumeTime = 4000;
   constexpr uint64_t kProcessTime = 3500;
 
-  constexpr std::size_t kNumElems = 1 << 10;
+  constexpr std::size_t kNumElems = 1 << 12;
   constexpr auto kProcessFn = [](std::size_t elem) {
     compute_us<kProcessTime>();
     return elem;
@@ -138,9 +158,58 @@ void bench_rate_match_with_int_vec() {
   bench_rate_match(std::move(input), +kProcessFn, +kConsumeFn);
 }
 
+void bench_temp_gpu_slot() {
+  std::cout << __FUNCTION__ << std::endl;
+
+  using Elem = std::size_t;
+  using GPU = MockGPU<Elem>;
+
+  constexpr uint64_t kProcessTime = 4000;
+  constexpr uint64_t kNumGPUs = 8;
+  constexpr std::size_t kNumElems = 1 << 16;
+
+  auto input = nu::make_sharded_vector<std::size_t, std::false_type>();
+  for (auto i : std::views::iota(static_cast<std::size_t>(0), kNumElems)) {
+    input.push_back(i);
+  }
+
+  auto sealed_input = nu::to_sealed_ds(std::move(input));
+  auto input_rng = nu::make_contiguous_ds_range(sealed_input);
+  auto queue = nu::make_sharded_queue<Elem, std::true_type>();
+
+  auto gpus = std::vector<nu::Proclet<GPU>>{};
+  auto futures = std::vector<nu::Future<void>>{};
+  for (uint64_t i = 0; i < kNumGPUs; ++i) {
+    gpus.emplace_back(nu::make_proclet<GPU>());
+    futures.emplace_back(gpus.back().run_async(&GPU::run, queue));
+  }
+
+  auto producers = nu::make_distributed_executor(
+      +[](decltype(input_rng) &input_rng, decltype(queue) queue) {
+        while (!input_rng.empty()) {
+          auto elem = input_rng.pop();
+          compute_us<kProcessTime>();
+          queue.push(std::move(elem));
+        }
+      },
+      input_rng, queue);
+
+  nu::Time::sleep(nu::kOneSecond * 3);
+  gpus.emplace_back(nu::make_proclet<GPU>());
+  futures.emplace_back(gpus.back().run_async(&GPU::run, queue));
+
+  nu::Time::sleep(nu::kOneSecond);
+  gpus.back().run(&GPU::stop);
+  futures.resize(futures.size() - 1);
+  gpus.resize(gpus.size() - 1);
+
+  producers.get();
+}
+
 void do_work() {
   // bench_vector_task_range();
-  bench_rate_match_with_int_vec();
+  // bench_rate_match_with_int_vec();
+  bench_temp_gpu_slot();
 }
 
 int main(int argc, char **argv) {
