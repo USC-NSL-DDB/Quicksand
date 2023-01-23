@@ -241,10 +241,8 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
                          [](auto &worker_future) {
                            return Worker(std::move(worker_future.get()));
                          });
-  for (auto &w : workers_) {
-    w.compute_async(fn_, task_range);
-  }
   workers_size_ = workers_.size();
+  make_initial_dispatch(fn_, std::move(task_range));
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -304,7 +302,6 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
       for (auto &f : worker_futures) {
         auto w = Worker(std::move(f.get()));
         workers_.push_back(std::move(w));
-        workers_.back().compute_async(fn_, task_range);
       }
       workers_size_ = workers_.size();
     }
@@ -344,6 +341,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   fn_ = fn;
 
   uint64_t last_check_queue_us = Time::microtime();
+  uint64_t last_check_worker_us = last_check_queue_us;
   uint64_t last_add_worker_us = last_check_queue_us;
   float queue_len = 0;
   float prev_queue_len = 0;
@@ -356,6 +354,11 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
 
   while (true) {
     auto now_us = Time::microtime();
+
+    if (now_us - last_check_worker_us >= kCheckWorkersIntervalUs) {
+      last_check_worker_us = now_us;
+      check_workers();
+    }
 
     if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
       last_check_queue_us = now_us;
@@ -397,6 +400,10 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
         }
 
         prev_queue_len = queue_len;
+
+        if (unlikely(!check_futures_and_redispatch())) {
+          break;
+        }
       }
     }
 
