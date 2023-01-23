@@ -71,6 +71,7 @@ class TaskRange {
   bool suspended_ = false;
   uint64_t steal_size_;
   CondVar cv_;
+  CondVar suspend_cv_;
   Mutex mutex_;
   template <TaskRangeBased TR, typename... States>
   friend class ComputeProclet;

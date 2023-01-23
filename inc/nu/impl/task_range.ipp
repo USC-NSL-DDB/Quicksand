@@ -57,7 +57,7 @@ Impl::Task TaskRange<Impl>::pop() {
   if (unlikely(rt::access_once(suspended_))) {
     ScopedLock lock(&mutex_);
     while (rt::access_once(suspended_)) {
-      cv_.wait(&mutex_);
+      suspend_cv_.wait(&mutex_);
     }
   }
 
@@ -86,7 +86,7 @@ void TaskRange<Impl>::suspend() {
   ScopedLock lock(&mutex_);
   suspended_ = true;
   barrier();
-  cv_.signal();
+  suspend_cv_.signal();
 }
 
 template <class Impl>
@@ -94,7 +94,7 @@ void TaskRange<Impl>::resume() {
   ScopedLock lock(&mutex_);
   suspended_ = false;
   barrier();
-  cv_.signal();
+  suspend_cv_.signal();
 }
 
 template <class Impl>
