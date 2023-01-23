@@ -111,8 +111,8 @@ void bench_rate_match(nu::ShardedVector<T, LL> input, ProcessFn process_fn,
 
   auto consumers = queue.consume(consume_fn);
 
-  consumers.get();
   producers.get();
+  consumers.drain_and_join();
 }
 
 void bench_rate_match_with_int_vec() {
