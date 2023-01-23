@@ -44,6 +44,14 @@ DistributedExecutor<RetT, TR, States...>::get() {
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
+DistributedExecutor<RetT, TR, States...>::MovedResult
+DistributedExecutor<RetT, TR, States...>::drain_and_join() {
+  static_assert(QueueRangeBased<typename TR::Implementation>);
+  almost_done_ = true;
+  return get();
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::spawn_initial_workers(
     S1s &... states) {
@@ -309,6 +317,19 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
+void DistributedExecutor<RetT, TR, States...>::abort_workers() {
+  victims_ = decltype(victims_)();
+  auto futures = std::vector<nu::Future<void>>{};
+  for (auto &w : workers_) {
+    futures.push_back(
+        std::move(w.cp.run_async(&ComputeProclet<TR, States...>::abort)));
+  }
+  for (auto &f : futures) {
+    f.get();
+  }
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
 float DistributedExecutor<RetT, TR, States...>::check_queue_workers() {
   victims_ = decltype(victims_)();
   auto processed_sizes = workers_ | std::views::transform([](auto &worker) {
@@ -363,8 +384,12 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
     if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
       last_check_queue_us = now_us;
 
-      float curr_len = static_cast<float>(queue.size());
-      ewma(kEWMAWeight, &queue_len, curr_len);
+      auto curr_len = queue.size();
+      if (unlikely(almost_done_ && curr_len == 0)) {
+        abort_workers();
+        break;
+      }
+      ewma(kEWMAWeight, &queue_len, static_cast<float>(curr_len));
 
       if (now_us - last_add_worker_us >= kAddQueueWorkersIntervalUs) {
         last_add_worker_us = now_us;
