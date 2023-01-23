@@ -165,7 +165,10 @@ void bench_temp_gpu_slot() {
   using GPU = MockGPU<Elem>;
 
   constexpr uint64_t kProcessTime = 4000;
-  constexpr uint64_t kNumGPUs = 8;
+  constexpr uint64_t kNumGPUs = 4;
+  constexpr uint64_t kNumTempGPUs = 4;
+  constexpr uint64_t kScaleUpDurationUs = nu::kOneMilliSecond * 10;
+  constexpr uint64_t kNumScaleUps = 20;
   constexpr std::size_t kNumElems = 1 << 16;
 
   auto input = nu::make_sharded_vector<std::size_t, std::false_type>();
@@ -194,14 +197,21 @@ void bench_temp_gpu_slot() {
       },
       input_rng, queue);
 
-  nu::Time::sleep(nu::kOneSecond * 3);
-  gpus.emplace_back(nu::make_proclet<GPU>());
-  futures.emplace_back(gpus.back().run_async(&GPU::run, queue));
+  nu::Time::sleep(nu::kOneSecond * 2);
+  for (std::size_t i = 0; i < kNumScaleUps; ++i) {
+    nu::Time::sleep(nu::kOneSecond * 1);
+    for (std::size_t i = 0; i < kNumTempGPUs; ++i) {
+      gpus.emplace_back(nu::make_proclet<GPU>());
+      futures.emplace_back(gpus.back().run_async(&GPU::run, queue));
+    }
 
-  nu::Time::sleep(nu::kOneSecond);
-  gpus.back().run(&GPU::stop);
-  futures.resize(futures.size() - 1);
-  gpus.resize(gpus.size() - 1);
+    nu::Time::sleep(kScaleUpDurationUs);
+    for (std::size_t i = kNumGPUs; i < gpus.size(); ++i) {
+      gpus[i].run(&GPU::stop);
+    }
+    futures.resize(kNumGPUs);
+    gpus.resize(kNumGPUs);
+  }
 
   producers.get();
 }
