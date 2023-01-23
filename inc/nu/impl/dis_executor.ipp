@@ -371,7 +371,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
 
   // TODO: dynamically tune these bounds
   std::size_t queue_len_target_min = 10;
-  std::size_t queue_len_target_max = 100;
+  std::size_t queue_len_target_max = 10;
 
   while (true) {
     auto now_us = Time::microtime();
@@ -397,34 +397,22 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
         if constexpr (IsProducer::value) {
           if (queue_len > queue_len_target_max) {
             if (queue_len > prev_queue_len) {
-              float scale_factor = queue_len / prev_queue_len;
-              auto num_workers =
-                  std::min(static_cast<float>(workers_size_) / scale_factor,
-                           static_cast<float>(workers_size_ - 1));
-              adjust_queue_workers(num_workers, task_range, states...);
+              adjust_queue_workers(workers_size_ - 1, task_range, states...);
             }
           } else if (queue_len < queue_len_target_min) {
-            adjust_queue_workers(workers_size_ + 1, task_range, states...);
-          } else {
-            // discover remaining capacity
-            adjust_queue_workers(workers_size_ + 1, task_range, states...);
+            if (queue_len < prev_queue_len) {
+              adjust_queue_workers(workers_size_ + 1, task_range, states...);
+            }
           }
         } else {
           if (queue_len > queue_len_target_max) {
             if (queue_len > prev_queue_len) {
-              float scale_factor = queue_len / prev_queue_len;
-              auto num_workers =
-                  std::max(static_cast<float>(workers_size_) * scale_factor,
-                           static_cast<float>(workers_size_ + 1));
-              adjust_queue_workers(num_workers, task_range, states...);
+              adjust_queue_workers(workers_size_ - 1, task_range, states...);
             }
           } else if (queue_len < queue_len_target_min) {
-            preempt_disable();
-            preempt_enable();
-            adjust_queue_workers(workers_size_ - 1, task_range, states...);
-          } else {
-            // discover remaining capacity
-            adjust_queue_workers(workers_size_ + 1, task_range, states...);
+            if (queue_len < prev_queue_len) {
+              adjust_queue_workers(workers_size_ - 1, task_range, states...);
+            }
           }
         }
 
