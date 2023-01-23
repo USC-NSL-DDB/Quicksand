@@ -20,7 +20,7 @@ QueueTaskRangeImpl<T, LL, Insertable>::pop() {
 template <typename T, BoolIntegral LL, BoolIntegral Insertable>
 QueueTaskRangeImpl<T, LL, Insertable>
 QueueTaskRangeImpl<T, LL, Insertable>::split(uint64_t last_n_elems) {
-  BUG();
+  return *this;
 }
 
 template <typename T, BoolIntegral LL, BoolIntegral Insertable>
