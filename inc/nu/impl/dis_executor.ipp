@@ -395,12 +395,14 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
         last_add_worker_us = now_us;
 
         if constexpr (IsProducer::value) {
-          if (queue_len > queue_len_target_max && queue_len > prev_queue_len) {
-            float scale_factor = queue_len / prev_queue_len;
-            auto num_workers =
-                std::min(static_cast<float>(workers_size_) / scale_factor,
-                         static_cast<float>(workers_size_ - 1));
-            adjust_queue_workers(num_workers, task_range, states...);
+          if (queue_len > queue_len_target_max) {
+            if (queue_len > prev_queue_len) {
+              float scale_factor = queue_len / prev_queue_len;
+              auto num_workers =
+                  std::min(static_cast<float>(workers_size_) / scale_factor,
+                           static_cast<float>(workers_size_ - 1));
+              adjust_queue_workers(num_workers, task_range, states...);
+            }
           } else if (queue_len < queue_len_target_min) {
             adjust_queue_workers(workers_size_ + 1, task_range, states...);
           } else {
@@ -408,12 +410,14 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
             adjust_queue_workers(workers_size_ + 1, task_range, states...);
           }
         } else {
-          if (queue_len > queue_len_target_max && queue_len > prev_queue_len) {
-            float scale_factor = queue_len / prev_queue_len;
-            auto num_workers =
-                std::max(static_cast<float>(workers_size_) * scale_factor,
-                         static_cast<float>(workers_size_ + 1));
-            adjust_queue_workers(num_workers, task_range, states...);
+          if (queue_len > queue_len_target_max) {
+            if (queue_len > prev_queue_len) {
+              float scale_factor = queue_len / prev_queue_len;
+              auto num_workers =
+                  std::max(static_cast<float>(workers_size_) * scale_factor,
+                           static_cast<float>(workers_size_ + 1));
+              adjust_queue_workers(num_workers, task_range, states...);
+            }
           } else if (queue_len < queue_len_target_min) {
             preempt_disable();
             preempt_enable();
