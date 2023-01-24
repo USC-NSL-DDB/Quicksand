@@ -57,8 +57,10 @@ class GeneralShardMapping {
   WeakProclet<Shard> get_shard_for_key(std::optional<Key> key);
   void reserve_new_shard();
   WeakProclet<Shard> create_new_shard(std::optional<Key> l_key,
-                                      std::optional<Key> r_key,
-                                      bool reserve_space);
+                                      std::optional<Key> r_key);
+  WeakProclet<Shard> create_or_reuse_new_shard_for_init(
+      std::optional<Key> l_key);
+  void commit_shard(std::optional<Key> l_key);
   void delete_shard(std::optional<Key> l_key, WeakProclet<Shard> shard);
   void concat(WeakProclet<GeneralShardMapping> tail) requires(
       Shard::GeneralContainer::kContiguousIterator);
@@ -76,6 +78,7 @@ class GeneralShardMapping {
   uint32_t proclet_capacity_;
   std::optional<uint32_t> max_shard_cnt_;
   std::multimap<std::optional<Key>, Proclet<Shard>> mapping_;
+  std::map<std::optional<Key>, Proclet<Shard>> stash_mapping_;
   uint32_t pending_creations_;
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;

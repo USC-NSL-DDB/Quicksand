@@ -111,7 +111,7 @@ template <class Container>
 inline GeneralShard<Container>::~GeneralShard() {}
 
 template <class Container>
-void GeneralShard<Container>::set_range_and_data(
+void GeneralShard<Container>::init_range_and_data(
     std::optional<Key> l_key, std::optional<Key> r_key,
     ContainerAndMetadata<Container> container_and_metadata) {
   rw_lock_.writer_lock();
@@ -171,15 +171,15 @@ void GeneralShard<Container>::split() {
     }
 
     auto new_shard =
-        mapping_.run(&ShardMapping::create_new_shard, mid_k, r_key_,
-                     /* reserve_space = */ false);
+        mapping_.run(&ShardMapping::create_or_reuse_new_shard_for_init, mid_k);
     ContainerAndMetadata<Container> container_and_metadata;
     container_and_metadata.container = std::move(*latter_half_container);
     container_and_metadata.capacity =
         std::max(new_container_capacity, latter_half_container->size());
     container_and_metadata.container_bucket_size = container_bucket_size_;
-    new_shard.run(&GeneralShard::set_range_and_data, mid_k, r_key_,
+    new_shard.run(&GeneralShard::init_range_and_data, mid_k, r_key_,
                   container_and_metadata);
+    mapping_.run(&ShardMapping::commit_shard, mid_k);
   }
 
   r_key_ = mid_k;

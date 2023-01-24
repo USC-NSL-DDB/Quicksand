@@ -49,18 +49,18 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
 
     if constexpr (PushBackAble<Container>) {
       if (!curr_key) {
-        shard_futures.emplace_back(mapping_.run_async(
-            &ShardMapping::create_new_shard, std::move(curr_key),
-            std::optional<Key>(), /* reserve_space = */ true));
+        shard_futures.emplace_back(
+            mapping_.run_async(&ShardMapping::create_new_shard,
+                               std::move(curr_key), std::optional<Key>()));
         shard_futures.back().get();
       } else {
         reserve_futures.emplace_back(
             mapping_.run_async(&ShardMapping::reserve_new_shard));
       }
     } else {
-      shard_futures.emplace_back(mapping_.run_async(
-          &ShardMapping::create_new_shard, std::move(curr_key),
-          std::move(next_key), /* reserve_space = */ true));
+      shard_futures.emplace_back(
+          mapping_.run_async(&ShardMapping::create_new_shard,
+                             std::move(curr_key), std::move(next_key)));
     }
   }
 

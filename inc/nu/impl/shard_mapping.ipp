@@ -185,7 +185,7 @@ void GeneralShardMapping<Shard>::reserve_new_shard() {
 
 template <class Shard>
 WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
-    std::optional<Key> l_key, std::optional<Key> r_key, bool reserve_space) {
+    std::optional<Key> l_key, std::optional<Key> r_key) {
   {
     ScopedLock lock(&mutex_);
 
@@ -195,38 +195,73 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
     pending_creations_++;
   }
 
-  std::optional<Proclet<Shard>> new_shard;
-
-  if (!reserved_shards_.empty()) {
-    ScopedLock lock(&mutex_);
-
-    if (likely(!reserved_shards_.empty())) {
-      new_shard = std::make_optional(std::move(reserved_shards_.top()));
-      reserved_shards_.pop();
-      lock.reset();
-
-      ContainerAndMetadata<typename Shard::GeneralContainer> data;
-      new_shard->run(&Shard::set_range_and_data, l_key, r_key, data);
-    }
-  }
-
-  if (!new_shard) {
-    new_shard = std::make_optional(
-        make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_,
-                                                  l_key, r_key, reserve_space),
-                            false, proclet_capacity_));
-  }
-
-  auto new_weak_shard = new_shard->get_weak();
+  auto new_shard = make_proclet<Shard>(
+      std::forward_as_tuple(self_, max_shard_bytes_, l_key, r_key), false,
+      proclet_capacity_);
+  auto new_weak_shard = new_shard.get_weak();
 
   {
     ScopedLock lock(&mutex_);
 
     log_.append(LogEntry<Shard>::kInsert, l_key, new_weak_shard);
-    mapping_.emplace(l_key, std::move(*new_shard));
+    mapping_.emplace(l_key, std::move(new_shard));
     pending_creations_--;
   }
   return new_weak_shard;
+}
+
+template <class Shard>
+WeakProclet<Shard>
+GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
+    std::optional<Key> l_key) {
+  {
+    ScopedLock lock(&mutex_);
+
+    while (out_of_shards()) {
+      oos_cv_.wait(&mutex_);
+    }
+    pending_creations_++;
+  }
+
+  Proclet<Shard> new_shard;
+
+  if (!reserved_shards_.empty()) {
+    ScopedLock lock(&mutex_);
+
+    if (likely(!reserved_shards_.empty())) {
+      new_shard = std::move(reserved_shards_.top());
+      reserved_shards_.pop();
+    }
+  }
+
+  if (!new_shard) {
+    new_shard =
+        make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
+                            false, proclet_capacity_);
+  }
+
+  auto new_weak_shard = new_shard.get_weak();
+  {
+    ScopedLock lock(&mutex_);
+    auto ret = stash_mapping_.emplace(std::move(l_key), std::move(new_shard));
+    BUG_ON(!ret.second);
+  }
+
+  return new_weak_shard;
+}
+
+template <class Shard>
+void GeneralShardMapping<Shard>::commit_shard(std::optional<Key> l_key) {
+  ScopedLock lock(&mutex_);
+
+  auto iter = stash_mapping_.find(l_key);
+  BUG_ON(iter == stash_mapping_.end());
+
+  log_.append(LogEntry<Shard>::kInsert, l_key, iter->second.get_weak());
+  mapping_.emplace(std::move(l_key), std::move(iter->second));
+  pending_creations_--;
+
+  stash_mapping_.erase(iter);
 }
 
 template <class Shard>
@@ -245,32 +280,32 @@ void GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
     }
   }
   BUG();
-}
-
-template <class Shard>
-void GeneralShardMapping<Shard>::concat(
-    WeakProclet<GeneralShardMapping>
-        tail) requires(Shard::GeneralContainer::kContiguousIterator) {
-  auto all_tail_shards = tail.run_async(&GeneralShardMapping::move_all_shards);
-  auto end_key = (--mapping_.end())->second.run(&Shard::split_at_end);
-
-  for (auto &tail_shard : all_tail_shards.get()) {
-    log_.append(LogEntry<Shard>::kInsert, end_key,
-                tail_shard.get_weak());
-    auto iter = mapping_.emplace(end_key, std::move(tail_shard));
-    end_key = iter->second.run(&Shard::rebase, end_key);
-  }
-}
-
-template <class Shard>
-inline bool GeneralShardMapping<Shard>::out_of_shards() {
-  if (max_shard_cnt_) {
-    auto curr_cnt = mapping_.size() + pending_creations_;
-    BUG_ON(curr_cnt > *max_shard_cnt_);
-    return curr_cnt == *max_shard_cnt_;
   }
 
-  return false;
-}
+  template <class Shard>
+  void GeneralShardMapping<Shard>::concat(
+      WeakProclet<GeneralShardMapping>
+          tail) requires(Shard::GeneralContainer::kContiguousIterator) {
+    auto all_tail_shards =
+        tail.run_async(&GeneralShardMapping::move_all_shards);
+    auto end_key = (--mapping_.end())->second.run(&Shard::split_at_end);
+
+    for (auto &tail_shard : all_tail_shards.get()) {
+      log_.append(LogEntry<Shard>::kInsert, end_key, tail_shard.get_weak());
+      auto iter = mapping_.emplace(end_key, std::move(tail_shard));
+      end_key = iter->second.run(&Shard::rebase, end_key);
+    }
+  }
+
+  template <class Shard>
+  inline bool GeneralShardMapping<Shard>::out_of_shards() {
+    if (max_shard_cnt_) {
+      auto curr_cnt = mapping_.size() + pending_creations_;
+      BUG_ON(curr_cnt > *max_shard_cnt_);
+      return curr_cnt == *max_shard_cnt_;
+    }
+
+    return false;
+  }
 
 }  // namespace nu

@@ -87,9 +87,9 @@ class GeneralShard {
   GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes);
   GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes,
                std::optional<Key> l_key, std::optional<Key> r_key,
-               bool reserve_space);
+               bool reserve_space = true);
   ~GeneralShard();
-  void set_range_and_data(
+  void init_range_and_data(
       std::optional<Key> l_key, std::optional<Key> r_key,
       ContainerAndMetadata<Container> container_and_metadata);
   bool try_insert(std::optional<Key> l_key, std::optional<Key> r_key,
