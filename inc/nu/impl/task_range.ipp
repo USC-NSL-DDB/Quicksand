@@ -119,6 +119,12 @@ TaskRange<Impl> TaskRange<Impl>::split(uint64_t last_n_elems) {
 template <class Impl>
 TaskRange<Impl> TaskRange<Impl>::steal() {
   ScopedLock lock(&mutex_);
+  if (suspended_) {
+    auto steal_size = size_ < 2 ? 2 : size_ / 2;
+    size_ -= steal_size;
+    return impl_.split(steal_size);
+  }
+
   if (unlikely(size() < 2)) {
     return TaskRange<Impl>();
   }
