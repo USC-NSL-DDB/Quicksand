@@ -26,6 +26,14 @@ void compute_us() {
   }
 }
 
+enum GPUStatus {
+  kRunning = 0,
+  kDrain,
+  kTerminate,
+};
+
+using GPUStatusType = uint8_t;
+
 template <typename Item>
 class MockGPU {
  public:
@@ -33,16 +41,24 @@ class MockGPU {
 
   MockGPU() {}
   void run(nu::ShardedQueue<Item, std::true_type> queue) {
-    while (!rt::access_once(stopped_)) {
+    while (true) {
+      auto status = rt::access_once(status_);
+      if (unlikely(status == GPUStatus::kTerminate)) {
+        break;
+      }
+      if (unlikely(status == GPUStatus::kDrain && queue.size() == 0)) {
+        break;
+      }
       process(std::move(queue.pop()));
     }
   }
-  void stop() { stopped_ = true; }
+  void drain_and_stop() { status_ = GPUStatus::kDrain; }
+  void stop() { status_ = GPUStatus::kTerminate; }
 
  private:
   void process(Item &&item) { compute_us<kProcessDelayUs>(); }
 
-  bool stopped_ = false;
+  GPUStatusType status_ = GPUStatus::kRunning;
 };
 
 void bench_vector_task_range() {
@@ -161,7 +177,7 @@ void bench_rate_match_with_int_vec() {
 void bench_temp_gpu_slot() {
   std::cout << __FUNCTION__ << std::endl;
 
-  using Elem = std::size_t;
+  using Elem = std::vector<char>;
   using GPU = MockGPU<Elem>;
 
   constexpr uint64_t kProcessTime = 4000;
@@ -169,11 +185,18 @@ void bench_temp_gpu_slot() {
   constexpr uint64_t kNumTempGPUs = 4;
   constexpr uint64_t kScaleUpDurationUs = nu::kOneMilliSecond * 10;
   constexpr uint64_t kNumScaleUps = 20;
-  constexpr std::size_t kNumElems = 1 << 16;
+  constexpr std::size_t kElemSize = 150'000;
+  constexpr std::size_t kNumElems = 1 << 12;
 
-  auto input = nu::make_sharded_vector<std::size_t, std::false_type>();
-  for (auto i : std::views::iota(static_cast<std::size_t>(0), kNumElems)) {
-    input.push_back(i);
+  Elem elem;
+  elem.reserve(kElemSize);
+  for (std::size_t j = 0; j < kElemSize; ++j) {
+    elem.push_back(1);
+  }
+
+  auto input = nu::make_sharded_vector<Elem, std::false_type>();
+  for (std::size_t i = 0; i < kNumElems; ++i) {
+    input.push_back(elem);
   }
 
   auto sealed_input = nu::to_sealed_ds(std::move(input));
@@ -214,6 +237,12 @@ void bench_temp_gpu_slot() {
   }
 
   producers.get();
+  for (auto &gpu : gpus) {
+    gpu.run(&GPU::drain_and_stop);
+  }
+  for (auto &f : futures) {
+    f.get();
+  }
 }
 
 void do_work() {
