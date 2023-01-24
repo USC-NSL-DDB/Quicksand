@@ -123,7 +123,7 @@ template <class Impl>
 TaskRange<Impl> TaskRange<Impl>::steal() {
   ScopedLock lock(&mutex_);
   if (suspended_) {
-    auto steal_size = size_ < 2 ? 2 : size_ / 2;
+    auto steal_size = size_ < 2 ? size_ : size_ / 2;
     size_ -= steal_size;
     return impl_.split(steal_size);
   }
