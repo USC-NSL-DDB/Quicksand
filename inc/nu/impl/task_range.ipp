@@ -13,6 +13,7 @@ TaskRange<Impl> &TaskRange<Impl>::operator=(const TaskRange &o) {
   impl_ = o.impl_;
   size_ = o.size_;
   cleared_ = o.cleared_;
+  suspended_ = o.suspended_;
   BUG_ON(pending_steal_ || o.pending_steal_);
   return *this;
 }
@@ -27,6 +28,7 @@ TaskRange<Impl> &TaskRange<Impl>::operator=(TaskRange &&o) noexcept {
   impl_ = std::move(o.impl_);
   size_ = o.size_;
   cleared_ = o.cleared_;
+  suspended_ = o.suspended_;
   BUG_ON(pending_steal_ || o.pending_steal_);
   return *this;
 }
@@ -42,6 +44,7 @@ TaskRange<Impl> TaskRange<Impl>::deep_copy() {
   }
   tr.size_ = size_;
   tr.cleared_ = cleared_;
+  tr.suspended_ = suspended_;
   BUG_ON(pending_steal_);
 
   return tr;
