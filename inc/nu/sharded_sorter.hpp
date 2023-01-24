@@ -16,10 +16,10 @@ using ShardedSorted = SealedDS<ShardedPartitioner<K, V>>;
 template <typename K, typename V = ErasedType>
 class ShardedSorter {
  public:
-  ShardedSorter(const ShardedSorter &) = delete;
-  ShardedSorter &operator=(const ShardedSorter &) = delete;
-  ShardedSorter(ShardedSorter &&);
-  ShardedSorter &operator=(ShardedSorter &&);
+  ShardedSorter(const ShardedSorter &) = default;
+  ShardedSorter &operator=(const ShardedSorter &) = default;
+  ShardedSorter(ShardedSorter &&) = default;
+  ShardedSorter &operator=(ShardedSorter &&) = default;
   void insert(K k) requires std::is_same_v<V, ErasedType>;
   void insert(K k, V v) requires(!std::is_same_v<V, ErasedType>);
   void insert(std::pair<K, V> p) requires(!std::is_same_v<V, ErasedType>);
