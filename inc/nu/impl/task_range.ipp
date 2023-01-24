@@ -56,12 +56,16 @@ TaskRange<Impl>::~TaskRange() {
 }
 
 template <class Impl>
-Impl::Task TaskRange<Impl>::pop() {
+std::optional<typename Impl::Task> TaskRange<Impl>::pop() {
   if (unlikely(rt::access_once(suspended_))) {
     ScopedLock lock(&mutex_);
     while (rt::access_once(suspended_)) {
       suspend_cv_.wait(&mutex_);
     }
+  }
+
+  if (empty()) {
+    return std::nullopt;
   }
 
   if (unlikely(rt::access_once(pending_steal_))) {
@@ -154,8 +158,7 @@ TaskRangeIterator<Impl> TaskRange<Impl>::end() const {
 template <class Impl>
 TaskRangeIterator<Impl>::TaskRangeIterator(TaskRange<Impl> &range, bool end)
     : range_(range) {
-  curr_ =
-      (end || range_.empty()) ? std::nullopt : std::make_optional(range_.pop());
+  curr_ = (end || range_.empty()) ? std::nullopt : range_.pop();
 }
 
 template <class Impl>
@@ -172,7 +175,7 @@ inline TaskRangeIterator<Impl>::Task TaskRangeIterator<Impl>::operator*()
 
 template <class Impl>
 inline TaskRangeIterator<Impl> &TaskRangeIterator<Impl>::operator++() {
-  curr_ = range_.empty() ? std::nullopt : std::make_optional(range_.pop());
+  curr_ = range_.empty() ? std::nullopt : range_.pop();
   return *this;
 }
 }  // namespace nu

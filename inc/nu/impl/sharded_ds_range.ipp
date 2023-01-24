@@ -35,7 +35,7 @@ inline const ShardRange<Shard>::ConstIterator &ShardRange<Shard>::end() const
 
 template <class Shard>
 inline ShardRange<Shard> ShardedDSRange<Shard>::pop() {
-  return ShardRange(VectorTaskRange<WeakProclet<Shard>>::pop());
+  return ShardRange(*VectorTaskRange<WeakProclet<Shard>>::pop());
 }
 
 template <GeneralShardBased Shard>

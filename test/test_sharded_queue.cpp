@@ -286,7 +286,7 @@ bool test_rate_matching() {
   auto producers = nu::make_distributed_executor(
       +[](decltype(produce_rng) &rng) {
         while (true) {
-          auto inserter = rng.pop();
+          auto inserter = *rng.pop();
           inserter = 33;
           busy_spin(100);
         }

@@ -136,9 +136,12 @@ ShardedQueue<T, LL>::produce(ProduceFn produce_fn, States... states) {
   auto produce_rng = nu::make_writeable_queue_range(*this);
   return nu::make_distributed_executor(
       +[](decltype(produce_rng) &rng, ProduceFn produce_fn, States... args) {
-        while (!rng.empty()) {
+        while (true) {
           auto inserter = rng.pop();
-          inserter = produce_fn(args...);
+          if (unlikely(!inserter)) {
+            break;
+          }
+          *inserter = produce_fn(args...);
         }
       },
       std::move(produce_rng), std::move(produce_fn), std::move(states)...);
@@ -151,8 +154,12 @@ ShardedQueue<T, LL>::consume(ConsumeFn consume_fn, States... states) {
   auto consume_rng = nu::make_queue_range(*this);
   return nu::make_distributed_executor(
       +[](decltype(consume_rng) &rng, ConsumeFn consume_fn, States... args) {
-        while (!rng.empty()) {
-          consume_fn(std::move(rng.pop()), args...);
+        while (true) {
+          auto elem = rng.pop();
+          if (unlikely(!elem)) {
+            break;
+          }
+          consume_fn(std::move(*elem), args...);
         }
       },
       consume_rng, std::move(consume_fn), std::move(states)...);

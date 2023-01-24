@@ -20,8 +20,12 @@ bool test_vector_task_range() {
   auto dis_exec = nu::make_distributed_executor(
       +[](nu::VectorTaskRange<std::size_t> &task_range) {
         std::vector<std::size_t> outputs;
-        while (!task_range.empty()) {
-          outputs.emplace_back(task_range.pop());
+        while (true) {
+          auto popped = task_range.pop();
+          if (unlikely(!popped)) {
+            break;
+          }
+          outputs.emplace_back(*popped);
         }
         return outputs;
       },
@@ -77,8 +81,12 @@ bool test_cont_ds_range() {
   auto dis_exec = nu::make_distributed_executor(
       +[](decltype(cont_ds_range) &task_range) {
         uint64_t sum = 0;
-        while (!task_range.empty()) {
-          sum += task_range.pop();
+        while (true) {
+          auto popped = task_range.pop();
+          if (!popped) {
+            break;
+          }
+          sum += *popped;
         }
         return sum;
       },
@@ -107,8 +115,12 @@ bool test_zipped_ds_range() {
   auto dis_exec = nu::make_distributed_executor(
       +[](decltype(zipped_ds_range) &task_range) {
         uint64_t sum = 0;
-        while (!task_range.empty()) {
-          auto tuple = task_range.pop();
+        while (true) {
+          auto maybe_tuple = task_range.pop();
+          if (unlikely(!maybe_tuple)) {
+            break;
+          }
+          auto tuple = *maybe_tuple;
           sum += std::get<0>(tuple) + std::get<1>(tuple);
         }
         return sum;

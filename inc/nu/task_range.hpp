@@ -39,7 +39,7 @@ class TaskRange {
   TaskRange deep_copy();
   template <typename F>
   void run(F &&f);
-  Task pop();
+  std::optional<Task> pop();
   void clear();
   void suspend();
   void resume();

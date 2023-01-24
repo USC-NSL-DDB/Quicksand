@@ -31,7 +31,7 @@ inline std::tuple<typename Shards::IterVal...>
 ZippedDSRangeImpl<Shards...>::pop() {
   return std::apply(
       [](auto &... cont_ds_ranges) {
-        return std::make_tuple(cont_ds_ranges.pop()...);
+        return std::make_tuple(*cont_ds_ranges.pop()...);
       },
       cont_ds_ranges_);
 }

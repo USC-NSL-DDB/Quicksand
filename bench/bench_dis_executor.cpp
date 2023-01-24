@@ -137,9 +137,12 @@ void bench_rate_match(nu::ShardedVector<T, LL> input, ProcessFn process_fn,
   auto producers = nu::make_distributed_executor(
       +[](decltype(input_rng) &input_rng, decltype(queue) queue,
           decltype(process_fn) process_fn) {
-        while (!input_rng.empty()) {
+        while (true) {
           auto elem = input_rng.pop();
-          auto processed = process_fn(std::move(elem));
+          if (unlikely(!elem)) {
+            break;
+          }
+          auto processed = process_fn(std::move(*elem));
           queue.push(std::move(processed));
         }
       },
@@ -212,10 +215,13 @@ void bench_temp_gpu_slot() {
 
   auto producers = nu::make_distributed_executor(
       +[](decltype(input_rng) &input_rng, decltype(queue) queue) {
-        while (!input_rng.empty()) {
+        while (true) {
           auto elem = input_rng.pop();
+          if (!elem) {
+            break;
+          }
           compute_us<kProcessTime>();
-          queue.push(std::move(elem));
+          queue.push(std::move(*elem));
         }
       },
       input_rng, queue);
