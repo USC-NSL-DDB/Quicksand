@@ -385,9 +385,11 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
       last_check_queue_us = now_us;
 
       auto curr_len = queue.size();
-      if (unlikely(almost_done_ && curr_len == 0)) {
-        abort_workers();
-        break;
+      if constexpr (!IsProducer::value) {
+        if (unlikely(almost_done_ && curr_len == 0)) {
+          abort_workers();
+          break;
+        }
       }
       ewma(kEWMAWeight, &queue_len, static_cast<float>(curr_len));
 
