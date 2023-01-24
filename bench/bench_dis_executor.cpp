@@ -191,10 +191,10 @@ void bench_temp_gpu_slot() {
   constexpr uint64_t kProcessTime = 4000;
   constexpr uint64_t kNumGPUs = 4;
   constexpr uint64_t kNumTempGPUs = 4;
-  constexpr uint64_t kScaleUpDurationUs = nu::kOneMilliSecond * 10;
-  constexpr uint64_t kNumScaleUps = 20;
+  constexpr uint64_t kScaleUpDurationUs = nu::kOneMilliSecond * 1000;
+  constexpr uint64_t kNumScaleUps = 10;
   constexpr std::size_t kElemSize = 150'000;
-  constexpr std::size_t kNumElems = 1 << 12;
+  constexpr std::size_t kNumElems = 1 << 16;
 
   Elem elem;
   elem.reserve(kElemSize);
@@ -233,7 +233,7 @@ void bench_temp_gpu_slot() {
 
   nu::Time::sleep(nu::kOneSecond * 2);
   for (std::size_t i = 0; i < kNumScaleUps; ++i) {
-    nu::Time::sleep(nu::kOneSecond * 1);
+    nu::Time::sleep(nu::kOneSecond);
     for (std::size_t i = 0; i < kNumTempGPUs; ++i) {
       gpus.emplace_back(nu::make_proclet<GPU>());
       futures.emplace_back(gpus.back().run_async(&GPU::run, queue));
