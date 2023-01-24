@@ -41,15 +41,20 @@ class MockGPU {
 
   MockGPU() {}
   void run(nu::ShardedQueue<Item, std::true_type> queue) {
+    constexpr std::size_t kPopNumItems = 10;
+
     while (true) {
       auto status = rt::access_once(status_);
       if (unlikely(status == GPUStatus::kTerminate)) {
         break;
       }
-      if (unlikely(status == GPUStatus::kDrain && queue.size() == 0)) {
+      auto popped = queue.try_pop(kPopNumItems);
+      if (unlikely(status == GPUStatus::kDrain && popped.size() == 0)) {
         break;
       }
-      process(std::move(queue.pop()));
+      for (auto &p : popped) {
+        process(std::move(p));
+      }
     }
   }
   void drain_and_stop() { status_ = GPUStatus::kDrain; }
