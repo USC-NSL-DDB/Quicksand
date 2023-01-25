@@ -1,14 +1,12 @@
 #pragma once
 
-#include "nu/utils/time.hpp"
+#include <sync.h>
+
+#include <nu/utils/time.hpp>
 
 namespace imagenet {
 
-enum GPUStatus {
-  kRunning = 0,
-  kDrain,
-  kTerminate,
-};
+enum GPUStatus { kRunning = 0, kDrain, kPause };
 
 using GPUStatusType = uint8_t;
 
@@ -23,23 +21,34 @@ class MockGPU {
 
     while (true) {
       auto status = load_acquire(&status_);
-      if (unlikely(status == GPUStatus::kTerminate)) {
-        break;
+      if (unlikely(status == GPUStatus::kPause)) {
+        rt::Preempt p;
+        rt::PreemptGuard g(&p);
+        g.Park(&waker_);
       }
+
       auto popped = queue.try_pop(kPopNumItems);
-      if (unlikely(status == GPUStatus::kDrain && popped.size() == 0)) {
+      if (unlikely(status == GPUStatus::kDrain && popped.empty())) {
         break;
       }
+
       for (auto &p : popped) {
         process(std::move(p));
       }
     }
   }
-  void drain_and_stop() { status_ = GPUStatus::kDrain; }
+  void drain_and_stop() { rt::access_once(status_) = GPUStatus::kDrain; }
+  void pause() { rt::access_once(status_) = GPUStatus::kPause; }
+  void resume() {
+    status_ = GPUStatus::kRunning;
+    barrier();
+    waker_.Wake();
+  }
 
  private:
   void process(Item &&item) { nu::Time::delay(kProcessDelayUs); }
 
+  rt::ThreadWaker waker_;
   GPUStatusType status_ = GPUStatus::kRunning;
 };
 }  // namespace imagenet
