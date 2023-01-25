@@ -15,22 +15,17 @@ template <typename Arg, typename Ret>
 class RobExecutor {
  public:
   RobExecutor(std::move_only_function<Ret(const Arg &)> fn, uint32_t rob_size);
-  ~RobExecutor();
   Ret submit(uint32_t seq, Arg &&arg);
-  void executor_fn();
 
  private:
   struct RobEntry {
-    std::unique_ptr<Arg> arg;
-    std::unique_ptr<Ret> ret;
+    bool run = false;
     Mutex mutex;
     CondVar cond_var;
   };
 
   std::move_only_function<Ret(const Arg &)> fn_;
   std::vector<RobEntry> rob_;
-  bool done_;
-  Thread th_;
 };
 }  // namespace nu
 
