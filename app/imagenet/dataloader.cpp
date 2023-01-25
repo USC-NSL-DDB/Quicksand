@@ -20,16 +20,16 @@ DataLoader::DataLoader(std::string path, int batch_size)
       queue_{nu::make_sharded_queue<Image, std::true_type>()},
       batch_size_{batch_size},
       progress_{0} {
-  int i = 0;
+  int image_count = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
       const auto fname = file_.path().string();
       RawImage image(fname);
       imgs_.push_back(image);
-      i++;
+      image_count++;
     }
   }
-  std::cout << "DataLoader: " << i << " images loaded" << std::endl;
+  std::cout << "DataLoader: " << image_count << " images loaded" << std::endl;
 }
 
 std::size_t DataLoader::size() const { return imgs_.size(); }
