@@ -15,11 +15,9 @@ using directory_iterator = std::filesystem::recursive_directory_iterator;
 using namespace std::chrono;
 using namespace imagenet;
 
-DataLoader::DataLoader(std::string path, int batch_size)
+DataLoader::DataLoader(std::string path)
     : imgs_{nu::make_sharded_vector<RawImage, std::false_type>()},
-      queue_{nu::make_sharded_queue<Image, std::true_type>()},
-      batch_size_{batch_size},
-      progress_{0} {
+      queue_{nu::make_sharded_queue<Image, std::true_type>()} {
   int image_count = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
@@ -40,8 +38,6 @@ void DataLoader::process_all() {
   using Elem = Image;
   using GPU = MockGPU<Elem>;
 
-  constexpr uint64_t kNumGPUs = 40;
-
   auto sealed_imgs = nu::to_sealed_ds(std::move(imgs_));
   auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
 
@@ -49,8 +45,8 @@ void DataLoader::process_all() {
 
   auto gpus = std::vector<nu::Proclet<GPU>>{};
   auto futures = std::vector<nu::Future<void>>{};
-  for (uint64_t i = 0; i < kNumGPUs; ++i) {
-    gpus.emplace_back(nu::make_proclet<GPU>());
+  for (uint64_t i = 0; i < kMaxNumGPUs; ++i) {
+    gpus.emplace_back(nu::make_proclet<GPU>(true, std::nullopt, kGPUIP));
     futures.emplace_back(gpus.back().run_async(&GPU::run, queue));
   }
 
@@ -80,18 +76,8 @@ void DataLoader::process_all() {
   cv::cleanup();
 }
 
-Image DataLoader::next() {
-  // auto consumer = nu::make_proclet<shard_queue_type>();
-  // auto img = consumer.run(shard_queue_type::consume);
-  return Image();
-}
-
-BaselineDataLoader::BaselineDataLoader(std::string path, int batch_size,
-                                       int nthreads) {
-  batch_size_ = batch_size;
-  nthreads_ = nthreads;
-  progress_ = 0;
-
+BaselineDataLoader::BaselineDataLoader(std::string path, int nthreads)
+    : nthreads_(nthreads) {
   int i = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
@@ -122,8 +108,5 @@ void BaselineDataLoader::process_all() {
   for (auto &thread : threads) {
     thread.Join();
   }
-
-  progress_ = imgs_.size();
 }
 
-Batch BaselineDataLoader::next() { return Batch(); }

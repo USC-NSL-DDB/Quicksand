@@ -22,7 +22,7 @@ class MockGPU {
     constexpr std::size_t kPopNumItems = 16;
 
     while (true) {
-      auto status = rt::access_once(status_);
+      auto status = load_acquire(&status_);
       if (unlikely(status == GPUStatus::kTerminate)) {
         break;
       }
@@ -36,7 +36,6 @@ class MockGPU {
     }
   }
   void drain_and_stop() { status_ = GPUStatus::kDrain; }
-  void stop() { status_ = GPUStatus::kTerminate; }
 
  private:
   void process(Item &&item) { nu::Time::delay(kProcessDelayUs); }

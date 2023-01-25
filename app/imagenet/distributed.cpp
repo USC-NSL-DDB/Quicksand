@@ -5,12 +5,11 @@
 using namespace std::chrono;
 using namespace imagenet;
 
-std::string datapath = "/mnt/train_t3";
-constexpr auto batch_size = 1;
+std::string datapath = "train_t3";
 
 void do_work() {
   auto start = high_resolution_clock::now();
-  auto dataloader = DataLoader(datapath, batch_size);
+  auto dataloader = DataLoader(datapath);
   auto end = high_resolution_clock::now();
   auto duration = duration_cast<milliseconds>(end - start);
   std::cout << "DataLoader: Image loading takes " << duration.count() << "ms"

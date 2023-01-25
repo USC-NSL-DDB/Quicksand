@@ -20,33 +20,29 @@ using shard_queue_type = nu::ShardedQueue<Image, std::true_type>;
 
 class DataLoader {
  public:
-  DataLoader(std::string path, int batch_size);
+  static constexpr uint32_t kMaxNumGPUs = 46;
+  static constexpr auto kGPUIP = MAKE_IP_ADDR(18, 18, 1, 10);
+
+  DataLoader(std::string path);
   std::size_t size() const;
   ~DataLoader();
-
-  // preprocess all
   void process_all();
-  // kickstart the preprocess but doesn't wait for them to finish
-  void process();
-  Image next();
 
  private:
   shard_vec_type imgs_;
   shard_queue_type queue_;
-  int batch_size_, progress_;
 };
 
 class BaselineDataLoader {
  public:
-  BaselineDataLoader(std::string path, int batch_size, int nthreads_);
+  BaselineDataLoader(std::string path, int nthreads);
   void process_all();
-  Batch next();
 
  private:
   void process(int tid);
 
+  int nthreads_;
   std::vector<RawImage> imgs_;
-  int batch_size_, nthreads_, progress_;
 };
 
 }  // namespace imagenet
