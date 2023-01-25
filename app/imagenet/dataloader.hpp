@@ -13,19 +13,26 @@
 
 namespace imagenet {
 
-using Batch = std::vector<Image>;
-using shard_type = nu::ShardedVector<imagenet::Image, std::false_type>;
-using sealed_shard_type = nu::SealedDS<shard_type>;
+using Batch = std::vector<RawImage>;
+using shard_vec_type = nu::ShardedVector<RawImage, std::false_type>;
+using sealed_shard_vec_type = nu::SealedDS<shard_vec_type>;
+using shard_queue_type = nu::ShardedQueue<Image, std::true_type>;
 
 class DataLoader {
  public:
   DataLoader(std::string path, int batch_size);
   std::size_t size() const;
+  ~DataLoader();
+
+  // preprocess all
   void process_all();
-  Batch next();
+  // kickstart the preprocess but doesn't wait for them to finish
+  void process();
+  Image next();
 
  private:
-  shard_type imgs_;
+  shard_vec_type imgs_;
+  shard_queue_type queue_;
   int batch_size_, progress_;
 };
 
@@ -38,7 +45,7 @@ class BaselineDataLoader {
  private:
   void process(int tid);
 
-  std::vector<Image> imgs_;
+  std::vector<RawImage> imgs_;
   int batch_size_, nthreads_, progress_;
 };
 

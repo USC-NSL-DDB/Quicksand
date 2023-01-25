@@ -61,16 +61,16 @@ class MockGPU {
   GPUStatusType status_ = GPUStatus::kRunning;
 };
 
-DataLoader::DataLoader(std::string path, int batch_size) {
-  batch_size_ = batch_size;
-  progress_ = 0;
-  imgs_ = nu::make_sharded_vector<Image, std::false_type>();
-
+DataLoader::DataLoader(std::string path, int batch_size)
+    : imgs_{nu::make_sharded_vector<RawImage, std::false_type>()},
+      queue_{nu::make_sharded_queue<Image, std::true_type>()},
+      batch_size_{batch_size},
+      progress_{0} {
   int i = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
       const auto fname = file_.path().string();
-      Image image(fname);
+      RawImage image(fname);
       imgs_.push_back(image);
       i++;
     }
@@ -79,6 +79,8 @@ DataLoader::DataLoader(std::string path, int batch_size) {
 }
 
 std::size_t DataLoader::size() const { return imgs_.size(); }
+
+DataLoader::~DataLoader() { cv::cleanup(); }
 
 void DataLoader::process_all() {
   // using Elem = cv::Mat;
@@ -127,7 +129,11 @@ void DataLoader::process_all() {
   cv::cleanup();
 }
 
-Batch DataLoader::next() { return Batch(); }
+Image DataLoader::next() {
+  // auto consumer = nu::make_proclet<shard_queue_type>();
+  // auto img = consumer.run(shard_queue_type::consume);
+  return Image();
+}
 
 BaselineDataLoader::BaselineDataLoader(std::string path, int batch_size,
                                        int nthreads) {
@@ -139,7 +145,7 @@ BaselineDataLoader::BaselineDataLoader(std::string path, int batch_size,
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
       const auto fname = file_.path().string();
-      Image image(fname);
+      RawImage image(fname);
       imgs_.push_back(image);
       i++;
     }
