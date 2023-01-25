@@ -5,6 +5,7 @@
 #include <nu/pressure_handler.hpp>
 #include <nu/runtime.hpp>
 #include <nu/sealed_ds.hpp>
+#include <nu/sharded_queue.hpp>
 #include <nu/sharded_vector.hpp>
 #include <opencv2/opencv.hpp>
 
@@ -19,6 +20,7 @@ using sealed_shard_type = nu::SealedDS<shard_type>;
 class DataLoader {
  public:
   DataLoader(std::string path, int batch_size);
+  std::size_t size() const;
   void process_all();
   Batch next();
 

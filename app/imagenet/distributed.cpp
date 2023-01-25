@@ -9,8 +9,6 @@ std::string datapath = "/mnt/train_t3";
 constexpr auto batch_size = 1;
 
 void do_work() {
-  auto imgs = nu::make_sharded_vector<Image, std::false_type>();
-
   auto start = high_resolution_clock::now();
   auto dataloader = DataLoader(datapath, batch_size);
   auto end = high_resolution_clock::now();
@@ -22,8 +20,9 @@ void do_work() {
   dataloader.process_all();
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
+  auto throughput = (1000 * dataloader.size()) / duration.count();
   std::cout << "DataLoader: Image pre-processing takes " << duration.count()
-            << "ms" << std::endl;
+            << "ms; throughput: " << throughput << " images/s" << std::endl;
 }
 
 int main(int argc, char **argv) {

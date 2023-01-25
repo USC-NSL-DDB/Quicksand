@@ -30,6 +30,8 @@ DataLoader::DataLoader(std::string path, int batch_size) {
   std::cout << "DataLoader: " << i << " images loaded" << std::endl;
 }
 
+std::size_t DataLoader::size() const { return imgs_.size(); }
+
 void DataLoader::process_all() {
   auto sealed_imgs = nu::to_sealed_ds(std::move(imgs_));
   auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
