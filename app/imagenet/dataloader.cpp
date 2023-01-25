@@ -36,9 +36,12 @@ void DataLoader::process_all() {
 
   auto dis_exec = nu::make_distributed_executor(
       +[](decltype(imgs_range) &imgs_range) {
-        while (!imgs_range.empty()) {
+        while (true) {
           auto img = imgs_range.pop();
-          kernel(img);
+          if (!img) {
+            break;
+          }
+          kernel(std::move(*img));
         }
       },
       imgs_range);
