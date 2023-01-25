@@ -1,13 +1,8 @@
 #pragma once
 
+#include "nu/utils/time.hpp"
+
 namespace imagenet {
-template <uint32_t Micros>
-void compute_us() {
-  const auto num_iters = Micros * cycles_per_us;
-  for (uint32_t i = 0; i < num_iters; i++) {
-    asm volatile("nop");
-  }
-}
 
 enum GPUStatus {
   kRunning = 0,
@@ -24,7 +19,7 @@ class MockGPU {
 
   MockGPU() {}
   void run(nu::ShardedQueue<Item, std::true_type> queue) {
-    constexpr std::size_t kPopNumItems = 10;
+    constexpr std::size_t kPopNumItems = 16;
 
     while (true) {
       auto status = rt::access_once(status_);
@@ -44,7 +39,7 @@ class MockGPU {
   void stop() { status_ = GPUStatus::kTerminate; }
 
  private:
-  void process(Item &&item) { compute_us<kProcessDelayUs>(); }
+  void process(Item &&item) { nu::Time::delay(kProcessDelayUs); }
 
   GPUStatusType status_ = GPUStatus::kRunning;
 };
