@@ -83,8 +83,7 @@ std::size_t DataLoader::size() const { return imgs_.size(); }
 DataLoader::~DataLoader() { cv::cleanup(); }
 
 void DataLoader::process_all() {
-  // using Elem = cv::Mat;
-  using Elem = std::size_t;
+  using Elem = Image;
   using GPU = MockGPU<Elem>;
 
   constexpr uint64_t kNumGPUs = 40;
@@ -109,9 +108,7 @@ void DataLoader::process_all() {
             break;
           }
           auto processed = kernel(std::move(*img));
-          // FIXME
-          // queue.push(std::move(processed));
-          queue.push(1);
+          queue.push(std::move(processed));
         }
       },
       imgs_range, queue);
