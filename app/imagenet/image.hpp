@@ -1,7 +1,7 @@
 #pragma once
 
-#include <opencv2/opencv.hpp>
 #include <fstream>
+#include <opencv2/opencv.hpp>
 
 namespace imagenet {
 
@@ -23,4 +23,4 @@ struct Image {
 
 cv::Mat kernel(Image image);
 
-}
+}  // namespace imagenet

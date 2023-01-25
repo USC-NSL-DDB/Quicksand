@@ -1,13 +1,13 @@
+#include "dataloader.hpp"
+
+#include <runtime.h>
+#include <thread.h>
+
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <iterator>
 #include <string>
-
-#include <thread.h>
-#include <runtime.h>
-
-#include "dataloader.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
 using namespace std::chrono;
@@ -50,11 +50,10 @@ void DataLoader::process_all() {
   cv::cleanup();
 }
 
-Batch DataLoader::next() {
-  return Batch();
-}
+Batch DataLoader::next() { return Batch(); }
 
-BaselineDataLoader::BaselineDataLoader(std::string path, int batch_size, int nthreads) {
+BaselineDataLoader::BaselineDataLoader(std::string path, int batch_size,
+                                       int nthreads) {
   batch_size_ = batch_size;
   nthreads_ = nthreads;
   progress_ = 0;
@@ -93,6 +92,4 @@ void BaselineDataLoader::process_all() {
   progress_ = imgs_.size();
 }
 
-Batch BaselineDataLoader::next() {
-  return Batch();
-}
+Batch BaselineDataLoader::next() { return Batch(); }

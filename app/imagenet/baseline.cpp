@@ -1,7 +1,7 @@
-#include <chrono>
-
-#include <thread.h>
 #include <runtime.h>
+#include <thread.h>
+
+#include <chrono>
 
 #include "dataloader.hpp"
 
@@ -17,14 +17,15 @@ void do_work() {
   auto dataloader = BaselineDataLoader(datapath, batch_size, kNumThreads);
   auto end = high_resolution_clock::now();
   auto duration = duration_cast<milliseconds>(end - start);
-  std::cout << "BaselineDataLoader: Image loading takes " << duration.count() << "ms" << std::endl;
+  std::cout << "BaselineDataLoader: Image loading takes " << duration.count()
+            << "ms" << std::endl;
 
   start = high_resolution_clock::now();
   dataloader.process_all();
   end = high_resolution_clock::now();
   duration = duration_cast<milliseconds>(end - start);
-  std::cout << "BaselineDataLoader: Image pre-processing takes " << duration.count() << "ms"
-            << std::endl;
+  std::cout << "BaselineDataLoader: Image pre-processing takes "
+            << duration.count() << "ms" << std::endl;
 }
 
 int main(int argc, char **argv) {

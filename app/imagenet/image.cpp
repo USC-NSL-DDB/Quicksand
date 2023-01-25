@@ -1,6 +1,6 @@
-#include <iostream>
-
 #include "image.hpp"
+
+#include <iostream>
 
 namespace imagenet {
 
@@ -31,7 +31,7 @@ cv::Mat kernel(Image image) {
   img = img(roi);
   cv::flip(img, img, 0);
 
-  cv::Point2f pc(img.cols/2., img.rows/2.);
+  cv::Point2f pc(img.cols / 2., img.rows / 2.);
   cv::Mat r = cv::getRotationMatrix2D(pc, 20, 1.0);
   cv::warpAffine(img, img, r, img.size());
 
@@ -42,4 +42,4 @@ cv::Mat kernel(Image image) {
   return ret;
 }
 
-}
+}  // namespace imagenet

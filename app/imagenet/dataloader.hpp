@@ -1,13 +1,12 @@
 #pragma once
 
-#include <opencv2/opencv.hpp>
 #include <fstream>
-
+#include <nu/dis_executor.hpp>
 #include <nu/pressure_handler.hpp>
 #include <nu/runtime.hpp>
 #include <nu/sealed_ds.hpp>
 #include <nu/sharded_vector.hpp>
-#include <nu/dis_executor.hpp>
+#include <opencv2/opencv.hpp>
 
 #include "image.hpp"
 
@@ -41,4 +40,4 @@ class BaselineDataLoader {
   int batch_size_, nthreads_, progress_;
 };
 
-}
+}  // namespace imagenet
