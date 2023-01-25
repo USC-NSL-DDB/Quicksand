@@ -13,6 +13,54 @@ using directory_iterator = std::filesystem::recursive_directory_iterator;
 using namespace std::chrono;
 using namespace imagenet;
 
+template <uint32_t Micros>
+void compute_us() {
+  const auto num_iters = Micros * cycles_per_us;
+  for (uint32_t i = 0; i < num_iters; i++) {
+    asm volatile("nop");
+  }
+}
+
+enum GPUStatus {
+  kRunning = 0,
+  kDrain,
+  kTerminate,
+};
+
+using GPUStatusType = uint8_t;
+
+template <typename Item>
+class MockGPU {
+ public:
+  static constexpr uint32_t kProcessDelayUs = 3500;
+
+  MockGPU() {}
+  void run(nu::ShardedQueue<Item, std::true_type> queue) {
+    constexpr std::size_t kPopNumItems = 10;
+
+    while (true) {
+      auto status = rt::access_once(status_);
+      if (unlikely(status == GPUStatus::kTerminate)) {
+        break;
+      }
+      auto popped = queue.try_pop(kPopNumItems);
+      if (unlikely(status == GPUStatus::kDrain && popped.size() == 0)) {
+        break;
+      }
+      for (auto &p : popped) {
+        process(std::move(p));
+      }
+    }
+  }
+  void drain_and_stop() { status_ = GPUStatus::kDrain; }
+  void stop() { status_ = GPUStatus::kTerminate; }
+
+ private:
+  void process(Item &&item) { compute_us<kProcessDelayUs>(); }
+
+  GPUStatusType status_ = GPUStatus::kRunning;
+};
+
 DataLoader::DataLoader(std::string path, int batch_size) {
   batch_size_ = batch_size;
   progress_ = 0;
@@ -33,25 +81,49 @@ DataLoader::DataLoader(std::string path, int batch_size) {
 std::size_t DataLoader::size() const { return imgs_.size(); }
 
 void DataLoader::process_all() {
+  // using Elem = cv::Mat;
+  using Elem = std::size_t;
+  using GPU = MockGPU<Elem>;
+
+  constexpr uint64_t kNumGPUs = 40;
+
   auto sealed_imgs = nu::to_sealed_ds(std::move(imgs_));
   auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
 
-  auto dis_exec = nu::make_distributed_executor(
-      +[](decltype(imgs_range) &imgs_range) {
+  auto queue = nu::make_sharded_queue<Elem, std::true_type>();
+
+  auto gpus = std::vector<nu::Proclet<GPU>>{};
+  auto futures = std::vector<nu::Future<void>>{};
+  for (uint64_t i = 0; i < kNumGPUs; ++i) {
+    gpus.emplace_back(nu::make_proclet<GPU>());
+    futures.emplace_back(gpus.back().run_async(&GPU::run, queue));
+  }
+
+  auto producers = nu::make_distributed_executor(
+      +[](decltype(imgs_range) &imgs_range, decltype(queue) queue) {
         while (true) {
           auto img = imgs_range.pop();
           if (!img) {
             break;
           }
-          kernel(std::move(*img));
+          auto processed = kernel(std::move(*img));
+          // FIXME
+          // queue.push(std::move(processed));
+          queue.push(1);
         }
       },
-      imgs_range);
-  dis_exec.get();
+      imgs_range, queue);
+
+  producers.get();
+  for (auto &gpu : gpus) {
+    gpu.run(&GPU::drain_and_stop);
+  }
+  for (auto &f : futures) {
+    f.get();
+  }
 
   imgs_ = nu::to_unsealed_ds(std::move(sealed_imgs));
-  // shardedVector.size() self blocks
-  // progress_ = imgs_.size();
+
   cv::cleanup();
 }
 
