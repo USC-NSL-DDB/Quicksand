@@ -1,16 +1,18 @@
-0#include <runtime.h>
+#include "dataloader.hpp"
+
+#include <runtime.h>
 #include <thread.h>
+
+#include <cereal/archives/binary.hpp>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <iterator>
 #include <sstream>
 #include <string>
-#include <cereal/archives/binary.hpp>
 
-#include "gpu.hpp"
-#include "dataloader.hpp"
 #include "baseline_gpu.hpp"
+#include "gpu.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
 using namespace std::chrono;
