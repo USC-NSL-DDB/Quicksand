@@ -5,6 +5,9 @@
 #include <sync.h>
 #include <queue>
 #include <atomic>
+#include <spanstream>
+#include <memory>
+#include <cereal/archives/binary.hpp>
 
 #include "image.hpp"
 #include "gpu.hpp"
@@ -22,16 +25,23 @@ bool done = false;
 
 void tcp_server_fn(rt::TcpConn *conn) {
   while (true) {
-    uint64_t img_size;
-    BUG_ON(conn->ReadFull(&img_size, sizeof(img_size)) <= 0);
+    std::spanstream ss{std::span<char>()};
+    cereal::BinaryInputArchive ia(ss);
 
-    std::vector<char> data;
-    data.resize(img_size);
-    BUG_ON(conn->ReadFull(data.data(), img_size) <= 0);
+    uint64_t size;
+    BUG_ON(conn->ReadFull(&size, sizeof(size)) <= 0);
+    auto buf = std::make_unique_for_overwrite<char[]>(size);
+
+    BUG_ON(conn->ReadFull(buf.get(), size) <= 0);
+    ss.span({buf.get(), size});
+
+    Image image;
+    ia >> image;
+    ss.seekg(0);
 
     {
       rt::MutexGuard g(&mutex);
-      images.emplace(std::move(data));
+      images.emplace(std::move(image));
       condvar.Signal();
     }
 

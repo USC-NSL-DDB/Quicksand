@@ -1,10 +1,12 @@
-#include <runtime.h>
+0#include <runtime.h>
 #include <thread.h>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <iterator>
+#include <sstream>
 #include <string>
+#include <cereal/archives/binary.hpp>
 
 #include "gpu.hpp"
 #include "dataloader.hpp"
@@ -99,6 +101,8 @@ rt::TcpConn *BaselineDataLoader::dial_gpu_server() {
 
 void BaselineDataLoader::process(int tid) {
   auto *conn = dial_gpu_server();
+  std::stringstream ss;
+  cereal::BinaryOutputArchive oa(ss);
 
   auto num_imgs_per_thread = (imgs_.size() - 1) / nthreads_ + 1;
   auto start_idx = num_imgs_per_thread * tid;
@@ -106,9 +110,12 @@ void BaselineDataLoader::process(int tid) {
 
   for (size_t i = start_idx; i < end_idx; i++) {
     auto processed = kernel(imgs_[i]);
-    auto &data = processed.data;
-    uint64_t size = data.size();
-    const iovec iovecs[] = {{&size, sizeof(size)}, {data.data(), size}};
+    oa << processed;
+    uint64_t size = ss.tellp();
+    auto *data = ss.view().data();
+    const iovec iovecs[] = {{&size, sizeof(size)},
+                            {const_cast<char *>(data), size}};
+    ss.seekp(0);
     BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
     bool ack;
     BUG_ON(conn->ReadFull(&ack, sizeof(ack)) <= 0);
