@@ -40,6 +40,7 @@ class BaselineDataLoader {
 
  private:
   void process(int tid);
+  rt::TcpConn *dial_gpu_server();
 
   int nthreads_;
   std::vector<RawImage> imgs_;

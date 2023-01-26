@@ -4,10 +4,6 @@
 
 namespace imagenet {
 
-RawImage::RawImage() {
-  // empty image
-}
-
 RawImage::RawImage(std::string path) {
   std::ifstream file(path, std::ios::binary);
 
@@ -19,9 +15,7 @@ RawImage::RawImage(std::string path) {
   file.read(data.data(), fileSize);
 }
 
-Image::Image() {
-  // empty image
-}
+Image::Image(std::vector<char> vec) : data(std::move(vec)) {}
 
 // copies cv::Mat to a byte vector for serialisation
 Image::Image(cv::Mat mat) {
@@ -29,7 +23,8 @@ Image::Image(cv::Mat mat) {
     data.assign(mat.data, mat.data + mat.total() * mat.channels());
   } else {
     for (int i = 0; i < mat.rows; ++i) {
-      data.insert(data.end(), mat.ptr<char>(i), mat.ptr<char>(i) + mat.cols * mat.channels());
+      data.insert(data.end(), mat.ptr<char>(i),
+                  mat.ptr<char>(i) + mat.cols * mat.channels());
     }
   }
 }

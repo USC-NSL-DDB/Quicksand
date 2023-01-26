@@ -29,10 +29,12 @@ dataloader_src = dataloader.cpp
 dataloader_obj = $(dataloader_src:.cpp=.o)
 baseline_src = baseline.cpp
 baseline_obj = $(baseline_src:.cpp=.o)
+baseline_gpu_src = baseline_gpu.cpp
+baseline_gpu_obj = $(baseline_gpu_src:.cpp=.o)
 distributed_src = distributed.cpp
 distributed_obj = $(distributed_src:.cpp=.o)
 
-all: baseline distributed memtest
+all: baseline baseline_gpu distributed memtest
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -41,7 +43,8 @@ all: baseline distributed memtest
 
 baseline: $(baseline_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_obj) $(dataloader_obj)
 	$(LDXX) -o $@ $(baseline_obj) $(image_obj) $(dataloader_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
-
+baseline_gpu: $(baseline_gpu_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_obj) $(dataloader_obj)
+	$(LDXX) -o $@ $(baseline_gpu_obj) $(image_obj) $(dataloader_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 distributed: $(distributed_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj) $(image_obj) $(dataloader_obj)
 	$(LDXX) -o $@ $(distributed_obj) $(image_obj) $(dataloader_obj) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
@@ -54,4 +57,5 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) baseline baseline.o distributed distributed.o image.o dataloader.o memtest memtest.o
+	rm -f $(dep) baseline baseline.o baseline_gpu baseline_gpu.o distributed distributed.o image.o dataloader.o \
+              memtest memtest.o

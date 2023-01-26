@@ -1,8 +1,5 @@
-#include "dataloader.hpp"
-
 #include <runtime.h>
 #include <thread.h>
-
 #include <chrono>
 #include <filesystem>
 #include <iostream>
@@ -10,6 +7,8 @@
 #include <string>
 
 #include "gpu.hpp"
+#include "dataloader.hpp"
+#include "baseline_gpu.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
 using namespace std::chrono;
@@ -90,17 +89,35 @@ BaselineDataLoader::BaselineDataLoader(std::string path, int nthreads)
   std::cout << "BaselineDataLoader: " << i << " images loaded" << std::endl;
 }
 
+rt::TcpConn *BaselineDataLoader::dial_gpu_server() {
+  netaddr laddr{.ip = 0, .port = 0};
+  netaddr raddr{.ip = kBaselineGPUIP, .port = kBaselineGPUPort};
+  auto *conn = rt::TcpConn::Dial(laddr, raddr);
+  BUG_ON(!conn);
+  return conn;
+}
+
 void BaselineDataLoader::process(int tid) {
+  auto *conn = dial_gpu_server();
+
   auto num_imgs_per_thread = (imgs_.size() - 1) / nthreads_ + 1;
   auto start_idx = num_imgs_per_thread * tid;
   auto end_idx = std::min(imgs_.size(), start_idx + num_imgs_per_thread);
 
   for (size_t i = start_idx; i < end_idx; i++) {
-    kernel(imgs_[i]);
+    auto processed = kernel(imgs_[i]);
+    auto &data = processed.data;
+    uint64_t size = data.size();
+    const iovec iovecs[] = {{&size, sizeof(size)}, {data.data(), size}};
+    BUG_ON(conn->WritevFull(std::span(iovecs)) < 0);
+    bool ack;
+    BUG_ON(conn->ReadFull(&ack, sizeof(ack)) <= 0);
   }
 }
 
 void BaselineDataLoader::process_all() {
+  auto *main_conn = dial_gpu_server();
+
   std::vector<rt::Thread> threads;
   for (int i = 0; i < nthreads_; i++) {
     threads.emplace_back([tid = i, this] { process(tid); });
@@ -108,5 +125,9 @@ void BaselineDataLoader::process_all() {
   for (auto &thread : threads) {
     thread.Join();
   }
-}
 
+  bool exit;
+  BUG_ON(main_conn->WriteFull(&exit, sizeof(exit)) < 0);
+  bool ack;
+  BUG_ON(main_conn->ReadFull(&ack, sizeof(ack)) <= 0);
+}
