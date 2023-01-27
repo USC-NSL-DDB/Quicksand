@@ -280,32 +280,31 @@ void GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
     }
   }
   BUG();
+}
+
+template <class Shard>
+void GeneralShardMapping<Shard>::concat(
+    WeakProclet<GeneralShardMapping>
+        tail) requires(Shard::GeneralContainer::kContiguousIterator) {
+  auto all_tail_shards = tail.run_async(&GeneralShardMapping::move_all_shards);
+  auto end_key = (--mapping_.end())->second.run(&Shard::split_at_end);
+
+  for (auto &tail_shard : all_tail_shards.get()) {
+    log_.append(LogEntry<Shard>::kInsert, end_key, tail_shard.get_weak());
+    auto iter = mapping_.emplace(end_key, std::move(tail_shard));
+    end_key = iter->second.run(&Shard::rebase, end_key);
+  }
+}
+
+template <class Shard>
+inline bool GeneralShardMapping<Shard>::out_of_shards() {
+  if (max_shard_cnt_) {
+    auto curr_cnt = mapping_.size() + pending_creations_;
+    BUG_ON(curr_cnt > *max_shard_cnt_);
+    return curr_cnt == *max_shard_cnt_;
   }
 
-  template <class Shard>
-  void GeneralShardMapping<Shard>::concat(
-      WeakProclet<GeneralShardMapping>
-          tail) requires(Shard::GeneralContainer::kContiguousIterator) {
-    auto all_tail_shards =
-        tail.run_async(&GeneralShardMapping::move_all_shards);
-    auto end_key = (--mapping_.end())->second.run(&Shard::split_at_end);
-
-    for (auto &tail_shard : all_tail_shards.get()) {
-      log_.append(LogEntry<Shard>::kInsert, end_key, tail_shard.get_weak());
-      auto iter = mapping_.emplace(end_key, std::move(tail_shard));
-      end_key = iter->second.run(&Shard::rebase, end_key);
-    }
-  }
-
-  template <class Shard>
-  inline bool GeneralShardMapping<Shard>::out_of_shards() {
-    if (max_shard_cnt_) {
-      auto curr_cnt = mapping_.size() + pending_creations_;
-      BUG_ON(curr_cnt > *max_shard_cnt_);
-      return curr_cnt == *max_shard_cnt_;
-    }
-
-    return false;
-  }
+  return false;
+}
 
 }  // namespace nu

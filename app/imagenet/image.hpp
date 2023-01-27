@@ -26,7 +26,6 @@ struct Image {
   Image(std::vector<char> vec);
   Image(cv::Mat mat);
   std::vector<char> data;
-  cv::Mat mat;
 
   template <class Archive>
   void save(Archive &ar) const {
