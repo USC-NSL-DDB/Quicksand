@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 
+#include "dataloader.hpp"
 #include "baseline_gpu.hpp"
 #include "gpu.hpp"
 
