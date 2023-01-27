@@ -170,19 +170,22 @@ void GeneralShard<Container>::split() {
       container_.split(&mid_k, latter_half_container.get());
     }
 
-    auto new_shard =
-        mapping_.run(&ShardMapping::create_or_reuse_new_shard_for_init, mid_k);
-    ContainerAndMetadata<Container> container_and_metadata;
-    container_and_metadata.container = std::move(*latter_half_container);
-    container_and_metadata.capacity =
-        std::max(new_container_capacity, latter_half_container->size());
-    container_and_metadata.container_bucket_size = container_bucket_size_;
-    new_shard.run(&GeneralShard::init_range_and_data, mid_k, r_key_,
-                  container_and_metadata);
-    mapping_.run(&ShardMapping::commit_shard, mid_k);
+    // The if below avoids creating an illegal empty new shard, which could
+    // happen, e.g.,, when splitting a non-edge queue shard.
+    if (likely(mid_k != r_key_ || mid_k == l_key_)) {
+      auto new_shard = mapping_.run(
+          &ShardMapping::create_or_reuse_new_shard_for_init, mid_k);
+      ContainerAndMetadata<Container> container_and_metadata;
+      container_and_metadata.container = std::move(*latter_half_container);
+      container_and_metadata.capacity =
+          std::max(new_container_capacity, latter_half_container->size());
+      container_and_metadata.container_bucket_size = container_bucket_size_;
+      new_shard.run(&GeneralShard::init_range_and_data, mid_k, r_key_,
+                    container_and_metadata);
+      mapping_.run(&ShardMapping::commit_shard, mid_k);
+      r_key_ = mid_k;
+    }
   }
-
-  r_key_ = mid_k;
 
   auto new_slab_usage = slab_->get_cur_usage();
   if (unlikely(new_slab_usage > real_max_shard_bytes_)) {
@@ -208,6 +211,11 @@ inline bool GeneralShard<Container>::should_reject(Key k) {
 
 template <class Container>
 inline bool GeneralShard<Container>::should_split(std::size_t size) const {
+  // This is possible when there's a burst of ongoing insertions.
+  if (unlikely(!size)) {
+    return false;
+  }
+
   bool over_container_size = false;
   bool over_slab_size = false;
 
