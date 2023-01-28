@@ -1,5 +1,8 @@
+#include "dataloader.hpp"
+
 #include <runtime.h>
 #include <thread.h>
+
 #include <cereal/archives/binary.hpp>
 #include <chrono>
 #include <filesystem>
@@ -8,7 +11,6 @@
 #include <sstream>
 #include <string>
 
-#include "dataloader.hpp"
 #include "baseline_gpu.hpp"
 #include "gpu.hpp"
 
@@ -36,23 +38,16 @@ std::size_t DataLoader::size() const { return imgs_.size(); }
 DataLoader::~DataLoader() { cv::cleanup(); }
 
 void DataLoader::process_all() {
-  using Elem = Image;
-  using GPU = MockGPU<Elem>;
+  BUG_ON(processed_);
+
+  spawn_gpus();
+  auto gpu_orchestrator = nu::async([&] { run_gpus(); });
 
   auto sealed_imgs = nu::to_sealed_ds(std::move(imgs_));
   auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
 
-  auto queue = nu::make_sharded_queue<Elem, std::true_type>();
-
-  auto gpus = std::vector<nu::Proclet<GPU>>{};
-  auto futures = std::vector<nu::Future<void>>{};
-  for (uint64_t i = 0; i < kMaxNumGPUs; ++i) {
-    gpus.emplace_back(nu::make_proclet<GPU>(true, std::nullopt, kGPUIP));
-    futures.emplace_back(gpus.back().run_async(&GPU::run, queue));
-  }
-
   auto producers = nu::make_distributed_executor(
-      +[](decltype(imgs_range) &imgs_range, decltype(queue) queue) {
+      +[](decltype(imgs_range) &imgs_range, decltype(queue_) queue) {
         while (true) {
           auto img = imgs_range.pop();
           if (!img) {
@@ -62,19 +57,54 @@ void DataLoader::process_all() {
           queue.push(std::move(processed));
         }
       },
-      imgs_range, queue);
+      imgs_range, queue_);
 
   producers.get();
-  for (auto &gpu : gpus) {
-    gpu.run(&GPU::drain_and_stop);
-  }
-  for (auto &f : futures) {
-    f.get();
-  }
+
+  processed_ = true;
+  barrier();
+  gpu_orchestrator.get();
 
   imgs_ = nu::to_unsealed_ds(std::move(sealed_imgs));
+}
 
-  cv::cleanup();
+void DataLoader::spawn_gpus() {
+  for (uint64_t i = 0; i < kMaxNumGPUs; ++i) {
+    gpus_.emplace_back(nu::make_proclet<GPU>(true, std::nullopt, kGPUIP));
+    gpu_futures_.emplace_back(gpus_.back().run_async(&GPU::run, queue_));
+  }
+}
+
+void DataLoader::run_gpus() {
+  std::vector<nu::Future<void>> futures;
+  futures.reserve(kNumScaleDownGPUs);
+
+  while (!load_acquire(&processed_)) {
+    for (std::size_t i = 0; i < kNumScaleDownGPUs; ++i) {
+      futures.emplace_back(gpus_[i].run_async(&GPU::pause));
+    }
+    nu::Time::sleep(kScaleDownDurationUs);
+    for (auto &f : futures) {
+      f.get();
+    }
+    futures.clear();
+
+    for (std::size_t i = 0; i < kNumScaleDownGPUs; ++i) {
+      futures.emplace_back(gpus_[i].run_async(&GPU::resume));
+    }
+    nu::Time::sleep(kScaleUpDurationUs);
+    for (auto &f : futures) {
+      f.get();
+    }
+    futures.clear();
+  }
+
+  for (auto &gpu : gpus_) {
+    gpu.run(&GPU::drain_and_stop);
+  }
+  for (auto &f : gpu_futures_) {
+    f.get();
+  }
 }
 
 BaselineDataLoader::BaselineDataLoader(std::string path, int nthreads)
