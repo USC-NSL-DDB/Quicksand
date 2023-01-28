@@ -1,7 +1,6 @@
-#include <runtime.h>
 #include <thread.h>
-
 #include <chrono>
+#include <nu/runtime.hpp>
 
 #include "dataloader.hpp"
 
@@ -28,18 +27,5 @@ void do_work() {
 }
 
 int main(int argc, char **argv) {
-  int ret;
-
-  if (argc < 2) {
-    std::cerr << "usage: [cfg_file]" << std::endl;
-    return -EINVAL;
-  }
-
-  ret = rt::RuntimeInit(argv[1], [] { do_work(); });
-  if (ret) {
-    std::cerr << "failed to start runtime" << std::endl;
-    return ret;
-  }
-
-  return 0;
+  return nu::runtime_main_init(argc, argv, [](int, char **) { do_work(); });
 }
