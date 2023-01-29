@@ -405,6 +405,12 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
             if (queue_len < prev_queue_len) {
               adjust_queue_workers(workers_size_ + 1, task_range, states...);
             }
+          } else {
+            if (queue_len > prev_queue_len) {
+              adjust_queue_workers(workers_size_ - 1, task_range, states...);
+            } else {
+              adjust_queue_workers(workers_size_ + 1, task_range, states...);
+            }
           }
         } else {
           if (queue_len > queue_len_target_max) {
@@ -415,20 +421,23 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
             if (queue_len < prev_queue_len) {
               adjust_queue_workers(workers_size_ - 1, task_range, states...);
             }
+          } else {
+            if (queue_len > prev_queue_len) {
+              adjust_queue_workers(workers_size_ + 1, task_range, states...);
+            } else {
+              adjust_queue_workers(workers_size_ - 1, task_range, states...);
+            }
           }
         }
-
-        prev_queue_len = queue_len;
-
         if (unlikely(!check_futures_and_redispatch())) {
           break;
         }
+
+        prev_queue_len = queue_len;
       }
     }
-
     rt::Yield();
   }
-
   return concat_results();
 }
 
