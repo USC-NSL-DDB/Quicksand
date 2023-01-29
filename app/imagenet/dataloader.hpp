@@ -25,7 +25,7 @@ class DataLoader {
  public:
   using GPU = MockGPU<Image>;
 
-  static constexpr uint32_t kMaxNumGPUs = 46;
+  static constexpr uint32_t kMaxNumGPUs = 8;
   static constexpr auto kGPUIP = MAKE_IP_ADDR(18, 18, 1, 10);
   static constexpr uint64_t kNumScaleDownGPUs = kMaxNumGPUs / 2;
   static constexpr uint64_t kScaleUpDurationUs = nu::kOneMilliSecond * 500;
@@ -34,7 +34,7 @@ class DataLoader {
   DataLoader(std::string path);
   std::size_t size() const;
   ~DataLoader();
-  void process_all();
+  uint64_t process_all();
 
  private:
   void spawn_gpus();
@@ -43,7 +43,6 @@ class DataLoader {
   shard_vec_type imgs_;
   shard_queue_type queue_;
   std::vector<nu::Proclet<GPU>> gpus_;
-  std::vector<nu::Future<void>> gpu_futures_;
   bool processed_ = false;
 };
 

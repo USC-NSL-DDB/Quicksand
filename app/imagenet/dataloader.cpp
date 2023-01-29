@@ -37,7 +37,7 @@ std::size_t DataLoader::size() const { return imgs_.size(); }
 
 DataLoader::~DataLoader() { cv::cleanup(); }
 
-void DataLoader::process_all() {
+uint64_t DataLoader::process_all() {
   BUG_ON(processed_);
 
   spawn_gpus();
@@ -46,6 +46,7 @@ void DataLoader::process_all() {
   auto sealed_imgs = nu::to_sealed_ds(std::move(imgs_));
   auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
 
+  auto start = high_resolution_clock::now();  
   auto producers = nu::make_distributed_executor(
       +[](decltype(imgs_range) &imgs_range, decltype(queue_) queue) {
         while (true) {
@@ -58,20 +59,68 @@ void DataLoader::process_all() {
         }
       },
       imgs_range, queue_);
-
   producers.get();
+  auto end = high_resolution_clock::now();
+  auto duration = duration_cast<milliseconds>(end - start);
 
   processed_ = true;
   barrier();
   gpu_orchestrator.get();
 
+  // ****************
+  std::vector<std::vector<std::pair<uint64_t, uint64_t>>> all_traces;
+  auto min_us = std::numeric_limits<uint64_t>::max();
+  auto max_us = std::numeric_limits<uint64_t>::min();
+
+  for (auto &gpu : gpus_) {
+    all_traces.emplace_back(gpu.run(&GPU::drain_and_stop));
+    min_us = std::min(min_us, all_traces.back().front().first);
+    max_us = std::max(max_us, all_traces.back().back().second);
+  }
+
+  constexpr uint32_t kMonitorIntervalUs = 10 * nu::kOneMilliSecond;
+
+  std::vector<std::pair<uint64_t, double>> total_utilizations;
+  for (auto i = min_us; i < max_us; i += kMonitorIntervalUs) {
+    total_utilizations.emplace_back(i, 0.0);
+  }
+
+  for (auto &traces : all_traces) {
+    auto trace_it = traces.begin();
+    for (auto &utilization : total_utilizations) {
+      auto left_us = utilization.first;
+      auto right_us = left_us + kMonitorIntervalUs;
+      uint64_t active_us = 0;
+
+      while (trace_it != traces.end() && right_us > trace_it->first) {
+        if (trace_it->second > right_us) {
+          active_us += right_us - trace_it->first;
+          trace_it->first = right_us;
+          break;
+        }
+        active_us += trace_it->second - trace_it->first;
+        trace_it++;
+      }
+
+      utilization.second += static_cast<double>(active_us) / kMonitorIntervalUs;
+    }
+  }
+
+  for (auto &[us, utilization] : total_utilizations) {
+    printf("%lld %lf\n", (long long)us, utilization);
+    // std::cout << us << " " << utilization << std::endl;
+  }
+  // ****************
+  
   imgs_ = nu::to_unsealed_ds(std::move(sealed_imgs));
+
+  return duration.count();
 }
 
 void DataLoader::spawn_gpus() {
   for (uint64_t i = 0; i < kMaxNumGPUs; ++i) {
-    gpus_.emplace_back(nu::make_proclet<GPU>(true, std::nullopt, kGPUIP));
-    gpu_futures_.emplace_back(gpus_.back().run_async(&GPU::run, queue_));
+    gpus_.emplace_back(nu::make_proclet<GPU>(std::forward_as_tuple(queue_),
+                                             true, std::nullopt, kGPUIP));
   }
 }
 
@@ -97,13 +146,6 @@ void DataLoader::run_gpus() {
       f.get();
     }
     futures.clear();
-  }
-
-  for (auto &gpu : gpus_) {
-    gpu.run(&GPU::drain_and_stop);
-  }
-  for (auto &f : gpu_futures_) {
-    f.get();
   }
 }
 

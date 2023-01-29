@@ -15,13 +15,11 @@ void do_work() {
   std::cout << "DataLoader: Image loading takes " << duration.count() << "ms"
             << std::endl;
 
-  start = high_resolution_clock::now();
-  dataloader.process_all();
-  end = high_resolution_clock::now();
-  duration = duration_cast<milliseconds>(end - start);
-  auto throughput = (1000 * dataloader.size()) / duration.count();
-  std::cout << "DataLoader: Image pre-processing takes " << duration.count()
-            << "ms; throughput: " << throughput << " images/s" << std::endl;
+  auto ms = dataloader.process_all();
+  auto throughput = (1000 * dataloader.size()) / ms;
+  // std::cout << "DataLoader: Image pre-processing takes " << ms
+  //           << "ms; throughput: " << throughput << " images/s" << std::endl;
+  printf("ms %lld, tput %d", (long long)ms, (int)throughput);
 }
 
 int main(int argc, char **argv) {

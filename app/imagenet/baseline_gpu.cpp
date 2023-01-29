@@ -70,7 +70,6 @@ rt::TcpConn *start_tcp_server() {
 }
 
 void gpu_fn() {
-  MockGPU<Image> gpu;
   while (true) {
     Image image;
 
@@ -86,7 +85,7 @@ void gpu_fn() {
       images.pop();
     }
 
-    gpu.process(std::move(image));
+    MockGPU<Image>::process(std::move(image));
   }
 }
 
