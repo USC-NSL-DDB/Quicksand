@@ -370,8 +370,8 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   spawn_initial_queue_workers(task_range, states...);
 
   // TODO: dynamically tune these bounds
-  std::size_t queue_len_target_min = 10;
-  std::size_t queue_len_target_max = 10;
+  std::size_t queue_len_target_min = 100;
+  std::size_t queue_len_target_max = 500;
 
   while (true) {
     auto now_us = Time::microtime();
