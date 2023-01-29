@@ -357,7 +357,7 @@ DistributedExecutor<RetT, TR, States...>::Result
 DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
                                                     TR task_range, Q queue,
                                                     S1s &&... states) {
-  constexpr double kEWMAWeight = 0.2;
+  constexpr double kEWMAWeight = 0.1;
 
   fn_ = fn;
 
