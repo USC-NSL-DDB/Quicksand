@@ -55,6 +55,8 @@ class MockGPU {
     }
   }
   void processor_fn() {
+    preempt_disable();
+
     while (true) {
       auto status = load_acquire(&status_);
 
@@ -83,8 +85,9 @@ class MockGPU {
       }
 
       if (unlikely(status == GPUStatus::kDrain)) {
+        preempt_enable();
         fetcher_th_.Join();
-	break;
+        break;
       }
     }
   }
