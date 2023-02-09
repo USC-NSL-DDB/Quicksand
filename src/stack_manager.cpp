@@ -13,8 +13,9 @@ void mmap_all_stack_space() {
        vaddr + kStackClusterSize <= kMaxStackClusterVAddr;
        vaddr += kStackClusterSize) {
     auto *mmap_ptr = reinterpret_cast<uint8_t *>(vaddr);
-    auto mmap_addr = mmap(mmap_ptr, kStackClusterSize, PROT_READ | PROT_WRITE,
-                          MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+    auto mmap_addr =
+        mmap(mmap_ptr, kStackClusterSize, PROT_READ | PROT_WRITE,
+             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE, -1, 0);
     BUG_ON(mmap_addr != mmap_ptr);
     auto rc = madvise(mmap_ptr, kStackClusterSize, MADV_DONTDUMP);
     BUG_ON(rc == -1);
@@ -45,8 +46,9 @@ bool StackManager::not_owned(uint8_t *stack) {
 void StackManager::free(uint8_t *stack) {
   if (not_owned(stack)) {
     stack -= kStackSize;
-    auto mmap_addr = mmap(stack, kStackSize, PROT_READ | PROT_WRITE,
-                          MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+    auto mmap_addr =
+        mmap(stack, kStackSize, PROT_READ | PROT_WRITE,
+             MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE, -1, 0);
     BUG_ON(mmap_addr != stack);
   }
 }
