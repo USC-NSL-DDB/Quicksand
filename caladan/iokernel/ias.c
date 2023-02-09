@@ -540,10 +540,10 @@ static void ias_sched_poll(uint64_t now, int idle_cnt, bitmap_ptr_t idle)
 	/* try to run the subcontroller polling stages */
 	if (now - last_us >= IAS_POLL_INTERVAL_US) {
 		last_us = now;
-		if (!cfg.nobw)
-			ias_bw_poll();
-		if (!cfg.noht)
-			ias_ht_poll();
+		/* if (!cfg.nobw) */
+		/* 	ias_bw_poll(); */
+		/* if (!cfg.noht) */
+		/* 	ias_ht_poll(); */
 		ias_ts_poll();
 		if (!cfg.nops)
 			ias_ps_poll();
