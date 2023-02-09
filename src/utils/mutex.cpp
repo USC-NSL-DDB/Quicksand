@@ -36,12 +36,14 @@ void Mutex::__unlock() {
 
   if (list_empty(&m_.waiters)) {
     atomic_write(&m_.held, 0);
-    auto *proclet_header = get_runtime()->get_current_proclet_header();
-    if (proclet_header) {
-      proclet_header->blocked_syncer.remove(this);
-    }
   } else {
     get_runtime()->caladan()->wakeup_one_waiter(&m_.waiters);
+    if (list_empty(&m_.waiters)) {
+      auto *proclet_header = get_runtime()->get_current_proclet_header();
+      if (proclet_header) {
+        proclet_header->blocked_syncer.remove(this);
+      }
+    }
   }
 
   Caladan::spin_unlock_np(&m_.waiter_lock);
