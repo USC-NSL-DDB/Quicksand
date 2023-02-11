@@ -22,7 +22,6 @@ void ias_ts_poll(void)
 	struct ias_data *sd;
 	struct thread_metrics *m;
 	unsigned int core, tmp;
-	bool work_pending;
 
 	sched_for_each_allowed_core(core, tmp) {
 		sd = cores[core];
@@ -33,8 +32,7 @@ void ias_ts_poll(void)
 			continue;
 
 		m = &th->metrics;
-		work_pending = m->work_pending || th->preemptor->th;
-		if (!work_pending || m->uthread_elapsed_us < sd->quantum_us)
+		if (!th->preemptor->th || m->uthread_elapsed_us < sd->quantum_us)
 			continue;
 
 		ias_ts_yield_count++;
