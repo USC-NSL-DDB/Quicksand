@@ -507,10 +507,12 @@ void ShardedDataStructure<Container, LL>::handle_rejected_flush_batch(
 template <class Container, class LL>
 void ShardedDataStructure<Container, LL>::flush() {
   if constexpr (!LL::value) {
+  again:
     for (auto iter = key_to_shards_.begin(); iter != key_to_shards_.end();
          iter++) {
-      while (!flush_one_batch(iter, /* drain = */ true))
-        ;
+      if (unlikely(!flush_one_batch(iter, /* drain = */ true))) {
+        goto again;
+      }
     }
   }
 }
