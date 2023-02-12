@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/rcu_lock.hpp"
@@ -14,6 +16,7 @@ class ReadSkewedLock {
   void reader_lock();
   void reader_unlock();
   void writer_lock();
+  bool writer_lock_if(std::function<bool()> f);
   void writer_unlock();
 
  private:

@@ -231,11 +231,11 @@ inline bool GeneralShard<Container>::should_split(std::size_t size) const {
 template <class Container>
 void GeneralShard<Container>::split_with_reader_lock() {
   rw_lock_.reader_unlock();
-  rw_lock_.writer_lock();
-  if (likely(should_split(container_.size()))) {
+  if (rw_lock_.writer_lock_if(
+          [&] { return should_split(container_.size()); })) {
     split();
+    rw_lock_.writer_unlock();
   }
-  rw_lock_.writer_unlock();
 }
 
 template <class Container>

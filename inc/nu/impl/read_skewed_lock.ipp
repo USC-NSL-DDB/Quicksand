@@ -21,6 +21,18 @@ inline void ReadSkewedLock::writer_lock() {
   rcu_lock_.writer_sync();
 }
 
+inline bool ReadSkewedLock::writer_lock_if(std::function<bool()> f) {
+  mutex_.lock();
+  bool ret = f();
+  if (ret) {
+    Caladan::access_once(writer_barrier_) = true;
+    rcu_lock_.writer_sync();
+  } else {
+    mutex_.unlock();
+  }
+  return ret;
+}
+
 inline void ReadSkewedLock::writer_unlock() {
   Caladan::access_once(writer_barrier_) = false;
   cond_var_.signal_all();
