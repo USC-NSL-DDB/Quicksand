@@ -42,24 +42,21 @@ std::vector<std::vector<char>> make_batch(std::size_t size,
   return batch;
 }
 
-template <typename T>
+template <typename Q>
 struct Producer {
   Producer() = default;
-  void produce(std::size_t n_elems, T elem,
-               nu::ShardedQueue<T, std::true_type> queue) {
+  void produce(std::size_t n_elems, typename Q::Val elem, Q queue) {
     for (std::size_t i = 0; i < n_elems; ++i) {
       queue.push(elem);
     }
   }
 };
 
-template <typename T>
+template <typename Q>
 struct BlockingConsumer {
   BlockingConsumer() = default;
-  std::vector<T> consume(std::size_t n_elems,
-                         nu::ShardedQueue<T, std::true_type> queue) {
-    std::vector<T> elems;
-
+  std::vector<typename Q::Val> consume(std::size_t n_elems, Q queue) {
+    std::vector<typename Q::Val> elems;
     for (std::size_t i = 0; i < n_elems; ++i) {
       elems.emplace_back(queue.pop());
     }
@@ -67,14 +64,13 @@ struct BlockingConsumer {
   }
 };
 
-template <typename T>
+template <typename Q>
 struct NonBlockingConsumer {
   constexpr static std::size_t kBatchSize = 2;
 
   NonBlockingConsumer() = default;
-  std::vector<T> consume(std::size_t n_elems,
-                         nu::ShardedQueue<T, std::true_type> queue) {
-    std::vector<T> elems;
+  std::vector<typename Q::Val> consume(std::size_t n_elems, Q queue) {
+    std::vector<typename Q::Val> elems;
 
     while (n_elems) {
     retry:
@@ -170,21 +166,24 @@ bool test_batched_queue() {
   return true;
 }
 
-template <bool Blocking>
+template <BoolIntegral Blocking, BoolIntegral LL>
 bool test_dequeue() {
-  using Consumer = std::conditional_t<Blocking, BlockingConsumer<int>,
-                                      NonBlockingConsumer<int>>;
+  using Elem = int;
+  using Queue = nu::ShardedQueue<Elem, LL>;
+  using Producer = Producer<Queue>;
+  using Consumer = std::conditional_t<Blocking::value, BlockingConsumer<Queue>,
+                                      NonBlockingConsumer<Queue>>;
   constexpr std::size_t kNumElems = 1 << 20;
   constexpr int kElem = 33;
   constexpr std::size_t kProducerCount = 4;
   constexpr std::size_t kConsumerCount = 32;
 
-  auto queue = make_sharded_queue<int, std::true_type>();
-  auto producers = std::vector<Proclet<Producer<int>>>{};
+  Queue queue = make_sharded_queue<Elem, LL>();
+  auto producers = std::vector<Proclet<Producer>>{};
   auto consumers = std::vector<Proclet<Consumer>>{};
 
   for (std::size_t i = 0; i < kProducerCount; ++i) {
-    producers.emplace_back(make_proclet<Producer<int>>());
+    producers.emplace_back(make_proclet<Producer>());
   }
   for (std::size_t i = 0; i < kConsumerCount; ++i) {
     consumers.emplace_back(make_proclet<Consumer>());
@@ -199,7 +198,7 @@ bool test_dequeue() {
   auto producer_futures = std::vector<nu::Future<void>>{};
   for (auto &producer : producers) {
     producer_futures.emplace_back(producer.run_async(
-        &Producer<int>::produce, kNumElems / kProducerCount, kElem, queue));
+        &Producer::produce, kNumElems / kProducerCount, kElem, queue));
   }
 
   for (auto &f : producer_futures) {
@@ -221,6 +220,17 @@ bool test_dequeue() {
                      [](int x) { return x == kElem; });
 }
 
+bool test_dequeue() {
+  return test_dequeue</* Blocking = */ std::false_type,
+                      /* LL = */ std::false_type>() &&
+         test_dequeue</* Blocking = */ std::true_type,
+                      /* LL = */ std::false_type>() &&
+         test_dequeue</* Blocking = */ std::false_type,
+                      /* LL = */ std::true_type>() &&
+         test_dequeue</* Blocking = */ std::true_type,
+                      /* LL = */ std::true_type>();
+}
+
 bool test_blocking_enqueue() {
   constexpr std::size_t kNumElems = 1 << 12;
   constexpr std::size_t kBatchBytes = 100'000;
@@ -230,30 +240,33 @@ bool test_blocking_enqueue() {
   constexpr std::size_t kConsumerCount = 8;
 
   using Elem = std::vector<std::vector<char>>;
+  using Queue = nu::ShardedQueue<Elem, std::true_type>;
+  using Producer = Producer<Queue>;
+  using Consumer = BlockingConsumer<Queue>;
 
   Elem elem = make_batch(kBatchBytes, kBatchElemSz);
 
-  auto queue = make_sharded_queue<Elem, std::true_type>(kQueueMaxSizeBytes);
-  auto producers = std::vector<Proclet<Producer<Elem>>>{};
-  auto consumers = std::vector<Proclet<BlockingConsumer<Elem>>>{};
+  Queue queue = make_sharded_queue<Elem, std::true_type>(kQueueMaxSizeBytes);
+  auto producers = std::vector<Proclet<Producer>>{};
+  auto consumers = std::vector<Proclet<Consumer>>{};
 
   for (std::size_t i = 0; i < kProducerCount; ++i) {
-    producers.emplace_back(make_proclet<Producer<Elem>>());
+    producers.emplace_back(make_proclet<Producer>());
   }
   for (std::size_t i = 0; i < kConsumerCount; ++i) {
-    consumers.emplace_back(make_proclet<BlockingConsumer<Elem>>());
+    consumers.emplace_back(make_proclet<Consumer>());
   }
 
   auto producer_futures = std::vector<nu::Future<void>>{};
   for (auto &producer : producers) {
     producer_futures.emplace_back(producer.run_async(
-        &Producer<Elem>::produce, kNumElems / kProducerCount, elem, queue));
+        &Producer::produce, kNumElems / kProducerCount, elem, queue));
   }
 
   auto consumer_futures = std::vector<nu::Future<std::vector<Elem>>>{};
   for (auto &consumer : consumers) {
     consumer_futures.emplace_back(consumer.run_async(
-        &BlockingConsumer<Elem>::consume, kNumElems / kConsumerCount, queue));
+        &Consumer::consume, kNumElems / kConsumerCount, queue));
   }
 
   for (auto &f : producer_futures) {
@@ -310,8 +323,7 @@ bool test_rate_matching() {
 
 bool run_test() {
   return test_push_and_pop() && test_size_and_empty() && test_batched_queue() &&
-         test_dequeue</* Blocking = */ false>() &&
-         test_dequeue</* Blocking = */ true>() && test_blocking_enqueue();
+         test_dequeue() && test_blocking_enqueue();
 }
 
 void do_work() {
