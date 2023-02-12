@@ -504,8 +504,10 @@ GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
       }
     }
   }
-  if (!batch.insert_reqs.empty()) {
-    size = container_.insert_batch(std::move(batch.insert_reqs));
+  if constexpr (InsertAble<Container>) {
+    if (!batch.insert_reqs.empty()) {
+      size = container_.insert_batch(std::move(batch.insert_reqs));
+    }
   }
 
   if (unlikely(should_split(size))) {
