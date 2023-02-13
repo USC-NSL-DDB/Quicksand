@@ -11,7 +11,7 @@
 constexpr std::size_t kImageSize = 224 * 224 * 3;
 constexpr std::size_t kNumImages = 300'000;
 constexpr std::size_t kNumConsumers = 4;
-constexpr uint64_t kProducerPerElemWork = 6'250;
+constexpr uint64_t kProducerPerElemWork = 2'800;
 constexpr uint64_t kConsumerPerElemWork = 333;
 
 class MockImage {
@@ -102,7 +102,7 @@ struct Bench {
             if (!img) {
               break;
             }
-            nu::Time::delay(kConsumerPerElemWork);
+            nu::Time::delay(kProducerPerElemWork);
             queue.push(*img);
           }
         },
