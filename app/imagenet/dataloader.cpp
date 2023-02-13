@@ -40,13 +40,12 @@ DataLoader::~DataLoader() { cv::cleanup(); }
 uint64_t DataLoader::process_all() {
   BUG_ON(processed_);
 
-  spawn_gpus();
-  auto gpu_orchestrator = nu::async([&] { run_gpus(); });
+  auto gpu_orchestrator = nu::async([&] { return run_gpus(); });
 
   auto sealed_imgs = nu::to_sealed_ds(std::move(imgs_));
   auto imgs_range = nu::make_contiguous_ds_range(sealed_imgs);
 
-  auto start = high_resolution_clock::now();  
+  auto start = high_resolution_clock::now();
   auto producers = nu::make_distributed_executor(
       +[](decltype(imgs_range) &imgs_range, decltype(queue_) queue) {
         while (true) {
@@ -65,17 +64,37 @@ uint64_t DataLoader::process_all() {
 
   processed_ = true;
   barrier();
-  gpu_orchestrator.get();
 
-  // ****************
-  std::vector<std::vector<std::pair<uint64_t, uint64_t>>> all_traces;
+  auto all_traces = gpu_orchestrator.get();
+  process_traces(std::move(all_traces));
+
+  imgs_ = nu::to_unsealed_ds(std::move(sealed_imgs));
+
+  return duration.count();
+}
+
+DataLoader::TraceVec DataLoader::run_gpus() {
+  auto gpu = nu::make_proclet<GPU>(std::forward_as_tuple(queue_, kNumGPUs),
+                                   true, std::nullopt, kGPUIP);
+
+  while (!load_acquire(&processed_)) {
+    gpu.run(&GPU::set_num_gpus, kNumScaleDownGPUs);
+    nu::Time::sleep(kScaleDownDurationUs);
+
+    gpu.run(&GPU::set_num_gpus, kNumGPUs);
+    nu::Time::sleep(kScaleUpDurationUs);
+  }
+
+  return gpu.run(&GPU::drain_and_stop);
+}
+
+void DataLoader::process_traces(TraceVec &&all_traces) {
   auto min_us = std::numeric_limits<uint64_t>::max();
   auto max_us = std::numeric_limits<uint64_t>::min();
 
-  for (auto &gpu : gpus_) {
-    all_traces.emplace_back(gpu.run(&GPU::drain_and_stop));
-    min_us = std::min(min_us, all_traces.back().front().first);
-    max_us = std::max(max_us, all_traces.back().back().second);
+  for (auto &traces : all_traces) {
+    min_us = std::min(min_us, traces.front().first);
+    max_us = std::max(max_us, traces.back().second);
   }
 
   constexpr uint32_t kMonitorIntervalUs = 10 * nu::kOneMilliSecond;
@@ -108,44 +127,6 @@ uint64_t DataLoader::process_all() {
 
   for (auto &[us, utilization] : total_utilizations) {
     printf("%lld %lf\n", (long long)us, utilization);
-    // std::cout << us << " " << utilization << std::endl;
-  }
-  // ****************
-  
-  imgs_ = nu::to_unsealed_ds(std::move(sealed_imgs));
-
-  return duration.count();
-}
-
-void DataLoader::spawn_gpus() {
-  for (uint64_t i = 0; i < kMaxNumGPUs; ++i) {
-    gpus_.emplace_back(nu::make_proclet<GPU>(std::forward_as_tuple(queue_),
-                                             true, std::nullopt, kGPUIP));
-  }
-}
-
-void DataLoader::run_gpus() {
-  std::vector<nu::Future<void>> futures;
-  futures.reserve(kNumScaleDownGPUs);
-
-  while (!load_acquire(&processed_)) {
-    for (std::size_t i = 0; i < kNumScaleDownGPUs; ++i) {
-      futures.emplace_back(gpus_[i].run_async(&GPU::pause));
-    }
-    nu::Time::sleep(kScaleDownDurationUs);
-    for (auto &f : futures) {
-      f.get();
-    }
-    futures.clear();
-
-    for (std::size_t i = 0; i < kNumScaleDownGPUs; ++i) {
-      futures.emplace_back(gpus_[i].run_async(&GPU::resume));
-    }
-    nu::Time::sleep(kScaleUpDurationUs);
-    for (auto &f : futures) {
-      f.get();
-    }
-    futures.clear();
   }
 }
 

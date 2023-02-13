@@ -24,6 +24,7 @@ class MockGPU;
 class DataLoader {
  public:
   using GPU = MockGPU<Image>;
+  using TraceVec = std::vector<std::vector<std::pair<uint64_t, uint64_t>>>;
 
   static constexpr uint32_t kMaxNumGPUs = 8;
   static constexpr auto kGPUIP = MAKE_IP_ADDR(18, 18, 1, 10);
@@ -37,12 +38,11 @@ class DataLoader {
   uint64_t process_all();
 
  private:
-  void spawn_gpus();
-  void run_gpus();
+  TraceVec run_gpus();
+  void process_traces(TraceVec&& all_traces);
 
   shard_vec_type imgs_;
   shard_queue_type queue_;
-  std::vector<nu::Proclet<GPU>> gpus_;
   bool processed_ = false;
 };
 
@@ -53,7 +53,7 @@ class BaselineDataLoader {
 
  private:
   void process(int tid);
-  rt::TcpConn *dial_gpu_server();
+  rt::TcpConn* dial_gpu_server();
 
   int nthreads_;
   std::vector<RawImage> imgs_;
