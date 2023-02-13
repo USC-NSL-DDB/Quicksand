@@ -117,44 +117,17 @@ class ConsumerGroup {
   std::size_t num_active_;
 };
 
-struct Bench {
+struct AutoScalingBench {
  public:
-  void bench_large_elem_producer_auto_scaling() {
-    std::cout << "\t" << __FUNCTION__ << std::endl;
+  void run() {
+    std::cout << "\tAutoScalingBench" << std::endl;
 
-    auto img = MockImage(kImageSize);
-    auto images = nu::make_sharded_vector<MockImage, std::false_type>();
-    for (std::size_t i = 0; i < kNumImages; ++i) {
-      images.push_back(img);
-    }
+    auto images = make_images(kNumImages);
     auto sealed_imgs = nu::to_sealed_ds(std::move(images));
     auto images_range = nu::make_contiguous_ds_range(sealed_imgs);
 
     auto queue = nu::make_sharded_queue<MockImage, std::true_type>();
-    using Consumer = ConsumerGroup<decltype(queue)>;
-
-    auto stopped = false;
-
-    auto consumers = nu::async([&]() {
-      auto cs = nu::make_proclet<Consumer>(
-          std::forward_as_tuple(queue, kNumConsumers));
-
-      while (true) {
-        if (load_acquire(&stopped)) {
-          break;
-        }
-        cs.run(&Consumer::set_num_consumers, kNumConsumers / 2);
-        nu::Time::sleep(kScalingInterval);
-
-        if (load_acquire(&stopped)) {
-          break;
-        }
-        cs.run(&Consumer::set_num_consumers, kNumConsumers);
-        nu::Time::sleep(kScalingInterval);
-      }
-
-      cs.run(&Consumer::stop);
-    });
+    auto consumers = nu::async([this, queue]() { run_consumers(queue); });
 
     barrier();
     auto t0 = microtime();
@@ -174,7 +147,7 @@ struct Bench {
         images_range, queue);
 
     producers.get();
-    stopped = true;
+    stopped_ = true;
     barrier();
     consumers.get();
 
@@ -184,11 +157,45 @@ struct Bench {
 
     std::cout << "\t\tShardedQueue: " << t1 - t0 << " us" << std::endl;
   }
+
+ private:
+  nu::ShardedVector<MockImage, std::false_type> make_images(std::size_t size) {
+    auto img = MockImage(kImageSize);
+    auto images = nu::make_sharded_vector<MockImage, std::false_type>();
+    for (std::size_t i = 0; i < size; ++i) {
+      images.push_back(img);
+    }
+    return images;
+  }
+
+  void run_consumers(nu::ShardedQueue<MockImage, std::true_type> queue) {
+    using Consumer = ConsumerGroup<decltype(queue)>;
+    auto cs =
+        nu::make_proclet<Consumer>(std::forward_as_tuple(queue, kNumConsumers));
+
+    while (true) {
+      if (load_acquire(&stopped_)) {
+        break;
+      }
+      cs.run(&Consumer::set_num_consumers, kNumConsumers / 2);
+      nu::Time::sleep(kScalingInterval);
+
+      if (load_acquire(&stopped_)) {
+        break;
+      }
+      cs.run(&Consumer::set_num_consumers, kNumConsumers);
+      nu::Time::sleep(kScalingInterval);
+    }
+
+    cs.run(&Consumer::stop);
+  }
+
+  bool stopped_ = false;
 };
 
 int main(int argc, char **argv) {
   return nu::runtime_main_init(argc, argv, [](int, char **) {
-    Bench b;
-    b.bench_large_elem_producer_auto_scaling();
+    AutoScalingBench b;
+    b.run();
   });
 }
