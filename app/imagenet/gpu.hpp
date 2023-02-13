@@ -1,12 +1,12 @@
 #pragma once
 
-#include <array>
-#include <queue>
 #include <sync.h>
-#include <atomic>
 
+#include <array>
+#include <atomic>
 #include <nu/sharded_queue.hpp>
 #include <nu/utils/time.hpp>
+#include <queue>
 
 namespace imagenet {
 
@@ -27,6 +27,7 @@ class MockGPU {
         num_traces_(0),
         fetcher_th_([this] { fetcher_fn(); }),
         processor_th_([this] { processor_fn(); }) {}
+
   void fetcher_fn() {
     while (true) {
       auto status = load_acquire(&status_);
@@ -38,7 +39,7 @@ class MockGPU {
 
       barrier();
       if (local_queue_.size() >= kBatchSize) {
-	continue;
+        continue;
       }
 
       auto popped = remote_queue_.try_pop(kBatchSize);
@@ -54,6 +55,7 @@ class MockGPU {
       }
     }
   }
+
   void processor_fn() {
     preempt_disable();
 
@@ -91,6 +93,7 @@ class MockGPU {
       }
     }
   }
+
   std::vector<std::pair<uint64_t, uint64_t>> drain_and_stop() {
     status_ = GPUStatus::kDrain;
     barrier();
@@ -99,12 +102,15 @@ class MockGPU {
     return std::vector<std::pair<uint64_t, uint64_t>>(
         traces_.begin(), traces_.begin() + num_traces_);
   }
+
   void pause() { rt::access_once(status_) = GPUStatus::kPause; }
+
   void resume() {
     status_ = GPUStatus::kRunning;
     barrier();
     fetcher_waker_.Wake();
   }
+
   static void process(Item &&item) { nu::Time::delay(kProcessDelayUs); }
 
  private:
