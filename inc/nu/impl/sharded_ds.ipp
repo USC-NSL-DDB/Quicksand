@@ -472,11 +472,12 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
     pop_flush_futures();
   }
 
-  for (auto &batch : rejected_batches) {
-    handle_rejected_flush_batch(batch);
+  if (!rejected_batches.empty()) {
+    handle_rejected_flush_batches(std::move(rejected_batches));
+    return false;
+  } else {
+    return true;
   }
-
-  return rejected_batches.empty();
 }
 
 template <class Container, class LL>
@@ -495,13 +496,14 @@ void ShardedDataStructure<Container, LL>::reroute_reqs(
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::handle_rejected_flush_batch(
-    ReqBatch &batch) {
-  if (likely(batch.mapping_seq == mapping_seq_)) {
-    sync_mapping();
+void ShardedDataStructure<Container, LL>::handle_rejected_flush_batches(
+    std::vector<ReqBatch> batches) {
+  auto [last_insert_reqs, last_push_back_reqs] =
+      sync_mapping(/* dont_reroute = */ true);
+  for (auto &batch : batches) {
+    reroute_reqs(std::move(batch.insert_reqs), std::move(batch.push_back_reqs));
   }
-  reroute_reqs(std::move(batch.insert_reqs),
-               std::move(batch.push_back_reqs));
+  reroute_reqs(std::move(last_insert_reqs), std::move(last_push_back_reqs));
 }
 
 template <class Container, class LL>
@@ -518,7 +520,9 @@ void ShardedDataStructure<Container, LL>::flush() {
 }
 
 template <class Container, class LL>
-void ShardedDataStructure<Container, LL>::sync_mapping() {
+std::pair<std::vector<typename ShardedDataStructure<Container, LL>::DataEntry>,
+          std::vector<typename ShardedDataStructure<Container, LL>::Val>>
+ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
   std::vector<DataEntry> insert_reqs;
   uint64_t latest_seq = 0;
 
@@ -571,7 +575,12 @@ void ShardedDataStructure<Container, LL>::sync_mapping() {
   auto push_back_reqs = std::move(push_back_reqs_);
   push_back_reqs_.clear();
 
-  reroute_reqs(std::move(insert_reqs), std::move(push_back_reqs));
+  if (!dont_reroute) {
+    reroute_reqs(std::move(insert_reqs), std::move(push_back_reqs));
+    return std::make_pair(std::vector<DataEntry>(), std::vector<Val>());
+  } else {
+    return std::make_pair(std::move(insert_reqs), std::move(push_back_reqs));
+  }
 }
 
 template <class Container, class LL>
