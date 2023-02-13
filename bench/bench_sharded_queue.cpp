@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 
+#include "nu/commons.hpp"
 #include "nu/cont_ds_range.hpp"
 #include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
@@ -9,10 +10,12 @@
 #include "nu/sharded_vector.hpp"
 
 constexpr std::size_t kImageSize = 224 * 224 * 3;
-constexpr std::size_t kNumImages = 300'000;
-constexpr std::size_t kNumConsumers = 4;
+constexpr std::size_t kNumImages = 100'000;
+constexpr std::size_t kNumConsumers = 2;
+constexpr std::size_t kBatchSize = 16;
 constexpr uint64_t kProducerPerElemWork = 2'800;
 constexpr uint64_t kConsumerPerElemWork = 333;
+constexpr uint64_t kScalingInterval = nu::kOneSecond;
 
 class MockImage {
  public:
@@ -43,8 +46,6 @@ class MockImage {
 template <typename Q>
 class StaticConsumer {
  public:
-  constexpr static std::size_t kBatchSize = 16;
-
   StaticConsumer(Q queue) : queue_(std::move(queue)) {}
 
   void consume() {
@@ -66,6 +67,56 @@ class StaticConsumer {
   bool stopped_ = false;
 };
 
+template <typename Q>
+class ConsumerGroup {
+ public:
+  ConsumerGroup(Q queue, std::size_t max_consumers)
+      : num_active_(max_consumers) {
+    for (std::size_t i = 0; i < max_consumers; ++i) {
+      consumers_.push_back(
+          nu::async([this, queue, id = i]() { consume(queue, id); }));
+    }
+  }
+
+  void consume(Q queue, std::size_t id) {
+    while (true) {
+      if (id >= load_acquire(&num_active_)) {
+        if (load_acquire(&stopped_)) {
+          break;
+        } else {
+          continue;
+        }
+      }
+      auto batch = queue.try_pop(kBatchSize);
+      if (batch.empty() && load_acquire(&stopped_)) {
+        break;
+      }
+      for (std::size_t i = 0; i < batch.size(); ++i) {
+        nu::Time::delay(kConsumerPerElemWork);
+      }
+    }
+  }
+
+  void stop() {
+    stopped_ = true;
+    barrier();
+
+    for (auto &f : consumers_) {
+      f.get();
+    }
+  }
+
+  void set_num_consumers(std::size_t num_consumers) {
+    num_active_ = num_consumers;
+    barrier();
+  }
+
+ private:
+  std::vector<nu::Future<void>> consumers_;
+  bool stopped_ = false;
+  std::size_t num_active_;
+};
+
 struct Bench {
  public:
   void bench_large_elem_producer_auto_scaling() {
@@ -80,16 +131,30 @@ struct Bench {
     auto images_range = nu::make_contiguous_ds_range(sealed_imgs);
 
     auto queue = nu::make_sharded_queue<MockImage, std::true_type>();
-    using Consumer = StaticConsumer<decltype(queue)>;
+    using Consumer = ConsumerGroup<decltype(queue)>;
 
-    auto consumers = std::vector<nu::Proclet<Consumer>>{};
-    auto consume_futures = std::vector<nu::Future<void>>{};
-    for (std::size_t i = 0; i < kNumConsumers; ++i) {
-      consumers.emplace_back(
-          nu::make_proclet<Consumer>(std::forward_as_tuple(queue)));
-      consume_futures.emplace_back(
-          consumers.back().run_async(&Consumer::consume));
-    }
+    auto stopped = false;
+
+    auto consumers = nu::async([&]() {
+      auto cs = nu::make_proclet<Consumer>(
+          std::forward_as_tuple(queue, kNumConsumers));
+
+      while (true) {
+        if (load_acquire(&stopped)) {
+          break;
+        }
+        cs.run(&Consumer::set_num_consumers, kNumConsumers / 2);
+        nu::Time::sleep(kScalingInterval);
+
+        if (load_acquire(&stopped)) {
+          break;
+        }
+        cs.run(&Consumer::set_num_consumers, kNumConsumers);
+        nu::Time::sleep(kScalingInterval);
+      }
+
+      cs.run(&Consumer::stop);
+    });
 
     barrier();
     auto t0 = microtime();
@@ -109,16 +174,9 @@ struct Bench {
         images_range, queue);
 
     producers.get();
-
-    auto stop_futures = std::vector<nu::Future<void>>{};
-    for (auto &c : consumers) {
-      stop_futures.emplace_back(c.run_async(&Consumer::stop));
-    }
-    for (auto [stop_ft, consume_ft] :
-         std::views::zip(stop_futures, consume_futures)) {
-      stop_ft.get();
-      consume_ft.get();
-    }
+    stopped = true;
+    barrier();
+    consumers.get();
 
     barrier();
     auto t1 = microtime();
