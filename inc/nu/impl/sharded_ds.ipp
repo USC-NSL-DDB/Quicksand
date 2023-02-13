@@ -445,31 +445,40 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
   }
 
   std::vector<ReqBatch> rejected_batches;
+  bool reject_cur_flush = false;
 
   auto pop_flush_futures = [&] {
     auto &optional_batch = flush_futures_.front().get();
     if (optional_batch) {
       drain = true;
+      reject_cur_flush |= (optional_batch->l_key == batch.l_key &&
+                           optional_batch->r_key == batch.r_key);
       rejected_batches.emplace_back(std::move(*optional_batch));
     }
     flush_futures_.pop();
   };
 
-  if (flush_futures_.size() == kMaxNumInflightFlushes) {
+  BUG_ON(flush_futures_.size() > kMaxNumInflightFlushes);
+  while (!flush_futures_.empty() &&
+         (drain || flush_futures_.front().is_ready() ||
+          flush_futures_.size() == kMaxNumInflightFlushes)) {
     pop_flush_futures();
   }
 
   if (!batch.empty()) {
-    flush_futures_.emplace(shard_and_reqs.flush_executor.run_async(
-        +[](RobExecutor<ReqBatch, std::optional<ReqBatch>> &rob_executor,
-            uint32_t rob_seq, ReqBatch batch) {
-          return rob_executor.submit(rob_seq, std::move(batch));
-        },
-        shard_and_reqs.seq++, std::move(batch)));
-  }
-
-  while (drain && !flush_futures_.empty()) {
-    pop_flush_futures();
+    if (!reject_cur_flush) {
+      flush_futures_.emplace(shard_and_reqs.flush_executor.run_async(
+          +[](RobExecutor<ReqBatch, std::optional<ReqBatch>> &rob_executor,
+              uint32_t rob_seq, ReqBatch batch) {
+            return rob_executor.submit(rob_seq, std::move(batch));
+          },
+          shard_and_reqs.seq++, std::move(batch)));
+      if (drain) {
+        pop_flush_futures();
+      }
+    } else {
+      rejected_batches.emplace_back(std::move(batch));
+    }
   }
 
   if (!rejected_batches.empty()) {
