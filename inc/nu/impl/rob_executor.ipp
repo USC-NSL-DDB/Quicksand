@@ -5,7 +5,7 @@ namespace nu {
 
 template <typename Arg, typename Ret>
 inline RobExecutor<Arg, Ret>::RobExecutor(
-    std::move_only_function<Ret(const Arg &)> fn, uint32_t rob_size)
+    std::move_only_function<Ret(Arg &&)> fn, uint32_t rob_size)
     : fn_(std::move(fn)), rob_(rob_size) {
   rob_[0].run = true;
 }

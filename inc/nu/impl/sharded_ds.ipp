@@ -439,7 +439,7 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
   if (unlikely(!shard_and_reqs.flush_executor)) {
     shard_and_reqs.flush_executor = shard_and_reqs.shard.run(+[](Shard &s) {
       return make_rem_unique<RobExecutor<ReqBatch, std::optional<ReqBatch>>>(
-          [&](const ReqBatch &batch) { return s.try_handle_batch(batch); },
+          [&](ReqBatch &&batch) { return s.try_handle_batch(batch); },
           kMaxNumInflightFlushes);
     });
   }

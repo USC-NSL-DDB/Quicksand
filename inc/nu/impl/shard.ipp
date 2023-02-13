@@ -483,36 +483,37 @@ GeneralShard<Container>::try_pop_back_nb(
 
 template <class Container>
 std::optional<typename GeneralShard<Container>::ReqBatch>
-GeneralShard<Container>::try_handle_batch(const ReqBatch &batch) {
+GeneralShard<Container>::try_handle_batch(ReqBatch &batch) {
   rw_lock_.reader_lock();
-
   if (unlikely(should_reject(std::move(batch.l_key), std::move(batch.r_key)))) {
     rw_lock_.reader_unlock();
     return std::move(batch);
   }
 
-  std::size_t size = 0;
+  auto cond = [&](std::size_t size) { return !should_split(size); };
 
   if constexpr (PushBackAble<Container>) {
     if (!batch.push_back_reqs.empty()) {
-      auto batch_size = batch.push_back_reqs.size();
-      size = container_.push_back_batch(std::move(batch.push_back_reqs));
-      if (unlikely(size == batch_size)) {
+      auto [succeed, prev_empty] =
+          container_.push_back_batch_if(cond, batch.push_back_reqs);
+      if (unlikely(!succeed)) {
+        split_with_reader_lock();
+        return std::move(batch);
+      } else if (unlikely(prev_empty)) {
         ScopedLock lock(&empty_mutex_);
 
         empty_cv_.signal_all();
       }
     }
   }
+
   if constexpr (InsertAble<Container>) {
     if (!batch.insert_reqs.empty()) {
-      size = container_.insert_batch(std::move(batch.insert_reqs));
+      if (unlikely(!container_.insert_batch_if(cond, batch.insert_reqs))) {
+        split_with_reader_lock();
+        return std::move(batch);
+      }
     }
-  }
-
-  if (unlikely(should_split(size))) {
-    split_with_reader_lock();
-    return std::nullopt;
   }
 
   rw_lock_.reader_unlock();

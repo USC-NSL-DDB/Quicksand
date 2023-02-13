@@ -236,11 +236,6 @@ class GeneralContainerBase {
     return synchronized<std::size_t>(
         [&] { return impl_.push_back(std::move(v)); });
   }
-  std::size_t push_back_batch(
-      std::vector<Val> v) requires PushBackAble<Impl> {
-    return synchronized<std::size_t>(
-        [&] { return impl_.push_back_batch(std::move(v)); });
-  }
   ConstIterator find(Key k) const requires FindAble<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
@@ -320,8 +315,11 @@ class GeneralContainerBase {
 
   template <typename RetT, typename F>
   RetT synchronized(F &&f) const;
-  std::size_t insert_batch(
-      std::vector<DataEntry> reqs) requires InsertAble<Impl>;
+  bool insert_batch_if(std::function<bool(std::size_t)> cond,
+                       std::vector<DataEntry> &reqs) requires InsertAble<Impl>;
+  std::pair<bool, bool> push_back_batch_if(
+      std::function<bool(std::size_t)> cond,
+      std::vector<Val> &reqs) requires PushBackAble<Impl>;
 };
 
 }  // namespace nu

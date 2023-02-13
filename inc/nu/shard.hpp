@@ -116,7 +116,7 @@ class GeneralShard {
   std::optional<std::vector<Val>> try_pop_back_nb(
       std::optional<Key> l_key, std::optional<Key> r_key,
       std::size_t num) requires TryPopBackAble<Container>;
-  std::optional<ReqBatch> try_handle_batch(const ReqBatch &batch);
+  std::optional<ReqBatch> try_handle_batch(ReqBatch &batch);
   std::pair<bool, std::optional<IterVal>> find_data(
       Key k) requires FindAble<Container>;
   std::pair<IterVal, ConstIterator> find(Key k) requires FindAble<Container>;

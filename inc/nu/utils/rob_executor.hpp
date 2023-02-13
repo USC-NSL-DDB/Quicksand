@@ -14,7 +14,7 @@ namespace nu {
 template <typename Arg, typename Ret>
 class RobExecutor {
  public:
-  RobExecutor(std::move_only_function<Ret(const Arg &)> fn, uint32_t rob_size);
+  RobExecutor(std::move_only_function<Ret(Arg &&)> fn, uint32_t rob_size);
   Ret submit(uint32_t seq, Arg &&arg);
 
  private:
@@ -24,7 +24,7 @@ class RobExecutor {
     CondVar cond_var;
   };
 
-  std::move_only_function<Ret(const Arg &)> fn_;
+  std::move_only_function<Ret(Arg &&)> fn_;
   std::vector<RobEntry> rob_;
 };
 }  // namespace nu
