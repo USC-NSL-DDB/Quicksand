@@ -52,7 +52,7 @@ class DistributedExecutor {
   constexpr static uint64_t kCheckWorkersIntervalUs = 200;
   constexpr static uint64_t kAddWorkersIntervalUs = 1000;
   constexpr static uint64_t kCheckQueueIntervalUs = 200;
-  constexpr static uint64_t kAddQueueWorkersIntervalUs = 2000;
+  constexpr static uint64_t kAddQueueWorkersIntervalUs = 10'000;
   RetT (*fn_)(TR &, States...);
   bool almost_done_;
   std::deque<Worker> workers_;
