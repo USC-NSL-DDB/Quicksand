@@ -96,7 +96,7 @@ inline void load(Archive &ar, std::vector<P, A> &v) requires(
 }
 
 template <typename T>
-void SizeArchive::operator()(T &&t) {
+void SizeArchive::operator()(const T &t) {
   using D = std::decay_t<T>;
 
   if constexpr (nu::is_specialization_of_v<D, cereal::BinaryData>) {
@@ -106,18 +106,18 @@ void SizeArchive::operator()(T &&t) {
   } else if constexpr (nu::is_specialization_of_v<D, cereal::SizeTag>) {
     size += sizeof(D);
   } else if constexpr (HasBuiltinSerialize<SizeArchive, D>) {
-    t.serialize(*this);
+    const_cast<T &>(t).serialize(*this);
   } else if constexpr (HasBuiltinSave<SizeArchive, D>) {
     t.save(*this);
   } else if constexpr (is_memcpy_safe<D>()) {
     size += sizeof(D);
   } else {
-    cereal::save(*this, std::forward<T>(t));
+    cereal::save(*this, t);
   }
 }
 
 template <typename... Ts>
-void SizeArchive::operator()(Ts &&... ts) requires(sizeof...(Ts) > 1) {
+void SizeArchive::operator()(const Ts &...ts) requires(sizeof...(Ts) > 1) {
   ((this->operator()(ts)), ...);
 }
 

@@ -96,9 +96,9 @@ void load(Archive &ar, std::vector<P, A> &v) requires(
 
 struct SizeArchive {
   template <typename T>
-  void operator()(T &&t);
+  void operator()(const T &t);
   template <typename... Ts>
-  void operator()(Ts &&... ts) requires(sizeof...(Ts) > 1);
+  void operator()(const Ts &...ts) requires(sizeof...(Ts) > 1);
 
   uint64_t size = 0;
 };
