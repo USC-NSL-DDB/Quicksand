@@ -358,6 +358,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
                                                     TR task_range, Q queue,
                                                     S1s &&... states) {
   constexpr double kEWMAWeight = 0.1;
+  constexpr std::size_t kFastReactionStepSize = 4;
 
   fn_ = fn;
 
@@ -393,6 +394,33 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
         }
       }
       ewma(kEWMAWeight, &queue_len, static_cast<float>(curr_len));
+
+      // fast reaction path
+      if constexpr (IsProducer::value) {
+        if (abs(queue_len - prev_queue_len) > queue_len_high_delta) {
+          last_add_worker_us = now_us;
+
+          auto target = queue_len > prev_queue_len
+                            ? workers_size_ - kFastReactionStepSize
+                            : workers_size_ + kFastReactionStepSize;
+          adjust_queue_workers(target, task_range, states...);
+
+          prev_queue_len = queue_len;
+          continue;
+        }
+      } else {
+        if (abs(queue_len - prev_queue_len) > queue_len_high_delta) {
+          last_add_worker_us = now_us;
+
+          auto target = queue_len > prev_queue_len
+                            ? workers_size_ + kFastReactionStepSize
+                            : workers_size_ - kFastReactionStepSize;
+          adjust_queue_workers(target, task_range, states...);
+
+          prev_queue_len = queue_len;
+          continue;
+        }
+      }
 
       if (now_us - last_add_worker_us >= kAddQueueWorkersIntervalUs) {
         last_add_worker_us = now_us;
