@@ -396,30 +396,24 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
       ewma(kEWMAWeight, &queue_len, static_cast<float>(curr_len));
 
       // fast reaction path
-      if constexpr (IsProducer::value) {
-        if (abs(queue_len - prev_queue_len) > queue_len_high_delta) {
-          last_add_worker_us = now_us;
+      if (abs(queue_len - prev_queue_len) > queue_len_high_delta) {
+        last_add_worker_us = now_us;
 
-          auto target = queue_len > prev_queue_len
-                            ? workers_size_ - kFastReactionStepSize
-                            : workers_size_ + kFastReactionStepSize;
-          adjust_queue_workers(target, task_range, states...);
-
-          prev_queue_len = queue_len;
-          continue;
+        std::size_t target;
+        if constexpr (IsProducer::value) {
+          target = queue_len > prev_queue_len
+                       ? workers_size_ - kFastReactionStepSize
+                       : workers_size_ + kFastReactionStepSize;
+        } else {
+          target = queue_len > prev_queue_len
+                       ? workers_size_ + kFastReactionStepSize
+                       : workers_size_ - kFastReactionStepSize;
         }
-      } else {
-        if (abs(queue_len - prev_queue_len) > queue_len_high_delta) {
-          last_add_worker_us = now_us;
 
-          auto target = queue_len > prev_queue_len
-                            ? workers_size_ + kFastReactionStepSize
-                            : workers_size_ - kFastReactionStepSize;
-          adjust_queue_workers(target, task_range, states...);
+        adjust_queue_workers(target, task_range, states...);
 
-          prev_queue_len = queue_len;
-          continue;
-        }
+        prev_queue_len = queue_len;
+        continue;
       }
 
       if (now_us - last_add_worker_us >= kAddQueueWorkersIntervalUs) {
@@ -446,6 +440,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
             }
           }
         }
+
         if (unlikely(!check_futures_and_redispatch())) {
           break;
         }
