@@ -37,7 +37,7 @@ void do_server() {
     auto mid_local_tsc = (start_local_tsc + end_local_tsc) / 2;
     sum += mid_local_tsc - remote_tsc;
   }
-  std::cout << "Server's tsc is " << sum / kMeasureTimes
+  std::cout << "Server's tsc is " << static_cast<uint64_t>(sum / kMeasureTimes)
             << " cycles faster than the client." << std::endl;
 }
 
