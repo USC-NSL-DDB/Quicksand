@@ -42,7 +42,8 @@ inline void SlabAllocator::free(const void *ptr) {
 }
 
 inline uint32_t SlabAllocator::get_slab_shift(uint64_t data_size) {
-  return std::max(bsr_64(data_size - 1), kMinSlabClassShift - 1);
+  return data_size <= (1ULL << kMinSlabClassShift) ? kMinSlabClassShift - 1
+                                                   : bsr_64(data_size - 1);
 }
 
 inline uint64_t SlabAllocator::get_slab_size(uint32_t slab_shift) {
