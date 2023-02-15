@@ -135,7 +135,8 @@ inline std::size_t Partitioner<K, V>::insert(K k,
     reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));
   }
 
-  data_[size_++] = std::make_pair(std::move(k), std::move(v));
+  data_[size_].first = std::move(k);
+  data_[size_++].second = std::move(v);
   assert(size_ <= capacity_);
   assert(ownership_);
 

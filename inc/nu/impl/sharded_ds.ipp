@@ -179,7 +179,8 @@ template <typename D>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::__insert(
     D &&entry) requires InsertAble<Container> {
-  [[maybe_unused]] retry : typename KeyToShardsMapping::iterator iter;
+[[maybe_unused]] retry:
+  typename KeyToShardsMapping::iterator iter;
   if constexpr (HasVal<Container>) {
     iter = --key_to_shards_.upper_bound(entry.first);
   } else {

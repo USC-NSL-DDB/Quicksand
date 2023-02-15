@@ -51,10 +51,10 @@ bool run_test(nu::ShardedPartitioner<int, std::string> *sp) {
 
   auto c = sp->collect();
   auto &pc = c.unwrap();
-  std::vector<std::pair<int, std::string>> v(pc.data(), pc.data() + pc.size());
+  std::vector<nu::DIPair<int, std::string>> v(pc.data(), pc.data() + pc.size());
   sort(v.begin(), v.end());
 
-  std::vector<std::pair<int, std::string>> expected_v;
+  std::vector<nu::DIPair<int, std::string>> expected_v;
   for (uint32_t i = 0; i < kNumElements; i++) {
     expected_v.emplace_back(i, std::string(std::to_string(i) + "  "));
   }
@@ -83,19 +83,19 @@ bool run_test(nu::ShardedPartitioner<int, std::string> *sp) {
   }
 
   auto smallest_pair = sealed.find_data_by_order(0);
-  if (smallest_pair != std::make_pair(0, std::to_string(0) + "  ")) {
+  if (smallest_pair != nu::DIPair(0, std::to_string(0) + "  ")) {
     return false;
   }
 
   auto middle_pair = sealed.find_data_by_order(kNumElements / 2);
-  if (middle_pair != std::make_pair(static_cast<int>(kNumElements / 2),
-                                    std::to_string(kNumElements / 2) + "  ")) {
+  if (middle_pair != nu::DIPair(static_cast<int>(kNumElements / 2),
+                                std::to_string(kNumElements / 2) + "  ")) {
     return false;
   }
 
   auto largest_pair = sealed.find_data_by_order(kNumElements - 1);
-  if (largest_pair != std::make_pair(static_cast<int>(kNumElements - 1),
-                                     std::to_string(kNumElements - 1) + "  ")) {
+  if (largest_pair != nu::DIPair(static_cast<int>(kNumElements - 1),
+                                 std::to_string(kNumElements - 1) + "  ")) {
     return false;
   }
 
