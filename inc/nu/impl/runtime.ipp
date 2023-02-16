@@ -181,7 +181,8 @@ inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
     new_header->rcu_lock.reader_unlock(g);
   }
 
-  if (unlikely(caladan()->thread_is_rcu_held(Caladan::thread_self(),
+  if (unlikely(new_header->status() == kMigrating &&
+               caladan()->thread_is_rcu_held(Caladan::thread_self(),
                                              &new_header->rcu_lock))) {
     new_header->rcu_lock.reader_lock(g);
     return MigrationGuard(new_header);
