@@ -608,20 +608,15 @@ template <class Container, class LL>
 template <typename... S1s>
 void ShardedDataStructure<Container, LL>::__for_all(auto *fn,
                                                     S1s &&... states) {
-  flush_and_sync_mapping();
-
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
-  std::vector<Future<void>> futures;
-  for (auto &[_, shard_and_reqs] : key_to_shards_) {
-    futures.emplace_back(shard_and_reqs.shard.run_async(
-        +[](Shard &shard, uintptr_t raw_fn, S1s... states) {
-          auto *fn = reinterpret_cast<Fn>(raw_fn);
-          auto container_ptr = shard.get_container_handle();
-          container_ptr->for_all(fn, states...);
-        },
-        raw_fn, states...));
-  }
+
+  for_all_shards(
+      +[](ContainerImpl &container_impl, uintptr_t raw_fn, S1s... states) {
+        auto *fn = reinterpret_cast<Fn>(raw_fn);
+        container_impl.for_all(fn, states...);
+      },
+      raw_fn, std::forward<S1s>(states)...);
 }
 
 template <class Container, class LL>
@@ -648,15 +643,31 @@ void ShardedDataStructure<Container, LL>::for_all_shards(
 
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
+
+  std::vector<WeakProclet<Shard>> local_shards;
   std::vector<Future<void>> futures;
-  for (auto &[_, shard_and_reqs] : key_to_shards_) {
-    futures.emplace_back(shard_and_reqs.shard.run_async(
-        +[](Shard &shard, uintptr_t raw_fn, S1s... states) {
+
+  auto spawn_fn = [&](auto &shard) {
+    futures.emplace_back(shard.run_async(
+        +[](Shard &shard, uintptr_t raw_fn, S0s... states) {
           auto *fn = reinterpret_cast<Fn>(raw_fn);
           auto container_ptr = shard.get_container_handle();
           container_ptr->pass_through(fn, states...);
         },
         raw_fn, states...));
+  };
+
+  for (auto &[_, shard_and_reqs] : key_to_shards_) {
+    auto &shard = shard_and_reqs.shard;
+    if (shard.is_local()) {
+      local_shards.emplace_back(shard);
+    } else {
+      spawn_fn(shard);
+    }
+  }
+
+  for (auto &shard : local_shards) {
+    spawn_fn(shard);
   }
 }
 
