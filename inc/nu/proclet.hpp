@@ -54,7 +54,8 @@ class Proclet {
            A1s &&... args) requires ValidInvocationTypes<RetT, A0s...>;
   void reset();
   std::optional<Future<void>> reset_async();
-  WeakProclet<T> get_weak();
+  WeakProclet<T> get_weak() const;
+  bool is_local() const;
 
   template <class Archive>
   void save(Archive &ar) const;

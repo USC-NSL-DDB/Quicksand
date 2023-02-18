@@ -461,8 +461,13 @@ inline void Proclet<T>::load(Archive &ar) {
 }
 
 template <typename T>
-inline WeakProclet<T> Proclet<T>::get_weak() {
+inline WeakProclet<T> Proclet<T>::get_weak() const {
   return WeakProclet<T>(*this);
+}
+
+template <typename T>
+inline bool Proclet<T>::is_local() const {
+  return to_proclet_header(id_)->status() == kPresent;
 }
 
 template <typename T>
