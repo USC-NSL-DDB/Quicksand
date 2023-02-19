@@ -358,22 +358,62 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
                                                     TR task_range, Q queue,
                                                     S1s &&... states) {
   constexpr double kEWMAWeight = 0.1;
-  constexpr std::size_t kFastReactionStepSize = 4;
+  constexpr double kJitterToleranceFactor = 0.01;
+  constexpr std::size_t kQueueLenTargetMin = 100;
+  constexpr std::size_t kQueueLenTargetMax = 200;
 
   fn_ = fn;
 
   uint64_t last_check_queue_us = Time::microtime();
   uint64_t last_check_worker_us = last_check_queue_us;
   uint64_t last_add_worker_us = last_check_queue_us;
-  float queue_len = 0;
-  float prev_queue_len = 0;
+  double queue_len = 0;
+  double prev_queue_len = 0;
+
+  auto calc_num_workers = [&](std::size_t curr_worker_count) -> std::size_t {
+    constexpr int32_t kIncQueueLenBigStepSize = IsProducer::value ? 3 : -3;
+    constexpr int32_t kIncQueueLenMidStepSize = IsProducer::value ? 2 : -2;
+    constexpr int32_t kIncQueueLenSmallStepSize = IsProducer::value ? 1 : -1;
+    constexpr int32_t kDecQueueLenBigStepSize = -kIncQueueLenBigStepSize;
+    constexpr int32_t kDecQueueLenMidStepSize = -kIncQueueLenMidStepSize;
+    constexpr int32_t kDecQueueLenSmallStepSize = -kIncQueueLenSmallStepSize;
+
+    int32_t delta = 0;
+    if (queue_len > kQueueLenTargetMax) {
+      if (queue_len > prev_queue_len * (1 + kJitterToleranceFactor)) {
+        if (queue_len - prev_queue_len > 10) {
+          delta = kDecQueueLenBigStepSize;
+        } else if (queue_len - prev_queue_len > 5) {
+          delta = kDecQueueLenMidStepSize;
+        } else {
+          delta = kDecQueueLenSmallStepSize;
+        }
+      }
+    } else if (queue_len < kQueueLenTargetMin) {
+      if (queue_len < prev_queue_len * (1 - kJitterToleranceFactor)) {
+        if (queue_len - prev_queue_len > 10) {
+          delta = kIncQueueLenBigStepSize;
+        } else if (queue_len - prev_queue_len > 5) {
+          delta = kIncQueueLenMidStepSize;
+        } else {
+          delta = kIncQueueLenSmallStepSize;
+        }
+      }
+    } else {
+      auto queue_len_delta = abs(queue_len - prev_queue_len);
+      if (queue_len_delta > 10) {
+        delta = queue_len > prev_queue_len ? kDecQueueLenMidStepSize
+                                           : kIncQueueLenMidStepSize;
+      } else if (queue_len_delta > 5) {
+        delta = queue_len > prev_queue_len ? kDecQueueLenSmallStepSize
+                                           : kIncQueueLenSmallStepSize;
+      }
+    }
+
+    return curr_worker_count + delta;
+  };
 
   spawn_initial_queue_workers(task_range, states...);
-
-  // TODO: dynamically tune these bounds
-  std::size_t queue_len_target_min = 100;
-  std::size_t queue_len_target_max = 120;
-  std::size_t queue_len_high_delta = 10;
 
   while (true) {
     auto now_us = Time::microtime();
@@ -393,52 +433,14 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
           break;
         }
       }
-      ewma(kEWMAWeight, &queue_len, static_cast<float>(curr_len));
-
-      // fast reaction path
-      if (abs(queue_len - prev_queue_len) > queue_len_high_delta) {
-        last_add_worker_us = now_us;
-
-        std::size_t target;
-        if constexpr (IsProducer::value) {
-          target = queue_len > prev_queue_len
-                       ? workers_size_ - kFastReactionStepSize
-                       : workers_size_ + kFastReactionStepSize;
-        } else {
-          target = queue_len > prev_queue_len
-                       ? workers_size_ + kFastReactionStepSize
-                       : workers_size_ - kFastReactionStepSize;
-        }
-
-        adjust_queue_workers(target, task_range, states...);
-
-        prev_queue_len = queue_len;
-        continue;
-      }
+      ewma(kEWMAWeight, &queue_len, static_cast<double>(curr_len));
 
       if (now_us - last_add_worker_us >= kAddQueueWorkersIntervalUs) {
         last_add_worker_us = now_us;
 
-        if constexpr (IsProducer::value) {
-          if (queue_len > queue_len_target_max) {
-            if (queue_len > prev_queue_len) {
-              adjust_queue_workers(workers_size_ - 1, task_range, states...);
-            }
-          } else if (queue_len < queue_len_target_min) {
-            if (queue_len < prev_queue_len) {
-              adjust_queue_workers(workers_size_ + 1, task_range, states...);
-            }
-          }
-        } else {
-          if (queue_len > queue_len_target_max) {
-            if (queue_len > prev_queue_len) {
-              adjust_queue_workers(workers_size_ - 1, task_range, states...);
-            }
-          } else if (queue_len < queue_len_target_min) {
-            if (queue_len < prev_queue_len) {
-              adjust_queue_workers(workers_size_ - 1, task_range, states...);
-            }
-          }
+        if (auto next_worker_count = calc_num_workers(workers_size_);
+            next_worker_count != workers_size_) {
+          adjust_queue_workers(next_worker_count, task_range, states...);
         }
 
         if (unlikely(!check_futures_and_redispatch())) {
@@ -450,6 +452,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
     }
     rt::Yield();
   }
+
   return concat_results();
 }
 
