@@ -15,13 +15,14 @@ using Key = uint64_t;
 constexpr uint64_t kNumElements = 150ULL << 20;
 constexpr uint32_t kValSize = 90;
 constexpr uint32_t kNumThreads = 34;
-constexpr uint32_t kNumElementsPerThread = kNumElements / kNumThreads;
+constexpr uint32_t kNumNodes = 1;
+constexpr uint32_t kNumElementsPerThread =
+    kNumElements / kNumNodes / kNumThreads;
 constexpr auto kNormalDistributionMean = std::numeric_limits<Key>::max() / 2.0;
 constexpr auto kNormalDistributionStdDev = 1000000;
 constexpr auto kUniformDistributionMin = 0;
 constexpr auto kUniformDistributionMax = std::numeric_limits<Key>::max();
 constexpr bool kUseNormalDistribution = true;
-constexpr uint32_t kNumNodes = 1;
 constexpr nu::NodeIP kNodeIPs[] = {
     MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 3),
     MAKE_IP_ADDR(18, 18, 1, 4), MAKE_IP_ADDR(18, 18, 1, 5)};
