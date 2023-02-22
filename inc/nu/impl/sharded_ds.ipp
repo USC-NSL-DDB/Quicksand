@@ -199,6 +199,9 @@ ShardedDataStructure<Container, LL>::__insert(
     }
   } else {
     auto &reqs = iter->second.insert_reqs;
+    if (unlikely(reqs.empty())) {
+      reqs.reserve(max_num_data_entries_);
+    }
     reqs.emplace_back(std::forward<D>(entry));
 
     if (unlikely(reqs.size() >= max_num_data_entries_)) {
