@@ -4,6 +4,7 @@
 
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
+#include "nu/utils/spin_lock.hpp"
 #include "nu/utils/rcu_lock.hpp"
 
 namespace nu {
@@ -21,7 +22,8 @@ class ReadSkewedLock {
 
  private:
   bool writer_barrier_;
-  Mutex mutex_;
+  Mutex writer_mutex_;
+  SpinLock reader_spin_;
   RCULock rcu_lock_;
   CondVar cond_var_;
 

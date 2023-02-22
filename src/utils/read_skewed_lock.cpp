@@ -20,11 +20,11 @@ void ReadSkewedLock::reader_wait() {
 
   if (unlikely(Caladan::access_once(writer_barrier_))) {
     // Slow path: use Mutex + CondVar.
-    mutex_.lock();
+    reader_spin_.lock();
     while (unlikely(Caladan::access_once(writer_barrier_))) {
-      cond_var_.wait(&mutex_);
+      cond_var_.wait(&reader_spin_);
     }
-    mutex_.unlock();
+    reader_spin_.unlock();
   }
 }
 
