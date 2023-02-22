@@ -29,6 +29,12 @@ ShardedSorted<K, V> ShardedSorter<K, V>::sort() {
 }
 
 template <typename K, typename V>
+template <typename Archive>
+void ShardedSorter<K, V>::serialize(Archive &ar) {
+  ar(sharded_pn_);
+}
+
+template <typename K, typename V>
 inline ShardedSorter<K, V> make_sharded_sorter() {
   return ShardedSorter(make_sharded_partitioner<K, V>());
 }
