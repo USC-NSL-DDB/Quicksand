@@ -213,7 +213,7 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
 template <class Shard>
 WeakProclet<Shard>
 GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
-    std::optional<Key> l_key) {
+    std::optional<Key> l_key, NodeIP ip) {
   {
     ScopedLock lock(&mutex_);
 
@@ -225,6 +225,7 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
 
   Proclet<Shard> new_shard;
 
+  // Useful for queue & stack.
   if (!reserved_shards_.empty()) {
     ScopedLock lock(&mutex_);
 
@@ -235,9 +236,16 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
   }
 
   if (!new_shard) {
-    new_shard =
-        make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
-                            false, proclet_capacity_);
+    // Useful for improving the locality of sorter.
+    if (mapping_.size() >= kCreateLocalShardThresh) {
+      new_shard =
+          make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
+                              false, proclet_capacity_, ip);
+    } else {
+      new_shard =
+          make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
+                              false, proclet_capacity_);
+    }
   }
 
   auto new_weak_shard = new_shard.get_weak();

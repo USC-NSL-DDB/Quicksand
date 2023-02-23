@@ -173,8 +173,9 @@ void GeneralShard<Container>::split() {
     // The if below avoids creating an illegal empty new shard, which could
     // happen, e.g.,, when splitting a non-edge queue shard.
     if (likely(mid_k != r_key_ || mid_k == l_key_)) {
-      auto new_shard = mapping_.run(
-          &ShardMapping::create_or_reuse_new_shard_for_init, mid_k);
+      auto new_shard =
+          mapping_.run(&ShardMapping::create_or_reuse_new_shard_for_init, mid_k,
+                       nu::get_runtime()->caladan()->get_ip());
       ContainerAndMetadata<Container> container_and_metadata;
       container_and_metadata.container = std::move(*latter_half_container);
       std::size_t min_capacity =

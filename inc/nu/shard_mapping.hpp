@@ -59,7 +59,7 @@ class GeneralShardMapping {
   WeakProclet<Shard> create_new_shard(std::optional<Key> l_key,
                                       std::optional<Key> r_key);
   WeakProclet<Shard> create_or_reuse_new_shard_for_init(
-      std::optional<Key> l_key);
+      std::optional<Key> l_key, NodeIP ip);
   void commit_shard(std::optional<Key> l_key);
   void delete_shard(std::optional<Key> l_key, WeakProclet<Shard> shard);
   void concat(WeakProclet<GeneralShardMapping> tail) requires(
@@ -72,6 +72,7 @@ class GeneralShardMapping {
  private:
   constexpr static double kProcletOverprovisionFactor = 3;
   constexpr static uint32_t kLogSize = 256;
+  constexpr static uint32_t kCreateLocalShardThresh = 256;
 
   WeakProclet<GeneralShardMapping> self_;
   uint32_t max_shard_bytes_;
