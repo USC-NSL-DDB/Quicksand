@@ -96,7 +96,7 @@ class ShardedDataStructure {
   ~ShardedDataStructure();
 
  private:
-  constexpr static uint32_t kBatchingMaxShardBytes = 128 << 20;
+  constexpr static uint32_t kBatchingMaxShardBytes = 32 << 20;
   constexpr static uint32_t kBatchingMaxBatchBytes = 64 << 10;
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
