@@ -1,11 +1,14 @@
 #pragma once
 
 #include <concepts>
+#include <deque>
 #include <functional>
 #include <list>
 #include <map>
 #include <optional>
+#include <queue>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -101,13 +104,15 @@ class ShardedDataStructure {
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
   constexpr static uint32_t kMaxNumInflightFlushes = 8;
+  constexpr static uint32_t kFlushFutureRecheckUs = 10;
 
   using ReqBatch = Shard::ReqBatch;
   struct ShardAndReqs {
     WeakProclet<Shard> shard;
     uint32_t seq;
-    RemUniquePtr<RobExecutor<ReqBatch, std::optional<ReqBatch>>> flush_executor;
     std::vector<DataEntry> insert_reqs;
+    RemUniquePtr<RobExecutor<ReqBatch, std::optional<ReqBatch>>> flush_executor;
+    std::deque<Future<std::optional<typename Shard::ReqBatch>>> flush_futures;
 
     ShardAndReqs() = default;
     ShardAndReqs(WeakProclet<Shard> s);
@@ -125,7 +130,8 @@ class ShardedDataStructure {
   uint64_t mapping_seq_;
   KeyToShardsMapping key_to_shards_;
   std::vector<Val> push_back_reqs_;
-  std::queue<Future<std::optional<typename Shard::ReqBatch>>> flush_futures_;
+  std::unordered_set<ShardAndReqs *> pending_flushes_links_;
+  uint64_t num_pending_flushes_;
   uint64_t max_num_vals_;
   uint64_t max_num_data_entries_;
   template <ShardedDataStructureBased T>
@@ -166,6 +172,10 @@ class ShardedDataStructure {
   void __save(Archive &ar);
   void update_max_num_data_entries(KeyToShardsMapping::iterator iter);
   void update_max_num_vals();
+  bool pop_flush_future(
+      std::deque<Future<std::optional<ReqBatch>>> *flush_futures,
+      std::vector<ReqBatch> *rejected_batches);
+  std::vector<ReqBatch> wait_for_pending_flushes(bool drain);
 };
 
 template <PushBackAble Container, BoolIntegral LL>

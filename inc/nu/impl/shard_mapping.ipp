@@ -251,6 +251,7 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
   auto new_weak_shard = new_shard.get_weak();
   {
     ScopedLock lock(&mutex_);
+
     auto ret = stash_mapping_.emplace(std::move(l_key), std::move(new_shard));
     BUG_ON(!ret.second);
   }

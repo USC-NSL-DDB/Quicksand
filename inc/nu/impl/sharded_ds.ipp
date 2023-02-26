@@ -4,18 +4,19 @@
 #include <utility>
 
 #include "nu/utils/thread.hpp"
+#include "nu/utils/time.hpp"
 
 namespace nu {
 
 template <class Container, class LL>
 inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
-    : max_num_vals_(0), max_num_data_entries_(0) {}
+    : num_pending_flushes_(0), max_num_vals_(0), max_num_data_entries_(0) {}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<ShardingHint> sharding_hint,
     std::optional<std::size_t> size_bound)
-    : max_num_vals_(0), max_num_data_entries_(0) {
+    : num_pending_flushes_(0), max_num_vals_(0), max_num_data_entries_(0) {
   constexpr auto kMaxShardBytes =
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
   constexpr auto kMaxShardSize = kMaxShardBytes / sizeof(DataEntry);
@@ -78,6 +79,7 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
     : mapping_(o.mapping_),
       mapping_seq_(o.mapping_seq_),
       key_to_shards_(o.key_to_shards_),
+      num_pending_flushes_(0),
       max_num_vals_(o.max_num_vals_),
       max_num_data_entries_(o.max_num_data_entries_) {
   mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
@@ -92,6 +94,7 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   mapping_ = o.mapping_;
   mapping_seq_ = o.mapping_seq_;
   key_to_shards_ = o.key_to_shards_;
+  num_pending_flushes_ = 0;
   max_num_vals_ = o.max_num_vals_;
   max_num_data_entries_ = o.max_num_data_entries_;
 
@@ -107,7 +110,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       mapping_seq_(o.mapping_seq_),
       key_to_shards_(std::move(o.key_to_shards_)),
       push_back_reqs_(std::move(o.push_back_reqs_)),
-      flush_futures_(std::move(o.flush_futures_)),
+      pending_flushes_links_(std::move(o.pending_flushes_links_)),
+      num_pending_flushes_(o.num_pending_flushes_),
       max_num_vals_(o.max_num_vals_),
       max_num_data_entries_(o.max_num_data_entries_) {}
 
@@ -121,7 +125,8 @@ ShardedDataStructure<Container, LL>
   mapping_seq_ = o.mapping_seq_;
   key_to_shards_ = std::move(o.key_to_shards_);
   push_back_reqs_ = std::move(o.push_back_reqs_);
-  flush_futures_ = std::move(o.flush_futures_);
+  pending_flushes_links_ = std::move(o.pending_flushes_links_);
+  num_pending_flushes_ = o.num_pending_flushes_;
   max_num_vals_ = o.max_num_vals_;
   max_num_data_entries_ = o.max_num_data_entries_;
 
@@ -425,6 +430,67 @@ inline void ShardedDataStructure<Container, LL>::ShardAndReqs::load(
 }
 
 template <class Container, class LL>
+bool ShardedDataStructure<Container, LL>::pop_flush_future(
+    std::deque<Future<std::optional<ReqBatch>>> *flush_futures,
+    std::vector<ReqBatch> *rejected_batches) {
+  bool rejected = false;
+
+  auto &optional_batch = flush_futures->front().get();
+  if (optional_batch) {
+    rejected = true;
+    rejected_batches->emplace_back(std::move(*optional_batch));
+  }
+
+  flush_futures->pop_front();
+  num_pending_flushes_--;
+
+  return rejected;
+}
+
+template <class Container, class LL>
+std::vector<typename GeneralShard<Container>::ReqBatch>
+ShardedDataStructure<Container, LL>::wait_for_pending_flushes(bool drain) {
+  BUG_ON(num_pending_flushes_ > kMaxNumInflightFlushes + 1);
+  std::vector<ReqBatch> rejected_batches;
+
+  if (num_pending_flushes_ == kMaxNumInflightFlushes + 1 ||
+         (drain && num_pending_flushes_)) {
+    bool popped = false;
+
+  again:
+    for (auto it = pending_flushes_links_.begin();
+         it != pending_flushes_links_.end();) {
+      auto &flush_futures = (*it)->flush_futures;
+      BUG_ON(flush_futures.empty());
+
+      auto &front = flush_futures.front();
+      if (drain || front.is_ready()) {
+	popped = true;
+        bool rejected = pop_flush_future(&flush_futures, &rejected_batches);
+
+        if (unlikely(drain || rejected)) {
+          while (!flush_futures.empty()) {
+            pop_flush_future(&flush_futures, &rejected_batches);
+          }
+        }
+        if (flush_futures.empty()) {
+          it = pending_flushes_links_.erase(it);
+          continue;
+        }
+      }
+      it++;
+    }
+
+    if (unlikely(!popped)) {
+      Time::sleep(kFlushFutureRecheckUs, /* high_priority = */ true);
+      goto again;
+    }
+  }
+
+  return rejected_batches;
+}
+
+template <class Container, class LL>
 bool ShardedDataStructure<Container, LL>::flush_one_batch(
     KeyToShardsMapping::iterator iter, bool drain) {
   ReqBatch batch;
@@ -448,42 +514,19 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
     });
   }
 
-  std::vector<ReqBatch> rejected_batches;
-  bool reject_cur_flush = false;
-
-  auto pop_flush_futures = [&] {
-    auto &optional_batch = flush_futures_.front().get();
-    if (optional_batch) {
-      drain = true;
-      reject_cur_flush |= (optional_batch->l_key == batch.l_key &&
-                           optional_batch->r_key == batch.r_key);
-      rejected_batches.emplace_back(std::move(*optional_batch));
-    }
-    flush_futures_.pop();
-  };
-
-  BUG_ON(flush_futures_.size() > kMaxNumInflightFlushes);
-  while (!flush_futures_.empty() &&
-         (drain || flush_futures_.front().is_ready() ||
-          flush_futures_.size() == kMaxNumInflightFlushes)) {
-    pop_flush_futures();
-  }
-
   if (!batch.empty()) {
-    if (!reject_cur_flush) {
-      flush_futures_.emplace(shard_and_reqs.flush_executor.run_async(
-          +[](RobExecutor<ReqBatch, std::optional<ReqBatch>> &rob_executor,
-              uint32_t rob_seq, ReqBatch batch) {
-            return rob_executor.submit(rob_seq, std::move(batch));
-          },
-          shard_and_reqs.seq++, std::move(batch)));
-      if (drain) {
-        pop_flush_futures();
-      }
-    } else {
-      rejected_batches.emplace_back(std::move(batch));
-    }
+    shard_and_reqs.flush_futures.emplace_back(
+        shard_and_reqs.flush_executor.run_async(
+            +[](RobExecutor<ReqBatch, std::optional<ReqBatch>> &rob_executor,
+                uint32_t rob_seq, ReqBatch batch) {
+              return rob_executor.submit(rob_seq, std::move(batch));
+            },
+            shard_and_reqs.seq++, std::move(batch)));
+    num_pending_flushes_++;
+    pending_flushes_links_.insert(&shard_and_reqs);
   }
+
+  auto rejected_batches = wait_for_pending_flushes(drain);
 
   if (!rejected_batches.empty()) {
     handle_rejected_flush_batches(std::move(rejected_batches));
@@ -530,6 +573,17 @@ void ShardedDataStructure<Container, LL>::flush() {
       }
     }
   }
+
+  BUG_ON(num_pending_flushes_);
+  BUG_ON(!pending_flushes_links_.empty());
+
+#ifdef DEBUG
+  for (auto iter = key_to_shards_.begin(); iter != key_to_shards_.end();
+       iter++) {
+    BUG_ON(!iter->second.insert_reqs.empty());
+    BUG_ON(!iter->second.flush_futures.empty());
+  }
+#endif
 }
 
 template <class Container, class LL>
@@ -537,6 +591,7 @@ std::pair<std::vector<typename ShardedDataStructure<Container, LL>::DataEntry>,
           std::vector<typename ShardedDataStructure<Container, LL>::Val>>
 ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
   std::vector<DataEntry> insert_reqs;
+  std::vector<Val> push_back_reqs;
   uint64_t latest_seq = 0;
 
   auto v = mapping_.run(&ShardMapping::get_updates, mapping_seq_ + 1);
@@ -570,6 +625,12 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
       latest_seq = updates->back().seq;
     }
   } else {
+    auto rejected_batches = wait_for_pending_flushes(/* drain = */ true);
+    for (auto &batch : rejected_batches) {
+      move_append_vector(insert_reqs, batch.insert_reqs);
+      move_append_vector(push_back_reqs, batch.push_back_reqs);
+    }
+
     auto &snapshot = std::get<typename ShardMapping::Snapshot>(v);
     for (auto &[k, s] : key_to_shards_) {
       move_append_vector(insert_reqs, s.insert_reqs);
@@ -585,7 +646,7 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
     BUG_ON(mapping_seq_ > latest_seq);
     mapping_seq_ = latest_seq;
   }
-  auto push_back_reqs = std::move(push_back_reqs_);
+  move_append_vector(push_back_reqs, push_back_reqs_);
   push_back_reqs_.clear();
 
   if (!dont_reroute) {
