@@ -14,12 +14,12 @@
 using namespace std;
 
 using Key = uint64_t;
-constexpr uint64_t kNumElements = 150ULL << 20;
+constexpr uint64_t kNumElements = 400ULL << 20;
 constexpr uint32_t kValSize = 90;
 constexpr uint32_t kNumThreads = 34;
 constexpr uint32_t kNumElementsPerThread = kNumElements / kNumThreads;
 constexpr auto kNormalDistributionMean = std::numeric_limits<Key>::max() / 2.0;
-constexpr auto kNormalDistributionStdDev = 1000000;
+constexpr auto kNormalDistributionStdDev = kNumElements / 10;
 constexpr auto kUniformDistributionMin = 0;
 constexpr auto kUniformDistributionMax = std::numeric_limits<Key>::max();
 constexpr bool kUseNormalDistribution = true;
