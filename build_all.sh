@@ -2,7 +2,7 @@
 
 function not_supported {
     echo 'Please set env var $NODE_TYPE, 
-supported list: [r650, r6525, c6525, d6515, xl170, xl170_uswitch]'
+supported list: [r650, r6525, c6525, d6515, xl170, xl170_uswitch, yinyang]'
     exit 1
 }
 
@@ -12,7 +12,7 @@ if [[ ! -v NODE_TYPE ]]; then
 fi
 
 # Apply patches.
-patch_file=caladan/build/cloudlab_$NODE_TYPE.patch
+patch_file=caladan/build/$NODE_TYPE.patch
 
 if [ ! -f $patch_file ]; then
     not_supported
