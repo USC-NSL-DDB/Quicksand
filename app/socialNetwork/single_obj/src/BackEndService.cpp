@@ -167,8 +167,7 @@ void BackEndService::RemovePosts(int64_t user_id, int start, int stop) {
 
     auto remove_from_timeline_fn =
         [&remove_from_timeline_futures](
-            nu::DistributedHashTable<int64_t, Timeline,
-                                     decltype(States::kHashI64toU64)>
+            nu::DistributedHashTable<int64_t, Timeline, I64Hasher>
                 &timeline_map,
             int64_t user_id, Post &post) {
           remove_from_timeline_futures.emplace_back(timeline_map.apply_async(
