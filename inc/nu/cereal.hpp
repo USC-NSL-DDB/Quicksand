@@ -48,7 +48,8 @@ void save(Archive &ar, T const &t) requires(
     is_memcpy_safe<T>() &&
     !HasBuiltinSerialize<Archive, T> &&
     !HasBuiltinSave<Archive, T> &&
-    !HasBuiltinLoad<Archive, T>  &&
+    !HasBuiltinLoad<Archive, T> &&
+    !cereal::common_detail::is_enum<T>::value &&
     !nu::is_specialization_of_v<T, cereal::BinaryData> &&
     !nu::is_specialization_of_v<T, std::tuple>);
 
@@ -60,6 +61,7 @@ void save_move(Archive &ar, T &&t) requires(
     !HasBuiltinSerialize<Archive, T> &&
     !HasBuiltinSave<Archive, T> &&
     !HasBuiltinLoad<Archive, T> &&
+    !cereal::common_detail::is_enum<T>::value &&
     !nu::is_specialization_of_v<T, cereal::BinaryData> &&
     !nu::is_specialization_of_v<T, std::tuple>);
 
@@ -70,7 +72,8 @@ void load(Archive &ar, T &t) requires(
     is_memcpy_safe<T>() &&
     !HasBuiltinSerialize<Archive, T> &&
     !HasBuiltinSave<Archive, T> &&
-    !HasBuiltinLoad<Archive, T>  &&
+    !HasBuiltinLoad<Archive, T> &&
+    !cereal::common_detail::is_enum<T>::value &&
     !nu::is_specialization_of_v<T, cereal::BinaryData> &&
     !nu::is_specialization_of_v<T, std::tuple>);
 

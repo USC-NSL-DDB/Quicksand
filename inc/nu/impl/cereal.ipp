@@ -27,6 +27,7 @@ inline void save(Archive &ar, T const &t) requires(
     !HasBuiltinSerialize<Archive, T> &&
     !HasBuiltinSave<Archive, T> &&
     !HasBuiltinLoad<Archive, T> &&
+    !cereal::common_detail::is_enum<T>::value &&
     !nu::is_specialization_of_v<T, cereal::BinaryData> &&
     !nu::is_specialization_of_v<T, std::tuple>) {
   ar(cereal::binary_data(&t, sizeof(T)));
@@ -40,6 +41,7 @@ inline void save_move(Archive &ar, T &&t) requires(
     !HasBuiltinSerialize<Archive, T> &&
     !HasBuiltinSave<Archive, T> &&
     !HasBuiltinLoad<Archive, T> &&
+    !cereal::common_detail::is_enum<T>::value &&
     !nu::is_specialization_of_v<T, cereal::BinaryData> &&
     !nu::is_specialization_of_v<T, std::tuple>) {
   ar(cereal::binary_data(&t, sizeof(T)));
@@ -53,6 +55,7 @@ inline void load(Archive &ar, T &t) requires(
     !HasBuiltinSerialize<Archive, T> &&
     !HasBuiltinSave<Archive, T> &&
     !HasBuiltinLoad<Archive, T> &&
+    !cereal::common_detail::is_enum<T>::value &&
     !nu::is_specialization_of_v<T, cereal::BinaryData> &&
     !nu::is_specialization_of_v<T, std::tuple>) {
   ar(cereal::binary_data(&t, sizeof(T)));
