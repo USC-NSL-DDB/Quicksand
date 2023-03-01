@@ -167,9 +167,9 @@ inline RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::apply(
   auto &shard = shards_[shard_idx];
   return shard.__run(
       +[](HashTableShard &shard, K k, uint64_t key_hash,
-          RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
+          RetT (*fn)(std::pair<const K, V> &, A0s...), A0s... args) {
         return shard.apply_with_hash(std::forward<K1>(k), key_hash, fn,
-                                     std::forward<A1s>(args)...);
+                                     std::move(args)...);
       },
       std::forward<K1>(k), key_hash, fn, std::forward<A1s>(args)...);
 }
