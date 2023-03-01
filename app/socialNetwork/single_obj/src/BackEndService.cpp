@@ -5,7 +5,7 @@
 
 namespace social_network {
 
-BackEndService::BackEndService(const StateCaps &caps) : states_(caps) {}
+BackEndService::BackEndService(States states) : states_(std::move(states)) {}
 
 void BackEndService::ComposePost(const std::string &username, int64_t user_id,
                                  const std::string &text,

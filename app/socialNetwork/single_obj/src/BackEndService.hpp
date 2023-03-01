@@ -16,7 +16,7 @@ namespace social_network {
 
 class BackEndService {
 public:
-  BackEndService(const StateCaps &caps);
+  BackEndService(States states);
   void ComposePost(const std::string &username, int64_t user_id,
                    const std::string &text,
                    const std::vector<int64_t> &media_ids,

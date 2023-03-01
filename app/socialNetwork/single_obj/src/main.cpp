@@ -1,6 +1,6 @@
 #include <iostream>
 #include <memory>
-#include <nu/rem_obj.hpp>
+#include <nu/proclet.hpp>
 #include <nu/runtime.hpp>
 
 #include "ThriftBackEndServer.hpp"
@@ -11,7 +11,7 @@ using namespace social_network;
 
 class ServiceEntry {
 public:
-  ServiceEntry(StateCaps caps) {
+  ServiceEntry(States states) {
     json config_json;
 
     BUG_ON(LoadConfigFile("config/service-config.json", &config_json) != 0);
@@ -21,8 +21,9 @@ public:
     std::shared_ptr<TServerSocket> server_socket =
         std::make_shared<TServerSocket>("0.0.0.0", port);
 
-    caps.secret = config_json["secret"];
-    auto back_end_handler = std::make_shared<ThriftBackEndServer>(caps);
+    states.secret = config_json["secret"];
+    auto back_end_handler =
+        std::make_shared<ThriftBackEndServer>(std::move(states));
 
     TThreadedServer server(
         std::make_shared<BackEndServiceProcessor>(std::move(back_end_handler)),
@@ -34,12 +35,12 @@ public:
 };
 
 void DoWork() {
-  auto states = std::make_unique<States>();
+  States states;
 
-  std::vector<nu::Future<void>> thrift_futures;
+  std::vector<nu::Future<nu::Proclet<ServiceEntry>>> thrift_futures;
   for (uint32_t i = 0; i < kNumEntryObjs; i++) {
-    thrift_futures.emplace_back(nu::async(
-        [&] { nu::RemObj<ServiceEntry>::create_pinned(states->get_caps()); }));
+    thrift_futures.emplace_back(nu::make_proclet_async<ServiceEntry>(
+        std::forward_as_tuple(states), true));
   }
 }
 
