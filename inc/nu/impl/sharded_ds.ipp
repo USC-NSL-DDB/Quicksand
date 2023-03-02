@@ -491,6 +491,27 @@ ShardedDataStructure<Container, LL>::wait_for_pending_flushes(bool drain) {
 }
 
 template <class Container, class LL>
+template <typename RetT, typename... Ss>
+inline RetT ShardedDataStructure<Container, LL>::compute_on(
+    Key k, RetT (*fn)(ContainerImpl &container, Ss...), Ss &&...states) {
+[[maybe_unused]] retry:
+  auto iter = --key_to_shards_.upper_bound(k);
+  auto [l_key, r_key] = get_key_range(iter);
+  auto shard = iter->second.shard;
+  auto fn_addr = reinterpret_cast<uintptr_t>(fn);
+  auto optional_ret =
+      shard.run(&Shard::template try_compute<RetT, Ss...>, l_key, r_key,
+                fn_addr, std::forward<Ss>(states)...);
+
+  if (unlikely(!optional_ret)) {
+    sync_mapping();
+    goto retry;
+  }
+
+  return *optional_ret;
+}
+
+template <class Container, class LL>
 bool ShardedDataStructure<Container, LL>::flush_one_batch(
     KeyToShardsMapping::iterator iter, bool drain) {
   ReqBatch batch;

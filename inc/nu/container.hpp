@@ -306,6 +306,10 @@ class GeneralContainerBase {
   void load(Archive &ar) {
     impl_.load(ar);
   }
+  template <typename RetT, typename... Ss>
+  RetT compute(RetT (*fn)(Impl &impl, Ss...), Ss... states) {
+    return synchronized<RetT>([&] { return fn(impl_, std::move(states)...); });
+  }
 
  private:
   Impl impl_;

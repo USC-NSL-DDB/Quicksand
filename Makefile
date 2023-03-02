@@ -49,6 +49,8 @@ test_sharded_unordered_map_src = test/test_sharded_unordered_map.cpp
 test_sharded_unordered_map_obj = $(test_sharded_unordered_map_src:.cpp=.o)
 test_sharded_vector_src = test/test_sharded_vector.cpp
 test_sharded_vector_obj = $(test_sharded_vector_src:.cpp=.o)
+test_sharded_service_src = test/test_sharded_service.cpp
+test_sharded_service_obj = $(test_sharded_service_src:.cpp=.o)
 test_dis_hash_table_src = test/test_dis_hash_table.cpp
 test_dis_hash_table_obj = $(test_dis_hash_table_src:.cpp=.o)
 test_dis_mem_pool_src = test/test_dis_mem_pool.cpp
@@ -161,7 +163,7 @@ bin/bench_sharded_unordered_map bin/bench_sharded_map bin/test_sharded_unordered
 bin/test_sharded_sorter bin/bench_sharded_sorter bin/test_sharded_stack \
 bin/test_sharded_queue bin/test_dis_executor bin/test_continuous_migrate \
 bin/bench_sharded_queue bin/bench_dis_executor bin/bench_sharded_set \
-bin/bench_sharded_multi_set bin/bench_sharded_stack
+bin/bench_sharded_multi_set bin/bench_sharded_stack bin/test_sharded_service
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -196,6 +198,8 @@ bin/test_sharded_unordered_map: $(test_sharded_unordered_map_obj) $(librt_libs) 
 	$(LDXX) -o $@ $(test_sharded_unordered_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_vector: $(test_sharded_vector_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_vector_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_sharded_service: $(test_sharded_service_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_sharded_service_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_dis_hash_table: $(test_dis_hash_table_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_dis_hash_table_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_dis_mem_pool: $(test_dis_mem_pool_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)

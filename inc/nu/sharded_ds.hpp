@@ -83,6 +83,9 @@ class ShardedDataStructure {
   std::size_t size() const;
   void clear() requires ClearAble<Container>;
   void flush();
+  template <typename RetT, typename... Ss>
+  RetT compute_on(Key k, RetT (*fn)(ContainerImpl &container, Ss...),
+                  Ss &&...states);
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>

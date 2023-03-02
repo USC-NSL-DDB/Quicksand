@@ -898,4 +898,25 @@ inline Container::Key GeneralShard<Container>::rebase(
   return new_r_key;
 }
 
+template <class Container>
+template <typename RetT, typename... Ss>
+inline std::optional<RetT> GeneralShard<Container>::try_compute(
+    std::optional<Key> l_key, std::optional<Key> r_key, uintptr_t fn_addr,
+    Ss... states) {
+  auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, Ss...)>(fn_addr);
+
+  rw_lock_.reader_lock();
+
+  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+    rw_lock_.reader_unlock();
+    return std::nullopt;
+  }
+
+  auto ret = container_.compute(fn, std::move(states)...);
+
+  rw_lock_.reader_unlock();
+
+  return ret;
+}
+
 }  // namespace nu

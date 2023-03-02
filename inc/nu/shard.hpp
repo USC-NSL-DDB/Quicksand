@@ -69,6 +69,7 @@ class GeneralShard {
   using DataEntry = Container::DataEntry;
   using ShardMapping = GeneralShardMapping<GeneralShard>;
   using GeneralContainer = Container;
+  using ContainerImpl = Container::Implementation;
   using ConstIterator = Container::ConstIterator;
   using ConstReverseIterator = Container::ConstReverseIterator;
 
@@ -178,6 +179,10 @@ class GeneralShard {
   ContainerHandle<Container> get_container_handle();
   Key split_at_end() requires GeneralContainer::kContiguousIterator;
   Key rebase(Key new_l_key) requires GeneralContainer::kContiguousIterator;
+  template <typename RetT, typename... Ss>
+  std::optional<RetT> try_compute(std::optional<Key> l_key,
+                                  std::optional<Key> r_key, uintptr_t fn_addr,
+                                  Ss... states);
 
  private:
   constexpr static uint32_t kReserveProbeSize =
