@@ -7,6 +7,7 @@
 #include <string>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <openssl/crypto.h>
 
 extern "C" {
 #include <base/assert.h>
@@ -151,6 +152,7 @@ void Runtime::destroy_base() {
   delete rpc_client_mgr_;
   delete rpc_server_;
   delete caladan_;
+  OPENSSL_cleanup();
   delete runtime_slab_;
   store_release(&runtime_slab_, nullptr);
 }
