@@ -4,39 +4,37 @@
 
 namespace nu {
 
-class Service {
- public:
-  using Key = uint64_t;
-
-  Service() = default;
-  Service(const Service &) = default;
-  Service &operator=(const Service &) = default;
-  Service(Service &&) noexcept = default;
-  Service &operator=(Service &&) noexcept = default;
-  void split(Key *mid_k, Service *latter_half) {}
-
-  template <class Archive>
-  void save(Archive &ar) const {}
-  template <class Archive>
-  void load(Archive &ar) {}
-
- private:
-};
-
+template <typename T>
 class ShardedService
-    : public ShardedDataStructure<GeneralLockedContainer<Service>,
-                                  std::false_type> {
+    : private ShardedDataStructure<GeneralContainer<T>, std::false_type> {
  public:
- private:
-  using Base =
-      ShardedDataStructure<GeneralLockedContainer<Service>, std::false_type>;
+  using Key = T::Key;
 
-  ShardedService() : Base(std::nullopt, std::nullopt) {}
-  friend ShardedService make_sharded_service();
+  template <typename RetT, typename... S0s, typename... S1s>
+  Future<RetT> run_async(Key k, RetT (*fn)(T &, S0s...),
+                         S1s &&...states) requires
+      ValidInvocationTypes<RetT, S0s...>;
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT run(Key k, RetT (*fn)(T &, S0s...),
+           S1s &&...states) requires ValidInvocationTypes<RetT, S0s...>;
+  template <typename RetT, typename... A0s, typename... A1s>
+  Future<RetT> run_async(Key k, RetT (T::*md)(A0s...), A1s &&...args) requires
+      ValidInvocationTypes<RetT, A0s...>;
+  template <typename RetT, typename... A0s, typename... A1s>
+  RetT run(Key k, RetT (T::*md)(A0s...),
+           A1s &&...args) requires ValidInvocationTypes<RetT, A0s...>;
+
+ private:
+  using Base = ShardedDataStructure<GeneralContainer<T>, std::false_type>;
+
+  ShardedService();
+  template <typename U, typename... As>
+  friend ShardedService<U> make_sharded_service(As &&...args);
 };
 
-ShardedService make_sharded_service() {
-  return ShardedService();
-}
+template <typename T, typename... As>
+ShardedService<T> make_sharded_service(As &&...args);
 
 }  // namespace nu
+
+#include "nu/impl/sharded_service.ipp"

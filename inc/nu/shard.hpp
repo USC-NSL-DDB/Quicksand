@@ -179,10 +179,10 @@ class GeneralShard {
   ContainerHandle<Container> get_container_handle();
   Key split_at_end() requires GeneralContainer::kContiguousIterator;
   Key rebase(Key new_l_key) requires GeneralContainer::kContiguousIterator;
-  template <typename RetT, typename... Ss>
-  std::optional<RetT> try_compute(std::optional<Key> l_key,
-                                  std::optional<Key> r_key, uintptr_t fn_addr,
-                                  Ss... states);
+  template <typename RetT, typename... S0s>
+  std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
+  try_compute(std::optional<Key> l_key, std::optional<Key> r_key,
+              uintptr_t fn_addr, S0s... states);
 
  private:
   constexpr static uint32_t kReserveProbeSize =

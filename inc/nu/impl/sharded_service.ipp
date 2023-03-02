@@ -1,0 +1,66 @@
+namespace nu {
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+Future<RetT> ShardedService<T>::run_async(Key k, RetT (*fn)(T &, S0s...),
+                                          S1s &&...states) requires
+    ValidInvocationTypes<RetT, S0s...> {
+  return nu::async([&, k = std::move(k), fn,
+                    ... states = std::forward<S1s>(states)]() mutable {
+    return run(k, fn, std::forward<S1s>(states)...);
+  });
+}
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+RetT ShardedService<T>::run(Key k, RetT (*fn)(T &, S0s...),
+                            S1s &&...states) requires
+    ValidInvocationTypes<RetT, S0s...> {
+  using fn_states_checker [[maybe_unused]] =
+      decltype(fn(std::declval<T &>(), std::move(states)...));
+
+  return this->compute_on(k, fn, std::forward<S1s>(states)...);
+}
+
+template <typename T>
+template <typename RetT, typename... A0s, typename... A1s>
+Future<RetT> ShardedService<T>::run_async(Key k, RetT (T::*md)(A0s...),
+                                          A1s &&...args) requires
+    ValidInvocationTypes<RetT, A0s...> {
+  return nu::async(
+      [&, k = std::move(k), md, ... args = std::forward<A1s>(args)]() mutable {
+        return run(k, md, std::forward<A1s>(args)...);
+      });
+}
+
+template <typename T>
+template <typename RetT, typename... A0s, typename... A1s>
+RetT ShardedService<T>::run(Key k, RetT (T::*md)(A0s...),
+                            A1s &&...args) requires
+    ValidInvocationTypes<RetT, A0s...> {
+  using md_args_checker [[maybe_unused]] =
+      decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
+
+  MethodPtr<decltype(md)> method_ptr;
+  method_ptr.ptr = md;
+  return run(
+      k,
+      +[](T &t, decltype(method_ptr) method_ptr, A0s... args) {
+        return (t.*(method_ptr.ptr))(std::move(args)...);
+      },
+      method_ptr, std::forward<A1s>(args)...);
+}
+
+template <typename T>
+ShardedService<T>::ShardedService() : Base(std::nullopt, std::nullopt) {}
+
+template <typename T, typename... As>
+inline ShardedService<T> make_sharded_service(As &&...args) {
+  auto sharded_service = ShardedService<T>();
+  sharded_service.compute_on(
+      typename T::Key(), +[](T &t, As... args) { t = T(std::move(args)...); },
+      std::forward<As>(args)...);
+  return sharded_service;
+}
+
+}  // namespace nu

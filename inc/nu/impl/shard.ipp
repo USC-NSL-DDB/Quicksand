@@ -899,24 +899,33 @@ inline Container::Key GeneralShard<Container>::rebase(
 }
 
 template <class Container>
-template <typename RetT, typename... Ss>
-inline std::optional<RetT> GeneralShard<Container>::try_compute(
-    std::optional<Key> l_key, std::optional<Key> r_key, uintptr_t fn_addr,
-    Ss... states) {
-  auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, Ss...)>(fn_addr);
+template <typename RetT, typename... S0s>
+inline std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
+GeneralShard<Container>::try_compute(std::optional<Key> l_key,
+                                     std::optional<Key> r_key,
+                                     uintptr_t fn_addr, S0s... states) {
+  auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, S0s...)>(fn_addr);
 
   rw_lock_.reader_lock();
 
   if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
     rw_lock_.reader_unlock();
-    return std::nullopt;
+    if constexpr (std::is_void_v<RetT>) {
+      return false;
+    } else {
+      return std::nullopt;
+    }
   }
 
-  auto ret = container_.compute(fn, std::move(states)...);
-
-  rw_lock_.reader_unlock();
-
-  return ret;
+  if constexpr (std::is_void_v<RetT>) {
+    container_.compute(fn, std::move(states)...);
+    rw_lock_.reader_unlock();
+    return true;
+  } else {
+    auto ret = container_.compute(fn, std::move(states)...);
+    rw_lock_.reader_unlock();
+    return ret;
+  }
 }
 
 }  // namespace nu
