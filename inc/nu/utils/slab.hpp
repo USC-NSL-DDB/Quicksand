@@ -47,6 +47,7 @@ class SlabAllocator {
   SlabId_t get_id();
   static SlabAllocator *get_slab_by_id();
   static void free(const void *ptr);
+  static void *reallocate(const void *ptr, size_t size);
   static void register_slab_by_id(SlabAllocator *slab, SlabId_t slab_id);
   static void deregister_slab_by_id(SlabId_t slab_id);
 

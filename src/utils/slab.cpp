@@ -160,6 +160,33 @@ void SlabAllocator::__free(const void *_ptr) {
   }
 }
 
+void *SlabAllocator::reallocate(const void *_ptr, size_t new_size) {
+  auto *ptr = const_cast<void *>(_ptr);
+  auto *hdr = reinterpret_cast<PtrHeader *>(reinterpret_cast<uintptr_t>(ptr) -
+                                            sizeof(PtrHeader));
+  auto *slab = slabs_[hdr->slab_id];
+  assert(reinterpret_cast<const uint8_t *>(_ptr) >= slab->start_);
+  assert(reinterpret_cast<const uint8_t *>(_ptr) < slab->cur_);
+
+  auto size = hdr->size;
+  auto slab_shift = slab->get_slab_shift(size);
+
+  BUG_ON(slab_shift >= slab->kMaxSlabClassShift);
+
+  auto *new_ptr = slab->allocate(new_size);
+  if (unlikely(!new_ptr)) {
+    return nullptr;
+  }
+  memcpy(new_ptr, ptr, std::min(size, new_size));
+
+  {
+    Caladan::PreemptGuard g;
+    slab->__do_free(g, hdr, slab_shift);
+  }
+
+  return new_ptr;
+}
+
 inline void SlabAllocator::__do_free(const Caladan::PreemptGuard &g,
                                      PtrHeader *hdr, uint32_t slab_shift) {
   drain_transferred_cache(g, slab_shift);

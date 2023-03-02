@@ -7,6 +7,7 @@
 
 using MallocFn = void *(*)(size_t);
 using FreeFn = void (*)(void *);
+using ReallocFn = void *(*)(void *, size_t);
 
 static inline MallocFn get_real_malloc() {
   static MallocFn real_malloc;
@@ -26,8 +27,18 @@ static inline FreeFn get_real_free() {
   return real_free;
 }
 
+static inline ReallocFn get_real_realloc() {
+  static ReallocFn real_realloc;
+
+  if (unlikely(!real_realloc)) {
+    real_realloc = reinterpret_cast<ReallocFn>(dlsym(RTLD_NEXT, "realloc"));
+  }
+  return real_realloc;
+}
+
 static inline void *__new(size_t size) {
   nu::Caladan::PreemptGuard g;
+
   void *ptr;
   auto *slab = nu::Caladan::thread_self()
                    ? nu::get_runtime()->caladan()->thread_get_proclet_slab()
@@ -71,3 +82,17 @@ void operator delete(void *ptr) noexcept { __delete(ptr); }
 void *malloc(size_t size) { return __new(size); }
 
 void free(void *ptr) { __delete(ptr); }
+
+void *realloc(void *ptr, size_t size) {
+  nu::Caladan::PreemptGuard g;
+
+  auto ptr_addr = reinterpret_cast<uintptr_t>(ptr);
+  if ((ptr_addr >= nu::kMinProcletHeapVAddr &&
+       ptr_addr < nu::kMaxProcletHeapVAddr) ||
+      (ptr_addr >= nu::kMinRuntimeHeapVaddr &&
+       ptr_addr < nu::kMaxRuntimeHeapVaddr)) {
+    return nu::SlabAllocator::reallocate(ptr, size);
+  } else {
+    return get_real_realloc()(ptr, size);
+  }
+}
