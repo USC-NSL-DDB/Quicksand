@@ -1179,7 +1179,7 @@ thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t buf_len)
 
 thread_t *thread_nu_create_with_args(void *proclet_stack,
                                      uint32_t proclet_stack_size, thread_fn_t fn,
-                                     void *args)
+                                     void *args, bool copy_rcu_ctxs)
 {
 	thread_t *th = __thread_create();
 	if (unlikely(!th))
@@ -1192,8 +1192,9 @@ thread_t *thread_nu_create_with_args(void *proclet_stack,
 	/* just in case base pointers are enabled */
 	th->nu_state.tf.rbp = (uint64_t)0;
 	th->nu_state.tf.rip = (uint64_t)fn;
-	memcpy(th->nu_state.rcu_ctxs, __self->nu_state.rcu_ctxs,
-		sizeof(__self->nu_state.rcu_ctxs));
+	if (copy_rcu_ctxs)
+		memcpy(th->nu_state.rcu_ctxs, __self->nu_state.rcu_ctxs,
+			sizeof(__self->nu_state.rcu_ctxs));
 	gc_register_thread(th);
 	return th;
 }
