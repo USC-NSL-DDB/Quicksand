@@ -14,6 +14,10 @@ struct Counter {
     x += y;
     return x;
   }
+
+  bool empty() const { return false; }
+  std::size_t size() const { return 1; }
+  void split(Key *mid_k, Counter *latter_half) {}
 };
 
 bool run_test() {

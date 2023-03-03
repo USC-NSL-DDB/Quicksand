@@ -52,7 +52,8 @@ RetT ShardedService<T>::run(Key k, RetT (T::*md)(A0s...),
 }
 
 template <typename T>
-ShardedService<T>::ShardedService() : Base(std::nullopt, std::nullopt) {}
+ShardedService<T>::ShardedService()
+    : Base(std::nullopt, std::nullopt, /* service = */ true) {}
 
 template <typename T, typename... As>
 inline ShardedService<T> make_sharded_service(As &&...args) {

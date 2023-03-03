@@ -49,7 +49,7 @@ class GeneralShardMapping {
                 std::multimap<std::optional<Key>, WeakProclet<Shard>>>;
 
   GeneralShardMapping(uint32_t max_shard_bytes,
-                      std::optional<uint32_t> max_shard_cnt);
+                      std::optional<uint32_t> max_shard_cnt, bool service);
   ~GeneralShardMapping();
   std::variant<LogUpdates, Snapshot> get_updates(uint64_t start_seq);
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
@@ -86,6 +86,7 @@ class GeneralShardMapping {
   CondVar oos_cv_;
   std::stack<Proclet<Shard>> reserved_shards_;
   Log<Shard> log_;
+  bool service_;
   Mutex mutex_;
 
   bool out_of_shards();

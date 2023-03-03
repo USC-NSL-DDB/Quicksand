@@ -48,13 +48,15 @@ void Log<Shard>::append(uint8_t op, std::optional<typename Shard::Key> l_key,
 
 template <class Shard>
 GeneralShardMapping<Shard>::GeneralShardMapping(
-    uint32_t max_shard_bytes, std::optional<uint32_t> max_shard_cnt)
+    uint32_t max_shard_bytes, std::optional<uint32_t> max_shard_cnt,
+    bool service)
     : max_shard_bytes_(max_shard_bytes),
       proclet_capacity_(max_shard_bytes_ * kProcletOverprovisionFactor),
       max_shard_cnt_(max_shard_cnt),
       pending_creations_(0),
       ref_cnt_(1),
-      log_(kLogSize) {
+      log_(kLogSize),
+      service_(service) {
   Caladan::PreemptGuard g;
   self_ = get_runtime()->get_current_weak_proclet<GeneralShardMapping>();
 }
@@ -178,8 +180,8 @@ template <class Shard>
 void GeneralShardMapping<Shard>::reserve_new_shard() {
   ScopedLock lock(&mutex_);
 
-  auto new_shard = make_proclet<Shard>(std::tuple(self_, max_shard_bytes_),
-                                       false, proclet_capacity_);
+  auto new_shard = make_proclet<Shard>(
+      std::tuple(self_, max_shard_bytes_, service_), false, proclet_capacity_);
   reserved_shards_.emplace(std::move(new_shard));
 }
 
@@ -196,8 +198,8 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
   }
 
   auto new_shard = make_proclet<Shard>(
-      std::forward_as_tuple(self_, max_shard_bytes_, l_key, r_key), false,
-      proclet_capacity_);
+      std::forward_as_tuple(self_, max_shard_bytes_, l_key, r_key, service_),
+      false, proclet_capacity_);
   auto new_weak_shard = new_shard.get_weak();
 
   {
@@ -238,13 +240,13 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
   if (!new_shard) {
     // Useful for improving the locality of sorter.
     if (mapping_.size() >= kCreateLocalShardThresh) {
-      new_shard =
-          make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
-                              false, proclet_capacity_, ip);
+      new_shard = make_proclet<Shard>(
+          std::forward_as_tuple(self_, max_shard_bytes_, service_), false,
+          proclet_capacity_, ip);
     } else {
-      new_shard =
-          make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
-                              false, proclet_capacity_);
+      new_shard = make_proclet<Shard>(
+          std::forward_as_tuple(self_, max_shard_bytes_, service_), false,
+          proclet_capacity_);
     }
   }
 

@@ -15,7 +15,7 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<ShardingHint> sharding_hint,
-    std::optional<std::size_t> size_bound)
+    std::optional<std::size_t> size_bound, bool service)
     : num_pending_flushes_(0), max_num_vals_(0), max_num_data_entries_(0) {
   constexpr auto kMaxShardBytes =
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
@@ -27,8 +27,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
                         size_bound, static_cast<std::size_t>(kMaxShardBytes)));
   });
 
-  mapping_ =
-      make_proclet<ShardMapping>(std::tuple(kMaxShardBytes, max_shard_count));
+  mapping_ = make_proclet<ShardMapping>(
+      std::tuple(kMaxShardBytes, max_shard_count, service));
 
   std::vector<std::optional<Key>> keys;
   std::vector<Future<WeakProclet<Shard>>> shard_futures;

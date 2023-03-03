@@ -1,9 +1,11 @@
 #include <cmath>
+#include <experimental/scope>
 
 #include "nu/shard_mapping.hpp"
 #include "nu/utils/caladan.hpp"
 #include "nu/utils/rob_executor.hpp"
 #include "nu/utils/scoped_lock.hpp"
+#include "nu/utils/time.hpp"
 
 namespace nu {
 
@@ -68,47 +70,62 @@ inline void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
 
 template <class Container>
 inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
-                                             uint32_t max_shard_bytes)
-    : GeneralShard(mapping, max_shard_bytes, std::nullopt, std::nullopt,
-                   false) {}
+                                             uint32_t max_shard_bytes,
+                                             bool service)
+    : max_shard_bytes_(max_shard_bytes),
+      real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
+      mapping_(std::move(mapping)),
+      deleted_(false),
+      service_(service) {
+  Caladan::PreemptGuard g;
+  slab_ = get_runtime()->get_current_proclet_slab();
+}
 
 template <class Container>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
                                       uint32_t max_shard_bytes,
                                       std::optional<Key> l_key,
-                                      std::optional<Key> r_key,
-                                      bool reserve_space)
+                                      std::optional<Key> r_key, bool service)
     : max_shard_bytes_(max_shard_bytes),
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      deleted_(false) {
+      deleted_(false),
+      service_(service) {
   {
     Caladan::PreemptGuard g;
     slab_ = get_runtime()->get_current_proclet_slab();
   }
 
   if constexpr (Reservable<Container>) {
-    if (reserve_space) {
-      auto old_slab_usage = slab_->get_cur_usage();
-      container_.reserve(kReserveProbeSize);
-      auto new_slab_usage = slab_->get_cur_usage();
-      container_bucket_size_ =
-          std::ceil(static_cast<float>(new_slab_usage - old_slab_usage) /
-                    kReserveProbeSize);
-      auto reserve_size =
-          max_shard_bytes * kReserveContainerSizeRatio / container_bucket_size_;
-      container_.reserve(reserve_size);
-      initial_slab_usage_ = slab_->get_cur_usage();
-      initial_size_ = 0;
-      size_thresh_ = kAlmostFullThresh * reserve_size;
-    }
+    auto old_slab_usage = slab_->get_cur_usage();
+    container_.reserve(kReserveProbeSize);
+    auto new_slab_usage = slab_->get_cur_usage();
+    container_bucket_size_ =
+        std::ceil(static_cast<float>(new_slab_usage - old_slab_usage) /
+                  kReserveProbeSize);
+    auto reserve_size =
+        max_shard_bytes * kReserveContainerSizeRatio / container_bucket_size_;
+    container_.reserve(reserve_size);
+    initial_slab_usage_ = slab_->get_cur_usage();
+    initial_size_ = 0;
+    size_thresh_ = kAlmostFullThresh * reserve_size;
+  }
+
+  if (service_) {
+    start_load_monitor_th();
   }
 }
 
 template <class Container>
-inline GeneralShard<Container>::~GeneralShard() {}
+inline GeneralShard<Container>::~GeneralShard() {
+  deleted_ = true;
+  barrier();
+  if (service_) {
+    load_monitor_th_.join();
+  }
+}
 
 template <class Container>
 void GeneralShard<Container>::init_range_and_data(
@@ -121,10 +138,12 @@ void GeneralShard<Container>::init_range_and_data(
   initial_slab_usage_ = slab_->get_cur_usage();
   initial_size_ = container_.size();
   container_bucket_size_ = container_and_metadata.container_bucket_size;
-  real_max_shard_bytes_ = max_shard_bytes_ / kAlmostFullThresh;
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
-  deleted_ = false;
   rw_lock_.writer_unlock();
+
+  if (service_) {
+    start_load_monitor_th();
+  }
 }
 
 template <class Container>
@@ -167,7 +186,18 @@ void GeneralShard<Container>::split() {
 
       latter_half_container.reset(new Container());
       BUG_ON(container_.empty());
-      container_.split(&mid_k, latter_half_container.get());
+      if (service_) {
+        if constexpr (std::is_arithmetic_v<Key>) {
+          mid_k = (l_key_.value_or(std::numeric_limits<Key>::min()) +
+                   r_key_.value_or(std::numeric_limits<Key>::max())) /
+                  2;
+          *latter_half_container = container_;
+        } else {
+          BUG();
+        }
+      } else {
+        container_.split(&mid_k, latter_half_container.get());
+      }
     }
 
     // The if below avoids creating an illegal empty new shard, which could
@@ -904,6 +934,8 @@ inline std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
 GeneralShard<Container>::try_compute(std::optional<Key> l_key,
                                      std::optional<Key> r_key,
                                      uintptr_t fn_addr, S0s... states) {
+  using CRetT =
+      std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>;
   auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, S0s...)>(fn_addr);
 
   rw_lock_.reader_lock();
@@ -917,15 +949,38 @@ GeneralShard<Container>::try_compute(std::optional<Key> l_key,
     }
   }
 
+  auto *cret = reinterpret_cast<CRetT *>(alloca(sizeof(CRetT)));
+  auto cleaner = std::experimental::scope_exit([&] { std::destroy_at(cret); });
+
   if constexpr (std::is_void_v<RetT>) {
     container_.compute(fn, std::move(states)...);
-    rw_lock_.reader_unlock();
-    return true;
+    *cret = true;
   } else {
-    auto ret = container_.compute(fn, std::move(states)...);
-    rw_lock_.reader_unlock();
-    return ret;
+    new (cret) CRetT(container_.compute(fn, std::move(states)...));
   }
+
+  rw_lock_.reader_unlock();
+  return *cret;
+}
+
+template <class Container>
+void GeneralShard<Container>::start_load_monitor_th() {
+  load_monitor_th_ = Thread(
+      [&] {
+        auto *proclet_header = reinterpret_cast<ProcletHeader *>(this) - 1;
+        auto &cpu_load = proclet_header->cpu_load;
+
+        while (!Caladan::access_once(deleted_)) {
+          Time::sleep(kLoadMonitorIntervalUs);
+          if (cpu_load.get_load() >= kSplitLoadThresh) {
+            rw_lock_.writer_lock();
+            split();
+            cpu_load.zero();
+            rw_lock_.writer_unlock();
+          }
+        }
+      },
+      /* copy_rcu_ctxs = */ false);
 }
 
 }  // namespace nu

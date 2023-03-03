@@ -300,11 +300,11 @@ class GeneralContainerBase {
   }
   template <class Archive>
   void save(Archive &ar) const {
-    impl_.save(ar);
+    ar(impl_);
   }
   template <class Archive>
   void load(Archive &ar) {
-    impl_.load(ar);
+    ar(impl_);
   }
   template <typename RetT, typename... Ss>
   RetT compute(RetT (*fn)(Impl &impl, Ss...), Ss... states) {

@@ -94,7 +94,8 @@ class ShardedDataStructure {
  protected:
   ShardedDataStructure();
   ShardedDataStructure(std::optional<ShardingHint> sharding_hint,
-                       std::optional<std::size_t> size_bound);
+                       std::optional<std::size_t> size_bound,
+                       bool service = false);
   ShardedDataStructure(const ShardedDataStructure &);
   ShardedDataStructure &operator=(const ShardedDataStructure &);
   ShardedDataStructure(ShardedDataStructure &&) noexcept;

@@ -12,6 +12,7 @@
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/read_skewed_lock.hpp"
 #include "nu/utils/rob_executor.hpp"
+#include "nu/utils/thread.hpp"
 
 namespace nu {
 
@@ -85,10 +86,11 @@ class GeneralShard {
     void serialize(Archive &ar);
   };
 
-  GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes);
+  GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes,
+               bool service);
   GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes,
                std::optional<Key> l_key, std::optional<Key> r_key,
-               bool reserve_space = true);
+               bool service);
   ~GeneralShard();
   void init_range_and_data(
       std::optional<Key> l_key, std::optional<Key> r_key,
@@ -190,6 +192,8 @@ class GeneralShard {
   constexpr static float kReserveContainerSizeRatio = 0.5;
   constexpr static float kAlmostFullThresh = 0.95;
   constexpr static uint32_t kSlabFragmentationHeadroom = 2 << 20;
+  constexpr static uint32_t kLoadMonitorIntervalUs = 500;
+  constexpr static float kSplitLoadThresh = 2;
 
   const uint32_t max_shard_bytes_;
   uint32_t real_max_shard_bytes_;
@@ -206,6 +210,8 @@ class GeneralShard {
   Mutex empty_mutex_;
   CondVar empty_cv_;
   bool deleted_;
+  bool service_;
+  Thread load_monitor_th_;
 
   friend class ContainerHandle<Container>;
   template <GeneralShardBased S>
@@ -225,6 +231,7 @@ class GeneralShard {
       std::vector<std::pair<IterVal, ConstReverseIterator>>::iterator block_it,
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
+  void start_load_monitor_th();
 };
 
 }  // namespace nu
