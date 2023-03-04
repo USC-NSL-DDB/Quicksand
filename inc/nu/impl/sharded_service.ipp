@@ -1,3 +1,7 @@
+extern "C" {
+#include <asm/ops.h>
+}
+
 namespace nu {
 
 template <typename T>
@@ -52,6 +56,46 @@ RetT ShardedService<T>::run(Key k, RetT (T::*md)(A0s...),
 }
 
 template <typename T>
+ShardedStatelessService<T>::ShardedStatelessService(ShardedService<T> &&s)
+    : ShardedService<T>(std::move(s)), split_mix64_(rdtsc()) {}
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+Future<RetT> ShardedStatelessService<T>::run_async(RetT (*fn)(T &, S0s...),
+                                                   S1s &&...states) requires
+    ValidInvocationTypes<RetT, S0s...> {
+  return ShardedService<T>::run_async(split_mix64_.next(), fn,
+                                      std::forward<S1s>(states)...);
+}
+
+template <typename T>
+template <typename RetT, typename... S0s, typename... S1s>
+RetT ShardedStatelessService<T>::run(RetT (*fn)(T &, S0s...),
+                                     S1s &&...states) requires
+    ValidInvocationTypes<RetT, S0s...> {
+  return ShardedService<T>::run(split_mix64_.next(), fn,
+                                std::forward<S1s>(states)...);
+}
+
+template <typename T>
+template <typename RetT, typename... A0s, typename... A1s>
+Future<RetT> ShardedStatelessService<T>::run_async(RetT (T::*md)(A0s...),
+                                                   A1s &&...args) requires
+    ValidInvocationTypes<RetT, A0s...> {
+  return ShardedService<T>::run_async(split_mix64_.next(), md,
+                                      std::forward<A1s>(args)...);
+}
+
+template <typename T>
+template <typename RetT, typename... A0s, typename... A1s>
+RetT ShardedStatelessService<T>::run(RetT (T::*md)(A0s...),
+                                     A1s &&...args) requires
+    ValidInvocationTypes<RetT, A0s...> {
+  return ShardedService<T>::run(split_mix64_.next(), md,
+                                std::forward<A1s>(args)...);
+}
+
+template <typename T>
 ShardedService<T>::ShardedService()
     : Base(std::nullopt, std::nullopt, /* service = */ true) {}
 
@@ -62,6 +106,11 @@ inline ShardedService<T> make_sharded_service(As &&...args) {
       typename T::Key(), +[](T &t, As... args) { t = T(std::move(args)...); },
       std::forward<As>(args)...);
   return sharded_service;
+}
+
+template <typename T, typename... As>
+inline ShardedStatelessService<T> make_sharded_stateless_service(As &&...args) {
+  return make_sharded_service<T>(std::forward<As>(args)...);
 }
 
 }  // namespace nu

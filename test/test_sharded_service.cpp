@@ -20,14 +20,36 @@ struct Counter {
   void split(Key *mid_k, Counter *latter_half) {}
 };
 
-bool run_test() {
-  auto sharded_service = make_sharded_service<::Counter>(3);
-  auto ret0 = sharded_service.run(0, &::Counter::add, 2);
+bool run_sharded_service() {
+  auto service = make_sharded_service<::Counter>(3);
+  auto ret0 = service.run(0, &::Counter::add, 2);
   if (ret0 != 5) {
     return false;
   }
-  auto ret1 = sharded_service.run(0, &::Counter::add, 2);
-  return ret1 == 7;
+  auto ret1 = service.run(0, &::Counter::add, 2);
+  if (ret1 != 7) {
+    return false;
+  }
+
+  return true;
+}
+
+bool run_sharded_stateless_service() {
+  auto service = make_sharded_stateless_service<::Counter>(3);
+  auto ret0 = service.run(&::Counter::add, 2);
+  if (ret0 != 5) {
+    return false;
+  }
+  auto ret1 = service.run(&::Counter::add, 2);
+  if (ret1 != 7) {
+    return false;
+  }
+
+  return true;
+}
+
+bool run_test() {
+  return run_sharded_service() && run_sharded_stateless_service();
 }
 
 void do_work() {
