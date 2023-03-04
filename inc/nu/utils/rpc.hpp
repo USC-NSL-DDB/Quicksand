@@ -1,15 +1,16 @@
 #pragma once
 
-#include <net.h>
-#include <sync.h>
-#include <thread.h>
-
 #include <cstddef>
 #include <functional>
 #include <memory>
 #include <queue>
 #include <span>
 #include <vector>
+#include <climits>
+
+#include <net.h>
+#include <sync.h>
+#include <thread.h>
 
 #include "nu/commons.hpp"
 #include "nu/utils/counter.hpp"
@@ -138,7 +139,7 @@ class RPCFlow {
         c_(std::move(c)),
         sent_count_(0),
         recv_count_(0),
-        credits_(128) {}
+        credits_(std::numeric_limits<decltype(credits_)>::max()) {}
   ~RPCFlow();
 
   // A factory to create new flows with CPU affinity.
