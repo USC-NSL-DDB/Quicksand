@@ -76,7 +76,8 @@ inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
       deleted_(false),
-      service_(service) {
+      service_(service),
+      compute_qlen_(0) {
   Caladan::PreemptGuard g;
   slab_ = get_runtime()->get_current_proclet_slab();
 }
@@ -92,7 +93,8 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       l_key_(l_key),
       r_key_(r_key),
       deleted_(false),
-      service_(service) {
+      service_(service),
+      compute_qlen_(0) {
   {
     Caladan::PreemptGuard g;
     slab_ = get_runtime()->get_current_proclet_slab();
@@ -112,20 +114,10 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
     initial_size_ = 0;
     size_thresh_ = kAlmostFullThresh * reserve_size;
   }
-
-  if (service_) {
-    start_load_monitor_th();
-  }
 }
 
 template <class Container>
-inline GeneralShard<Container>::~GeneralShard() {
-  deleted_ = true;
-  barrier();
-  if (service_) {
-    load_monitor_th_.join();
-  }
-}
+inline GeneralShard<Container>::~GeneralShard() {}
 
 template <class Container>
 void GeneralShard<Container>::init_range_and_data(
@@ -140,10 +132,6 @@ void GeneralShard<Container>::init_range_and_data(
   container_bucket_size_ = container_and_metadata.container_bucket_size;
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
   rw_lock_.writer_unlock();
-
-  if (service_) {
-    start_load_monitor_th();
-  }
 }
 
 template <class Container>
@@ -188,9 +176,8 @@ void GeneralShard<Container>::split() {
       BUG_ON(container_.empty());
       if (service_) {
         if constexpr (std::is_arithmetic_v<Key>) {
-          mid_k = (l_key_.value_or(std::numeric_limits<Key>::min()) +
-                   r_key_.value_or(std::numeric_limits<Key>::max())) /
-                  2;
+          mid_k = l_key_.value_or(std::numeric_limits<Key>::min()) / 2 +
+                  r_key_.value_or(std::numeric_limits<Key>::max()) / 2;
           *latter_half_container = container_;
         } else {
           BUG();
@@ -269,6 +256,14 @@ void GeneralShard<Container>::split_with_reader_lock() {
     split();
     rw_lock_.writer_unlock();
   }
+}
+
+template <class Container>
+void GeneralShard<Container>::compute_split_with_reader_lock() {
+  rw_lock_.reader_unlock();
+  rw_lock_.writer_lock();
+  split();
+  rw_lock_.writer_unlock();
 }
 
 template <class Container>
@@ -938,6 +933,8 @@ GeneralShard<Container>::try_compute(std::optional<Key> l_key,
       std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>;
   auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, S0s...)>(fn_addr);
 
+  ScopedLock g(&compute_mutex_);
+
   rw_lock_.reader_lock();
 
   if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
@@ -959,28 +956,16 @@ GeneralShard<Container>::try_compute(std::optional<Key> l_key,
     new (cret) CRetT(container_.compute(fn, std::move(states)...));
   }
 
+  ewma(kComputeQLenEWMAWeight, &compute_qlen_,
+       static_cast<float>(compute_mutex_.get_num_waiters()));
+  if (unlikely(compute_qlen_ >= kComputeQLenThresh)) {
+    compute_split_with_reader_lock();
+    compute_qlen_ = 0;
+    return *cret;
+  }
+
   rw_lock_.reader_unlock();
   return *cret;
-}
-
-template <class Container>
-void GeneralShard<Container>::start_load_monitor_th() {
-  load_monitor_th_ = Thread(
-      [&] {
-        auto *proclet_header = reinterpret_cast<ProcletHeader *>(this) - 1;
-        auto &cpu_load = proclet_header->cpu_load;
-
-        while (!Caladan::access_once(deleted_)) {
-          Time::sleep(kLoadMonitorIntervalUs);
-          if (cpu_load.get_load() >= kSplitLoadThresh) {
-            rw_lock_.writer_lock();
-            split();
-            cpu_load.zero();
-            rw_lock_.writer_unlock();
-          }
-        }
-      },
-      /* copy_rcu_ctxs = */ false);
 }
 
 }  // namespace nu

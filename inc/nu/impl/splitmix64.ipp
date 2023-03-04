@@ -1,6 +1,13 @@
+extern "C" {
+#include <asm/ops.h>
+#include <runtime/preempt.h>
+}
+
 namespace nu {
 
-SplitMix64::SplitMix64(uint64_t x) : x_(x) {}
+SplitMix64::SplitMix64() : SplitMix64(rdtsc() + read_cpu()) {}
+
+SplitMix64::SplitMix64(uint64_t seed) : x_(seed) {}
 
 uint64_t SplitMix64::next() {
   uint64_t z = (x_ += UINT64_C(0x9E3779B97F4A7C15));

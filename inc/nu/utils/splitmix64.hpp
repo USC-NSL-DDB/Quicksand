@@ -6,7 +6,8 @@ namespace nu {
 
 class SplitMix64 {
  public:
-  SplitMix64(uint64_t x);
+  SplitMix64();
+  SplitMix64(uint64_t seed);
   uint64_t next();
 
  private:

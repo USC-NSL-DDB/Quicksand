@@ -13,9 +13,11 @@ class Mutex {
   void lock();
   void unlock();
   bool try_lock();
+  uint32_t get_num_waiters() const;
 
  private:
   mutex_t m_;
+  uint32_t num_waiters_;
   friend class CondVar;
   friend class Migrator;
 

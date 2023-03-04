@@ -36,6 +36,11 @@ class ShardedService
 template <typename T>
 class ShardedStatelessService : private ShardedService<T> {
  public:
+  ShardedStatelessService(const ShardedStatelessService<T> &);
+  ShardedStatelessService(ShardedStatelessService<T> &&) = default;
+  ShardedStatelessService &operator=(const ShardedStatelessService<T> &);
+  ShardedStatelessService &operator=(ShardedStatelessService<T> &&) = default;
+
   template <typename RetT, typename... S0s, typename... S1s>
   Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&...states) requires
       ValidInvocationTypes<RetT, S0s...>;

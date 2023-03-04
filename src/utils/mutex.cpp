@@ -27,6 +27,7 @@ void Mutex::__lock() {
     }
   }
 
+  num_waiters_++;
   get_runtime()->caladan()->thread_park_and_unlock_np(&m_.waiter_lock,
                                                       &m_.waiters);
 }
@@ -37,6 +38,7 @@ void Mutex::__unlock() {
   if (list_empty(&m_.waiters)) {
     atomic_write(&m_.held, 0);
   } else {
+    num_waiters_--;
     get_runtime()->caladan()->wakeup_one_waiter(&m_.waiters);
     if (list_empty(&m_.waiters)) {
       auto *proclet_header = get_runtime()->get_current_proclet_header();

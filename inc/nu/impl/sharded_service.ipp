@@ -56,6 +56,19 @@ RetT ShardedService<T>::run(Key k, RetT (T::*md)(A0s...),
 }
 
 template <typename T>
+ShardedStatelessService<T>::ShardedStatelessService(
+    const ShardedStatelessService<T> &o)
+    : ShardedService<T>(o) {}
+
+template <typename T>
+ShardedStatelessService<T> &ShardedStatelessService<T>::operator=(
+    const ShardedStatelessService<T> &o) {
+  ShardedService<T>::operator=(o);
+  split_mix64_ = SplitMix64();
+  return *this;
+}
+
+template <typename T>
 ShardedStatelessService<T>::ShardedStatelessService(ShardedService<T> &&s)
     : ShardedService<T>(std::move(s)), split_mix64_(rdtsc()) {}
 
