@@ -75,7 +75,7 @@ inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
     : max_shard_bytes_(max_shard_bytes),
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
-      deleted_(false),
+      deleted_(true),
       service_(service),
       compute_qlen_(0) {
   Caladan::PreemptGuard g;
@@ -130,7 +130,9 @@ void GeneralShard<Container>::init_range_and_data(
   initial_slab_usage_ = slab_->get_cur_usage();
   initial_size_ = container_.size();
   container_bucket_size_ = container_and_metadata.container_bucket_size;
+  real_max_shard_bytes_ = max_shard_bytes_ / kAlmostFullThresh;
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
+  deleted_ = false;
   rw_lock_.writer_unlock();
 }
 
@@ -202,7 +204,6 @@ void GeneralShard<Container>::split() {
       container_and_metadata.container_bucket_size = container_bucket_size_;
       new_shard.run(&GeneralShard::init_range_and_data, mid_k, r_key_,
                     container_and_metadata);
-      mapping_.run(&ShardMapping::commit_shard, mid_k);
       r_key_ = mid_k;
     }
   }

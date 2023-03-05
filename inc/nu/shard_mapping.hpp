@@ -60,7 +60,6 @@ class GeneralShardMapping {
                                       std::optional<Key> r_key);
   WeakProclet<Shard> create_or_reuse_new_shard_for_init(
       std::optional<Key> l_key, NodeIP ip);
-  void commit_shard(std::optional<Key> l_key);
   void delete_shard(std::optional<Key> l_key, WeakProclet<Shard> shard);
   void concat(WeakProclet<GeneralShardMapping> tail) requires(
       Shard::GeneralContainer::kContiguousIterator);

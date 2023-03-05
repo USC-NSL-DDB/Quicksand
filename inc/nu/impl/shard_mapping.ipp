@@ -254,25 +254,12 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
   {
     ScopedLock lock(&mutex_);
 
-    auto ret = stash_mapping_.emplace(std::move(l_key), std::move(new_shard));
-    BUG_ON(!ret.second);
+    log_.append(LogEntry<Shard>::kInsert, l_key, new_weak_shard);
+    mapping_.emplace(std::move(l_key), std::move(new_shard));
+    pending_creations_--;
   }
 
   return new_weak_shard;
-}
-
-template <class Shard>
-void GeneralShardMapping<Shard>::commit_shard(std::optional<Key> l_key) {
-  ScopedLock lock(&mutex_);
-
-  auto iter = stash_mapping_.find(l_key);
-  BUG_ON(iter == stash_mapping_.end());
-
-  log_.append(LogEntry<Shard>::kInsert, l_key, iter->second.get_weak());
-  mapping_.emplace(std::move(l_key), std::move(iter->second));
-  pending_creations_--;
-
-  stash_mapping_.erase(iter);
 }
 
 template <class Shard>
