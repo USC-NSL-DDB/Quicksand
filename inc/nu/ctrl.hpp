@@ -27,6 +27,9 @@ struct NodeStatus {
   // Should be consistent with iokernel's IAS_PS_MEM_LOW_MB.
   constexpr static uint32_t kMemLowWaterMarkMBs = 1024;
 
+  NodeStatus(bool isol);
+
+  bool isol;
   bool acquired;
   Resource free_resource;
   CondVar cv;
@@ -63,7 +66,8 @@ class Controller {
   ~Controller();
   std::optional<std::pair<lpid_t, VAddrRange>> register_node(NodeIP ip,
                                                              lpid_t lpid,
-                                                             MD5Val md5);
+                                                             MD5Val md5,
+                                                             bool isol);
   void destroy_lp(lpid_t lpid, NodeIP requestor_ip);
   std::optional<std::pair<ProcletID, NodeIP>> allocate_proclet(
       uint64_t capacity, lpid_t lpid, NodeIP ip_hint);

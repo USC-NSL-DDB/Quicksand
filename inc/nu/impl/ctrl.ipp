@@ -2,6 +2,12 @@
 
 namespace nu {
 
+inline NodeStatus::NodeStatus(bool _isol) {
+  isol = _isol;
+  acquired = false;
+  free_resource.cores = free_resource.mem_mbs = 0;
+}
+
 inline bool NodeStatus::has_enough_cpu_resource(Resource resource) const {
   return free_resource.cores >= resource.cores;
 }

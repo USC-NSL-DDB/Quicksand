@@ -63,7 +63,7 @@ Controller::~Controller() {
 }
 
 std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
-    NodeIP ip, lpid_t lpid, MD5Val md5) {
+    NodeIP ip, lpid_t lpid, MD5Val md5, bool isol) {
   ScopedLock lock(&mutex_);
 
   if (lpid) {
@@ -120,7 +120,7 @@ std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  auto [iter, success] = node_statuses.try_emplace(ip, /* acquired = */ false);
+  auto [iter, success] = node_statuses.try_emplace(ip, isol);
   BUG_ON(!success);
   return std::make_pair(lpid, stack_cluster);
 }
@@ -245,10 +245,15 @@ NodeIP Controller::select_node_for_proclet(lpid_t lpid, NodeIP ip_hint,
   }
 
   // TODO: adopt a more sophisticated mechanism once we've added more fields.
-  if (unlikely(rr_iter == node_statuses.end())) {
-    rr_iter = node_statuses.begin();
-  }
-  return rr_iter++->first;
+  NodeIP ip;
+  do {
+    if (unlikely(rr_iter == node_statuses.end())) {
+      rr_iter = node_statuses.begin();
+    }
+    ip = rr_iter->first;
+  } while (rr_iter++->second.isol);
+
+  return ip;
 }
 
 std::pair<NodeIP, Resource> Controller::acquire_migration_dest(
@@ -269,8 +274,8 @@ std::pair<NodeIP, Resource> Controller::acquire_migration_dest(
       if (unlikely(rr_iter == node_statuses.end())) {
         rr_iter = node_statuses.begin();
       }
-      if (rr_iter->first != requestor_ip && !rr_iter->second.acquired &&
-          filter_fn(rr_iter->second)) {
+      if (rr_iter->first != requestor_ip && !rr_iter->second.isol &&
+          !rr_iter->second.acquired && filter_fn(rr_iter->second)) {
         return true;
       }
     } while (++rr_iter != initial_rr_iter);

@@ -35,16 +35,16 @@ namespace nu {
 
 Runtime::Runtime() {}
 
-Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid) {
+Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid, bool isol) {
   init_base();
 
   if (mode == kMainServer) {
-    init_as_server(remote_ctrl_ip, lpid);
+    init_as_server(remote_ctrl_ip, lpid, isol);
   } else {
     if (mode == kController) {
       init_as_controller();
     } else if (mode == kServer) {
-      init_as_server(remote_ctrl_ip, lpid);
+      init_as_server(remote_ctrl_ip, lpid, isol);
     } else {
       BUG();
     }
@@ -78,10 +78,11 @@ void Runtime::init_as_controller() {
   controller_server_ = new ControllerServer();
 }
 
-void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid) {
+void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid, bool isol) {
   proclet_server_ = new ProcletServer();
   migrator_ = new Migrator();
-  controller_client_ = new ControllerClient(remote_ctrl_ip, kServer, lpid);
+  controller_client_ =
+      new ControllerClient(remote_ctrl_ip, kServer, lpid, isol);
   proclet_manager_ = new ProcletManager();
   pressure_handler_ = new PressureHandler();
   resource_reporter_ = new ResourceReporter();
@@ -167,6 +168,7 @@ int runtime_main_init(int argc, char **argv,
   auto ctrl_ip = str_to_ip(all_options_desc.nu.ctrl_ip_str);
   auto lpid = all_options_desc.nu.lpid;
   auto conf_path = all_options_desc.caladan.conf_path;
+  auto isol = all_options_desc.vm.count("isol");
   if (conf_path.empty()) {
     conf_path = ".conf_" + std::to_string(getpid());
     write_options_to_file(conf_path, all_options_desc);
@@ -184,7 +186,7 @@ int runtime_main_init(int argc, char **argv,
         break;
       }
     }
-    new (get_runtime_nocheck()) Runtime(ctrl_ip, mode, lpid);
+    new (get_runtime_nocheck()) Runtime(ctrl_ip, mode, lpid, isol);
     {
       auto main_proclet = make_proclet<ErasedType>(
           true, kMainProcletHeapSize, get_runtime()->caladan()->get_ip());

@@ -36,7 +36,7 @@ int ctrl_main(int argc, char **argv) {
       BUG_ON(remove(conf_path.c_str()));
     }
     new (get_runtime())
-        Runtime(get_cfg_ip(), nu::Runtime::Mode::kController, 0);
+        Runtime(get_cfg_ip(), nu::Runtime::Mode::kController, 0, false);
     std::unreachable();
   });
 
