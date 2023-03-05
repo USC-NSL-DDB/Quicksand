@@ -12,15 +12,8 @@ class ShardedService
   using Key = T::Key;
 
   template <typename RetT, typename... S0s, typename... S1s>
-  Future<RetT> run_async(Key k, RetT (*fn)(T &, S0s...),
-                         S1s &&...states) requires
-      ValidInvocationTypes<RetT, S0s...>;
-  template <typename RetT, typename... S0s, typename... S1s>
   RetT run(Key k, RetT (*fn)(T &, S0s...),
            S1s &&...states) requires ValidInvocationTypes<RetT, S0s...>;
-  template <typename RetT, typename... A0s, typename... A1s>
-  Future<RetT> run_async(Key k, RetT (T::*md)(A0s...), A1s &&...args) requires
-      ValidInvocationTypes<RetT, A0s...>;
   template <typename RetT, typename... A0s, typename... A1s>
   RetT run(Key k, RetT (T::*md)(A0s...),
            A1s &&...args) requires ValidInvocationTypes<RetT, A0s...>;
@@ -42,14 +35,8 @@ class ShardedStatelessService : private ShardedService<T> {
   ShardedStatelessService &operator=(ShardedStatelessService<T> &&) = default;
 
   template <typename RetT, typename... S0s, typename... S1s>
-  Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&...states) requires
-      ValidInvocationTypes<RetT, S0s...>;
-  template <typename RetT, typename... S0s, typename... S1s>
   RetT run(RetT (*fn)(T &, S0s...),
            S1s &&...states) requires ValidInvocationTypes<RetT, S0s...>;
-  template <typename RetT, typename... A0s, typename... A1s>
-  Future<RetT> run_async(RetT (T::*md)(A0s...), A1s &&...args) requires
-      ValidInvocationTypes<RetT, A0s...>;
   template <typename RetT, typename... A0s, typename... A1s>
   RetT run(RetT (T::*md)(A0s...),
            A1s &&...args) requires ValidInvocationTypes<RetT, A0s...>;

@@ -6,17 +6,6 @@ namespace nu {
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-Future<RetT> ShardedService<T>::run_async(Key k, RetT (*fn)(T &, S0s...),
-                                          S1s &&...states) requires
-    ValidInvocationTypes<RetT, S0s...> {
-  return nu::async([&, k = std::move(k), fn,
-                    ... states = std::forward<S1s>(states)]() mutable {
-    return run(k, fn, std::forward<S1s>(states)...);
-  });
-}
-
-template <typename T>
-template <typename RetT, typename... S0s, typename... S1s>
 RetT ShardedService<T>::run(Key k, RetT (*fn)(T &, S0s...),
                             S1s &&...states) requires
     ValidInvocationTypes<RetT, S0s...> {
@@ -24,17 +13,6 @@ RetT ShardedService<T>::run(Key k, RetT (*fn)(T &, S0s...),
       decltype(fn(std::declval<T &>(), std::move(states)...));
 
   return this->compute_on(k, fn, std::forward<S1s>(states)...);
-}
-
-template <typename T>
-template <typename RetT, typename... A0s, typename... A1s>
-Future<RetT> ShardedService<T>::run_async(Key k, RetT (T::*md)(A0s...),
-                                          A1s &&...args) requires
-    ValidInvocationTypes<RetT, A0s...> {
-  return nu::async(
-      [&, k = std::move(k), md, ... args = std::forward<A1s>(args)]() mutable {
-        return run(k, md, std::forward<A1s>(args)...);
-      });
 }
 
 template <typename T>
@@ -74,29 +52,11 @@ ShardedStatelessService<T>::ShardedStatelessService(ShardedService<T> &&s)
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-Future<RetT> ShardedStatelessService<T>::run_async(RetT (*fn)(T &, S0s...),
-                                                   S1s &&...states) requires
-    ValidInvocationTypes<RetT, S0s...> {
-  return ShardedService<T>::run_async(split_mix64_.next(), fn,
-                                      std::forward<S1s>(states)...);
-}
-
-template <typename T>
-template <typename RetT, typename... S0s, typename... S1s>
 RetT ShardedStatelessService<T>::run(RetT (*fn)(T &, S0s...),
                                      S1s &&...states) requires
     ValidInvocationTypes<RetT, S0s...> {
   return ShardedService<T>::run(split_mix64_.next(), fn,
                                 std::forward<S1s>(states)...);
-}
-
-template <typename T>
-template <typename RetT, typename... A0s, typename... A1s>
-Future<RetT> ShardedStatelessService<T>::run_async(RetT (T::*md)(A0s...),
-                                                   A1s &&...args) requires
-    ValidInvocationTypes<RetT, A0s...> {
-  return ShardedService<T>::run_async(split_mix64_.next(), md,
-                                      std::forward<A1s>(args)...);
 }
 
 template <typename T>
