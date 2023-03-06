@@ -16,6 +16,7 @@ class ReadSkewedLock {
   ReadSkewedLock();
   void reader_lock();
   void reader_unlock();
+  bool reader_try_lock();
   void writer_lock();
   bool writer_lock_if(std::function<bool()> f);
   void writer_unlock();

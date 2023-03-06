@@ -13,6 +13,15 @@ retry:
   }
 }
 
+inline bool ReadSkewedLock::reader_try_lock() {
+  rcu_lock_.reader_lock();
+  if (unlikely(Caladan::access_once(writer_barrier_))) {
+    rcu_lock_.reader_unlock();
+    return false;
+  }
+  return true;
+}
+
 inline void ReadSkewedLock::reader_unlock() { rcu_lock_.reader_unlock(); }
 
 inline void ReadSkewedLock::writer_lock() {
