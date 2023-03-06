@@ -260,13 +260,14 @@ void GeneralShard<Container>::split_with_reader_lock() {
 }
 
 template <class Container>
-void GeneralShard<Container>::try_delete_self_with_reader_lock() {
+void GeneralShard<Container>::try_delete_self_with_reader_lock(
+    bool merge_left) {
   rw_lock_.reader_unlock();
   rw_lock_.writer_lock();
   if (container_.empty() && !deleted_) {
     auto self = Runtime::to_weak_proclet(this);
     if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self,
-                            /* compute = */ false))) {
+                            merge_left))) {
       // Recycle heap space.
       container_ = Container();
       deleted_ = true;
@@ -280,7 +281,7 @@ void GeneralShard<Container>::try_compute_delete_self() {
   rw_lock_.writer_lock();
   auto self = Runtime::to_weak_proclet(this);
   if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self,
-                          /* compute = */ true))) {
+                          /* merge_left = */ true))) {
     deleted_ = true;
   }
   rw_lock_.writer_unlock();
@@ -402,7 +403,7 @@ retry:
   auto front = container_.try_pop_front(1);
   if (unlikely(front.empty())) {
     if (r_key_) {
-      try_delete_self_with_reader_lock();
+      try_delete_self_with_reader_lock(/* merge_left = */ false);
       return std::nullopt;
     } else {
       ScopedLock lock(&empty_mutex_);
@@ -433,7 +434,7 @@ GeneralShard<Container>::try_pop_front_nb(
 
   auto front_elems = container_.try_pop_front(num);
   if (unlikely(front_elems.size() < num && r_key_)) {
-    try_delete_self_with_reader_lock();
+    try_delete_self_with_reader_lock(/* merge_left = */ false);
   } else {
     rw_lock_.reader_unlock();
   }
@@ -471,8 +472,8 @@ retry:
 
   auto back = container_.try_pop_back(1);
   if (unlikely(back.empty())) {
-    if (r_key_) {
-      try_delete_self_with_reader_lock();
+    if (l_key_) {
+      try_delete_self_with_reader_lock(/* merge_left = */ true);
       return std::nullopt;
     } else {
       ScopedLock lock(&empty_mutex_);
@@ -502,8 +503,8 @@ GeneralShard<Container>::try_pop_back_nb(
   }
 
   auto back_elems = container_.try_pop_back(num);
-  if (unlikely(back_elems.size() < num && r_key_)) {
-    try_delete_self_with_reader_lock();
+  if (unlikely(back_elems.size() < num && l_key_)) {
+    try_delete_self_with_reader_lock(/* merge_left = */ true);
   } else {
     rw_lock_.reader_unlock();
   }
@@ -969,7 +970,8 @@ GeneralShard<Container>::try_compute(std::optional<Key> l_key,
 }
 
 template <class Container>
-bool GeneralShard<Container>::try_update_r_key(std::optional<Key> new_r_key) {
+bool GeneralShard<Container>::try_update_key(bool update_left,
+                                             std::optional<Key> new_key) {
   if (unlikely(!rw_lock_.reader_try_lock())) {
     return false;
   }
@@ -977,7 +979,11 @@ bool GeneralShard<Container>::try_update_r_key(std::optional<Key> new_r_key) {
     rw_lock_.reader_unlock();
     return false;
   }
-  r_key_ = new_r_key;
+  if (update_left) {
+    l_key_ = new_key;
+  } else {
+    r_key_ = new_key;
+  }
   rw_lock_.reader_unlock();
 
   return true;

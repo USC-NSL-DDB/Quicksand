@@ -265,7 +265,7 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
 template <class Shard>
 bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
                                               WeakProclet<Shard> shard,
-                                              bool compute) {
+                                              bool merge_left) {
   ScopedLock<Mutex> lock(&mutex_);
 
   auto [begin_it, end_it] = mapping_.equal_range(l_key);
@@ -280,12 +280,23 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
 
   auto prev_it = std::prev(it);
   auto next_it = std::next(it);
-  std::optional<Key> r_key =
-      next_it != mapping_.end() ? next_it->first : std::nullopt;
-  if (compute) {
-    if (unlikely(!prev_it->second.run(&Shard::try_update_r_key, r_key))) {
+  if (merge_left) {
+    BUG_ON(it == mapping_.begin());
+    std::optional<Key> r_key =
+        next_it != mapping_.end() ? next_it->first : std::nullopt;
+    if (unlikely(!prev_it->second.run(&Shard::try_update_key,
+                                      /* update_left = */ false, r_key))) {
       return false;
     }
+  } else {
+    BUG_ON(next_it == mapping_.end());
+    if (unlikely(!next_it->second.run(&Shard::try_update_key,
+                                      /* update_left = */ true, l_key))) {
+      return false;
+    }
+    auto next_node = mapping_.extract(next_it);
+    next_node.key() = l_key;
+    mapping_.insert(std::move(next_node));
   }
 
   log_.append(LogEntry<Shard>::kDelete, it->first, shard);

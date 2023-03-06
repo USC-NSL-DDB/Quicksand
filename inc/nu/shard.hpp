@@ -185,7 +185,7 @@ class GeneralShard {
   std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
   try_compute(std::optional<Key> l_key, std::optional<Key> r_key,
               uintptr_t fn_addr, S0s... states);
-  bool try_update_r_key(std::optional<Key> new_r_key);
+  bool try_update_key(bool update_left, std::optional<Key> new_key);
 
  private:
   constexpr static uint32_t kReserveProbeSize =
@@ -223,7 +223,7 @@ class GeneralShard {
   void split();
   bool should_split(std::size_t size) const;
   void split_with_reader_lock();
-  void try_delete_self_with_reader_lock();
+  void try_delete_self_with_reader_lock(bool merge_left);
   void try_compute_delete_self();
   bool should_reject(std::optional<Key> l_key, std::optional<Key> r_key);
   bool should_reject(Key k);
