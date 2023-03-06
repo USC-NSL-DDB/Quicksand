@@ -185,6 +185,7 @@ class GeneralShard {
   std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
   try_compute(std::optional<Key> l_key, std::optional<Key> r_key,
               uintptr_t fn_addr, S0s... states);
+  bool try_update_r_key(std::optional<Key> new_r_key);
 
  private:
   constexpr static uint32_t kReserveProbeSize =
@@ -192,7 +193,8 @@ class GeneralShard {
   constexpr static float kReserveContainerSizeRatio = 0.5;
   constexpr static float kAlmostFullThresh = 0.95;
   constexpr static uint32_t kSlabFragmentationHeadroom = 2 << 20;
-  constexpr static uint32_t kComputeQLenThresh = 5;
+  constexpr static float kComputeQLenHighWaterMark = 5;
+  constexpr static float kComputeQLenLowWaterMark = 0.5;
   constexpr static float kComputeQLenEWMAWeight = 0.1;
 
   const uint32_t max_shard_bytes_;
@@ -221,8 +223,8 @@ class GeneralShard {
   void split();
   bool should_split(std::size_t size) const;
   void split_with_reader_lock();
-  void compute_split_with_reader_lock();
-  void delete_self_with_reader_lock();
+  void try_delete_self_with_reader_lock();
+  void try_compute_delete_self();
   bool should_reject(std::optional<Key> l_key, std::optional<Key> r_key);
   bool should_reject(Key k);
   uint32_t __get_next_block_with_iters(
@@ -233,7 +235,6 @@ class GeneralShard {
       std::vector<std::pair<IterVal, ConstReverseIterator>>::iterator block_it,
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
-  void start_load_monitor_th();
 };
 
 }  // namespace nu

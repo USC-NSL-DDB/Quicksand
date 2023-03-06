@@ -494,13 +494,13 @@ template <class Container, class LL>
 template <typename RetT, typename... S0s, typename... S1s>
 inline RetT ShardedDataStructure<Container, LL>::compute_on(
     Key k, RetT (*fn)(ContainerImpl &container, S0s...), S1s &&...states) {
-  [[maybe_unused]] retry : auto iter = --key_to_shards_.upper_bound(k);
+[[maybe_unused]] retry:
+  auto iter = --key_to_shards_.upper_bound(k);
   auto [l_key, r_key] = get_key_range(iter);
   auto shard = iter->second.shard;
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
-  auto optional_ret =
-      shard.run(&Shard::template try_compute<RetT, S0s...>, l_key, r_key,
-                fn_addr, std::forward<S0s>(states)...);
+  auto optional_ret = shard.run(&Shard::template try_compute<RetT, S0s...>,
+                                l_key, r_key, fn_addr, states...);
 
   if (unlikely(!optional_ret)) {
     sync_mapping();

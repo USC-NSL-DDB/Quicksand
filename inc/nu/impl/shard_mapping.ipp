@@ -263,21 +263,36 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
 }
 
 template <class Shard>
-void GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
-                                              WeakProclet<Shard> shard) {
+bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
+                                              WeakProclet<Shard> shard,
+                                              bool compute) {
   ScopedLock<Mutex> lock(&mutex_);
 
   auto [begin_it, end_it] = mapping_.equal_range(l_key);
-  for (auto it = begin_it; it != end_it; ++it) {
+
+  decltype(begin_it) it;
+  for (it = begin_it; it != end_it; ++it) {
     if (it->second == shard) {
-      log_.append(LogEntry<Shard>::kDelete, it->first, shard);
-      reserved_shards_.emplace(std::move(it->second));
-      mapping_.erase(it);
-      oos_cv_.signal();
-      return;
+      break;
     }
   }
-  BUG();
+  BUG_ON(it == end_it);
+
+  auto prev_it = std::prev(it);
+  auto next_it = std::next(it);
+  std::optional<Key> r_key =
+      next_it != mapping_.end() ? next_it->first : std::nullopt;
+  if (compute) {
+    if (unlikely(!prev_it->second.run(&Shard::try_update_r_key, r_key))) {
+      return false;
+    }
+  }
+
+  log_.append(LogEntry<Shard>::kDelete, it->first, shard);
+  reserved_shards_.emplace(std::move(it->second));
+  mapping_.erase(it);
+  oos_cv_.signal();
+  return true;
 }
 
 template <class Shard>

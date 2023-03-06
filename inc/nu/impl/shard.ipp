@@ -260,26 +260,27 @@ void GeneralShard<Container>::split_with_reader_lock() {
 }
 
 template <class Container>
-void GeneralShard<Container>::compute_split_with_reader_lock() {
+void GeneralShard<Container>::try_delete_self_with_reader_lock() {
   rw_lock_.reader_unlock();
   rw_lock_.writer_lock();
-  split();
+  if (container_.empty() && !deleted_) {
+    auto self = Runtime::to_weak_proclet(this);
+    if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self,
+                            /* compute = */ false))) {
+      // Recycle heap space.
+      container_ = Container();
+      deleted_ = true;
+    }
+  }
   rw_lock_.writer_unlock();
 }
 
 template <class Container>
-void GeneralShard<Container>::delete_self_with_reader_lock() {
-  rw_lock_.reader_unlock();
+void GeneralShard<Container>::try_compute_delete_self() {
   rw_lock_.writer_lock();
-  if (container_.empty() && !deleted_) {
-    WeakProclet<GeneralShard<Container>> self;
-    {
-      Caladan::PreemptGuard g;
-      self = get_runtime()->get_current_weak_proclet<GeneralShard<Container>>();
-    }
-    mapping_.run(&ShardMapping::delete_shard, l_key_, self);
-    // Recycle heap space.
-    container_ = Container();
+  auto self = Runtime::to_weak_proclet(this);
+  if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self,
+                          /* compute = */ true))) {
     deleted_ = true;
   }
   rw_lock_.writer_unlock();
@@ -401,7 +402,7 @@ retry:
   auto front = container_.try_pop_front(1);
   if (unlikely(front.empty())) {
     if (r_key_) {
-      delete_self_with_reader_lock();
+      try_delete_self_with_reader_lock();
       return std::nullopt;
     } else {
       ScopedLock lock(&empty_mutex_);
@@ -432,7 +433,7 @@ GeneralShard<Container>::try_pop_front_nb(
 
   auto front_elems = container_.try_pop_front(num);
   if (unlikely(front_elems.size() < num && r_key_)) {
-    delete_self_with_reader_lock();
+    try_delete_self_with_reader_lock();
   } else {
     rw_lock_.reader_unlock();
   }
@@ -471,7 +472,7 @@ retry:
   auto back = container_.try_pop_back(1);
   if (unlikely(back.empty())) {
     if (r_key_) {
-      delete_self_with_reader_lock();
+      try_delete_self_with_reader_lock();
       return std::nullopt;
     } else {
       ScopedLock lock(&empty_mutex_);
@@ -502,7 +503,7 @@ GeneralShard<Container>::try_pop_back_nb(
 
   auto back_elems = container_.try_pop_back(num);
   if (unlikely(back_elems.size() < num && r_key_)) {
-    delete_self_with_reader_lock();
+    try_delete_self_with_reader_lock();
   } else {
     rw_lock_.reader_unlock();
   }
@@ -926,7 +927,7 @@ inline Container::Key GeneralShard<Container>::rebase(
 
 template <class Container>
 template <typename RetT, typename... S0s>
-inline std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
+std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
 GeneralShard<Container>::try_compute(std::optional<Key> l_key,
                                      std::optional<Key> r_key,
                                      uintptr_t fn_addr, S0s... states) {
@@ -936,10 +937,7 @@ GeneralShard<Container>::try_compute(std::optional<Key> l_key,
 
   ScopedLock g(&compute_mutex_);
 
-  rw_lock_.reader_lock();
-
   if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
-    rw_lock_.reader_unlock();
     if constexpr (std::is_void_v<RetT>) {
       return false;
     } else {
@@ -957,16 +955,32 @@ GeneralShard<Container>::try_compute(std::optional<Key> l_key,
     new (cret) CRetT(container_.compute(fn, std::move(states)...));
   }
 
-  ewma(kComputeQLenEWMAWeight, &compute_qlen_,
-       static_cast<float>(compute_mutex_.get_num_waiters()));
-  if (unlikely(compute_qlen_ >= kComputeQLenThresh)) {
-    compute_split_with_reader_lock();
+  auto cur_qlen = static_cast<float>(compute_mutex_.get_num_waiters());
+  ewma(kComputeQLenEWMAWeight, &compute_qlen_, cur_qlen);
+  if (unlikely(compute_qlen_ >= kComputeQLenHighWaterMark)) {
+    split();
     compute_qlen_ = 0;
-    return *cret;
+  } else if (unlikely(!cur_qlen && compute_qlen_ <= kComputeQLenLowWaterMark &&
+                      l_key_)) {
+    try_compute_delete_self();
   }
 
-  rw_lock_.reader_unlock();
   return *cret;
+}
+
+template <class Container>
+bool GeneralShard<Container>::try_update_r_key(std::optional<Key> new_r_key) {
+  if (unlikely(!rw_lock_.reader_try_lock())) {
+    return false;
+  }
+  if (unlikely(deleted_)) {
+    rw_lock_.reader_unlock();
+    return false;
+  }
+  r_key_ = new_r_key;
+  rw_lock_.reader_unlock();
+
+  return true;
 }
 
 }  // namespace nu

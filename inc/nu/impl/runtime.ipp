@@ -160,6 +160,12 @@ inline WeakProclet<T> Runtime::get_current_weak_proclet() {
   return WeakProclet<T>(to_proclet_id(get_current_proclet_header()));
 }
 
+template <typename T>
+inline WeakProclet<T> Runtime::to_weak_proclet(T *root_obj) {
+  auto *proclet_header = reinterpret_cast<ProcletHeader *>(root_obj) - 1;
+  return WeakProclet<T>(to_proclet_id(proclet_header));
+}
+
 inline void Runtime::detach(const MigrationGuard &g) {
   caladan_->thread_unset_owner_proclet(caladan_->thread_self(), true);
 }
