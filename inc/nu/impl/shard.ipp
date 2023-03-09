@@ -220,13 +220,13 @@ void GeneralShard<Container>::split() {
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::should_reject(std::optional<Key> l_key,
-                                                   std::optional<Key> r_key) {
+inline bool GeneralShard<Container>::should_reject(
+    const std::optional<Key> &l_key, const std::optional<Key> &r_key) {
   return deleted_ || (l_key < l_key_) || (r_key_ && (r_key > r_key_ || !r_key));
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::should_reject(Key k) {
+inline bool GeneralShard<Container>::should_reject(const Key &k) {
   return deleted_ || (k < l_key_) || (r_key_ && k > r_key_);
 }
 
@@ -293,7 +293,7 @@ inline bool GeneralShard<Container>::try_insert(
     DataEntry entry) requires InsertAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(l_key))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -321,7 +321,7 @@ inline bool GeneralShard<Container>::try_push_back(
     Val v) requires PushBackAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(l_key, r_key))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -349,7 +349,7 @@ inline bool GeneralShard<Container>::try_push_front(
     std::optional<Key> l_key, std::optional<Key> r_key,
     Val v) requires PushFrontAble<Container> {
   rw_lock_.reader_lock();
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(l_key, r_key))) {
     rw_lock_.reader_unlock();
     return false;
   }
@@ -377,7 +377,7 @@ GeneralShard<Container>::try_front(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires HasFront<Container> {
   rw_lock_.reader_lock();
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(l_key, r_key))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
@@ -395,7 +395,7 @@ GeneralShard<Container>::try_pop_front(
   rw_lock_.reader_lock();
 
 retry:
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(l_key, r_key))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
@@ -427,7 +427,7 @@ GeneralShard<Container>::try_pop_front_nb(
     std::size_t num) requires TryPopFrontAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(l_key, r_key))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
@@ -447,7 +447,7 @@ inline std::optional<typename Container::Val> GeneralShard<Container>::try_back(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires HasBack<Container> {
   rw_lock_.reader_lock();
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(l_key, r_key))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
@@ -465,7 +465,7 @@ GeneralShard<Container>::try_pop_back(
   rw_lock_.reader_lock();
 
 retry:
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(l_key, r_key))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
@@ -497,7 +497,7 @@ GeneralShard<Container>::try_pop_back_nb(
     std::size_t num) requires TryPopBackAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(l_key, r_key))) {
     rw_lock_.reader_unlock();
     return std::nullopt;
   }
@@ -516,7 +516,7 @@ template <class Container>
 std::optional<typename GeneralShard<Container>::ReqBatch>
 GeneralShard<Container>::try_handle_batch(ReqBatch &batch) {
   rw_lock_.reader_lock();
-  if (unlikely(should_reject(std::move(batch.l_key), std::move(batch.r_key)))) {
+  if (unlikely(should_reject(batch.l_key, batch.r_key))) {
     rw_lock_.reader_unlock();
     return std::move(batch);
   }
@@ -929,16 +929,12 @@ inline Container::Key GeneralShard<Container>::rebase(
 template <class Container>
 template <typename RetT, typename... S0s>
 std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
-GeneralShard<Container>::try_compute(std::optional<Key> l_key,
-                                     std::optional<Key> r_key,
-                                     uintptr_t fn_addr, S0s... states) {
+GeneralShard<Container>::try_compute(Key k, uintptr_t fn_addr, S0s... states) {
   using CRetT =
       std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>;
   auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, S0s...)>(fn_addr);
 
-  ScopedLock g(&compute_mutex_);
-
-  if (unlikely(should_reject(std::move(l_key), std::move(r_key)))) {
+  if (unlikely(should_reject(k))) {
     if constexpr (std::is_void_v<RetT>) {
       return false;
     } else {
