@@ -24,6 +24,10 @@ class SyncHashMap {
   V *get(K1 &&k);
   template <typename K1>
   V *get_with_hash(K1 &&k, uint64_t key_hash);
+  template <typename K1>
+  std::optional<V> get_copy(K1 &&k);
+  template <typename K1>
+  std::optional<V> get_copy_with_hash(K1 &&k, uint64_t key_hash);
   template <typename K1, typename V1>
   void put(K1 k, V1 v);
   template <typename K1, typename V1>

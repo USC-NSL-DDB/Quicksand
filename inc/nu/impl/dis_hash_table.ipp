@@ -82,12 +82,8 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k) {
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
-  return shard.__run(
-      +[](HashTableShard &shard, K k, uint64_t key_hash) {
-        auto *v_ptr = shard.get_with_hash(std::move(k), key_hash);
-        return v_ptr ? std::make_optional(*v_ptr) : std::nullopt;
-      },
-      std::forward<K1>(k), key_hash);
+  return shard.__run(&HashTableShard::template get_copy_with_hash<K>,
+                     std::forward<K1>(k), key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
@@ -101,11 +97,7 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get(K1 &&k,
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
   return shard.__run_and_get_loc(
-      is_local,
-      +[](HashTableShard &shard, K k, uint64_t key_hash) {
-        auto *v_ptr = shard.get_with_hash(std::move(k), key_hash);
-        return v_ptr ? std::make_optional(*v_ptr) : std::nullopt;
-      },
+      is_local, &HashTableShard::template get_copy_with_hash<K>,
       std::forward<K1>(k), key_hash);
 }
 
@@ -119,10 +111,9 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::get_with_ip(K1 &&k) {
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
   return shard.__run(
-      +[](HashTableShard &shard, K k, uint64_t key_hash) {
-        auto *v_ptr = shard.get_with_hash(std::move(k), key_hash);
-        auto v_optional = v_ptr ? std::make_optional(*v_ptr) : std::nullopt;
-        return std::make_pair(v_optional, get_cfg_ip());
+      +[](HashTableShard &shard, K1 k, uint64_t key_hash) {
+        return std::make_pair(shard.get_copy_with_hash(std::move(k), key_hash),
+                              get_cfg_ip());
       },
       std::forward<K1>(k), key_hash);
 }
@@ -149,11 +140,8 @@ inline bool DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::remove(
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
   auto &shard = shards_[shard_idx];
-  return shard.__run(
-      +[](HashTableShard &shard, K k, uint64_t key_hash) {
-        return shard.remove_with_hash(std::move(k), key_hash);
-      },
-      std::forward<K1>(k), key_hash);
+  return shard.__run(&HashTableShard::template remove_with_hash<K>,
+                     std::forward<K1>(k), key_hash);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
