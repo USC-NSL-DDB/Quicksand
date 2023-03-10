@@ -16,8 +16,9 @@ add_executable(
     main.cpp
     utils.cpp
     states.cpp
-    ThriftBackEndServer.cpp
     BackEndService.cpp
+    client.cpp
+    initializer.cpp
     ${THRIFT_GEN_CPP_DIR}/BackEndService.cpp
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
 )

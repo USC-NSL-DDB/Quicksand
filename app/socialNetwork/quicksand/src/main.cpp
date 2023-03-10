@@ -3,45 +3,27 @@
 #include <nu/proclet.hpp>
 #include <nu/runtime.hpp>
 
-#include "ThriftBackEndServer.hpp"
+#include "BackEndService.hpp"
+#include "client.hpp"
+#include "initializer.hpp"
 
-constexpr uint32_t kNumEntryObjs = 1;
+constexpr uint32_t kNumClients = 1;
+constexpr uint32_t kClientIPs[] = {MAKE_IP_ADDR(18, 18, 1, 100)};
 
 using namespace social_network;
 
-class ServiceEntry {
-public:
-  ServiceEntry(States states) {
-    json config_json;
-
-    BUG_ON(LoadConfigFile("config/service-config.json", &config_json) != 0);
-
-    auto port = config_json["back-end-service"]["port"];
-    std::cout << "port = " << port << std::endl;
-    std::shared_ptr<TServerSocket> server_socket =
-        std::make_shared<TServerSocket>("0.0.0.0", port);
-
-    states.secret = config_json["secret"];
-    auto back_end_handler =
-        std::make_shared<ThriftBackEndServer>(std::move(states));
-
-    TThreadedServer server(
-        std::make_shared<BackEndServiceProcessor>(std::move(back_end_handler)),
-        server_socket, std::make_shared<TFramedTransportFactory>(),
-        std::make_shared<TBinaryProtocolFactory>());
-    std::cout << "Starting the ThriftBackEndServer..." << std::endl;
-    server.serve();
-  }
-};
-
 void DoWork() {
   States states;
-
-  std::vector<nu::Future<nu::Proclet<ServiceEntry>>> thrift_futures;
-  for (uint32_t i = 0; i < kNumEntryObjs; i++) {
-    thrift_futures.emplace_back(nu::make_proclet_async<ServiceEntry>(
-        std::forward_as_tuple(states), true));
+  auto backend =
+      nu::make_proclet<BackEndService>(std::forward_as_tuple(states));
+  {
+    auto initializer =
+        nu::make_proclet<Initializer>(std::forward_as_tuple(backend));
+    initializer.run(&Initializer::init);
   }
+  auto client = nu::make_proclet<Client>(std::forward_as_tuple(backend), true,
+                                         std::nullopt, kClientIPs[0]);
+  client.run(&Client::bench);
 }
 
 int main(int argc, char **argv) {

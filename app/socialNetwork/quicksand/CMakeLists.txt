@@ -9,5 +9,4 @@ set(CMAKE_CXX_FLAGS "-O3 -g -std=c++23 -flto=auto -march=native")
 set(CMAKE_INSTALL_PREFIX /usr/local/bin)
 
 add_subdirectory(src)
-add_subdirectory(bench)
-add_subdirectory(init_graph)
+

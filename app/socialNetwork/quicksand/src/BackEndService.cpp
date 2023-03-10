@@ -7,11 +7,11 @@ namespace social_network {
 
 BackEndService::BackEndService(States states) : states_(std::move(states)) {}
 
-void BackEndService::ComposePost(const std::string &username, int64_t user_id,
-                                 const std::string &text,
-                                 const std::vector<int64_t> &media_ids,
-                                 const std::vector<std::string> &media_types,
-                                 const PostType::type post_type) {
+void BackEndService::ComposePost(std::string username, int64_t user_id,
+                                 std::string text,
+                                 std::vector<int64_t> media_ids,
+                                 std::vector<std::string> media_types,
+                                 PostType::type post_type) {
   auto text_service_return_future =
       nu::async([&] { return ComposeText(text); });
 
@@ -323,8 +323,8 @@ std::vector<int64_t> BackEndService::GetFollowees(int64_t user_id) {
       });
 }
 
-void BackEndService::FollowWithUsername(const std::string &user_name,
-                                        const std::string &followee_name) {
+void BackEndService::FollowWithUsername(std::string user_name,
+                                        std::string followee_name) {
   auto user_id_future = GetUserId(user_name);
   auto followee_id_future = GetUserId(followee_name);
   auto user_id = user_id_future.get();
@@ -334,8 +334,8 @@ void BackEndService::FollowWithUsername(const std::string &user_name,
   }
 }
 
-void BackEndService::UnfollowWithUsername(const std::string &user_name,
-                                          const std::string &followee_name) {
+void BackEndService::UnfollowWithUsername(std::string user_name,
+                                          std::string followee_name) {
   auto user_id_future = GetUserId(user_name);
   auto followee_id_future = GetUserId(followee_name);
   auto user_id = user_id_future.get();
@@ -345,11 +345,10 @@ void BackEndService::UnfollowWithUsername(const std::string &user_name,
   }
 }
 
-void BackEndService::RegisterUserWithId(const std::string &first_name,
-                                        const std::string &last_name,
-                                        const std::string &username,
-                                        const std::string &password,
-                                        int64_t user_id) {
+void BackEndService::RegisterUserWithId(std::string first_name,
+                                        std::string last_name,
+                                        std::string username,
+                                        std::string password, int64_t user_id) {
   UserProfile user_profile;
   user_profile.first_name = first_name;
   user_profile.last_name = last_name;
@@ -360,17 +359,14 @@ void BackEndService::RegisterUserWithId(const std::string &first_name,
   states_.username_to_userprofile_map.put(username, user_profile);
 }
 
-void BackEndService::RegisterUser(const std::string &first_name,
-                                  const std::string &last_name,
-                                  const std::string &username,
-                                  const std::string &password) {
+void BackEndService::RegisterUser(std::string first_name, std::string last_name,
+                                  std::string username, std::string password) {
   auto user_id = (GenUniqueId() << 16);
   RegisterUserWithId(first_name, last_name, username, password, user_id);
 }
 
-std::variant<LoginErrorCode, std::string>
-BackEndService::Login(const std::string &username,
-                      const std::string &password) {
+std::variant<LoginErrorCode, std::string> BackEndService::Login(
+    std::string username, std::string password) {
   std::string signature;
   auto user_profile_optional = states_.username_to_userprofile_map.get(username);
   if (!user_profile_optional) {
@@ -392,12 +388,11 @@ nu::Future<int64_t> BackEndService::GetUserId(const std::string &username) {
   });
 }
 
-void BackEndService::UploadMedia(const std::string &filename,
-                                 const std::string &data) {
+void BackEndService::UploadMedia(std::string filename, std::string data) {
   states_.filename_to_data_map.put(filename, data);
 }
 
-std::string BackEndService::GetMedia(const std::string &filename) {
+std::string BackEndService::GetMedia(std::string filename) {
   auto optional = states_.filename_to_data_map.get(filename);
   return optional.value_or("");
 }
