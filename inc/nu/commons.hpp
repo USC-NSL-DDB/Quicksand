@@ -46,6 +46,25 @@ union MethodPtr {
   uint8_t raw[sizeof(T)];
 };
 
+// Default-initialized pair
+template <typename K, typename V>
+struct DIPair {
+  K first;
+  V second;
+
+  DIPair() = default;
+  DIPair(const K &k, const V &v);
+  template <typename K1 = K, typename V1 = V>
+  DIPair(K1 &&k, V1 &&v);
+
+  template <class Archive>
+  void serialize(Archive &ar);
+  bool operator==(const DIPair &o) const;
+  bool operator<(const DIPair &o) const;
+  bool operator>=(const DIPair &o) const;
+  bool operator>(const DIPair &o) const;
+};
+
 constexpr static uint64_t kNumCores = NCORES;
 constexpr static uint64_t kCacheLineBytes = 64;
 constexpr static uint64_t kStackAlignment = 16;

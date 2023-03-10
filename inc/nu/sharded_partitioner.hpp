@@ -11,28 +11,6 @@
 
 namespace nu {
 
-// Default-initialized pair
-template <typename K, typename V>
-struct DIPair {
-  K first;
-  V second;
-
-  DIPair() = default;
-  DIPair(const K &k, const V &v) : first(k), second(v) {}
-  template <typename K1 = K, typename V1 = V>
-  DIPair(K1 &&k, V1 &&v)
-      : first(std::forward<K1>(k)), second(std::forward<V1>(v)) {}
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(first, second);
-  }
-  bool operator==(const DIPair &o) const { return first == o.first; }
-  bool operator<(const DIPair &o) const { return first < o.first; }
-  bool operator>=(const DIPair &o) const { return first >= o.first; }
-  bool operator>(const DIPair &o) const { return first > o.first; }
-};
-
 template <typename K, typename V>
 struct PartitionerConstIterator;
 

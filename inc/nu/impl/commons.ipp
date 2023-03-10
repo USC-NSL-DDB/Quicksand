@@ -72,4 +72,38 @@ void move_append_vector(std::vector<T> &dest, std::vector<T> &src) {
   src.clear();
 }
 
+template <typename K, typename V>
+DIPair<K, V>::DIPair(const K &k, const V &v) : first(k), second(v) {}
+
+template <typename K, typename V>
+template <typename K1, typename V1>
+DIPair<K, V>::DIPair(K1 &&k, V1 &&v)
+    : first(std::forward<K1>(k)), second(std::forward<V1>(v)) {}
+
+template <typename K, typename V>
+template <class Archive>
+void DIPair<K, V>::serialize(Archive &ar) {
+  ar(first, second);
+}
+
+template <typename K, typename V>
+bool DIPair<K, V>::operator==(const DIPair &o) const {
+  return first == o.first;
+}
+
+template <typename K, typename V>
+bool DIPair<K, V>::operator<(const DIPair &o) const {
+  return first < o.first;
+}
+
+template <typename K, typename V>
+bool DIPair<K, V>::operator>=(const DIPair &o) const {
+  return first >= o.first;
+}
+
+template <typename K, typename V>
+bool DIPair<K, V>::operator>(const DIPair &o) const {
+  return first > o.first;
+}
+
 }  // namespace nu
