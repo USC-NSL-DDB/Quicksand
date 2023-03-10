@@ -122,7 +122,9 @@ template <class Container>
 inline GeneralShard<Container>::~GeneralShard() {
   deleted_ = true;
   barrier();
-  compute_monitor_th_.join();
+  if (compute_monitor_th_.joinable()) {
+    compute_monitor_th_.join();
+  }
 }
 
 template <class Container>
