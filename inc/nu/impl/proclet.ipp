@@ -249,39 +249,44 @@ inline ProcletID Proclet<T>::get_id() const {
 }
 
 template <typename T>
-template <bool MigrEn, typename RetT, typename... S0s, typename... S1s>
-inline Future<RetT> Proclet<T>::run_async(
-    RetT (*fn)(T &, S0s...),
-    S1s &&... states) requires ValidInvocationTypes<RetT, S0s...> {
+template <bool MigrEn, bool CPUSamp, typename RetT, typename... S0s,
+          typename... S1s>
+inline Future<RetT> Proclet<T>::run_async(RetT (*fn)(T &, S0s...),
+                                          S1s &&...states)
+  requires ValidInvocationTypes<RetT, S0s...>
+{
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
 
-  return __run_async<MigrEn>(fn, std::forward<S1s>(states)...);
+  return __run_async<MigrEn, CPUSamp>(fn, std::forward<S1s>(states)...);
 }
 
 template <typename T>
-template <bool MigrEn, typename RetT, typename... S0s, typename... S1s>
+template <bool MigrEn, bool CPUSamp, typename RetT, typename... S0s,
+          typename... S1s>
 inline Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...),
-                                            S1s &&... states) {
+                                            S1s &&...states) {
   return nu::async([&, fn, ... states = std::forward<S1s>(states)]() mutable {
-    return __run<MigrEn>(fn, std::forward<S1s>(states)...);
+    return __run<MigrEn, CPUSamp>(fn, std::forward<S1s>(states)...);
   });
 }
 
 template <typename T>
-template <bool MigrEn, typename RetT, typename... S0s, typename... S1s>
-inline RetT Proclet<T>::run(
-    RetT (*fn)(T &, S0s...),
-    S1s &&... states) requires ValidInvocationTypes<RetT, S0s...> {
+template <bool MigrEn, bool CPUSamp, typename RetT, typename... S0s,
+          typename... S1s>
+inline RetT Proclet<T>::run(RetT (*fn)(T &, S0s...), S1s &&...states)
+  requires ValidInvocationTypes<RetT, S0s...>
+{
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::move(states)...));
 
-  return __run<MigrEn>(fn, std::forward<S1s>(states)...);
+  return __run<MigrEn, CPUSamp>(fn, std::forward<S1s>(states)...);
 }
 
 template <typename T>
-template <bool MigrEn, typename RetT, typename... S0s, typename... S1s>
-RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
+template <bool MigrEn, bool CPUSamp, typename RetT, typename... S0s,
+          typename... S1s>
+RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&...states) {
   MigrationGuard caller_migration_guard;
 
   auto *caller_header = caller_migration_guard.header();
@@ -309,13 +314,13 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
             [&](auto &&... states) {
               if constexpr (kHasRetVal) {
                 caller_migration_guard =
-                    ProcletServer::run_closure_locally<MigrEn, T, RetT,
+                    ProcletServer::run_closure_locally<MigrEn, CPUSamp, T, RetT,
                                                        decltype(fn)>(
                         &(*optional_callee_migration_guard), slab_guard, &ret,
                         caller_header, callee_header, fn, states...);
               } else {
                 caller_migration_guard =
-                    ProcletServer::run_closure_locally<MigrEn, T, RetT,
+                    ProcletServer::run_closure_locally<MigrEn, CPUSamp, T, RetT,
                                                        decltype(fn)>(
                         &(*optional_callee_migration_guard), slab_guard,
                         nullptr, caller_header, callee_header, fn, states...);
@@ -333,8 +338,8 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
   }
 
   // Slow path: the callee proclet is actually remote, use RPC.
-  auto *handler =
-      ProcletServer::run_closure<MigrEn, T, RetT, decltype(fn), S1s...>;
+  auto *handler = ProcletServer::run_closure<MigrEn, CPUSamp, T, RetT,
+                                             decltype(fn), S1s...>;
   if constexpr (!std::is_same<RetT, void>::value) {
     return invoke_remote_with_ret<RetT>(std::move(caller_migration_guard), id_,
                                         handler, id_, fn,
@@ -346,42 +351,46 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 }
 
 template <typename T>
-template <bool MigrEn, typename RetT, typename... A0s, typename... A1s>
-inline Future<RetT> Proclet<T>::run_async(
-    RetT (T::*md)(A0s...),
-    A1s &&... args) requires ValidInvocationTypes<RetT, A0s...> {
+template <bool MigrEn, bool CPUSamp, typename RetT, typename... A0s,
+          typename... A1s>
+inline Future<RetT> Proclet<T>::run_async(RetT (T::*md)(A0s...), A1s &&...args)
+  requires ValidInvocationTypes<RetT, A0s...>
+{
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::move(args)...));
 
-  return __run_async<MigrEn>(md, std::forward<A1s>(args)...);
+  return __run_async<MigrEn, CPUSamp>(md, std::forward<A1s>(args)...);
 }
 
 template <typename T>
-template <bool MigrEn, typename RetT, typename... A0s, typename... A1s>
+template <bool MigrEn, bool CPUSamp, typename RetT, typename... A0s,
+          typename... A1s>
 inline Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...),
-                                            A1s &&... args) {
+                                            A1s &&...args) {
   return nu::async([&, md, ... args = std::forward<A1s>(args)]() mutable {
-    return __run<MigrEn>(md, std::forward<A1s>(args)...);
+    return __run<MigrEn, CPUSamp>(md, std::forward<A1s>(args)...);
   });
 }
 
 template <typename T>
-template <bool MigrEn, typename RetT, typename... A0s, typename... A1s>
-inline RetT Proclet<T>::run(
-    RetT (T::*md)(A0s...),
-    A1s &&... args) requires ValidInvocationTypes<RetT, A0s...> {
+template <bool MigrEn, bool CPUSamp, typename RetT, typename... A0s,
+          typename... A1s>
+inline RetT Proclet<T>::run(RetT (T::*md)(A0s...), A1s &&...args)
+  requires ValidInvocationTypes<RetT, A0s...>
+{
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
 
-  return __run<MigrEn>(md, std::forward<A1s>(args)...);
+  return __run<MigrEn, CPUSamp>(md, std::forward<A1s>(args)...);
 }
 
 template <typename T>
-template <bool MigrEn, typename RetT, typename... A0s, typename... A1s>
-inline RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
+template <bool MigrEn, bool CPUSamp, typename RetT, typename... A0s,
+          typename... A1s>
+inline RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&...args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
-  return __run<MigrEn>(
+  return __run<MigrEn, CPUSamp>(
       +[](T &t, decltype(method_ptr) method_ptr, A0s... args) {
         return (t.*(method_ptr.ptr))(std::move(args)...);
       },

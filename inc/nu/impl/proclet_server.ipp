@@ -232,15 +232,19 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wuninitialized"
 
-template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-          typename... S1s>
+template <bool MigrEn, bool CPUSamp, typename Cls, typename RetT,
+          typename FnPtr, typename... S1s>
 void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
                                   ArchivePool<>::IASStream *ia_sstream,
                                   RPCReturner returner) {
   auto *callee_header = callee_guard->header();
   ProcletSlabGuard callee_slab_guard(&callee_header->slab);
 
-  callee_header->cpu_load.start_monitor();
+  if constexpr (CPUSamp) {
+    callee_header->cpu_load.start_monitor();
+  } else {
+    callee_header->cpu_load.start_monitor_no_sampling();
+  }
   callee_header->thread_cnt.inc_unsafe();
 
   constexpr auto kNonVoidRetT = !std::is_same<RetT, void>::value;
@@ -284,8 +288,8 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
 
 #pragma GCC diagnostic pop
 
-template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-          typename... S1s>
+template <bool MigrEn, bool CPUSamp, typename Cls, typename RetT,
+          typename FnPtr, typename... S1s>
 void ProcletServer::run_closure(ArchivePool<>::IASStream *ia_sstream,
                                 RPCReturner *returner) {
   ProcletID id;
@@ -294,7 +298,7 @@ void ProcletServer::run_closure(ArchivePool<>::IASStream *ia_sstream,
   auto *proclet_header = to_proclet_header(id);
 
   bool proclet_not_found = !get_runtime()->run_within_proclet_env<Cls>(
-      proclet_header, __run_closure<MigrEn, Cls, RetT, FnPtr, S1s...>,
+      proclet_header, __run_closure<MigrEn, CPUSamp, Cls, RetT, FnPtr, S1s...>,
       ia_sstream, *returner);
 
   if (proclet_not_found) {
@@ -302,14 +306,18 @@ void ProcletServer::run_closure(ArchivePool<>::IASStream *ia_sstream,
   }
 }
 
-template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-          typename... Ss>
+template <bool MigrEn, bool CPUSamp, typename Cls, typename RetT,
+          typename FnPtr, typename... Ss>
 MigrationGuard ProcletServer::run_closure_locally(
     MigrationGuard *callee_migration_guard,
     const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
     ProcletHeader *caller_header, ProcletHeader *callee_header, FnPtr fn_ptr,
-    Ss &... states) {
-  callee_header->cpu_load.start_monitor();
+    Ss &...states) {
+  if constexpr (CPUSamp) {
+    callee_header->cpu_load.start_monitor();
+  } else {
+    callee_header->cpu_load.start_monitor_no_sampling();
+  }
   callee_header->thread_cnt.inc_unsafe();
 
   auto *obj = get_runtime()->get_root_obj<Cls>(to_proclet_id(callee_header));

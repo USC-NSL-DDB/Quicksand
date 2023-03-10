@@ -37,17 +37,17 @@ class ProcletServer {
   static void construct_proclet_locally(MigrationGuard &&caller_guard,
                                         void *base, uint64_t size, bool pinned,
                                         As &&... args);
-  template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-            typename... S1s>
+  template <bool MigrEn, bool CPUSamp, typename Cls, typename RetT,
+            typename FnPtr, typename... S1s>
   static void run_closure(ArchivePool<>::IASStream *ia_sstream,
                           RPCReturner *returner);
-  template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-            typename... Ss>
+  template <bool MigrEn, bool CPUSamp, typename Cls, typename RetT,
+            typename FnPtr, typename... Ss>
   static MigrationGuard run_closure_locally(
       MigrationGuard *callee_migration_guard,
       const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
       ProcletHeader *caller_header, ProcletHeader *callee_header, FnPtr fn_ptr,
-      Ss &... states);
+      Ss &...states);
 
  private:
   using GenericHandler = void (*)(ArchivePool<>::IASStream *ia_sstream,
@@ -71,8 +71,8 @@ class ProcletServer {
                                ArchivePool<>::IASStream *ia_sstream,
                                RPCReturner returner, int delta,
                                bool *destructed);
-  template <bool MigrEn, typename Cls, typename RetT, typename FnPtr,
-            typename... S1s>
+  template <bool MigrEn, bool CPUSamp, typename Cls, typename RetT,
+            typename FnPtr, typename... S1s>
   static void __run_closure(MigrationGuard *callee_guard, Cls *obj,
                             ArchivePool<>::IASStream *ia_sstream,
                             RPCReturner returner);
