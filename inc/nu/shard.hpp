@@ -95,8 +95,8 @@ class GeneralShard {
   void init_range_and_data(
       std::optional<Key> l_key, std::optional<Key> r_key,
       ContainerAndMetadata<Container> container_and_metadata);
-  bool try_insert(std::optional<Key> l_key, std::optional<Key> r_key,
-                  DataEntry entry) requires InsertAble<Container>;
+  bool try_insert(std::optional<Key> key, DataEntry entry)
+    requires InsertAble<Container>;
   bool try_push_back(std::optional<Key> l_key, std::optional<Key> r_key,
                      Val v) requires PushBackAble<Container>;
   std::optional<Val> try_front(
