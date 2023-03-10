@@ -76,10 +76,10 @@ inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
       deleted_(true),
-      service_(service),
-      compute_qlen_(0) {
-  Caladan::PreemptGuard g;
-  slab_ = get_runtime()->get_current_proclet_slab();
+      service_(service) {
+  auto *proclet_header = Runtime::to_proclet_header(this);
+  slab_ = &proclet_header->slab;
+  cpu_load_ = &proclet_header->cpu_load;
 }
 
 template <class Container>
@@ -93,12 +93,10 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       l_key_(l_key),
       r_key_(r_key),
       deleted_(false),
-      service_(service),
-      compute_qlen_(0) {
-  {
-    Caladan::PreemptGuard g;
-    slab_ = get_runtime()->get_current_proclet_slab();
-  }
+      service_(service) {
+  auto *proclet_header = Runtime::to_proclet_header(this);
+  slab_ = &proclet_header->slab;
+  cpu_load_ = &proclet_header->cpu_load;
 
   if constexpr (Reservable<Container>) {
     auto old_slab_usage = slab_->get_cur_usage();
@@ -114,10 +112,18 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
     initial_size_ = 0;
     size_thresh_ = kAlmostFullThresh * reserve_size;
   }
+
+  if (service_) {
+    start_compute_monitor_th();
+  }
 }
 
 template <class Container>
-inline GeneralShard<Container>::~GeneralShard() {}
+inline GeneralShard<Container>::~GeneralShard() {
+  deleted_ = true;
+  barrier();
+  compute_monitor_th_.join();
+}
 
 template <class Container>
 void GeneralShard<Container>::init_range_and_data(
@@ -134,6 +140,10 @@ void GeneralShard<Container>::init_range_and_data(
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
   deleted_ = false;
   rw_lock_.writer_unlock();
+
+  if (service_) {
+    start_compute_monitor_th();
+  }
 }
 
 template <class Container>
@@ -260,6 +270,14 @@ void GeneralShard<Container>::split_with_reader_lock() {
 }
 
 template <class Container>
+void GeneralShard<Container>::compute_split() {
+  rw_lock_.writer_lock();
+  split();
+  cpu_load_->zero();
+  rw_lock_.writer_unlock();
+}
+
+template <class Container>
 void GeneralShard<Container>::try_delete_self_with_reader_lock(
     bool merge_left) {
   rw_lock_.reader_unlock();
@@ -277,20 +295,24 @@ void GeneralShard<Container>::try_delete_self_with_reader_lock(
 }
 
 template <class Container>
-void GeneralShard<Container>::try_compute_delete_self() {
+bool GeneralShard<Container>::try_compute_delete_self() {
+  bool succeed = false;
   rw_lock_.writer_lock();
   auto self = Runtime::to_weak_proclet(this);
   if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self,
                           /* merge_left = */ true))) {
-    deleted_ = true;
+    succeed = deleted_ = true;
   }
   rw_lock_.writer_unlock();
+  return succeed;
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::try_insert(
-    std::optional<Key> l_key, std::optional<Key> r_key,
-    DataEntry entry) requires InsertAble<Container> {
+inline bool GeneralShard<Container>::try_insert(std::optional<Key> l_key,
+                                                std::optional<Key> r_key,
+                                                DataEntry entry)
+  requires InsertAble<Container>
+{
   rw_lock_.reader_lock();
 
   if (unlikely(should_reject(l_key))) {
@@ -929,10 +951,13 @@ inline Container::Key GeneralShard<Container>::rebase(
 template <class Container>
 template <typename RetT, typename... S0s>
 std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
-GeneralShard<Container>::try_compute(Key k, uintptr_t fn_addr, S0s... states) {
-  using CRetT =
-      std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>;
+GeneralShard<Container>::try_compute_on(Key k, uintptr_t fn_addr,
+                                        S0s... states) {
   auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, S0s...)>(fn_addr);
+
+  rw_lock_.reader_lock();
+  auto rw_unlocker =
+      std::experimental::scope_exit([&] { rw_lock_.reader_unlock(); });
 
   if (unlikely(should_reject(k))) {
     if constexpr (std::is_void_v<RetT>) {
@@ -942,27 +967,12 @@ GeneralShard<Container>::try_compute(Key k, uintptr_t fn_addr, S0s... states) {
     }
   }
 
-  auto *cret = reinterpret_cast<CRetT *>(alloca(sizeof(CRetT)));
-  auto cleaner = std::experimental::scope_exit([&] { std::destroy_at(cret); });
-
   if constexpr (std::is_void_v<RetT>) {
     container_.compute(fn, std::move(states)...);
-    *cret = true;
+    return true;
   } else {
-    new (cret) CRetT(container_.compute(fn, std::move(states)...));
+    return container_.compute(fn, std::move(states)...);
   }
-
-  auto cur_qlen = static_cast<float>(compute_mutex_.get_num_waiters());
-  ewma(kComputeQLenEWMAWeight, &compute_qlen_, cur_qlen);
-  if (unlikely(compute_qlen_ >= kComputeQLenHighWaterMark)) {
-    split();
-    compute_qlen_ = 0;
-  } else if (unlikely(!cur_qlen && compute_qlen_ <= kComputeQLenLowWaterMark &&
-                      l_key_)) {
-    try_compute_delete_self();
-  }
-
-  return *cret;
 }
 
 template <class Container>
@@ -983,6 +993,28 @@ bool GeneralShard<Container>::try_update_key(bool update_left,
   rw_lock_.reader_unlock();
 
   return true;
+}
+
+template <class Container>
+void GeneralShard<Container>::start_compute_monitor_th() {
+  if (compute_monitor_th_.joinable()) {
+    compute_monitor_th_.join();
+  }
+
+  compute_monitor_th_ = Thread(
+      [&] {
+        while (!Caladan::access_once(deleted_)) {
+          Time::sleep(CPULoad::kDecayIntervalUs);
+          if (cpu_load_->get_load() > kComputeLoadHighThresh) {
+            compute_split();
+          } else if (cpu_load_->get_load() < kComputeLoadLowThresh) {
+            if (l_key_ && try_compute_delete_self()) {
+              break;
+            }
+          }
+        }
+      },
+      /* copy_rcu_ctxs = */ false);
 }
 
 }  // namespace nu

@@ -73,6 +73,7 @@ class PressureHandler {
   std::shared_ptr<std::multiset<Utility, CmpCpuUtil>>
       cpu_pressure_sorted_proclets_;
   rt::Thread update_th_;
+  rt::Thread flush_th_;
   std::atomic<int> active_handlers_;
   AuxHandlerState aux_handler_states_[kNumAuxHandlers];
   bool mock_;

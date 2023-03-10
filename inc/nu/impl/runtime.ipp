@@ -162,8 +162,12 @@ inline WeakProclet<T> Runtime::get_current_weak_proclet() {
 
 template <typename T>
 inline WeakProclet<T> Runtime::to_weak_proclet(T *root_obj) {
-  auto *proclet_header = reinterpret_cast<ProcletHeader *>(root_obj) - 1;
-  return WeakProclet<T>(to_proclet_id(proclet_header));
+  return WeakProclet<T>(to_proclet_id(to_proclet_header(root_obj)));
+}
+
+template <typename T>
+inline ProcletHeader *Runtime::to_proclet_header(T *root_obj) {
+  return reinterpret_cast<ProcletHeader *>(root_obj) - 1;
 }
 
 inline void Runtime::detach(const MigrationGuard &g) {

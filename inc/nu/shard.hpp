@@ -183,7 +183,7 @@ class GeneralShard {
   Key rebase(Key new_l_key) requires GeneralContainer::kContiguousIterator;
   template <typename RetT, typename... S0s>
   std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
-  try_compute(Key k, uintptr_t fn_addr, S0s... states);
+  try_compute_on(Key k, uintptr_t fn_addr, S0s... states);
   bool try_update_key(bool update_left, std::optional<Key> new_key);
 
  private:
@@ -192,9 +192,8 @@ class GeneralShard {
   constexpr static float kReserveContainerSizeRatio = 0.5;
   constexpr static float kAlmostFullThresh = 0.95;
   constexpr static uint32_t kSlabFragmentationHeadroom = 2 << 20;
-  constexpr static float kComputeQLenHighWaterMark = 5;
-  constexpr static float kComputeQLenLowWaterMark = 0.5;
-  constexpr static float kComputeQLenEWMAWeight = 0.1;
+  constexpr static float kComputeLoadHighThresh = 3;
+  constexpr static float kComputeLoadLowThresh = 0.00001;
 
   const uint32_t max_shard_bytes_;
   uint32_t real_max_shard_bytes_;
@@ -204,6 +203,7 @@ class GeneralShard {
   Container container_;
   ReadSkewedLock rw_lock_;
   SlabAllocator *slab_;
+  CPULoad *cpu_load_;
   uint64_t container_bucket_size_;
   uint64_t initial_slab_usage_;
   std::size_t initial_size_;
@@ -212,8 +212,7 @@ class GeneralShard {
   CondVar empty_cv_;
   bool deleted_;
   bool service_;
-  float compute_qlen_;
-  Mutex compute_mutex_;
+  Thread compute_monitor_th_;
 
   friend class ContainerHandle<Container>;
   template <GeneralShardBased S>
@@ -223,7 +222,8 @@ class GeneralShard {
   bool should_split(std::size_t size) const;
   void split_with_reader_lock();
   void try_delete_self_with_reader_lock(bool merge_left);
-  void try_compute_delete_self();
+  bool try_compute_delete_self();
+  void compute_split();
   bool should_reject(const std::optional<Key> &l_key,
                      const std::optional<Key> &r_key);
   bool should_reject(const Key &k);
@@ -235,6 +235,7 @@ class GeneralShard {
       std::vector<std::pair<IterVal, ConstReverseIterator>>::iterator block_it,
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
+  void start_compute_monitor_th();
 };
 
 }  // namespace nu

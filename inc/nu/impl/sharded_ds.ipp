@@ -498,8 +498,9 @@ inline RetT ShardedDataStructure<Container, LL>::compute_on(
   auto iter = --key_to_shards_.upper_bound(k);
   auto shard = iter->second.shard;
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
-  auto optional_ret = shard.run(&Shard::template try_compute<RetT, S0s...>, k,
-                                fn_addr, states...);
+  auto optional_ret =
+      shard.template run</* MigrEn = */ true, /* CPUSamp = */ false>(
+          &Shard::template try_compute_on<RetT, S0s...>, k, fn_addr, states...);
 
   if (unlikely(!optional_ret)) {
     sync_mapping();
