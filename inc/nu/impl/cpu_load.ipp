@@ -7,6 +7,9 @@ namespace nu {
 inline CPULoad::CPULoad() {
   memset(cycles_, 0, sizeof(cycles_));
   memset(cnts_, 0, sizeof(cnts_));
+  last_sum_cycles_ = 0;
+  last_sum_invocation_cnts_ = 0;
+  last_sum_sample_cnts_ = 0;
   last_decay_tsc_ = rdtsc();
   cpu_load_ = 0;
   first_call_ = true;
@@ -16,10 +19,17 @@ inline void CPULoad::start_monitor() {
   auto core_id = read_cpu();
 
   if (unlikely(cnts_[core_id].invocations++ % kSampleInterval == 0 ||
-               get_runtime()->caladan()->thread_monitored())) {
+               is_monitoring())) {
     cnts_[core_id].samples++;
     get_runtime()->caladan()->thread_start_monitor_cycles();
   }
+}
+
+inline void CPULoad::start_monitor_no_sampling() {
+  auto core_id = read_cpu();
+  cnts_[core_id].invocations++;
+  cnts_[core_id].samples++;
+  get_runtime()->caladan()->thread_start_monitor_cycles();
 }
 
 inline void CPULoad::end_monitor() {
@@ -35,11 +45,16 @@ inline float CPULoad::get_load() const {
   if (unlikely(first_call_ ||
                now_tsc >= last_decay_tsc_ + kDecayIntervalUs * cycles_per_us)) {
     auto *mut_this = const_cast<CPULoad *>(this);
-    mut_this->first_call_ = false;
     mut_this->decay(now_tsc);
   }
 
   return cpu_load_;
 }
+
+inline bool CPULoad::is_monitoring() const {
+  return get_runtime()->caladan()->thread_monitored();
+}
+
+inline void CPULoad::zero() { cpu_load_ = 0; }
 
 }  // namespace nu
