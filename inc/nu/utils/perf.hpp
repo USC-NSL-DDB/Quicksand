@@ -1,16 +1,16 @@
 #pragma once
 
-extern "C" {
-#include <runtime/net.h>
-}
-
-#include <thread.h>
-
 #include <cstdint>
 #include <memory>
 #include <span>
 #include <utility>
 #include <vector>
+#include <optional>
+
+extern "C" {
+#include <runtime/net.h>
+}
+#include <thread.h>
 
 #include "nu/commons.hpp"
 
@@ -79,7 +79,7 @@ class Perf {
   std::vector<Trace> benchmark(
       std::vector<PerfRequestWithTime> *all_reqs,
       const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
-      uint32_t num_threads, uint64_t miss_ddl_thresh_us);
+      uint32_t num_threads, std::optional<uint64_t> miss_ddl_thresh_us);
 };
 
 }  // namespace nu

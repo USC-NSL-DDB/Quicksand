@@ -57,7 +57,7 @@ void Perf::gen_reqs(
 std::vector<Trace> Perf::benchmark(
     std::vector<PerfRequestWithTime> *all_reqs,
     const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
-    uint32_t num_threads, uint64_t miss_ddl_thresh_us) {
+    uint32_t num_threads, std::optional<uint64_t> miss_ddl_thresh_us) {
   std::vector<rt::Thread> threads;
   std::vector<Trace> all_traces[num_threads];
 
@@ -74,7 +74,8 @@ std::vector<Trace> Perf::benchmark(
         auto relative_us = microtime() - start_us;
         if (req.start_us > relative_us) {
           timer_sleep(req.start_us - relative_us);
-        } else if (req.start_us + miss_ddl_thresh_us < relative_us) {
+        } else if (miss_ddl_thresh_us &&
+                   req.start_us + *miss_ddl_thresh_us < relative_us) {
           continue;
         }
         Trace trace;
@@ -125,7 +126,7 @@ void Perf::run_multi_clients(std::span<const netaddr> client_addrs,
   std::vector<PerfRequestWithTime> all_perf_reqs[num_threads];
   gen_reqs(all_warmup_reqs, thread_states, num_threads, target_mops, warmup_us);
   gen_reqs(all_perf_reqs, thread_states, num_threads, target_mops, duration_us);
-  benchmark(all_warmup_reqs, thread_states, num_threads, miss_ddl_thresh_us);
+  benchmark(all_warmup_reqs, thread_states, num_threads, std::nullopt);
   tcp_barrier(client_addrs);
   traces_ = move(
       benchmark(all_perf_reqs, thread_states, num_threads, miss_ddl_thresh_us));
