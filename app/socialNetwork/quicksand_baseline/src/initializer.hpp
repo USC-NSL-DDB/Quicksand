@@ -22,7 +22,7 @@ class Initializer {
   constexpr static uint32_t kMaxNumUrlsPerText = 2;
   constexpr static uint32_t kMaxNumMediasPerText = 2;
   constexpr static uint32_t kConcurrency = 100;
-  constexpr static bool kEnableCompose = true;
+  constexpr static bool kEnableCompose = false;
   nu::Proclet<BackEndService> backend_;
 };
 
