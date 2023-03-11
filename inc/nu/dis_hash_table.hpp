@@ -74,33 +74,28 @@ class DistributedHashTable {
   std::pair<std::optional<V>, uint32_t> get_with_ip(K1 &&k);
 
  private:
+  struct RefCnter {
+    std::vector<Proclet<HashTableShard>> shards;
+  };
+
   friend class Test;
-
-  uint32_t get_shard_idx(uint64_t key_hash);
-
   uint32_t power_num_shards_;
   uint32_t num_shards_;
-  std::vector<Proclet<HashTableShard>> shards_;
+  Proclet<RefCnter> ref_cnter_;
+  std::vector<WeakProclet<HashTableShard>> shards_;
 
+  uint32_t get_shard_idx(uint64_t key_hash);
   template <typename X, typename Y, typename H, typename Eq, uint64_t N>
   friend DistributedHashTable<X, Y, H, Eq, N> make_dis_hash_table(
-      uint32_t power_num_shards);
-  template <typename X, typename Y, typename H, typename Eq, uint64_t N>
-  friend DistributedHashTable<X, Y, H, Eq, N> make_dis_hash_table_pinned(
-      uint32_t power_num_shards);
+      uint32_t power_num_shards, bool pinned);
 };
 
 template <typename K, typename V, typename Hash = std::hash<K>,
           typename KeyEqual = std::equal_to<K>, uint64_t NumBuckets = 32768>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets> make_dis_hash_table(
     uint32_t power_num_shards = DistributedHashTable<
-        K, V, Hash, KeyEqual, NumBuckets>::kDefaultPowerNumShards);
-template <typename K, typename V, typename Hash = std::hash<K>,
-          typename KeyEqual = std::equal_to<K>, uint64_t NumBuckets = 32768>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
-make_dis_hash_table_pinned(
-    uint32_t power_num_shards = DistributedHashTable<
-        K, V, Hash, KeyEqual, NumBuckets>::kDefaultPowerNumShards);
+        K, V, Hash, KeyEqual, NumBuckets>::kDefaultPowerNumShards,
+    bool pinned = false);
 
 }  // namespace nu
 

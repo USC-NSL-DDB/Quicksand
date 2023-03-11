@@ -16,6 +16,7 @@ inline DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
         const DistributedHashTable &o) {
   power_num_shards_ = o.power_num_shards_;
   num_shards_ = o.num_shards_;
+  ref_cnter_ = o.ref_cnter_;
   shards_ = o.shards_;
   return *this;
 }
@@ -34,9 +35,8 @@ DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
         DistributedHashTable &&o) {
   power_num_shards_ = o.power_num_shards_;
   num_shards_ = o.num_shards_;
-  for (uint32_t i = 0; i < num_shards_; i++) {
-    shards_.emplace_back(std::move(o.shards_[i]));
-  }
+  ref_cnter_ = std::move(o.ref_cnter_);
+  shards_ = std::move(o.shards_);
   return *this;
 }
 
@@ -271,36 +271,31 @@ inline void DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::serialize(
     Archive &ar) {
   ar(power_num_shards_);
   ar(num_shards_);
+  ar(ref_cnter_);
   ar(shards_);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets> make_dis_hash_table(
-    uint32_t power_num_shards) {
+    uint32_t power_num_shards, bool pinned) {
   using TableType = DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>;
   TableType table;
   table.power_num_shards_ = power_num_shards;
   table.num_shards_ = (1 << power_num_shards);
-  for (uint32_t i = 0; i < table.num_shards_; i++) {
-    table.shards_.emplace_back(
-        make_proclet<typename TableType::HashTableShard>());
-  }
-  return table;
-}
-
-template <typename K, typename V, typename Hash, typename KeyEqual,
-          uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
-make_dis_hash_table_pinned(uint32_t power_num_shards) {
-  using TableType = DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>;
-  TableType table;
-  table.power_num_shards_ = power_num_shards;
-  table.num_shards_ = (1 << power_num_shards);
-  for (uint32_t i = 0; i < table.num_shards_; i++) {
-    table.shards_.emplace_back(
-        make_proclet<typename TableType::HashTableShard>(true));
-  }
+  table.ref_cnter_ = make_proclet<typename TableType::RefCnter>();
+  table.shards_ = table.ref_cnter_.run(
+      +[](TableType::RefCnter &self, uint32_t num_shards, bool pinned) {
+        std::vector<WeakProclet<typename TableType::HashTableShard>>
+            weak_shards;
+        for (uint32_t i = 0; i < num_shards; i++) {
+          self.shards.emplace_back(
+              make_proclet<typename TableType::HashTableShard>(pinned));
+          weak_shards.emplace_back(self.shards.back().get_weak());
+        }
+        return weak_shards;
+      },
+      table.num_shards_, pinned);
   return table;
 }
 
