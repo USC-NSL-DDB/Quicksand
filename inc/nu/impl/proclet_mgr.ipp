@@ -6,8 +6,6 @@
 
 namespace nu {
 
-inline ProcletHeader::~ProcletHeader() {}
-
 inline uint64_t ProcletHeader::global_idx() const {
   return (reinterpret_cast<uint64_t>(this) - kMinProcletHeapVAddr) /
          kMinProcletHeapSize;

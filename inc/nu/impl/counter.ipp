@@ -8,6 +8,10 @@ inline Counter::Counter() { reset(); }
 
 inline void Counter::inc() {
   Caladan::PreemptGuard g;
+  inc(g);
+}
+
+inline void Counter::inc(const Caladan::PreemptGuard &g) {
   cnts_[g.read_cpu()].c++;
 }
 
@@ -15,6 +19,10 @@ inline void Counter::inc_unsafe() { cnts_[read_cpu()].c++; }
 
 inline void Counter::dec() {
   Caladan::PreemptGuard g;
+  dec(g);
+}
+
+inline void Counter::dec(const Caladan::PreemptGuard &g) {
   cnts_[g.read_cpu()].c--;
 }
 

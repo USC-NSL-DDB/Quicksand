@@ -5,8 +5,15 @@ namespace nu {
 
 __attribute__((optimize("no-omit-frame-pointer"))) void
 Thread::trampoline_in_proclet_env(void *args) {
-  auto *d = reinterpret_cast<join_data *>(args);
+  ProcletHeader *proclet_header;
+  {
+    Caladan::PreemptGuard g;
 
+    proclet_header = get_runtime()->get_current_proclet_header();
+    proclet_header->slab_ref_cnt.inc(g);
+  }
+
+  auto *d = reinterpret_cast<join_data *>(args);
   d->func();
   d->lock.lock();
   if (d->done) {
@@ -22,6 +29,7 @@ Thread::trampoline_in_proclet_env(void *args) {
   {
     Caladan::PreemptGuard g;
 
+    proclet_header->slab_ref_cnt.dec(g);
     get_runtime()->caladan()->thread_unset_owner_proclet(Caladan::thread_self(),
                                                          true);
   }

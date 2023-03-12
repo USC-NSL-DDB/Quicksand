@@ -44,7 +44,7 @@ extern uint8_t proclet_statuses[kMaxNumProclets];
 extern SpinLock proclet_migration_spin[kMaxNumProclets];
 
 struct ProcletHeader {
-  ~ProcletHeader();
+  ~ProcletHeader() = default;
 
   // Used for monitoring cpu load.
   CPULoad cpu_load;
@@ -78,6 +78,7 @@ struct ProcletHeader {
   int ref_cnt;
 
   // Heap mem allocator. Must be the last field.
+  Counter slab_ref_cnt;
   SlabAllocator slab;
 
   uint64_t global_idx() const;

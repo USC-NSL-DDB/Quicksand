@@ -43,6 +43,10 @@ void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
   RuntimeSlabGuard guard;
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
 
+  while (unlikely(proclet_header->slab_ref_cnt.get())) {
+    get_runtime()->caladan()->thread_yield();
+  }
+
   // Deregister its slab ID.
   std::destroy_at(&proclet_header->slab);
 
@@ -81,6 +85,7 @@ void ProcletManager::setup(void *proclet_base, uint64_t capacity,
   if (!from_migration) {
     proclet_header->ref_cnt = 1;
     std::construct_at(&proclet_header->rcu_lock);
+    std::construct_at(&proclet_header->slab_ref_cnt);
     auto slab_region_size = capacity - sizeof(ProcletHeader);
     std::construct_at(&proclet_header->slab, to_slab_id(proclet_header),
                       proclet_header + 1, slab_region_size);
