@@ -1,4 +1,5 @@
 #include "nu/runtime.hpp"
+#include "nu/utils/cpu_load.hpp"
 #include "nu/utils/thread.hpp"
 
 namespace nu {
@@ -29,6 +30,7 @@ Thread::trampoline_in_proclet_env(void *args) {
   {
     Caladan::PreemptGuard g;
 
+    CPULoad::end_monitor();
     proclet_header->slab_ref_cnt.dec(g);
     get_runtime()->caladan()->thread_unset_owner_proclet(Caladan::thread_self(),
                                                          true);

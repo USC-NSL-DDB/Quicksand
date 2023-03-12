@@ -1186,6 +1186,7 @@ thread_t *thread_nu_create_with_args(void *proclet_stack,
 		return NULL;
 
 	th->nu_state.proclet_slab = __self->nu_state.proclet_slab;
+	th->nu_state.monitor_cnt = __self->nu_state.monitor_cnt;
 	th->nu_state.owner_proclet = __self->nu_state.owner_proclet;
 	th->nu_state.tf.rsp = nu_stack_init_to_rsp(proclet_stack);
 	th->nu_state.tf.rdi = (uint64_t)args;

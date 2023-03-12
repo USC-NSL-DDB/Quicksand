@@ -14,10 +14,10 @@ class CPULoad {
   CPULoad();
   void start_monitor();
   void start_monitor_no_sampling();
-  void end_monitor();
   bool is_monitoring() const;
   float get_load() const;
   void zero();
+  static void end_monitor();
   static void flush_all();
 
  private:
