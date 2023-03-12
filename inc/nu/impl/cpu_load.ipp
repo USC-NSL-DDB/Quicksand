@@ -1,6 +1,7 @@
 #include <cstring>
 
 #include "nu/runtime.hpp"
+#include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
 
@@ -11,6 +12,7 @@ inline CPULoad::CPULoad() {
   last_sum_invocation_cnts_ = 0;
   last_sum_sample_cnts_ = 0;
   last_decay_tsc_ = rdtsc();
+  interval_cycles_ = kDecayIntervalUs * cycles_per_us;
   cpu_load_ = 0;
   first_call_ = true;
 }
@@ -42,10 +44,13 @@ inline void CPULoad::flush_all() {
 
 inline float CPULoad::get_load() const {
   auto now_tsc = rdtsc();
-  if (unlikely(first_call_ ||
-               now_tsc >= last_decay_tsc_ + kDecayIntervalUs * cycles_per_us)) {
+  if (unlikely(first_call_ || now_tsc >= last_decay_tsc_ + interval_cycles_)) {
     auto *mut_this = const_cast<CPULoad *>(this);
-    mut_this->decay(now_tsc);
+    ScopedLock g(&mut_this->spin_);
+
+    if (likely(first_call_ || now_tsc >= last_decay_tsc_ + interval_cycles_)) {
+      mut_this->decay(now_tsc);
+    }
   }
 
   return cpu_load_;

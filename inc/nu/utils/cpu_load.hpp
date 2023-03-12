@@ -1,6 +1,7 @@
 #pragma once
 
 #include "nu/commons.hpp"
+#include "nu/utils/spin_lock.hpp"
 
 namespace nu {
 
@@ -29,8 +30,10 @@ class CPULoad {
   uint64_t last_sum_invocation_cnts_;
   uint64_t last_sum_sample_cnts_;
   uint64_t last_decay_tsc_;
+  uint64_t interval_cycles_;
   float cpu_load_;
   bool first_call_;
+  SpinLock spin_;
 
   void decay(uint64_t now_tsc);
 };
@@ -38,3 +41,4 @@ class CPULoad {
 }  // namespace nu
 
 #include "nu/impl/cpu_load.ipp"
+
