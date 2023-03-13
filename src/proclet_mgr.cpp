@@ -43,8 +43,10 @@ void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
   RuntimeSlabGuard guard;
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
 
-  while (unlikely(proclet_header->slab_ref_cnt.get())) {
-    get_runtime()->caladan()->thread_yield();
+  if (!for_migration) {
+    while (unlikely(proclet_header->slab_ref_cnt.get())) {
+      get_runtime()->caladan()->thread_yield();
+    }
   }
 
   // Deregister its slab ID.
