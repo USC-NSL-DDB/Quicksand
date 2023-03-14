@@ -20,8 +20,11 @@ vp8dec_bin = "vp8decode"
 input_fn = os.path.join(workspace, prefix + "_{:02d}.y4m")
 vpx_fn = os.path.join(workspace, prefix + "_vpx_{:02d}.ivf")
 dec_state_fn = os.path.join(workspace, prefix + "_dec_{:02d}.state")
-enc_state_fn = os.path.join(workspace, prefix + "_enc_{:02d}.state")
-xcenc_fn = os.path.join(workspace, prefix + "_xc_{:02d}.ivf")
+enc_state0_fn = os.path.join(workspace, prefix + "_enc0_{:02d}.state")
+enc_state1_fn = os.path.join(workspace, prefix + "_enc1_{:02d}.state")
+xcenc0_fn = os.path.join(workspace, prefix + "_xc0_{:02d}.ivf")
+xcenc1_fn = os.path.join(workspace, prefix + "_xc1_{:02d}.ivf")
+rebase_state_fn = os.path.join(workspace, prefix + "_rebase_{:02d}.state")
 rebased_fn = os.path.join(workspace, prefix + "_rebased_{:02d}.ivf")
 final_fn = os.path.join(workspace, prefix + "_final_{:02d}.ivf")
 final_file = os.path.join(workspace, prefix + "_output.ivf")
@@ -83,16 +86,27 @@ from the original raw image.
 """
 def enc_given_state():
   # first thread is done
-  shutil.copyfile(vpx_fn.format(0), xcenc_fn.format(0))
-  shutil.copyfile(dec_state_fn.format(0), enc_state_fn.format(0))
+  shutil.copyfile(vpx_fn.format(0), xcenc0_fn.format(0))
+  shutil.copyfile(vpx_fn.format(0), xcenc1_fn.format(0))
+  shutil.copyfile(dec_state_fn.format(0), enc_state0_fn.format(0))
+  shutil.copyfile(dec_state_fn.format(0), enc_state1_fn.format(0))
 
   for i in range(1, N):
     input_file = input_fn.format(i)
-    output_file = xcenc_fn.format(i)
+    output_file = xcenc0_fn.format(i)
     state_file = dec_state_fn.format(i-1)
-    output_state_file = enc_state_fn.format(i)
+    output_state_file = enc_state0_fn.format(i)
     pred_file = vpx_fn.format(i)
     subprocess.run([xcenc_bin, "-i", "y4m", "-O", output_state_file, "-o", output_file, "-r", "-I", state_file, "-p", pred_file, "--no-wait", input_file])
+
+  for i in range(1, N):
+    input_file = input_fn.format(i)
+    output_file = xcenc1_fn.format(i)
+    prev_state_file = dec_state_fn.format(i-1)
+    state_file = enc_state0_fn.format(i-1)
+    output_state_file = enc_state1_fn.format(i)
+    pred_file = vpx_fn.format(i)
+    subprocess.run([xcenc_bin, "-i", "y4m", "-O", output_state_file, "-o", output_file, "-r", "-I", state_file, "-S", prev_state_file, "-p", pred_file, "--no-wait", input_file])
 
 """
 5. (Serial) 
@@ -103,16 +117,18 @@ given state. Each thread continues in turn. After a thread completes, it
 uploads its transformed output and quits.
 """
 def rebase():
-  shutil.copyfile(xcenc_fn.format(0), final_fn.format(0))
+  shutil.copyfile(xcenc1_fn.format(0), final_fn.format(0))
+  shutil.copyfile(enc_state1_fn.format(0), rebase_state_fn.format(0))
 
   # rebase all videos
   for i in range(1, N):
     input_file = input_fn.format(i)
     output_file = rebased_fn.format(i)
-    state_file = enc_state_fn.format(i-1)
-    output_state_file = enc_state_fn.format(i)
-    pred_file = vpx_fn.format(i)
-    subprocess.run([xcenc_bin, "-i", "y4m", "-O", output_state_file, "-o", output_file, "-r", "-I", state_file, "-p", pred_file, "--no-wait", input_file])
+    prev_state_file = enc_state0_fn.format(i-1)
+    state_file = rebase_state_fn.format(i-1)
+    output_state_file = rebase_state_fn.format(i)
+    pred_file = xcenc1_fn.format(i)
+    subprocess.run([xcenc_bin, "-i", "y4m", "-O", output_state_file, "-o", output_file, "-r", "-I", state_file, "-S", prev_state_file, "-p", pred_file, "--no-wait", input_file])
 
   # stitch them together
   for i in range(1, N):
