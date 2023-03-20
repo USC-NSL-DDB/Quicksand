@@ -124,6 +124,8 @@ bench_sharded_partitioner_src = bench/bench_sharded_partitioner.cpp
 bench_sharded_partitioner_obj = $(bench_sharded_partitioner_src:.cpp=.o)
 bench_sharded_map_src = bench/bench_sharded_map.cpp
 bench_sharded_map_obj = $(bench_sharded_map_src:.cpp=.o)
+bench_sharded_service_src = bench/bench_sharded_service.cpp
+bench_sharded_service_obj = $(bench_sharded_service_src:.cpp=.o)
 bench_sharded_unordered_map_src = bench/bench_sharded_unordered_map.cpp
 bench_sharded_unordered_map_obj = $(bench_sharded_unordered_map_src:.cpp=.o)
 bench_sharded_vector_src = bench/bench_sharded_vector.cpp
@@ -163,7 +165,8 @@ bin/bench_sharded_unordered_map bin/bench_sharded_map bin/test_sharded_unordered
 bin/test_sharded_sorter bin/bench_sharded_sorter bin/test_sharded_stack \
 bin/test_sharded_queue bin/test_dis_executor bin/test_continuous_migrate \
 bin/bench_sharded_queue bin/bench_dis_executor bin/bench_sharded_set \
-bin/bench_sharded_multi_set bin/bench_sharded_stack bin/test_sharded_service
+bin/bench_sharded_multi_set bin/bench_sharded_stack bin/test_sharded_service \
+bin/bench_sharded_service
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -269,6 +272,8 @@ bin/bench_sharded_partitioner: $(bench_sharded_partitioner_obj) $(librt_libs) $(
 	$(LDXX) -o $@ $(bench_sharded_partitioner_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_sharded_map: $(bench_sharded_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_sharded_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/bench_sharded_service: $(bench_sharded_service_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(bench_sharded_service_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_sharded_unordered_map: $(bench_sharded_unordered_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_sharded_unordered_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/bench_sharded_vector: $(bench_sharded_vector_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
