@@ -226,7 +226,7 @@ class GeneralShard {
   void compute_split();
   bool should_reject(const std::optional<Key> &l_key,
                      const std::optional<Key> &r_key);
-  bool should_reject(const Key &k);
+  bool should_reject(const std::optional<Key> &k);
   uint32_t __get_next_block_with_iters(
       std::vector<std::pair<IterVal, ConstIterator>>::iterator block_iter,
       ConstIterator prev_iter,

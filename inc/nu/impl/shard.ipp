@@ -238,7 +238,9 @@ inline bool GeneralShard<Container>::should_reject(
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::should_reject(const Key &k) {
+inline bool GeneralShard<Container>::should_reject(
+    const std::optional<Key> &k) {
+  assert(k.has_value());
   return deleted_ || (k < l_key_) || (r_key_ && k > r_key_);
 }
 

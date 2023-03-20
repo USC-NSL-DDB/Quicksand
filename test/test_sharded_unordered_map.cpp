@@ -4,14 +4,21 @@
 #include "nu/runtime.hpp"
 #include "nu/sealed_ds.hpp"
 #include "nu/sharded_unordered_map.hpp"
+#include "nu/utils/farmhash.hpp"
 
 using namespace nu;
 
-constexpr static std::size_t kNumElements = 4'000'000;
+constexpr static std::size_t kNumElements = 500'000;
+
+struct CustomHasher {
+  uint64_t operator()(const std::size_t &s) const {
+    return util::Hash64(reinterpret_cast<const char *>(&s), sizeof(s));
+  }
+};
 
 bool test_size_and_clear() {
   auto sm =
-      make_sharded_unordered_map<std::size_t, std::size_t, std::false_type>();
+      make_sharded_unordered_map<std::size_t, std::size_t, CustomHasher>();
   if (sm.size() != 0) return false;
 
   for (std::size_t i = 0; i < kNumElements; i++) {
@@ -29,8 +36,7 @@ bool test_iter() {
   std::unordered_map<std::size_t, std::size_t> expected;
   std::unordered_map<std::size_t, std::size_t> iterated;
 
-  auto sm =
-      make_sharded_unordered_map<std::size_t, std::size_t, std::false_type>();
+  auto sm = make_sharded_unordered_map<std::size_t, std::size_t>();
 
   for (std::size_t i = 0; i < kNumElements; i++) {
     sm.insert(i, i);

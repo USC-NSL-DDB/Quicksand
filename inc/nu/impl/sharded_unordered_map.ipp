@@ -18,60 +18,59 @@ inline UnorderedMapConstIterator<USet>::UnorderedMapConstIterator(
   USet::const_iterator::operator=(std::move(iter));
 }
 
-template <typename K, typename V, typename M>
-inline GeneralUnorderedMap<K, V, M>::GeneralUnorderedMap(UMap initial_state)
+template <typename K, typename V, typename H, typename M>
+inline GeneralUnorderedMap<K, V, H, M>::GeneralUnorderedMap(UMap initial_state)
     : map_(std::move(initial_state)) {}
 
-template <typename K, typename V, typename M>
-inline std::size_t GeneralUnorderedMap<K, V, M>::size() const {
+template <typename K, typename V, typename H, typename M>
+inline std::size_t GeneralUnorderedMap<K, V, H, M>::size() const {
   return map_.size();
 }
 
-template <typename K, typename V, typename M>
-inline void GeneralUnorderedMap<K, V, M>::reserve(std::size_t size) {
+template <typename K, typename V, typename H, typename M>
+inline void GeneralUnorderedMap<K, V, H, M>::reserve(std::size_t size) {
   return map_.reserve(size);
 }
 
-template <typename K, typename V, typename M>
-inline bool GeneralUnorderedMap<K, V, M>::empty() const {
+template <typename K, typename V, typename H, typename M>
+inline bool GeneralUnorderedMap<K, V, H, M>::empty() const {
   return map_.empty();
 }
 
-template <typename K, typename V, typename M>
-inline void GeneralUnorderedMap<K, V, M>::clear() {
+template <typename K, typename V, typename H, typename M>
+inline void GeneralUnorderedMap<K, V, H, M>::clear() {
   map_.clear();
 }
 
-template <typename K, typename V, typename M>
-inline std::size_t GeneralUnorderedMap<K, V, M>::insert(Key k, Val v) {
+template <typename K, typename V, typename H, typename M>
+inline std::size_t GeneralUnorderedMap<K, V, H, M>::insert(Key k, Val v) {
   map_.emplace(std::move(k), std::move(v));
   return map_.size();
 }
 
-template <typename K, typename V, typename M>
-inline void GeneralUnorderedMap<K, V, M>::merge(GeneralUnorderedMap m) {
+template <typename K, typename V, typename H, typename M>
+inline void GeneralUnorderedMap<K, V, H, M>::merge(GeneralUnorderedMap m) {
   map_.merge(std::move(m.map_));
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, typename H, typename M>
 template <typename... S0s, typename... S1s>
-inline void GeneralUnorderedMap<K, V, M>::for_all(void (*fn)(const Key &key,
-                                                             Val &val, S0s...),
-                                                  S1s &&... states) {
+inline void GeneralUnorderedMap<K, V, H, M>::for_all(
+    void (*fn)(const Key &key, Val &val, S0s...), S1s &&...states) {
   for (auto &[k, v] : map_) {
     fn(k, v, states...);
   }
 }
 
-template <typename K, typename V, typename M>
-inline GeneralUnorderedMap<K, V, M>::ConstIterator
-GeneralUnorderedMap<K, V, M>::find(K k) const {
+template <typename K, typename V, typename H, typename M>
+inline GeneralUnorderedMap<K, V, H, M>::ConstIterator
+GeneralUnorderedMap<K, V, H, M>::find(K k) const {
   return map_.find(std::move(k));
 }
 
-template <typename K, typename V, typename M>
-void GeneralUnorderedMap<K, V, M>::split(Key *mid_k,
-                                         GeneralUnorderedMap *latter_half) {
+template <typename K, typename V, typename H, typename M>
+void GeneralUnorderedMap<K, V, H, M>::split(Key *mid_k,
+                                            GeneralUnorderedMap *latter_half) {
   using Pair = std::pair<K, typename UMap::iterator>;
 
   std::vector<Pair> keys;
@@ -90,43 +89,43 @@ void GeneralUnorderedMap<K, V, M>::split(Key *mid_k,
   }
 }
 
-template <typename K, typename V, typename M>
-inline GeneralUnorderedMap<K, V, M>::ConstIterator
-GeneralUnorderedMap<K, V, M>::cbegin() const {
+template <typename K, typename V, typename H, typename M>
+inline GeneralUnorderedMap<K, V, H, M>::ConstIterator
+GeneralUnorderedMap<K, V, H, M>::cbegin() const {
   return map_.cbegin();
 }
 
-template <typename K, typename V, typename M>
-inline GeneralUnorderedMap<K, V, M>::ConstIterator
-GeneralUnorderedMap<K, V, M>::cend() const {
+template <typename K, typename V, typename H, typename M>
+inline GeneralUnorderedMap<K, V, H, M>::ConstIterator
+GeneralUnorderedMap<K, V, H, M>::cend() const {
   return map_.cend();
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, typename H, typename M>
 template <class Archive>
-inline void GeneralUnorderedMap<K, V, M>::save(Archive &ar) const {
+inline void GeneralUnorderedMap<K, V, H, M>::save(Archive &ar) const {
   ar(map_);
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, typename H, typename M>
 template <class Archive>
-inline void GeneralUnorderedMap<K, V, M>::load(Archive &ar) {
+inline void GeneralUnorderedMap<K, V, H, M>::load(Archive &ar) {
   ar(map_);
 }
 
-template <typename K, typename V, typename M, typename LL>
-inline GeneralShardedUnorderedMap<K, V, M, LL>::GeneralShardedUnorderedMap(
+template <typename K, typename V, typename H, typename M, typename LL>
+inline GeneralShardedUnorderedMap<K, V, H, M, LL>::GeneralShardedUnorderedMap(
     std::optional<typename Base::ShardingHint> sharding_hint)
     : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
 
-template <typename K, typename V, typename LL>
-inline ShardedUnorderedMap<K, V, LL> make_sharded_unordered_map() {
-  return ShardedUnorderedMap<K, V, LL>(std::nullopt);
+template <typename K, typename V, typename H, typename LL>
+inline ShardedUnorderedMap<K, V, H, LL> make_sharded_unordered_map() {
+  return ShardedUnorderedMap<K, V, H, LL>(std::nullopt);
 }
 
-template <typename K, typename V, typename LL>
-inline ShardedUnorderedMultiMap<K, V, LL> make_sharded_unordered_multimap() {
-  return ShardedUnorderedMultiMap<K, V, LL>(std::nullopt);
+template <typename K, typename V, typename H, typename LL>
+inline ShardedUnorderedMultiMap<K, V, H, LL> make_sharded_unordered_multimap() {
+  return ShardedUnorderedMultiMap<K, V, H, LL>(std::nullopt);
 }
 
 }  // namespace nu

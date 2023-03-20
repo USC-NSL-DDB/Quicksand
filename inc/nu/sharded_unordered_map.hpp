@@ -16,13 +16,13 @@ struct UnorderedMapConstIterator : public UMap::const_iterator {
   UnorderedMapConstIterator(UMap::const_iterator &&iter);
 };
 
-template <typename K, typename V, BoolIntegral M>
+template <typename K, typename V, class H, BoolIntegral M>
 class GeneralUnorderedMap {
  public:
   using Key = K;
   using Val = V;
-  using UMap = std::conditional_t<M::value, std::unordered_multimap<K, V>,
-                                  std::unordered_map<K, V>>;
+  using UMap = std::conditional_t<M::value, std::unordered_multimap<K, V, H>,
+                                  std::unordered_map<K, V, H>>;
   using ConstIterator = UnorderedMapConstIterator<UMap>;
 
   GeneralUnorderedMap() = default;
@@ -54,21 +54,21 @@ class GeneralUnorderedMap {
   UMap map_;
 };
 
-template <typename K, typename V, typename M, typename LL>
+template <typename K, typename V, typename H, typename M, typename LL>
 class GeneralShardedUnorderedMap;
 
-template <typename K, typename V, typename LL>
+template <typename K, typename V, typename H, typename LL>
 using ShardedUnorderedMap =
-    GeneralShardedUnorderedMap<K, V, std::false_type, LL>;
+    GeneralShardedUnorderedMap<K, V, H, std::false_type, LL>;
 
-template <typename K, typename V, typename LL>
+template <typename K, typename V, typename H, typename LL>
 using ShardedUnorderedMultiMap =
-    GeneralShardedUnorderedMap<K, V, std::true_type, LL>;
+    GeneralShardedUnorderedMap<K, V, H, std::true_type, LL>;
 
-template <typename K, typename V, typename M, typename LL>
+template <typename K, typename V, typename H, typename M, typename LL>
 class GeneralShardedUnorderedMap
     : public ShardedDataStructure<
-          GeneralLockedContainer<GeneralUnorderedMap<K, V, M>>, LL> {
+          GeneralLockedContainer<GeneralUnorderedMap<K, V, H, M>>, LL> {
  public:
   GeneralShardedUnorderedMap(const GeneralShardedUnorderedMap &) = default;
   GeneralShardedUnorderedMap &operator=(const GeneralShardedUnorderedMap &) =
@@ -79,26 +79,27 @@ class GeneralShardedUnorderedMap
   V operator[](const K &);
 
  private:
-  using Base =
-      ShardedDataStructure<GeneralLockedContainer<GeneralUnorderedMap<K, V, M>>,
-                           LL>;
+  using Base = ShardedDataStructure<
+      GeneralLockedContainer<GeneralUnorderedMap<K, V, H, M>>, LL>;
   GeneralShardedUnorderedMap() = default;
   GeneralShardedUnorderedMap(
       std::optional<typename Base::ShardingHint> sharding_hint);
 
   friend class ProcletServer;
-  template <typename K1, typename V1, typename LL1>
-  friend ShardedUnorderedMap<K1, V1, LL1> make_sharded_unordered_map();
-  template <typename K1, typename V1, typename LL1>
-  friend ShardedUnorderedMultiMap<K1, V1, LL1>
+  template <typename K1, typename V1, typename H1, typename LL1>
+  friend ShardedUnorderedMap<K1, V1, H1, LL1> make_sharded_unordered_map();
+  template <typename K1, typename V1, typename H1, typename LL1>
+  friend ShardedUnorderedMultiMap<K1, V1, H1, LL1>
   make_sharded_unordered_multimap();
 };
 
-template <typename K, typename V, typename LL>
-ShardedUnorderedMap<K, V, LL> make_sharded_unordered_map();
+template <typename K, typename V, typename H = std::hash<K>,
+          typename LL = std::true_type>
+ShardedUnorderedMap<K, V, H, LL> make_sharded_unordered_map();
 
-template <typename K, typename V, typename LL>
-ShardedUnorderedMultiMap<K, V, LL> make_sharded_unordered_multimap();
+template <typename K, typename V, typename H = std::hash<K>,
+          typename LL = std::true_type>
+ShardedUnorderedMultiMap<K, V, H, LL> make_sharded_unordered_multimap();
 
 }  // namespace nu
 

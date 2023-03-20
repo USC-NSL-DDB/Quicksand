@@ -12,7 +12,7 @@ constexpr uint32_t kRunTimes = 1;
 void bench_insert_ints() {
   int num_pairs = 2'000'000;
   {
-    auto m = nu::make_sharded_unordered_map<int, int, std::false_type>();
+    auto m = nu::make_sharded_unordered_map<int, int>();
 
     auto insertion_time = time([&] {
       for (int i = 0; i < num_pairs; i++) {

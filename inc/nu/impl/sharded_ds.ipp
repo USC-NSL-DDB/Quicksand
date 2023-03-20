@@ -185,18 +185,18 @@ template <typename D>
 ShardedDataStructure<Container, LL>::__insert(
     D &&entry) requires InsertAble<Container> {
 [[maybe_unused]] retry:
-  typename KeyToShardsMapping::iterator iter;
+  Key *k_ptr;
   if constexpr (HasVal<Container>) {
-    iter = --key_to_shards_.upper_bound(entry.first);
+    k_ptr = &entry.first;
   } else {
-    iter = --key_to_shards_.upper_bound(entry);
+    k_ptr = &entry;
   }
+  auto iter = --key_to_shards_.upper_bound(*k_ptr);
 
   if constexpr (LL::value) {
     auto [l_key, r_key] = get_key_range(iter);
     auto shard = iter->second.shard;
-    auto succeed =
-        shard.run(&Shard::try_insert, l_key, r_key, entry);
+    auto succeed = shard.run(&Shard::try_insert, *k_ptr, entry);
 
     if (unlikely(!succeed)) {
       sync_mapping();
