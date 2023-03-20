@@ -8,7 +8,7 @@ if BUILDVP8PLAY
 VP8PLAY_BUILD += vp8play
 endif
 
-bin_PROGRAMS = vp8decode xc-enc xc-ssim xc-dissect xc-framesize xc-dump \
+bin_PROGRAMS = vp8decode xc-enc xc-616 xc-ssim xc-dissect xc-framesize xc-dump \
                xc-diff comp-states xc-decode-bundle xc-merge \
                xc-terminate-chunk $(VP8PLAY_BUILD) \
                xc-zero-out-residues
@@ -28,6 +28,9 @@ vp8play_LDFLAGS =
 
 xc_enc_SOURCES = xc-enc.cc
 xc_enc_LDADD = ../encoder/libalfalfaencoder.a $(BASE_LDADD)
+
+xc_616_SOURCES = xc-616.cc
+xc_616_LDADD = ../encoder/libalfalfaencoder.a $(BASE_LDADD)
 
 xc_ssim_SOURCES = xc-ssim.cc
 xc_ssim_LDADD = ../encoder/libalfalfaencoder.a $(BASE_LDADD)

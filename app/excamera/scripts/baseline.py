@@ -8,10 +8,10 @@ import time
 # ExCamera[6,16]
 frame, N = 6, 16
 
-workspace = os.path.join("samples", "workspace")
+workspace = os.path.join("..", "samples", "workspace")
 prefix = "sintel01"
 
-vpxenc_bin = os.path.join("bin", "vpxenc")
+vpxenc_bin = os.path.join("..", "bin", "vpxenc")
 xcdump_bin = "xc-dump"
 xcenc_bin = "xc-enc"
 xcmerge_bin = "xc-merge"

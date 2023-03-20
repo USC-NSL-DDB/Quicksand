@@ -122,7 +122,7 @@ void enqueue_frame( FramePlayer & player, const Chunk & frame )
 
   const Optional<RasterHandle> raster = player.decode( frame );
 
-  async( launch::async,
+  (void) async( launch::async,
     [&raster]()
     {
       if ( raster.initialized() ) {
