@@ -1489,7 +1489,7 @@ void thread_flush_all_monitor_cycles(void)
                      if (cycles) {
                             run_start_tsc = th->run_start_tsc;
                             if (likely(curr_tsc > run_start_tsc)) {
-                                   cycles[i].c += curr_tsc - run_start_tsc;
+                                   cycles[0].c += curr_tsc - run_start_tsc;
                                    th->run_start_tsc = curr_tsc;
                             }
                      }

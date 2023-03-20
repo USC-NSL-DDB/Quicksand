@@ -33,11 +33,14 @@ void CPULoad::decay(uint64_t now_tsc) {
   last_sum_sample_cnts_ = sum_sample_cnts;
   last_decay_tsc_ = now_tsc;
 
-  if (first_call_) {
-    first_call_ = false;
-    cpu_load_ = latest_cpu_load;
-  } else {
-    ewma(kEMWAWeight, &cpu_load_, latest_cpu_load);
+  if (likely(latest_cpu_load < kNumCores)) {
+    // Filter out obviously inaccurate results.
+    if (first_call_) {
+      first_call_ = false;
+      cpu_load_ = latest_cpu_load;
+    } else {
+      ewma(kEMWAWeight, &cpu_load_, latest_cpu_load);
+    }
   }
 }
 

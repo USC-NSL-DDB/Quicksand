@@ -193,7 +193,7 @@ class GeneralShard {
   constexpr static float kAlmostFullThresh = 0.95;
   constexpr static uint32_t kSlabFragmentationHeadroom = 2 << 20;
   constexpr static float kComputeLoadHighThresh = 3;
-  constexpr static float kComputeLoadLowThresh = 0.00001;
+  constexpr static float kComputeLoadLowThresh = 0.03;
 
   const uint32_t max_shard_bytes_;
   uint32_t real_max_shard_bytes_;

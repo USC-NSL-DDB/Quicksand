@@ -1008,9 +1008,10 @@ void GeneralShard<Container>::start_compute_monitor_th() {
       [&] {
         while (!Caladan::access_once(deleted_)) {
           Time::sleep(CPULoad::kDecayIntervalUs);
-          if (cpu_load_->get_load() > kComputeLoadHighThresh) {
+          auto cpu_load = cpu_load_->get_load();
+          if (cpu_load > kComputeLoadHighThresh) {
             compute_split();
-          } else if (cpu_load_->get_load() < kComputeLoadLowThresh) {
+          } else if (cpu_load < kComputeLoadLowThresh) {
             if (l_key_ && try_compute_delete_self()) {
               break;
             }
