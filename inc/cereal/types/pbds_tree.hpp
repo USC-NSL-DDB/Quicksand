@@ -72,7 +72,8 @@ namespace cereal
 
   //! Saving for __gnu_pbds::tree
   template <class Archive, class K, class M, class C, class T,
-            template <class...> class N, class A>
+            template <typename, typename, typename, typename> class N,
+            class A>
   inline void CEREAL_SAVE_FUNCTION_NAME(
       Archive &ar, __gnu_pbds::tree<K, M, C, T, N, A> const &pbds_tree) {
     pbds_tree_detail::save( ar, pbds_tree );
@@ -80,7 +81,8 @@ namespace cereal
 
   //! Loading for __gnu_pbds::tree
   template <class Archive, class K, class M, class C, class T,
-            template <class...> class N, class A>
+            template <typename, typename, typename, typename> class N,
+            class A>
   inline void
   CEREAL_LOAD_FUNCTION_NAME(Archive &ar,
                             __gnu_pbds::tree<K, M, C, T, N, A> &pbds_tree) {
