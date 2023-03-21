@@ -134,6 +134,10 @@ void enc_given_state(const string input_file,
   odata.write(output_state);
 }
 
+void rebase(const string input) {
+  // TODO
+}
+
 void decode_all(const string prefix) {
   for (size_t i = 0; i < N; i++) {
     ostringstream inputss, outputss;
@@ -148,6 +152,7 @@ void decode_all(const string prefix) {
 }
 
 void encode_all(const string prefix) {
+  // first pass
   for (size_t i = 0; i < N; i++) {
     ostringstream inputss, outputss, instatess, outstatess, predss;
     inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
@@ -172,7 +177,38 @@ void encode_all(const string prefix) {
       enc_given_state(input_file, output_file, input_state, output_state, pred, "");
     }
   }
+
+  // second pass
+  for (size_t i = 0; i < N; i++) {
+    ostringstream inputss, outputss, instatess, prevstatess, outstatess, predss;
+    inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
+    const string input_file = inputss.str();
+
+    outputss << prefix << "xc1_" << std::setw(2) << std::setfill('0') << i << ".ivf";
+    const string output_file = outputss.str();
+
+    instatess << prefix << "enc0_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".state";
+    const string input_state = instatess.str();
+
+    prevstatess << prefix << "dec_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".state";
+    const string prev_state = prevstatess.str();
+
+    outstatess << prefix << "enc1_" << std::setw(2) << std::setfill('0') << i << ".state";
+    const string output_state = outstatess.str();
+
+    predss << prefix << "xc0_" << std::setw(2) << std::setfill('0') << i << ".ivf";
+    const string pred = predss.str();
+    
+    if (i == 0) {
+      fs::copy(pred, output_file, fs::copy_options::update_existing);
+      fs::copy(input_state, output_state, fs::copy_options::update_existing);
+    } else {
+      enc_given_state(input_file, output_file, input_state, output_state, pred, prev_state);
+    }
+  }
 }
+
+
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
