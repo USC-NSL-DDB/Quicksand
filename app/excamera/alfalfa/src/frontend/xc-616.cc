@@ -134,8 +134,23 @@ void enc_given_state(const string input_file,
   odata.write(output_state);
 }
 
-void rebase(const string input) {
-  // TODO
+void merge(const string input1, const string input2, const string output) {
+  IVF ivf1( input1 );
+  IVF ivf2( input2 );
+
+  if ( ivf1.width() != ivf2.width() or ivf1.height() != ivf2.height() ) {
+    throw runtime_error( "cannot merge ivfs with different dimensions." );
+  }
+
+  IVFWriter output_ivf( output, "VP80", ivf1.width(), ivf1.height(), 1, 1 );
+
+  for ( size_t i = 0; i < ivf1.frame_count(); i++ ) {
+    output_ivf.append_frame( ivf1.frame( i ) );
+  }
+
+  for ( size_t i = 0; i < ivf2.frame_count(); i++ ) {
+    output_ivf.append_frame( ivf2.frame( i ) );
+  }
 }
 
 void decode_all(const string prefix) {
@@ -208,7 +223,43 @@ void encode_all(const string prefix) {
   }
 }
 
+void rebase(const string prefix) {
+  // serial rebase
+  for (size_t i = 0; i < N; i++) {
+    ostringstream inputss, outputss, instatess, prevstatess, outstatess, predss, finalss, prev_finalss;
+    inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
+    const string input_file = inputss.str();
 
+    outputss << prefix << "rebased_" << std::setw(2) << std::setfill('0') << i << ".ivf";
+    const string output_file = outputss.str();
+
+    instatess << prefix << "rebased_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".state";
+    const string input_state = instatess.str();
+
+    prevstatess << prefix << "enc0_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".state";
+    const string prev_state = prevstatess.str();
+
+    outstatess << prefix << "rebased_" << std::setw(2) << std::setfill('0') << i << ".state";
+    const string output_state = outstatess.str();
+
+    predss << prefix << "xc1_" << std::setw(2) << std::setfill('0') << i << ".ivf";
+    const string pred = predss.str();
+
+    finalss << prefix << "final_" << std::setw(2) << std::setfill('0') << i << ".ivf";
+    const string final_file = finalss.str();
+    
+    prev_finalss << prefix << "final_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".ivf";
+    const string prev_final_file = prev_finalss.str();
+
+    if (i == 0) {
+      fs::copy(pred, final_file, fs::copy_options::update_existing);
+      fs::copy(prev_state, output_state, fs::copy_options::update_existing);
+    } else {
+      enc_given_state(input_file, output_file, input_state, output_state, pred, prev_state);
+      merge(prev_final_file, output_file, final_file);
+    }
+  }
+}
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -221,6 +272,7 @@ int main(int argc, char *argv[]) {
 
   decode_all(prefix);
   encode_all(prefix);
+  rebase(prefix);
 
   return 0;
 }
