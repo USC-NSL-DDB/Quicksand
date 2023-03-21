@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <unordered_map>
 
 #include "sharded_ds.hpp"
@@ -36,9 +37,11 @@ class GeneralUnorderedMap {
   bool empty() const;
   void clear();
   std::size_t insert(Key k, Val v);
+  bool erase(Key k);
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   ConstIterator find(Key k) const;
+  V *find_mut(Key k);
   void split(Key *mid_k, GeneralUnorderedMap *latter_half);
   void merge(GeneralUnorderedMap m);
   ConstIterator cbegin() const;
@@ -70,6 +73,7 @@ class GeneralShardedUnorderedMap
     : public ShardedDataStructure<
           GeneralLockedContainer<GeneralUnorderedMap<K, V, H, M>>, LL> {
  public:
+  GeneralShardedUnorderedMap() = default;
   GeneralShardedUnorderedMap(const GeneralShardedUnorderedMap &) = default;
   GeneralShardedUnorderedMap &operator=(const GeneralShardedUnorderedMap &) =
       default;
@@ -81,7 +85,6 @@ class GeneralShardedUnorderedMap
  private:
   using Base = ShardedDataStructure<
       GeneralLockedContainer<GeneralUnorderedMap<K, V, H, M>>, LL>;
-  GeneralShardedUnorderedMap() = default;
   GeneralShardedUnorderedMap(
       std::optional<typename Base::ShardingHint> sharding_hint);
 

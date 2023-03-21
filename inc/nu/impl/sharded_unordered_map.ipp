@@ -3,19 +3,19 @@
 
 namespace nu {
 
-template <class USet>
-inline UnorderedMapConstIterator<USet>::UnorderedMapConstIterator() {}
+template <class UMap>
+inline UnorderedMapConstIterator<UMap>::UnorderedMapConstIterator() {}
 
-template <class USet>
-inline UnorderedMapConstIterator<USet>::UnorderedMapConstIterator(
-    USet::iterator &&iter) {
-  USet::const_iterator::operator=(std::move(iter));
+template <class UMap>
+inline UnorderedMapConstIterator<UMap>::UnorderedMapConstIterator(
+    UMap::iterator &&iter) {
+  UMap::const_iterator::operator=(std::move(iter));
 }
 
-template <class USet>
-inline UnorderedMapConstIterator<USet>::UnorderedMapConstIterator(
-    USet::const_iterator &&iter) {
-  USet::const_iterator::operator=(std::move(iter));
+template <class UMap>
+inline UnorderedMapConstIterator<UMap>::UnorderedMapConstIterator(
+    UMap::const_iterator &&iter) {
+  UMap::const_iterator::operator=(std::move(iter));
 }
 
 template <typename K, typename V, typename H, typename M>
@@ -49,6 +49,11 @@ inline std::size_t GeneralUnorderedMap<K, V, H, M>::insert(Key k, Val v) {
 }
 
 template <typename K, typename V, typename H, typename M>
+inline bool GeneralUnorderedMap<K, V, H, M>::erase(Key k) {
+  return map_.erase(k);
+}
+
+template <typename K, typename V, typename H, typename M>
 inline void GeneralUnorderedMap<K, V, H, M>::merge(GeneralUnorderedMap m) {
   map_.merge(std::move(m.map_));
 }
@@ -66,6 +71,12 @@ template <typename K, typename V, typename H, typename M>
 inline GeneralUnorderedMap<K, V, H, M>::ConstIterator
 GeneralUnorderedMap<K, V, H, M>::find(K k) const {
   return map_.find(std::move(k));
+}
+
+template <typename K, typename V, typename H, typename M>
+inline V *GeneralUnorderedMap<K, V, H, M>::find_mut(K k) {
+  auto iter = map_.find(std::move(k));
+  return iter == map_.end() ? nullptr : &iter->second;
 }
 
 template <typename K, typename V, typename H, typename M>

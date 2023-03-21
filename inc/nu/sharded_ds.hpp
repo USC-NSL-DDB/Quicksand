@@ -54,6 +54,8 @@ class ShardedDataStructure {
     requires(HasVal<Container> && InsertAble<Container>);
   void insert(const DataEntry &entry) requires InsertAble<Container>;
   void insert(DataEntry &&entry) requires InsertAble<Container>;
+  bool erase(const Key &k) requires EraseAble<Container>;
+  bool erase(Key &&k) requires EraseAble<Container>;
   void push_front(const Val &v) requires PushFrontAble<Container>;
   void push_front(Val &&v) requires PushFrontAble<Container>;
   void push_back(const Val &v) requires PushBackAble<Container>;
@@ -86,6 +88,9 @@ class ShardedDataStructure {
   template <typename RetT, typename... S0s, typename... S1s>
   RetT compute_on(Key k, RetT (*fn)(ContainerImpl &container, S0s...),
                   S1s &&...states);
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT apply_on(Key k, RetT (*fn)(Val *v, S0s...), S1s &&...states)
+    requires FindMutAble<ContainerImpl>;
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
@@ -146,6 +151,8 @@ class ShardedDataStructure {
   Val __back() requires HasBack<Container>;
   template <typename D>
   void __insert(D &&entry) requires InsertAble<Container>;
+  template <typename K>
+  bool __erase(K &&k) requires EraseAble<Container>;
   template <typename V>
   void __push_front(V &&v) requires PushFrontAble<Container>;
   template <typename V>

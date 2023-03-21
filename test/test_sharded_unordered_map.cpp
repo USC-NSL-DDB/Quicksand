@@ -52,8 +52,48 @@ bool test_iter() {
   return expected == iterated;
 }
 
+bool test_erase() {
+  auto sm = make_sharded_unordered_map<std::size_t, std::size_t>();
+
+  for (std::size_t i = 0; i < kNumElements; i++) {
+    sm.insert(i, i);
+  }
+  if (!sm.erase(1)) {
+    return false;
+  }
+  if (sm.size() != kNumElements - 1) {
+    return false;
+  }
+  if (sm.find_data(1)) {
+    return false;
+  }
+  if (!sm.find_data(0) || !sm.find_data(2)) {
+    return false;
+  }
+  return true;
+}
+
+bool test_apply_on() {
+  auto sm = make_sharded_unordered_map<std::size_t, std::size_t>();
+
+  for (std::size_t i = 0; i < kNumElements; i++) {
+    sm.insert(i, i);
+  }
+  auto ret = sm.apply_on(
+      1, +[](std::size_t *v) { return ++(*v); });
+  if (ret != 2 || sm.find_data(1)->second != 2) {
+    return false;
+  }
+  if (sm.find_data(0)->second != 0 || sm.find_data(2)->second != 2) {
+    return false;
+  }
+
+  return true;
+}
+
 bool run_test() {
-  return test_size_and_clear() && test_iter();
+  return test_size_and_clear() && test_iter() && test_erase() &&
+         test_apply_on();
 }
 
 void do_work() {

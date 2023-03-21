@@ -54,6 +54,12 @@ concept InsertAble = requires(T t) {
 };
 
 template <class T>
+concept EraseAble = requires(T t) {
+  { t.erase(std::declval<typename T::Key>()) }
+  ->std::same_as<bool>;
+};
+
+template <class T>
 concept HasVal = requires {
   requires !std::is_same_v<typename T::Val, ErasedType>;
 };
@@ -92,6 +98,12 @@ template <class T>
 concept FindAble = requires(T t) {
   { t.find(std::declval<typename T::Key>()) }
   ->std::same_as<typename T::ConstIterator>;
+};
+
+template <class T>
+concept FindMutAble = requires(T t) {
+  { t.find_mut(std::declval<typename T::Key>()) }
+  ->std::same_as<typename T::Val *>;
 };
 
 template <class T>
@@ -229,6 +241,9 @@ class GeneralContainerBase {
     return synchronized<std::size_t>(
         [&] { return impl_.insert(std::move(k)); });
   }
+  bool erase(Key k) requires EraseAble<Impl> {
+    return synchronized<bool>([&] { return impl_.erase(k); });
+  }
   std::size_t push_front(Val v) requires PushFrontAble<Impl> {
     return synchronized<std::size_t>([&] { return impl_.push_front(v); });
   }
@@ -310,6 +325,9 @@ class GeneralContainerBase {
   RetT compute(RetT (*fn)(Impl &impl, Ss...), Ss... states) {
     return synchronized<RetT>([&] { return fn(impl_, std::move(states)...); });
   }
+  template <typename RetT, typename... Ss>
+  RetT apply_on(Key k, RetT (*fn)(Val *v, Ss...), Ss... states)
+    requires FindMutAble<Impl>;
 
  private:
   Impl impl_;

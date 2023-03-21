@@ -314,8 +314,7 @@ bool GeneralShard<Container>::try_compute_delete_self() {
 template <class Container>
 inline bool GeneralShard<Container>::try_insert(std::optional<Key> key,
                                                 DataEntry entry)
-  requires InsertAble<Container>
-{
+  requires InsertAble<Container> {
   rw_lock_.reader_lock();
 
   if (unlikely(should_reject(key))) {
@@ -979,6 +978,33 @@ GeneralShard<Container>::try_compute_on(Key k, uintptr_t fn_addr,
 }
 
 template <class Container>
+template <typename RetT, typename... S0s>
+std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
+GeneralShard<Container>::try_apply_on(Key k, uintptr_t fn_addr, S0s... states)
+  requires FindMutAble<ContainerImpl> {
+  auto fn = reinterpret_cast<RetT (*)(Val *, S0s...)>(fn_addr);
+
+  rw_lock_.reader_lock();
+  auto rw_unlocker =
+      std::experimental::scope_exit([&] { rw_lock_.reader_unlock(); });
+
+  if (unlikely(should_reject(k))) {
+    if constexpr (std::is_void_v<RetT>) {
+      return false;
+    } else {
+      return std::nullopt;
+    }
+  }
+
+  if constexpr (std::is_void_v<RetT>) {
+    container_.apply_on(k, fn, std::move(states)...);
+    return true;
+  } else {
+    return container_.apply_on(k, fn, std::move(states)...);
+  }
+}
+
+template <class Container>
 bool GeneralShard<Container>::try_update_key(bool update_left,
                                              std::optional<Key> new_key) {
   if (unlikely(!rw_lock_.reader_try_lock())) {
@@ -1019,6 +1045,23 @@ void GeneralShard<Container>::start_compute_monitor_th() {
         }
       },
       /* copy_rcu_ctxs = */ false);
+}
+
+template <class Container>
+std::optional<bool> GeneralShard<Container>::try_erase(Key k)
+  requires EraseAble<Container> {
+  rw_lock_.reader_lock();
+
+  if (unlikely(should_reject(k))) {
+    rw_lock_.reader_unlock();
+    return std::nullopt;
+  }
+
+  auto erased = container_.erase(k);
+
+  rw_lock_.reader_unlock();
+
+  return erased;
 }
 
 }  // namespace nu

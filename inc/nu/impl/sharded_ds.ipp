@@ -217,6 +217,37 @@ ShardedDataStructure<Container, LL>::__insert(
 }
 
 template <class Container, class LL>
+[[gnu::always_inline]] inline bool
+ShardedDataStructure<Container, LL>::erase(
+    const Key &k) requires EraseAble<Container> {
+  return __erase(const_cast<Key &>(k));
+}
+
+template <class Container, class LL>
+[[gnu::always_inline]] inline bool
+ShardedDataStructure<Container, LL>::erase(
+    Key &&k) requires EraseAble<Container> {
+  return __erase(std::move(k));
+}
+
+template <class Container, class LL>
+template <typename K>
+[[gnu::always_inline]] inline bool ShardedDataStructure<Container, LL>::__erase(
+    K &&k) requires EraseAble<Container> {
+[[maybe_unused]] retry:
+  auto iter = --key_to_shards_.upper_bound(k);
+  auto shard = iter->second.shard;
+  auto optional_erased = shard.run(&Shard::try_erase, k);
+
+  if (unlikely(!optional_erased)) {
+    sync_mapping();
+    goto retry;
+  }
+
+  return *optional_erased;
+}
+
+template <class Container, class LL>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::push_back(
     const Val &v) requires PushBackAble<Container> {
@@ -368,7 +399,6 @@ retry:
   auto [succeed, val] = shard.run(&Shard::find_data, k);
 
   if (unlikely(!succeed)) {
-    auto [l_key, r_key] = get_key_range(iter);
     sync_mapping();
     goto retry;
   }
@@ -513,6 +543,28 @@ inline RetT ShardedDataStructure<Container, LL>::compute_on(
 }
 
 template <class Container, class LL>
+template <typename RetT, typename... S0s, typename... S1s>
+inline RetT ShardedDataStructure<Container, LL>::apply_on(
+    Key k, RetT (*fn)(Val *v, S0s...), S1s &&...states)
+  requires FindMutAble<ContainerImpl> {
+[[maybe_unused]] retry:
+  auto iter = --key_to_shards_.upper_bound(k);
+  auto shard = iter->second.shard;
+  auto fn_addr = reinterpret_cast<uintptr_t>(fn);
+  auto optional_ret = shard.run(&Shard::template try_apply_on<RetT, S0s...>, k,
+                                fn_addr, states...);
+
+  if (unlikely(!optional_ret)) {
+    sync_mapping();
+    goto retry;
+  }
+
+  if constexpr (!std::is_void_v<RetT>) {
+    return *optional_ret;
+  }
+}
+
+template <class Container, class LL>
 bool ShardedDataStructure<Container, LL>::flush_one_batch(
     KeyToShardsMapping::iterator iter, bool drain) {
   ReqBatch batch;
@@ -596,14 +648,14 @@ void ShardedDataStructure<Container, LL>::flush() {
     }
   }
 
-  BUG_ON(num_pending_flushes_);
-  BUG_ON(!pending_flushes_links_.empty());
+  assert(num_pending_flushes_);
+  assert(!pending_flushes_links_.empty());
 
 #ifdef DEBUG
   for (auto iter = key_to_shards_.begin(); iter != key_to_shards_.end();
        iter++) {
-    BUG_ON(!iter->second.insert_reqs.empty());
-    BUG_ON(!iter->second.flush_futures.empty());
+    assert(!iter->second.insert_reqs.empty());
+    assert(!iter->second.flush_futures.empty());
   }
 #endif
 }
