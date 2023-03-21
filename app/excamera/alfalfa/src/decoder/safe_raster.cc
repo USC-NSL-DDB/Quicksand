@@ -46,6 +46,8 @@ void SafeRaster::copy_raster( const VP8Raster & source )
   const TwoD<uint8_t> & original_Y = source.Y();
   const uint16_t original_width = original_Y.width();
   const uint16_t original_height = original_Y.height();
+  const uint16_t safe_y_width = safe_Y_.width() - 2 * MARGIN_WIDTH;
+  const uint16_t safe_y_height = safe_Y_.height() - 2 * MARGIN_WIDTH;
 
   /*
        1   |   2   |   3
@@ -65,22 +67,22 @@ void SafeRaster::copy_raster( const VP8Raster & source )
 
       memcpy( &safe_Y_.at( MARGIN_WIDTH, nrow ),
               &original_Y.at( 0, 0 ),
-              original_width ); // (2)
+              safe_y_width ); // (2)
 
-      memset( &safe_Y_.at( MARGIN_WIDTH + original_width, nrow ),
+      memset( &safe_Y_.at( MARGIN_WIDTH + safe_y_width, nrow ),
               original_Y.at( original_width - 1, 0 ),
               MARGIN_WIDTH ); // (3)
     }
-    else if ( nrow >= MARGIN_WIDTH + original_Y.height() ) {
+    else if ( nrow >= MARGIN_WIDTH + safe_y_height ) {
       memset( &safe_Y_.at( 0, nrow ),
               original_Y.at( 0, original_height - 1 ),
               MARGIN_WIDTH ); // (7)
 
       memcpy( &safe_Y_.at( MARGIN_WIDTH, nrow ),
               &original_Y.at( 0, original_height - 1 ),
-              original_width ); // (8)
+              safe_y_width ); // (8)
 
-      memset( &safe_Y_.at( MARGIN_WIDTH + original_width, nrow ),
+      memset( &safe_Y_.at( MARGIN_WIDTH + safe_y_width, nrow ),
               original_Y.at( original_width - 1, original_height - 1 ),
               MARGIN_WIDTH ); // (9)
     }
@@ -93,7 +95,7 @@ void SafeRaster::copy_raster( const VP8Raster & source )
               &original_Y.at( 0, nrow - MARGIN_WIDTH ),
               original_width ); // (5)
 
-      memset( &safe_Y_.at( MARGIN_WIDTH + original_width, nrow ),
+      memset( &safe_Y_.at( MARGIN_WIDTH + safe_y_width, nrow ),
               original_Y.at( original_width - 1, nrow - MARGIN_WIDTH ),
               MARGIN_WIDTH ); // (6)
     }
