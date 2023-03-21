@@ -59,12 +59,9 @@ void BackEndService::ComposePost(std::string username, int64_t user_id,
   post.urls = std::move(text_service_return.urls);
   post.user_mentions = std::move(text_service_return.user_mentions);
 
-  auto post_future =
-      states_.postid_to_post_map.put_async(post.post_id, std::move(post));
-
-  write_user_timeline_future.get();
-  write_home_timeline_future.get();
-  post_future.get();
+  auto post_future = nu::async([&] {
+    states_.postid_to_post_map.insert(post.post_id, std::move(post));
+  });
 }
 
 TextServiceReturn BackEndService::ComposeText(const std::string &text) {
@@ -83,18 +80,16 @@ TextServiceReturn BackEndService::ComposeText(const std::string &text) {
 
 std::vector<UserMention>
 BackEndService::ComposeUserMentions(const std::vector<std::string> &usernames) {
-  std::vector<nu::Future<std::optional<UserProfile>>>
-      user_profile_optional_futures;
+  std::vector<nu::Future<UserProfile>> user_profile_futures;
   for (auto &username : usernames) {
-    user_profile_optional_futures.emplace_back(
-        states_.username_to_userprofile_map.get_async(username));
+    user_profile_futures.emplace_back(nu::async([&, username] {
+      return states_.username_to_userprofile_map.find_data(username)->second;
+    }));
   }
 
   std::vector<UserMention> user_mentions;
-  for (size_t i = 0; i < user_profile_optional_futures.size(); i++) {
-    auto &user_profile_optional = user_profile_optional_futures[i].get();
-    BUG_ON(!user_profile_optional);
-    auto &user_profile = *user_profile_optional;
+  for (size_t i = 0; i < user_profile_futures.size(); i++) {
+    auto &user_profile = user_profile_futures[i].get();
     user_mentions.emplace_back();
     auto &user_mention = user_mentions.back();
     user_mention.username = std::move(usernames[i]);
@@ -113,8 +108,8 @@ BackEndService::ComposeUrls(const std::vector<std::string> &urls) {
       Url target_url;
       target_url.expanded_url = urls[i];
       target_url.shortened_url = HOSTNAME + random_string_generator_.Gen(10);
-      states_.short_to_extended_map.put(target_url.shortened_url,
-                                        target_url.expanded_url);
+      states_.short_to_extended_map.insert(target_url.shortened_url,
+                                           target_url.expanded_url);
       return target_url;
     }));
   }
@@ -128,11 +123,10 @@ BackEndService::ComposeUrls(const std::vector<std::string> &urls) {
 
 void BackEndService::WriteUserTimeline(int64_t post_id, int64_t user_id,
                                        int64_t timestamp) {
-  states_.userid_to_usertimeline_map.apply(
+  states_.userid_to_usertimeline_map.apply_on(
       user_id,
-      +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
-          int64_t post_id) {
-        (p.second).insert(std::make_pair(timestamp, post_id));
+      +[](Timeline *tl, int64_t timestamp, int64_t post_id) {
+        tl->insert(std::make_pair(timestamp, post_id));
       },
       timestamp, post_id);
 }
@@ -143,11 +137,11 @@ std::vector<Post> BackEndService::ReadUserTimeline(int64_t user_id, int start,
     return std::vector<Post>();
   }
 
-  auto post_ids = states_.userid_to_usertimeline_map.apply(
+  auto post_ids = states_.userid_to_usertimeline_map.apply_on(
       user_id,
-      +[](std::pair<const int64_t, Timeline> &p, int start, int stop) {
-        auto start_iter = p.second.find_by_order(start);
-        auto stop_iter = p.second.find_by_order(stop);
+      +[](Timeline *tl, int start, int stop) {
+        auto start_iter = tl->find_by_order(start);
+        auto stop_iter = tl->find_by_order(stop);
         std::vector<int64_t> post_ids;
         for (auto iter = start_iter; iter != stop_iter; iter++) {
           post_ids.push_back(iter->second);
@@ -170,21 +164,21 @@ void BackEndService::RemovePosts(int64_t user_id, int start, int stop) {
   std::vector<nu::Future<bool>> remove_short_url_futures;
 
   for (auto post : posts) {
-    remove_post_futures.emplace_back(
-        states_.postid_to_post_map.remove_async(post.post_id));
+    remove_post_futures.emplace_back(nu::async([&, post_id = post.post_id] {
+      return states_.postid_to_post_map.erase(post.post_id);
+    }));
 
     auto remove_from_timeline_fn =
-        [&remove_from_timeline_futures](
-            nu::DistributedHashTable<int64_t, Timeline, I64Hasher>
-                &timeline_map,
-            int64_t user_id, Post &post) {
-          remove_from_timeline_futures.emplace_back(timeline_map.apply_async(
-              user_id,
-              +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
-                  int64_t post_id) {
-                (p.second).erase(std::make_pair(timestamp, post_id));
-              },
-              post.timestamp, post.post_id));
+        [&](auto &timeline_map, int64_t user_id, Post &post) {
+          auto future = nu::async([tl_map = &timeline_map, user_id, post] {
+            tl_map->apply_on(
+                user_id,
+                +[](Timeline *tl, int64_t timestamp, int64_t post_id) {
+                  tl->erase(std::make_pair(timestamp, post_id));
+                },
+                post.timestamp, post.post_id);
+          });
+          remove_from_timeline_futures.emplace_back(std::move(future));
         };
     remove_from_timeline_fn(states_.userid_to_usertimeline_map, user_id, post);
     for (auto mention : post.user_mentions) {
@@ -198,18 +192,10 @@ void BackEndService::RemovePosts(int64_t user_id, int start, int stop) {
 
     for (auto &url : post.urls) {
       remove_short_url_futures.emplace_back(
-          states_.short_to_extended_map.remove_async(url.shortened_url));
+          nu::async([&, url = url.shortened_url] {
+            return states_.short_to_extended_map.erase(url);
+          }));
     }
-  }
-
-  for (auto &future : remove_post_futures) {
-    future.get();
-  }
-  for (auto &future : remove_from_timeline_futures) {
-    future.get();
-  }
-  for (auto &future : remove_short_url_futures) {
-    future.get();
   }
 }
 
@@ -221,13 +207,14 @@ void BackEndService::WriteHomeTimeline(
   std::vector<nu::Future<void>> futures;
 
   auto future_constructor = [&](int64_t id) {
-    return states_.userid_to_hometimeline_map.apply_async(
-        id,
-        +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
-            int64_t post_id) {
-          (p.second).insert(std::make_pair(timestamp, post_id));
-        },
-        timestamp, post_id);
+    return nu::async([&, id] {
+      return states_.userid_to_hometimeline_map.apply_on(
+          id,
+          +[](Timeline *tl, int64_t timestamp, int64_t post_id) {
+            tl->insert(std::make_pair(timestamp, post_id));
+          },
+          timestamp, post_id);
+    });
   };
 
   for (auto id : user_mentions_id) {
@@ -238,10 +225,6 @@ void BackEndService::WriteHomeTimeline(
   for (auto id : follower_ids) {
     futures.emplace_back(future_constructor(id));
   }
-
-  for (auto &future : futures) {
-    future.get();
-  }
 }
 
 std::vector<Post> BackEndService::ReadHomeTimeline(int64_t user_id, int start,
@@ -250,11 +233,11 @@ std::vector<Post> BackEndService::ReadHomeTimeline(int64_t user_id, int start,
     return std::vector<Post>();
   }
 
-  auto post_ids = states_.userid_to_hometimeline_map.apply(
+  auto post_ids = states_.userid_to_hometimeline_map.apply_on(
       user_id,
-      +[](std::pair<const int64_t, Timeline> &p, int start, int stop) {
-        auto start_iter = p.second.find_by_order(start);
-        auto stop_iter = p.second.find_by_order(stop);
+      +[](Timeline *tl, int start, int stop) {
+        auto start_iter = tl->find_by_order(start);
+        auto stop_iter = tl->find_by_order(stop);
         std::vector<int64_t> post_ids;
         for (auto iter = start_iter; iter != stop_iter; iter++) {
           post_ids.push_back(iter->second);
@@ -267,67 +250,67 @@ std::vector<Post> BackEndService::ReadHomeTimeline(int64_t user_id, int start,
 
 std::vector<Post>
 BackEndService::ReadPosts(const std::vector<int64_t> &post_ids) {
-  std::vector<nu::Future<std::optional<Post>>> post_futures;
+  std::vector<nu::Future<std::optional<std::pair<int64_t, Post>>>> post_futures;
   for (auto post_id : post_ids) {
-    post_futures.emplace_back(states_.postid_to_post_map.get_async(post_id));
+    post_futures.emplace_back(nu::async([&, post_id] {
+      return states_.postid_to_post_map.find_data(post_id);
+    }));
   }
   std::vector<Post> posts;
   for (auto &post_future : post_futures) {
     auto &optional = post_future.get();
     if (optional) {
-      posts.emplace_back(std::move(*optional));
+      posts.emplace_back(std::move(optional->second));
     }
   }
   return posts;
 }
 
 void BackEndService::Follow(int64_t user_id, int64_t followee_id) {
-  auto add_followee_future = states_.userid_to_followees_map.apply_async(
-      user_id,
-      +[](std::pair<const int64_t, std::set<int64_t>> &p, int64_t followee_id) {
-        p.second.emplace(followee_id);
-      },
-      followee_id);
-  auto add_follower_future = states_.userid_to_followers_map.apply_async(
-      followee_id,
-      +[](std::pair<const int64_t, std::set<int64_t>> &p, int64_t user_id) {
-        p.second.emplace(user_id);
-      },
-      user_id);
-  add_followee_future.get();
-  add_follower_future.get();
+  auto add_followee_future = nu::async([&] {
+    states_.userid_to_followees_map.apply_on(
+        user_id,
+        +[](std::set<int64_t> *s, int64_t followee_id) {
+          s->emplace(followee_id);
+        },
+        followee_id);
+  });
+  auto add_follower_future = nu::async([&] {
+    states_.userid_to_followers_map.apply_on(
+        followee_id,
+        +[](std::set<int64_t> *s, int64_t user_id) { s->emplace(user_id); },
+        user_id);
+  });
 }
 
 void BackEndService::Unfollow(int64_t user_id, int64_t followee_id) {
-  auto add_followee_future = states_.userid_to_followees_map.apply_async(
-      user_id,
-      +[](std::pair<const int64_t, std::set<int64_t>> &p, int64_t followee_id) {
-        p.second.erase(followee_id);
-      },
-      followee_id);
-  auto add_follower_future = states_.userid_to_followers_map.apply_async(
-      followee_id,
-      +[](std::pair<const int64_t, std::set<int64_t>> &p, int64_t user_id) {
-        p.second.erase(user_id);
-      },
-      user_id);
-  add_followee_future.get();
-  add_follower_future.get();
+  auto add_followee_future = nu::async([&] {
+    states_.userid_to_followees_map.apply_on(
+        user_id,
+        +[](std::set<int64_t> *s, int64_t followee_id) {
+          s->erase(followee_id);
+        },
+        followee_id);
+  });
+  auto add_follower_future = nu::async([&] {
+    states_.userid_to_followers_map.apply_on(
+        followee_id,
+        +[](std::set<int64_t> *s, int64_t user_id) { s->erase(user_id); },
+        user_id);
+  });
 }
 
 std::vector<int64_t> BackEndService::GetFollowers(int64_t user_id) {
-  return states_.userid_to_followers_map.apply(
-      user_id, +[](std::pair<const int64_t, std::set<int64_t>> &p) {
-        auto &set = p.second;
-        return std::vector<int64_t>(set.begin(), set.end());
+  return states_.userid_to_followers_map.apply_on(
+      user_id, +[](std::set<int64_t> *s) {
+        return std::vector<int64_t>(s->begin(), s->end());
       });
 }
 
 std::vector<int64_t> BackEndService::GetFollowees(int64_t user_id) {
-  return states_.userid_to_followees_map.apply(
-      user_id, +[](std::pair<const int64_t, std::set<int64_t>> &p) {
-        auto &set = p.second;
-        return std::vector<int64_t>(set.begin(), set.end());
+  return states_.userid_to_followees_map.apply_on(
+      user_id, +[](std::set<int64_t> *s) {
+        return std::vector<int64_t>(s->begin(), s->end());
       });
 }
 
@@ -364,7 +347,7 @@ void BackEndService::RegisterUserWithId(std::string first_name,
   user_profile.salt = random_string_generator_.Gen(32);
   user_profile.password_hashed =
       picosha2::hash256_hex_string(password + user_profile.salt);
-  states_.username_to_userprofile_map.put(username, user_profile);
+  states_.username_to_userprofile_map.insert(username, user_profile);
 }
 
 void BackEndService::RegisterUser(std::string first_name, std::string last_name,
@@ -376,11 +359,12 @@ void BackEndService::RegisterUser(std::string first_name, std::string last_name,
 std::variant<LoginErrorCode, std::string> BackEndService::Login(
     std::string username, std::string password) {
   std::string signature;
-  auto user_profile_optional = states_.username_to_userprofile_map.get(username);
+  auto user_profile_optional =
+      states_.username_to_userprofile_map.find_data(username);
   if (!user_profile_optional) {
     return NOT_REGISTERED;
   }
-  if (VerifyLogin(signature, *user_profile_optional, username, password,
+  if (VerifyLogin(signature, user_profile_optional->second, username, password,
                   states_.secret)) {
     return signature;
   } else {
@@ -390,19 +374,20 @@ std::variant<LoginErrorCode, std::string> BackEndService::Login(
 
 nu::Future<int64_t> BackEndService::GetUserId(const std::string &username) {
   return nu::async([&] {
-    auto user_id_optional = states_.username_to_userprofile_map.get(username);
+    auto user_id_optional =
+        states_.username_to_userprofile_map.find_data(username);
     BUG_ON(!user_id_optional);
-    return user_id_optional->user_id;
+    return user_id_optional->second.user_id;
   });
 }
 
 void BackEndService::UploadMedia(std::string filename, std::string data) {
-  states_.filename_to_data_map.put(filename, data);
+  states_.filename_to_data_map.insert(filename, data);
 }
 
 std::string BackEndService::GetMedia(std::string filename) {
-  auto optional = states_.filename_to_data_map.get(filename);
-  return optional.value_or("");
+  auto optional = states_.filename_to_data_map.find_data(filename);
+  return optional ? optional->second : "";
 }
 
 } // namespace social_network
