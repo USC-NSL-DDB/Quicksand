@@ -165,7 +165,7 @@ void BackEndService::RemovePosts(int64_t user_id, int start, int stop) {
 
   for (auto post : posts) {
     remove_post_futures.emplace_back(nu::async([&, post_id = post.post_id] {
-      return states_.postid_to_post_map.erase(post.post_id);
+      return states_.postid_to_post_map.erase(post_id);
     }));
 
     auto remove_from_timeline_fn =
