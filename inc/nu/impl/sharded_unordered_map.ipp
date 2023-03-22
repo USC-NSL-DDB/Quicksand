@@ -74,9 +74,8 @@ GeneralUnorderedMap<K, V, H, M>::find(K k) const {
 }
 
 template <typename K, typename V, typename H, typename M>
-inline V *GeneralUnorderedMap<K, V, H, M>::find_mut(K k) {
-  auto iter = map_.find(std::move(k));
-  return iter == map_.end() ? nullptr : &iter->second;
+inline V &GeneralUnorderedMap<K, V, H, M>::operator[](K k) {
+  return map_[k];
 }
 
 template <typename K, typename V, typename H, typename M>

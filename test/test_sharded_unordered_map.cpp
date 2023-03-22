@@ -87,6 +87,14 @@ bool test_apply_on() {
   if (sm.find_data(0)->second != 0 || sm.find_data(2)->second != 2) {
     return false;
   }
+  if (sm.find_data(kNumElements)) {
+    return false;
+  }
+  sm.apply_on(
+      kNumElements, +[](std::size_t &v) { v = kNumElements; });
+  if (sm.find_data(kNumElements)->second != kNumElements) {
+    return false;
+  }
 
   return true;
 }

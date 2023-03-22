@@ -41,7 +41,7 @@ class GeneralUnorderedMap {
   template <typename... S0s, typename... S1s>
   void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
   ConstIterator find(Key k) const;
-  V *find_mut(Key k);
+  Val &operator[](Key k);
   void split(Key *mid_k, GeneralUnorderedMap *latter_half);
   void merge(GeneralUnorderedMap m);
   ConstIterator cbegin() const;

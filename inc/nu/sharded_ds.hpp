@@ -90,7 +90,10 @@ class ShardedDataStructure {
                   S1s &&...states);
   template <typename RetT, typename... S0s, typename... S1s>
   RetT apply_on(Key k, RetT (*fn)(Val *v, S0s...), S1s &&...states)
-    requires FindMutAble<ContainerImpl>;
+    requires(FindAble<Container> && HasVal<Container>);
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT apply_on(Key k, RetT (*fn)(Val &v, S0s...), S1s &&...states)
+    requires(SubscriptAble<ContainerImpl> && HasVal<Container>);
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
@@ -151,6 +154,8 @@ class ShardedDataStructure {
   Val __back() requires HasBack<Container>;
   template <typename D>
   void __insert(D &&entry) requires InsertAble<Container>;
+  template <bool Ins, typename RetT, typename... S0s, typename... S1s>
+  RetT __apply_on(Key k, auto *fn, S1s &&...states);
   template <typename K>
   bool __erase(K &&k) requires EraseAble<Container>;
   template <typename V>

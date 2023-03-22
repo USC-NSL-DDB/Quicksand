@@ -42,15 +42,19 @@ concept InsertAbleByPair = requires(T t) {
 
 template <class T>
 concept InsertAbleByKey = requires(T t) {
-  {
-    t.insert(std::declval<typename T::Key>())
-  }
+  { t.insert(std::declval<typename T::Key>()) }
   ->std::same_as<std::size_t>;
 };
 
 template <class T>
 concept InsertAble = requires(T t) {
   requires(InsertAbleByPair<T> || InsertAbleByKey<T>);
+};
+
+template <class T, typename... Args>
+concept SubscriptAble = requires(T t) {
+  { t[std::declval<typename T::Key>()] }
+  ->std::same_as<typename T::Val &>;
 };
 
 template <class T>
@@ -98,12 +102,6 @@ template <class T>
 concept FindAble = requires(T t) {
   { t.find(std::declval<typename T::Key>()) }
   ->std::same_as<typename T::ConstIterator>;
-};
-
-template <class T>
-concept FindMutAble = requires(T t) {
-  { t.find_mut(std::declval<typename T::Key>()) }
-  ->std::same_as<typename T::Val *>;
 };
 
 template <class T>
@@ -327,7 +325,10 @@ class GeneralContainerBase {
   }
   template <typename RetT, typename... Ss>
   RetT apply_on(Key k, RetT (*fn)(Val *v, Ss...), Ss... states)
-    requires FindMutAble<Impl>;
+    requires(FindAble<Impl> && HasVal<Impl>);
+  template <typename RetT, typename... Ss>
+  RetT apply_on(Key k, RetT (*fn)(Val &v, Ss...), Ss... states)
+    requires SubscriptAble<Impl>;
 
  private:
   Impl impl_;

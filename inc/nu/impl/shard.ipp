@@ -978,11 +978,14 @@ GeneralShard<Container>::try_compute_on(Key k, uintptr_t fn_addr,
 }
 
 template <class Container>
-template <typename RetT, typename... S0s>
+template <bool Ins, typename RetT, typename... S0s>
 std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
 GeneralShard<Container>::try_apply_on(Key k, uintptr_t fn_addr, S0s... states)
-  requires FindMutAble<ContainerImpl> {
-  auto fn = reinterpret_cast<RetT (*)(Val *, S0s...)>(fn_addr);
+  requires((!Ins && FindAble<Container>) ||
+           (Ins && SubscriptAble<ContainerImpl>) && HasVal<Container>) {
+  using Fn =
+      std::conditional_t<Ins, RetT (*)(Val &, S0s...), RetT (*)(Val *, S0s...)>;
+  auto fn = reinterpret_cast<Fn>(fn_addr);
 
   rw_lock_.reader_lock();
   auto rw_unlocker =
