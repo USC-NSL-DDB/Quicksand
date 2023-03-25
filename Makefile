@@ -47,6 +47,8 @@ test_sharded_map_src = test/test_sharded_map.cpp
 test_sharded_map_obj = $(test_sharded_map_src:.cpp=.o)
 test_sharded_unordered_map_src = test/test_sharded_unordered_map.cpp
 test_sharded_unordered_map_obj = $(test_sharded_unordered_map_src:.cpp=.o)
+test_sharded_ts_umap_src = test/test_sharded_ts_umap.cpp
+test_sharded_ts_umap_obj = $(test_sharded_ts_umap_src:.cpp=.o)
 test_sharded_vector_src = test/test_sharded_vector.cpp
 test_sharded_vector_obj = $(test_sharded_vector_src:.cpp=.o)
 test_sharded_service_src = test/test_sharded_service.cpp
@@ -166,7 +168,7 @@ bin/test_sharded_sorter bin/bench_sharded_sorter bin/test_sharded_stack \
 bin/test_sharded_queue bin/test_dis_executor bin/test_continuous_migrate \
 bin/bench_sharded_queue bin/bench_dis_executor bin/bench_sharded_set \
 bin/bench_sharded_multi_set bin/bench_sharded_stack bin/test_sharded_service \
-bin/bench_sharded_service
+bin/bench_sharded_service bin/test_sharded_ts_umap
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -199,6 +201,8 @@ bin/test_sharded_map: $(test_sharded_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(li
 	$(LDXX) -o $@ $(test_sharded_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_unordered_map: $(test_sharded_unordered_map_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_unordered_map_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_sharded_ts_umap: $(test_sharded_ts_umap_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_sharded_ts_umap_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_vector: $(test_sharded_vector_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_sharded_vector_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_sharded_service: $(test_sharded_service_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
