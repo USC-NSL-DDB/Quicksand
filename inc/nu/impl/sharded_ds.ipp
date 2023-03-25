@@ -550,8 +550,9 @@ inline RetT ShardedDataStructure<Container, LL>::__apply_on(
   auto iter = --key_to_shards_.upper_bound(k);
   auto shard = iter->second.shard;
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
-  auto optional_ret = shard.run(
-      &Shard::template try_apply_on<Ins, RetT, S0s...>, k, fn_addr, states...);
+  auto optional_ret =
+      shard.run(&Shard::template try_apply_on<Ins, RetT, S0s...>, k, fn_addr,
+                std::forward<S1s>(states)...);
 
   if (unlikely(!optional_ret)) {
     sync_mapping();
@@ -568,8 +569,8 @@ template <typename RetT, typename... S0s, typename... S1s>
 inline RetT ShardedDataStructure<Container, LL>::apply_on(
     Key k, RetT (*fn)(Val *v, S0s...), S1s &&...states)
   requires(FindAble<Container> && HasVal<Container>) {
-  return __apply_on</* Ins = */ false, RetT>(k, fn,
-                                             std::forward<S1s>(states)...);
+  return __apply_on</* Ins = */ false, RetT, S0s...>(
+      k, fn, std::forward<S1s>(states)...);
 }
 
 template <class Container, class LL>
@@ -577,8 +578,8 @@ template <typename RetT, typename... S0s, typename... S1s>
 inline RetT ShardedDataStructure<Container, LL>::apply_on(
     Key k, RetT (*fn)(Val &v, S0s...), S1s &&...states)
   requires(SubscriptAble<ContainerImpl> && HasVal<Container>) {
-  return __apply_on</* Ins = */ true, RetT>(k, fn,
-                                            std::forward<S1s>(states)...);
+  return __apply_on</* Ins = */ true, RetT, S0s...>(
+      k, fn, std::forward<S1s>(states)...);
 }
 
 template <class Container, class LL>
@@ -665,14 +666,14 @@ void ShardedDataStructure<Container, LL>::flush() {
     }
   }
 
-  assert(num_pending_flushes_);
-  assert(!pending_flushes_links_.empty());
+  assert(!num_pending_flushes_);
+  assert(pending_flushes_links_.empty());
 
 #ifdef DEBUG
   for (auto iter = key_to_shards_.begin(); iter != key_to_shards_.end();
        iter++) {
-    assert(!iter->second.insert_reqs.empty());
-    assert(!iter->second.flush_futures.empty());
+    BUG_ON(!iter->second.insert_reqs.empty());
+    BUG_ON(!iter->second.flush_futures.empty());
   }
 #endif
 }
