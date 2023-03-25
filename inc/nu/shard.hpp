@@ -121,7 +121,7 @@ class GeneralShard {
       std::size_t num) requires TryPopBackAble<Container>;
   std::optional<ReqBatch> try_handle_batch(ReqBatch &batch);
   std::pair<bool, std::optional<IterVal>> find_data(
-      Key k) requires FindAble<Container>;
+      Key k) requires FindDataAble<Container>;
   std::pair<IterVal, ConstIterator> find(Key k) requires FindAble<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_front_block_with_iters(
       uint32_t block_size) requires ConstIterable<Container>;

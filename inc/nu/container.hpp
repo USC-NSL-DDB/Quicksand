@@ -105,6 +105,13 @@ concept FindAble = requires(T t) {
 };
 
 template <class T>
+concept FindDataAble = requires(T t) {
+  { t.find_data(std::declval<typename T::Key>()) }
+  ->std::same_as<std::optional<DeepDecay_t<
+  decltype(*std::declval<typename T::ConstIterator>())>>>;
+};
+
+template <class T>
 concept FindAbleByOrder = requires(T t) {
   { t.find_by_order(std::declval<std::size_t>()) }
   ->std::same_as<typename T::ConstIterator>;
@@ -172,7 +179,7 @@ class GeneralContainerBase {
   using DataEntry = std::conditional_t<HasVal<Impl>, std::pair<Key, Val>, Key>;
   using Implementation = Impl;
   using ConstIterator = decltype([] {
-    if constexpr (ConstIterable<Impl>) {
+    if constexpr (requires { typename Impl::ConstIterator; }) {
       return typename Impl::ConstIterator();
     } else {
       return new ErasedType();
@@ -186,7 +193,7 @@ class GeneralContainerBase {
     }
   }();
   using ConstReverseIterator = decltype([] {
-    if constexpr (ConstReverseIterable<Impl>) {
+    if constexpr (requires { typename Impl::ConstReverseIterator; }) {
       return typename Impl::ConstReverseIterator();
     } else {
       return new ErasedType();
@@ -252,6 +259,11 @@ class GeneralContainerBase {
   ConstIterator find(Key k) const requires FindAble<Impl> {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
+  }
+  std::optional<IterVal> find_data(Key k) const
+    requires FindDataAble<Impl> {
+    return synchronized<std::optional<IterVal>>(
+        [&] { return impl_.find_data(std::move(k)); });
   }
   ConstIterator find_by_order(
       std::size_t order) requires FindAbleByOrder<Impl> {

@@ -390,7 +390,7 @@ ShardedDataStructure<Container, LL>::try_pop_back(
 template <class Container, class LL>
 std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
 ShardedDataStructure<Container, LL>::__find_data(
-    Key k) requires FindAble<Container> {
+    Key k) requires FindDataAble<Container> {
   flush();
 
 retry:
@@ -409,7 +409,7 @@ retry:
 template <class Container, class LL>
 inline std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
 ShardedDataStructure<Container, LL>::find_data(Key k) const
-    requires FindAble<Container> {
+  requires FindDataAble<Container> {
   return const_cast<ShardedDataStructure *>(this)->__find_data(k);
 }
 

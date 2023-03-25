@@ -577,7 +577,7 @@ GeneralShard<Container>::try_handle_batch(ReqBatch &batch) {
 
 template <class Container>
 inline std::pair<bool, std::optional<typename Container::IterVal>>
-GeneralShard<Container>::find_data(Key k) requires FindAble<Container> {
+GeneralShard<Container>::find_data(Key k) requires FindDataAble<Container> {
   rw_lock_.reader_lock();
 
   if (unlikely(should_reject(k))) {
@@ -585,12 +585,10 @@ GeneralShard<Container>::find_data(Key k) requires FindAble<Container> {
     return std::make_pair(false, std::nullopt);
   }
 
-  auto iter = container_.find(std::move(k));
-  auto val =
-      (iter != container_.cend()) ? std::make_optional(*iter) : std::nullopt;
+  auto iter_val = container_.find_data(std::move(k));
 
   rw_lock_.reader_unlock();
-  return std::make_pair(true, std::move(val));
+  return std::make_pair(true, std::move(iter_val));
 }
 
 template <class Container>

@@ -68,7 +68,8 @@ class ShardedDataStructure {
   Val pop_back() requires TryPopBackAble<Container>;
   std::vector<Val> try_pop_back(
       std::size_t elems) requires TryPopBackAble<Container>;
-  std::optional<IterVal> find_data(Key k) const requires FindAble<Container>;
+  std::optional<IterVal> find_data(Key k) const
+    requires FindDataAble<Container>;
   void concat(
       ShardedDataStructure &&tail) requires Container::kContiguousIterator;
   template <typename... S0s, typename... S1s>
@@ -164,7 +165,7 @@ class ShardedDataStructure {
   void __push_back(V &&v) requires PushBackAble<Container>;
   template <bool Front, typename RetT, typename F, typename... As>
   RetT run_at_border(F f, As &&... args);
-  std::optional<IterVal> __find_data(Key k) requires FindAble<Container>;
+  std::optional<IterVal> __find_data(Key k) requires FindDataAble<Container>;
   void reset();
   void set_shard_and_batch_size(uint32_t *max_shard_bytes,
                                 uint32_t *max_shard_size,

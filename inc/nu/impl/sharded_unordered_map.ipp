@@ -74,6 +74,13 @@ GeneralUnorderedMap<K, V, H, M>::find(K k) const {
 }
 
 template <typename K, typename V, typename H, typename M>
+inline std::optional<std::pair<K, V>>
+GeneralUnorderedMap<K, V, H, M>::find_data(K k) const {
+  auto iter = map_.find(std::move(k));
+  return iter != map_.end() ? std::make_optional(*iter) : std::nullopt;
+}
+
+template <typename K, typename V, typename H, typename M>
 inline V &GeneralUnorderedMap<K, V, H, M>::operator[](K k) {
   return map_[k];
 }
