@@ -4,9 +4,25 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                    Lock>::SyncHashMap() {
+  BucketHeadAllocator bucket_head_allocator;
+  bucket_heads_ = bucket_head_allocator.allocate(NBuckets);
   for (size_t i = 0; i < NBuckets; i++) {
-    buckets_[i].pair = buckets_[i].next = nullptr;
+    auto &bucket_head = bucket_heads_[i];
+    new (&bucket_head) BucketHead();
+    bucket_head.node.pair = bucket_head.node.next = nullptr;
   }
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+                   Lock>::~SyncHashMap() {
+  BucketHeadAllocator bucket_head_allocator;
+  for (size_t i = 0; i < NBuckets; i++) {
+    auto &bucket_head = bucket_heads_[i];
+    std::destroy_at(&bucket_head);
+  }
+  bucket_head_allocator.deallocate(bucket_heads_, NBuckets);
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
@@ -36,8 +52,9 @@ V *SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_with_hash(
     K1 &&k, uint64_t key_hash) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
-  auto *bucket_node = &buckets_[bucket_idx];
-  auto &lock = locks_[bucket_idx];
+  auto &bucket_head = bucket_heads_[bucket_idx];
+  auto *bucket_node = &bucket_head.node;
+  auto &lock = bucket_head.lock;
   lock.lock();
 
   while (bucket_node && bucket_node->pair) {
@@ -63,8 +80,9 @@ std::optional<V> SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                                                        uint64_t key_hash) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
-  auto *bucket_node = &buckets_[bucket_idx];
-  auto &lock = locks_[bucket_idx];
+  auto &bucket_head = bucket_heads_[bucket_idx];
+  auto *bucket_node = &bucket_head.node;
+  auto &lock = bucket_head.lock;
   lock.lock();
 
   while (bucket_node && bucket_node->pair) {
@@ -99,9 +117,10 @@ void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                  Lock>::put_with_hash(K1 k, V1 v, uint64_t key_hash) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
-  auto *bucket_node = &buckets_[bucket_idx];
+  auto &bucket_head = bucket_heads_[bucket_idx];
+  auto *bucket_node = &bucket_head.node;
+  auto &lock = bucket_head.lock;
   BucketNode **prev_next = nullptr;
-  auto &lock = locks_[bucket_idx];
   lock.lock();
 
   while (bucket_node && bucket_node->pair) {
@@ -154,9 +173,10 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                                               Args... args) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
-  auto *bucket_node = &buckets_[bucket_idx];
+  auto &bucket_head = bucket_heads_[bucket_idx];
+  auto *bucket_node = &bucket_head.node;
+  auto &lock = bucket_head.lock;
   BucketNode **prev_next = nullptr;
-  auto &lock = locks_[bucket_idx];
   lock.lock();
 
   while (bucket_node && bucket_node->pair) {
@@ -208,10 +228,11 @@ bool SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                  Lock>::remove_with_hash(K1 &&k, uint64_t key_hash) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
-  auto *bucket_node = &buckets_[bucket_idx];
+  auto &bucket_head = bucket_heads_[bucket_idx];
+  auto *bucket_node = &bucket_head.node;
+  auto &lock = bucket_head.lock;
   BucketNode **prev_next = nullptr;
   BucketNodeAllocator bucket_node_allocator;
-  auto &lock = locks_[bucket_idx];
   lock.lock();
 
   while (bucket_node && bucket_node->pair) {
@@ -265,15 +286,14 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                                         A1s &&... args) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
-  auto *bucket_node = &buckets_[bucket_idx];
+  auto &bucket_head = bucket_heads_[bucket_idx];
+  auto *bucket_node = &bucket_head.node;
+  auto &lock = bucket_head.lock;
   BucketNode **prev_next = nullptr;
-
   Pair *pair;
   Allocator allocator;
 
-  auto &lock = locks_[bucket_idx];
   lock.lock();
-
   while (bucket_node && bucket_node->pair) {
     if (key_hash == bucket_node->key_hash) {
       pair = reinterpret_cast<Pair *>(bucket_node->pair);
@@ -326,9 +346,11 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
   RetT reduced_val(std::move(init_val));
   for (size_t i = 0; i < NBuckets; i++) {
-    if (buckets_[i].pair) {
-      locks_[i].lock();
-      auto *bucket_node = &buckets_[i];
+    auto &bucket_head = bucket_heads_[i];
+    auto *bucket_node = &bucket_head.node;
+    auto &lock = bucket_head.lock;
+    if (bucket_head.node.pair) {
+      lock.lock();
       bool head = true;
       while (bucket_node && bucket_node->pair) {
         auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
@@ -348,7 +370,7 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
         bucket_node = next;
       }
-      locks_[i].unlock();
+      lock.unlock();
     }
   }
   return reduced_val;

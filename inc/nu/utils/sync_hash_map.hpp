@@ -20,6 +20,7 @@ template <size_t NBuckets, typename K, typename V, typename Hash = std::hash<K>,
 class SyncHashMap {
  public:
   SyncHashMap();
+  ~SyncHashMap();
   template <typename K1>
   V *get(K1 &&k);
   template <typename K1>
@@ -60,13 +61,17 @@ class SyncHashMap {
     void *pair;
     BucketNode *next;
   };
-
+  struct BucketHead {
+    BucketNode node;
+    Lock lock;
+  };
   using Pair = std::pair<const K, V>;
   using BucketNodeAllocator =
       std::allocator_traits<Allocator>::template rebind_alloc<BucketNode>;
+  using BucketHeadAllocator =
+      std::allocator_traits<Allocator>::template rebind_alloc<BucketHead>;
 
-  BucketNode buckets_[NBuckets];
-  Lock locks_[NBuckets];
+  BucketHead *bucket_heads_;
 
   template <typename K1>
   V *__get_with_hash(K1 &&k, uint64_t key_hash);
