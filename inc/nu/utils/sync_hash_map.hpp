@@ -21,6 +21,10 @@ class SyncHashMap {
  public:
   SyncHashMap();
   ~SyncHashMap();
+  SyncHashMap(const SyncHashMap &) noexcept;
+  SyncHashMap &operator=(const SyncHashMap &) noexcept;
+  SyncHashMap(SyncHashMap &&) noexcept;
+  SyncHashMap &operator=(SyncHashMap &&) noexcept;
   template <typename K1>
   V *get(K1 &&k);
   template <typename K1>
@@ -54,6 +58,10 @@ class SyncHashMap {
                                             A0s...),
                           A1s &&... args);
   std::vector<std::pair<K, V>> get_all_pairs();
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
 
  private:
   struct BucketNode {

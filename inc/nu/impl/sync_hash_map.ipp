@@ -1,4 +1,83 @@
+#include "nu/cereal.hpp"
+
 namespace nu {
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+                   Lock>::SyncHashMap(const SyncHashMap &o) noexcept
+    : SyncHashMap() {
+  SyncHashMap::operator=(o);
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>
+    &SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::operator=(
+        const SyncHashMap &o) noexcept {
+  Allocator allocator;
+  BucketNodeAllocator bucket_node_allocator;
+
+  for (size_t i = 0; i < NBuckets; i++) {
+    auto *bucket_node = &bucket_heads_[i].node;
+    decltype(bucket_node) prev_bucket_node;
+    auto *o_bucket_node = &o.bucket_heads_[i].node;
+    if (o_bucket_node->pair) {
+      do {
+        bucket_node->key_hash = o_bucket_node->key_hash;
+
+        auto *pair = reinterpret_cast<std::pair<K, V> *>(bucket_node->pair);
+        auto *o_pair = reinterpret_cast<Pair *>(o_bucket_node->pair);
+        if (pair) {
+          *pair = *o_pair;
+        } else {
+          bucket_node->pair = allocator.allocate(1);
+          new (bucket_node->pair) Pair(*o_pair);
+        }
+
+        if (!bucket_node->next && o_bucket_node->next) {
+          bucket_node->next = bucket_node_allocator.allocate(1);
+          new (bucket_node->next) BucketNode();
+        }
+
+        prev_bucket_node = bucket_node;
+        bucket_node = bucket_node->next;
+        o_bucket_node = o_bucket_node->next;
+      } while (o_bucket_node);
+
+      if (bucket_node) {
+        prev_bucket_node->next = nullptr;
+        do {
+          auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
+          allocator.deallocate(pair, 1);
+          prev_bucket_node = bucket_node;
+          bucket_node = bucket_node->next;
+          bucket_node_allocator.deallocate(prev_bucket_node, 1);
+        } while (bucket_node);
+      }
+    }
+  }
+
+  return *this;
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+                   Lock>::SyncHashMap(SyncHashMap &&o) noexcept
+    : bucket_heads_(o.bucket_heads_) {
+  o.bucket_heads_ = nullptr;
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>
+    &SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::operator=(
+        SyncHashMap &&o) noexcept {
+  bucket_heads_ = o.bucket_heads_;
+  o.bucket_heads_ = nullptr;
+  return *this;
+}
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
@@ -17,12 +96,14 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                    Lock>::~SyncHashMap() {
-  BucketHeadAllocator bucket_head_allocator;
-  for (size_t i = 0; i < NBuckets; i++) {
-    auto &bucket_head = bucket_heads_[i];
-    std::destroy_at(&bucket_head);
+  if (bucket_heads_) {
+    BucketHeadAllocator bucket_head_allocator;
+    for (size_t i = 0; i < NBuckets; i++) {
+      auto &bucket_head = bucket_heads_[i];
+      std::destroy_at(&bucket_head);
+    }
+    bucket_head_allocator.deallocate(bucket_heads_, NBuckets);
   }
-  bucket_head_allocator.deallocate(bucket_heads_, NBuckets);
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
@@ -269,7 +350,7 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 template <typename K1, typename RetT, typename... A0s, typename... A1s>
 inline RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::apply(
-    K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
+    K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&...args) {
   auto hasher = Hash();
   auto key_hash = hasher(k);
   return apply_with_hash(std::forward<K1>(k), key_hash, fn,
@@ -283,7 +364,7 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                  Lock>::apply_with_hash(K1 &&k, uint64_t key_hash,
                                         RetT (*fn)(std::pair<const K, V> &,
                                                    A0s...),
-                                        A1s &&... args) {
+                                        A1s &&...args) {
   auto equaler = KeyEqual();
   auto bucket_idx = key_hash % NBuckets;
   auto &bucket_head = bucket_heads_[bucket_idx];
@@ -340,7 +421,7 @@ RetT SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                                            void (*reduce_fn)(
                                                RetT &, std::pair<const K, V> &,
                                                A0s...),
-                                           A1s &&... args) {
+                                           A1s &&...args) {
   Allocator allocator;
   BucketNodeAllocator bucket_node_allocator;
 
@@ -385,6 +466,54 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
       /* reduce_fn = */
       +[](std::vector<std::pair<K, V>> &reduced_val,
           std::pair<const K, V> &pair) { reduced_val.push_back(pair); });
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+template <class Archive>
+inline void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::save(
+    Archive &ar) const {
+  std::vector<BucketNode *> nodes;
+
+  for (size_t i = 0; i < NBuckets; i++) {
+    auto *bucket_node = &bucket_heads_[i].node;
+    nodes.clear();
+    if (bucket_node->pair) {
+      do {
+        nodes.push_back(bucket_node);
+        bucket_node = bucket_node->next;
+      } while (bucket_node);
+    }
+    ar(nodes.size());
+    for (auto *node : nodes) {
+      ar(node->key_hash, *reinterpret_cast<Pair *>(node->pair));
+    }
+  }
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+template <class Archive>
+inline void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::load(
+    Archive &ar) {
+  Allocator allocator;
+  BucketNodeAllocator bucket_node_allocator;
+
+  for (size_t i = 0; i < NBuckets; i++) {
+    size_t num_nodes;
+    ar(num_nodes);
+
+    auto *bucket_node = &bucket_heads_[i].node;
+    for (size_t i = 0; i < num_nodes; i++) {
+      bucket_node->pair = allocator.allocate(1);
+      new (bucket_node->pair) Pair();
+      ar(bucket_node->key_hash,
+         reinterpret_cast<std::pair<K, V> *>(bucket_node->pair));
+      bucket_node->next = bucket_node_allocator.allocate(1);
+      new (bucket_node->next) BucketNode();
+      bucket_node = bucket_node->next;
+    }
+  }
 }
 
 }  // namespace nu
