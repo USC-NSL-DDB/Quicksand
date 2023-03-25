@@ -1,0 +1,73 @@
+#pragma once
+
+#include <functional>
+#include <optional>
+#include <unordered_map>
+#include <memory>
+
+#include "sharded_ds.hpp"
+#include "utils/mutex.hpp"
+#include "utils/sync_hash_map.hpp"
+
+namespace nu {
+
+template <typename K, typename V, class H>
+class GeneralTSUMap {
+ public:
+  using Key = K;
+  using Val = V;
+  using TSUMap =
+      SyncHashMap</* NumBuckets = */ 32768, K, V, H, std::equal_to<K>,
+                  std::allocator<std::pair<const K, V>>, Mutex>;
+  using ConstIterator = V *;
+
+  GeneralTSUMap() = default;
+  GeneralTSUMap(const GeneralTSUMap &) = default;
+  GeneralTSUMap &operator=(const GeneralTSUMap &) = default;
+  GeneralTSUMap(GeneralTSUMap &&) noexcept = default;
+  GeneralTSUMap &operator=(GeneralTSUMap &&) noexcept = default;
+
+  std::size_t size() const;
+  bool empty() const;
+  std::size_t insert(Key k, Val v);
+  std::optional<V> find_data(Key k) const;
+  bool erase(Key k);
+  void split(Key *mid_k, GeneralTSUMap *latter_half);
+  template <class Archive>
+  void save(Archive &ar) const;
+  template <class Archive>
+  void load(Archive &ar);
+
+ private:  
+  GeneralTSUMap(TSUMap initial_state);
+
+  TSUMap map_;
+};
+
+template <typename K, typename V, typename H>
+class ShardedTSUMap
+    : public ShardedDataStructure<GeneralContainer<GeneralTSUMap<K, V, H>>,
+                                  /* LL = */ std::true_type> {
+ public:
+  ShardedTSUMap() = default;
+  ShardedTSUMap(const ShardedTSUMap &) = default;
+  ShardedTSUMap &operator=(const ShardedTSUMap &) = default;
+  ShardedTSUMap(ShardedTSUMap &&) noexcept = default;
+  ShardedTSUMap &operator=(ShardedTSUMap &&) noexcept = default;
+
+ private:
+  using Base = ShardedDataStructure<GeneralContainer<GeneralTSUMap<K, V, H>>,
+                                    std::true_type>;
+  ShardedTSUMap(std::optional<typename Base::ShardingHint> sharding_hint);
+
+  friend class ProcletServer;
+  template <typename K1, typename V1, typename H1>
+  friend ShardedTSUMap<K1, V1, H1> make_sharded_ts_umap();
+};
+
+template <typename K, typename V, typename H = std::hash<K>>
+ShardedTSUMap<K, V, H> make_sharded_ts_umap();
+
+}  // namespace nu
+
+#include "nu/impl/sharded_ts_umap.ipp"
