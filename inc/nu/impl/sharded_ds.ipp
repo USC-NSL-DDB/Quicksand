@@ -195,7 +195,6 @@ ShardedDataStructure<Container, LL>::__insert(
   if constexpr (LL::value) {
     rw_lock_.reader_lock();
     auto iter = --key_to_shards_.upper_bound(*k_ptr);
-    auto [l_key, r_key] = get_key_range(iter);
     auto shard = iter->second.shard;
     rw_lock_.reader_unlock();
     auto succeed = shard.run(&Shard::try_insert, *k_ptr, entry);
@@ -437,11 +436,9 @@ inline std::pair<
     std::optional<typename ShardedDataStructure<Container, LL>::Key>>
 ShardedDataStructure<Container, LL>::get_key_range(
     KeyToShardsMapping::iterator iter) {
-  rw_lock_.reader_lock();
   auto l_key = iter->first;
   auto r_key =
       (++iter != key_to_shards_.end()) ? iter->first : std::optional<Key>();
-  rw_lock_.reader_unlock();
   return std::make_pair(l_key, r_key);
 }
 
