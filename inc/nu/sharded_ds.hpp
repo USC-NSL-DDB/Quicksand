@@ -144,6 +144,7 @@ class ShardedDataStructure {
   uint64_t num_pending_flushes_;
   uint64_t max_num_vals_;
   uint64_t max_num_data_entries_;
+  ReadSkewedLock rw_lock_;
   template <ShardedDataStructureBased T>
   friend class SealedDS;
 
