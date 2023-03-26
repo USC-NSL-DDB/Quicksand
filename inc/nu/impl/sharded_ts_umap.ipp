@@ -34,7 +34,8 @@ template <typename K, typename V, class H>
 inline void GeneralTSUMap<K, V, H>::split(Key *mid_k,
                                           GeneralTSUMap *latter_half) {
   auto all_pairs = map_.get_all_pairs();
-  sort(all_pairs.begin(), all_pairs.end());
+  std::sort(all_pairs.begin(), all_pairs.end(),
+            [](const auto &p0, const auto &p1) { return p0.first < p1.first; });
   auto mid_iter = all_pairs.begin() + all_pairs.size() / 2;
   *mid_k = mid_iter->first;
   for (auto it = mid_iter; it != all_pairs.end(); ++it) {
@@ -59,6 +60,21 @@ template <typename K, typename V, typename H>
 inline ShardedTSUMap<K, V, H>::ShardedTSUMap(
     std::optional<typename Base::ShardingHint> sharding_hint)
     : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
+
+template <typename K, typename V, typename H>
+template <typename RetT, typename... S0s, typename... S1s>
+inline RetT ShardedTSUMap<K, V, H>::apply_on(
+    K k, RetT (*fn)(std::pair<const K, V> &, S0s...), S1s &&...states) {
+  using Fn = decltype(fn);
+  auto fn_addr = reinterpret_cast<uintptr_t>(fn);
+  return this->run(
+      k,
+      +[](GeneralTSUMap<K, V, H> &map, K k, uintptr_t fn_addr, S0s... states) {
+        auto *fn = reinterpret_cast<Fn>(fn_addr);
+        return map.map_.apply(k, fn, states...);
+      },
+      std::move(k), fn_addr, std::forward<S1s>(states)...);
+}
 
 template <typename K, typename V, typename H>
 inline ShardedTSUMap<K, V, H> make_sharded_ts_umap() {

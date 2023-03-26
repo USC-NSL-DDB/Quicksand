@@ -543,16 +543,15 @@ inline RetT ShardedDataStructure<Container, LL>::compute_on(
 }
 
 template <class Container, class LL>
-template <bool Ins, typename RetT, typename... S0s, typename... S1s>
-inline RetT ShardedDataStructure<Container, LL>::__apply_on(
-    Key k, auto *fn, S1s &&...states) {
+template <typename RetT, typename... S0s, typename... S1s>
+inline RetT ShardedDataStructure<Container, LL>::run(
+    Key k, RetT (*fn)(ContainerImpl &container, S0s...), S1s &&...states) {
 [[maybe_unused]] retry:
   auto iter = --key_to_shards_.upper_bound(k);
   auto shard = iter->second.shard;
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
-  auto optional_ret =
-      shard.run(&Shard::template try_apply_on<Ins, RetT, S0s...>, k, fn_addr,
-                std::forward<S1s>(states)...);
+  auto optional_ret = shard.run(&Shard::template try_run<RetT, S0s...>, k,
+                                fn_addr, std::forward<S1s>(states)...);
 
   if (unlikely(!optional_ret)) {
     sync_mapping();
@@ -562,24 +561,6 @@ inline RetT ShardedDataStructure<Container, LL>::__apply_on(
   if constexpr (!std::is_void_v<RetT>) {
     return *optional_ret;
   }
-}
-
-template <class Container, class LL>
-template <typename RetT, typename... S0s, typename... S1s>
-inline RetT ShardedDataStructure<Container, LL>::apply_on(
-    Key k, RetT (*fn)(Val *v, S0s...), S1s &&...states)
-  requires(FindAble<Container> && HasVal<Container>) {
-  return __apply_on</* Ins = */ false, RetT, S0s...>(
-      k, fn, std::forward<S1s>(states)...);
-}
-
-template <class Container, class LL>
-template <typename RetT, typename... S0s, typename... S1s>
-inline RetT ShardedDataStructure<Container, LL>::apply_on(
-    Key k, RetT (*fn)(Val &v, S0s...), S1s &&...states)
-  requires(SubscriptAble<ContainerImpl> && HasVal<Container>) {
-  return __apply_on</* Ins = */ true, RetT, S0s...>(
-      k, fn, std::forward<S1s>(states)...);
 }
 
 template <class Container, class LL>

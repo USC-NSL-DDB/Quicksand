@@ -38,8 +38,10 @@ class GeneralTSUMap {
   template <class Archive>
   void load(Archive &ar);
 
- private:  
+ private:
   GeneralTSUMap(TSUMap initial_state);
+  template <typename K1, typename V1, typename H1>
+  friend class ShardedTSUMap;
 
   TSUMap map_;
 };
@@ -54,6 +56,9 @@ class ShardedTSUMap
   ShardedTSUMap &operator=(const ShardedTSUMap &) = default;
   ShardedTSUMap(ShardedTSUMap &&) noexcept = default;
   ShardedTSUMap &operator=(ShardedTSUMap &&) noexcept = default;
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT apply_on(K k, RetT (*fn)(std::pair<const K, V> &, S0s...),
+                S1s &&...states);
 
  private:
   using Base = ShardedDataStructure<GeneralContainer<GeneralTSUMap<K, V, H>>,

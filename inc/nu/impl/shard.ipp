@@ -976,36 +976,6 @@ GeneralShard<Container>::try_compute_on(Key k, uintptr_t fn_addr,
 }
 
 template <class Container>
-template <bool Ins, typename RetT, typename... S0s>
-std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
-GeneralShard<Container>::try_apply_on(Key k, uintptr_t fn_addr, S0s... states)
-  requires((!Ins && FindAble<Container>) ||
-           (Ins && SubscriptAble<ContainerImpl>) && HasVal<Container>) {
-  using Fn =
-      std::conditional_t<Ins, RetT (*)(Val &, S0s...), RetT (*)(Val *, S0s...)>;
-  auto fn = reinterpret_cast<Fn>(fn_addr);
-
-  rw_lock_.reader_lock();
-  auto rw_unlocker =
-      std::experimental::scope_exit([&] { rw_lock_.reader_unlock(); });
-
-  if (unlikely(should_reject(k))) {
-    if constexpr (std::is_void_v<RetT>) {
-      return false;
-    } else {
-      return std::nullopt;
-    }
-  }
-
-  if constexpr (std::is_void_v<RetT>) {
-    container_.apply_on(k, fn, std::move(states)...);
-    return true;
-  } else {
-    return container_.apply_on(k, fn, std::move(states)...);
-  }
-}
-
-template <class Container>
 bool GeneralShard<Container>::try_update_key(bool update_left,
                                              std::optional<Key> new_key) {
   if (unlikely(!rw_lock_.reader_try_lock())) {
@@ -1063,6 +1033,32 @@ std::optional<bool> GeneralShard<Container>::try_erase(Key k)
   rw_lock_.reader_unlock();
 
   return erased;
+}
+
+template <class Container>
+template <typename RetT, typename... S0s>
+std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
+GeneralShard<Container>::try_run(Key k, uintptr_t fn_addr, S0s... states) {
+  auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, S0s...)>(fn_addr);
+
+  rw_lock_.reader_lock();
+  auto rw_unlocker =
+      std::experimental::scope_exit([&] { rw_lock_.reader_unlock(); });
+
+  if (unlikely(should_reject(k))) {
+    if constexpr (std::is_void_v<RetT>) {
+      return false;
+    } else {
+      return std::nullopt;
+    }
+  }
+
+  if constexpr (std::is_void_v<RetT>) {
+    container_.pass_through(fn, std::move(states)...);
+    return true;
+  } else {
+    return container_.pass_through(fn, std::move(states)...);
+  }
 }
 
 }  // namespace nu

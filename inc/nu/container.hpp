@@ -319,9 +319,9 @@ class GeneralContainerBase {
   Key rebase(Key new_l_key) requires RebaseAble<Impl> {
     return impl_.rebase(new_l_key);
   }
-  template <typename... S0s, typename... S1s>
-  void pass_through(void (*fn)(Impl &, S0s...), S1s &&... states) {
-    synchronized<void>([&] { fn(impl_, std::move(states)...); });
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT pass_through(RetT (*fn)(Impl &, S0s...), S1s &&...states) {
+    return synchronized<RetT>([&] { return fn(impl_, std::move(states)...); });
   }
   template <class Archive>
   void save(Archive &ar) const {
@@ -335,12 +335,6 @@ class GeneralContainerBase {
   RetT compute(RetT (*fn)(Impl &impl, Ss...), Ss... states) {
     return synchronized<RetT>([&] { return fn(impl_, std::move(states)...); });
   }
-  template <typename RetT, typename... Ss>
-  RetT apply_on(Key k, RetT (*fn)(Val *v, Ss...), Ss... states)
-    requires(FindAble<Impl> && HasVal<Impl>);
-  template <typename RetT, typename... Ss>
-  RetT apply_on(Key k, RetT (*fn)(Val &v, Ss...), Ss... states)
-    requires SubscriptAble<Impl>;
 
  private:
   Impl impl_;

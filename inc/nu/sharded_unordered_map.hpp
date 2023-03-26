@@ -82,6 +82,10 @@ class GeneralShardedUnorderedMap
   GeneralShardedUnorderedMap &operator=(
       GeneralShardedUnorderedMap &&) noexcept = default;
   V operator[](const K &);
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT apply_on(K k, RetT (*fn)(V *v, S0s...), S1s &&...states);
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT apply_on(K k, RetT (*fn)(V &v, S0s...), S1s &&...states);
 
  private:
   using Base = ShardedDataStructure<

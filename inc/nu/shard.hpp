@@ -184,13 +184,11 @@ class GeneralShard {
   template <typename RetT, typename... S0s>
   std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
   try_compute_on(Key k, uintptr_t fn_addr, S0s... states);
-  template <bool Ins, typename RetT, typename... S0s>
-  std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
-  try_apply_on(Key k, uintptr_t fn_addr, S0s... states)
-    requires((!Ins && FindAble<Container>) ||
-             (Ins && SubscriptAble<ContainerImpl>) && HasVal<Container>);
   bool try_update_key(bool update_left, std::optional<Key> new_key);
   std::optional<bool> try_erase(Key k) requires EraseAble<Container>;
+  template <typename RetT, typename... S0s>
+  std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>> try_run(
+      Key k, uintptr_t fn_addr, S0s... states);
 
  private:
   constexpr static uint32_t kReserveProbeSize =

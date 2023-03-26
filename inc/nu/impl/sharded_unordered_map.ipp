@@ -135,6 +135,40 @@ inline GeneralShardedUnorderedMap<K, V, H, M, LL>::GeneralShardedUnorderedMap(
     std::optional<typename Base::ShardingHint> sharding_hint)
     : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
 
+template <typename K, typename V, typename H, typename M, typename LL>
+template <typename RetT, typename... S0s, typename... S1s>
+inline RetT GeneralShardedUnorderedMap<K, V, H, M, LL>::apply_on(
+    K k, RetT (*fn)(V *v, S0s...), S1s &&...states) {
+  using Fn = decltype(fn);
+  auto fn_addr = reinterpret_cast<uintptr_t>(fn);
+  return this->run(
+      k,
+      +[](GeneralUnorderedMap<K, V, H, M> &map, K k, uintptr_t fn_addr,
+          S0s... states) {
+        auto *fn = reinterpret_cast<Fn>(fn_addr);
+	auto iter = map.find(k);
+        auto *ptr = const_cast<V *>(&iter->second);
+        return fn(ptr, states...);
+      },
+      std::move(k), fn_addr, std::forward<S1s>(states)...);
+}
+
+template <typename K, typename V, typename H, typename M, typename LL>
+template <typename RetT, typename... S0s, typename... S1s>
+inline RetT GeneralShardedUnorderedMap<K, V, H, M, LL>::apply_on(
+    K k, RetT (*fn)(V &v, S0s...), S1s &&...states) {
+  using Fn = decltype(fn);
+  auto fn_addr = reinterpret_cast<uintptr_t>(fn);
+  return this->run(
+      k,
+      +[](GeneralUnorderedMap<K, V, H, M> &map, K k, uintptr_t fn_addr,
+          S0s... states) {
+        auto *fn = reinterpret_cast<Fn>(fn_addr);
+        return fn(map[k], states...);
+      },
+      std::move(k), fn_addr, std::forward<S1s>(states)...);
+}
+
 template <typename K, typename V, typename H, typename LL>
 inline ShardedUnorderedMap<K, V, H, LL> make_sharded_unordered_map() {
   return ShardedUnorderedMap<K, V, H, LL>(std::nullopt);

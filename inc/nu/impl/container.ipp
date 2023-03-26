@@ -51,34 +51,4 @@ GeneralContainerBase<Impl, Synchronized>::push_back_batch_if(
   });
 }
 
-template <class Impl, class Synchronized>
-template <typename RetT, typename... Ss>
-inline RetT GeneralContainerBase<Impl, Synchronized>::apply_on(
-    Key k, RetT (*fn)(Val *v, Ss...), Ss... states)
-  requires(FindAble<Impl> && HasVal<Impl>) {
-  return synchronized<RetT>([&] {
-    auto *v_ptr = const_cast<Val *>(&(impl_.find(k)->second));
-    if constexpr (std::is_void_v<RetT>) {
-      fn(v_ptr, std::move(states)...);
-    } else {
-      return fn(v_ptr, std::move(states)...);
-    }
-  });
-}
-
-template <class Impl, class Synchronized>
-template <typename RetT, typename... Ss>
-inline RetT GeneralContainerBase<Impl, Synchronized>::apply_on(
-    Key k, RetT (*fn)(Val &v, Ss...), Ss... states)
-  requires SubscriptAble<Impl> {
-  return synchronized<RetT>([&] {
-    auto &v = impl_[k];
-    if constexpr (std::is_void_v<RetT>) {
-      fn(v, std::move(states)...);
-    } else {
-      return fn(v, std::move(states)...);
-    }
-  });
-}
-
 }  // namespace nu
