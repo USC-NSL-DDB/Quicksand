@@ -2,7 +2,7 @@
 
 #include <cereal/types/string.hpp>
 #include <cereal/types/pbds_tree.hpp>
-#include <nu/sharded_unordered_map.hpp>
+#include <nu/sharded_ts_umap.hpp>
 #include <nu/utils/farmhash.hpp>
 
 #include "defs.hpp"
@@ -37,21 +37,16 @@ struct States {
        secret);
   }
 
-  nu::ShardedUnorderedMap<std::string, UserProfile, StrHasher, std::true_type>
+  nu::ShardedTSUMap<std::string, UserProfile, StrHasher>
       username_to_userprofile_map;
-  nu::ShardedUnorderedMap<std::string, std::string, StrHasher, std::true_type>
-      filename_to_data_map;
-  nu::ShardedUnorderedMap<std::string, std::string, StrHasher, std::true_type>
-      short_to_extended_map;
-  nu::ShardedUnorderedMap<int64_t, Timeline, I64Hasher, std::true_type>
-      userid_to_hometimeline_map;
-  nu::ShardedUnorderedMap<int64_t, Timeline, I64Hasher, std::true_type>
-      userid_to_usertimeline_map;
-  nu::ShardedUnorderedMap<int64_t, Post, I64Hasher, std::true_type>
-      postid_to_post_map;
-  nu::ShardedUnorderedMap<int64_t, std::set<int64_t>, I64Hasher, std::true_type>
+  nu::ShardedTSUMap<std::string, std::string, StrHasher> filename_to_data_map;
+  nu::ShardedTSUMap<std::string, std::string, StrHasher> short_to_extended_map;
+  nu::ShardedTSUMap<int64_t, Timeline, I64Hasher> userid_to_hometimeline_map;
+  nu::ShardedTSUMap<int64_t, Timeline, I64Hasher> userid_to_usertimeline_map;
+  nu::ShardedTSUMap<int64_t, Post, I64Hasher> postid_to_post_map;
+  nu::ShardedTSUMap<int64_t, std::set<int64_t>, I64Hasher>
       userid_to_followers_map;
-  nu::ShardedUnorderedMap<int64_t, std::set<int64_t>, I64Hasher, std::true_type>
+  nu::ShardedTSUMap<int64_t, std::set<int64_t>, I64Hasher>
       userid_to_followees_map;
   std::string secret;
 };
