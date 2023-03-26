@@ -320,8 +320,17 @@ class GeneralContainerBase {
     return impl_.rebase(new_l_key);
   }
   template <typename RetT, typename... S0s, typename... S1s>
-  RetT pass_through(RetT (*fn)(Impl &, S0s...), S1s &&...states) {
-    return synchronized<RetT>([&] { return fn(impl_, std::move(states)...); });
+  auto pass_through(RetT (*fn)(Impl &, S0s...), S1s &&...states) {
+    using C = std::conditional_t<std::is_void_v<RetT>, std::size_t,
+                                 std::pair<RetT, std::size_t>>;
+    return synchronized<C>([&] {
+      if constexpr (std::is_void_v<RetT>) {
+        fn(impl_, std::move(states)...);
+        return impl_.size();
+      } else {
+        return std::make_pair(fn(impl_, std::move(states)...), impl_.size());
+      }
+    });
   }
   template <class Archive>
   void save(Archive &ar) const {

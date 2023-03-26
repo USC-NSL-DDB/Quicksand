@@ -6,7 +6,7 @@ namespace nu {
 
 template <typename K, typename V, class H>
 inline std::size_t GeneralTSUMap<K, V, H>::size() const {
-  return 0;
+  return 1;
 }
 
 template <typename K, typename V, class H>
