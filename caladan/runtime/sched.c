@@ -1094,6 +1094,7 @@ void thread_yield_and_preempt_enable(void)
 
 static __always_inline thread_t *__thread_create(void)
 {
+	int i;
 	struct thread *th;
 	struct stack *s;
 
@@ -1119,7 +1120,8 @@ static __always_inline thread_t *__thread_create(void)
 	th->thread_running = false;
 	th->wq_spin = false;
 	th->migrated = false;
-	memset(th->nu_state.rcu_ctxs, 0, sizeof(th->nu_state.rcu_ctxs));
+	for (i = 0; i < MAX_NUM_RCUS_HELD; i++)
+		th->nu_state.rcu_ctxs[i].rcu = NULL;
 	th->nu_state.monitor_cnt = 0;
 	th->nu_state.creator_ip = get_cfg_ip();
 	th->nu_state.proclet_slab = NULL;
@@ -1506,10 +1508,7 @@ int32_t thread_hold_rcu(void *rcu, bool flag)
               ctx = &__self->nu_state.rcu_ctxs[i];
               if (ctx->rcu == rcu)
                      return ++ctx->nesting_cnt;
-       }
-       for (i = 0; i < MAX_NUM_RCUS_HELD; i++) {
-              ctx = &__self->nu_state.rcu_ctxs[i];
-              if (!ctx->rcu) {
+              else if (!ctx->rcu) {
                      ctx->rcu = rcu;
                      ctx->nesting_cnt = 1;
                      ctx->flag = flag;
@@ -1538,10 +1537,14 @@ int32_t thread_unhold_rcu(void *rcu, bool *flag)
 
 inline bool thread_is_rcu_held(thread_t *th, void *rcu) {
        int i;
+       void *rcu_held;
 
        for (i = 0; i < MAX_NUM_RCUS_HELD; i++) {
-              if (th->nu_state.rcu_ctxs[i].rcu == rcu)
+              rcu_held = th->nu_state.rcu_ctxs[i].rcu;
+              if (rcu_held == rcu)
                      return true;
+              else if (!rcu_held)
+                     break;
        }
        return false;
 }
