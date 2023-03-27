@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <memory>
 
 #include "nu/commons.hpp"
 #include "nu/container.hpp"
@@ -144,7 +145,7 @@ class ShardedDataStructure {
   uint64_t num_pending_flushes_;
   uint64_t max_num_vals_;
   uint64_t max_num_data_entries_;
-  ReadSkewedLock rw_lock_;
+  std::unique_ptr<ReadSkewedLock> rw_lock_;
   template <ShardedDataStructureBased T>
   friend class SealedDS;
 

@@ -10,13 +10,19 @@ namespace nu {
 
 template <class Container, class LL>
 inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
-    : num_pending_flushes_(0), max_num_vals_(0), max_num_data_entries_(0) {}
+    : num_pending_flushes_(0),
+      max_num_vals_(0),
+      max_num_data_entries_(0),
+      rw_lock_(std::make_unique<ReadSkewedLock>()) {}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<ShardingHint> sharding_hint,
     std::optional<std::size_t> size_bound, bool service)
-    : num_pending_flushes_(0), max_num_vals_(0), max_num_data_entries_(0) {
+    : num_pending_flushes_(0),
+      max_num_vals_(0),
+      max_num_data_entries_(0),
+      rw_lock_(std::make_unique<ReadSkewedLock>()) {
   constexpr auto kMaxShardBytes =
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
   constexpr auto kMaxShardSize = kMaxShardBytes / sizeof(DataEntry);
@@ -81,7 +87,8 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
       key_to_shards_(o.key_to_shards_),
       num_pending_flushes_(0),
       max_num_vals_(o.max_num_vals_),
-      max_num_data_entries_(o.max_num_data_entries_) {
+      max_num_data_entries_(o.max_num_data_entries_),
+      rw_lock_(std::make_unique<ReadSkewedLock>()) {
   mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
 }
 
@@ -113,7 +120,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       pending_flushes_links_(std::move(o.pending_flushes_links_)),
       num_pending_flushes_(o.num_pending_flushes_),
       max_num_vals_(o.max_num_vals_),
-      max_num_data_entries_(o.max_num_data_entries_) {}
+      max_num_data_entries_(o.max_num_data_entries_),
+      rw_lock_(std::make_unique<ReadSkewedLock>()) {}
 
 template <class Container, class LL>
 ShardedDataStructure<Container, LL>
@@ -193,10 +201,10 @@ ShardedDataStructure<Container, LL>::__insert(
   }
 
   if constexpr (LL::value) {
-    rw_lock_.reader_lock();
+    rw_lock_->reader_lock();
     auto iter = --key_to_shards_.upper_bound(*k_ptr);
     auto shard = iter->second.shard;
-    rw_lock_.reader_unlock();
+    rw_lock_->reader_unlock();
     auto succeed = shard.run(&Shard::try_insert, *k_ptr, entry);
 
     if (unlikely(!succeed)) {
@@ -237,10 +245,10 @@ template <typename K>
 [[gnu::always_inline]] inline bool ShardedDataStructure<Container, LL>::__erase(
     K &&k) requires EraseAble<Container> {
 [[maybe_unused]] retry:
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   auto iter = --key_to_shards_.upper_bound(k);
   auto shard = iter->second.shard;
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
   auto optional_erased = shard.run(&Shard::try_erase, k);
 
   if (unlikely(!optional_erased)) {
@@ -291,7 +299,7 @@ retry:
   std::optional<Key> l_key, r_key;
   WeakProclet<Shard> shard;
 
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   if constexpr (Front) {
     auto iter = key_to_shards_.begin();
     shard = iter->second.shard;
@@ -305,7 +313,7 @@ retry:
     l_key = iter->first;
     r_key = std::optional<Key>();
   }
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
 
   auto val = shard.run(f, l_key, r_key, args...);
   if (unlikely(!val)) {
@@ -400,10 +408,10 @@ ShardedDataStructure<Container, LL>::__find_data(
   flush();
 
 retry:
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   auto iter = --key_to_shards_.upper_bound(k);
   auto shard = iter->second.shard;
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
   auto [succeed, val] = shard.run(&Shard::find_data, k);
 
   if (unlikely(!succeed)) {
@@ -533,10 +541,10 @@ template <typename RetT, typename... S0s, typename... S1s>
 inline RetT ShardedDataStructure<Container, LL>::compute_on(
     Key k, RetT (*fn)(ContainerImpl &container, S0s...), S1s &&...states) {
 [[maybe_unused]] retry:
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   auto iter = --key_to_shards_.upper_bound(k);
   auto shard = iter->second.shard;
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
   auto optional_ret =
       shard.template run</* MigrEn = */ true, /* CPUSamp = */ false>(
@@ -557,10 +565,10 @@ template <typename RetT, typename... S0s, typename... S1s>
 inline RetT ShardedDataStructure<Container, LL>::run(
     Key k, RetT (*fn)(ContainerImpl &container, S0s...), S1s &&...states) {
 [[maybe_unused]] retry:
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   auto iter = --key_to_shards_.upper_bound(k);
   auto shard = iter->second.shard;
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
   auto optional_ret = shard.run(&Shard::template try_run<RetT, S0s...>, k,
                                 fn_addr, std::forward<S1s>(states)...);
@@ -683,7 +691,7 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
 
   typename ShardMapping::LogUpdates *updates;
   if (likely(updates = std::get_if<typename ShardMapping::LogUpdates>(&v))) {
-    rw_lock_.writer_lock();
+    rw_lock_->writer_lock();
     for (auto &entry : *updates) {
       if (entry.op == LogEntry<Shard>::kInsert) {
         auto it = key_to_shards_.emplace(entry.l_key, entry.shard);
@@ -706,7 +714,7 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
         BUG();
       }
     }
-    rw_lock_.writer_unlock();
+    rw_lock_->writer_unlock();
 
     if (!updates->empty()) {
       latest_seq = updates->back().seq;
@@ -719,7 +727,7 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
     }
 
     auto &snapshot = std::get<typename ShardMapping::Snapshot>(v);
-    rw_lock_.writer_lock();
+    rw_lock_->writer_lock();
     for (auto &[k, s] : key_to_shards_) {
       move_append_vector(insert_reqs, s.insert_reqs);
     }
@@ -727,7 +735,7 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
     for (auto &[k, s] : snapshot.second) {
       key_to_shards_.emplace(k, std::move(s));
     }
-    rw_lock_.writer_unlock();
+    rw_lock_->writer_unlock();
     latest_seq = snapshot.first;
   }
 
@@ -810,7 +818,7 @@ void ShardedDataStructure<Container, LL>::for_all_shards(
         raw_fn, states...));
   };
 
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   for (auto &[_, shard_and_reqs] : key_to_shards_) {
     auto &shard = shard_and_reqs.shard;
     if (shard.is_local()) {
@@ -819,7 +827,7 @@ void ShardedDataStructure<Container, LL>::for_all_shards(
       spawn_fn(shard);
     }
   }
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
 
   for (auto &shard : local_shards) {
     spawn_fn(shard);
@@ -831,13 +839,13 @@ Container ShardedDataStructure<Container, LL>::collect() {
   flush_and_sync_mapping();
 
   std::vector<Future<Container>> futures;
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   for (auto &[_, shard_and_reqs] : key_to_shards_) {
     futures.emplace_back(
         shard_and_reqs.shard.template run_async</* MigrEn = */ false>(
             &Shard::get_container_copy));
   }
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
 
   std::size_t size = 0;
   for (auto &future : futures) {
@@ -860,12 +868,12 @@ std::size_t ShardedDataStructure<Container, LL>::__size() {
   flush_and_sync_mapping();
 
   std::vector<Future<std::size_t>> futures;
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   for (auto &[_, shard_and_reqs] : key_to_shards_) {
     futures.emplace_back(shard_and_reqs.shard.run_async(
         +[](Shard &s) { return s.get_container_handle()->size(); }));
   }
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
 
   std::size_t size = 0;
   for (auto &future : futures) {
@@ -891,12 +899,12 @@ void ShardedDataStructure<Container,
   flush_and_sync_mapping();
 
   std::vector<Future<void>> futures;
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   for (auto &[_, shard_and_reqs] : key_to_shards_) {
     futures.emplace_back(shard_and_reqs.shard.run_async(
         +[](Shard &s) { s.get_container_handle()->clear(); }));
   }
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
 
   for (auto &future : futures) {
     future.get();
@@ -937,7 +945,7 @@ ShardedDataStructure<Container, LL>::get_all_shards_info() {
       ret;
   std::vector<nu::Thread> ths;
 
-  rw_lock_.reader_lock();
+  rw_lock_->reader_lock();
   ret.reserve(key_to_shards_.size());
   ths.reserve(key_to_shards_.size());
   for (auto &[k, shard_and_reqs] : key_to_shards_) {
@@ -947,7 +955,7 @@ ShardedDataStructure<Container, LL>::get_all_shards_info() {
     ths.emplace_back(
         [size_ptr, shard]() mutable { *size_ptr = shard.run(&Shard::size); });
   }
-  rw_lock_.reader_unlock();
+  rw_lock_->reader_unlock();
 
   for (auto &th : ths) {
     th.join();

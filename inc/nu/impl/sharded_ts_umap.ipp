@@ -33,33 +33,15 @@ inline bool GeneralTSUMap<K, V, H>::erase(Key k) {
 template <typename K, typename V, class H>
 inline void GeneralTSUMap<K, V, H>::split(Key *mid_k,
                                           GeneralTSUMap *latter_half) {
-  barrier();
-  auto t0 = rdtsc();
-  barrier();
-
   auto all_pairs = map_.get_all_pairs();
-  barrier();
-  auto t1 = rdtsc();
-  barrier();  
   std::sort(all_pairs.begin(), all_pairs.end(),
             [](const auto &p0, const auto &p1) { return p0.first < p1.first; });
-  barrier();
-  auto t2 = rdtsc();
-  barrier();  
   auto mid_iter = all_pairs.begin() + all_pairs.size() / 2;
   *mid_k = mid_iter->first;
   for (auto it = mid_iter; it != all_pairs.end(); ++it) {
     map_.remove(it->first);
     latter_half->map_.put(std::move(it->first), std::move(it->second));
   }
-  barrier();
-  auto t3 = rdtsc();
-  barrier();
-
-  preempt_disable();
-  printf("TSUMAP SPLIT %ld %ld %ld %ld\n", (long)all_pairs.size(),
-         (long)(t1 - t0), (long)(t2 - t1), (long)(t3 - t2));
-  preempt_enable();  
 }
 
 template <typename K, typename V, class H>
