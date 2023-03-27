@@ -21,8 +21,10 @@ dep = $(obj:.o=.d)
 
 baseline_src = src/xc_baseline.cpp
 baseline_obj = $(baseline_src:.cpp=.o)
+mem_src      = src/xc_mem.cpp
+mem_obj      = $(mem_src:.cpp=.o)
 
-all: bin/xc_baseline
+all: bin/xc_baseline bin/xc_mem
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -31,6 +33,8 @@ all: bin/xc_baseline
 
 bin/xc_baseline: $(baseline_obj)
 	$(LDXX) -o $@ $(baseline_obj) $(lib_alfalfa) $(LDFLAGS)
+bin/xc_mem: $(mem_obj)
+	$(LDXX) -o $@ $(mem_obj) $(lib_alfalfa) $(LDFLAGS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)
@@ -38,4 +42,4 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) bin/xc_baseline src/*.o
+	rm -f $(dep) bin/xc_baseline bin/xc_mem src/*.o

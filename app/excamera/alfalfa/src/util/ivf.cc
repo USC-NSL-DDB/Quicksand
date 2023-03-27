@@ -27,6 +27,8 @@
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <stdexcept>
+#include <fstream>
+#include <iterator>
 
 #include "ivf.hh"
 #include "file.hh"
@@ -79,4 +81,78 @@ Chunk IVF::frame( const uint32_t & index ) const
 {
   const auto & entry = frame_index_.at( index );
   return file_( entry.first, entry.second );
+}
+
+IVF_MEM::IVF_MEM( const string & filename )
+try :
+  buffer_( load(filename) ),
+  header_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), buffer_.size() + supported_header_len ) ),
+  fourcc_( header_( 8, 4 ).to_string() ),
+  width_( header_( 12, 2 ).le16() ),
+  height_( header_( 14, 2 ).le16() ),
+  frame_rate_( header_( 16, 4 ).le32() ),
+  time_scale_( header_( 20, 4 ).le32() ),
+  frame_count_( header_( 24, 4 ).le32() ),
+  expected_decoder_minihash_( header_( 28, 4 ).le32() ),
+  frame_index_()
+  {
+    if ( header_( 0, 4 ).to_string() != "DKIF" ) {
+      throw Invalid( "missing IVF file header" );
+    }
+
+    if ( header_( 4, 2 ).le16() != 0 ) {
+      throw Unsupported( "not an IVF version 0 file" );
+    }
+
+    if ( header_( 6, 2 ).le16() != supported_header_len ) {
+      throw Unsupported( "unsupported IVF header length" );
+    }
+
+    /* build the index */
+    frame_index_.reserve( frame_count_ );
+
+    uint64_t position = supported_header_len;
+    for ( uint32_t i = 0; i < frame_count_; i++ ) {
+      Chunk frame_header = Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()) + position, frame_header_len );
+      const uint32_t frame_len = frame_header.le32();
+
+      frame_index_.emplace_back( position + frame_header_len, frame_len );
+      position += frame_header_len + frame_len;
+    }
+  }
+catch ( const out_of_range & e )
+  {
+    throw Invalid( "IVF file truncated" );
+  }
+
+vector<char> IVF_MEM::load(const string &filename)
+{
+  // open the file:
+  ifstream file(filename, ios::binary);
+
+  // Stop eating new lines in binary mode!!!
+  file.unsetf(ios::skipws);
+
+  // get its size:
+  streampos fileSize;
+
+  file.seekg(0, ios::end);
+  fileSize = file.tellg();
+  file.seekg(0, ios::beg);
+
+  vector<char> vec;
+  vec.reserve(fileSize);
+
+  // read the data
+  vec.insert(vec.begin(),
+             istream_iterator<char>(file),
+             istream_iterator<char>());
+
+  return vec;
+}
+
+Chunk IVF_MEM::frame( const uint32_t & index ) const
+{
+  const auto & entry = frame_index_.at( index );
+  return Chunk(reinterpret_cast<const uint8_t *>(buffer_.data()) + entry.first, entry.second);
 }
