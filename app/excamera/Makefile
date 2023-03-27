@@ -8,17 +8,12 @@ include $(CALADAN_PATH)/build/shared.mk
 
 ALFALA_PATH=alfalfa
 
-ALFALFA_INC = -I$(ALFALA_PATH)/src/encoder -I$(ALFALA_PATH)/src/decoder \
-							-I$(ALFALA_PATH)/src/input -I$(ALFALA_PATH)/src/util \
-							-I$(ALFALA_PATH)/src/display
+ALFALFA_INC = -I$(ALFALA_PATH)/src/encoder -I$(ALFALA_PATH)/src/decoder -I$(ALFALA_PATH)/src/input -I$(ALFALA_PATH)/src/util -I$(ALFALA_PATH)/src/display
 INC += $(ALFALFA_INC)
 
 override LDFLAGS += -ljpeg -lx264
 
-lib_alfalfa = $(ALFALA_PATH)/src/encoder/libalfalfaencoder.a \
-							$(ALFALA_PATH)/src/decoder/libalfalfadecoder.a \
-							$(ALFALA_PATH)/src/input/libalfalfainput.a \
-							$(ALFALA_PATH)/src/util/libalfalfautil.a
+lib_alfalfa = $(ALFALA_PATH)/src/encoder/libalfalfaencoder.a $(ALFALA_PATH)/src/decoder/libalfalfadecoder.a $(ALFALA_PATH)/src/input/libalfalfainput.a $(ALFALA_PATH)/src/util/libalfalfautil.a
 
 src = $(wildcard src/*.cpp)
 obj = $(src:.cpp=.o)
