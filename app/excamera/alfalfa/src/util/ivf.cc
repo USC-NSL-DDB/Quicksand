@@ -35,6 +35,12 @@
 
 using namespace std;
 
+static void memcpy_le32( uint8_t * dest, const uint32_t val )
+{
+  uint32_t swizzled = htole32( val );
+  memcpy( dest, &swizzled, sizeof( swizzled ) );
+}
+
 IVF::IVF( const string & filename )
 try :
   file_( filename ),
@@ -86,7 +92,7 @@ Chunk IVF::frame( const uint32_t & index ) const
 IVF_MEM::IVF_MEM( const string & filename )
 try :
   buffer_( load(filename) ),
-  header_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), buffer_.size() + supported_header_len ) ),
+  header_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len ) ),
   fourcc_( header_( 8, 4 ).to_string() ),
   width_( header_( 12, 2 ).le16() ),
   height_( header_( 14, 2 ).le16() ),
@@ -125,6 +131,34 @@ catch ( const out_of_range & e )
     throw Invalid( "IVF file truncated" );
   }
 
+IVF_MEM::IVF_MEM( Chunk header ) :
+  buffer_( vector<char>(supported_header_len) ),
+  header_( header ),
+  fourcc_( header( 8, 4 ).to_string() ),
+  width_( header( 12, 2 ).le16() ),
+  height_( header( 14, 2 ).le16() ),
+  frame_rate_( header( 16, 4 ).le32() ),
+  time_scale_( header( 20, 4 ).le32() ),
+  frame_count_( header( 24, 4 ).le32() ),
+  expected_decoder_minihash_( header( 28, 4 ).le32() ),
+  frame_index_()
+{
+  if ( header( 0, 4 ).to_string() != "DKIF" ) {
+    throw Invalid( "missing IVF file header" );
+  }
+
+  if ( header( 4, 2 ).le16() != 0 ) {
+    throw Unsupported( "not an IVF version 0 file" );
+  }
+
+  if ( header( 6, 2 ).le16() != supported_header_len ) {
+    throw Unsupported( "unsupported IVF header length" );
+  }
+
+  std::string header_str = header.to_string();
+  buffer_.assign(header_str.begin(), header_str.end());
+}
+
 vector<char> IVF_MEM::load(const string &filename)
 {
   // open the file:
@@ -149,6 +183,20 @@ vector<char> IVF_MEM::load(const string &filename)
              istream_iterator<char>());
 
   return vec;
+}
+
+void IVF_MEM::append_frame( const Chunk & chunk )
+{
+  auto chunk_str = chunk.to_string();
+  buffer_.insert(buffer_.end(), chunk_str.begin(), chunk_str.end());
+  frame_count_++;
+  memcpy_le32( reinterpret_cast<uint8_t *>(buffer_.data()) + 24, frame_count_ );
+}
+
+void IVF_MEM::set_expected_decoder_minihash( const uint32_t minihash )
+{
+  expected_decoder_minihash_ = minihash;
+  memcpy_le32( reinterpret_cast<uint8_t *>(buffer_.data()) + 28, frame_count_ );
 }
 
 Chunk IVF_MEM::frame( const uint32_t & index ) const

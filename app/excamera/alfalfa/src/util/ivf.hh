@@ -89,6 +89,7 @@ public:
   static constexpr int frame_header_len = 12;
 
   IVF_MEM( const std::string & filename );
+  IVF_MEM( Chunk header );
 
   const std::string & fourcc( void ) const { return fourcc_; }
   uint16_t width( void ) const { return width_; }
@@ -98,10 +99,12 @@ public:
   uint32_t frame_count( void ) const { return frame_count_; }
 
   Chunk frame( const uint32_t & index ) const;
+  void append_frame( const Chunk & chunk );
 
   size_t size() const { return buffer_.size(); }
 
   uint32_t expected_decoder_minihash() const { return expected_decoder_minihash_; }
+  void set_expected_decoder_minihash( const uint32_t minihash );
 };
 
 #endif /* IVF_HH */

@@ -153,3 +153,62 @@ IVFWriter::IVFWriter( const string & filename,
                                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH ) ),
                fourcc, width, height, frame_rate, time_scale )
 {}
+
+IVF_MEM IVFWriter_MEM::init_ivf(const string & fourcc,
+                    const uint16_t width,
+                    const uint16_t height,
+                    const uint32_t frame_rate,
+                    const uint32_t time_scale )
+{
+  if ( fourcc.size() != 4 ) {
+    throw internal_error( "IVF", "FourCC must be four bytes long" );
+  }
+
+  /* build the header */
+  SafeArray<uint8_t, IVF::supported_header_len> new_header;
+  zero( new_header );
+
+  memcpy( &new_header.at( 0 ), "DKIF", 4 );
+  /* skip version number (= 0) */
+  memcpy_le16( &new_header.at( 6 ), IVF::supported_header_len );
+  memcpy( &new_header.at( 8 ), fourcc.data(), 4 );
+  memcpy_le16( &new_header.at( 12 ), width );
+  memcpy_le16( &new_header.at( 14 ), height );
+  memcpy_le32( &new_header.at( 16 ), frame_rate );
+  memcpy_le32( &new_header.at( 20 ), time_scale );
+
+  /* write the header */
+  return IVF_MEM( Chunk( &new_header.at( 0 ), new_header.size() ) );
+}
+
+IVFWriter_MEM::IVFWriter_MEM( const string & fourcc,
+                              const uint16_t width,
+                              const uint16_t height,
+                              const uint32_t frame_rate,
+                              const uint32_t time_scale )
+  : ivf_( init_ivf(fourcc, width, height, frame_rate, time_scale) ),
+    frame_count_( 0 ),
+    width_( width ),
+    height_( height )
+{}
+
+void IVFWriter_MEM::append_frame( const Chunk & chunk )
+{
+  /* build the frame header */
+  SafeArray<uint8_t, IVF::frame_header_len> new_header;
+  zero( new_header );
+  memcpy_le32( &new_header.at( 0 ), chunk.size() );
+
+  /* XXX does not include presentation timestamp */
+
+  /* append the frame header to the file */
+  ivf_.append_frame( Chunk( &new_header.at( 0 ), new_header.size() ) );
+  /* append the frame to the file */
+  ivf_.append_frame( chunk );
+  frame_count_++;
+}
+
+void IVFWriter_MEM::set_expected_decoder_entry_hash( const uint32_t minihash ) /* ExCamera invention */
+{
+  ivf_.set_expected_decoder_minihash(minihash);
+}

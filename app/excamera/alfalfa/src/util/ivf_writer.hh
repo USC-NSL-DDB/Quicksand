@@ -64,4 +64,34 @@ public:
   uint16_t height() const { return height_; }
 };
 
+class IVFWriter_MEM
+{
+private:
+  IVF_MEM ivf_;
+  uint32_t frame_count_;
+  uint16_t width_;
+  uint16_t height_;
+
+  IVF_MEM init_ivf( const std::string & fourcc,
+                    const uint16_t width,
+                    const uint16_t height,
+                    const uint32_t frame_rate,
+                    const uint32_t time_scale );
+
+public:
+  IVFWriter_MEM( const std::string & fourcc,
+                 const uint16_t width,
+                 const uint16_t height,
+                 const uint32_t frame_rate,
+                 const uint32_t time_scale );
+
+  void append_frame( const Chunk & chunk );
+
+  void set_expected_decoder_entry_hash( const uint32_t minihash ); /* ExCamera invention */
+
+  uint16_t width() const { return width_; }
+  uint16_t height() const { return height_; }
+  IVF_MEM ivf() const { return ivf_; }
+};
+
 #endif /* IVF_WRITER_HH */
