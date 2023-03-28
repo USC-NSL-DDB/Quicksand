@@ -312,12 +312,18 @@ bool GeneralShard<Container>::try_compute_delete_self() {
 }
 
 template <class Container>
-inline bool GeneralShard<Container>::try_insert(std::optional<Key> key,
-                                                DataEntry entry)
+inline bool GeneralShard<Container>::try_insert(DataEntry entry)
   requires InsertAble<Container> {
   rw_lock_.reader_lock();
 
-  if (unlikely(should_reject(key))) {
+  bool rejected;
+  if constexpr (HasVal<Container>) {
+    rejected = should_reject(entry.first);
+  } else {
+    rejected = should_reject(entry);
+  }
+
+  if (unlikely(rejected)) {
     rw_lock_.reader_unlock();
     return false;
   }

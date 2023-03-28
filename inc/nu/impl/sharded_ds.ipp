@@ -193,7 +193,7 @@ template <typename D>
 ShardedDataStructure<Container, LL>::__insert(
     D &&entry) requires InsertAble<Container> {
 [[maybe_unused]] retry:
-  Key *k_ptr;
+  const Key *k_ptr;
   if constexpr (HasVal<Container>) {
     k_ptr = &entry.first;
   } else {
@@ -205,7 +205,7 @@ ShardedDataStructure<Container, LL>::__insert(
     auto iter = --key_to_shards_.upper_bound(*k_ptr);
     auto shard = iter->second.shard;
     rw_lock_->reader_unlock();
-    auto succeed = shard.run(&Shard::try_insert, *k_ptr, entry);
+    auto succeed = shard.run(&Shard::try_insert, entry);
 
     if (unlikely(!succeed)) {
       sync_mapping();
@@ -667,10 +667,9 @@ void ShardedDataStructure<Container, LL>::flush() {
     }
   }
 
-  assert(!num_pending_flushes_);
-  assert(pending_flushes_links_.empty());
-
 #ifdef DEBUG
+  BUG_ON(num_pending_flushes_);
+  BUG_ON(!pending_flushes_links_.empty());
   for (auto iter = key_to_shards_.begin(); iter != key_to_shards_.end();
        iter++) {
     BUG_ON(!iter->second.insert_reqs.empty());
