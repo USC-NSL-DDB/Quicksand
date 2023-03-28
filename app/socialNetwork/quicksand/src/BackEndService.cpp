@@ -174,15 +174,17 @@ void BackEndService::RemovePosts(int64_t user_id, int start, int stop) {
 
     auto remove_from_timeline_fn = [&](auto &timeline_map, int64_t user_id,
                                        Post &post) {
-      auto future = nu::async([tl_map = &timeline_map, user_id, post] {
-        tl_map->apply_on(
-            user_id,
-            +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
-                int64_t post_id) {
-              p.second.erase(std::make_pair(timestamp, post_id));
-            },
-            post.timestamp, post.post_id);
-      });
+      auto future =
+          nu::async([tl_map = &timeline_map, user_id,
+                     timestamp = post.timestamp, post_id = post.post_id] {
+            tl_map->apply_on(
+                user_id,
+                +[](std::pair<const int64_t, Timeline> &p, int64_t timestamp,
+                    int64_t post_id) {
+                  p.second.erase(std::make_pair(timestamp, post_id));
+                },
+                timestamp, post_id);
+          });
       remove_from_timeline_futures.emplace_back(std::move(future));
     };
     remove_from_timeline_fn(states_.userid_to_usertimeline_map, user_id, post);
