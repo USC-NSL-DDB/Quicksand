@@ -563,7 +563,8 @@ inline RetT ShardedDataStructure<Container, LL>::compute_on(
 template <class Container, class LL>
 template <typename RetT, typename... S0s, typename... S1s>
 inline RetT ShardedDataStructure<Container, LL>::run(
-    Key k, RetT (*fn)(ContainerImpl &container, S0s...), S1s &&...states) {
+    Key k, RetT (*fn)(ContainerImpl &container, Key k, S0s...),
+    S1s &&...states) {
 [[maybe_unused]] retry:
   rw_lock_->reader_lock();
   auto iter = --key_to_shards_.upper_bound(k);

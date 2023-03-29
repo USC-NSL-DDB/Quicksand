@@ -1045,7 +1045,7 @@ template <class Container>
 template <typename RetT, typename... S0s>
 std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
 GeneralShard<Container>::try_run(Key k, uintptr_t fn_addr, S0s... states) {
-  auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, S0s...)>(fn_addr);
+  auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, Key, S0s...)>(fn_addr);
   std::size_t size;
 
   rw_lock_.reader_lock();
@@ -1066,10 +1066,10 @@ GeneralShard<Container>::try_run(Key k, uintptr_t fn_addr, S0s... states) {
   }
 
   if constexpr (std::is_void_v<RetT>) {
-    size = container_.pass_through(fn, std::move(states)...);
+    size = container_.pass_through(fn, std::move(k), std::move(states)...);
     return true;
   } else {
-    auto p = container_.pass_through(fn, std::move(states)...);
+    auto p = container_.pass_through(fn, std::move(k), std::move(states)...);
     size = p.second;
     return p.first;
   }

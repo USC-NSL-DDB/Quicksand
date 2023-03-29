@@ -470,6 +470,74 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
+template <typename K1>
+std::optional<V> SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+                             Lock>::get_and_remove(K1 &&k) {
+  auto hasher = Hash();
+  auto key_hash = hasher(k);
+  auto equaler = KeyEqual();
+  auto bucket_idx = key_hash % NBuckets;
+  auto &bucket_head = bucket_heads_[bucket_idx];
+  auto *bucket_node = &bucket_head.node;
+  auto &lock = bucket_head.lock;
+  BucketNode **prev_next = nullptr;
+  BucketNodeAllocator bucket_node_allocator;
+  lock.lock();
+
+  while (bucket_node && bucket_node->pair) {
+    if (key_hash == bucket_node->key_hash) {
+      auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
+      if (equaler(k, pair->first)) {
+        if (!prev_next) {
+          if (!bucket_node->next) {
+            bucket_node->pair = nullptr;
+          } else {
+            auto *next = bucket_node->next;
+            *bucket_node = *next;
+            bucket_node_allocator.deallocate(next, 1);
+          }
+        } else {
+          *prev_next = bucket_node->next;
+          bucket_node_allocator.deallocate(bucket_node, 1);
+        }
+        lock.unlock();
+        auto allocator = Allocator();
+        auto ret = std::make_optional(std::move(pair->second));
+        std::destroy_at(pair);
+        allocator.deallocate(pair, 1);
+        return ret;
+      }
+    }
+    prev_next = &bucket_node->next;
+    bucket_node = bucket_node->next;
+  }
+  lock.unlock();
+  return std::nullopt;
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+inline std::vector<std::pair<uint64_t, K>>
+SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
+            Lock>::get_all_hashes_and_keys() {
+  std::vector<std::pair<uint64_t, K>> hashes_and_keys;
+
+  for (size_t i = 0; i < NBuckets; i++) {
+    auto *bucket_node = &bucket_heads_[i].node;
+    if (bucket_node->pair) {
+      do {
+        hashes_and_keys.emplace_back(
+            bucket_node->key_hash,
+            reinterpret_cast<Pair *>(bucket_node->pair)->first);
+        bucket_node = bucket_node->next;
+      } while (bucket_node);
+    }
+  }
+  return hashes_and_keys;
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
 template <class Archive>
 inline void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::save(
     Archive &ar) const {

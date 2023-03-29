@@ -150,7 +150,7 @@ inline RetT GeneralShardedUnorderedMap<K, V, H, M, LL>::apply_on(
         auto *ptr = const_cast<V *>(&iter->second);
         return fn(ptr, states...);
       },
-      std::move(k), fn_addr, std::forward<S1s>(states)...);
+      fn_addr, std::forward<S1s>(states)...);
 }
 
 template <typename K, typename V, typename H, typename M, typename LL>
@@ -166,7 +166,7 @@ inline RetT GeneralShardedUnorderedMap<K, V, H, M, LL>::apply_on(
         auto *fn = reinterpret_cast<Fn>(fn_addr);
         return fn(map[k], states...);
       },
-      std::move(k), fn_addr, std::forward<S1s>(states)...);
+      fn_addr, std::forward<S1s>(states)...);
 }
 
 template <typename K, typename V, typename H, typename LL>

@@ -91,7 +91,7 @@ class ShardedDataStructure {
   RetT compute_on(Key k, RetT (*fn)(ContainerImpl &container, S0s...),
                   S1s &&...states);
   template <typename RetT, typename... S0s, typename... S1s>
-  RetT run(Key k, RetT (*fn)(ContainerImpl &container, S0s...),
+  RetT run(Key k, RetT (*fn)(ContainerImpl &container, Key k, S0s...),
            S1s &&...states);
   template <class Archive>
   void save(Archive &ar) const;
