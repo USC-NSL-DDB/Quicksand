@@ -3,17 +3,19 @@
 
 using namespace nu;
 
+constexpr uint32_t kNumElements = 1 << 20;
+
 bool run_test() {
-  auto sm = make_sharded_ts_umap<std::size_t, std::size_t>();
-  sm.insert(1, 1);
+  auto sm = make_sharded_ts_umap<std::size_t, std::string>();
+  sm.insert(1, std::to_string(1));
   sm.apply_on(
       1,
-      +[](std::pair<const std::size_t, std::size_t> &p, int delta) {
+      +[](std::pair<const std::size_t, std::string> &p, std::string delta) {
         p.second += delta;
       },
-      2);
+      "2");
   auto optional = sm.find_data(1);
-  if (!optional || *optional != 3) {
+  if (!optional || *optional != "12") {
     return false;
   }
   if (!sm.erase(1)) {
@@ -23,6 +25,17 @@ bool run_test() {
   if (optional) {
     return false;
   }
+
+  for (std::size_t i = 0; i < kNumElements; i++) {
+    sm.insert(i, std::to_string(i));
+  }
+
+  for (std::size_t i = 0; i < kNumElements; i++) {
+    if (sm.find_data(i) != std::to_string(i)) {
+      return false;
+    }
+  }
+
   return true;
 }
 
