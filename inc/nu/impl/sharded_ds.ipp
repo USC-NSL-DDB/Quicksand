@@ -571,8 +571,8 @@ inline RetT ShardedDataStructure<Container, LL>::run(
   auto shard = iter->second.shard;
   rw_lock_->reader_unlock();
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
-  auto optional_ret = shard.run(&Shard::template try_run<RetT, S0s...>, k,
-                                fn_addr, std::forward<S1s>(states)...);
+  auto optional_ret =
+      shard.run(&Shard::template try_run<RetT, S0s...>, k, fn_addr, states...);
 
   if (unlikely(!optional_ret)) {
     sync_mapping();
