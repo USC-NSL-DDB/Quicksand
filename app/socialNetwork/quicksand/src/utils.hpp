@@ -8,8 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "../gen-cpp/social_network_types.h"
-
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::system_clock;

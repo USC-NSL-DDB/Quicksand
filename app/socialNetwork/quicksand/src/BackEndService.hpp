@@ -6,8 +6,6 @@
 #include <variant>
 #include <vector>
 
-#include "../gen-cpp/BackEndService.h"
-#include "../gen-cpp/social_network_types.h"
 #include "defs.hpp"
 #include "states.hpp"
 #include "utils.hpp"
@@ -49,7 +47,9 @@ class BackEndService {
   std::size_t size() const { return 1; }
   void split(Key *, BackEndService *) {}
   template <class Archive>
-  void serialize(Archive &ar) {}
+  void serialize(Archive &ar) {
+    ar(states_);
+  }
 
  private:
   TextServiceReturn ComposeText(const std::string &text);
