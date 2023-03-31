@@ -47,7 +47,7 @@ namespace cereal
       ar( make_size_tag( static_cast<size_type>(pbds_tree.size()) ) );
 
       for( const auto & i : pbds_tree )
-        ar( i );
+        ar( i.first, i.second );
     }
 
     //! @internal
@@ -61,11 +61,16 @@ namespace cereal
 
       for( size_type i = 0; i < size; ++i )
       {
-	std::pair<typename PBDSTreeT::key_type,
-		  typename PBDSTreeT::mapped_type> p;
-
-        ar( p );
-	pbds_tree[ std::move( p.first ) ] = std::move( p.second );
+	typename PBDSTreeT::key_type k;
+	if constexpr (std::is_same_v<typename PBDSTreeT::mapped_type,
+		      __gnu_pbds::null_type>) {
+	  ar( k );
+	  pbds_tree.insert( std::move( k ) );
+	} else {
+	  typename PBDSTreeT::mapped_type v;
+	  ar( k, v );
+	  pbds_tree[ std::move( k ) ] = std::move( v );
+	}
       }
     }
   }
