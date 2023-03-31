@@ -554,7 +554,8 @@ inline void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::save(
     }
     ar(nodes.size());
     for (auto *node : nodes) {
-      ar(node->key_hash, *reinterpret_cast<Pair *>(node->pair));
+      auto *pair = reinterpret_cast<Pair *>(node->pair);
+      ar(node->key_hash, pair->first, pair->second);
     }
   }
 }
@@ -570,16 +571,17 @@ inline void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::load(
   for (size_t i = 0; i < NBuckets; i++) {
     size_t num_nodes;
     ar(num_nodes);
-
     auto *bucket_node = &bucket_heads_[i].node;
-    for (size_t i = 0; i < num_nodes; i++) {
+    for (size_t j = 0; j < num_nodes; j++) {
       bucket_node->pair = allocator.allocate(1);
       new (bucket_node->pair) Pair();
-      ar(bucket_node->key_hash,
-         reinterpret_cast<std::pair<K, V> *>(bucket_node->pair));
-      bucket_node->next = bucket_node_allocator.allocate(1);
-      new (bucket_node->next) BucketNode();
-      bucket_node = bucket_node->next;
+      auto *pair = reinterpret_cast<std::pair<K, V> *>(bucket_node->pair);
+      ar(bucket_node->key_hash, pair->first, pair->second);
+      if (j != num_nodes - 1) {
+        bucket_node->next = bucket_node_allocator.allocate(1);
+        new (bucket_node->next) BucketNode();
+        bucket_node = bucket_node->next;
+      }
     }
   }
 }
