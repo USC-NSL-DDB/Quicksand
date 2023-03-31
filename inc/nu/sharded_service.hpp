@@ -11,6 +11,7 @@ class ShardedService
  public:
   using Key = T::Key;
 
+  ShardedService();
   template <typename RetT, typename... S0s, typename... S1s>
   RetT run(Key k, RetT (*fn)(T &, S0s...),
            S1s &&...states) requires ValidInvocationTypes<RetT, S0s...>;
@@ -21,7 +22,6 @@ class ShardedService
  private:
   using Base = ShardedDataStructure<GeneralContainer<T>, std::false_type>;
 
-  ShardedService();
   template <typename U, typename... As>
   friend ShardedService<U> make_sharded_service(As &&...args);
 };

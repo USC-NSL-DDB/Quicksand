@@ -16,6 +16,7 @@ using ShardedSorted = SealedDS<ShardedPartitioner<K, V>>;
 template <typename K, typename V = ErasedType>
 class ShardedSorter {
  public:
+  ShardedSorter() = default;
   ShardedSorter(const ShardedSorter &) = default;
   ShardedSorter &operator=(const ShardedSorter &) = default;
   ShardedSorter(ShardedSorter &&) = default;
@@ -31,7 +32,6 @@ class ShardedSorter {
   ShardedPartitioner<K, V> sharded_pn_;
   friend class ProcletServer;
 
-  ShardedSorter() = default;
   ShardedSorter(ShardedPartitioner<K, V> &&sharded_pn);
   template <typename K1, typename V1>
   friend ShardedSorter<K1, V1> make_sharded_sorter();

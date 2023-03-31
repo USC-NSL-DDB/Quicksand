@@ -77,6 +77,7 @@ class GeneralShardedMap
     : public ShardedDataStructure<GeneralLockedContainer<GeneralMap<K, V, M>>,
                                   LL> {
  public:
+  GeneralShardedMap() = default;
   GeneralShardedMap(const GeneralShardedMap &) = default;
   GeneralShardedMap &operator=(const GeneralShardedMap &) = default;
   GeneralShardedMap(GeneralShardedMap &&) noexcept = default;
@@ -85,7 +86,6 @@ class GeneralShardedMap
  private:
   using Base =
       ShardedDataStructure<GeneralLockedContainer<GeneralMap<K, V, M>>, LL>;
-  GeneralShardedMap() = default;
   GeneralShardedMap(std::optional<typename Base::ShardingHint> sharding_hint);
 
   friend class ProcletServer;

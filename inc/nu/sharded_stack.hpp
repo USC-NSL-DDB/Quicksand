@@ -42,6 +42,7 @@ template <typename T, typename LL>
 class ShardedStack
     : public ShardedDataStructure<GeneralLockedContainer<Stack<T>>, LL> {
  public:
+  ShardedStack();
   ShardedStack(const ShardedStack &) = default;
   ShardedStack &operator=(const ShardedStack &) = default;
   ShardedStack(ShardedStack &&) noexcept = default;
@@ -56,7 +57,6 @@ class ShardedStack
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Stack<T>>, LL>;
 
-  ShardedStack();
   ShardedStack(std::optional<typename Base::ShardingHint> sharding_hint);
   friend class ProcletServer;
   template <typename T1, typename LL1>

@@ -77,6 +77,7 @@ class GeneralShardedSet
     : public ShardedDataStructure<GeneralLockedContainer<GeneralSet<T, M>>,
                                   LL> {
  public:
+  GeneralShardedSet() = default;
   GeneralShardedSet(const GeneralShardedSet &) = default;
   GeneralShardedSet &operator=(const GeneralShardedSet &) = default;
   GeneralShardedSet(GeneralShardedSet &&) noexcept = default;
@@ -85,7 +86,6 @@ class GeneralShardedSet
  private:
   using Base =
       ShardedDataStructure<GeneralLockedContainer<GeneralSet<T, M>>, LL>;
-  GeneralShardedSet() = default;
   GeneralShardedSet(std::optional<typename Base::ShardingHint> sharding_hint);
 
   friend class ProcletServer;

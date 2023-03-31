@@ -60,6 +60,7 @@ template <typename T, typename LL>
 class ShardedQueue
     : public ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL> {
  public:
+  ShardedQueue();
   ShardedQueue(const ShardedQueue &) = default;
   ShardedQueue &operator=(const ShardedQueue &) = default;
   ShardedQueue(ShardedQueue &&) noexcept = default;
@@ -81,7 +82,6 @@ class ShardedQueue
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL>;
 
-  ShardedQueue();
   ShardedQueue(std::optional<typename Base::ShardingHint> sharding_hint,
                std::optional<std::size_t> size_bound);
   friend class ProcletServer;
@@ -91,6 +91,8 @@ class ShardedQueue
   friend ShardedQueue<T1, LL1> make_sharded_queue();
   template <typename T1, typename LL1>
   friend ShardedQueue<T1, LL1> make_sharded_queue(std::size_t);
+  template <class... Types>
+  friend class tuple;
 };
 
 template <typename T, typename LL>

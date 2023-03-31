@@ -28,7 +28,7 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
 
     using ArgsTuple = std::tuple<std::decay_t<As>...>;
     auto *args = reinterpret_cast<ArgsTuple *>(alloca(sizeof(ArgsTuple)));
-    new (args) ArgsTuple(std::decay_t<As>()...);
+    new (args) ArgsTuple();
     std::apply([&](auto &&... args) { ((ia_sstream->ia >> args), ...); },
                *args);
 
@@ -253,7 +253,7 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
   FnPtr fn;
   ia_sstream->ia >> fn;
 
-  std::tuple<std::decay_t<S1s>...> states{std::decay_t<S1s>()...};
+  std::tuple<std::decay_t<S1s>...> states;
   std::apply([&](auto &&... states) { ((ia_sstream->ia >> states), ...); },
              states);
   auto apply_fn = [&] {

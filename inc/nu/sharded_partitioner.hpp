@@ -81,6 +81,7 @@ class ShardedPartitioner
                                        // structure for any low-latency purpose.
 {
  public:
+  ShardedPartitioner() = default;
   ShardedPartitioner(const ShardedPartitioner &) = default;
   ShardedPartitioner &operator=(const ShardedPartitioner &) = default;
   ShardedPartitioner(ShardedPartitioner &&) noexcept = default;
@@ -89,12 +90,10 @@ class ShardedPartitioner
  private:
   using Base =
       ShardedDataStructure<PartitionerContainer<K, V>, std::false_type>;
+  ShardedPartitioner(std::optional<typename Base::ShardingHint> sharding_hint);
+
   template <typename K1, typename V1>
   friend class ShardedSorter;
-  friend class ProcletServer;
-
-  ShardedPartitioner() = default;
-  ShardedPartitioner(std::optional<typename Base::ShardingHint> sharding_hint);
   friend class ProcletServer;
   template <typename K1, typename V1>
   friend ShardedPartitioner<K1, V1> make_sharded_partitioner();
