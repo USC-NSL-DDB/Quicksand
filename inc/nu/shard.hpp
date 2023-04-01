@@ -215,6 +215,7 @@ class GeneralShard {
   CondVar empty_cv_;
   bool deleted_;
   bool service_;
+  bool cofounder_;
   Thread compute_monitor_th_;
 
   friend class ContainerHandle<Container>;

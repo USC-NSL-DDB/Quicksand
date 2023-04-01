@@ -76,7 +76,8 @@ inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
       deleted_(true),
-      service_(service) {
+      service_(service),
+      cofounder_(false) {
   auto *proclet_header = Runtime::to_proclet_header(this);
   slab_ = &proclet_header->slab;
   cpu_load_ = &proclet_header->cpu_load;
@@ -93,7 +94,8 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       l_key_(l_key),
       r_key_(r_key),
       deleted_(false),
-      service_(service) {
+      service_(service),
+      cofounder_(true) {
   auto *proclet_header = Runtime::to_proclet_header(this);
   slab_ = &proclet_header->slab;
   cpu_load_ = &proclet_header->cpu_load;
@@ -1015,7 +1017,7 @@ void GeneralShard<Container>::start_compute_monitor_th() {
           if (cpu_load > kComputeLoadHighThresh) {
             compute_split();
           } else if (cpu_load < kComputeLoadLowThresh) {
-            if (l_key_ && try_compute_delete_self()) {
+            if (!cofounder_ && try_compute_delete_self()) {
               break;
             }
           }

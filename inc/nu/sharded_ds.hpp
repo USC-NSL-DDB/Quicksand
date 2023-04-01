@@ -44,6 +44,13 @@ class ShardedDataStructure {
   using Shard = GeneralShard<Container>;
   using ShardMapping = GeneralShardMapping<Shard>;
 
+  constexpr static uint32_t kBatchingMaxShardBytes = 32 << 20;
+  constexpr static uint32_t kBatchingMaxBatchBytes = 64 << 10;
+  constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
+  constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
+  constexpr static uint32_t kMaxNumInflightFlushes = 8;
+  constexpr static uint32_t kFlushFutureRecheckUs = 10;
+
   struct ShardingHint {
     uint64_t num;
     Key estimated_min_key;
@@ -110,13 +117,6 @@ class ShardedDataStructure {
   ~ShardedDataStructure();
 
  private:
-  constexpr static uint32_t kBatchingMaxShardBytes = 32 << 20;
-  constexpr static uint32_t kBatchingMaxBatchBytes = 64 << 10;
-  constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
-  constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
-  constexpr static uint32_t kMaxNumInflightFlushes = 8;
-  constexpr static uint32_t kFlushFutureRecheckUs = 10;
-
   using ReqBatch = Shard::ReqBatch;
   struct ShardAndReqs {
     WeakProclet<Shard> shard;

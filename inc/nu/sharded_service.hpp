@@ -7,8 +7,11 @@
 namespace nu {
 
 template <typename T>
+class ShardedStatelessService;
+
+template <typename T>
 class ShardedService
-    : private ShardedDataStructure<GeneralContainer<T>, std::false_type> {
+    : private ShardedDataStructure<GeneralContainer<T>, std::true_type> {
  public:
   using Key = T::Key;
 
@@ -23,10 +26,13 @@ class ShardedService
   void serialize(Archive &ar);
 
  private:
-  using Base = ShardedDataStructure<GeneralContainer<T>, std::false_type>;
+  using Base = ShardedDataStructure<GeneralContainer<T>, std::true_type>;
   ShardedService(std::optional<typename Base::ShardingHint> sharding_hint);
   template <typename U, typename... As>
   friend ShardedService<U> make_sharded_service(As &&...args);
+  template <typename U, typename... As>
+  friend ShardedStatelessService<U> make_sharded_stateless_service(
+      As &&...args);
 };
 
 template <typename T>

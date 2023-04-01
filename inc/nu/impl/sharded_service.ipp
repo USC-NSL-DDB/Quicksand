@@ -1,6 +1,11 @@
+#include <deque>
+#include <limits>
+
 extern "C" {
 #include <asm/ops.h>
 }
+
+#include "nu/resource_reporter.hpp"
 
 namespace nu {
 
@@ -96,7 +101,39 @@ inline ShardedService<T> make_sharded_service(As &&...args) {
 
 template <typename T, typename... As>
 inline ShardedStatelessService<T> make_sharded_stateless_service(As &&...args) {
-  return make_sharded_service<T>(std::forward<As>(args)...);
+  std::vector<std::pair<NodeIP, Resource>> global_free_resources;
+  {
+    Caladan::PreemptGuard g;
+    global_free_resources =
+        get_runtime()->resource_reporter()->get_global_free_resources();
+  }
+  float total_cores = 0;
+  for (auto [_, resource] : global_free_resources) {
+    total_cores += resource.cores;
+  }
+  std::deque<uint64_t> rkeys;
+  for (auto [_, resource] : global_free_resources) {
+    auto last_rkey = rkeys.empty() ? 0 : rkeys.back();
+    auto new_rkey = last_rkey + resource.cores / total_cores *
+                                    std::numeric_limits<uint64_t>::max();
+    printf("%lld\n", (long long)(new_rkey));
+    rkeys.push_back(new_rkey);
+  }
+  using Base = ShardedDataStructure<GeneralContainer<T>, std::true_type>;
+  typename Base::ShardingHint h;
+  h.num = global_free_resources.size() *
+          (Base::kLowLatencyMaxShardBytes / sizeof(uint64_t));
+  h.estimated_min_key = 0;
+  h.key_inc_fn = std::function(
+      [rkeys = std::move(rkeys)](uint64_t &k, uint64_t _) mutable {
+        k = rkeys.front();
+        rkeys.pop_front();
+      });
+  auto sharded_service = ShardedService<T>(h);
+  sharded_service.compute_on(
+      typename T::Key(), +[](T &t, As... args) { t = T(std::move(args)...); },
+      std::forward<As>(args)...);
+  return sharded_service;
 }
 
 }  // namespace nu
