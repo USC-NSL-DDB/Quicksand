@@ -312,7 +312,7 @@ MigrationGuard ProcletServer::run_closure_locally(
     MigrationGuard *callee_migration_guard,
     const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
     ProcletHeader *caller_header, ProcletHeader *callee_header, FnPtr fn_ptr,
-    Ss &...states) {
+    std::unique_ptr<std::tuple<Ss...>> states) {
   if constexpr (CPUSamp) {
     callee_header->cpu_load.start_monitor();
   } else {
@@ -324,12 +324,17 @@ MigrationGuard ProcletServer::run_closure_locally(
 
   if constexpr (!std::is_same<RetT, void>::value) {
     auto *ret = reinterpret_cast<RetT *>(alloca(sizeof(RetT)));
-    if constexpr (MigrEn) {
-      callee_migration_guard->enable_for(
-          [&] { new (ret) RetT(fn_ptr(*obj, std::move(states)...)); });
-    } else {
-      new (ret) RetT(fn_ptr(*obj, std::move(states)...));
-    }
+    std::apply(
+        [&](auto &&...states) {
+          if constexpr (MigrEn) {
+            callee_migration_guard->enable_for(
+                [&] { new (ret) RetT(fn_ptr(*obj, std::move(states)...)); });
+          } else {
+            new (ret) RetT(fn_ptr(*obj, std::move(states)...));
+          }
+        },
+        *states);
+    states.reset();
     callee_header->thread_cnt.dec_unsafe();
     callee_header->cpu_load.end_monitor();
 
@@ -360,12 +365,17 @@ MigrationGuard ProcletServer::run_closure_locally(
         std::move(ret_val_buf), to_proclet_id(caller_header), caller_ptr,
         [&] { get_runtime()->archive_pool()->put_oa_sstream(oa_sstream); });
   } else {
-    if constexpr (MigrEn) {
-      callee_migration_guard->enable_for(
-          [&] { fn_ptr(*obj, std::move(states)...); });
-    } else {
-      fn_ptr(*obj, std::move(states)...);
-    }
+    std::apply(
+        [&](auto &&...states) {
+          if constexpr (MigrEn) {
+            callee_migration_guard->enable_for(
+                [&] { fn_ptr(*obj, std::move(states)...); });
+          } else {
+            fn_ptr(*obj, std::move(states)...);
+          }
+        },
+        *states);
+    states.reset();
     callee_header->thread_cnt.dec_unsafe();
     callee_header->cpu_load.end_monitor();
 

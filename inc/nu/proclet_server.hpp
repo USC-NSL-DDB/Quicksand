@@ -47,7 +47,7 @@ class ProcletServer {
       MigrationGuard *callee_migration_guard,
       const ProcletSlabGuard &callee_slab_guard, RetT *caller_ptr,
       ProcletHeader *caller_header, ProcletHeader *callee_header, FnPtr fn_ptr,
-      Ss &...states);
+      std::unique_ptr<std::tuple<Ss...>> states);
 
  private:
   using GenericHandler = void (*)(ArchivePool<>::IASStream *ia_sstream,

@@ -303,30 +303,26 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&...states) {
 
       {
         ProcletSlabGuard slab_guard(&callee_header->slab);
-        using StatesTuple = std::tuple<std::decay_t<S1s>...>;
+        using StatesTuple = std::tuple<S0s...>;
         // Do copy for the most cases and only do move when we are sure it's
         // safe. For copy, we assume the type implements "deep copy".
-        auto copied_states =
-            StatesTuple(pass_across_proclet(std::forward<S1s>(states))...);
+        auto copied_states = std::make_unique<StatesTuple>(
+            pass_across_proclet(std::forward<S1s>(states))...);
         caller_migration_guard.reset();
 
-        std::apply(
-            [&](auto &&... states) {
-              if constexpr (kHasRetVal) {
-                caller_migration_guard =
-                    ProcletServer::run_closure_locally<MigrEn, CPUSamp, T, RetT,
-                                                       decltype(fn)>(
-                        &(*optional_callee_migration_guard), slab_guard, &ret,
-                        caller_header, callee_header, fn, states...);
-              } else {
-                caller_migration_guard =
-                    ProcletServer::run_closure_locally<MigrEn, CPUSamp, T, RetT,
-                                                       decltype(fn)>(
-                        &(*optional_callee_migration_guard), slab_guard,
-                        nullptr, caller_header, callee_header, fn, states...);
-              }
-            },
-            copied_states);
+        if constexpr (kHasRetVal) {
+          caller_migration_guard =
+              ProcletServer::run_closure_locally<MigrEn, CPUSamp, T, RetT,
+                                                 decltype(fn), S0s...>(
+                  &(*optional_callee_migration_guard), slab_guard, &ret,
+                  caller_header, callee_header, fn, std::move(copied_states));
+        } else {
+          caller_migration_guard =
+              ProcletServer::run_closure_locally<MigrEn, CPUSamp, T, RetT,
+                                                 decltype(fn), S0s...>(
+                  &(*optional_callee_migration_guard), slab_guard, nullptr,
+                  caller_header, callee_header, fn, std::move(copied_states));
+        }
       }
 
       if constexpr (kHasRetVal) {
