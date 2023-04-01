@@ -34,6 +34,12 @@ RetT ShardedService<T>::run(Key k, RetT (T::*md)(A0s...),
 }
 
 template <typename T>
+template <class Archive>
+void ShardedService<T>::serialize(Archive &ar) {
+  ar(*static_cast<Base *>(this));
+}
+
+template <typename T>
 ShardedStatelessService<T>::ShardedStatelessService(
     const ShardedStatelessService<T> &o)
     : ShardedService<T>(o) {}
@@ -69,12 +75,19 @@ RetT ShardedStatelessService<T>::run(RetT (T::*md)(A0s...),
 }
 
 template <typename T>
-ShardedService<T>::ShardedService()
-    : Base(std::nullopt, std::nullopt, /* service = */ true) {}
+template <class Archive>
+void ShardedStatelessService<T>::serialize(Archive &ar) {
+  ShardedService<T>::serialize(ar);
+}
+
+template <typename T>
+ShardedService<T>::ShardedService(
+    std::optional<typename Base::ShardingHint> sharding_hint)
+    : Base(sharding_hint, std::nullopt, /* service = */ true) {}
 
 template <typename T, typename... As>
 inline ShardedService<T> make_sharded_service(As &&...args) {
-  auto sharded_service = ShardedService<T>();
+  auto sharded_service = ShardedService<T>(/* sharding_hint = */ std::nullopt);
   sharded_service.compute_on(
       typename T::Key(), +[](T &t, As... args) { t = T(std::move(args)...); },
       std::forward<As>(args)...);

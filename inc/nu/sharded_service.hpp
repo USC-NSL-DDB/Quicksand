@@ -1,5 +1,6 @@
 #pragma once
 
+#include "nu/cereal.hpp"
 #include "nu/sharded_ds.hpp"
 #include "nu/utils/splitmix64.hpp"
 
@@ -11,17 +12,19 @@ class ShardedService
  public:
   using Key = T::Key;
 
-  ShardedService();
+  ShardedService() = default;
   template <typename RetT, typename... S0s, typename... S1s>
   RetT run(Key k, RetT (*fn)(T &, S0s...),
            S1s &&...states) requires ValidInvocationTypes<RetT, S0s...>;
   template <typename RetT, typename... A0s, typename... A1s>
   RetT run(Key k, RetT (T::*md)(A0s...),
            A1s &&...args) requires ValidInvocationTypes<RetT, A0s...>;
+  template <class Archive>
+  void serialize(Archive &ar);
 
  private:
   using Base = ShardedDataStructure<GeneralContainer<T>, std::false_type>;
-
+  ShardedService(std::optional<typename Base::ShardingHint> sharding_hint);
   template <typename U, typename... As>
   friend ShardedService<U> make_sharded_service(As &&...args);
 };
@@ -29,6 +32,7 @@ class ShardedService
 template <typename T>
 class ShardedStatelessService : private ShardedService<T> {
  public:
+  ShardedStatelessService() = default;
   ShardedStatelessService(const ShardedStatelessService<T> &);
   ShardedStatelessService(ShardedStatelessService<T> &&) = default;
   ShardedStatelessService &operator=(const ShardedStatelessService<T> &);
@@ -40,6 +44,8 @@ class ShardedStatelessService : private ShardedService<T> {
   template <typename RetT, typename... A0s, typename... A1s>
   RetT run(RetT (T::*md)(A0s...),
            A1s &&...args) requires ValidInvocationTypes<RetT, A0s...>;
+  template <class Archive>
+  void serialize(Archive &ar);
 
  private:
   SplitMix64 split_mix64_;
