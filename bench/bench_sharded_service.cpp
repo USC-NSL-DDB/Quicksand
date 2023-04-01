@@ -8,9 +8,9 @@
 
 constexpr auto kClientIP = MAKE_IP_ADDR(18, 18, 1, 100);
 constexpr auto kDelayUs = 50;
-constexpr auto kNumThreads = 100;
+constexpr auto kNumThreads = 200;
 constexpr auto kTargetMops = 1;
-constexpr auto kNumSeconds = 1;
+constexpr auto kNumSeconds = 8;
 
 struct Obj {
   using Key = uint64_t;
@@ -60,6 +60,8 @@ struct BenchPerfAdapter : public nu::PerfAdapter {
 struct Client {
   Client() = default;
   void run(nu::ShardedStatelessService<Obj> service) {
+    nu::RuntimeSlabGuard slab;
+
     BenchPerfAdapter adapter(std::move(service));
     nu::Perf perf(adapter);
     perf.run(kNumThreads, kTargetMops,
