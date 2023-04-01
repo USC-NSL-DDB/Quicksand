@@ -5,6 +5,7 @@ extern "C" {
 
 #include "nu/runtime.hpp"
 #include "nu/utils/rcu_lock.hpp"
+#include "nu/utils/time.hpp"
 
 namespace nu {
 
@@ -53,7 +54,7 @@ retry:
         get_runtime()->caladan()->thread_yield(g);
       } else {
         // Slow path.
-        timer_sleep(kWriterWaitSlowPathSleepUs);
+        Time::sleep(kWriterWaitSlowPathSleepUs);
       }
     }
     goto retry;
