@@ -291,7 +291,7 @@ void GeneralShard<Container>::try_delete_self_with_reader_lock(
   if (container_.empty() && !deleted_) {
     auto self = Runtime::to_weak_proclet(this);
     if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self,
-                            merge_left))) {
+                            merge_left, Caladan::get_ip()))) {
       // Recycle heap space.
       container_ = Container();
       deleted_ = true;
@@ -306,7 +306,7 @@ bool GeneralShard<Container>::try_compute_delete_self() {
   rw_lock_.writer_lock();
   auto self = Runtime::to_weak_proclet(this);
   if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self,
-                          /* merge_left = */ true))) {
+                          /* merge_left = */ true, Caladan::get_ip()))) {
     succeed = deleted_ = true;
   }
   rw_lock_.writer_unlock();

@@ -4,6 +4,7 @@
 #include <map>
 #include <optional>
 #include <stack>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -55,13 +56,12 @@ class GeneralShardMapping {
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_all_keys_and_shards();
   WeakProclet<Shard> get_shard_for_key(std::optional<Key> key);
-  void reserve_new_shard();
   WeakProclet<Shard> create_new_shard(std::optional<Key> l_key,
                                       std::optional<Key> r_key);
   WeakProclet<Shard> create_or_reuse_new_shard_for_init(
       std::optional<Key> l_key, NodeIP ip);
   bool delete_shard(std::optional<Key> l_key, WeakProclet<Shard> shard,
-                    bool merge_left);
+                    bool merge_left, NodeIP ip);
   void concat(WeakProclet<GeneralShardMapping> tail) requires(
       Shard::GeneralContainer::kContiguousIterator);
   void inc_ref_cnt();
@@ -84,7 +84,7 @@ class GeneralShardMapping {
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;
   CondVar oos_cv_;
-  std::stack<Proclet<Shard>> reserved_shards_;
+  std::unordered_map<NodeIP, std::stack<Proclet<Shard>>> deleted_shards_;
   Log<Shard> log_;
   bool service_;
   Mutex mutex_;

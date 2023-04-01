@@ -38,7 +38,6 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
 
   std::vector<std::optional<Key>> keys;
   std::vector<Future<WeakProclet<Shard>>> shard_futures;
-  std::vector<Future<void>> reserve_futures;
 
   keys.push_back(std::nullopt);
   if (sharding_hint) {
@@ -60,9 +59,6 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
             mapping_.run_async(&ShardMapping::create_new_shard,
                                std::move(curr_key), std::optional<Key>()));
         shard_futures.back().get();
-      } else {
-        reserve_futures.emplace_back(
-            mapping_.run_async(&ShardMapping::reserve_new_shard));
       }
     } else {
       shard_futures.emplace_back(

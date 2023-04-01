@@ -177,15 +177,6 @@ std::vector<Proclet<Shard>> GeneralShardMapping<Shard>::move_all_shards() {
 }
 
 template <class Shard>
-void GeneralShardMapping<Shard>::reserve_new_shard() {
-  ScopedLock lock(&mutex_);
-
-  auto new_shard = make_proclet<Shard>(
-      std::tuple(self_, max_shard_bytes_, service_), false, proclet_capacity_);
-  reserved_shards_.emplace(std::move(new_shard));
-}
-
-template <class Shard>
 WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
     std::optional<Key> l_key, std::optional<Key> r_key) {
   {
@@ -216,6 +207,8 @@ template <class Shard>
 WeakProclet<Shard>
 GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
     std::optional<Key> l_key, NodeIP ip) {
+  Proclet<Shard> new_shard;
+
   {
     ScopedLock lock(&mutex_);
 
@@ -223,17 +216,12 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
       oos_cv_.wait(&mutex_);
     }
     pending_creations_++;
-  }
 
-  Proclet<Shard> new_shard;
-
-  // Useful for queue & stack.
-  if (!reserved_shards_.empty()) {
-    ScopedLock lock(&mutex_);
-
-    if (likely(!reserved_shards_.empty())) {
-      new_shard = std::move(reserved_shards_.top());
-      reserved_shards_.pop();
+    // Try to reuse deleted shards, useful for DSes like queue & stack.
+    auto &deleted_shards = deleted_shards_[ip];
+    if (!deleted_shards.empty()) {
+      new_shard = std::move(deleted_shards.top());
+      deleted_shards.pop();
     }
   }
 
@@ -265,7 +253,7 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
 template <class Shard>
 bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
                                               WeakProclet<Shard> shard,
-                                              bool merge_left) {
+                                              bool merge_left, NodeIP ip) {
   ScopedLock<Mutex> lock(&mutex_);
 
   auto [begin_it, end_it] = mapping_.equal_range(l_key);
@@ -300,7 +288,7 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
   }
 
   log_.append(LogEntry<Shard>::kDelete, it->first, shard);
-  reserved_shards_.emplace(std::move(it->second));
+  deleted_shards_[ip].emplace(std::move(it->second));
   mapping_.erase(it);
   oos_cv_.signal();
   return true;

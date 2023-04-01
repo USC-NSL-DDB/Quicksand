@@ -116,7 +116,6 @@ inline ShardedStatelessService<T> make_sharded_stateless_service(As &&...args) {
     auto last_rkey = rkeys.empty() ? 0 : rkeys.back();
     auto new_rkey = last_rkey + resource.cores / total_cores *
                                     std::numeric_limits<uint64_t>::max();
-    printf("%lld\n", (long long)(new_rkey));
     rkeys.push_back(new_rkey);
   }
   using Base = ShardedDataStructure<GeneralContainer<T>, std::true_type>;
