@@ -361,7 +361,9 @@ std::vector<std::pair<NodeIP, Resource>> Controller::report_free_resource(
   iter->second.update_free_resource(free_resource);
 
   for (auto &[ip, status] : node_statuses) {
-    global_free_resources.emplace_back(ip, status.free_resource);
+    if (!status.isol) {
+      global_free_resources.emplace_back(ip, status.free_resource);
+    }
   }
 
   return global_free_resources;
