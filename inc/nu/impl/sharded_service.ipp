@@ -107,15 +107,11 @@ inline ShardedStatelessService<T> make_sharded_stateless_service(As &&...args) {
     global_free_resources =
         get_runtime()->resource_reporter()->get_global_free_resources();
   }
-  float total_cores = 0;
-  for (auto [_, resource] : global_free_resources) {
-    total_cores += resource.cores;
-  }
+  auto ratio = 1.0f / global_free_resources.size();
   std::deque<uint64_t> rkeys;
-  for (auto [_, resource] : global_free_resources) {
+  for (std::size_t i = 0; i < global_free_resources.size(); i++) {
     auto last_rkey = rkeys.empty() ? 0 : rkeys.back();
-    auto new_rkey = last_rkey + resource.cores / total_cores *
-                                    std::numeric_limits<uint64_t>::max();
+    auto new_rkey = last_rkey + ratio * std::numeric_limits<uint64_t>::max();
     rkeys.push_back(new_rkey);
   }
   using Base = ShardedDataStructure<GeneralContainer<T>, std::true_type>;
@@ -129,8 +125,8 @@ inline ShardedStatelessService<T> make_sharded_stateless_service(As &&...args) {
         rkeys.pop_front();
       });
   auto sharded_service = ShardedService<T>(h);
-  sharded_service.compute_on(
-      typename T::Key(), +[](T &t, As... args) { t = T(std::move(args)...); },
+  sharded_service.for_all_shards(
+      +[](T &t, As... args) { t = T(std::move(args)...); },
       std::forward<As>(args)...);
   return sharded_service;
 }
