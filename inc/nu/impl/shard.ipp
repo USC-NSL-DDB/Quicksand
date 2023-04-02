@@ -84,15 +84,18 @@ inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
 }
 
 template <class Container>
+template <typename... As>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
                                       uint32_t max_shard_bytes,
                                       std::optional<Key> l_key,
-                                      std::optional<Key> r_key, bool service)
+                                      std::optional<Key> r_key, bool service,
+                                      As... args)
     : max_shard_bytes_(max_shard_bytes),
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
+      container_(std::move(args)...),
       deleted_(false),
       service_(service),
       cofounder_(true) {

@@ -177,8 +177,9 @@ std::vector<Proclet<Shard>> GeneralShardMapping<Shard>::move_all_shards() {
 }
 
 template <class Shard>
+template <typename... As>
 WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
-    std::optional<Key> l_key, std::optional<Key> r_key) {
+    std::optional<Key> l_key, std::optional<Key> r_key, As... args) {
   {
     ScopedLock lock(&mutex_);
 
@@ -189,7 +190,8 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
   }
 
   auto new_shard = make_proclet<Shard>(
-      std::forward_as_tuple(self_, max_shard_bytes_, l_key, r_key, service_),
+      std::forward_as_tuple(self_, max_shard_bytes_, l_key, r_key, service_,
+                            std::move(args)...),
       false, proclet_capacity_);
   auto new_weak_shard = new_shard.get_weak();
 

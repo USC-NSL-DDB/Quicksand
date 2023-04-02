@@ -27,7 +27,9 @@ class ShardedService
 
  private:
   using Base = ShardedDataStructure<GeneralContainer<T>, std::true_type>;
-  ShardedService(std::optional<typename Base::ShardingHint> sharding_hint);
+  template <typename... As>
+  ShardedService(std::optional<typename Base::ShardingHint> sharding_hint,
+                 As &&...args);
   template <typename U, typename... As>
   friend ShardedService<U> make_sharded_service(As &&...args);
   template <typename U, typename... As>

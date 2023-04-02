@@ -16,9 +16,10 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
       rw_lock_(std::make_unique<ReadSkewedLock>()) {}
 
 template <class Container, class LL>
+template <typename... As>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<ShardingHint> sharding_hint,
-    std::optional<std::size_t> size_bound, bool service)
+    std::optional<std::size_t> size_bound, bool service, As &&...args)
     : num_pending_flushes_(0),
       max_num_vals_(0),
       max_num_data_entries_(0),
@@ -55,15 +56,15 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
 
     if constexpr (PushBackAble<Container>) {
       if (!curr_key) {
-        shard_futures.emplace_back(
-            mapping_.run_async(&ShardMapping::create_new_shard,
-                               std::move(curr_key), std::optional<Key>()));
+        shard_futures.emplace_back(mapping_.run_async(
+            &ShardMapping::template create_new_shard<std::decay_t<As>...>,
+            std::move(curr_key), std::optional<Key>(), args...));
         shard_futures.back().get();
       }
     } else {
-      shard_futures.emplace_back(
-          mapping_.run_async(&ShardMapping::create_new_shard,
-                             std::move(curr_key), std::move(next_key)));
+      shard_futures.emplace_back(mapping_.run_async(
+          &ShardMapping::template create_new_shard<std::decay_t<As>...>,
+          std::move(curr_key), std::move(next_key), args...));
     }
   }
 

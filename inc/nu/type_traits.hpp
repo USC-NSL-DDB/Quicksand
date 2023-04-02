@@ -63,6 +63,19 @@ struct range_iter {
 template <typename R>
 using range_iter_t = range_iter<R>::iter_type;
 
+template <std::size_t N, typename T, typename... types>
+struct get_nth {
+  using type = typename get_nth<N - 1, types...>::type;
+};
+
+template <typename T, typename... types>
+struct get_nth<0, T, types...> {
+  using type = T;
+};
+
+template <std::size_t N, typename... Args>
+using get_nth_t = typename get_nth<N, Args...>::type;
+
 template <class T>
 concept PreIncrementable = requires(T t) {
   {++t};

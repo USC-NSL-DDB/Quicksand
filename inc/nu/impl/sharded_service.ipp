@@ -86,13 +86,16 @@ void ShardedStatelessService<T>::serialize(Archive &ar) {
 }
 
 template <typename T>
+template <typename... As>
 ShardedService<T>::ShardedService(
-    std::optional<typename Base::ShardingHint> sharding_hint)
-    : Base(sharding_hint, std::nullopt, /* service = */ true) {}
+    std::optional<typename Base::ShardingHint> sharding_hint, As &&...args)
+    : Base(sharding_hint, std::nullopt, /* service = */ true,
+           std::forward<As>(args)...) {}
 
 template <typename T, typename... As>
 inline ShardedService<T> make_sharded_service(As &&...args) {
-  auto sharded_service = ShardedService<T>(/* sharding_hint = */ std::nullopt);
+  auto sharded_service = ShardedService<T>(/* sharding_hint = */ std::nullopt,
+                                           std::forward<As>(args)...);
   sharded_service.compute_on(
       typename T::Key(), +[](T &t, As... args) { t = T(std::move(args)...); },
       std::forward<As>(args)...);
@@ -124,11 +127,7 @@ inline ShardedStatelessService<T> make_sharded_stateless_service(As &&...args) {
         k = rkeys.front();
         rkeys.pop_front();
       });
-  auto sharded_service = ShardedService<T>(h);
-  sharded_service.for_all_shards(
-      +[](T &t, As... args) { t = T(std::move(args)...); },
-      std::forward<As>(args)...);
-  return sharded_service;
+  return ShardedService<T>(h, std::forward<As>(args)...);
 }
 
 }  // namespace nu

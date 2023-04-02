@@ -211,7 +211,12 @@ class GeneralContainerBase {
       std::conditional_t<Synchronized::value, GeneralLockedContainer<Impl>,
                          GeneralContainer<Impl>>;
 
-  GeneralContainerBase() : impl_() {}
+  template <typename... As>
+  GeneralContainerBase(As &&...args)
+    requires(!sizeof...(As) ||
+             !std::is_same_v<GeneralContainerBase,
+                             std::decay_t<get_nth_t<0, As...>>>)
+      : impl_(std::forward<As>(args)...) {}
   GeneralContainerBase(const GeneralContainerBase &c) : impl_(c.impl_) {}
   GeneralContainerBase &operator=(const GeneralContainerBase &c) {
     impl_ = c.impl_;

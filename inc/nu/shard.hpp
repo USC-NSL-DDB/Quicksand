@@ -88,9 +88,10 @@ class GeneralShard {
 
   GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes,
                bool service);
+  template <typename... As>
   GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes,
-               std::optional<Key> l_key, std::optional<Key> r_key,
-               bool service);
+               std::optional<Key> l_key, std::optional<Key> r_key, bool service,
+               As... args);
   ~GeneralShard();
   void init_range_and_data(
       std::optional<Key> l_key, std::optional<Key> r_key,
