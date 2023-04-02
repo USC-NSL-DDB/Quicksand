@@ -13,7 +13,8 @@ bool run_test() {
       +[](std::pair<const std::size_t, std::string> &p, std::string delta) {
         p.second += delta;
       },
-      "2");
+      std::string(
+          "2"));  // TODO: investigate the crash when passing a c-string "2".
   auto optional = sm.find_data(1);
   if (!optional || *optional != "12") {
     return false;
