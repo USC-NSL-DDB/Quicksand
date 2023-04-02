@@ -66,6 +66,7 @@ class ShardedTSUMap
   void insert(K1 &&k, V1 &&v);
 
  private:
+  constexpr static uint32_t kNumInitialShards = 512;
   using Base = ShardedDataStructure<GeneralContainer<GeneralTSUMap<K, V, H>>,
                                     std::true_type>;
   ShardedTSUMap(std::optional<typename Base::ShardingHint> sharding_hint);
