@@ -82,6 +82,12 @@ public:
       size_( vec.size() )
   {}
 
+  // placeholder
+  Chunk()
+    : buffer_( nullptr ),
+      size_( 0 )
+  {}
+
   const uint8_t * buffer( void ) const { return buffer_; }
   const uint64_t & size( void ) const { return size_; }
 

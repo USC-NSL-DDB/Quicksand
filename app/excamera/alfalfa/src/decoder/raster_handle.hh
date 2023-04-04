@@ -106,6 +106,8 @@ private:
 public:
   VP8RasterHandle( VP8MutableRasterHandle<RasterType> && mutable_raster );
 
+  VP8RasterHandle() = default;
+
   operator const RasterType & () const { return *raster_; }
 
   const RasterType & get( void ) const { return *raster_; }

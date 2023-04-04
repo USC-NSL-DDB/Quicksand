@@ -126,6 +126,8 @@ struct References
 
   References( const uint16_t width, const uint16_t height );
 
+  References() = default;
+
   References( MutableRasterHandle && raster );
 
   References(EncoderStateDeserializer &idata, const uint16_t width, const uint16_t height);
@@ -207,6 +209,8 @@ struct DecoderState
   DecoderState( const KeyFrameHeader & header,
                 const unsigned int s_width,
                 const unsigned int s_height );
+  
+  DecoderState() = default;
 
   template <class FrameType>
   FrameType parse_and_apply( const UncompressedChunk & uncompressed_chunk );
@@ -253,6 +257,7 @@ public:
   Decoder( const uint16_t width, const uint16_t height );
   Decoder( DecoderState state, References references );
   Decoder( EncoderStateDeserializer &idata );
+  Decoder() = default;
 
   const VP8Raster & example_raster( void ) const { return references_.last; }
 

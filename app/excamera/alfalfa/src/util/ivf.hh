@@ -91,6 +91,7 @@ public:
 
   IVF_MEM( const std::string & filename );
   IVF_MEM( Chunk header );
+  IVF_MEM() = default;
 
   const std::string & fourcc( void ) const { return fourcc_; }
   uint16_t width( void ) const { return width_; }

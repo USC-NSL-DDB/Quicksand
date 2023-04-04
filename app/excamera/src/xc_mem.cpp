@@ -39,20 +39,16 @@ size_t N = 16;
 
 vector<IVF_MEM> vpx_ivf, xc0_ivf, xc1_ivf, rebased_ivf, final_ivf;
 vector<Decoder> dec_state, enc0_state, enc1_state, rebased_state;
-vector<vector<RasterHandle>> original_rasters;
-uint32_t display_width, display_height;
-
-rt::Mutex global_mutex;
+vector<vector<RasterHandle>> rasters;
+uint16_t display_width, display_height;
 
 void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
 }
 
-bool decode(const string input, vector<Decoder> & output) {
+bool decode(const string input, vector<Decoder> & output, size_t index) {
   IVF_MEM ivf(input);
-  global_mutex.Lock();
-  vpx_ivf.push_back(ivf);
-  global_mutex.Unlock();
+  vpx_ivf[index] = ivf;
 
   Decoder decoder = Decoder(ivf.width(), ivf.height());
   if ( not decoder.minihash_match( ivf.expected_decoder_minihash() ) ) {
@@ -73,9 +69,7 @@ bool decode(const string input, vector<Decoder> & output) {
     }
 
     if ( i == frame_number ) {
-      global_mutex.Lock();
-      output.push_back(decoder);
-      global_mutex.Unlock();
+      output[index] = decoder;
       return true;
     }
   }
@@ -83,8 +77,7 @@ bool decode(const string input, vector<Decoder> & output) {
   throw runtime_error( "invalid frame number" );
 }
 
-void enc_given_state(const string input_file,
-                     vector<IVF_MEM> & output_ivf,
+void enc_given_state(vector<IVF_MEM> & output_ivf,
                      vector<Decoder> & input_state, 
                      vector<Decoder> & output_state,
                      vector<IVF_MEM> & pred,
@@ -95,34 +88,18 @@ void enc_given_state(const string input_file,
   bool extra_frame_chunk = false;
   EncoderQuality quality = BEST_QUALITY;
 
-  shared_ptr<FrameInput> input_reader = make_shared<YUV4MPEGReader>( input_file );
-
-  Decoder pred_decoder( input_reader->display_width(), input_reader->display_height() );
+  Decoder pred_decoder( display_width, display_height );
   if (prev_state) {
-    global_mutex.Lock();
     pred_decoder = prev_state->at(index - 1);
-    global_mutex.Unlock();
   }
 
-  IVFWriter_MEM ivf_writer { "VP80", input_reader->display_width(), input_reader->display_height(), 1, 1 };
-  // pre-read original rasters
-  vector<RasterHandle> original_rasters;
-  for ( size_t i = 0; ; i++ ) {
-    auto next_raster = input_reader->get_next_frame();
-
-    if ( next_raster.initialized() ) {
-      original_rasters.emplace_back( next_raster.get() );
-    } else {
-      break;
-    }
-  }
+  IVFWriter_MEM ivf_writer { "VP80", display_width, display_height, 1, 1 };
+  vector<RasterHandle> original_rasters = rasters[index];
 
   /* pre-read all the prediction frames */
   vector<pair<Optional<KeyFrame>, Optional<InterFrame> > > prediction_frames;
 
-  global_mutex.Lock();
   IVF_MEM pred_ivf = pred[index];
-  global_mutex.Unlock();
 
   if ( not pred_decoder.minihash_match( pred_ivf.expected_decoder_minihash() ) ) {
     throw Invalid( "Mismatch between prediction IVF and prediction_ivf_initial_state" );
@@ -144,19 +121,15 @@ void enc_given_state(const string input_file,
     }
   }
 
-  global_mutex.Lock();
   Encoder encoder( input_state[index-1], two_pass, quality );
-  global_mutex.Unlock();
 
   ivf_writer.set_expected_decoder_entry_hash( encoder.export_decoder().get_hash().hash() );
 
   encoder.reencode( original_rasters, prediction_frames, kf_q_weight,
                     extra_frame_chunk, ivf_writer );
 
-  global_mutex.Lock();
-  output_ivf.push_back(ivf_writer.ivf());
-  output_state.push_back(encoder.export_decoder());
-  global_mutex.Unlock();
+  output_ivf[index] = ivf_writer.ivf();
+  output_state[index] = encoder.export_decoder();
 }
 
 void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> & output, size_t index) {
@@ -177,7 +150,7 @@ void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> &
     ivf_writer.append_frame( ivf2.frame( i ) );
   }
 
-  output.push_back(ivf_writer.ivf());
+  output[index] = ivf_writer.ivf();
 }
 
 void decode_all(const string prefix) {
@@ -187,7 +160,7 @@ void decode_all(const string prefix) {
     inputss << prefix << "vpx_" << std::setw(2) << std::setfill('0') << i << ".ivf";
     const string input_file = inputss.str();
     
-    ths.emplace_back( [=] {decode(input_file, dec_state);} );
+    ths.emplace_back( [input_file, i] {decode(input_file, dec_state, i);} );
   }
 
   for (auto &th : ths) {
@@ -198,16 +171,12 @@ void decode_all(const string prefix) {
 void encode_all(const string prefix) {
   vector <rt::Thread> ths;
   // first pass
-  for (size_t i = 0; i < N; i++) {
-    ostringstream inputss, instatess, outstatess;
-    inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
-    const string input_file = inputss.str();
-    
+  for (size_t i = 0; i < N; i++) {    
     if (i == 0) {
-      xc0_ivf.push_back(vpx_ivf[0]);
-      enc0_state.push_back(dec_state[0]);
+      xc0_ivf[0] = vpx_ivf[0];
+      enc0_state[0] = dec_state[0];
     } else {
-      ths.emplace_back( [=] {enc_given_state(input_file, xc0_ivf, dec_state, enc0_state, vpx_ivf, nullptr, i);} );
+      ths.emplace_back( [i] {enc_given_state(xc0_ivf, dec_state, enc0_state, vpx_ivf, nullptr, i);} );
     }
   }
   for (auto &th : ths) {
@@ -217,16 +186,13 @@ void encode_all(const string prefix) {
   ths.clear();
 
   // second pass
-  for (size_t i = 0; i < N; i++) {
-    ostringstream inputss, instatess, prevstatess, outstatess;
-    inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
-    const string input_file = inputss.str();
-    
+  for (size_t i = 0; i < N; i++) {    
     if (i == 0) {
-      xc1_ivf.push_back(xc0_ivf[0]);
-      enc1_state.push_back(enc0_state[0]);
+      xc1_ivf[0] = xc0_ivf[0];
+      enc1_state[0] = enc0_state[0];
     } else {
-      ths.emplace_back( [=] {enc_given_state(input_file, xc1_ivf, enc0_state, enc1_state, xc0_ivf, &dec_state, i);} );
+      vector<Decoder> *prev_state_ptr = &dec_state;
+      ths.emplace_back( [i, prev_state_ptr] {enc_given_state(xc1_ivf, enc0_state, enc1_state, xc0_ivf, prev_state_ptr, i);} );
     }
   }
   for (auto &th : ths) {
@@ -237,16 +203,12 @@ void encode_all(const string prefix) {
 void rebase(const string prefix) {
   // serial rebase
   for (size_t i = 0; i < N; i++) {
-    ostringstream inputss, instatess, prevstatess, outstatess;
-    inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
-    const string input_file = inputss.str();
-
     if (i == 0) {
-      final_ivf.push_back(xc1_ivf[0]);
-      rebased_ivf.push_back(xc1_ivf[0]);
-      rebased_state.push_back(enc0_state[0]);
+      final_ivf[0] = xc1_ivf[0];
+      rebased_ivf[0] = xc1_ivf[0];
+      rebased_state[0] = enc0_state[0];
     } else {
-      enc_given_state(input_file, rebased_ivf, rebased_state, rebased_state, xc1_ivf, &enc0_state, i);
+      enc_given_state(rebased_ivf, rebased_state, rebased_state, xc1_ivf, &enc0_state, i);
       merge(final_ivf, rebased_ivf, final_ivf, i);
     }
   }
@@ -257,12 +219,51 @@ void write_output(const std::string prefix) {
   final_ivf[N-1].write(final_file);
 }
 
+void read_input(const std::string prefix) {
+  for (size_t i = 0; i < N; i++) {
+    ostringstream inputss, instatess, outstatess;
+    inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
+    const string input_file = inputss.str();
+    
+    shared_ptr<FrameInput> input_reader = make_shared<YUV4MPEGReader>( input_file );
+    if (i == 0) {
+      display_width = input_reader->display_width();
+      display_height = input_reader->display_height();
+    }
+
+    IVFWriter_MEM ivf_writer { "VP80", input_reader->display_width(), input_reader->display_height(), 1, 1 };
+    // pre-read original rasters
+    vector<RasterHandle> original_rasters;
+    for ( size_t i = 0; ; i++ ) {
+      auto next_raster = input_reader->get_next_frame();
+
+      if ( next_raster.initialized() ) {
+        original_rasters.emplace_back( next_raster.get() );
+      } else {
+        break;
+      }
+    }
+    rasters.push_back(original_rasters);
+  }
+}
+
 int do_work(const string & prefix) {
   // if (argc != 2) {
   //   usage(argv[0]);
   //   return EXIT_FAILURE;
   // }
 
+  vpx_ivf.resize(N);
+  xc0_ivf.resize(N);
+  xc1_ivf.resize(N);
+  rebased_ivf.resize(N);
+  final_ivf.resize(N);
+  dec_state.resize(N);
+  enc0_state.resize(N);
+  enc1_state.resize(N);
+  rebased_state.resize(N);
+
+  read_input(prefix);
   auto t1 = microtime();
   decode_all(prefix);
   auto t2 = microtime();
