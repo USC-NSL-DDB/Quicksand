@@ -11,6 +11,11 @@
 #include <filesystem>
 #include <vector>
 
+#include <runtime.h>
+#include <thread.h>
+#include <sync.h>
+#include "nu/runtime.hpp"
+
 #include "ivf.hh"
 #include "uncompressed_chunk.hh"
 #include "frame_input.hh"
@@ -27,20 +32,27 @@
 #include "enc_state_serializer.hh"
 
 using namespace std;
+using namespace std::chrono;
 namespace fs = std::filesystem;
 
 size_t N = 16;
 
 vector<IVF_MEM> vpx_ivf, xc0_ivf, xc1_ivf, rebased_ivf, final_ivf;
 vector<Decoder> dec_state, enc0_state, enc1_state, rebased_state;
+vector<vector<RasterHandle>> original_rasters;
+uint32_t display_width, display_height;
+
+rt::Mutex global_mutex;
 
 void usage(const string &program_name) {
-  cerr << "Usage: " << program_name << " <input_dir>" << endl;
+  cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
 }
 
 bool decode(const string input, vector<Decoder> & output) {
   IVF_MEM ivf(input);
+  global_mutex.Lock();
   vpx_ivf.push_back(ivf);
+  global_mutex.Unlock();
 
   Decoder decoder = Decoder(ivf.width(), ivf.height());
   if ( not decoder.minihash_match( ivf.expected_decoder_minihash() ) ) {
@@ -61,7 +73,9 @@ bool decode(const string input, vector<Decoder> & output) {
     }
 
     if ( i == frame_number ) {
+      global_mutex.Lock();
       output.push_back(decoder);
+      global_mutex.Unlock();
       return true;
     }
   }
@@ -85,7 +99,9 @@ void enc_given_state(const string input_file,
 
   Decoder pred_decoder( input_reader->display_width(), input_reader->display_height() );
   if (prev_state) {
+    global_mutex.Lock();
     pred_decoder = prev_state->at(index - 1);
+    global_mutex.Unlock();
   }
 
   IVFWriter_MEM ivf_writer { "VP80", input_reader->display_width(), input_reader->display_height(), 1, 1 };
@@ -104,7 +120,9 @@ void enc_given_state(const string input_file,
   /* pre-read all the prediction frames */
   vector<pair<Optional<KeyFrame>, Optional<InterFrame> > > prediction_frames;
 
+  global_mutex.Lock();
   IVF_MEM pred_ivf = pred[index];
+  global_mutex.Unlock();
 
   if ( not pred_decoder.minihash_match( pred_ivf.expected_decoder_minihash() ) ) {
     throw Invalid( "Mismatch between prediction IVF and prediction_ivf_initial_state" );
@@ -126,15 +144,19 @@ void enc_given_state(const string input_file,
     }
   }
 
+  global_mutex.Lock();
   Encoder encoder( input_state[index-1], two_pass, quality );
+  global_mutex.Unlock();
 
   ivf_writer.set_expected_decoder_entry_hash( encoder.export_decoder().get_hash().hash() );
 
   encoder.reencode( original_rasters, prediction_frames, kf_q_weight,
                     extra_frame_chunk, ivf_writer );
 
+  global_mutex.Lock();
   output_ivf.push_back(ivf_writer.ivf());
   output_state.push_back(encoder.export_decoder());
+  global_mutex.Unlock();
 }
 
 void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> & output, size_t index) {
@@ -159,16 +181,22 @@ void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> &
 }
 
 void decode_all(const string prefix) {
+  vector<rt::Thread> ths;
   for (size_t i = 0; i < N; i++) {
     ostringstream inputss, outputss;
     inputss << prefix << "vpx_" << std::setw(2) << std::setfill('0') << i << ".ivf";
     const string input_file = inputss.str();
     
-    decode(input_file, dec_state);
+    ths.emplace_back( [=] {decode(input_file, dec_state);} );
+  }
+
+  for (auto &th : ths) {
+    th.Join();
   }
 }
 
 void encode_all(const string prefix) {
+  vector <rt::Thread> ths;
   // first pass
   for (size_t i = 0; i < N; i++) {
     ostringstream inputss, instatess, outstatess;
@@ -179,9 +207,14 @@ void encode_all(const string prefix) {
       xc0_ivf.push_back(vpx_ivf[0]);
       enc0_state.push_back(dec_state[0]);
     } else {
-      enc_given_state(input_file, xc0_ivf, dec_state, enc0_state, vpx_ivf, nullptr, i);
+      ths.emplace_back( [=] {enc_given_state(input_file, xc0_ivf, dec_state, enc0_state, vpx_ivf, nullptr, i);} );
     }
   }
+  for (auto &th : ths) {
+    th.Join();
+  }
+
+  ths.clear();
 
   // second pass
   for (size_t i = 0; i < N; i++) {
@@ -193,8 +226,11 @@ void encode_all(const string prefix) {
       xc1_ivf.push_back(xc0_ivf[0]);
       enc1_state.push_back(enc0_state[0]);
     } else {
-      enc_given_state(input_file, xc1_ivf, enc0_state, enc1_state, xc0_ivf, &dec_state, i);
+      ths.emplace_back( [=] {enc_given_state(input_file, xc1_ivf, enc0_state, enc1_state, xc0_ivf, &dec_state, i);} );
     }
+  }
+  for (auto &th : ths) {
+    th.Join();
   }
 }
 
@@ -221,19 +257,31 @@ void write_output(const std::string prefix) {
   final_ivf[N-1].write(final_file);
 }
 
-int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    usage(argv[0]);
-    return EXIT_FAILURE;
-  }
+int do_work(const string & prefix) {
+  // if (argc != 2) {
+  //   usage(argv[0]);
+  //   return EXIT_FAILURE;
+  // }
 
-  // TODO: take file prefix to args
-  string prefix = std::string(argv[1]) + "/sintel01_";
-
+  auto t1 = microtime();
   decode_all(prefix);
+  auto t2 = microtime();
   encode_all(prefix);
+  auto t3 = microtime();
   rebase(prefix);
+  auto t4 = microtime();
   write_output(prefix);
 
+  auto stage1 = t2 - t1;
+  auto stage2 = t3 - t2;
+  auto stage3 = t4 - t3;
+
+  cout << "decode: " << stage1 << ". encode_given_state: " << stage2 << ". rebase: " << stage3 << "." << endl;
   return 0;
+}
+
+int main(int argc, char *argv[]) {
+  // TODO: take file prefix to args
+  string prefix = std::string(argv[argc-1]) + "/sintel01_";
+  return nu::runtime_main_init(argc, argv, [=](int, char **) { do_work(prefix); });
 }

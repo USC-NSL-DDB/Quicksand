@@ -8,10 +8,16 @@ include $(CALADAN_PATH)/build/shared.mk
 
 ALFALA_PATH=alfalfa
 
-ALFALFA_INC = -I$(ALFALA_PATH)/src/encoder -I$(ALFALA_PATH)/src/decoder -I$(ALFALA_PATH)/src/input -I$(ALFALA_PATH)/src/util -I$(ALFALA_PATH)/src/display
-INC += $(ALFALFA_INC)
+NCORES = $(shell nproc)
 
-override LDFLAGS += -ljpeg -lx264
+ALFALFA_INC = -I$(ALFALA_PATH)/src/encoder -I$(ALFALA_PATH)/src/decoder -I$(ALFALA_PATH)/src/input -I$(ALFALA_PATH)/src/util -I$(ALFALA_PATH)/src/display
+INC += $(ALFALFA_INC) -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/
+
+override CXXFLAGS += -DNCORES=$(NCORES)
+override LDFLAGS += -ljpeg -lx264 -ldl -lboost_program_options -lcrypto -lpthread -lnuma
+
+librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
+lib_nu = $(NU_PATH)/libnu.a
 
 lib_alfalfa = $(ALFALA_PATH)/src/encoder/libalfalfaencoder.a $(ALFALA_PATH)/src/decoder/libalfalfadecoder.a $(ALFALA_PATH)/src/input/libalfalfainput.a $(ALFALA_PATH)/src/util/libalfalfautil.a
 
@@ -32,9 +38,9 @@ all: bin/xc_baseline bin/xc_mem
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 bin/xc_baseline: $(baseline_obj)
-	$(LDXX) -o $@ $(baseline_obj) $(lib_alfalfa) $(LDFLAGS)
+	$(LDXX) -o $@ $(baseline_obj) $(lib_alfalfa) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/xc_mem: $(mem_obj)
-	$(LDXX) -o $@ $(mem_obj) $(lib_alfalfa) $(LDFLAGS)
+	$(LDXX) -o $@ $(mem_obj) $(lib_alfalfa) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)
