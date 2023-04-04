@@ -42,6 +42,8 @@ vector<Decoder> dec_state, enc0_state, enc1_state, rebased_state;
 vector<vector<RasterHandle>> rasters;
 uint16_t display_width, display_height;
 
+vector<uint32_t> stage1_time, stage2_time, stage3_time;
+
 void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
 }
@@ -160,7 +162,12 @@ void decode_all(const string prefix) {
     inputss << prefix << "vpx_" << std::setw(2) << std::setfill('0') << i << ".ivf";
     const string input_file = inputss.str();
     
-    ths.emplace_back( [input_file, i] {decode(input_file, dec_state, i);} );
+    ths.emplace_back( [input_file, i] {
+      auto start = microtime();
+      decode(input_file, dec_state, i);
+      auto end = microtime();
+      stage1_time[i] = end - start;
+    } );
   }
 
   for (auto &th : ths) {
@@ -176,7 +183,12 @@ void encode_all(const string prefix) {
       xc0_ivf[0] = vpx_ivf[0];
       enc0_state[0] = dec_state[0];
     } else {
-      ths.emplace_back( [i] {enc_given_state(xc0_ivf, dec_state, enc0_state, vpx_ivf, nullptr, i);} );
+      ths.emplace_back( [i] {
+        auto start = microtime();
+        enc_given_state(xc0_ivf, dec_state, enc0_state, vpx_ivf, nullptr, i);
+        auto end = microtime();
+        stage2_time[i] = end - start;
+      } );
     }
   }
   for (auto &th : ths) {
@@ -192,7 +204,12 @@ void encode_all(const string prefix) {
       enc1_state[0] = enc0_state[0];
     } else {
       vector<Decoder> *prev_state_ptr = &dec_state;
-      ths.emplace_back( [i, prev_state_ptr] {enc_given_state(xc1_ivf, enc0_state, enc1_state, xc0_ivf, prev_state_ptr, i);} );
+      ths.emplace_back( [i, prev_state_ptr] {
+        auto start = microtime();
+        enc_given_state(xc1_ivf, enc0_state, enc1_state, xc0_ivf, prev_state_ptr, i);
+        auto end = microtime();
+        stage2_time[i] += end - start;
+      } );
     }
   }
   for (auto &th : ths) {
@@ -208,8 +225,11 @@ void rebase(const string prefix) {
       rebased_ivf[0] = xc1_ivf[0];
       rebased_state[0] = enc0_state[0];
     } else {
+      auto start = microtime();
       enc_given_state(rebased_ivf, rebased_state, rebased_state, xc1_ivf, &enc0_state, i);
       merge(final_ivf, rebased_ivf, final_ivf, i);
+      auto end = microtime();
+      stage3_time[i] = end - start;
     }
   }
 }
@@ -263,6 +283,10 @@ int do_work(const string & prefix) {
   enc1_state.resize(N);
   rebased_state.resize(N);
 
+  stage1_time.resize(N);
+  stage2_time.resize(N);
+  stage3_time.resize(N);
+
   read_input(prefix);
   auto t1 = microtime();
   decode_all(prefix);
@@ -278,6 +302,23 @@ int do_work(const string & prefix) {
   auto stage3 = t4 - t3;
 
   cout << "decode: " << stage1 << ". encode_given_state: " << stage2 << ". rebase: " << stage3 << "." << endl;
+
+  cout << "Stage 1: {";
+  for (auto t : stage1_time) {
+    cout << t << ", ";
+  }
+  cout << "}" << endl;
+  cout << "Stage 2: {";
+  for (auto t : stage2_time) {
+    cout << t << ", ";
+  }
+  cout << "}" << endl;
+  cout << "Stage 3: {";
+  for (auto t : stage3_time) {
+    cout << t << ", ";
+  }
+  cout << "}" << endl;
+
   return 0;
 }
 
