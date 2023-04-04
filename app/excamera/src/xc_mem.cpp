@@ -32,12 +32,13 @@ namespace fs = std::filesystem;
 size_t N = 16;
 
 vector<IVF_MEM> vpx_ivf, xc0_ivf, xc1_ivf, rebased_ivf, final_ivf;
+vector<Decoder> dec_state, enc0_state, enc1_state, rebased_state;
 
 void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " <input_dir>" << endl;
 }
 
-bool decode(const string input, const string output) {
+bool decode(const string input, vector<Decoder> & output) {
   IVF_MEM ivf(input);
   vpx_ivf.push_back(ivf);
 
@@ -60,9 +61,7 @@ bool decode(const string input, const string output) {
     }
 
     if ( i == frame_number ) {
-      EncoderStateSerializer odata;
-      decoder.serialize( odata );
-      odata.write( output );
+      output.push_back(decoder);
       return true;
     }
   }
@@ -72,10 +71,10 @@ bool decode(const string input, const string output) {
 
 void enc_given_state(const string input_file,
                      vector<IVF_MEM> & output_ivf,
-                     const string input_state, 
-                     const string output_state,
+                     vector<Decoder> & input_state, 
+                     vector<Decoder> & output_state,
                      vector<IVF_MEM> & pred,
-                     const string prev_state,
+                     vector<Decoder> * prev_state,
                      size_t index) {
   bool two_pass = false;
   double kf_q_weight = 1.0;
@@ -85,8 +84,8 @@ void enc_given_state(const string input_file,
   shared_ptr<FrameInput> input_reader = make_shared<YUV4MPEGReader>( input_file );
 
   Decoder pred_decoder( input_reader->display_width(), input_reader->display_height() );
-  if (prev_state != "") {
-    pred_decoder = EncoderStateDeserializer::build<Decoder>( prev_state );
+  if (prev_state) {
+    pred_decoder = prev_state->at(index - 1);
   }
 
   IVFWriter_MEM ivf_writer { "VP80", input_reader->display_width(), input_reader->display_height(), 1, 1 };
@@ -127,8 +126,7 @@ void enc_given_state(const string input_file,
     }
   }
 
-  Encoder encoder( EncoderStateDeserializer::build<Decoder>( input_state ),
-                   two_pass, quality );
+  Encoder encoder( input_state[index-1], two_pass, quality );
 
   ivf_writer.set_expected_decoder_entry_hash( encoder.export_decoder().get_hash().hash() );
 
@@ -136,9 +134,7 @@ void enc_given_state(const string input_file,
                     extra_frame_chunk, ivf_writer );
 
   output_ivf.push_back(ivf_writer.ivf());
-  EncoderStateSerializer odata = {};
-  encoder.export_decoder().serialize(odata);
-  odata.write(output_state);
+  output_state.push_back(encoder.export_decoder());
 }
 
 void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> & output, size_t index) {
@@ -167,11 +163,8 @@ void decode_all(const string prefix) {
     ostringstream inputss, outputss;
     inputss << prefix << "vpx_" << std::setw(2) << std::setfill('0') << i << ".ivf";
     const string input_file = inputss.str();
-
-    outputss << prefix << "dec_" << std::setw(2) << std::setfill('0') << i << ".state";
-    const string output_file = outputss.str();
     
-    decode(input_file, output_file);
+    decode(input_file, dec_state);
   }
 }
 
@@ -181,18 +174,12 @@ void encode_all(const string prefix) {
     ostringstream inputss, instatess, outstatess;
     inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
     const string input_file = inputss.str();
-
-    instatess << prefix << "dec_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".state";
-    const string input_state = instatess.str();
-
-    outstatess << prefix << "enc0_" << std::setw(2) << std::setfill('0') << i << ".state";
-    const string output_state = outstatess.str();
     
     if (i == 0) {
       xc0_ivf.push_back(vpx_ivf[0]);
-      fs::copy(input_state, output_state, fs::copy_options::update_existing);
+      enc0_state.push_back(dec_state[0]);
     } else {
-      enc_given_state(input_file, xc0_ivf, input_state, output_state, vpx_ivf, "", i);
+      enc_given_state(input_file, xc0_ivf, dec_state, enc0_state, vpx_ivf, nullptr, i);
     }
   }
 
@@ -201,21 +188,12 @@ void encode_all(const string prefix) {
     ostringstream inputss, instatess, prevstatess, outstatess;
     inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
     const string input_file = inputss.str();
-
-    instatess << prefix << "enc0_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".state";
-    const string input_state = instatess.str();
-
-    prevstatess << prefix << "dec_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".state";
-    const string prev_state = prevstatess.str();
-
-    outstatess << prefix << "enc1_" << std::setw(2) << std::setfill('0') << i << ".state";
-    const string output_state = outstatess.str();
     
     if (i == 0) {
       xc1_ivf.push_back(xc0_ivf[0]);
-      fs::copy(input_state, output_state, fs::copy_options::update_existing);
+      enc1_state.push_back(enc0_state[0]);
     } else {
-      enc_given_state(input_file, xc1_ivf, input_state, output_state, xc0_ivf, prev_state, i);
+      enc_given_state(input_file, xc1_ivf, enc0_state, enc1_state, xc0_ivf, &dec_state, i);
     }
   }
 }
@@ -227,21 +205,12 @@ void rebase(const string prefix) {
     inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
     const string input_file = inputss.str();
 
-    instatess << prefix << "rebased_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".state";
-    const string input_state = instatess.str();
-
-    prevstatess << prefix << "enc0_" << std::setw(2) << std::setfill('0') << ((i == 0) ? 0 : (i - 1)) << ".state";
-    const string prev_state = prevstatess.str();
-
-    outstatess << prefix << "rebased_" << std::setw(2) << std::setfill('0') << i << ".state";
-    const string output_state = outstatess.str();
-
     if (i == 0) {
       final_ivf.push_back(xc1_ivf[0]);
       rebased_ivf.push_back(xc1_ivf[0]);
-      fs::copy(prev_state, output_state, fs::copy_options::update_existing);
+      rebased_state.push_back(enc0_state[0]);
     } else {
-      enc_given_state(input_file, rebased_ivf, input_state, output_state, xc1_ivf, prev_state, i);
+      enc_given_state(input_file, rebased_ivf, rebased_state, rebased_state, xc1_ivf, &enc0_state, i);
       merge(final_ivf, rebased_ivf, final_ivf, i);
     }
   }
