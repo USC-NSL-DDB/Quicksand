@@ -71,12 +71,12 @@ bool decode(const string input, const string output) {
 }
 
 void enc_given_state(const string input_file,
-                     vector<IVF_MEM> output_ivf,
+                     vector<IVF_MEM> & output_ivf,
                      const string input_state, 
                      const string output_state,
-                     vector<IVF_MEM> pred,
+                     vector<IVF_MEM> & pred,
                      const string prev_state,
-                     size_t i) {
+                     size_t index) {
   bool two_pass = false;
   double kf_q_weight = 1.0;
   bool extra_frame_chunk = false;
@@ -105,7 +105,7 @@ void enc_given_state(const string input_file,
   /* pre-read all the prediction frames */
   vector<pair<Optional<KeyFrame>, Optional<InterFrame> > > prediction_frames;
 
-  IVF_MEM pred_ivf = pred[i];
+  IVF_MEM pred_ivf = pred[index];
 
   if ( not pred_decoder.minihash_match( pred_ivf.expected_decoder_minihash() ) ) {
     throw Invalid( "Mismatch between prediction IVF and prediction_ivf_initial_state" );
@@ -141,9 +141,9 @@ void enc_given_state(const string input_file,
   odata.write(output_state);
 }
 
-void merge(vector<IVF_MEM> input1, vector<IVF_MEM> input2, vector<IVF_MEM> output, size_t i) {
-  IVF_MEM ivf1 = input1[i-1];
-  IVF_MEM ivf2 = input2[i];
+void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> & output, size_t index) {
+  IVF_MEM ivf1 = input1[index-1];
+  IVF_MEM ivf2 = input2[index];
 
   if ( ivf1.width() != ivf2.width() or ivf1.height() != ivf2.height() ) {
     throw runtime_error( "cannot merge ivfs with different dimensions." );
@@ -238,12 +238,18 @@ void rebase(const string prefix) {
 
     if (i == 0) {
       final_ivf.push_back(xc1_ivf[0]);
+      rebased_ivf.push_back(xc1_ivf[0]);
       fs::copy(prev_state, output_state, fs::copy_options::update_existing);
     } else {
       enc_given_state(input_file, rebased_ivf, input_state, output_state, xc1_ivf, prev_state, i);
       merge(final_ivf, rebased_ivf, final_ivf, i);
     }
   }
+}
+
+void write_output(const std::string prefix) {
+  const string final_file = prefix + "final.ivf";
+  final_ivf[N-1].write(final_file);
 }
 
 int main(int argc, char *argv[]) {
@@ -258,6 +264,7 @@ int main(int argc, char *argv[]) {
   decode_all(prefix);
   encode_all(prefix);
   rebase(prefix);
+  write_output(prefix);
 
   return 0;
 }

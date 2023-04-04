@@ -201,10 +201,8 @@ void IVFWriter_MEM::append_frame( const Chunk & chunk )
 
   /* XXX does not include presentation timestamp */
 
-  /* append the frame header to the file */
-  ivf_.append_frame( Chunk( &new_header.at( 0 ), new_header.size() ) );
-  /* append the frame to the file */
-  ivf_.append_frame( chunk );
+  /* append the frame header and frame to the file */
+  ivf_.append_frame( Chunk( &new_header.at( 0 ), new_header.size() ), chunk );
   frame_count_++;
 }
 

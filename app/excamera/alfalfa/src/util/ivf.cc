@@ -185,10 +185,18 @@ vector<char> IVF_MEM::load(const string &filename)
   return vec;
 }
 
-void IVF_MEM::append_frame( const Chunk & chunk )
+void IVF_MEM::append_frame( const Chunk & header, const Chunk & frame )
 {
-  auto chunk_str = chunk.to_string();
-  buffer_.insert(buffer_.end(), chunk_str.begin(), chunk_str.end());
+  /* update the index */
+  uint64_t position = buffer_.size();
+  uint32_t frame_len = header.le32();
+  frame_index_.emplace_back( position + frame_header_len, frame_len );
+
+  auto header_str = header.to_string();
+  buffer_.insert(buffer_.end(), header_str.begin(), header_str.end());
+  
+  auto frame_str = frame.to_string();
+  buffer_.insert(buffer_.end(), frame_str.begin(), frame_str.end());
   frame_count_++;
   memcpy_le32( reinterpret_cast<uint8_t *>(buffer_.data()) + 24, frame_count_ );
 }
@@ -203,4 +211,11 @@ Chunk IVF_MEM::frame( const uint32_t & index ) const
 {
   const auto & entry = frame_index_.at( index );
   return Chunk(reinterpret_cast<const uint8_t *>(buffer_.data()) + entry.first, entry.second);
+}
+
+void IVF_MEM::write( const string & filename )
+{
+  auto fd = FileDescriptor( SystemCall( filename, open( filename.c_str(), O_RDWR | O_CREAT | O_TRUNC,
+                                 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH ) ) );
+  fd.write( Chunk( reinterpret_cast<uint8_t *>(buffer_.data()), buffer_.size() ) );
 }

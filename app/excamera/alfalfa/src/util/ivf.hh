@@ -32,6 +32,7 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+#include <fcntl.h>
 
 #include "file.hh"
 
@@ -99,12 +100,14 @@ public:
   uint32_t frame_count( void ) const { return frame_count_; }
 
   Chunk frame( const uint32_t & index ) const;
-  void append_frame( const Chunk & chunk );
+  void append_frame( const Chunk & header, const Chunk & frame );
 
   size_t size() const { return buffer_.size(); }
 
   uint32_t expected_decoder_minihash() const { return expected_decoder_minihash_; }
   void set_expected_decoder_minihash( const uint32_t minihash );
+
+  void write( const std::string & filename );
 };
 
 #endif /* IVF_HH */
