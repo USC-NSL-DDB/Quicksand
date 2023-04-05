@@ -153,13 +153,13 @@ class ShardedDataStructure {
   std::size_t __size();
   Val __front() requires HasFront<Container>;
   Val __back() requires HasBack<Container>;
-  template <typename D>
+  template <bool Flush = true, typename D>
   void __insert(D &&entry) requires InsertAble<Container>;
   template <typename K>
   bool __erase(K &&k) requires EraseAble<Container>;
   template <typename V>
   void __push_front(V &&v) requires PushFrontAble<Container>;
-  template <typename V>
+  template <bool Flush = true, typename V>
   void __push_back(V &&v) requires PushBackAble<Container>;
   template <bool Front, typename RetT, typename F, typename... As>
   RetT run_at_border(F f, As &&... args);

@@ -185,7 +185,7 @@ template <class Container, class LL>
 }
 
 template <class Container, class LL>
-template <typename D>
+template <bool Flush, typename D>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::__insert(
     D &&entry) requires InsertAble<Container> {
@@ -216,9 +216,11 @@ ShardedDataStructure<Container, LL>::__insert(
     }
     reqs.emplace_back(std::forward<D>(entry));
 
-    if (unlikely(reqs.size() >= max_num_data_entries_)) {
-      update_max_num_data_entries(iter);
-      flush_one_batch(iter, /* drain = */ false);
+    if constexpr (Flush) {
+      if (unlikely(reqs.size() >= max_num_data_entries_)) {
+        update_max_num_data_entries(iter);
+        flush_one_batch(iter, /* drain = */ false);
+      }
     }
   }
 }
@@ -271,7 +273,7 @@ ShardedDataStructure<Container, LL>::push_back(
 }
 
 template <class Container, class LL>
-template <typename V>
+template <bool Flush, typename V>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::__push_back(
     V &&v) requires PushBackAble<Container> {
@@ -281,10 +283,12 @@ ShardedDataStructure<Container, LL>::__push_back(
   } else {
     push_back_reqs_.emplace_back(std::forward<V>(v));
 
-    if (unlikely(push_back_reqs_.size() >= max_num_vals_)) {
-      update_max_num_vals();
-      auto iter = --key_to_shards_.end();
-      flush_one_batch(iter, /* drain = */ false);
+    if constexpr (Flush) {
+      if (unlikely(push_back_reqs_.size() >= max_num_vals_)) {
+        update_max_num_vals();
+        auto iter = --key_to_shards_.end();
+        flush_one_batch(iter, /* drain = */ false);
+      }
     }
   }
 }
@@ -632,12 +636,12 @@ void ShardedDataStructure<Container, LL>::reroute_reqs(
     std::vector<DataEntry> insert_reqs, std::vector<Val> push_back_reqs) {
   if constexpr (InsertAble<Container>) {
     for (auto &req : insert_reqs) {
-      insert(std::move(req));
+      __insert</* Flush = */ false>(std::move(req));
     }
   }
   if constexpr (PushBackAble<Container>) {
     for (auto &req : push_back_reqs) {
-      push_back(std::move(req));
+      __push_back</* Flush = */ false>(std::move(req));
     }
   }
 }
