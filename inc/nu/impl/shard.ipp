@@ -221,6 +221,9 @@ void GeneralShard<Container>::split() {
       container_and_metadata.container_bucket_size = container_bucket_size_;
       new_shard.run(&GeneralShard::init_range_and_data, mid_k, r_key_,
                     container_and_metadata);
+      Thread([this, mid_k] {
+        mapping_.run(&ShardMapping::commit_shard, mid_k);
+      }).detach();
       r_key_ = mid_k;
     }
   }
