@@ -96,7 +96,8 @@ public:
     unique_lock<mutex> lock { mutex_ };
 
     assert( raster );
-    unused_rasters_.emplace( raster );
+    delete raster;
+    // unused_rasters_.emplace( raster );
   }
 };
 

@@ -70,7 +70,8 @@ void FramePool<FrameType>::free_frame( FrameType * frame )
   unique_lock<mutex> lock { mutex_ };
 
   assert( frame );
-  unused_frames_.emplace( frame );
+  delete frame;
+  // unused_frames_.emplace( frame );
 }
 
 template<class FrameType>
