@@ -11,10 +11,17 @@
 #include <filesystem>
 #include <vector>
 
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
+
 #include <runtime.h>
 #include <thread.h>
 #include <sync.h>
 #include "nu/runtime.hpp"
+#include "nu/sharded_vector.hpp"
+#include "nu/dis_executor.hpp"
+#include "nu/sharded_ds_range.hpp"
 
 #include "ivf.hh"
 #include "uncompressed_chunk.hh"
@@ -37,6 +44,9 @@ namespace fs = std::filesystem;
 
 size_t N = 16;
 
+using shard_ivf_type = nu::ShardedVector<IVF_MEM, std::false_type>;
+using sealed_shard_ivf_type = nu::SealedDS<shard_ivf_type>;
+
 typedef struct {
   vector<IVF_MEM> vpx_ivf, xc0_ivf, xc1_ivf, rebased_ivf, final_ivf;
   vector<Decoder> dec_state, enc0_state, enc1_state, rebased_state;
@@ -50,9 +60,8 @@ void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
 }
 
-bool decode(const string input, vector<Decoder> & output, vector<IVF_MEM> & ivfs, size_t index) {
+IVF_MEM decode(const string input, vector<Decoder> & output, size_t index) {
   IVF_MEM ivf(input);
-  ivfs[index] = ivf;
 
   Decoder decoder = Decoder(ivf.width(), ivf.height());
   if ( not decoder.minihash_match( ivf.expected_decoder_minihash() ) ) {
@@ -74,7 +83,7 @@ bool decode(const string input, vector<Decoder> & output, vector<IVF_MEM> & ivfs
 
     if ( i == frame_number ) {
       output[index] = decoder;
-      return true;
+      return ivf;
     }
   }
 
@@ -160,23 +169,34 @@ void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> &
 }
 
 void decode_all(const string prefix, xc_t &s) {
-  vector<rt::Thread> ths;
+  std::vector<std::size_t> tasks;
   for (size_t i = 0; i < N; i++) {
-    ostringstream inputss, outputss;
-    inputss << prefix << "vpx_" << std::setw(2) << std::setfill('0') << i << ".ivf";
-    const string input_file = inputss.str();
-    
-    ths.emplace_back( [input_file, i, &s] {
-      auto start = microtime();
-      decode(input_file, s.dec_state, s.vpx_ivf, i);
-      auto end = microtime();
-      stage1_time[i] = end - start;
-    } );
+    tasks.push_back(i);
   }
 
-  for (auto &th : ths) {
-    th.Join();
-  }
+  auto dis_exec = nu::make_distributed_executor(
+    +[](nu::VectorTaskRange<size_t> &task_range, const string prefix, vector<Decoder> &dec_state) {
+      vector<IVF_MEM> outputs;
+      while (true) {
+        auto idx = task_range.pop();
+        if (!idx) {
+          break;
+        }
+
+        ostringstream inputss, outputss;
+        inputss << prefix << "vpx_" << setw(2) << setfill('0') << *idx << ".ivf";
+        const string input_file = inputss.str();
+
+        outputs.push_back(decode(input_file, dec_state, *idx));
+      }
+      return outputs;
+    },
+    nu::VectorTaskRange<size_t>(tasks),
+    prefix, s);
+  
+  auto output_vecs = dis_exec.get();
+  auto join_view = ranges::join_view(output_vecs);
+  s.vpx_ivf = std::vector<IVF_MEM>(join_view.begin(), join_view.end());
 }
 
 void encode_all(const string prefix, xc_t &s) {

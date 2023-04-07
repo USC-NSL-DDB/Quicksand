@@ -29,8 +29,10 @@ baseline_src = src/xc_baseline.cpp
 baseline_obj = $(baseline_src:.cpp=.o)
 mem_src      = src/xc_mem.cpp
 mem_obj      = $(mem_src:.cpp=.o)
+qs_src      = src/xc_qs.cpp
+qs_obj      = $(qs_src:.cpp=.o)
 
-all: bin/xc_baseline bin/xc_mem
+all: bin/xc_baseline bin/xc_mem # bin/xc_qs
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
@@ -41,6 +43,8 @@ bin/xc_baseline: $(baseline_obj)
 	$(LDXX) -o $@ $(baseline_obj) $(lib_alfalfa) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/xc_mem: $(mem_obj)
 	$(LDXX) -o $@ $(mem_obj) $(lib_alfalfa) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/xc_qs: $(qs_obj)
+	$(LDXX) -o $@ $(qs_obj) $(lib_alfalfa) $(lib_nu) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(dep)
@@ -48,4 +52,4 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) bin/xc_baseline bin/xc_mem src/*.o
+	rm -f $(dep) bin/xc_baseline bin/xc_mem bin/xc_qs src/*.o
