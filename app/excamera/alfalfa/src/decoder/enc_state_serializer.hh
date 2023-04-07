@@ -117,6 +117,10 @@ class EncoderStateSerializer {
     void write(FILE *file) {
       std::fwrite(data_.data(), 1, data_.size(), file);
     }
+
+    std::vector<uint8_t> get() {
+      return data_;
+    }
 };
 
 class EncoderStateDeserializer : File {
@@ -138,6 +142,77 @@ class EncoderStateDeserializer : File {
 
     template<typename T, typename F, typename ...Ps> static T build(F f, Ps ...ps) {
       EncoderStateDeserializer idata(f);
+      return T::deserialize(idata, std::forward<Ps>(ps)...);
+    }
+
+    void reset(void) { ptr_ = 0; }
+    size_t remaining(void) const { return chunk().size() - ptr_; }
+    size_t size(void) const { return chunk().size(); }
+
+    EncoderSerDesTag peek_tag(void) {
+      return static_cast<EncoderSerDesTag>((*this)(ptr_, 1).octet());
+    }
+
+    EncoderSerDesTag get_tag(void) {
+      return static_cast<EncoderSerDesTag>((*this)(ptr_++, 1).octet());
+    }
+
+    template<typename T> T get(void) {
+      T ret = (T) 0;
+      for (unsigned i = sizeof(ret); i > 0; i--) {
+        ret = ret << 8;
+        ret = ret | (*this)(ptr_ + i - 1, 1).octet();
+      }
+      ptr_ += sizeof(ret);
+      return ret;
+    }
+
+    MutableRasterHandle get_ref(EncoderSerDesTag t, const uint16_t width, const uint16_t height) {
+      MutableRasterHandle raster(width, height);
+
+      if (this->peek_tag() == t) {
+        EncoderSerDesTag data_type = this->get_tag();
+        assert(data_type == t);
+        (void) t;           // not used except in assert
+        (void) data_type;   // not used except in assert
+        unsigned rwidth = raster.get().width();
+        unsigned rheight = raster.get().height();
+
+        uint32_t expect_len = rwidth * rheight + 2 * (rwidth / 2) * (rheight / 2);
+        uint32_t get_len = this->get<uint32_t>();
+        assert(get_len == expect_len);
+        (void) get_len;     // only used in assert
+        (void) expect_len;  // only used in assert
+
+        raster.get().Y().forall([this](uint8_t &f){ f = this->get<uint8_t>(); });
+        raster.get().U().forall([this](uint8_t &f){ f = this->get<uint8_t>(); });
+        raster.get().V().forall([this](uint8_t &f){ f = this->get<uint8_t>(); });
+      }
+
+      return raster;
+    }
+};
+
+class EncoderStateDeserializer_MEM {
+  private:
+    const std::vector<uint8_t> data_;
+    size_t ptr_;
+    Chunk chunk_;
+
+  public:
+    EncoderStateDeserializer_MEM(const std::vector<uint8_t> data)
+      : data_(data)
+      , ptr_(0) 
+      , chunk_(data_.data(), data_.size()) {}
+    
+    const Chunk & chunk( void ) const { return chunk_; }
+    const Chunk operator() ( const uint64_t & offset, const uint64_t & length ) const
+    {
+      return chunk_( offset, length );
+    }
+
+    template<typename T, typename F, typename ...Ps> static T build(F f, Ps ...ps) {
+      EncoderStateDeserializer_MEM idata(f);
       return T::deserialize(idata, std::forward<Ps>(ps)...);
     }
 

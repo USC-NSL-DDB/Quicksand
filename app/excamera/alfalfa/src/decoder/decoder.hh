@@ -70,6 +70,7 @@ struct ProbabilityTables
   ProbabilityTables() {}
 
   ProbabilityTables(EncoderStateDeserializer &idata);
+  ProbabilityTables(EncoderStateDeserializer_MEM &idata);
 
   template <class HeaderType>
   void coeff_prob_update( const HeaderType & header );
@@ -88,6 +89,9 @@ struct ProbabilityTables
   static ProbabilityTables deserialize(EncoderStateDeserializer &idata) {
     return ProbabilityTables(idata);
   }
+  static ProbabilityTables deserialize(EncoderStateDeserializer_MEM &idata) {
+    return ProbabilityTables(idata);
+  }
 };
 
 struct FilterAdjustments
@@ -101,6 +105,7 @@ struct FilterAdjustments
   FilterAdjustments() {}
 
   FilterAdjustments(EncoderStateDeserializer &idata);
+  FilterAdjustments(EncoderStateDeserializer_MEM &idata);
 
   template <class HeaderType>
   FilterAdjustments( const HeaderType & header ) { update( header ); }
@@ -118,6 +123,9 @@ struct FilterAdjustments
   static FilterAdjustments deserialize(EncoderStateDeserializer &idata) {
     return FilterAdjustments(idata);
   }
+  static FilterAdjustments deserialize(EncoderStateDeserializer_MEM &idata) {
+    return FilterAdjustments(idata);
+  }
 };
 
 struct References
@@ -131,6 +139,7 @@ struct References
   References( MutableRasterHandle && raster );
 
   References(EncoderStateDeserializer &idata, const uint16_t width, const uint16_t height);
+  References(EncoderStateDeserializer_MEM &idata, const uint16_t width, const uint16_t height);
 
   const VP8Raster & at( const reference_frame reference_id ) const
   {
@@ -148,6 +157,7 @@ struct References
 
   size_t serialize(EncoderStateSerializer &odata) const;
   static References deserialize(EncoderStateDeserializer &idata);
+  static References deserialize(EncoderStateDeserializer_MEM &idata);
 };
 
 using SegmentationMap = TwoD< uint8_t >;
@@ -172,6 +182,7 @@ struct Segmentation
                 const unsigned int height );
 
   Segmentation(EncoderStateDeserializer &idata, const bool abs, const unsigned width, const unsigned height);
+  Segmentation(EncoderStateDeserializer_MEM &idata, const bool abs, const unsigned width, const unsigned height);
 
   // testing only
   Segmentation(const unsigned width, const unsigned height);
@@ -187,6 +198,7 @@ struct Segmentation
 
   size_t serialize(EncoderStateSerializer &odata) const;
   static Segmentation deserialize(EncoderStateDeserializer &idata);
+  static Segmentation deserialize(EncoderStateDeserializer_MEM &idata);
 };
 
 struct DecoderState
@@ -203,6 +215,7 @@ struct DecoderState
                Optional<FilterAdjustments> &&f);
 
   DecoderState(EncoderStateDeserializer &idata, const unsigned s_width, const unsigned s_height);
+  DecoderState(EncoderStateDeserializer_MEM &idata, const unsigned s_width, const unsigned s_height);
 
   DecoderState( const unsigned int s_width, const unsigned int s_height );
 
@@ -226,6 +239,7 @@ struct DecoderState
 
   size_t serialize(EncoderStateSerializer &odata) const;
   static DecoderState deserialize(EncoderStateDeserializer &idata);
+  static DecoderState deserialize(EncoderStateDeserializer_MEM &idata);
 };
 
 class DecoderHash
@@ -257,6 +271,7 @@ public:
   Decoder( const uint16_t width, const uint16_t height );
   Decoder( DecoderState state, References references );
   Decoder( EncoderStateDeserializer &idata );
+  Decoder( EncoderStateDeserializer_MEM &idata );
   Decoder() = default;
 
   const VP8Raster & example_raster( void ) const { return references_.last; }
@@ -299,6 +314,7 @@ public:
   size_t serialize(EncoderStateSerializer &odata) const;
 
   static Decoder deserialize(EncoderStateDeserializer &idata);
+  static Decoder deserialize(EncoderStateDeserializer_MEM &idata);
 
   void set_error_concealment( const bool val ) { error_concealment_ = val; }
   bool error_concealment() const { return error_concealment_; }

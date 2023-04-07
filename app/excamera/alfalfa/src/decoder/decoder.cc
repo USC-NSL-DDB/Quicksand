@@ -51,6 +51,12 @@ Decoder::Decoder(EncoderStateDeserializer &idata)
   assert(idata.remaining() == 0);
 }
 
+Decoder::Decoder(EncoderStateDeserializer_MEM &idata)
+  : state_(move(DecoderState::deserialize(idata)))
+  , references_(move(References::deserialize(idata))) {
+  assert(idata.remaining() == 0);
+}
+
 size_t Decoder::serialize(EncoderStateSerializer &odata) const {
   odata.reserve(5);
   odata.put(EncoderSerDesTag::DECODER);
@@ -69,6 +75,18 @@ size_t Decoder::serialize(EncoderStateSerializer &odata) const {
 }
 
 Decoder Decoder::deserialize(EncoderStateDeserializer &idata) {
+  EncoderSerDesTag data_type = idata.get_tag();
+  assert(data_type == EncoderSerDesTag::DECODER);
+  (void) data_type;   // not used except in assert
+
+  uint32_t len = idata.get<uint32_t>();
+  assert(len == idata.remaining());
+  (void) len;         // not used except in assert
+
+  return Decoder(idata);
+}
+
+Decoder Decoder::deserialize(EncoderStateDeserializer_MEM &idata) {
   EncoderSerDesTag data_type = idata.get_tag();
   assert(data_type == EncoderSerDesTag::DECODER);
   (void) data_type;   // not used except in assert
@@ -174,6 +192,12 @@ References::References(EncoderStateDeserializer &idata, const uint16_t width, co
   , alternative( last )
 {}
 
+References::References(EncoderStateDeserializer_MEM &idata, const uint16_t width, const uint16_t height)
+  : last( move( idata.get_ref( EncoderSerDesTag::REF_LAST, width, height ) ) )
+  , golden( last )
+  , alternative( last )
+{}
+
 size_t References::serialize(EncoderStateSerializer &odata) const {
   odata.reserve(9);
   odata.put(EncoderSerDesTag::REFERENCES);
@@ -197,6 +221,21 @@ size_t References::serialize(EncoderStateSerializer &odata) const {
 }
 
 References References::deserialize(EncoderStateDeserializer &idata) {
+  EncoderSerDesTag data_type = idata.get_tag();
+  assert(data_type == EncoderSerDesTag::REFERENCES);
+  (void) data_type;   // unused
+
+  uint32_t get_len = idata.get<uint32_t>();
+  assert(get_len <= idata.remaining());
+  (void) get_len;     // unused
+
+  uint16_t width = idata.get<uint16_t>();
+  uint16_t height = idata.get<uint16_t>();
+
+  return References(idata, width, height);
+}
+
+References References::deserialize(EncoderStateDeserializer_MEM &idata) {
   EncoderSerDesTag data_type = idata.get_tag();
   assert(data_type == EncoderSerDesTag::REFERENCES);
   (void) data_type;   // unused
@@ -240,6 +279,21 @@ DecoderState::DecoderState( const KeyFrameHeader & header,
 {}
 
 DecoderState::DecoderState(EncoderStateDeserializer &idata, const unsigned s_width, const unsigned s_height)
+  : width(s_width)
+  , height(s_height)
+  , probability_tables(move(ProbabilityTables::deserialize(idata))) {
+  EncoderSerDesTag seg_opt = idata.get_tag();
+  if (seg_opt == EncoderSerDesTag::OPT_FULL) {
+    segmentation = move(Segmentation::deserialize(idata));
+  }
+
+  EncoderSerDesTag filt_opt = idata.get_tag();
+  if (filt_opt == EncoderSerDesTag::OPT_FULL) {
+    filter_adjustments = move(FilterAdjustments::deserialize(idata));
+  }
+}
+
+DecoderState::DecoderState(EncoderStateDeserializer_MEM &idata, const unsigned s_width, const unsigned s_height)
   : width(s_width)
   , height(s_height)
   , probability_tables(move(ProbabilityTables::deserialize(idata))) {
@@ -328,6 +382,21 @@ DecoderState DecoderState::deserialize(EncoderStateDeserializer &idata) {
   return DecoderState(idata, width, height);
 }
 
+DecoderState DecoderState::deserialize(EncoderStateDeserializer_MEM &idata) {
+  EncoderSerDesTag data_type = idata.get_tag();
+  assert(data_type == EncoderSerDesTag::DECODER_STATE);
+  (void) data_type;   // unused
+
+  uint32_t get_len = idata.get<uint32_t>();
+  assert(get_len <= idata.remaining());
+  (void) get_len;     // unused
+
+  uint16_t width = idata.get<uint16_t>();
+  uint16_t height = idata.get<uint16_t>();
+
+  return DecoderState(idata, width, height);
+}
+
 size_t FilterAdjustments::hash( void ) const
 {
   size_t hash_val = 0;
@@ -357,6 +426,26 @@ size_t FilterAdjustments::serialize(EncoderStateSerializer &odata) const {
 }
 
 FilterAdjustments::FilterAdjustments(EncoderStateDeserializer &idata) {
+  EncoderSerDesTag data_type = idata.get_tag();
+  assert(data_type == EncoderSerDesTag::FILT_ADJ);
+  (void) data_type;   // not used except in assert
+
+  uint32_t expect_len = num_reference_frames + 4;
+  uint32_t get_len = idata.get<uint32_t>();
+  assert(expect_len == get_len);
+  (void) expect_len;  // not used except in assert
+  (void) get_len;     // "
+
+  for (unsigned i = 0; i < num_reference_frames; i++) {
+    loopfilter_ref_adjustments.at(i) = idata.get<int8_t>();
+  }
+
+  for (unsigned i = 0; i < 4; i++) {
+    loopfilter_mode_adjustments.at(i) = idata.get<int8_t>();
+  }
+}
+
+FilterAdjustments::FilterAdjustments(EncoderStateDeserializer_MEM &idata) {
   EncoderSerDesTag data_type = idata.get_tag();
   assert(data_type == EncoderSerDesTag::FILT_ADJ);
   (void) data_type;   // not used except in assert
@@ -437,6 +526,22 @@ Segmentation Segmentation::deserialize(EncoderStateDeserializer &idata) {
   return Segmentation(idata, abs, width, height);
 }
 
+Segmentation Segmentation::deserialize(EncoderStateDeserializer_MEM &idata) {
+  EncoderSerDesTag data_type = idata.get_tag();
+  assert(data_type == EncoderSerDesTag::SEGM_ABS || data_type == EncoderSerDesTag::SEGM_REL);
+  bool abs = data_type == EncoderSerDesTag::SEGM_ABS;
+
+  uint32_t get_len = idata.get<uint32_t>();
+  uint16_t width = idata.get<uint16_t>();
+  uint16_t height = idata.get<uint16_t>();
+  uint32_t expect_len = 4 + num_segments + num_segments + width * height;
+  assert(expect_len == get_len);
+  (void) expect_len;    // unused except in assert
+  (void) get_len;       // unused except in assert
+
+  return Segmentation(idata, abs, width, height);
+}
+
 bool FilterAdjustments::operator==( const FilterAdjustments & other ) const
 {
   return loopfilter_ref_adjustments == other.loopfilter_ref_adjustments
@@ -455,6 +560,22 @@ Segmentation::Segmentation(const unsigned width, const unsigned height)
   : map(width, height, 3) {}
 
 Segmentation::Segmentation(EncoderStateDeserializer &idata,
+                           const bool abs, const unsigned width, const unsigned height)
+  : absolute_segment_adjustments(abs)
+  , map(width, height, 3) {
+
+  for (unsigned i = 0; i < num_segments; i++) {
+    segment_quantizer_adjustments.at(i) = idata.get<int8_t>();
+  }
+
+  for (unsigned i = 0; i < num_segments; i++) {
+    segment_filter_adjustments.at(i) = idata.get<int8_t>();
+  }
+
+  map.forall([&](uint8_t &f){ f = idata.get<uint8_t>(); });
+}
+
+Segmentation::Segmentation(EncoderStateDeserializer_MEM &idata,
                            const bool abs, const unsigned width, const unsigned height)
   : absolute_segment_adjustments(abs)
   , map(width, height, 3) {

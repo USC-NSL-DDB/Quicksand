@@ -37,9 +37,12 @@ namespace fs = std::filesystem;
 
 size_t N = 16;
 
+// serialized decoder state
+using DecoderBuffer = vector<uint8_t>;
+
 typedef struct {
   vector<IVF_MEM> vpx_ivf, xc0_ivf, xc1_ivf, rebased_ivf, final_ivf;
-  vector<Decoder> dec_state, enc0_state, enc1_state, rebased_state;
+  vector<DecoderBuffer> dec_state, enc0_state, enc1_state, rebased_state;
   vector<vector<RasterHandle>> rasters;
   uint16_t display_width, display_height;
 } xc_t;
@@ -50,7 +53,7 @@ void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
 }
 
-bool decode(const string input, vector<Decoder> & output, vector<IVF_MEM> & ivfs, size_t index) {
+bool decode(const string input, vector<DecoderBuffer> & output, vector<IVF_MEM> & ivfs, size_t index) {
   IVF_MEM ivf(input);
   ivfs[index] = ivf;
 
@@ -73,7 +76,9 @@ bool decode(const string input, vector<Decoder> & output, vector<IVF_MEM> & ivfs
     }
 
     if ( i == frame_number ) {
-      output[index] = decoder;
+      EncoderStateSerializer odata;
+      decoder.serialize(odata);
+      output[index] = odata.get();
       return true;
     }
   }
@@ -82,10 +87,10 @@ bool decode(const string input, vector<Decoder> & output, vector<IVF_MEM> & ivfs
 }
 
 void enc_given_state(vector<IVF_MEM> & output_ivf,
-                     vector<Decoder> & input_state, 
-                     vector<Decoder> & output_state,
+                     vector<DecoderBuffer> & input_state, 
+                     vector<DecoderBuffer> & output_state,
                      vector<IVF_MEM> & pred,
-                     vector<Decoder> * prev_state,
+                     vector<DecoderBuffer> * prev_state,
                      vector<RasterHandle> & rasters,
                      uint16_t display_width, uint16_t display_height,
                      size_t index) {
@@ -96,7 +101,7 @@ void enc_given_state(vector<IVF_MEM> & output_ivf,
 
   Decoder pred_decoder( display_width, display_height );
   if (prev_state) {
-    pred_decoder = prev_state->at(index - 1);
+    pred_decoder = EncoderStateDeserializer_MEM::build<Decoder>( prev_state->at(index - 1) );
   }
 
   IVFWriter_MEM ivf_writer { "VP80", display_width, display_height, 1, 1 };
@@ -127,7 +132,7 @@ void enc_given_state(vector<IVF_MEM> & output_ivf,
     }
   }
 
-  Encoder encoder( input_state[index-1], two_pass, quality );
+  Encoder encoder( EncoderStateDeserializer_MEM::build<Decoder>(input_state[index-1]) , two_pass, quality );
 
   ivf_writer.set_expected_decoder_entry_hash( encoder.export_decoder().get_hash().hash() );
 
@@ -135,7 +140,9 @@ void enc_given_state(vector<IVF_MEM> & output_ivf,
                     extra_frame_chunk, ivf_writer );
 
   output_ivf[index] = ivf_writer.ivf();
-  output_state[index] = encoder.export_decoder();
+  EncoderStateSerializer odata = {};
+  encoder.export_decoder().serialize(odata);
+  output_state[index] = odata.get();
 }
 
 void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> & output, size_t index) {
@@ -207,7 +214,7 @@ void encode_all(const string prefix, xc_t &s) {
       s.xc1_ivf[0] = s.xc0_ivf[0];
       s.enc1_state[0] = s.enc0_state[0];
     } else {
-      vector<Decoder> *prev_state_ptr = &(s.dec_state);
+      vector<DecoderBuffer> *prev_state_ptr = &(s.dec_state);
       ths.emplace_back( [i, prev_state_ptr, &s] {
         auto start = microtime();
         enc_given_state(s.xc1_ivf, s.enc0_state, s.enc1_state, s.xc0_ivf, prev_state_ptr, s.rasters[i], s.display_width, s.display_height, i);

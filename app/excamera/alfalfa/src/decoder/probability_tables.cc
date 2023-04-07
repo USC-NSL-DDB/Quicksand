@@ -194,5 +194,42 @@ ProbabilityTables::ProbabilityTables(EncoderStateDeserializer &idata) {
   }
 }
 
+ProbabilityTables::ProbabilityTables(EncoderStateDeserializer_MEM &idata) {
+  EncoderSerDesTag data_type = idata.get_tag();
+  assert(data_type == EncoderSerDesTag::PROB_TABLE);
+  (void) data_type;   // unused except in assert
+
+  uint32_t expect_len = BLOCK_TYPES * COEF_BANDS * PREV_COEF_CONTEXTS * ENTROPY_NODES +
+                        y_mode_probs.size() + uv_mode_probs.size() + 2 * MV_PROB_CNT;
+  uint32_t get_len = idata.get<uint32_t>();
+  assert(expect_len == get_len);
+  (void) expect_len;  // uunusd except in assert
+  (void) get_len;     // "
+
+  for (unsigned i = 0; i < BLOCK_TYPES; i++) {
+    for (unsigned j = 0; j < COEF_BANDS; j++) {
+      for (unsigned k = 0; k < PREV_COEF_CONTEXTS; k++) {
+        for (unsigned l = 0; l < ENTROPY_NODES; l++) {
+          coeff_probs.at(i).at(j).at(k).at(l) = idata.get<Probability>();
+        }
+      }
+    }
+  }
+
+  for (unsigned i = 0; i < y_mode_probs.size(); i++) {
+    y_mode_probs.at(i) = idata.get<Probability>();
+  }
+
+  for (unsigned i = 0; i < uv_mode_probs.size(); i++) {
+    uv_mode_probs.at(i) = idata.get<Probability>();
+  }
+
+  for (unsigned i = 0; i < 2; i++) {
+    for (unsigned j = 0; j < MV_PROB_CNT; j++) {
+      motion_vector_probs.at(i).at(j) = idata.get<Probability>();
+    }
+  }
+}
+
 template
 void ProbabilityTables::coeff_prob_update<KeyFrameHeader>( const KeyFrameHeader & );
