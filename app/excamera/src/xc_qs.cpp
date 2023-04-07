@@ -10,6 +10,7 @@
 #include <chrono>
 #include <filesystem>
 #include <vector>
+#include <functional>
 
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
@@ -39,17 +40,17 @@
 #include "enc_state_serializer.hh"
 
 using namespace std;
-using namespace std::chrono;
-namespace fs = std::filesystem;
+using namespace chrono;
+namespace fs = filesystem;
 
 size_t N = 16;
 
-using shard_ivf_type = nu::ShardedVector<IVF_MEM, std::false_type>;
-using sealed_shard_ivf_type = nu::SealedDS<shard_ivf_type>;
+// serialized decoder state
+using DecoderBuffer = vector<uint8_t>;
 
 typedef struct {
   vector<IVF_MEM> vpx_ivf, xc0_ivf, xc1_ivf, rebased_ivf, final_ivf;
-  vector<Decoder> dec_state, enc0_state, enc1_state, rebased_state;
+  vector<DecoderBuffer> dec_state, enc0_state, enc1_state, rebased_state;
   vector<vector<RasterHandle>> rasters;
   uint16_t display_width, display_height;
 } xc_t;
@@ -60,8 +61,8 @@ void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
 }
 
-IVF_MEM decode(const string input, vector<Decoder> & output, size_t index) {
-  IVF_MEM ivf(input);
+DecoderBuffer decode(vector<IVF_MEM> & ivfs, size_t index) {
+  IVF_MEM ivf = ivfs[index];
 
   Decoder decoder = Decoder(ivf.width(), ivf.height());
   if ( not decoder.minihash_match( ivf.expected_decoder_minihash() ) ) {
@@ -82,8 +83,9 @@ IVF_MEM decode(const string input, vector<Decoder> & output, size_t index) {
     }
 
     if ( i == frame_number ) {
-      output[index] = decoder;
-      return ivf;
+      EncoderStateSerializer odata;
+      decoder.serialize(odata);
+      return odata.get();
     }
   }
 
@@ -91,10 +93,10 @@ IVF_MEM decode(const string input, vector<Decoder> & output, size_t index) {
 }
 
 void enc_given_state(vector<IVF_MEM> & output_ivf,
-                     vector<Decoder> & input_state, 
-                     vector<Decoder> & output_state,
+                     vector<DecoderBuffer> & input_state, 
+                     vector<DecoderBuffer> & output_state,
                      vector<IVF_MEM> & pred,
-                     vector<Decoder> * prev_state,
+                     vector<DecoderBuffer> * prev_state,
                      vector<RasterHandle> & rasters,
                      uint16_t display_width, uint16_t display_height,
                      size_t index) {
@@ -105,7 +107,7 @@ void enc_given_state(vector<IVF_MEM> & output_ivf,
 
   Decoder pred_decoder( display_width, display_height );
   if (prev_state) {
-    pred_decoder = prev_state->at(index - 1);
+    pred_decoder = EncoderStateDeserializer_MEM::build<Decoder>( prev_state->at(index - 1) );
   }
 
   IVFWriter_MEM ivf_writer { "VP80", display_width, display_height, 1, 1 };
@@ -136,7 +138,7 @@ void enc_given_state(vector<IVF_MEM> & output_ivf,
     }
   }
 
-  Encoder encoder( input_state[index-1], two_pass, quality );
+  Encoder encoder( EncoderStateDeserializer_MEM::build<Decoder>(input_state[index-1]) , two_pass, quality );
 
   ivf_writer.set_expected_decoder_entry_hash( encoder.export_decoder().get_hash().hash() );
 
@@ -144,7 +146,9 @@ void enc_given_state(vector<IVF_MEM> & output_ivf,
                     extra_frame_chunk, ivf_writer );
 
   output_ivf[index] = ivf_writer.ivf();
-  output_state[index] = encoder.export_decoder();
+  EncoderStateSerializer odata = {};
+  encoder.export_decoder().serialize(odata);
+  output_state[index] = odata.get();
 }
 
 void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> & output, size_t index) {
@@ -169,34 +173,29 @@ void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> &
 }
 
 void decode_all(const string prefix, xc_t &s) {
-  std::vector<std::size_t> tasks;
+  vector<size_t> tasks;
   for (size_t i = 0; i < N; i++) {
     tasks.push_back(i);
   }
 
   auto dis_exec = nu::make_distributed_executor(
-    +[](nu::VectorTaskRange<size_t> &task_range, const string prefix, vector<Decoder> &dec_state) {
-      vector<IVF_MEM> outputs;
+    +[](nu::VectorTaskRange<size_t> &task_range, vector<IVF_MEM> ivfs) {
+      vector<DecoderBuffer> outputs;
       while (true) {
         auto idx = task_range.pop();
         if (!idx) {
           break;
         }
-
-        ostringstream inputss, outputss;
-        inputss << prefix << "vpx_" << setw(2) << setfill('0') << *idx << ".ivf";
-        const string input_file = inputss.str();
-
-        outputs.push_back(decode(input_file, dec_state, *idx));
+        outputs.push_back(decode(ivfs, *idx));
       }
       return outputs;
     },
     nu::VectorTaskRange<size_t>(tasks),
-    prefix, s);
-  
-  auto output_vecs = dis_exec.get();
-  auto join_view = ranges::join_view(output_vecs);
-  s.vpx_ivf = std::vector<IVF_MEM>(join_view.begin(), join_view.end());
+    s.vpx_ivf);
+  auto outputs_vectors = dis_exec.get();
+
+  auto join_view = ranges::join_view(outputs_vectors);
+  s.dec_state = vector<DecoderBuffer>(join_view.begin(), join_view.end());
 }
 
 void encode_all(const string prefix, xc_t &s) {
@@ -227,7 +226,7 @@ void encode_all(const string prefix, xc_t &s) {
       s.xc1_ivf[0] = s.xc0_ivf[0];
       s.enc1_state[0] = s.enc0_state[0];
     } else {
-      vector<Decoder> *prev_state_ptr = &(s.dec_state);
+      vector<DecoderBuffer> *prev_state_ptr = &(s.dec_state);
       ths.emplace_back( [i, prev_state_ptr, &s] {
         auto start = microtime();
         enc_given_state(s.xc1_ivf, s.enc0_state, s.enc1_state, s.xc0_ivf, prev_state_ptr, s.rasters[i], s.display_width, s.display_height, i);
@@ -258,15 +257,15 @@ void rebase(const string prefix, xc_t &s) {
   }
 }
 
-void write_output(const std::string prefix, xc_t &s) {
+void write_output(const string prefix, xc_t &s) {
   const string final_file = prefix + "final.ivf";
   s.final_ivf[N-1].write(final_file);
 }
 
-void read_input(const std::string prefix, xc_t &s) {
+void read_input(const string prefix, xc_t &s) {
   for (size_t i = 0; i < N; i++) {
-    ostringstream inputss, instatess, outstatess;
-    inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
+    ostringstream inputss, vpxss;
+    inputss << prefix << setw(2) << setfill('0') << i << ".y4m";
     const string input_file = inputss.str();
     
     shared_ptr<FrameInput> input_reader = make_shared<YUV4MPEGReader>( input_file );
@@ -288,6 +287,11 @@ void read_input(const std::string prefix, xc_t &s) {
       }
     }
     s.rasters.push_back(original_rasters);
+
+    vpxss << prefix << "vpx_" << setw(2) << setfill('0') << i << ".ivf";
+    const string vpx_file = vpxss.str();
+    IVF_MEM ivf(vpx_file);
+    s.vpx_ivf.push_back(ivf);
   }
 }
 
@@ -299,12 +303,10 @@ int do_work(const string & prefix) {
 
   xc_t s;
 
-  s.vpx_ivf.resize(N);
   s.xc0_ivf.resize(N);
   s.xc1_ivf.resize(N);
   s.rebased_ivf.resize(N);
   s.final_ivf.resize(N);
-  s.dec_state.resize(N);
   s.enc0_state.resize(N);
   s.enc1_state.resize(N);
   s.rebased_state.resize(N);
@@ -350,6 +352,6 @@ int do_work(const string & prefix) {
 
 int main(int argc, char *argv[]) {
   // TODO: take file prefix to args
-  string prefix = std::string(argv[argc-1]) + "/sintel01_";
+  string prefix = string(argv[argc-1]) + "/sintel01_";
   return nu::runtime_main_init(argc, argv, [=](int, char **) { do_work(prefix); });
 }

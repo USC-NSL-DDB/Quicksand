@@ -53,9 +53,8 @@ void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
 }
 
-bool decode(const string input, vector<DecoderBuffer> & output, vector<IVF_MEM> & ivfs, size_t index) {
-  IVF_MEM ivf(input);
-  ivfs[index] = ivf;
+bool decode(vector<DecoderBuffer> & output, vector<IVF_MEM> & ivfs, size_t index) {
+  IVF_MEM ivf = ivfs[index];
 
   Decoder decoder = Decoder(ivf.width(), ivf.height());
   if ( not decoder.minihash_match( ivf.expected_decoder_minihash() ) ) {
@@ -168,14 +167,10 @@ void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> &
 
 void decode_all(const string prefix, xc_t &s) {
   vector<rt::Thread> ths;
-  for (size_t i = 0; i < N; i++) {
-    ostringstream inputss, outputss;
-    inputss << prefix << "vpx_" << std::setw(2) << std::setfill('0') << i << ".ivf";
-    const string input_file = inputss.str();
-    
-    ths.emplace_back( [input_file, i, &s] {
+  for (size_t i = 0; i < N; i++) {    
+    ths.emplace_back( [i, &s] {
       auto start = microtime();
-      decode(input_file, s.dec_state, s.vpx_ivf, i);
+      decode(s.dec_state, s.vpx_ivf, i);
       auto end = microtime();
       stage1_time[i] = end - start;
     } );
@@ -252,7 +247,7 @@ void write_output(const std::string prefix, xc_t &s) {
 
 void read_input(const std::string prefix, xc_t &s) {
   for (size_t i = 0; i < N; i++) {
-    ostringstream inputss, instatess, outstatess;
+    ostringstream inputss, vpxss;
     inputss << prefix << std::setw(2) << std::setfill('0') << i << ".y4m";
     const string input_file = inputss.str();
     
@@ -275,6 +270,11 @@ void read_input(const std::string prefix, xc_t &s) {
       }
     }
     s.rasters.push_back(original_rasters);
+
+    vpxss << prefix << "vpx_" << std::setw(2) << std::setfill('0') << i << ".ivf";
+    const string vpx_file = vpxss.str();
+    IVF_MEM ivf(vpx_file);
+    s.vpx_ivf[i] = ivf;
   }
 }
 

@@ -32,7 +32,7 @@ mem_obj      = $(mem_src:.cpp=.o)
 qs_src      = src/xc_qs.cpp
 qs_obj      = $(qs_src:.cpp=.o)
 
-all: bin/xc_baseline bin/xc_mem # bin/xc_qs
+all: bin/xc_baseline bin/xc_mem bin/xc_qs
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
