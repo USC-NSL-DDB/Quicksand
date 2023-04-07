@@ -48,11 +48,18 @@ size_t N = 16;
 // serialized decoder state
 using DecoderBuffer = vector<uint8_t>;
 
+using shard_ivf_type = nu::ShardedVector<IVF_MEM, false_type>;
+using shard_decoder_type = nu::ShardedVector<DecoderBuffer, false_type>;
+using sealed_shard_ivf = nu::SealedDS<shard_ivf_type>;
+using sealed_shard_decoder = nu::SealedDS<shard_decoder_type>;
+
+// The excamera states
 typedef struct {
-  vector<IVF_MEM> vpx_ivf, xc0_ivf, xc1_ivf, rebased_ivf, final_ivf;
+  vector<IVF_MEM> xc0_ivf, xc1_ivf, rebased_ivf, final_ivf;
   vector<DecoderBuffer> dec_state, enc0_state, enc1_state, rebased_state;
   vector<vector<RasterHandle>> rasters;
   uint16_t display_width, display_height;
+  shard_ivf_type vpx_ivf;
 } xc_t;
 
 vector<uint32_t> stage1_time, stage2_time, stage3_time;
@@ -61,9 +68,7 @@ void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
 }
 
-DecoderBuffer decode(vector<IVF_MEM> & ivfs, size_t index) {
-  IVF_MEM ivf = ivfs[index];
-
+DecoderBuffer decode(IVF_MEM &ivf) {
   Decoder decoder = Decoder(ivf.width(), ivf.height());
   if ( not decoder.minihash_match( ivf.expected_decoder_minihash() ) ) {
     throw Invalid( "Decoder state / IVF mismatch" );
@@ -173,42 +178,47 @@ void merge(vector<IVF_MEM> & input1, vector<IVF_MEM> & input2, vector<IVF_MEM> &
 }
 
 void decode_all(const string prefix, xc_t &s) {
-  vector<size_t> tasks;
-  for (size_t i = 0; i < N; i++) {
-    tasks.push_back(i);
-  }
-
+  auto sealed_ivfs = nu::to_sealed_ds(move(s.vpx_ivf));
+  auto ivfs_range = nu::make_contiguous_ds_range(sealed_ivfs);
+  
   auto dis_exec = nu::make_distributed_executor(
-    +[](nu::VectorTaskRange<size_t> &task_range, vector<IVF_MEM> ivfs) {
+    +[](decltype(ivfs_range) &ivfs_range) {
       vector<DecoderBuffer> outputs;
       while (true) {
-        auto idx = task_range.pop();
-        if (!idx) {
+        auto ivf = ivfs_range.pop();
+        if (!ivf) {
           break;
         }
-        outputs.push_back(decode(ivfs, *idx));
+        outputs.push_back(decode(*ivf));
       }
       return outputs;
     },
-    nu::VectorTaskRange<size_t>(tasks),
-    s.vpx_ivf);
-  auto outputs_vectors = dis_exec.get();
+    ivfs_range);
 
+  auto outputs_vectors = dis_exec.get();
   auto join_view = ranges::join_view(outputs_vectors);
   s.dec_state = vector<DecoderBuffer>(join_view.begin(), join_view.end());
+  s.vpx_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
 }
 
 void encode_all(const string prefix, xc_t &s) {
+  vector<IVF_MEM> ivfs;
+  auto sealed_ivfs = nu::to_sealed_ds(std::move(s.vpx_ivf));
+  for (auto it = sealed_ivfs.cbegin(); it != sealed_ivfs.cend(); ++it) {
+    ivfs.push_back(*it);
+  }
+  s.vpx_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
+
   vector <rt::Thread> ths;
   // first pass
   for (size_t i = 0; i < N; i++) {    
     if (i == 0) {
-      s.xc0_ivf[0] = s.vpx_ivf[0];
+      s.xc0_ivf[0] = ivfs[0];
       s.enc0_state[0] = s.dec_state[0];
     } else {
-      ths.emplace_back( [i, &s] {
+      ths.emplace_back( [i, &s, &ivfs] {
         auto start = microtime();
-        enc_given_state(s.xc0_ivf, s.dec_state, s.enc0_state, s.vpx_ivf, nullptr, s.rasters[i], s.display_width, s.display_height, i);
+        enc_given_state(s.xc0_ivf, s.dec_state, s.enc0_state, ivfs, nullptr, s.rasters[i], s.display_width, s.display_height, i);
         auto end = microtime();
         stage2_time[i] = end - start;
       } );
@@ -290,8 +300,7 @@ void read_input(const string prefix, xc_t &s) {
 
     vpxss << prefix << "vpx_" << setw(2) << setfill('0') << i << ".ivf";
     const string vpx_file = vpxss.str();
-    IVF_MEM ivf(vpx_file);
-    s.vpx_ivf.push_back(ivf);
+    s.vpx_ivf.push_back(move(IVF_MEM(vpx_file)));
   }
 }
 
@@ -303,6 +312,7 @@ int do_work(const string & prefix) {
 
   xc_t s;
 
+  s.vpx_ivf = nu::make_sharded_vector<IVF_MEM, std::false_type>(N);
   s.xc0_ivf.resize(N);
   s.xc1_ivf.resize(N);
   s.rebased_ivf.resize(N);
