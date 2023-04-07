@@ -92,25 +92,25 @@ Chunk IVF::frame( const uint32_t & index ) const
 IVF_MEM::IVF_MEM( const string & filename )
 try :
   buffer_( load(filename) ),
-  header_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len ) ),
-  fourcc_( header_( 8, 4 ).to_string() ),
-  width_( header_( 12, 2 ).le16() ),
-  height_( header_( 14, 2 ).le16() ),
-  frame_rate_( header_( 16, 4 ).le32() ),
-  time_scale_( header_( 20, 4 ).le32() ),
-  frame_count_( header_( 24, 4 ).le32() ),
-  expected_decoder_minihash_( header_( 28, 4 ).le32() ),
+  fourcc_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len )( 8, 4 ).to_string() ),
+  width_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len )( 12, 2 ).le16() ),
+  height_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len )( 14, 2 ).le16() ),
+  frame_rate_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len )( 16, 4 ).le32() ),
+  time_scale_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len )( 20, 4 ).le32() ),
+  frame_count_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len )( 24, 4 ).le32() ),
+  expected_decoder_minihash_( Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len )( 28, 4 ).le32() ),
   frame_index_()
   {
-    if ( header_( 0, 4 ).to_string() != "DKIF" ) {
+    auto header = Chunk( reinterpret_cast<const uint8_t *>(buffer_.data()), supported_header_len );
+    if ( header( 0, 4 ).to_string() != "DKIF" ) {
       throw Invalid( "missing IVF file header" );
     }
 
-    if ( header_( 4, 2 ).le16() != 0 ) {
+    if ( header( 4, 2 ).le16() != 0 ) {
       throw Unsupported( "not an IVF version 0 file" );
     }
 
-    if ( header_( 6, 2 ).le16() != supported_header_len ) {
+    if ( header( 6, 2 ).le16() != supported_header_len ) {
       throw Unsupported( "unsupported IVF header length" );
     }
 
@@ -133,7 +133,6 @@ catch ( const out_of_range & e )
 
 IVF_MEM::IVF_MEM( Chunk header ) :
   buffer_( vector<char>(supported_header_len) ),
-  header_( header ),
   fourcc_( header( 8, 4 ).to_string() ),
   width_( header( 12, 2 ).le16() ),
   height_( header( 14, 2 ).le16() ),

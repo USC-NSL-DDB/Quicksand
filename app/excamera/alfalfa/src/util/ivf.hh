@@ -74,7 +74,6 @@ class IVF_MEM
 {
 private:
   std::vector<char> buffer_;
-  Chunk header_;
 
   std::string fourcc_;
   uint16_t width_, height_;
@@ -109,6 +108,16 @@ public:
   void set_expected_decoder_minihash( const uint32_t minihash );
 
   void write( const std::string & filename );
+
+  template <class Archive>
+  void save(Archive &ar) const {
+    ar(buffer_, fourcc_, width_, height_, frame_rate_, time_scale_, frame_count_, expected_decoder_minihash_, frame_index_);
+  }
+
+  template <class Archive>
+  void load(Archive &ar) {
+    ar(buffer_, fourcc_, width_, height_, frame_rate_, time_scale_, frame_count_, expected_decoder_minihash_, frame_index_);
+  }
 };
 
 #endif /* IVF_HH */
