@@ -66,7 +66,6 @@ typedef struct {
   vector<DecoderBuffer> rebased_state;
   IVF_MEM ivf0;
   DecoderBuffer state0;
-  uint16_t display_width, display_height;
 } xc_t;
 
 vector<uint32_t> stage1_time, stage2_time, stage3_time;
@@ -79,15 +78,13 @@ tuple<vector<RasterHandle>, uint16_t, uint16_t> read_raster(size_t idx) {
   ostringstream inputss;
   inputss << prefix << setw(2) << setfill('0') << idx << ".y4m";
   const string input_file = inputss.str();
-  cout << input_file << endl;
 
-  shared_ptr<FrameInput> input_reader = make_shared<YUV4MPEGReader>( input_file );
-  IVFWriter_MEM ivf_writer { "VP80", input_reader->display_width(), input_reader->display_height(), 1, 1 };
+  YUV4MPEGReader input_reader = YUV4MPEGReader( input_file );
 
   // pre-read original rasters
   vector<RasterHandle> original_rasters;
   for ( size_t i = 0; ; i++ ) {
-    auto next_raster = input_reader->get_next_frame();
+    auto next_raster = input_reader.get_next_frame();
 
     if ( next_raster.initialized() ) {
       original_rasters.emplace_back( next_raster.get() );
@@ -96,7 +93,7 @@ tuple<vector<RasterHandle>, uint16_t, uint16_t> read_raster(size_t idx) {
     }
   }
 
-  tuple<vector<RasterHandle>, uint16_t, uint16_t> output(original_rasters, input_reader->display_width(), input_reader->display_height());
+  tuple<vector<RasterHandle>, uint16_t, uint16_t> output(original_rasters, input_reader.display_width(), input_reader.display_height());
   return output;
 }
 
@@ -275,7 +272,7 @@ void encode_all(xc_t &s) {
       s.xc0_ivf.push_back(get<0>(vecs[i]));
       s.enc0_state.push_back(get<1>(vecs[i]));
     }
-    s.xc0_ivf.push_back(get<0>(vecs[N-1]));
+    s.xc0_ivf.push_back(get<0>(vecs[N-2]));
   }
 
   // second pass
@@ -319,43 +316,31 @@ void encode_all(xc_t &s) {
       s.xc1_ivf.push_back(get<0>(vecs[i]));
       s.enc1_state.push_back(get<1>(vecs[i]));
     }
-    s.xc1_ivf.push_back(get<0>(vecs[N-1]));
+    s.xc1_ivf.push_back(get<0>(vecs[N-2]));
   }
 }
 
 void rebase(xc_t &s) {
-  s.final_ivf[0] = s.ivf0;
-  s.rebased_state[0] = s.state0;
+  s.final_ivf.push_back(s.ivf0);
+  s.rebased_state.push_back(s.state0);
 
-  vector<IVF_MEM> xc1_ivf;
   auto sealed_ivfs = nu::to_sealed_ds(std::move(s.xc1_ivf));
-  for (auto it = sealed_ivfs.cbegin(); it != sealed_ivfs.cend(); ++it) {
-    xc1_ivf.push_back(*it);
-  }
-  s.xc1_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
-
-  vector<DecoderBuffer> enc0_state;
   auto sealed_enc0_state = nu::to_sealed_ds(std::move(s.enc0_state));
-  for (auto it = sealed_enc0_state.cbegin(); it != sealed_enc0_state.cend(); ++it) {
-    enc0_state.push_back(*it);
-  }
-  s.enc0_state = nu::to_unsealed_ds(move(sealed_enc0_state));
-
-  // serial rebase
-  for (size_t i = 1; i < N; i++) {
-    // auto start = microtime();
-    IVF_MEM ivf = xc1_ivf[i-1];
+  auto ivf_it = sealed_ivfs.cbegin();
+  auto state_it = sealed_enc0_state.cbegin();
+  for (size_t i = 1; ivf_it != sealed_ivfs.cend() && state_it != sealed_enc0_state.cend(); ++ivf_it, ++state_it, ++i) {
+    IVF_MEM ivf = *ivf_it;
     DecoderBuffer decoder = s.rebased_state[i-1];
-    DecoderBuffer prev_decoder = enc0_state[i-1];
-    auto output = enc_given_state(ivf, decoder, &prev_decoder, i);
+    DecoderBuffer prev_decoder = *state_it;
 
+    auto output = enc_given_state(ivf, decoder, &prev_decoder, i);
     auto rebased_ivf = get<0>(output);
     s.rebased_state.push_back(get<1>(output));
-
-    s.final_ivf[i] = merge(s.final_ivf[i-1], rebased_ivf);
-    // auto end = microtime();
-    // stage3_time[i] = end - start;
+    s.final_ivf.push_back(merge(s.final_ivf[i-1], rebased_ivf));
   }
+
+  s.xc1_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
+  s.enc0_state = nu::to_unsealed_ds(move(sealed_enc0_state));
 }
 
 void write_output(xc_t &s) {
@@ -389,9 +374,6 @@ int do_work() {
   s.dec_state = nu::make_sharded_vector<DecoderBuffer, false_type>(N-1);
   s.enc0_state = nu::make_sharded_vector<DecoderBuffer, false_type>(N-1);
   s.enc1_state = nu::make_sharded_vector<DecoderBuffer, false_type>(N-1);
-
-  s.final_ivf.resize(N);
-  s.rebased_state.resize(N);
 
   stage1_time.resize(N);
   stage2_time.resize(N);
