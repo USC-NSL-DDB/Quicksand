@@ -71,7 +71,12 @@ typedef struct {
   DecoderBuffer state0;
 } xc_t;
 
-vector<uint32_t> stage1_time, stage2_time, stage3_time;
+typedef struct {
+  uint64_t start;
+  uint64_t end;
+} task_time;
+
+vector<task_time> decode_time, enc_given_state_time, rebase_time;
 
 void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
@@ -218,13 +223,17 @@ void decode_all(shared_ptr<xc_t> s) {
   
   auto dis_exec = nu::make_distributed_executor(
     +[](decltype(ivfs_range) &ivfs_range) {
-      vector<DecoderBuffer> outputs;
+      vector<tuple<DecoderBuffer, task_time>> outputs;
       while (true) {
         auto ivf = ivfs_range.pop();
         if (!ivf) {
           break;
         }
-        outputs.push_back(decode(*ivf));
+        task_time t;
+        t.start = microtime();
+        auto out = decode(*ivf);
+        t.end = microtime();
+        outputs.emplace_back(out, t);
       }
       return outputs;
     },
@@ -232,11 +241,12 @@ void decode_all(shared_ptr<xc_t> s) {
 
   auto outputs_vectors = dis_exec.get();
   auto join_view = ranges::join_view(outputs_vectors);
-  auto vecs = vector<DecoderBuffer>(join_view.begin(), join_view.end());
-  s->state0 = vecs[0];
+  auto vecs = vector<tuple<DecoderBuffer, task_time>>(join_view.begin(), join_view.end());
+  s->state0 = get<0>(vecs[0]);
   for (size_t i = 0; i < N-1; i++) {
-    s->dec_state.push_back(vecs[i]);
-    s->dec_state_vec.push_back(vecs[i]);
+    s->dec_state.push_back(get<0>(vecs[i]));
+    s->dec_state_vec.push_back(get<0>(vecs[i]));
+    decode_time.push_back(get<1>(vecs[i]));
   }
   s->vpx0_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
 }
@@ -254,15 +264,19 @@ void encode_all(shared_ptr<xc_t> s, const string prefix) {
 
   auto dist_exec = nu::make_distributed_executor(
     +[](decltype(encode_range) &encode_range, const string prefix, stitch_queue_type queue) {
-      vector<tuple<IVF_MEM, DecoderBuffer>> outputs;
+      vector<tuple<IVF_MEM, DecoderBuffer, task_time>> outputs;
       while (true) {
-        auto t = encode_range.pop();
-        if (!t) {
+        auto pop = encode_range.pop();
+        if (!pop) {
           break;
         }
-        auto ivf = get<0>(*t);
-        auto decoder = get<1>(*t);
-        auto idx = get<2>(*t);
+
+        task_time t;
+        t.start = microtime();
+  
+        auto ivf = get<0>(*pop);
+        auto decoder = get<1>(*pop);
+        auto idx = get<2>(*pop);
 
         // sleep for a period to match the ExCamera paper's result
         nu::Time::sleep(300000);
@@ -271,14 +285,15 @@ void encode_all(shared_ptr<xc_t> s, const string prefix) {
         tuple<IVF_MEM, DecoderBuffer, size_t> queue_elem(get<0>(out), get<1>(out), idx);
         queue.push(queue_elem);
 
-        outputs.push_back(out);
+        t.end = microtime();
+        outputs.emplace_back(get<0>(out), get<1>(out), t);
       }
       return outputs;
     }, encode_range, prefix, s->stitch_queue);
 
   auto outputs_vectors = dist_exec.get();
   auto join_view = ranges::join_view(outputs_vectors);
-  auto vecs = vector<tuple<IVF_MEM, DecoderBuffer>>(join_view.begin(), join_view.end());
+  auto vecs = vector<tuple<IVF_MEM, DecoderBuffer, task_time>>(join_view.begin(), join_view.end());
 
   s->vpx1_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
   s->dec_state = nu::to_unsealed_ds(move(sealed_dec_state));
@@ -288,8 +303,10 @@ void encode_all(shared_ptr<xc_t> s, const string prefix) {
   for (size_t i = 0; i < N-2; i++) {
     s->xc_ivf.push_back(get<0>(vecs[i]));
     s->enc_state.push_back(get<1>(vecs[i]));
+    enc_given_state_time.push_back(get<2>(vecs[i]));
   }
   s->xc_ivf.push_back(get<0>(vecs[N-2]));
+  enc_given_state_time.push_back(get<2>(vecs[N-2]));
 }
 
 void rebase_server(shared_ptr<xc_t> s, const string prefix) {
@@ -330,6 +347,9 @@ void rebase_server(shared_ptr<xc_t> s, const string prefix) {
       nu::Time::sleep(1000);
       continue;
     }
+    task_time t;
+    t.start = microtime();
+
     IVF_MEM ivf = get<0>(*input[i-1]);
     DecoderBuffer decoder = get<1>(*input[i-1]);
     DecoderBuffer prev_decoder = s->dec_state_vec[i-1];
@@ -340,32 +360,11 @@ void rebase_server(shared_ptr<xc_t> s, const string prefix) {
     s->rebased_state.push_back(get<1>(output));
     s->final_ivf.push_back(merge(s->final_ivf[i-1], rebased_ivf));
     i++;
+    t.end = microtime();
+    rebase_time.push_back(t);
   }
 
   th.Join();
-}
-
-void rebase(shared_ptr<xc_t> s, const string prefix) {
-  s->final_ivf.push_back(s->ivf0);
-  s->rebased_state.push_back(s->state0);
-
-  auto sealed_ivfs = nu::to_sealed_ds(std::move(s->xc_ivf));
-  auto sealed_dec_state = nu::to_sealed_ds(std::move(s->dec_state));
-  auto ivf_it = sealed_ivfs.cbegin();
-  auto state_it = sealed_dec_state.cbegin();
-  for (size_t i = 1; ivf_it != sealed_ivfs.cend() && state_it != sealed_dec_state.cend(); ++ivf_it, ++state_it, ++i) {
-    IVF_MEM ivf = *ivf_it;
-    DecoderBuffer decoder = s->rebased_state[i-1];
-    DecoderBuffer prev_decoder = *state_it;
-
-    auto output = enc_given_state(ivf, decoder, &prev_decoder, i, prefix, s->rasters[i]);
-    auto rebased_ivf = get<0>(output);
-    s->rebased_state.push_back(get<1>(output));
-    s->final_ivf.push_back(merge(s->final_ivf[i-1], rebased_ivf));
-  }
-
-  s->xc_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
-  s->dec_state = nu::to_unsealed_ds(move(sealed_dec_state));
 }
 
 void write_output(shared_ptr<xc_t> s, const string prefix) {
@@ -400,10 +399,7 @@ int do_work(const string prefix) {
   s->enc_state = nu::make_sharded_vector<DecoderBuffer, false_type>(N-1);
   s->stitch_queue = nu::make_sharded_queue<tuple<IVF_MEM, DecoderBuffer, size_t>, true_type>();
 
-  stage1_time.resize(N);
-  stage2_time.resize(N);
-  stage3_time.resize(N);
-
+  auto t0 = microtime();
   read_input(s, prefix);
   auto t1 = microtime();
   decode_all(s);
@@ -412,31 +408,40 @@ int do_work(const string prefix) {
   encode_all(s, prefix);
   auto t3 = microtime();
   th.Join();
-  // rebase(s, prefix);
   auto t4 = microtime();
   write_output(s, prefix);
 
-  auto stage1 = t2 - t1;
-  auto stage2 = t3 - t2;
-  auto stage3 = t4 - t3;
+  cout << "load data: " << t0 - t0 << ", " << t1 - t0 << endl;
 
-  cout << "decode: " << stage1 << ". enc_given_state: " << stage2 << ". rebase: " << stage3 << "." << endl;
+  cout << "decode: " << t1 - t0 << ", " << t2 - t0 << endl;
+  for (auto t : decode_time) {
+    cout << t.start - t0 << ", ";
+  }
+  cout << endl;
+  for (auto t : decode_time) {
+    cout << t.end - t0 << ", ";
+  }
+  cout << endl;
 
-  cout << "Stage 1: {";
-  for (auto t : stage1_time) {
-    cout << t << ", ";
+  cout << "encode given state: " << t2 - t0 << ", " << t3 - t0 << endl;
+  for (auto t : enc_given_state_time) {
+    cout << t.start - t0 << ", ";
   }
-  cout << "}" << endl;
-  cout << "Stage 2: {";
-  for (auto t : stage2_time) {
-    cout << t << ", ";
+  cout << endl;
+  for (auto t : enc_given_state_time) {
+    cout << t.end - t0 << ", ";
   }
-  cout << "}" << endl;
-  cout << "Stage 3: {";
-  for (auto t : stage3_time) {
-    cout << t << ", ";
+  cout << endl;
+
+  cout << "rebase: " << t3 - t0 << ", " << t4 - t0 << endl;
+  for (auto t : rebase_time) {
+    cout << t.start - t0 << ", ";
   }
-  cout << "}" << endl;
+  cout << endl;
+  for (auto t : rebase_time) {
+    cout << t.end - t0 << ", ";
+  }
+  cout << endl;
 
   return 0;
 }
