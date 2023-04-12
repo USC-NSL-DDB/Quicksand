@@ -46,7 +46,10 @@ using namespace std;
 using namespace chrono;
 namespace fs = filesystem;
 
+// x = 6, each batch has 16 * 6 = 96 frames
 constexpr size_t N = 16;
+constexpr size_t BATCH = 12;
+rt::Mutex report_lock;
 
 // serialized decoder state
 using DecoderBuffer = vector<uint8_t>;
@@ -354,7 +357,8 @@ void read_input(shared_ptr<xc_t> s, const string prefix) {
   }
 }
 
-int do_work(const string prefix) {
+// read_stage, parallel_stage, serial_stage
+void xc_batch(const string prefix, bool report_time, size_t idx, uint64_t t_start) {
   auto s = make_shared<xc_t>();
 
   s->vpx0_ivf = nu::make_sharded_vector<IVF_MEM, false_type>(N-1);
@@ -374,43 +378,65 @@ int do_work(const string prefix) {
   auto t4 = microtime();
   write_output(s, prefix);
 
-  cout << "load data: " << t0 - t0 << ", " << t1 - t0 << endl;
+  report_lock.Lock();
+  if (report_time) {
+    cout << "load data: " << t0 - t0 << ", " << t1 - t0 << endl;
 
-  cout << "decode: " << t1 - t0 << ", " << t2 - t0 << endl;
-  for (auto t : decode_time) {
-    cout << t.start - t0 << ", ";
-  }
-  cout << endl;
-  for (auto t : decode_time) {
-    cout << t.end - t0 << ", ";
-  }
-  cout << endl;
+    cout << "decode: " << t1 - t0 << ", " << t2 - t0 << endl;
+    for (auto t : decode_time) {
+      cout << t.start - t0 << ", ";
+    }
+    cout << endl;
+    for (auto t : decode_time) {
+      cout << t.end - t0 << ", ";
+    }
+    cout << endl;
 
-  cout << "encode given state: " << t2 - t0 << ", " << t3 - t0 << endl;
-  for (auto t : enc_given_state_time) {
-    cout << t.start - t0 << ", ";
-  }
-  cout << endl;
-  for (auto t : enc_given_state_time) {
-    cout << t.end - t0 << ", ";
-  }
-  cout << endl;
+    cout << "encode given state: " << t2 - t0 << ", " << t3 - t0 << endl;
+    for (auto t : enc_given_state_time) {
+      cout << t.start - t0 << ", ";
+    }
+    cout << endl;
+    for (auto t : enc_given_state_time) {
+      cout << t.end - t0 << ", ";
+    }
+    cout << endl;
 
-  cout << "rebase: " << t3 - t0 << ", " << t4 - t0 << endl;
-  for (auto t : rebase_time) {
-    cout << t.start - t0 << ", ";
+    cout << "rebase: " << t3 - t0 << ", " << t4 - t0 << endl;
+    for (auto t : rebase_time) {
+      cout << t.start - t0 << ", ";
+    }
+    cout << endl;
+    for (auto t : rebase_time) {
+      cout << t.end - t0 << ", ";
+    }
+    cout << endl;
   }
-  cout << endl;
-  for (auto t : rebase_time) {
-    cout << t.end - t0 << ", ";
-  }
-  cout << endl;
 
+  cout << idx << ". start: " << t0 - t_start << " read: " << t1 - t0 << ". parallel: " << t3 - t1 << ". serial: " << t4 - t3 << endl;
+  report_lock.Unlock();
+}
+
+int do_work(const string prefix) {
+  vector<nu::Thread> ths;
+  uint64_t t_start = microtime();
+  for (size_t i = 0; i < BATCH; i++) {
+    ostringstream dir_ss;
+    dir_ss << prefix << "/" << setw(2) << setfill('0') << i << "/sintel" << setw(2) << setfill('0') << i << "_";
+    const string dir = dir_ss.str();
+    ths.emplace_back( [i, dir, t_start] { xc_batch(dir, false, i, t_start); } );
+  }
+
+  for (auto &th : ths) {
+    th.join();
+  }
+  uint64_t t_end = microtime();
+  cout << "total: " << t_end - t_start << endl;
   return 0;
 }
 
 int main(int argc, char *argv[]) {
   // TODO: take file prefix to args
-  string prefix = string(argv[argc-1]) + "/sintel01_";
+  string prefix = string(argv[argc-1]);
   return nu::runtime_main_init(argc, argv, [=](int, char **) { do_work(prefix); });
 }

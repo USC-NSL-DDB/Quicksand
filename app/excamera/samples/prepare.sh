@@ -6,4 +6,3 @@ ffmpeg -i sintel_trailer_480p.y4m -f segment -segment_time 4 sintel_trailer_480p
 
 # baseline setup
 mkdir workspace
-cp sintel_trailer_480p/sintel01.y4m workspace
