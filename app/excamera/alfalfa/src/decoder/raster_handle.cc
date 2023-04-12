@@ -56,7 +56,7 @@ public:
   typedef std::unique_ptr<RasterType, RasterDeleter<RasterType>> VP8RasterHolder;
 
 private:
-  queue<VP8RasterHolder> unused_rasters_ {};
+  // queue<VP8RasterHolder> unused_rasters_ {};
 
   mutex mutex_ {};
 
@@ -68,23 +68,25 @@ public:
 
     VP8RasterHolder ret;
 
-    if ( unused_rasters_.empty() ) {
-      ret.reset( new RasterType( display_width, display_height ) );
-    } else {
-      if ( (unused_rasters_.front()->display_width() != display_width )
-           or (unused_rasters_.front()->display_height() != display_height ) ) {
-        if (RasterPoolDebug::allow_resize) {
-          while (! unused_rasters_.empty()) {
-            dequeue(unused_rasters_);
-          }
-          ret.reset(new RasterType(display_width, display_height));
-        } else {
-          throw Unsupported( "raster size has changed" );
-        }
-      } else {
-        ret = dequeue( unused_rasters_ );
-      }
-    }
+    ret.reset( new RasterType( display_width, display_height ) );
+
+    // if ( unused_rasters_.empty() ) {
+    //   ret.reset( new RasterType( display_width, display_height ) );
+    // } else {
+    //   if ( (unused_rasters_.front()->display_width() != display_width )
+    //        or (unused_rasters_.front()->display_height() != display_height ) ) {
+    //     if (RasterPoolDebug::allow_resize) {
+    //       while (! unused_rasters_.empty()) {
+    //         dequeue(unused_rasters_);
+    //       }
+    //       ret.reset(new RasterType(display_width, display_height));
+    //     } else {
+    //       throw Unsupported( "raster size has changed" );
+    //     }
+    //   } else {
+    //     ret = dequeue( unused_rasters_ );
+    //   }
+    // }
 
     ret.get_deleter().set_raster_pool( this );
 

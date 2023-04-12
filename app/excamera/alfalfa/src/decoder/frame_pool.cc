@@ -48,16 +48,18 @@ typename FramePool<FrameType>::FrameHolder FramePool<FrameType>::make_frame( con
 
   FrameHolder ret;
 
-  if ( unused_frames_.empty() ) {
-    ret.reset( new FrameType( width, height ) );
-  } else {
-    if ( (unused_frames_.front()->display_width() != width )
-         or (unused_frames_.front()->display_height() != height ) ) {
-      throw Unsupported( "frame size has changed" );
-    } else {
-      ret = dequeue( unused_frames_ );
-    }
-  }
+  ret.reset( new FrameType( width, height ) );
+
+  // if ( unused_frames_.empty() ) {
+  //   ret.reset( new FrameType( width, height ) );
+  // } else {
+  //   if ( (unused_frames_.front()->display_width() != width )
+  //        or (unused_frames_.front()->display_height() != height ) ) {
+  //     throw Unsupported( "frame size has changed" );
+  //   } else {
+  //     ret = dequeue( unused_frames_ );
+  //   }
+  // }
 
   ret.get_deleter().set_frame_pool( this );
 

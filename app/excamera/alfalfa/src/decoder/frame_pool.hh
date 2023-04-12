@@ -57,7 +57,7 @@ public:
   typedef std::unique_ptr<FrameType, FrameDeleter<FrameType>> FrameHolder;
 
 private:
-  std::queue<FrameHolder> unused_frames_ {};
+  // std::queue<FrameHolder> unused_frames_ {};
 
   std::mutex mutex_ {};
 
