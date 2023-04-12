@@ -315,3 +315,134 @@ void YUV4MPEGFrameWriter::write( const BaseRaster &rh, FileDescriptor &fd )
     fd.write( chunk );
   }
 }
+
+pair< size_t, size_t > YUV4MPEGBufferReader::parse_fraction( const string & fraction_str )
+{
+  size_t colon_pos = fraction_str.find( ":" );
+
+  if ( colon_pos == string::npos ) {
+    throw runtime_error( "invalid fraction" );
+  }
+
+  size_t numerator = 0;
+  size_t denominator = 0;
+
+  numerator = stoi( fraction_str.substr( 0, colon_pos ) );
+  denominator = stoi( fraction_str.substr( colon_pos + 1 ) );
+
+  return make_pair( numerator, denominator );
+}
+
+YUV4MPEGBufferReader::YUV4MPEGBufferReader( const string & filename )
+  : header_(),
+    reader_( filename )
+{
+  string header_str = reader_.getline();
+  istringstream ssin( header_str );
+
+  string token;
+  ssin >> token;
+
+  if ( token != "YUV4MPEG2" ) {
+    throw runtime_error( "invalid yuv4mpeg2 magic code" );
+  }
+
+  while ( ssin >> token ) {
+    if ( token.length() == 0 ) {
+      break;
+    }
+
+    switch ( token[0] ) {
+    case 'W': // width
+      header_.width = stoi( token.substr( 1 ) );
+      break;
+
+    case 'H': // height
+      header_.height = stoi( token.substr( 1 ) );
+      break;
+
+    case 'F': // framerate
+    {
+      pair< size_t, size_t > fps = YUV4MPEGBufferReader::parse_fraction( token.substr( 1 ) );
+      header_.fps_numerator = fps.first;
+      header_.fps_denominator = fps.second;
+      break;
+    }
+
+    case 'I':
+      if ( token.length() < 2 ) {
+        throw runtime_error( "invalid interlacing mode" );
+      }
+
+      switch ( token[ 1 ] ) {
+      case 'p': header_.interlacing_mode = YUV4MPEGHeader::InterlacingMode::PROGRESSIVE; break;
+      case 't': header_.interlacing_mode = YUV4MPEGHeader::InterlacingMode::TOP_FIELD_FIRST; break;
+      case 'b': header_.interlacing_mode = YUV4MPEGHeader::InterlacingMode::BOTTOM_FIELD_FIRST; break;
+      case 'm': header_.interlacing_mode = YUV4MPEGHeader::InterlacingMode::MIXED_MODES; break;
+      default: throw runtime_error( "invalid interlacing mode" );
+      }
+      break;
+
+    case 'A': // pixel aspect ratio
+    {
+      pair< size_t, size_t > aspect_ratio = YUV4MPEGBufferReader::parse_fraction( token.substr( 1 ) );
+      header_.pixel_aspect_ratio_numerator = aspect_ratio.first;
+      header_.pixel_aspect_ratio_denominator = aspect_ratio.second;
+      break;
+    }
+
+    case 'C': // color space
+        if ( token.substr( 0, 4 ) != "C420" ) {
+          throw runtime_error( "only yuv420 color space is supported" );
+        }
+        header_.color_space = YUV4MPEGHeader::ColorSpace::C420;
+        break;
+
+    case 'X': // comment
+      break;
+
+    default:
+      throw runtime_error( "invalid yuv4mpeg2 input format" );
+    }
+  }
+
+  if ( header_.width == 0 or header_.height == 0 ) {
+    throw runtime_error( "width or height missing" );
+  }
+}
+
+Optional<RasterHandle> YUV4MPEGBufferReader::get_next_frame()
+{
+  MutableRasterHandle raster { header_.width, header_.height };
+
+  string frame_header = reader_.getline();
+  if ( reader_.eof() ) {
+    return {};
+  }
+
+  if ( frame_header != "FRAME" ) {
+    throw runtime_error( "invalid yuv4mpeg2 input format" );
+  }
+
+  string read_data;
+
+  for ( size_t row = 0; row < display_height(); row++ ) {
+    read_data = reader_.read_exactly( display_width() );
+    memcpy( &raster.get().Y().storage()->at( 0, row ), &read_data[ 0 ], read_data.length() );
+  }
+
+  for ( size_t row = 0; row < display_height() / 2; row++ ) {
+    read_data = reader_.read_exactly( display_width() / 2 );
+    memcpy( &raster.get().U().storage()->at( 0, row ), &read_data[ 0 ], read_data.length() );
+  }
+
+  for ( size_t row = 0; row < display_height() / 2; row++ ) {
+    read_data = reader_.read_exactly( display_width() / 2 );
+    memcpy( &raster.get().V().storage()->at( 0, row ), &read_data[ 0 ], read_data.length() );
+  }
+
+  /* edge-extend the raster */
+  edge_extend( raster.get() );
+
+  return { move( raster ) };
+}

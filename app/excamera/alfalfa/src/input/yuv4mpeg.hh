@@ -36,6 +36,7 @@
 #include "raster_handle.hh"
 #include "file_descriptor.hh"
 #include "vp8_raster.hh"
+#include "buffer_reader.hh"
 
 class YUV4MPEGHeader
 {
@@ -75,6 +76,7 @@ private:
 public:
   YUV4MPEGReader( FileDescriptor && fd );
   YUV4MPEGReader( const std::string & filename );
+  YUV4MPEGReader( const std::string & filename, bool tmp );
   Optional<RasterHandle> get_next_frame() override;
 
   uint16_t display_width() override { return header_.width; }
@@ -87,6 +89,28 @@ public:
   YUV4MPEGHeader header() const { return header_; }
 
   FileDescriptor & fd() { return fd_; }
+};
+
+class YUV4MPEGBufferReader : public FrameInput
+{
+private:
+  YUV4MPEGHeader header_;
+  BufferReader reader_;
+
+  static std::pair< size_t, size_t > parse_fraction( const std::string & fraction_str );
+
+public:
+  YUV4MPEGBufferReader( const std::string & filename );
+  Optional<RasterHandle> get_next_frame() override;
+
+  uint16_t display_width() override { return header_.width; }
+  uint16_t display_height() override { return header_.height; }
+
+  size_t frame_length() { return header_.frame_length(); }
+  size_t y_plane_length() { return header_.y_plane_length(); }
+  size_t uv_plane_length() { return header_.uv_plane_length(); }
+
+  YUV4MPEGHeader header() const { return header_; }
 };
 
 class YUV4MPEGFrameWriter

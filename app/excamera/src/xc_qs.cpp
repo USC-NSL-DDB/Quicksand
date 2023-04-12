@@ -84,7 +84,7 @@ tuple<vector<RasterHandle>, uint16_t, uint16_t> read_raster(size_t idx, const st
   inputss << prefix << setw(2) << setfill('0') << idx << ".y4m";
   const string input_file = inputss.str();
 
-  YUV4MPEGReader input_reader = YUV4MPEGReader( input_file );
+  YUV4MPEGBufferReader input_reader = YUV4MPEGBufferReader( input_file );
 
   // pre-read original rasters
   vector<RasterHandle> original_rasters;
