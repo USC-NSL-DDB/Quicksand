@@ -413,7 +413,7 @@ void xc_batch(const string prefix, bool report_time, size_t idx, uint64_t t_star
     cout << endl;
   }
 
-  cout << idx << ". start: " << t0 - t_start << " read: " << t1 - t0 << ". parallel: " << t3 - t1 << ". serial: " << t4 - t3 << endl;
+  cout << idx << ", " << t0 - t_start << ", " << t1 - t0 << ", " << t3 - t1 << ", " << t4 - t3 << endl;
   report_lock.Unlock();
 }
 
