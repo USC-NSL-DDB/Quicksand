@@ -57,13 +57,11 @@ using sealed_shard_ivf = nu::SealedDS<shard_ivf_type>;
 using sealed_shard_decoder = nu::SealedDS<shard_decoder_type>;
 using shard_idx_type = nu::ShardedVector<size_t, false_type>;
 using sealed_shard_idx = nu::SealedDS<shard_idx_type>;
-using stitch_queue_type = nu::ShardedQueue<tuple<IVF_MEM, DecoderBuffer, size_t>, true_type>;
 
 // The excamera states
 typedef struct {
   shard_ivf_type vpx0_ivf, vpx1_ivf, xc_ivf;
   shard_decoder_type dec_state, enc_state;
-  stitch_queue_type stitch_queue;
   vector<IVF_MEM> final_ivf;
   vector<DecoderBuffer> dec_state_vec, rebased_state;
   vector<tuple<vector<RasterHandle>, uint16_t, uint16_t>> rasters;
@@ -263,7 +261,7 @@ void encode_all(shared_ptr<xc_t> s, const string prefix) {
   auto encode_range = nu::make_zipped_ds_range(sealed_ivfs, sealed_dec_state, sealed_idxs);
 
   auto dist_exec = nu::make_distributed_executor(
-    +[](decltype(encode_range) &encode_range, const string prefix, stitch_queue_type queue) {
+    +[](decltype(encode_range) &encode_range, const string prefix) {
       vector<tuple<IVF_MEM, DecoderBuffer, task_time>> outputs;
       while (true) {
         auto pop = encode_range.pop();
@@ -282,14 +280,12 @@ void encode_all(shared_ptr<xc_t> s, const string prefix) {
         nu::Time::sleep(300000);
 
         auto out = enc_given_state(ivf, decoder, nullptr, idx, prefix, nullopt);
-        tuple<IVF_MEM, DecoderBuffer, size_t> queue_elem(get<0>(out), get<1>(out), idx);
-        queue.push(queue_elem);
 
         t.end = microtime();
         outputs.emplace_back(get<0>(out), get<1>(out), t);
       }
       return outputs;
-    }, encode_range, prefix, s->stitch_queue);
+    }, encode_range, prefix);
 
   auto outputs_vectors = dist_exec.get();
   auto join_view = ranges::join_view(outputs_vectors);
@@ -309,62 +305,31 @@ void encode_all(shared_ptr<xc_t> s, const string prefix) {
   enc_given_state_time.push_back(get<2>(vecs[N-2]));
 }
 
-void rebase_server(shared_ptr<xc_t> s, const string prefix) {
+void rebase(shared_ptr<xc_t> s, const string prefix) {
   s->final_ivf.push_back(s->ivf0);
   s->rebased_state.push_back(s->state0);
 
-  // use a vector for reordering and sync the input
-  rt::Mutex mutex;
-  vector<optional<tuple<IVF_MEM, DecoderBuffer>>> input;
-  input.resize(N-1);
-
-  // seperate thread for receiving the queue input
-  rt::Thread th( [&s, &mutex, &input] {
-    size_t i = 1;
-    while (i < N) {
-      auto pop = s->stitch_queue.try_pop(1);
-      if (pop.empty()) {
-        nu::Time::sleep(1000);
-        continue;
-      }
-      size_t idx = get<2>(pop[0]);
-      mutex.Lock();
-      tuple<IVF_MEM, DecoderBuffer> t(get<0>(pop[0]), get<1>(pop[0]));
-      input[idx-1] = t;
-      mutex.Unlock();
-      i++;
-    }
-  } );
-
-  s->final_ivf.push_back(s->ivf0);
-  s->rebased_state.push_back(s->state0);
-
-  size_t i = 1;
-  while (i < N) {
-    mutex.Lock();
-    if (!input[i-1].has_value()) {
-      mutex.Unlock();
-      nu::Time::sleep(1000);
-      continue;
-    }
+  auto sealed_ivfs = nu::to_sealed_ds(std::move(s->xc_ivf));
+  auto sealed_dec_state = nu::to_sealed_ds(std::move(s->dec_state));
+  auto ivf_it = sealed_ivfs.cbegin();
+  auto state_it = sealed_dec_state.cbegin();
+  for (size_t i = 1; ivf_it != sealed_ivfs.cend() && state_it != sealed_dec_state.cend(); ++ivf_it, ++state_it, ++i) {
     task_time t;
     t.start = microtime();
-
-    IVF_MEM ivf = get<0>(*input[i-1]);
-    DecoderBuffer decoder = get<1>(*input[i-1]);
-    DecoderBuffer prev_decoder = s->dec_state_vec[i-1];
-    mutex.Unlock();
+    IVF_MEM ivf = *ivf_it;
+    DecoderBuffer decoder = s->rebased_state[i-1];
+    DecoderBuffer prev_decoder = *state_it;
 
     auto output = enc_given_state(ivf, decoder, &prev_decoder, i, prefix, s->rasters[i]);
     auto rebased_ivf = get<0>(output);
     s->rebased_state.push_back(get<1>(output));
     s->final_ivf.push_back(merge(s->final_ivf[i-1], rebased_ivf));
-    i++;
     t.end = microtime();
     rebase_time.push_back(t);
   }
 
-  th.Join();
+  s->xc_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
+  s->dec_state = nu::to_unsealed_ds(move(sealed_dec_state));
 }
 
 void write_output(shared_ptr<xc_t> s, const string prefix) {
@@ -397,17 +362,15 @@ int do_work(const string prefix) {
   s->xc_ivf = nu::make_sharded_vector<IVF_MEM, false_type>(N-1);
   s->dec_state = nu::make_sharded_vector<DecoderBuffer, false_type>(N-1);
   s->enc_state = nu::make_sharded_vector<DecoderBuffer, false_type>(N-1);
-  s->stitch_queue = nu::make_sharded_queue<tuple<IVF_MEM, DecoderBuffer, size_t>, true_type>();
 
   auto t0 = microtime();
   read_input(s, prefix);
   auto t1 = microtime();
   decode_all(s);
   auto t2 = microtime();
-  rt::Thread th( [&s, prefix] { rebase_server(s, prefix); } );
   encode_all(s, prefix);
   auto t3 = microtime();
-  th.Join();
+  rebase(s, prefix);
   auto t4 = microtime();
   write_output(s, prefix);
 
