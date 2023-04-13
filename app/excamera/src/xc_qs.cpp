@@ -410,6 +410,6 @@ int do_work(const string prefix) {
 
 int main(int argc, char *argv[]) {
   // TODO: take file prefix to args
-  string prefix = string(argv[argc-1]) + "/sintel01_";
+  string prefix = string(argv[argc-1]) + "/" + string(argv[argc-2]) + "01_";
   return nu::runtime_main_init(argc, argv, [=](int, char **) { do_work(prefix); });
 }

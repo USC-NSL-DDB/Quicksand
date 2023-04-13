@@ -48,7 +48,7 @@ namespace fs = filesystem;
 
 // x = 6, each batch has 16 * 6 = 96 frames
 constexpr size_t N = 16;
-constexpr size_t BATCH = 12;
+constexpr size_t BATCH = 32;
 rt::Mutex report_lock;
 
 // serialized decoder state
@@ -417,12 +417,12 @@ void xc_batch(const string prefix, bool report_time, size_t idx, uint64_t t_star
   report_lock.Unlock();
 }
 
-int do_work(const string prefix) {
+int do_work(const string prefix, const string fname) {
   vector<nu::Thread> ths;
   uint64_t t_start = microtime();
   for (size_t i = 0; i < BATCH; i++) {
     ostringstream dir_ss;
-    dir_ss << prefix << "/" << setw(2) << setfill('0') << i << "/sintel" << setw(2) << setfill('0') << i << "_";
+    dir_ss << prefix << "/" << setw(2) << setfill('0') << i << "/" << fname << setw(2) << setfill('0') << i << "_";
     const string dir = dir_ss.str();
     ths.emplace_back( [i, dir, t_start] { xc_batch(dir, false, i, t_start); } );
   }
@@ -438,5 +438,6 @@ int do_work(const string prefix) {
 int main(int argc, char *argv[]) {
   // TODO: take file prefix to args
   string prefix = string(argv[argc-1]);
-  return nu::runtime_main_init(argc, argv, [=](int, char **) { do_work(prefix); });
+  string fname = string(argv[argc-2]);
+  return nu::runtime_main_init(argc, argv, [=](int, char **) { do_work(prefix, fname); });
 }

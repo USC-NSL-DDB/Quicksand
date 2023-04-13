@@ -7,11 +7,11 @@ import time
 
 # ExCamera[6,16]
 frame, N = 6, 16
-batch = 12
-src = "sintel_trailer_480p"
+batch = 32
+src = "bunny_480p"
 
 workspace = os.path.join("..", "samples", "workspace")
-prefix = "sintel{:02d}"
+prefix = "bunny{:02d}"
 src_dir = os.path.join("..", "samples", src)
 
 vpxenc_bin = os.path.join("..", "bin", "vpxenc")
