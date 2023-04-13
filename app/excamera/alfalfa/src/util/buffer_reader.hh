@@ -23,6 +23,7 @@ protected:
   void register_read( void ) { read_count_++; }
 
 public:
+  BufferReader() : read_idx_( 0 ), read_count_( 0 ), buffer_() {}
   BufferReader( const std::string path ) : read_idx_( 0 ), read_count_( 0 ), buffer_() {
     std::ifstream file(path, std::ios::binary);
 
@@ -32,6 +33,16 @@ public:
 
     buffer_.resize(fileSize);
     file.read(buffer_.data(), fileSize);
+  }
+
+  template <class Archive>
+  void save(Archive &ar) const {
+    ar(eof_, read_idx_, read_count_, buffer_);
+  }
+
+  template <class Archive>
+  void load(Archive &ar) {
+    ar(eof_, read_idx_, read_count_, buffer_);
   }
 
   uint64_t size( void ) const
@@ -91,6 +102,13 @@ public:
 
     assert( ret.size() == length );
     return ret;
+  }
+
+  void reset()
+  {
+    eof_ = false;
+    read_idx_ = 0;
+    read_count_ = 0;
   }
 };
 

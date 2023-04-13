@@ -334,8 +334,13 @@ pair< size_t, size_t > YUV4MPEGBufferReader::parse_fraction( const string & frac
 }
 
 YUV4MPEGBufferReader::YUV4MPEGBufferReader( const string & filename )
+  : YUV4MPEGBufferReader( BufferReader( filename ) )
+{}
+
+
+YUV4MPEGBufferReader::YUV4MPEGBufferReader( const BufferReader & buffer_reader )
   : header_(),
-    reader_( filename )
+    reader_( buffer_reader )
 {
   string header_str = reader_.getline();
   istringstream ssin( header_str );

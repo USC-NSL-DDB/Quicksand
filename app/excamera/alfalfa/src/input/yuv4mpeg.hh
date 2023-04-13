@@ -101,6 +101,7 @@ private:
 
 public:
   YUV4MPEGBufferReader( const std::string & filename );
+  YUV4MPEGBufferReader( const BufferReader & buffer_reader );
   Optional<RasterHandle> get_next_frame() override;
 
   uint16_t display_width() override { return header_.width; }
