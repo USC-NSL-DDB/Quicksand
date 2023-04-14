@@ -232,9 +232,9 @@ void decode_all(shared_ptr<xc_t> s) {
   s->vpx0_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
 }
 
-void encode_all(shared_ptr<xc_t> s, const string prefix, const string fname) {
-  auto batches = nu::make_sharded_vector<size_t, true_type>(BATCH);
-  auto idxs = nu::make_sharded_vector<size_t, true_type>(N-1);
+void encode_all(shared_ptr<xc_t> s, const string prefix, const string fname, uint64_t t_begin) {
+  auto batches = nu::make_sharded_vector<size_t, true_type>((N-1) * BATCH);
+  auto idxs = nu::make_sharded_vector<size_t, true_type>((N-1) * BATCH);
   for (size_t b = 0; b < BATCH; b++) {
     for (size_t i = 1; i < N; i++) {
       idxs.push_back(i);
@@ -249,11 +249,12 @@ void encode_all(shared_ptr<xc_t> s, const string prefix, const string fname) {
   auto encode_range = nu::make_zipped_ds_range(sealed_ivfs, sealed_dec_state, sealed_batches, sealed_idxs);
 
   auto dist_exec = nu::make_distributed_executor(
-    +[](decltype(encode_range) &encode_range, const string prefix, const string fname) {
+    +[](decltype(encode_range) &encode_range, const string prefix, const string fname, uint64_t t_begin) {
       vector<tuple<IVF_MEM, DecoderBuffer>> outputs;
       while (true) {
         auto pop = encode_range.pop();
         if (!pop) {
+          cout << microtime() - t_begin << endl;
           break;
         }
   
@@ -268,7 +269,7 @@ void encode_all(shared_ptr<xc_t> s, const string prefix, const string fname) {
         outputs.emplace_back(out);
       }
       return outputs;
-    }, encode_range, prefix, fname);
+    }, encode_range, prefix, fname, t_begin);
 
   auto outputs_vectors = dist_exec.get();
   auto join_view = ranges::join_view(outputs_vectors);
@@ -289,7 +290,7 @@ void encode_all(shared_ptr<xc_t> s, const string prefix, const string fname) {
   }
 }
 
-void rebase(shared_ptr<xc_t> s, const string prefix, const string fname) {
+void rebase(shared_ptr<xc_t> s, const string prefix, const string fname, uint64_t t_begin) {
   auto sealed_ivfs = nu::to_sealed_ds(std::move(s->xc_ivf));
   auto sealed_dec_state = nu::to_sealed_ds(std::move(s->dec_state));
   auto ivf0 = nu::make_sharded_vector<IVF_MEM, true_type>(BATCH);
@@ -323,11 +324,12 @@ void rebase(shared_ptr<xc_t> s, const string prefix, const string fname) {
   auto stitch_range = nu::make_zipped_ds_range(sealed_stitch_ivfs, sealed_stitch_dec_state, sealed_batches, sealed_ivf0, sealed_state0);
 
   auto dist_exec = nu::make_distributed_executor(
-    +[](decltype(stitch_range) &stitch_range, const string prefix, const string fname) {
+    +[](decltype(stitch_range) &stitch_range, const string prefix, const string fname, uint64_t t_begin) {
       vector<IVF_MEM> outputs;
       while (true) {
         auto pop = stitch_range.pop();
         if (!pop) {
+          cout << microtime() - t_begin << endl;
           break;
         }
   
@@ -349,7 +351,7 @@ void rebase(shared_ptr<xc_t> s, const string prefix, const string fname) {
         outputs.push_back(prev_ivf);
       }
       return outputs;
-    }, stitch_range, prefix, fname);
+    }, stitch_range, prefix, fname, t_begin);
   auto outputs_vectors = dist_exec.get();
   auto join_view = ranges::join_view(outputs_vectors);
   s->final_ivf = vector<IVF_MEM>(join_view.begin(), join_view.end());
@@ -402,10 +404,12 @@ int do_work(const string prefix, const string fname) {
   auto t0 = microtime();
   read_input(s, prefix, fname);
   auto t1 = microtime();
+  cout << "parallel" << endl;
   decode_all(s);
-  encode_all(s, prefix, fname);
+  encode_all(s, prefix, fname, t0);
   auto t3 = microtime();
-  rebase(s, prefix, fname);
+  cout << "serial" << endl;
+  rebase(s, prefix, fname, t0);
   auto t4 = microtime();
   write_output(s, prefix, fname);
 
