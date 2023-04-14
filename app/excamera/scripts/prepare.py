@@ -7,7 +7,7 @@ import time
 
 # ExCamera[6,16]
 frame, N = 6, 16
-batch = 32
+batch = 48
 src = "bunny_480p"
 
 workspace = os.path.join("..", "samples", "workspace")

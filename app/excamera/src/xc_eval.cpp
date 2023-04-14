@@ -49,15 +49,13 @@ namespace fs = filesystem;
 // x = 6, each batch has 16 * 6 = 96 frames
 constexpr size_t N = 16;
 constexpr size_t BATCH = 32;
-rt::Mutex report_lock;
 
 // serialized decoder state
 using DecoderBuffer = vector<uint8_t>;
 
-using shard_ivf_type = nu::ShardedVector<IVF_MEM, false_type>;
-using shard_decoder_type = nu::ShardedVector<DecoderBuffer, false_type>;
-using shard_idx_type = nu::ShardedVector<size_t, false_type>;
-using shard_buffer_type = nu::ShardedVector<BufferReader, false_type>;
+using shard_ivf_type = nu::ShardedVector<IVF_MEM, true_type>;
+using shard_decoder_type = nu::ShardedVector<DecoderBuffer, true_type>;
+using shard_buffer_type = nu::ShardedVector<BufferReader, true_type>;
 
 // The excamera states
 typedef struct {
@@ -65,17 +63,9 @@ typedef struct {
   shard_decoder_type dec_state, enc_state;
   shard_buffer_type raster_buffer;
   vector<IVF_MEM> final_ivf;
-  vector<DecoderBuffer> dec_state_vec, rebased_state;
-  IVF_MEM ivf0;
-  DecoderBuffer state0;
+  IVF_MEM ivf0[BATCH];
+  DecoderBuffer state0[BATCH];
 } xc_t;
-
-typedef struct {
-  uint64_t start;
-  uint64_t end;
-} task_time;
-
-vector<task_time> decode_time, enc_given_state_time, rebase_time;
 
 void usage(const string &program_name) {
   cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
@@ -134,7 +124,6 @@ tuple<IVF_MEM, DecoderBuffer>
 enc_given_state(IVF_MEM & pred_ivf,
                 DecoderBuffer & input_state,
                 DecoderBuffer * prev_state,
-                size_t idx,
                 const string prefix,
                 BufferReader &raster_buffer) {
   bool two_pass = false;
@@ -214,17 +203,14 @@ void decode_all(shared_ptr<xc_t> s) {
   
   auto dis_exec = nu::make_distributed_executor(
     +[](decltype(ivfs_range) &ivfs_range) {
-      vector<tuple<DecoderBuffer, task_time>> outputs;
+      vector<DecoderBuffer> outputs;
       while (true) {
         auto ivf = ivfs_range.pop();
         if (!ivf) {
           break;
         }
-        task_time t;
-        t.start = microtime();
         auto out = decode(*ivf);
-        t.end = microtime();
-        outputs.emplace_back(out, t);
+        outputs.push_back(out);
       }
       return outputs;
     },
@@ -232,206 +218,194 @@ void decode_all(shared_ptr<xc_t> s) {
 
   auto outputs_vectors = dis_exec.get();
   auto join_view = ranges::join_view(outputs_vectors);
-  auto vecs = vector<tuple<DecoderBuffer, task_time>>(join_view.begin(), join_view.end());
-  s->state0 = get<0>(vecs[0]);
-  for (size_t i = 0; i < N-1; i++) {
-    s->dec_state.push_back(get<0>(vecs[i]));
-    s->dec_state_vec.push_back(get<0>(vecs[i]));
-    decode_time.push_back(get<1>(vecs[i]));
+  auto vecs = vector<DecoderBuffer>(join_view.begin(), join_view.end());
+  for (size_t b = 0; b < BATCH; b++) {
+    s->state0[b] = (vecs[b * (N - 1)]);
+    for (size_t i = 0; i < N-1; i++) {
+      s->dec_state.push_back(vecs[b * (N - 1) + i]);
+    }
   }
   s->vpx0_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
 }
 
 void encode_all(shared_ptr<xc_t> s, const string prefix) {
-  shard_idx_type idxs = nu::make_sharded_vector<size_t, false_type>(N-1);
-  for (size_t i = 1; i < N; i++) {
-    idxs.push_back(i);
-  }
-
   auto sealed_ivfs = nu::to_sealed_ds(move(s->vpx1_ivf));
   auto sealed_dec_state = nu::to_sealed_ds(move(s->dec_state));
   auto sealed_raster_buffer = nu::to_sealed_ds(move(s->raster_buffer));
-  auto sealed_idxs = nu::to_sealed_ds(move(idxs));
-  auto encode_range = nu::make_zipped_ds_range(sealed_ivfs, sealed_dec_state, sealed_raster_buffer, sealed_idxs);
+  auto encode_range = nu::make_zipped_ds_range(sealed_ivfs, sealed_dec_state, sealed_raster_buffer);
 
   auto dist_exec = nu::make_distributed_executor(
     +[](decltype(encode_range) &encode_range, const string prefix) {
-      vector<tuple<IVF_MEM, DecoderBuffer, task_time>> outputs;
+      vector<tuple<IVF_MEM, DecoderBuffer>> outputs;
       while (true) {
         auto pop = encode_range.pop();
         if (!pop) {
           break;
         }
-
-        task_time t;
-        t.start = microtime();
   
         auto ivf = get<0>(*pop);
         auto decoder = get<1>(*pop);
         auto raster_buffer = get<2>(*pop);
-        auto idx = get<3>(*pop);
 
         // do enc given state twice to match the excamera's performance result 
-        auto out = enc_given_state(ivf, decoder, nullptr, idx, prefix, raster_buffer);
-        out = enc_given_state(ivf, decoder, nullptr, idx, prefix, raster_buffer);
-
-        t.end = microtime();
-        outputs.emplace_back(get<0>(out), get<1>(out), t);
+        auto out = enc_given_state(ivf, decoder, nullptr, prefix, raster_buffer);
+        out = enc_given_state(ivf, decoder, nullptr, prefix, raster_buffer);
+        outputs.emplace_back(out);
       }
       return outputs;
     }, encode_range, prefix);
 
   auto outputs_vectors = dist_exec.get();
   auto join_view = ranges::join_view(outputs_vectors);
-  auto vecs = vector<tuple<IVF_MEM, DecoderBuffer, task_time>>(join_view.begin(), join_view.end());
+  auto vecs = vector<tuple<IVF_MEM, DecoderBuffer>>(join_view.begin(), join_view.end());
 
   s->vpx1_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
   s->dec_state = nu::to_unsealed_ds(move(sealed_dec_state));
   s->raster_buffer = nu::to_unsealed_ds(move(sealed_raster_buffer));
-  idxs = nu::to_unsealed_ds(move(sealed_idxs));
 
-  s->enc_state.push_back(s->state0);
-  for (size_t i = 0; i < N-2; i++) {
-    s->xc_ivf.push_back(get<0>(vecs[i]));
-    s->enc_state.push_back(get<1>(vecs[i]));
-    enc_given_state_time.push_back(get<2>(vecs[i]));
+  for (size_t b = 0; b < BATCH; b++) {
+    s->enc_state.push_back(s->state0[b]);
+    for (size_t i = 0; i < N-2; i++) {
+      s->xc_ivf.push_back(get<0>(vecs[b * (N - 1) + i]));
+      s->enc_state.push_back(get<1>(vecs[b * (N - 1) + i]));
+    }
+    s->xc_ivf.push_back(get<0>(vecs[b * (N - 1) + N - 2]));
   }
-  s->xc_ivf.push_back(get<0>(vecs[N-2]));
-  enc_given_state_time.push_back(get<2>(vecs[N-2]));
 }
 
 void rebase(shared_ptr<xc_t> s, const string prefix) {
-  s->final_ivf.push_back(s->ivf0);
-  s->rebased_state.push_back(s->state0);
-
   auto sealed_ivfs = nu::to_sealed_ds(std::move(s->xc_ivf));
   auto sealed_dec_state = nu::to_sealed_ds(std::move(s->dec_state));
   auto sealed_raster_buffer = nu::to_sealed_ds(std::move(s->raster_buffer));
+  auto ivf0 = nu::make_sharded_vector<IVF_MEM, true_type>(BATCH);
+  auto state0 = nu::make_sharded_vector<DecoderBuffer, true_type>(BATCH);
+  
+  auto stitch_ivfs = nu::make_sharded_vector<vector<IVF_MEM>, true_type>(BATCH);
+  auto stitch_dec_state = nu::make_sharded_vector<vector<DecoderBuffer>, true_type>(BATCH);
+  auto stitch_raster_buffer = nu::make_sharded_vector<vector<BufferReader>, true_type>(BATCH);
+
   auto ivf_it = sealed_ivfs.cbegin();
   auto state_it = sealed_dec_state.cbegin();
   auto buffer_it = sealed_raster_buffer.cbegin();
-  for (size_t i = 1; ivf_it != sealed_ivfs.cend() && state_it != sealed_dec_state.cend() && buffer_it != sealed_raster_buffer.cend(); ++ivf_it, ++state_it, ++buffer_it, ++i) {
-    task_time t;
-    t.start = microtime();
-    IVF_MEM ivf = *ivf_it;
-    DecoderBuffer decoder = s->rebased_state[i-1];
-    DecoderBuffer prev_decoder = *state_it;
-    BufferReader buffer = *buffer_it;
-
-    auto output = enc_given_state(ivf, decoder, &prev_decoder, i, prefix, buffer);
-    auto rebased_ivf = get<0>(output);
-    s->rebased_state.push_back(get<1>(output));
-    s->final_ivf.push_back(merge(s->final_ivf[i-1], rebased_ivf));
-    t.end = microtime();
-    rebase_time.push_back(t);
+  for (size_t b = 0; b < BATCH; b++) {
+    vector<IVF_MEM> batch_ivf;
+    vector<DecoderBuffer> batch_dec_state;
+    vector<BufferReader> batch_raster_buffer;
+    for (size_t i = 0; i < N - 1; ++ivf_it, ++state_it, ++buffer_it, ++i) {
+      batch_ivf.push_back(*ivf_it);
+      batch_dec_state.push_back(*state_it);
+      batch_raster_buffer.push_back(*buffer_it);
+    }
+    stitch_ivfs.push_back(batch_ivf);
+    stitch_dec_state.push_back(batch_dec_state);
+    stitch_raster_buffer.push_back(batch_raster_buffer);
+    ivf0.push_back(s->ivf0[b]);
+    state0.push_back(s->state0[b]);
   }
 
+  auto sealed_stitch_ivfs = nu::to_sealed_ds(move(stitch_ivfs));
+  auto sealed_stitch_dec_state = nu::to_sealed_ds(move(stitch_dec_state));
+  auto sealed_stitch_raster_buffer = nu::to_sealed_ds(move(stitch_raster_buffer));
+  auto sealed_ivf0 = nu::to_sealed_ds(move(ivf0));
+  auto sealed_state0 = nu::to_sealed_ds(move(state0));
+  auto stitch_range = nu::make_zipped_ds_range(sealed_stitch_ivfs, sealed_stitch_dec_state, sealed_stitch_raster_buffer, sealed_ivf0, sealed_state0);
+
+  auto dist_exec = nu::make_distributed_executor(
+    +[](decltype(stitch_range) &stitch_range, const string prefix) {
+      vector<IVF_MEM> outputs;
+      while (true) {
+        auto pop = stitch_range.pop();
+        if (!pop) {
+          break;
+        }
+  
+        auto ivfs = get<0>(*pop);
+        auto dec_state = get<1>(*pop);
+        auto raster_buffer = get<2>(*pop);
+        auto prev_ivf = get<3>(*pop);
+        auto prev_state = get<4>(*pop);
+
+        for (size_t i = 0; i < N - 1; i++) {
+          IVF_MEM ivf = ivfs[i];
+          DecoderBuffer prev_decoder = dec_state[i];
+          BufferReader buffer = raster_buffer[i];
+
+          auto output =  enc_given_state(ivf, prev_state, &prev_decoder, prefix, buffer);
+          auto rebased_ivf = get<0>(output);
+          prev_state = get<1>(output);
+          prev_ivf = merge(prev_ivf, rebased_ivf);
+        }
+        outputs.push_back(prev_ivf);
+      }
+      return outputs;
+    }, stitch_range, prefix);
+  auto outputs_vectors = dist_exec.get();
+  auto join_view = ranges::join_view(outputs_vectors);
+  s->final_ivf = vector<IVF_MEM>(join_view.begin(), join_view.end());
+
+  ivf0 = nu::to_unsealed_ds(move(sealed_ivf0));
+  state0 = nu::to_unsealed_ds(move(sealed_state0));
+  stitch_ivfs = nu::to_unsealed_ds(move(sealed_stitch_ivfs));
+  stitch_dec_state = nu::to_unsealed_ds(move(sealed_stitch_dec_state));
+  stitch_raster_buffer = nu::to_unsealed_ds(move(sealed_stitch_raster_buffer));
   s->xc_ivf = nu::to_unsealed_ds(move(sealed_ivfs));
   s->dec_state = nu::to_unsealed_ds(move(sealed_dec_state));
   s->raster_buffer = nu::to_unsealed_ds(move(sealed_raster_buffer));
 }
 
-void write_output(shared_ptr<xc_t> s, const string prefix) {
-  const string final_file = prefix + "final.ivf";
-  s->final_ivf[N-1].write(final_file);
+void write_output(shared_ptr<xc_t> s, const string prefix, const string fname) {
+  for (size_t b = 0; b < BATCH; b++) {
+    ostringstream finalss;
+    finalss << prefix << "/" << setw(2) << setfill('0') << b << "/" << fname << setw(2) << setfill('0') << b << ".y4m";
+    const string final_file = finalss.str();
+    s->final_ivf[b].write(final_file);
+  }
 }
 
-void read_input(shared_ptr<xc_t> s, const string prefix) {
-  for (size_t i = 0; i < N; i++) {
-    ostringstream vpxss;
-    vpxss << prefix << "vpx_" << setw(2) << setfill('0') << i << ".ivf";
-    const string vpx_file = vpxss.str();
-    if (i != N - 1) {
-      s->vpx0_ivf.push_back(IVF_MEM(vpx_file));
-    }
-    if (i != 0) {
-      s->vpx1_ivf.push_back(IVF_MEM(vpx_file));
-      ostringstream inputss;
-      inputss << prefix << setw(2) << setfill('0') << i << ".y4m";
-      const string input_file = inputss.str();
-      s->raster_buffer.push_back(BufferReader(input_file));
-    } else {
-      s->ivf0 = IVF_MEM(vpx_file);
+void read_input(shared_ptr<xc_t> s, const string prefix, const string fname) {
+  for (size_t b = 0; b < BATCH; b++) {
+    for (size_t i = 0; i < N; i++) {
+      ostringstream vpxss;
+      vpxss << prefix << "/" << setw(2) << setfill('0') << b << "/" << fname << setw(2) << setfill('0') << b << "_vpx_" << setw(2) << setfill('0') << i << ".ivf";
+      const string vpx_file = vpxss.str();
+      if (i != N - 1) {
+        s->vpx0_ivf.push_back(IVF_MEM(vpx_file));
+      }
+      if (i != 0) {
+        s->vpx1_ivf.push_back(IVF_MEM(vpx_file));
+        ostringstream inputss;
+        inputss << prefix << "/" << setw(2) << setfill('0') << b << "/" << fname << setw(2) << setfill('0') << b << "_" << setw(2) << setfill('0') << i << ".y4m";
+        const string input_file = inputss.str();
+        s->raster_buffer.push_back(BufferReader(input_file));
+      } else {
+        s->ivf0[b] = IVF_MEM(vpx_file);
+      }
     }
   }
 }
 
-// read_stage, parallel_stage, serial_stage
-void xc_batch(const string prefix, bool report_time, size_t idx, uint64_t t_start) {
+int do_work(const string prefix, const string fname) {
   auto s = make_shared<xc_t>();
 
-  s->vpx0_ivf = nu::make_sharded_vector<IVF_MEM, false_type>(N-1);
-  s->vpx1_ivf = nu::make_sharded_vector<IVF_MEM, false_type>(N-1);
-  s->xc_ivf = nu::make_sharded_vector<IVF_MEM, false_type>(N-1);
-  s->dec_state = nu::make_sharded_vector<DecoderBuffer, false_type>(N-1);
-  s->enc_state = nu::make_sharded_vector<DecoderBuffer, false_type>(N-1);
-  s->raster_buffer = nu::make_sharded_vector<BufferReader, false_type>(N-1);
+  s->vpx0_ivf = nu::make_sharded_vector<IVF_MEM, true_type>(BATCH * (N - 1));
+  s->vpx1_ivf = nu::make_sharded_vector<IVF_MEM, true_type>(BATCH * (N - 1));
+  s->xc_ivf = nu::make_sharded_vector<IVF_MEM, true_type>(BATCH * (N - 1));
+  s->dec_state = nu::make_sharded_vector<DecoderBuffer, true_type>(BATCH * (N - 1));
+  s->enc_state = nu::make_sharded_vector<DecoderBuffer, true_type>(BATCH * (N - 1));
+  s->raster_buffer = nu::make_sharded_vector<BufferReader, true_type>(BATCH * (N - 1));
 
   auto t0 = microtime();
-  read_input(s, prefix);
+  read_input(s, prefix, fname);
   auto t1 = microtime();
   decode_all(s);
-  auto t2 = microtime();
   encode_all(s, prefix);
   auto t3 = microtime();
   rebase(s, prefix);
   auto t4 = microtime();
-  write_output(s, prefix);
+  write_output(s, prefix, fname);
 
-  report_lock.Lock();
-  if (report_time) {
-    cout << "load data: " << t0 - t0 << ", " << t1 - t0 << endl;
+  cout << t1 - t0 << ", " << t3 - t1 << ", " << t4 - t3 << endl;
 
-    cout << "decode: " << t1 - t0 << ", " << t2 - t0 << endl;
-    for (auto t : decode_time) {
-      cout << t.start - t0 << ", ";
-    }
-    cout << endl;
-    for (auto t : decode_time) {
-      cout << t.end - t0 << ", ";
-    }
-    cout << endl;
-
-    cout << "encode given state: " << t2 - t0 << ", " << t3 - t0 << endl;
-    for (auto t : enc_given_state_time) {
-      cout << t.start - t0 << ", ";
-    }
-    cout << endl;
-    for (auto t : enc_given_state_time) {
-      cout << t.end - t0 << ", ";
-    }
-    cout << endl;
-
-    cout << "rebase: " << t3 - t0 << ", " << t4 - t0 << endl;
-    for (auto t : rebase_time) {
-      cout << t.start - t0 << ", ";
-    }
-    cout << endl;
-    for (auto t : rebase_time) {
-      cout << t.end - t0 << ", ";
-    }
-    cout << endl;
-  }
-
-  cout << idx << ", " << t0 - t_start << ", " << t1 - t0 << ", " << t3 - t1 << ", " << t4 - t3 << endl;
-  report_lock.Unlock();
-}
-
-int do_work(const string prefix, const string fname) {
-  vector<nu::Thread> ths;
-  uint64_t t_start = microtime();
-  for (size_t i = 0; i < BATCH; i++) {
-    ostringstream dir_ss;
-    dir_ss << prefix << "/" << setw(2) << setfill('0') << i << "/" << fname << setw(2) << setfill('0') << i << "_";
-    const string dir = dir_ss.str();
-    ths.emplace_back( [i, dir, t_start] { xc_batch(dir, false, i, t_start); } );
-  }
-
-  for (auto &th : ths) {
-    th.join();
-  }
-  uint64_t t_end = microtime();
-  cout << "total: " << t_end - t_start << endl;
   return 0;
 }
 
