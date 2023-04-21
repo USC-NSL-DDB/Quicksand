@@ -68,6 +68,7 @@ export PKG_CONFIG_PATH=
 echo building SPDK
 cd spdk
 git apply ../build/spdk.patch
+patch -p1 -N < ../build/spdk_22_arc4random.patch
 ./configure --with-dpdk=$PWD/../dpdk/build/
 make -j $CORES
 cd ..
