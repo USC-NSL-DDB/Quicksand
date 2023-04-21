@@ -1,12 +1,11 @@
 #!/bin/bash
 
 function get_nic_dev {
-    sudo caladan/iokerneld >.tmp 2>&1 &
-    disown -r
+    sudo bash -c "caladan/iokerneld >.tmp 2>&1 &"
     ( tail -f -n0 .tmp & ) | grep -q "MAC"
     sudo pkill -9 iokerneld
     mac=`cat .tmp | grep "MAC" | sed "s/.*MAC: \(.*\)/\1/g" | tr " " ":"`
-    rm .tmp
+    sudo rm .tmp
     nic_dev=`ifconfig | grep "flags\|ether" | awk 'NR%2{printf "%s ",$0;next;}1' \
              | grep $mac | awk -F ':' '{print $1}'`
 }

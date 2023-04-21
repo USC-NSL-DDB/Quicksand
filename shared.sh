@@ -32,8 +32,7 @@ function kill_iokerneld {
 function run_iokerneld {
     kill_iokerneld
     sleep 3
-    sudo $CALADAN_PATH/iokerneld $@ > /dev/null 2>&1 &
-    disown -r
+    sudo bash -c "$CALADAN_PATH/iokerneld $@ > /dev/null 2>&1 &"
     assert_success
     sleep 5
 }
