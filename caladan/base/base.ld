@@ -1,7 +1,6 @@
 SECTIONS
 {
-  __initcall : {
-    . = ALIGN(16);
+  __initcall ALIGN(16) : {
     __initcall0_start = .;
     KEEP(*(.initcall0))
     __initcall0_end = .;
