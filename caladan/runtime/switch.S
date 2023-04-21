@@ -221,3 +221,7 @@ __jmp_runtime_nosave:
 
 	/* jump into runtime code */
 	jmpq    *%rsi
+
+#if defined(__linux__) && defined(__ELF__)
+.section .note.GNU-stack,"",%progbits
+#endif
