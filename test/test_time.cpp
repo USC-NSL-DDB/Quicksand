@@ -21,7 +21,7 @@ namespace nu {
 class Test {
  public:
   uint64_t microtime() { return Time::microtime(); }
-  void delay(uint64_t us) { Time::delay(us); }
+  void delay_us(uint64_t us) { Time::delay_us(us); }
   void sleep_until(uint64_t deadline_us) {
     return Time::sleep_until(deadline_us);
   }
@@ -45,7 +45,7 @@ void do_work() {
 
   auto proclet = make_proclet<Test>();
   us[0] = proclet.run(&Test::microtime);
-  proclet.run(&Test::delay, 1000 * 1000);
+  proclet.run(&Test::delay_us, 1000 * 1000);
   us[1] = proclet.run(&Test::microtime);
   proclet.run(&Test::sleep, 1000 * 1000);
   us[2] = proclet.run(&Test::microtime);

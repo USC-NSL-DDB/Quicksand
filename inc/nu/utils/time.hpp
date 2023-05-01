@@ -14,13 +14,12 @@ namespace nu {
 
 class Time {
  public:
-  constexpr static uint64_t kMilliseconds = 1000;
-  constexpr static uint64_t kSeconds = 1000000;
-
   Time();
   static uint64_t rdtsc();
   static uint64_t microtime();
-  static void delay(uint64_t us);
+  static void delay_us(uint64_t us);
+  static void delay_ns(uint64_t ns);
+  static void delay_cycles(uint64_t cycles);
   static void sleep_until(uint64_t deadline_us, bool high_priority = false);
   static void sleep(uint64_t duration_us, bool high_priority = false);
 

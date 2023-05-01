@@ -5,8 +5,15 @@ namespace nu {
 
 inline Time::Time() : offset_tsc_(0) {}
 
-inline void Time::delay(uint64_t us) {
-  uint64_t cycles = us * cycles_per_us;
+inline void Time::delay_us(uint64_t us) {
+  delay_cycles(us * cycles_per_us);
+}
+
+inline void Time::delay_ns(uint64_t ns) {
+  delay_cycles(ns * cycles_per_us / 1000);
+}
+
+inline void Time::delay_cycles(uint64_t cycles) {
   unsigned long start = rdtsc();
 
   while (rdtsc() - start < cycles) {

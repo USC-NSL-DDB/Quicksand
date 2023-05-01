@@ -56,7 +56,7 @@ class Obj {
   }
 
   Args compute(Args args, int time_us) {
-    Time::delay(time_us);
+    Time::delay_us(time_us);
 
     for (auto &byte : args.data) {
       byte = 1;

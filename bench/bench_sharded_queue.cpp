@@ -55,7 +55,7 @@ class StaticConsumer {
         break;
       }
       for (std::size_t i = 0; i < batch.size(); ++i) {
-        nu::Time::delay(kConsumerPerElemWork);
+        nu::Time::delay_us(kConsumerPerElemWork);
       }
     }
   }
@@ -92,7 +92,7 @@ class ConsumerGroup {
         break;
       }
       for (std::size_t i = 0; i < batch.size(); ++i) {
-        nu::Time::delay(kConsumerPerElemWork);
+        nu::Time::delay_us(kConsumerPerElemWork);
       }
     }
   }
@@ -140,7 +140,7 @@ struct AutoScalingBench {
             if (!img) {
               break;
             }
-            nu::Time::delay(kProducerPerElemWork);
+            nu::Time::delay_us(kProducerPerElemWork);
             queue.push(*img);
           }
         },

@@ -16,7 +16,7 @@ namespace nu {
 class CalleeObj {
  public:
   uint32_t foo() {
-    Time::delay(1000 * 1000);
+    Time::delay_us(1000 * 1000);
     return kMagic;
   }
 };
