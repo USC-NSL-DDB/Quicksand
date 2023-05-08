@@ -929,6 +929,15 @@ inline void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
 
 template <class Container, class LL>
 template <class Archive>
+inline void ShardedDataStructure<Container, LL>::save_move(Archive &ar) {
+  flush();
+  ar(std::move(mapping_), mapping_seq_, key_to_shards_, max_num_vals_,
+     max_num_data_entries_);
+  key_to_shards_.clear();
+}
+
+template <class Container, class LL>
+template <class Archive>
 inline void ShardedDataStructure<Container, LL>::load(Archive &ar) {
   ar(mapping_, mapping_seq_, key_to_shards_, max_num_vals_,
      max_num_data_entries_);

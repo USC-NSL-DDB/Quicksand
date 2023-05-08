@@ -103,6 +103,8 @@ class ShardedDataStructure {
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
+  void save_move(Archive &ar);
+  template <class Archive>
   void load(Archive &ar);
 
  protected:
