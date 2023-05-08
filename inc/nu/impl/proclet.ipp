@@ -528,12 +528,12 @@ inline Proclet<T> make_proclet(std::tuple<As...> args_tuple, bool pinned,
                                std::optional<uint64_t> capacity,
                                std::optional<NodeIP> ip_hint) {
   return std::apply(
-      [&](auto &&... args) {
+      [&](auto &&...args) {
         return Proclet<T>::__create(
             pinned, capacity.value_or(kDefaultProcletHeapSize),
             ip_hint.value_or(0), std::forward<As>(args)...);
       },
-      args_tuple);
+      std::move(args_tuple));
 }
 
 template <typename T, typename... As>
