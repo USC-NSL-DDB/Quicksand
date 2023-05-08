@@ -24,9 +24,7 @@ void compute_on(const Element &e) {
 }
 
 struct Worker {
-  Worker(ShardedVec sv)
-      : sharded_vec(std::move(sv)),
-        sealed_vec(nu::to_sealed_ds(std::move(sharded_vec))) {}
+  Worker(ShardedVec sv) : sealed_vec(nu::to_sealed_ds(std::move(sv))) {}
 
   void do_work() {
     for (const auto &element : sealed_vec) {
@@ -34,7 +32,6 @@ struct Worker {
     }
   }
 
-  ShardedVec sharded_vec;
   nu::SealedDS<ShardedVec> sealed_vec;
 };
 
@@ -60,8 +57,8 @@ void run_sharded_vector() {
 
   std::vector<nu::Proclet<Worker>> computers;
   for (uint64_t i = 0; i < kNumComputeThreads; i++) {
-    computers.emplace_back(
-        nu::make_proclet<Worker>(std::make_tuple(std::move(sharded_vecs[i]))));
+    computers.emplace_back(nu::make_proclet<Worker>(
+        std::forward_as_tuple(std::move(sharded_vecs[i]))));
   }
 
   std::vector<nu::Future<void>> futures;
