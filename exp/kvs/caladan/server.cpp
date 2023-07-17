@@ -12,8 +12,7 @@
 
 #include <runtime.h>
 
-#include "nu/monitor.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
 #include "nu/utils/sync_hash_map.hpp"
@@ -22,7 +21,7 @@ using namespace nu;
 
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
-constexpr double kLoadFactor = 0.20;
+constexpr double kLoadFactor = 0.30;
 constexpr uint32_t kProxyPort = 10086;
 constexpr uint64_t kNumBuckets = 32768 * (1 << 13);
 

@@ -10,7 +10,7 @@ INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -
 -Ithrift/lib/cpp/src/ -I.
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -DNCORES=$(NCORES)
-override LDFLAGS += -lcrypto -lboost_program_options
+override LDFLAGS += -lcrypto -lboost_program_options -ldl
 
 lib_thrift = thrift/lib/cpp/.libs/libthrift.a
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a

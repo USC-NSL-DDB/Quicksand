@@ -9,9 +9,7 @@ NCORES = $(shell nproc)
 INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -DNCORES=$(NCORES)
-override LDFLAGS += -L$(NU_PATH)/glibc/build/install/lib
-override LDFLAGS += -lcrypto
-override LDFLAGS += -static -static-libstdc++ -static-libgcc -lpthread
+override LDFLAGS += -lcrypto -lpthread -lboost_program_options -ldl -lnuma
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
 lib_nu = $(NU_PATH)/libnu.a

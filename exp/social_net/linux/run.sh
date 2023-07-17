@@ -2,59 +2,73 @@
 
 source ../../shared.sh
 
+DISK_DEV=/dev/nvme1n1
+
 DIR=`pwd`
-mkdir logs
-rm -rf logs/*
+NGINX_SRV_IDX=1
+CLT_IDX=2
+SOCIAL_NET_DIR=$DIR/../../../app/socialNetwork/orig/
 
-NGINX_SERVER_IP=$SERVER7_IP
-SOCIAL_NET_DIR=`pwd`/../../../app/socialNetwork/orig/
-
-NGINX_SERVER_100G_IP=$(to_100g_addr $NGINX_SERVER_IP)
-CALADAN_IP=`echo $NGINX_SERVER_100G_IP | sed "s/\(.*\)\.\(.*\)\.\(.*\)\.\(.*\)/\1\.\2\.\3\.254/g"`
+NGINX_SRV_100G_IP=`run_cmd $NGINX_SRV_IDX "ifconfig $nic_dev" | grep "inet " | awk '{print $2}'`
+CALADAN_IP=`echo $NGINX_SRV_100G_IP | sed "s/\(.*\)\.\(.*\)\.\(.*\)\.\(.*\)/\1\.\2\.\3\.254/g"`
 sed "s/host_addr.*/host_addr $CALADAN_IP/g" -i conf/client.conf
 
 cd $SOCIAL_NET_DIR
-sed "s/constexpr static char kHostIP.*/constexpr static char kHostIP[] = \"$NGINX_SERVER_100G_IP\";/g" \
+sed "s/constexpr static char kHostIP.*/constexpr static char kHostIP[] = \"$NGINX_SRV_100G_IP\";/g" \
     -i src/Client/client.cpp
 ./build.sh
 
-ssh $NGINX_SERVER_IP "sudo apt-get update; sudo apt-get install -y python3-pip; pip3 install aiohttp"
-ssh $NGINX_SERVER_IP "sudo service irqbalance stop"
-ssh $NGINX_SERVER_IP "cd `pwd`/../../../caladan/scripts/; sudo ./set_irq_affinity 0-47 mlx5"
-SET_NIC_CMD="sudo ifconfig $DPDK_NIC down;"
-SET_NIC_CMD+="sudo ethtool -C $DPDK_NIC adaptive-rx off;"
-SET_NIC_CMD+="sudo ethtool -C $DPDK_NIC adaptive-tx off;"
-SET_NIC_CMD+="sudo ethtool -C $DPDK_NIC rx-usecs 0;"
-SET_NIC_CMD+="sudo ethtool -C $DPDK_NIC rx-frames 0;"
-SET_NIC_CMD+="sudo ethtool -C $DPDK_NIC tx-usecs 0;"
-SET_NIC_CMD+="sudo ethtool -C $DPDK_NIC tx-frames 0;"
-SET_NIC_CMD+="sudo ethtool -N $DPDK_NIC rx-flow-hash udp4 sdfn;"
+run_cmd $NGINX_SRV_IDX "sudo service irqbalance stop"
+run_cmd $NGINX_SRV_IDX "cd $DIR/../../../caladan/scripts/; sudo ./set_irq_affinity 0-47 mlx5"
+SET_NIC_CMD="sudo ifconfig $nic_dev down;"
+SET_NIC_CMD+="sudo ethtool -C $nic_dev adaptive-rx off;"
+SET_NIC_CMD+="sudo ethtool -C $nic_dev adaptive-tx off;"
+SET_NIC_CMD+="sudo ethtool -C $nic_dev rx-usecs 0;"
+SET_NIC_CMD+="sudo ethtool -C $nic_dev rx-frames 0;"
+SET_NIC_CMD+="sudo ethtool -C $nic_dev tx-usecs 0;"
+SET_NIC_CMD+="sudo ethtool -C $nic_dev tx-frames 0;"
+SET_NIC_CMD+="sudo ethtool -N $nic_dev rx-flow-hash udp4 sdfn;"
 SET_NIC_CMD+="sudo sysctl net.ipv4.tcp_syncookies=1;"
-SET_NIC_CMD+="sudo ifconfig $DPDK_NIC up;"
-ssh $NGINX_SERVER_IP "$SET_NIC_CMD"
-ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./install_docker.sh"
+SET_NIC_CMD+="sudo ifconfig $nic_dev up;"
+run_cmd $NGINX_SRV_IDX "$SET_NIC_CMD"
+run_cmd $NGINX_SRV_IDX "sudo apt-get update; sudo apt-get install -y python3-pip; pip3 install aiohttp"
+run_cmd $NGINX_SRV_IDX "cd $SOCIAL_NET_DIR; ./install_docker.sh"
+
+run_cmd $NGINX_SRV_IDX "sudo service docker stop;
+                        echo N | sudo mkfs.ext4 $DISK_DEV;
+                        sudo umount /mnt;
+                        sudo mount $DISK_DEV /mnt;
+                        sudo mkdir /mnt/docker;
+                        sudo mount --rbind /mnt/docker /var/lib/docker;
+                        sudo rm -rf /var/lib/docker/*;
+                        sudo service docker start;"
 
 mops=( 0.002 0.003 0.005 0.007 0.009 )
 
 for mop in ${mops[@]}
 do
-    cd $SOCIAL_NET_DIR
-    ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./up.sh"
+    run_cmd $NGINX_SRV_IDX "cd $SOCIAL_NET_DIR; ./up.sh"
     sleep 15
-    ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; python3 scripts/init_social_graph.py"
+    run_cmd $NGINX_SRV_IDX "cd $SOCIAL_NET_DIR; python3 scripts/init_social_graph.py"
+
+    cd $SOCIAL_NET_DIR
     sed "s/constexpr static double kTargetMops.*/constexpr static double kTargetMops = $mop;/g" -i src/Client/client.cpp
     cd build
     make clean
     make -j
-    sudo $NU_DIR/caladan/iokerneld &
+
+    cd src/Client/
+    run_cmd $CLT_IDX "mkdir -p `pwd`"
+    distribute client $CLT_IDX
+    start_iokerneld $CLT_IDX
     sleep 5
-    cd ..
-    sudo build/src/Client/client $DIR/conf/client.conf 1>$DIR/logs/$mop 2>&1
-    sudo pkill -9 iokerneld
-    ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./down.sh"
-    ssh $NGINX_SERVER_IP 'docker rm -vf $(docker ps -aq)'
-    ssh $NGINX_SERVER_IP 'docker rmi -f $(docker images -aq)'
-    ssh $NGINX_SERVER_IP "docker volume prune -f"
+    run_program client $CLT_IDX $DIR/conf/client.conf 1>$DIR/logs/$mop 2>&1
+
+    run_cmd $NGINX_SRV_IDX "cd $SOCIAL_NET_DIR; ./down.sh"
+    run_cmd $NGINX_SRV_IDX 'docker rm -vf $(docker ps -aq)'
+    run_cmd $NGINX_SRV_IDX "docker volume prune -f"
+    cleanup
+    sleep 5
 done
 
-ssh $NGINX_SERVER_IP "cd $SOCIAL_NET_DIR; ./down.sh;"
+run_cmd $NGINX_SRV_IDX "cd $SOCIAL_NET_DIR; ./down.sh;"

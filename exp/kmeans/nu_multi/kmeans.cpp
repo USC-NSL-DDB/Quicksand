@@ -25,7 +25,6 @@
  */
 
 #include <algorithm>
-#include <array>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/array.hpp>
 #include <cereal/types/vector.hpp>
@@ -34,25 +33,26 @@
 #include <limits>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <vector>
 
 #include "map_reduce.h"
 
 using Data_t = int64_t;
 
 // Number of vectors
-constexpr int kNumPoints = 40000;
+constexpr int kNumPoints = 1000000;
 // Dimension of each vector
-constexpr int kDim = 1000;
+constexpr int kDim = 400;
 // Number of clusters
 constexpr int kNumMeans = 1000;
 // Size of each dimension of vector space
 constexpr Data_t kGridSize = 8ULL << 32;
 constexpr bool kDumpResult = false;
+constexpr int kChunkSize = 32;
 
-constexpr int kNumWorkerNodes = 30;
-constexpr int kNumThreadsPerWorker = 28;
+constexpr int kNumWorkerNodes = 1;
+constexpr int kNumThreadsPerWorker = 23;
 constexpr int kNumWorkerThreads = kNumWorkerNodes * kNumThreadsPerWorker;
-constexpr int kChunkSize = 6;
 
 struct point {
   Data_t d[kDim];
@@ -101,13 +101,13 @@ struct point {
   }
 };
 
-std::array<point, kNumPoints> points;
+std::vector<point> points;
 
 template <class V, template <class> class Allocator>
 class point_combiner
     : public associative_combiner<point_combiner<V, Allocator>, V, Allocator> {
 public:
-  static void F(point &a, point const &b) {   
+  static void F(point &a, point const &b) {
     a.cluster += b.cluster;
     for (int i = 0; i < kDim; i++)
       a.d[i] += b.d[i];
@@ -125,7 +125,7 @@ class KmeansMR
     : public MapReduce<KmeansMR, task_id, intptr_t, point, point_combiner> {
 public:
   std::vector<point> means;
-  
+
   KmeansMR() {}
 
   KmeansMR(uint64_t num_worker_threads) : MapReduce(num_worker_threads) {}
@@ -139,7 +139,7 @@ public:
       Data_t cur_dist = p.sq_dist(means[j]);
       if (cur_dist < min_dist) {
         min_dist = cur_dist;
-        min_idx = j;	
+        min_idx = j;
       }
     }
     emit_intermediate(out, min_idx, point(p.d, 1));
@@ -208,7 +208,8 @@ void real_main(int argc, char **argv) {
 int main(int argc, char **argv) {
   srand(0);
   for (int i = 0; i < kNumPoints; i++) {
-    points[i].generate();
+    points.emplace_back();
+    points.back().generate();
   }
   nu::runtime_main_init(argc, argv,
                         [](int argc, char **argv) { real_main(argc, argv); });

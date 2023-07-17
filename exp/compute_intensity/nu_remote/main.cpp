@@ -16,11 +16,12 @@ extern "C" {
 
 using namespace nu;
 
-constexpr uint32_t kCPUFreq = 2794;
-constexpr uint32_t kDelayNs = 100;
+constexpr uint32_t kDelayNs = 10000;
 constexpr uint32_t kNumThreads = 2000;
 constexpr uint32_t kPrintIntervalUS = 1000 * 1000;
 constexpr uint32_t kNumItersPerYield = 1000 * 1000 / kDelayNs;
+constexpr uint32_t kServerIP = MAKE_IP_ADDR(18, 18, 1, 4);
+constexpr uint32_t kClientIP = MAKE_IP_ADDR(18, 18, 1, 3);
 
 struct alignas(kCacheLineBytes) AlignedCnt {
   uint32_t cnt;
@@ -28,7 +29,7 @@ struct alignas(kCacheLineBytes) AlignedCnt {
 
 void delay_ns(uint64_t ns) {
   auto start_tsc = rdtsc();
-  uint64_t cycles = ns * kCPUFreq / 1000.0;
+  uint64_t cycles = ns * cycles_per_us / 1000.0;
   auto end_tsc = start_tsc + cycles;
   while (rdtsc() < end_tsc)
     ;
@@ -46,7 +47,7 @@ public:
   }
 
   void run() {
-    auto obj = make_proclet<Obj>();
+    auto obj = make_proclet<Obj>(true, std::nullopt, kServerIP);
 
     std::vector<rt::Thread> threads;
     for (uint32_t i = 0; i < kNumThreads; i++) {
@@ -82,7 +83,7 @@ private:
 };
 
 void do_work() {
-  auto experiment = make_proclet<Experiment>();
+  auto experiment = make_proclet<Experiment>(true, std::nullopt, kClientIP);
   experiment.run(&Experiment::run);
 }
 

@@ -10,27 +10,20 @@
 #include <utility>
 #include <vector>
 
-#include <csignal>
 #include <runtime.h>
-#include <sync.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
 #include "nu/utils/thread.hpp"
 
-using namespace nu;
-
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
-constexpr double kLoadFactor = 0.20;
-constexpr uint32_t kNumProxies = 2;
-constexpr uint32_t kProxyIps[] = {MAKE_IP_ADDR(18, 18, 1, 2),
-                                  MAKE_IP_ADDR(18, 18, 1, 5)};
+constexpr double kLoadFactor = 0.30;
+constexpr uint32_t kNumProxies = 6;
 constexpr uint32_t kProxyPort = 10086;
-
-bool signalled = false;
+constexpr uint32_t kPowerNumShards = 16;
 
 struct Key {
   char data[kKeyLen];
@@ -63,20 +56,15 @@ struct Resp {
   Val val;
 };
 
-namespace nu {
-
-class Test {
-public:
-  constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
-    return util::Hash64(key.data, kKeyLen);
-  };
-  using DSHashTable =
-      DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
-  constexpr static size_t kNumPairs =
-      (1 << DSHashTable::kDefaultPowerNumShards) *
-      DSHashTable::kNumBucketsPerShard * kLoadFactor;
+constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
+  return util::Hash64(key.data, kKeyLen);
 };
-} // namespace nu
+
+using DSHashTable =
+    nu::DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
+
+constexpr static size_t kNumPairs =
+    (1 << kPowerNumShards) * DSHashTable::kNumBucketsPerShard * kLoadFactor;
 
 void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
   for (uint32_t i = 0; i < len; i++) {
@@ -84,7 +72,7 @@ void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
   }
 }
 
-void init(Test::DSHashTable *hash_table) {
+void init(DSHashTable *hash_table) {
   std::vector<nu::Thread> threads;
   constexpr uint32_t kNumThreads = 400;
   for (uint32_t i = 0; i < kNumThreads; i++) {
@@ -92,7 +80,7 @@ void init(Test::DSHashTable *hash_table) {
       std::random_device rd;
       std::mt19937 mt(rd());
       std::uniform_int_distribution<int> dist('A', 'z');
-      auto num_pairs = Test::kNumPairs / kNumThreads;
+      auto num_pairs = kNumPairs / kNumThreads;
       for (size_t j = 0; j < num_pairs; j++) {
         Key key;
         Val val;
@@ -108,8 +96,8 @@ void init(Test::DSHashTable *hash_table) {
 }
 
 class Proxy {
-public:
-  Proxy(Test::DSHashTable::Cap cap) : hash_table_(cap) {}
+ public:
+  Proxy(DSHashTable hash_table) : hash_table_(std::move(hash_table)) {}
 
   void run_loop() {
     netaddr laddr = {.ip = 0, .port = kProxyPort};
@@ -131,50 +119,38 @@ public:
       if (resp.found) {
         resp.val = *optional_v;
       }
-      auto id = hash_table_.get_shard_obj_id(req.shard_id);
+      auto id = hash_table_.get_shard_proclet_id(req.shard_id);
       if (is_local) {
         resp.latest_shard_ip = 0;
       } else {
-        resp.latest_shard_ip = Runtime::get_ip_by_rem_obj_id(id);
+        resp.latest_shard_ip =
+            nu::get_runtime()->rpc_client_mgr()->get_ip_by_proclet_id(id);
       }
       BUG_ON(c->WriteFull(&resp, sizeof(resp)) < 0);
     }
   }
 
-private:
-  Test::DSHashTable hash_table_;
+ private:
+  DSHashTable hash_table_;
 };
 
-void wait_for_signal() {
-  while (!rt::access_once(signalled)) {
-    timer_sleep(100);
-  }
-  rt::access_once(signalled) = false;
-}
-
 void do_work() {
-  Test::DSHashTable hash_table;
-  std::cout << "start initing..." << std::endl;
+  DSHashTable hash_table =
+      nu::make_dis_hash_table<Key, Val, decltype(kFarmHashKeytoU64)>(
+          kPowerNumShards);
   init(&hash_table);
   std::cout << "finish initing..." << std::endl;
 
-  wait_for_signal();
-
-  std::cout << "creating proxies..." << std::endl;
   std::vector<nu::Future<void>> futures;
-  RemObj<Proxy> proxies[kNumProxies];
+  nu::Proclet<Proxy> proxies[kNumProxies];
   for (uint32_t i = 0; i < kNumProxies; i++) {
     proxies[i] =
-        RemObj<Proxy>::create_pinned_at(kProxyIps[i], hash_table.get_cap());
+        nu::make_proclet<Proxy>(std::forward_as_tuple(hash_table), true);
     futures.emplace_back(proxies[i].run_async(&Proxy::run_loop));
   }
-
   futures.front().get();
 }
 
-void signal_handler(int signum) { rt::access_once(signalled) = true; }
-
 int main(int argc, char **argv) {
-  signal(SIGHUP, signal_handler);
-  return runtime_main_init(argc, argv, [](int, char **) { do_work(); });
+  return nu::runtime_main_init(argc, argv, [](int, char **) { do_work(); });
 }

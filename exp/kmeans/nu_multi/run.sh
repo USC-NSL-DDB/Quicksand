@@ -1,66 +1,53 @@
 #!/bin/bash
+
 source ../../shared.sh
+caladan_use_small_rto # Cloudlab's amd instances are buggy and drop pkts from time to time.
+                      # To avoid the performance impact caused by packet losses, we use a small RTO.
 
-mkdir logs
-rm -rf logs/*
-
-set_bridge $CONTROLLER_ETHER
-set_bridge $CLIENT1_ETHER
+CTL_IDX=32
+CLT_IDX=31
+LPID=1
+KS=23
 
 DIR=`pwd`
-CTRL_IP=18.18.1.3
-LPID=1
-KMEANS_DIR=$NU_DIR/app/phoenix++-1.0/tests/kmeans/
+PHOENIX_DIR=$DIR/../../../app/phoenix++-1.0/nu
+KMEANS_DIR=$PHOENIX_DIR/tests/kmeans/
 
-cp $KMEANS_DIR/kmeans.cpp $KMEANS_DIR/kmeans.cpp.bak
-cp kmeans.cpp $KMEANS_DIR
-
-for num_worker_servers in `seq 1 30`
+cp kmeans.cpp $KMEANS_DIR/kmeans.cpp
+for num_srvs in `seq 1 30`
 do
-    cd $NU_DIR/app/phoenix++-1.0/
-    make clean
-    make -j
-    cd tests/kmeans/
-    sed "s/constexpr int kNumWorkerNodes.*/constexpr int kNumWorkerNodes = $num_worker_servers;/g" \
+    cd $KMEANS_DIR
+    sed "s/constexpr int kNumWorkerNodes.*/constexpr int kNumWorkerNodes = $num_srvs;/g" \
 	-i kmeans.cpp
+    pushd $PHOENIX_DIR
     make clean
     make -j
-    cp kmeans $DIR/main
-    cd $DIR
-    for ip in ${REMOTE_SERVER_IPS[*]}
+    popd
+
+    start_iokerneld $CTL_IDX
+    start_iokerneld $CLT_IDX
+    for srv_idx in `seq 1 $num_srvs`
     do
-	scp main $ip:`pwd`
+	start_iokerneld $srv_idx
     done
     sleep 5
-    sudo $NU_DIR/caladan/iokerneld &
-    for i in `seq 1 $num_worker_servers`
-    do
-	ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
-	ssh $ip "sudo $NU_DIR/caladan/iokerneld" &
-    done
+
+    start_ctrl $CTL_IDX
     sleep 5
-    sudo $NU_DIR/bin/ctrl_main conf/controller &
-    sleep 5
-    for i in `seq 1 $num_worker_servers`
+
+    for srv_idx in `seq 1 $num_srvs`
     do
-	ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
-	conf=conf/server$i
-	ssh $ip "cd `pwd`; sudo ./main $conf SRV $CTRL_IP $LPID" &
+	distribute kmeans $srv_idx
+        start_server kmeans $srv_idx $LPID $KS &
     done
+
     sleep 5
-    sudo ./main conf/client1 CLT $CTRL_IP $LPID >logs/$num_worker_servers 2>&1 &
-    ( tail -f -n0 logs/$num_worker_servers & ) | grep -q "iter = 10"
-    sudo pkill -9 main
-    sudo pkill -9 iokerneld
-    for i in `seq 1 $num_worker_servers`
-    do
-	ip=${REMOTE_SERVER_IPS[`expr $i - 1`]}
-	ssh $ip "sudo pkill -9 iokerneld"	
-	ssh $ip "sudo pkill -9 main"	    
-    done
+    distribute kmeans $CLT_IDX
+    start_main_server_isol kmeans $CLT_IDX $LPID $KS >$DIR/logs/$num_srvs &
+    ( tail -f -n0 $DIR/logs/$num_srvs & ) | grep -q "iter = 10"
+
+    cleanup
+    sleep 5
 done
 
-cp $KMEANS_DIR/kmeans.cpp.bak $KMEANS_DIR/kmeans.cpp
-
-unset_bridge $CONTROLLER_ETHER
-unset_bridge $CLIENT1_ETHER
+caladan_use_default_rto

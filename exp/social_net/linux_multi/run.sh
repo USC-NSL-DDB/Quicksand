@@ -2,56 +2,68 @@
 
 source ../../shared.sh
 
-DIR=`pwd`
-mkdir logs
-rm -rf logs/*
+DISK_DEV=/dev/nvme1n1
 
-DOCKER_MASTER_IP=${REMOTE_SERVER_IPS[0]}
-SOCIAL_NET_DIR=`pwd`/../../../app/socialNetwork/orig/
+DIR=`pwd`
+DOCKER_MASTER_IDX=32
+DOCKER_MASTER_IP=$(ssh_ip $DOCKER_MASTER_IDX)
+CLT_IDX=31
+SOCIAL_NET_DIR=$DIR/../../../app/socialNetwork/orig/
+MOPS=0.4
 
 cd $SOCIAL_NET_DIR
 ./build.sh
 
-for num_worker_nodes in `seq 1 30`
-do
-    mop=${mops[`expr $num_worker_nodes - 1`]}
-    mop=0.4
+mount_docker_folder_cmd="sudo service docker stop;
+                         echo N | sudo mkfs.ext4 $DISK_DEV;
+                         sudo umount /mnt;
+                         sudo mount $DISK_DEV /mnt;
+                         sudo mkdir /mnt/docker;
+                         sudo mount --rbind /mnt/docker /var/lib/docker;
+                         sudo rm -rf /var/lib/docker/*;
+                         sudo service docker start;"
+run_cmd $DOCKER_MASTER_IDX $mount_docker_folder_cmd
 
-    ssh $DOCKER_MASTER_IP "cd $SOCIAL_NET_DIR; ./install_docker.sh"
-    join_cmd=`ssh $DOCKER_MASTER_IP "docker swarm init --advertise-addr $DOCKER_MASTER_IP" | grep token | head -n 1`
-    for i in `seq 1 $num_worker_nodes`
+for num_srvs in `seq 1 30`
+do
+    run_cmd $DOCKER_MASTER_IDX "cd $SOCIAL_NET_DIR; ./install_docker.sh"
+    join_cmd=`run_cmd $DOCKER_MASTER_IDX "docker swarm init --advertise-addr $DOCKER_MASTER_IP" | grep token | head -n 1`
+    docker_master_hostname=$(run_cmd $DOCKER_MASTER_IDX "docker node ls | tail -n 1 | awk '{print \$3}'")
+    run_cmd $DOCKER_MASTER_IDX "docker node update --availability drain $docker_master_hostname"
+    for srv_idx in `seq 1 $num_srvs`
     do
-	ssh ${REMOTE_SERVER_IPS[$i]} "cd $SOCIAL_NET_DIR; ./install_docker.sh"
-	ssh ${REMOTE_SERVER_IPS[$i]} "$join_cmd"
+	run_cmd $srv_idx $mount_docker_folder_cmd
+	run_cmd $srv_idx "cd $SOCIAL_NET_DIR; ./install_docker.sh"
+    run_cmd $srv_idx "$join_cmd"
     done
 
     cd $SOCIAL_NET_DIR
-    ssh $DOCKER_MASTER_IP "cd $SOCIAL_NET_DIR; docker stack deploy --compose-file=docker-compose-swarm.yml socialnet"
+    run_cmd $DOCKER_MASTER_IDX "cd $SOCIAL_NET_DIR; docker stack deploy --compose-file=docker-compose-swarm.yml socialnet"
     sleep 60
 
-    for i in `seq 1 $num_worker_nodes`
+    for srv_idx in `seq 1 $num_srvs`
     do
-	ip=${REMOTE_SERVER_IPS[$i]}
-	has_openresty=`ssh $ip "docker container ls | grep openresty | wc -l"`
-	has_composepost=`ssh $ip "docker container ls | grep ComposePostService | wc -l"`
-	has_usertimeline=`ssh $ip "docker container ls | grep UserTimelineService | wc -l"`
-	has_socialgraph=`ssh $ip "docker container ls | grep SocialGraphService | wc -l"`
-	has_hometimeline=`ssh $ip "docker container ls | grep HomeTimelineService | wc -l"`
+	has_openresty=`run_cmd $srv_idx "docker container ls | grep openresty | wc -l"`
+	has_composepost=`run_cmd $srv_idx "docker container ls | grep ComposePostService | wc -l"`
+	has_usertimeline=`run_cmd $srv_idx "docker container ls | grep UserTimelineService | wc -l"`
+	has_socialgraph=`run_cmd $srv_idx "docker container ls | grep SocialGraphService | wc -l"`
+	has_hometimeline=`run_cmd $srv_idx "docker container ls | grep HomeTimelineService | wc -l"`
 	if [[ $has_openresty -ne 0 ]]; then
-	    ssh $ip "sudo apt-get update; sudo apt-get install -y python3-pip; pip3 install aiohttp"
-	    ssh $ip "cd $SOCIAL_NET_DIR; python3 scripts/init_social_graph.py"
+	    run_cmd $srv_idx "sudo apt-get update; sudo apt-get install -y python3-pip; pip3 install aiohttp"
+	    run_cmd $srv_idx "cd $SOCIAL_NET_DIR; python3 scripts/init_social_graph.py"
 	fi
+	ip_100g=`run_cmd $srv_idx "ifconfig $nic_dev" | grep "inet " | awk '{print $2}'`
 	if [[ $has_composepost -ne 0 ]]; then
-	    composepost_ip=$(to_100g_addr $ip)
+	    composepost_ip=$ip_100g
 	fi
 	if [[ $has_usertimeline -ne 0 ]]; then
-	    usertimeline_ip=$(to_100g_addr $ip)
+	    usertimeline_ip=$ip_100g
 	fi
 	if [[ $has_socialgraph -ne 0 ]]; then
-	    socialgraph_ip=$(to_100g_addr $ip)
+	    socialgraph_ip=$ip_100g
 	fi
 	if [[ $has_hometimeline -ne 0 ]]; then
-	    hometimeline_ip=$(to_100g_addr $ip)
+	    hometimeline_ip=$ip_100g
 	fi
     done
 
@@ -63,29 +75,32 @@ do
 	-i src/ClientSwarm/client_swarm.cpp
     sed "s/constexpr static char kSocialGraphIP.*/constexpr static char kSocialGraphIP[] = \"$socialgraph_ip\";/g" \
 	-i src/ClientSwarm/client_swarm.cpp
-    sed "s/constexpr static double kTargetMops.*/constexpr static double kTargetMops = $mop;/g" \
+    sed "s/constexpr static double kTargetMops.*/constexpr static double kTargetMops = $MOPS;/g" \
 	-i src/ClientSwarm/client_swarm.cpp
     cd build
     make clean
     make -j
-    sudo $NU_DIR/caladan/iokerneld &
-    sleep 5
-    cd ..
-    sudo build/src/ClientSwarm/client_swarm $DIR/conf/client.conf 1>$DIR/logs/$num_worker_nodes 2>&1
-    sudo pkill -9 iokerneld
 
-    ssh $DOCKER_MASTER_IP "docker stack rm socialnet"
+    cd src/ClientSwarm
+    run_cmd $CLT_IDX "mkdir -p `pwd`"
+    distribute client_swarm $CLT_IDX
+    start_iokerneld $CLT_IDX
+    sleep 5
+    run_program client_swarm $CLT_IDX $DIR/conf/client.conf 1>$DIR/logs/$num_srvs 2>&1
+
+    run_cmd $DOCKER_MASTER_IDX "docker stack rm socialnet"
     sleep 15
-    for i in `seq 1 $num_worker_nodes`
+    for srv_idx in `seq 1 $num_srvs`
     do
-	ssh ${REMOTE_SERVER_IPS[$i]} "docker swarm leave --force"
+        run_cmd $srv_idx "docker swarm leave --force"
     done
-    ssh $DOCKER_MASTER_IP "docker swarm leave --force"
-    for i in `seq 0 $num_worker_nodes`
+    run_cmd $DOCKER_MASTER_IDX "docker swarm leave --force"
+    for srv_idx in `seq 1 $num_srvs`
     do
-	ip=${REMOTE_SERVER_IPS[$i]}
-	ssh $ip 'docker rm -vf $(docker ps -aq)'
-	ssh $ip 'docker rmi -f $(docker images -aq)'
-	ssh $ip "docker volume prune -f"
+	run_cmd $srv_idx 'docker rm -vf $(docker ps -aq)'
+	run_cmd $srv_idx "docker volume prune -f"
     done
+
+    cleanup
+    sleep 5
 done

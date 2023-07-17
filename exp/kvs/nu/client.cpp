@@ -14,7 +14,7 @@
 #include <runtime.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
 #include "nu/utils/rcu_hash_map.hpp"
@@ -24,15 +24,17 @@ using namespace nu;
 
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
-constexpr double kLoadFactor = 0.20;
+constexpr double kLoadFactor = 0.30;
 constexpr uint32_t kPrintIntervalUS = 1000 * 1000;
 constexpr uint32_t kNumProxies = 1;
-constexpr uint32_t kProxyIps[] = {
-    MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 5),
-    MAKE_IP_ADDR(18, 18, 1, 7), MAKE_IP_ADDR(18, 18, 1, 8)};
+constexpr uint32_t kProxyIps[] = {MAKE_IP_ADDR(18, 18, 1, 3)};
 constexpr uint32_t kProxyPort = 10086;
-constexpr uint32_t kNumThreads = 250;
-constexpr double kTargetMops = 9;
+constexpr static netaddr kClientAddrs[] = {
+    {.ip = MAKE_IP_ADDR(18, 18, 1, 4), .port = 9000},
+    {.ip = MAKE_IP_ADDR(18, 18, 1, 5), .port = 9000},
+};
+constexpr uint32_t kNumThreads = 500;
+constexpr double kTargetMops = 1;
 constexpr uint32_t kWarmupUs = 1 * kOneSecond;
 constexpr uint32_t kDurationUs = 15 * kOneSecond;
 
@@ -81,20 +83,15 @@ struct Resp {
   Val val;
 };
 
-namespace nu {
-
-class Test {
-public:
-  constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
-    return util::Hash64(key.data, kKeyLen);
-  };
-  using DSHashTable =
-      DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
-  constexpr static size_t kNumPairs =
-      (1 << DSHashTable::kDefaultPowerNumShards) *
-      DSHashTable::kNumBucketsPerShard * kLoadFactor;
+constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
+  return util::Hash64(key.data, kKeyLen);
 };
-} // namespace nu
+
+using DSHashTable = DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
+
+constexpr static size_t kNumPairs = (1 << DSHashTable::kDefaultPowerNumShards) *
+                                    DSHashTable::kNumBucketsPerShard *
+                                    kLoadFactor;
 
 void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
   for (uint32_t i = 0; i < len; i++) {
@@ -130,8 +127,8 @@ public:
 
     auto perf_req = std::make_unique<PerfReq>();
     random_str(state->dist_char, state->gen, kKeyLen, perf_req->req.key.data);
-    perf_req->req.shard_id = Test::DSHashTable::get_shard_idx(
-        perf_req->req.key, Test::DSHashTable::kDefaultPowerNumShards);
+    perf_req->req.shard_id = DSHashTable::get_shard_idx(
+        perf_req->req.key, DSHashTable::kDefaultPowerNumShards);
 
     return perf_req;
   }
@@ -163,15 +160,16 @@ void do_work() {
 
   MemcachedPerfAdapter memcached_perf_adapter;
   nu::Perf perf(memcached_perf_adapter);
-  perf.run(kNumThreads, kTargetMops, kDurationUs, kWarmupUs,
-           50 * nu::kOneMilliSecond);
+  perf.run_multi_clients(std::span(kClientAddrs), kNumThreads,
+                         kTargetMops / std::size(kClientAddrs), kDurationUs,
+                         kWarmupUs, 50 * nu::kOneMilliSecond);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
                "99.9th_lat"
             << std::endl;
   std::cout << perf.get_real_mops() << " " << perf.get_average_lat() << " "
             << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
             << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
-            << perf.get_nth_lat(99.9) << std::endl;  
+            << perf.get_nth_lat(99.9) << std::endl;
 }
 
 int main(int argc, char **argv) {

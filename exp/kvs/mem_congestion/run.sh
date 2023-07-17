@@ -1,67 +1,85 @@
 #!/bin/bash
 
 source ../../shared.sh
-CTRL_IP=18.18.1.3
+
+NUM_SRVS=15
+NUM_CLTS=$NUM_SRVS
+SRV_START_IDX=1
+VICTIM_IDX=$NUM_SRVS
+CTL_IDX=`expr $NUM_SRVS + $NUM_CLTS + 1`
 LPID=1
+KS=26
 
-mkdir logs
-rm -rf logs/*
+DIR=`pwd`
 
-set_bridge $CONTROLLER_ETHER
-set_bridge $CLIENT1_ETHER
+get_srv_idx() {
+    echo $1
+}
 
-SRC_SERVER_IP=$SERVER2_IP
-DEST_SERVER_IP=$SERVER3_IP
-CLIENT_IP=$SERVER4_IP
+get_clt_idx() {
+    echo `expr $1 + $NUM_SRVS`
+}
 
-make clean
+start_iokerneld $CTL_IDX
+for i in `seq 1 $NUM_SRVS`
+do
+    start_iokerneld $(get_srv_idx $i)
+done
+
+for i in `seq 1 $NUM_CLTS`
+do
+    start_iokerneld $(get_clt_idx $i)
+done
+sleep 5
+
+start_ctrl $CTL_IDX
+sleep 5
+
+sed "s/constexpr uint32_t kNumProxies.*/constexpr uint32_t kNumProxies = $NUM_SRVS;/g" \
+    -i server.cpp
+sed "s/constexpr uint32_t kNumProxies.*/constexpr uint32_t kNumProxies = $NUM_SRVS;/g" \
+    -i client.cpp
 make -j
 
-scp server $SRC_SERVER_IP:`pwd`
-scp server $DEST_SERVER_IP:`pwd`
-scp client $CLIENT_IP:`pwd`
+for i in `seq 1 $NUM_SRVS`
+do
+    srv_idx=$(get_srv_idx $i)
+    distribute server $srv_idx
 
-sudo $NU_DIR/caladan/iokerneld &
-sleep 5
-sudo $NU_DIR/bin/ctrl_main conf/controller &
-ssh $SRC_SERVER_IP "cd `pwd`; source ../../shared.sh; set_bridge $SERVER1_ETHER"
-ssh $SRC_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
-sleep 5
-ssh $SRC_SERVER_IP "cd `pwd`; sudo ./server conf/server1 SRV $CTRL_IP $LPID" >logs/.src &
-sleep 5
-sudo ./server conf/client1 CLT $CTRL_IP $LPID &
-( tail -f -n0 logs/.server & ) | grep -q "finish initing"
-ssh $DEST_SERVER_IP "cd `pwd`; source ../../shared.sh; set_bridge $SERVER2_ETHER"
-ssh $DEST_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
-sleep 5
-ssh $DEST_SERVER_IP "cd `pwd`; sudo ./server conf/server2 SRV $CTRL_IP $LPID" >logs/.dest &
-sleep 5
-sudo pkill -SIGHUP server
-ssh $SRC_SERVER_IP "cd `pwd`; sudo stdbuf -o0 ../../../bin/bench_real_mem_pressure conf/client3" >logs/.pressure &
-pid_pressure=$!
-( tail -f -n0 logs/.pressure & ) | grep -q "waiting for signal"
-ssh $CLIENT_IP "sudo $NU_DIR/caladan/iokerneld" &
-sleep 5
-ssh $CLIENT_IP "cd `pwd`; sudo stdbuf -o0 ./client conf/client2" >logs/client &
-pid_client=$!
-sleep 25
-ssh $SRC_SERVER_IP "sudo pkill -SIGHUP bench_real_mem"
-wait $pid_client
-ssh $SRC_SERVER_IP "sudo pkill -SIGHUP bench_real_mem"
-wait $pid_pressure
-scp $SRC_SERVER_IP:`pwd`/alloc_mem_traces logs/
-scp $SRC_SERVER_IP:`pwd`/avail_mem_traces logs/
+    if [[ $i -ne $NUM_SRVS ]]
+    then
+	start_server server $srv_idx $LPID $KS $KS >logs/srv_$i &
+    else
+	sleep 5
+	start_main_server server $srv_idx $LPID $KS $KS >logs/main &
+    fi
+done
 
-sudo pkill -9 iokerneld
-sudo pkill -9 server
-sudo pkill -9 ctrl_main
-ssh $SRC_SERVER_IP "sudo pkill -9 iokerneld"
-ssh $SRC_SERVER_IP "sudo pkill -9 server"
-ssh $DEST_SERVER_IP "sudo pkill -9 iokerneld"
-ssh $DEST_SERVER_IP "sudo pkill -9 server"
-ssh $CLIENT_IP "sudo pkill -9 iokerneld"
+( tail -f -n0 logs/main & ) | grep -q "finish initing"
 
-unset_bridge $CONTROLLER_ETHER
-unset_bridge $CLIENT1_ETHER
-ssh $SRC_SERVER_IP "cd `pwd`; source ../../shared.sh; unset_bridge $SERVER1_ETHER"
-ssh $DEST_SERVER_IP "cd `pwd`; source ../../shared.sh; unset_bridge $SERVER2_ETHER"
+mem_antagonist=$NU_DIR/bin/bench_real_mem_pressure
+distribute $mem_antagonist $VICTIM_IDX
+antagonist_log=$DIR/logs/antagonist
+run_program $mem_antagonist $VICTIM_IDX $DIR/conf/antagonist.conf >$antagonist_log &
+antagonist_pid=$!
+( tail -f -n0 $antagonist_log & ) | grep -q "waiting for signal"
+
+for i in `seq 1 $NUM_CLTS`
+do
+    clt_idx=$(get_clt_idx $i)
+    distribute client $clt_idx
+
+    run_program client $clt_idx $DIR/conf/client$i >logs/$NUM_SRVS.$i &
+    client_pids+=" $!"
+done
+
+run_cmd $VICTIM_IDX "sleep 20; sudo pkill -SIGHUP bench"
+    
+wait $client_pids
+scp $(ssh_ip $(get_clt_idx 1)):`pwd`/timeseries $DIR/logs/
+
+run_cmd $VICTIM_IDX "sudo pkill -SIGHUP bench"
+wait $antagonist_pid
+scp $(ssh_ip $VICTIM_IDX):`pwd`/*traces $DIR/logs/
+    
+cleanup

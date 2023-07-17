@@ -10,7 +10,7 @@ make clean
 
 for delay in ${DELAYS[@]}
 do
-    sed "s/\(constexpr uint32_t kDelayNs =\).*/\1 $delay;/g" -i main.cpp
+    sed "s/\(constexpr uint32_t kDelayNs = \).*/\1$delay;/g" -i main.cpp
     make
 
     start_iokerneld $SRV_IDX
@@ -19,10 +19,7 @@ do
     start_ctrl $SRV_IDX
     sleep 5
 
-    start_server main $SRV_IDX $LPID 1>logs/$delay 2>&1 &
-    sleep 5
-    
-    start_client main $SRV_IDX $LPID &
+    start_main_server main $SRV_IDX $LPID 1>logs/$delay 2>&1 &
     sleep 10
 
     cleanup

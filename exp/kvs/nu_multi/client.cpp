@@ -13,7 +13,7 @@
 #include <runtime.h>
 
 #include "nu/dis_hash_table.hpp"
-#include "nu/rem_obj.hpp"
+#include "nu/proclet.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/farmhash.hpp"
 #include "nu/utils/rcu_hash_map.hpp"
@@ -22,23 +22,13 @@ using namespace nu;
 
 constexpr uint32_t kKeyLen = 20;
 constexpr uint32_t kValLen = 2;
-constexpr double kLoadFactor = 0.20;
+constexpr double kLoadFactor = 0.30;
 constexpr uint32_t kPrintIntervalUS = 1000 * 1000;
-constexpr uint32_t kNumProxies = 19;
-constexpr uint32_t kProxyIps[] = {
-    MAKE_IP_ADDR(18, 18, 1, 2),  MAKE_IP_ADDR(18, 18, 1, 5),
-    MAKE_IP_ADDR(18, 18, 1, 7),  MAKE_IP_ADDR(18, 18, 1, 8),
-    MAKE_IP_ADDR(18, 18, 1, 13), MAKE_IP_ADDR(18, 18, 1, 15),
-    MAKE_IP_ADDR(18, 18, 1, 17), MAKE_IP_ADDR(18, 18, 1, 19),
-    MAKE_IP_ADDR(18, 18, 1, 21), MAKE_IP_ADDR(18, 18, 1, 23),
-    MAKE_IP_ADDR(18, 18, 1, 25), MAKE_IP_ADDR(18, 18, 1, 27),
-    MAKE_IP_ADDR(18, 18, 1, 29), MAKE_IP_ADDR(18, 18, 1, 31),
-    MAKE_IP_ADDR(18, 18, 1, 33), MAKE_IP_ADDR(18, 18, 1, 35),
-    MAKE_IP_ADDR(18, 18, 1, 37), MAKE_IP_ADDR(18, 18, 1, 39),
-    MAKE_IP_ADDR(18, 18, 1, 41), MAKE_IP_ADDR(18, 18, 1, 43)};
+constexpr uint32_t kNumProxies = 1;
 constexpr uint32_t kProxyPort = 10086;
-constexpr uint32_t kNumThreads = 200;
+constexpr uint32_t kNumThreads = 500;
 
+uint32_t proxyIPs[kNumProxies];
 rt::TcpConn *conns[kNumProxies][kNumThreads];
 
 RCUHashMap<uint32_t, uint32_t> shard_id_to_proxy_id_map_;
@@ -68,20 +58,15 @@ struct Resp {
   Val val;
 };
 
-namespace nu {
-
-class Test {
-public:
-  constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
-    return util::Hash64(key.data, kKeyLen);
-  };
-  using DSHashTable =
-      DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
-  constexpr static size_t kNumPairs =
-      (1 << DSHashTable::kDefaultPowerNumShards) *
-      DSHashTable::kNumBucketsPerShard * kLoadFactor;
+constexpr static auto kFarmHashKeytoU64 = [](const Key &key) {
+  return util::Hash64(key.data, kKeyLen);
 };
-} // namespace nu
+
+using DSHashTable = DistributedHashTable<Key, Val, decltype(kFarmHashKeytoU64)>;
+
+constexpr static size_t kNumPairs = (1 << DSHashTable::kDefaultPowerNumShards) *
+                                    DSHashTable::kNumBucketsPerShard *
+                                    kLoadFactor;
 
 void random_str(auto &dist, auto &mt, uint32_t len, char *buf) {
   for (uint32_t i = 0; i < len; i++) {
@@ -98,12 +83,12 @@ void gen_reqs(std::vector<Req> *reqs) {
       std::random_device rd;
       std::mt19937 mt(rd());
       std::uniform_int_distribution<int> dist('A', 'z');
-      auto num_pairs = Test::kNumPairs / kNumThreads;
+      auto num_pairs = kNumPairs / kNumThreads;
       for (size_t j = 0; j < num_pairs; j++) {
         Key key;
         random_str(dist, mt, kKeyLen, key.data);
-        auto shard_id = Test::DSHashTable::get_shard_idx(
-            key, Test::DSHashTable::kDefaultPowerNumShards);
+        auto shard_id = DSHashTable::get_shard_idx(
+            key, DSHashTable::kDefaultPowerNumShards);
         reqs[tid].push_back({key, shard_id});
       }
     });
@@ -121,10 +106,10 @@ void hashtable_get(uint32_t tid, const Req &req) {
   Resp resp;
   BUG_ON(conns[proxy_id][tid]->ReadFull(&resp, sizeof(resp)) <= 0);
   if (resp.latest_shard_ip) {
-    auto proxy_ip_ptr = std::find(std::begin(kProxyIps), std::end(kProxyIps),
+    auto proxy_ip_ptr = std::find(std::begin(proxyIPs), std::end(proxyIPs),
                                   resp.latest_shard_ip);
-    BUG_ON(proxy_ip_ptr == std::end(kProxyIps));
-    uint32_t proxy_id = proxy_ip_ptr - std::begin(kProxyIps);
+    BUG_ON(proxy_ip_ptr == std::end(proxyIPs));
+    uint32_t proxy_id = proxy_ip_ptr - std::begin(proxyIPs);
     shard_id_to_proxy_id_map_.put(req.shard_id, proxy_id);
   }
 }
@@ -160,7 +145,11 @@ void benchmark(std::vector<Req> *reqs) {
 
 void init_tcp() {
   for (uint32_t i = 0; i < kNumProxies; i++) {
-    netaddr raddr = {.ip = kProxyIps[i], .port = kProxyPort};
+    proxyIPs[i] = MAKE_IP_ADDR(18, 18, 1, i + 2);
+  }
+
+  for (uint32_t i = 0; i < kNumProxies; i++) {
+    netaddr raddr = {.ip = proxyIPs[i], .port = kProxyPort};
     for (uint32_t j = 0; j < kNumThreads; j++) {
       conns[i][j] =
           rt::TcpConn::DialAffinity(j % rt::RuntimeMaxCores(), raddr);

@@ -2,70 +2,70 @@
 
 source ../../shared.sh
 
-mkdir logs
-rm -rf logs/*
-
-CTRL_IP=18.18.1.3
+CTL_IDX=32
+SRV_START_IDX=1
 LPID=1
+KS=26
 
-set_bridge $CONTROLLER_ETHER
-set_bridge $CLIENT1_ETHER
+DIR=`pwd`
 
-for num_worker_nodes in `seq 1 15`
+get_srv_idx() {
+    echo `expr $1 + $SRV_START_IDX - 1`
+}
+
+get_clt_idx() {
+    echo `expr $(get_srv_idx $1) + $num_srvs`
+}
+
+for num_srvs in `seq 1 15`
 do
-    sudo $NU_DIR/caladan/iokerneld &
+    num_clts=`expr $num_srvs + 1`
+
+    start_iokerneld $CTL_IDX
+    for i in `seq 1 $num_srvs`
+    do
+	start_iokerneld $(get_srv_idx $i)
+    done
+    for i in `seq 1 $num_clts`
+    do
+	start_iokerneld $(get_clt_idx $i)
+    done
     sleep 5
-    sudo $NU_DIR/bin/ctrl_main conf/controller &
+
+    start_ctrl $CTL_IDX
     sleep 5
-    sed "s/constexpr uint32_t kNumProxies.*/constexpr uint32_t kNumProxies = $num_worker_nodes;/g" \
+
+    sed "s/constexpr uint32_t kNumProxies.*/constexpr uint32_t kNumProxies = $num_srvs;/g" \
 	-i server.cpp
-    sed "s/constexpr uint32_t kNumProxies.*/constexpr uint32_t kNumProxies = $num_worker_nodes;/g" \
+    sed "s/constexpr uint32_t kNumProxies.*/constexpr uint32_t kNumProxies = $num_srvs;/g" \
 	-i client.cpp
     make -j
-    for i in `seq 1 $num_worker_nodes`
-    do
-	client_ip=${SERVER_IPS[`expr $i - 1`]}
-	scp client $client_ip:`pwd`/
 
-	server_ip=${SERVER_IPS[`expr $i - 1 + $num_worker_nodes`]}
-	scp server $server_ip:`pwd`/
-        ssh $server_ip "sudo $NU_DIR/caladan/iokerneld" &
-	sleep 5
-
-	conf=conf/server$i
-	ssh $server_ip "cd `pwd`; sudo ./server $conf SRV $CTRL_IP $LPID" &
-    done
-    sleep 5
-    sudo ./server conf/client1 CLT $CTRL_IP $LPID >logs/.tmp &
-    ( tail -f -n0 logs/.tmp & ) | grep -q "finish initing"
-    for i in `seq 1 $num_worker_nodes`
+    for i in `seq 1 $num_srvs`
     do
-	client_ip=${SERVER_IPS[`expr $i - 1`]}
-	if [ $i -ne 1 ]; then
-	    ssh $client_ip "sudo $NU_DIR/caladan/iokerneld" &
+	srv_idx=$(get_srv_idx $i)
+	distribute server $srv_idx
+
+	if [[ $i -ne $num_srvs ]]
+	then
+	    start_server server $srv_idx $LPID $KS $KS &
+	else
+	    sleep 5
+	    start_main_server server $srv_idx $LPID $KS $KS >logs/.tmp &
 	fi
-	sleep 5
-	conf=conf/client`expr $i + 1`
-	ssh $client_ip "cd `pwd`; sudo ./client $conf" >logs/$num_worker_nodes.$i &
+    done
+    ( tail -f -n0 logs/.tmp & ) | grep -q "finish initing"
+    rm logs/.tmp
+
+    for i in `seq 1 $num_clts`
+    do
+	clt_idx=$(get_clt_idx $i)
+	distribute client $clt_idx
+
+	run_program client $clt_idx $DIR/conf/client$i >logs/$num_srvs.$i &
     done
     sleep 45
-    for i in `seq 1 $num_worker_nodes`
-    do
-	client_ip=${SERVER_IPS[`expr $i - 1`]}
-	ssh $client_ip "sudo pkill -9 iokerneld; sudo pkill -9 client;"
-    done
-    for i in `seq 1 $num_worker_nodes`
-    do
-	server_ip=${SERVER_IPS[`expr $i - 1 + $num_worker_nodes`]}
-	ssh $server_ip "sudo pkill -9 iokerneld; sudo pkill -9 server;"
-    done
-    sudo pkill -9 iokerneld
-    sudo pkill -9 server
-    sudo pkill -9 ctrl_main
-    sleep 10
+
+    cleanup
+    sleep 5
 done
-
-unset_bridge $CONTROLLER_ETHER
-unset_bridge $CLIENT1_ETHER
-
-rm logs/.tmp

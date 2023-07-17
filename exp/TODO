@@ -1,2 +1,0 @@
-1. replace rt::Thread with nu::Thread otherwise the thread won't be migratable.
-2. use the stanalone controller and specify lpid.
