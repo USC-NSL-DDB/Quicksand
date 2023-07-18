@@ -14,6 +14,7 @@ struct Counter {
     x += y;
     return x;
   }
+  int get() { return x; }
 
   bool empty() const { return false; }
   std::size_t size() const { return 1; }
@@ -36,12 +37,7 @@ bool run_sharded_service() {
 
 bool run_sharded_stateless_service() {
   auto service = make_sharded_stateless_service<::Counter>(3);
-  auto ret0 = service.run(&::Counter::add, 2);
-  if (ret0 != 5) {
-    return false;
-  }
-  auto ret1 = service.run(&::Counter::add, 2);
-  if (ret1 != 7) {
+  if (service.run(&::Counter::get) != 3) {
     return false;
   }
 
