@@ -1,7 +1,7 @@
 #!/bin/bash
 
-ROOT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-CALADAN_PATH=$ROOT_PATH/caladan
+SHARED_SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+CALADAN_PATH=$SHARED_SCRIPT_DIR/caladan
 
 function say_failed() {
     echo -e "----\e[31mFailed\e[0m"
@@ -12,7 +12,8 @@ function say_passed() {
 }
 
 function assert_success {
-    if [[ $? -ne 0 ]]; then
+    if [[ $? -ne 0 ]]
+    then
         say_failed
         exit -1
     fi
@@ -20,7 +21,8 @@ function assert_success {
 
 function kill_process {
     pid=`pgrep $1`
-    if [ -n "$pid" ]; then
+    if [ -n "$pid" ]
+    then
 	{ sudo kill $pid && sudo wait $pid; } 2>/dev/null
     fi
 }
