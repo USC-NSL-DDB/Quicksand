@@ -293,6 +293,12 @@ GeneralSealedDSConstIterator<Shard, Fwd>
   block_iter_ = std::move(o.block_iter_);
   prefetched_next_blocks_ = std::move(o.prefetched_next_blocks_);
   prefetched_prev_blocks_ = std::move(o.prefetched_prev_blocks_);
+  for (auto &v : o.prefetched_next_blocks_) {
+    unwrap_block_variant(&v);
+  }
+  for (auto &v : o.prefetched_prev_blocks_) {
+    unwrap_block_variant(&v);
+  }
   prefetch_executor_ = std::move(o.prefetch_executor_);
   prefetch_seq_ = o.prefetch_seq_;
   prefetch_cnt_per_thread_ = o.prefetch_cnt_per_thread_;
