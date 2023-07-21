@@ -135,6 +135,7 @@ class Migrator {
   std::set<rt::TcpConn *> callback_conns_;
   bool callback_triggered_;
   std::unordered_set<uint32_t> delayed_srv_ips_;
+  std::vector<thread_t *> threads_to_wakeup_;
   rt::Thread th_;
 
   void run_background_loop();

@@ -834,7 +834,7 @@ void Migrator::load_threads(rt::TcpConn *c, ProcletHeader *proclet_header) {
 
   for (uint64_t i = 0; i < num_threads; i++) {
     auto *th = load_one_thread(c, proclet_header);
-    thread_ready(th);
+    threads_to_wakeup_.push_back(th);
   }
 }
 
@@ -933,6 +933,12 @@ void Migrator::load(rt::TcpConn *c) {
     load_condvars(c, proclet_header);
     load_time_and_mark_proclet_present(c, proclet_header);
     load_threads(c, proclet_header);
+
+    for (auto *th : threads_to_wakeup_) {
+      thread_ready(th);
+    }
+    threads_to_wakeup_.clear();
+
     // Wakeup the blocked threads.
     proclet_header->cond_var.signal_all();
     proclet_header->migratable = true;
