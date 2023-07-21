@@ -146,7 +146,6 @@ void ProcletServer::__update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
     // Now won't be migrated.
     ProcletSlabGuard slab_guard(&proclet_header->slab);
     callee_guard->enable_for([&] { obj->~Cls(); });
-    proclet_header->status() = kAbsent;
   }
 
   auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
@@ -211,7 +210,6 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
         callee_header->rcu_lock.writer_sync();
       });
     }
-    callee_header->status() = kAbsent;
     get_runtime()->proclet_manager()->cleanup(callee_header,
                                               /* for_migration = */ false);
     get_runtime()->controller_client()->destroy_proclet(callee_header->range());

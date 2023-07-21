@@ -565,7 +565,6 @@ void Migrator::post_migration_cleanup(ProcletHeader *proclet_header) {
       if (likely(proclet_header->status() == kCleaning)) {
         get_runtime()->proclet_manager()->cleanup(proclet_header,
                                                   /* for_migration = */ true);
-        proclet_header->status() = kAbsent;
       }
     }
   };

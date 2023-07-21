@@ -54,6 +54,8 @@ void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
 
   bool defer = !for_migration;
   depopulate(proclet_base, proclet_header->heap_size(), defer);
+
+  proclet_header->status() = kAbsent;
 }
 
 void ProcletManager::depopulate(void *proclet_base, uint64_t size, bool defer) {
