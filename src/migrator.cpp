@@ -717,7 +717,7 @@ thread_t *Migrator::load_one_thread(rt::TcpConn *c,
   auto nu_state = std::make_unique<uint8_t[]>(nu_state_size);
   BUG_ON(c->ReadFull(nu_state.get(), nu_state_size, /* nt = */ false,
                      /* poll = */ true) <= 0);
-  auto *th = restore_thread(nu_state.get());
+  auto *th = thread_restore(nu_state.get());
 
   auto stack_range = get_runtime()->get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;

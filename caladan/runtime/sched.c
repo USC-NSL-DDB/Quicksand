@@ -1250,8 +1250,7 @@ static void thread_finish_exit(void)
 		init_shutdown(EXIT_SUCCESS);
 
 	gc_remove_thread(th);
-	stack_free(th->stack);
-	tcache_free(&perthread_get(thread_pt), th);
+	thread_free(th);
 	__self = NULL;
 
 	spin_lock(&myk()->lock);
@@ -1451,7 +1450,7 @@ void *thread_get_nu_state(thread_t *th, size_t *nu_state_size)
 	return &th->nu_state;
 }
 
-thread_t *restore_thread(void *nu_state)
+thread_t *thread_restore(void *nu_state)
 {
 	thread_t *th = __thread_create();
 	BUG_ON(!th);
@@ -1460,14 +1459,18 @@ thread_t *restore_thread(void *nu_state)
 	return th;
 }
 
+void thread_free(thread_t *th)
+{
+	stack_free(th->stack);
+	tcache_free(&perthread_get(thread_pt), th);
+}
+
 void gc_migrated_threads(void)
 {
 	thread_t *th;
 
-	while ((th = list_pop(&all_migrating_ths, thread_t, link))) {
-		stack_free(th->stack);
-		tcache_free(&perthread_get(thread_pt), th);
-	}
+	while ((th = list_pop(&all_migrating_ths, thread_t, link)))
+		thread_free(th);
 }
 
 void *thread_get_runtime_stack_base(void)

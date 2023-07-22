@@ -78,8 +78,12 @@ inline void *Caladan::thread_get_nu_state(thread_t *th, size_t *nu_state_size) {
   return ::thread_get_nu_state(th, nu_state_size);
 }
 
-inline thread_t *Caladan::restore_thread(void *nu_state) {
-  return ::restore_thread(nu_state);
+inline thread_t *Caladan::thread_restore(void *nu_state) {
+  return ::thread_restore(nu_state);
+}
+
+inline void Caladan::thread_free(thread_t *th) {
+  return ::thread_free(th);
 }
 
 inline ProcletHeader *Caladan::thread_unset_owner_proclet(thread_t *th,

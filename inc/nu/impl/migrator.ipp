@@ -10,17 +10,20 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
                                                 void *raw_dest_ret_val_ptr,
                                                 uint64_t payload_len,
                                                 uint8_t *payload) {
+  auto *caladan = get_runtime()->caladan();
+  size_t nu_state_size;
+  caladan->thread_get_nu_state(Caladan::thread_self(), &nu_state_size);
+  auto *th = caladan->thread_restore(payload);
+
   auto optional_migration_guard =
       get_runtime()->attach_and_disable_migration(dest_header);
-  if (unlikely(!optional_migration_guard)) {
+  if (unlikely(!optional_migration_guard &&
+               !caladan->thread_is_rcu_held(th, &dest_header->rcu_lock))) {
+    caladan->thread_free(th);
     return kErrWrongClient;
   }
   get_runtime()->detach();
 
-  size_t nu_state_size;
-  get_runtime()->caladan()->thread_get_nu_state(Caladan::thread_self(),
-                                                &nu_state_size);
-  auto *th = get_runtime()->caladan()->restore_thread(payload);
   auto stack_range = get_runtime()->get_proclet_stack_range(th);
   auto stack_len = stack_range.end - stack_range.start;
   memcpy(reinterpret_cast<void *>(stack_range.start), payload + nu_state_size,
@@ -37,7 +40,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
   }
   get_runtime()->archive_pool()->put_ia_sstream(ia_sstream);
 
-  get_runtime()->caladan()->thread_ready(th);
+  caladan->thread_ready(th);
   return kOk;
 }
 

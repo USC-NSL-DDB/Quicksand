@@ -39,7 +39,8 @@ class Caladan {
   template <typename F>
   void context_switch_to(F &&f);
   void *thread_get_nu_state(thread_t *th, size_t *nu_state_size);
-  thread_t *restore_thread(void *nu_state);
+  thread_t *thread_restore(void *nu_state);
+  void thread_free(thread_t *th);
   thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
   thread_t *thread_nu_create_with_args(void *proclet_stack,
                                        uint32_t proclet_stack_size,
