@@ -1,7 +1,9 @@
 #!/bin/bash
 
+SETUP_SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 function get_nic_dev {
-    sudo bash -c "caladan/iokerneld >.tmp 2>&1 &"
+    sudo bash -c "$SETUP_SCRIPT_DIR/caladan/iokerneld >.tmp 2>&1 &"
     ( tail -f -n0 .tmp & ) | grep -q "MAC"
     sudo pkill -9 iokerneld
     mac=`cat .tmp | grep "MAC" | sed "s/.*MAC: \(.*\)/\1/g" | tr " " ":"`
@@ -11,7 +13,7 @@ function get_nic_dev {
 }
 
 function setup_caladan {
-    sudo ./caladan/scripts/setup_machine.sh    
+    sudo $SETUP_SCRIPT_DIR/caladan/scripts/setup_machine.sh
 }
 
 function setup_jumbo_frame {
@@ -26,8 +28,11 @@ function setup_dropless_rq {
     sudo ethtool --set-priv-flags $nic_dev dropless_rq on
 }
 
+trap -- '' INT TERM
+
 setup_caladan
 get_nic_dev
 setup_jumbo_frame
 setup_trust_dscp
 setup_dropless_rq
+
