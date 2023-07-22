@@ -80,11 +80,11 @@ function __start_server() {
     fi
     ip=$(caladan_srv_ip $srv_idx)
     nu_libs_name=".nu_libs_$BASHPID"
-    rm -rf $nu_libs_name
-    mkdir $nu_libs_name
-    cp `ldd $file_path | grep "=>" | awk  '{print $3}' | xargs` $nu_libs_name
+    rm -rf .nu_libs_tmp
+    mkdir .nu_libs_tmp
+    cp `ldd $file_path | grep "=>" | awk  '{print $3}' | xargs` .nu_libs_tmp
     ssh $(ssh_ip $srv_idx) "rm -rf $nu_libs_name"
-    scp -r $nu_libs_name $(ssh_ip $srv_idx):`pwd`/
+    scp -r .nu_libs_tmp $(ssh_ip $srv_idx):`pwd`/$nu_libs_name
 
     if [[ $main -eq 0 ]]
     then
@@ -125,7 +125,9 @@ function distribute() {
     file_path=$1
     file_full_path=$(readlink -f $file_path)
     src_idx=$2
-    scp $file_full_path $(ssh_ip $src_idx):$file_full_path
+    cp $file_full_path .distribute
+    scp .distribute $(ssh_ip $src_idx):$file_full_path
+    rm -rf .distribute
 }
 
 function prepare() {
