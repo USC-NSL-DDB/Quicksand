@@ -7,10 +7,10 @@
 
 constexpr uint64_t kTotalMemUsage = 15ULL * 1024 * 1024 * 1024;
 constexpr uint64_t kNumComputeThreads = 26;
-constexpr uint64_t kElementSize = 1000;
+constexpr uint64_t kElementSize = 100;
 constexpr uint64_t kNumElements =
     kTotalMemUsage / kNumComputeThreads / kElementSize;
-constexpr uint64_t kDelayNs = 30000;
+constexpr uint64_t kDelayUs = 1;
 
 struct Element {
   Element() = default;
@@ -26,7 +26,7 @@ void compute_on(const Element &e) {
     nu::Caladan::PreemptGuard g;
 
     unsigned long start = rdtsc();
-    auto delay_cycles = kDelayNs * cycles_per_us / 1000;
+    auto delay_cycles = kDelayUs * cycles_per_us;
     while (rdtsc() - start < delay_cycles) {
       cpu_relax();
     }
