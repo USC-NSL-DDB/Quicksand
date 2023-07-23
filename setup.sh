@@ -35,4 +35,3 @@ get_nic_dev
 setup_jumbo_frame
 setup_trust_dscp
 setup_dropless_rq
-
