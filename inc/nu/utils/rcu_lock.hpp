@@ -20,7 +20,7 @@ class RCULock {
   void reader_unlock();
   uint32_t reader_lock(const Caladan::PreemptGuard &g);
   void reader_unlock(const Caladan::PreemptGuard &g);
-  void writer_sync(bool poll = false);
+  bool writer_sync(bool poll = false, uint64_t timeout_us = 0);
 
  private:
   struct alignas(kCacheLineBytes) AlignedCnt {
@@ -37,7 +37,7 @@ class RCULock {
   Mutex mutex_;
   AlignedCnt aligned_cnts_[2][kNumCores];
 
-  void flip_and_wait(bool poll);
+  bool flip_and_wait(bool poll, uint64_t deaedline_us);
 };
 }  // namespace nu
 

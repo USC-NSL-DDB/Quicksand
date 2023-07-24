@@ -1,3 +1,5 @@
+#include <limits>
+
 extern "C" {
 #include <runtime/membarrier.h>
 #include <runtime/timer.h>
@@ -31,15 +33,20 @@ RCULock::~RCULock() {
 #endif
 }
 
-void RCULock::flip_and_wait(bool poll) {
+bool RCULock::flip_and_wait(bool poll, uint64_t deadline_us) {
   auto flag = load_acquire(&flag_);
   store_release(&flag_, !flag);
   mb();
 
   auto prioritized = false;
   auto start_us = microtime();
+
 retry:
   barrier();
+  if (unlikely(Time::microtime() >= deadline_us)) {
+    return false;
+  }
+
   int32_t sum_val = 0;
   int32_t sum_ver = 0;
   for (const auto &aligned_cnt : aligned_cnts_[flag]) {
@@ -73,9 +80,14 @@ retry:
   if (unlikely(sum_ver != latest_sum_ver)) {
     goto retry;
   }
+
+  return true;
 }
 
-void RCULock::writer_sync(bool poll) {
+bool RCULock::writer_sync(bool poll, uint64_t timeout_us) {
+  auto deadline_us = timeout_us ? Time::microtime() + timeout_us
+                                : std::numeric_limits<uint64_t>::max();
+
   if constexpr (kUseTBTSO) {
     delay_us(kTemporalBoundUs);
   } else {
@@ -85,11 +97,16 @@ void RCULock::writer_sync(bool poll) {
 
   {
     ScopedLock g(&mutex_);
-    flip_and_wait(poll);
-    flip_and_wait(poll);
+    if (!flip_and_wait(poll, deadline_us)) {
+      return false;
+    }
+    if (!flip_and_wait(poll, deadline_us)) {
+      return false;
+    }
   }
 
   mb();
+  return true;
 }
 
 }  // namespace nu
