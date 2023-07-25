@@ -119,9 +119,9 @@ inline thread_t *Caladan::thread_create_with_buf(thread_fn_t fn, void **buf,
 
 inline thread_t *Caladan::thread_nu_create_with_args(
     void *proclet_stack, uint32_t proclet_stack_size, thread_fn_t fn,
-    void *args, bool copy_rcu_ctxs) {
+    void *args) {
   return ::thread_nu_create_with_args(proclet_stack, proclet_stack_size, fn,
-                                      args, copy_rcu_ctxs);
+                                      args);
 }
 
 inline thread_id_t Caladan::get_thread_id(thread_t *th) {

@@ -44,8 +44,7 @@ class Caladan {
   thread_t *thread_create_with_buf(thread_fn_t fn, void **buf, size_t len);
   thread_t *thread_nu_create_with_args(void *proclet_stack,
                                        uint32_t proclet_stack_size,
-                                       thread_fn_t fn, void *args,
-                                       bool copy_rcu_ctxs);
+                                       thread_fn_t fn, void *args);
   thread_id_t get_thread_id(thread_t *th);
   thread_id_t get_current_thread_id();
   ProcletHeader *thread_unset_owner_proclet(thread_t *th, bool update_monitor);

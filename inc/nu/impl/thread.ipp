@@ -19,7 +19,7 @@ inline Thread &Thread::operator=(Thread &&t) {
 }
 
 template <typename F>
-inline Thread::Thread(F &&f, bool copy_rcu_ctxs) {
+inline Thread::Thread(F &&f) {
   ProcletHeader *proclet_header;
   {
     Caladan::PreemptGuard g;
@@ -28,15 +28,14 @@ inline Thread::Thread(F &&f, bool copy_rcu_ctxs) {
   }
 
   if (proclet_header) {
-    create_in_proclet_env(f, proclet_header, copy_rcu_ctxs);
+    create_in_proclet_env(f, proclet_header);
   } else {
     create_in_runtime_env(f);
   }
 }
 
 template <typename F>
-void Thread::create_in_proclet_env(F &&f, ProcletHeader *header,
-                                   bool copy_rcu_ctxs) {
+void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
   Caladan::PreemptGuard g;
 
   auto *proclet_stack = get_runtime()->stack_manager()->get();
@@ -46,8 +45,7 @@ void Thread::create_in_proclet_env(F &&f, ProcletHeader *header,
   join_data_ = new join_data(std::forward<F>(f), header);
   BUG_ON(!join_data_);
   auto *th = get_runtime()->caladan()->thread_nu_create_with_args(
-      proclet_stack, kStackSize, trampoline_in_proclet_env, join_data_,
-      copy_rcu_ctxs);
+      proclet_stack, kStackSize, trampoline_in_proclet_env, join_data_);
   BUG_ON(!th);
   get_runtime()->caladan()->thread_ready(th);
 }

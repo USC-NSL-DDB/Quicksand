@@ -1015,21 +1015,19 @@ void GeneralShard<Container>::start_compute_monitor_th() {
     compute_monitor_th_.join();
   }
 
-  compute_monitor_th_ = Thread(
-      [&] {
-        while (!Caladan::access_once(deleted_)) {
-          Time::sleep(CPULoad::kDecayIntervalUs);
-          auto cpu_load = cpu_load_->get_load();
-          if (cpu_load > kComputeLoadHighThresh) {
-            compute_split();
-          } else if (cpu_load < kComputeLoadLowThresh) {
-            if (!cofounder_ && try_compute_delete_self()) {
-              break;
-            }
-          }
+  compute_monitor_th_ = Thread([&] {
+    while (!Caladan::access_once(deleted_)) {
+      Time::sleep(CPULoad::kDecayIntervalUs);
+      auto cpu_load = cpu_load_->get_load();
+      if (cpu_load > kComputeLoadHighThresh) {
+        compute_split();
+      } else if (cpu_load < kComputeLoadLowThresh) {
+        if (!cofounder_ && try_compute_delete_self()) {
+          break;
         }
-      },
-      /* copy_rcu_ctxs = */ false);
+      }
+    }
+  });
 }
 
 template <class Container>
