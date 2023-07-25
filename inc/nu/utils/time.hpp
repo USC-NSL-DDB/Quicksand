@@ -12,6 +12,14 @@ extern "C" {
 
 namespace nu {
 
+struct TimerCallbackArg {
+  bool high_priority;
+  thread_t *th;
+  ProcletHeader *proclet_header;
+  uint64_t logical_deadline_us;
+  std::list<timer_entry *>::iterator iter;
+};
+
 class Time {
  public:
   Time();
@@ -28,6 +36,7 @@ class Time {
   std::list<timer_entry *> entries_;
   SpinLock spin_;
   friend class Migrator;
+  friend class ProcletManager;
 
   static void timer_callback(unsigned long arg_addr);
   uint64_t proclet_env_microtime();
@@ -39,14 +48,7 @@ class Time {
   uint64_t to_physical_tsc(uint64_t logical_tsc);
   uint64_t to_physical_us(uint64_t logical_us);
   std::list<timer_entry *> entries();
-};
-
-struct TimerCallbackArg {
-  bool high_priority;
-  thread_t *th;
-  ProcletHeader *proclet_header;
-  uint64_t logical_deadline_us;
-  std::list<timer_entry *>::iterator iter;
+  void timer_finish(TimerCallbackArg *arg);
 };
 
 }  // namespace nu

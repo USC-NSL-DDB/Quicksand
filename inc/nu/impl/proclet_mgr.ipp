@@ -64,8 +64,8 @@ inline void ProcletManager::undo_remove(void *proclet_base) {
     ScopedLock lock(&spin_);
     proclet_header->status() = kPresent;
     num_present_proclets_++;
-    for (auto *th : stashed_timer_threads_) {
-      thread_ready(th);
+    for (auto *arg : stashed_timer_cbs_) {
+      proclet_header->time.timer_finish(arg);
     }
   }
   {
@@ -76,7 +76,7 @@ inline void ProcletManager::undo_remove(void *proclet_base) {
 
 inline bool ProcletManager::remove_for_migration(void *proclet_base) {
   ScopedLock lock(&spin_);
-  stashed_timer_threads_.clear();
+  stashed_timer_cbs_.clear();
   return __remove(proclet_base, kMigrating);
 }
 
@@ -112,13 +112,13 @@ inline std::optional<RetT> ProcletManager::get_proclet_info(
   return f(header);
 }
 
-inline bool ProcletManager::stash_timer_thread(ProcletHeader *proclet_header,
-                                               thread_t *th) {
+inline bool ProcletManager::stash_timer_callback(TimerCallbackArg *arg) {
   ScopedLock lock(&spin_);
-  if (proclet_header->status() == kMigrating) {
-    stashed_timer_threads_.push_back(th);
+  auto status = arg->proclet_header->status();
+  if (status == kMigrating) {
+    stashed_timer_cbs_.push_back(arg);
     return true;
-  } else if (proclet_header->status() == kPresent) {
+  } else if (status == kPresent) {
     return false;
   }
   BUG();

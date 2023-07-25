@@ -15,18 +15,20 @@ retry:
       get_runtime()->attach_and_disable_migration(proclet_header);
 
   if (unlikely(!optional_migration_guard)) {
-    if (unlikely(!get_runtime()->proclet_manager()->stash_timer_thread(
-            proclet_header, arg->th))) {
+    if (unlikely(
+            !get_runtime()->proclet_manager()->stash_timer_callback(arg))) {
       goto retry;
     }
     return;
   }
-
   get_runtime()->detach();
+  time.timer_finish(arg);
+}
 
+void Time::timer_finish(TimerCallbackArg *arg) {
   {
-    ScopedLock lock(&time.spin_);
-    time.entries_.erase(arg->iter);
+    ScopedLock lock(&spin_);
+    entries_.erase(arg->iter);
   }
   if (arg->high_priority) {
     get_runtime()->caladan()->thread_ready_head(arg->th);

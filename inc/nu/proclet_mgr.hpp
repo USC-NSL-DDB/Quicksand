@@ -108,7 +108,7 @@ class ProcletManager {
   std::vector<void *> get_all_proclets();
   uint64_t get_mem_usage();
   uint32_t get_num_present_proclets();
-  bool stash_timer_thread(ProcletHeader *proclet_header, thread_t *th);
+  bool stash_timer_callback(TimerCallbackArg *arg);
   template <typename RetT>
   std::optional<RetT> get_proclet_info(
       const ProcletHeader *header,
@@ -116,7 +116,7 @@ class ProcletManager {
 
  private:
   std::vector<void *> present_proclets_;
-  std::vector<thread_t *> stashed_timer_threads_;
+  std::vector<TimerCallbackArg *> stashed_timer_cbs_;
   uint32_t num_present_proclets_;
   SpinLock spin_;
   friend class Test;
