@@ -44,11 +44,10 @@ inline VAddrRange ProcletHeader::range() const {
 
 inline void ProcletManager::wait_until(ProcletHeader *proclet_header,
                                        ProcletStatus status) {
-  proclet_header->spin_lock.lock();
+  ScopedLock lock(&proclet_header->spin_lock);
   while (Caladan::access_once(proclet_header->status()) != status) {
     proclet_header->cond_var.wait(&proclet_header->spin_lock);
   }
-  proclet_header->spin_lock.unlock();
 }
 
 inline void ProcletManager::insert(void *proclet_base) {
@@ -58,17 +57,36 @@ inline void ProcletManager::insert(void *proclet_base) {
   present_proclets_.push_back(proclet_base);
 }
 
+inline void ProcletManager::undo_remove(void *proclet_base) {
+  auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
+
+  {
+    ScopedLock lock(&spin_);
+    proclet_header->status() = kPresent;
+    num_present_proclets_++;
+    for (auto *th : stashed_timer_threads_) {
+      thread_ready(th);
+    }
+  }
+  {
+    ScopedLock lock(&proclet_header->spin_lock);
+    proclet_header->cond_var.signal_all();
+  }
+}
+
 inline bool ProcletManager::remove_for_migration(void *proclet_base) {
+  ScopedLock lock(&spin_);
+  stashed_timer_threads_.clear();
   return __remove(proclet_base, kMigrating);
 }
 
 inline bool ProcletManager::remove_for_destruction(void *proclet_base) {
+  ScopedLock lock(&spin_);
   return __remove(proclet_base, kDestructing);
 }
 
 inline bool ProcletManager::__remove(void *proclet_base,
                                      ProcletStatus new_status) {
-  ScopedLock lock(&spin_);
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
   auto &status = proclet_header->status();
   if (status == kPresent) {
@@ -92,6 +110,18 @@ inline std::optional<RetT> ProcletManager::get_proclet_info(
     return std::nullopt;
   }
   return f(header);
+}
+
+inline bool ProcletManager::stash_timer_thread(ProcletHeader *proclet_header,
+                                               thread_t *th) {
+  ScopedLock lock(&spin_);
+  if (proclet_header->status() == kMigrating) {
+    stashed_timer_threads_.push_back(th);
+    return true;
+  } else if (proclet_header->status() == kPresent) {
+    return false;
+  }
+  BUG();
 }
 
 }  // namespace nu

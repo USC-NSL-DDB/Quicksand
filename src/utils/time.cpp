@@ -9,20 +9,25 @@ namespace nu {
 void Time::timer_callback(unsigned long arg_addr) {
   auto *arg = reinterpret_cast<TimerCallbackArg *>(arg_addr);
   auto *proclet_header = arg->proclet_header;
-
+  auto &time = proclet_header->time;
+retry:
   auto optional_migration_guard =
       get_runtime()->attach_and_disable_migration(proclet_header);
+
   if (unlikely(!optional_migration_guard)) {
+    if (unlikely(!get_runtime()->proclet_manager()->stash_timer_thread(
+            proclet_header, arg->th))) {
+      goto retry;
+    }
     return;
   }
+
   get_runtime()->detach();
 
-  auto &time = proclet_header->time;
   {
     ScopedLock lock(&time.spin_);
     time.entries_.erase(arg->iter);
   }
-
   if (arg->high_priority) {
     get_runtime()->caladan()->thread_ready_head(arg->th);
   } else {
@@ -101,10 +106,7 @@ void Time::proclet_env_sleep_until(uint64_t deadline_us, bool high_priority) {
                       reinterpret_cast<unsigned long>(arg));
 
   ScopedLock lock(&spin_);
-  {
-    RuntimeSlabGuard g;
-    entries_.push_back(e);
-  }
+  entries_.push_back(e);
   arg->iter = --entries_.end();
   get_runtime()->caladan()->timer_start(e, physical_us);
   get_runtime()->caladan()->thread_park_and_unlock_np(std::move(lock));

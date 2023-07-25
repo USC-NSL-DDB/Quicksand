@@ -467,7 +467,11 @@ bool Migrator::try_mark_proclet_migrating(ProcletHeader *proclet_header) {
   if (unlikely(!get_runtime()->proclet_manager()->remove_for_migration(
           proclet_header)))
     return false;
-  proclet_header->rcu_lock.writer_sync(/* poll = */ true);
+  if (unlikely(!proclet_header->rcu_lock.writer_sync(/* poll = */ true,
+                                                     kRCUWaitTimeoutUs))) {
+    get_runtime()->proclet_manager()->undo_remove(proclet_header);
+    return false;
+  }
 
   return true;
 }

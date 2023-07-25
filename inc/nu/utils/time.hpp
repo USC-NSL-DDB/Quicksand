@@ -38,6 +38,7 @@ class Time {
   uint64_t to_logical_us(uint64_t physical_us);
   uint64_t to_physical_tsc(uint64_t logical_tsc);
   uint64_t to_physical_us(uint64_t logical_us);
+  std::list<timer_entry *> entries();
 };
 
 struct TimerCallbackArg {

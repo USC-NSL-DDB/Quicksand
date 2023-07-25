@@ -102,11 +102,13 @@ class ProcletManager {
   static void depopulate(void *proclet_base, uint64_t size, bool defer);
   static void wait_until(ProcletHeader *proclet_header, ProcletStatus status);
   void insert(void *proclet_base);
+  void undo_remove(void *proclet_base);
   bool remove_for_migration(void *proclet_base);
   bool remove_for_destruction(void *proclet_base);
   std::vector<void *> get_all_proclets();
   uint64_t get_mem_usage();
   uint32_t get_num_present_proclets();
+  bool stash_timer_thread(ProcletHeader *proclet_header, thread_t *th);
   template <typename RetT>
   std::optional<RetT> get_proclet_info(
       const ProcletHeader *header,
@@ -114,6 +116,7 @@ class ProcletManager {
 
  private:
   std::vector<void *> present_proclets_;
+  std::vector<thread_t *> stashed_timer_threads_;
   uint32_t num_present_proclets_;
   SpinLock spin_;
   friend class Test;

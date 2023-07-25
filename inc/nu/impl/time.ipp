@@ -47,4 +47,9 @@ inline void Time::proclet_env_sleep(uint64_t duration_us, bool high_priority) {
   proclet_env_sleep_until(proclet_env_microtime() + duration_us, high_priority);
 }
 
+inline std::list<timer_entry *> Time::entries() {
+  ScopedLock lock(&spin_);
+  return entries_;
+}
+
 }  // namespace nu

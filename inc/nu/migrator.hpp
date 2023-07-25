@@ -107,6 +107,8 @@ class Migrator {
   constexpr static uint32_t kPort = 8002;
   constexpr static float kMigrationThrottleGBs = 0;
   constexpr static uint32_t kMigrationDelayUs = 0;
+  constexpr static uint32_t kRCUWaitTimeoutUs = 30;
+  constexpr static uint32_t kTCPListenBackLog = 64;
 
   static_assert(kTransmitProcletNumThreads > 1);
 
@@ -129,7 +131,6 @@ class Migrator {
       uint64_t payload_len, uint8_t *payload);
 
  private:
-  constexpr static uint32_t kTCPListenBackLog = 64;
   std::unique_ptr<rt::TcpQueue> tcp_queue_;
   MigratorConnManager migrator_conn_mgr_;
   std::set<rt::TcpConn *> callback_conns_;

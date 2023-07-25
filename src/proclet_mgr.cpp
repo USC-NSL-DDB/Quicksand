@@ -49,6 +49,9 @@ void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
     }
   }
 
+  std::destroy_at(&proclet_header->time);
+  std::destroy_at(&proclet_header->blocked_syncer);
+
   // Deregister its slab ID.
   std::destroy_at(&proclet_header->slab);
 
