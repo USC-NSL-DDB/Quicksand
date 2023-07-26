@@ -571,15 +571,15 @@ static __noreturn __noinline void schedule(void)
 	assert_spin_lock_held(&l->lock);
 	assert(l->parked == false);
 
+	/* detect misuse of preempt disable */
+	BUG_ON((preempt_cnt & ~PREEMPT_NOT_PENDING) != 1);
+
 	/* unmark busy for the stack of the last uthread */
 	if (likely(__self != NULL)) {
 		store_release(&__self->thread_running, false);
 		__self = NULL;
 		l->curr_th = NULL;
 	}
-
-	/* detect misuse of preempt disable */
-	BUG_ON((preempt_cnt & ~PREEMPT_NOT_PENDING) != 1);
 
 	/* update entry stat counters */
 	STAT(RESCHEDULES)++;
