@@ -38,7 +38,8 @@ class Time {
   friend class Migrator;
   friend class ProcletManager;
 
-  static void timer_callback(unsigned long arg_addr);
+  static void timer_callback(unsigned long arg_addr, thread_t **waketh,
+                             bool *hp);
   uint64_t proclet_env_microtime();
   uint64_t proclet_env_rdtsc();
   void proclet_env_sleep(uint64_t duration_us, bool high_priority);
@@ -49,6 +50,7 @@ class Time {
   uint64_t to_physical_us(uint64_t logical_us);
   std::list<timer_entry *> entries();
   void timer_finish(TimerCallbackArg *arg);
+  void timer_finish_and_wakeup(TimerCallbackArg *arg);
 };
 
 }  // namespace nu

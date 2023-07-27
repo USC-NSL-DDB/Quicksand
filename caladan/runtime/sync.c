@@ -109,18 +109,20 @@ void __timed_mutex_unlock(timed_mutex_t *m)
 	thread_ready(waiter->th);
 }
 
-void timed_mutex_callback(unsigned long arg)
+void timed_mutex_callback(unsigned long arg, thread_t **waketh, bool *hp)
 {
 	struct timed_mutex_waiter *waiter = (struct timed_mutex_waiter *)arg;
 
 	spin_lock_np(waiter->waiter_lock);
 	if (waiter->acquired) {
 		spin_unlock_np(waiter->waiter_lock);
+		*waketh = NULL;
 		return;
 	}
 	list_del(&waiter->link);
 	spin_unlock_np(waiter->waiter_lock);
-	thread_ready(waiter->th);
+	*waketh = waiter->th;
+	*hp = false;
 }
 
 bool __timed_mutex_try_lock_until(timed_mutex_t *m, uint64_t deadline_us)
@@ -451,7 +453,7 @@ void timed_condvar_broadcast(timed_condvar_t *cv)
 	}
 }
 
-void timed_condvar_callback(unsigned long arg)
+void timed_condvar_callback(unsigned long arg, thread_t **waketh, bool *hp)
 {
 	struct timed_condvar_waiter *waiter =
 		(struct timed_condvar_waiter *)arg;
@@ -459,11 +461,13 @@ void timed_condvar_callback(unsigned long arg)
 	spin_lock_np(waiter->waiter_lock);
 	if (waiter->signalled) {
 		spin_unlock_np(waiter->waiter_lock);
+		*waketh = NULL;
 		return;
 	}
 	list_del(&waiter->link);
 	spin_unlock_np(waiter->waiter_lock);
-	thread_ready(waiter->th);
+	*waketh = waiter->th;
+	*hp = false;
 }
 
 /**

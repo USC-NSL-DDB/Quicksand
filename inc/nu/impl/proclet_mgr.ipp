@@ -65,7 +65,7 @@ inline void ProcletManager::undo_remove(void *proclet_base) {
     proclet_header->status() = kPresent;
     num_present_proclets_++;
     for (auto *arg : stashed_timer_cbs_) {
-      proclet_header->time.timer_finish(arg);
+      proclet_header->time.timer_finish_and_wakeup(arg);
     }
   }
   {

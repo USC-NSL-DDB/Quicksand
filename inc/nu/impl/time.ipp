@@ -52,4 +52,18 @@ inline std::list<timer_entry *> Time::entries() {
   return entries_;
 }
 
+inline void Time::timer_finish(TimerCallbackArg *arg) {
+  ScopedLock lock(&spin_);
+  entries_.erase(arg->iter);
+}
+
+inline void Time::timer_finish_and_wakeup(TimerCallbackArg *arg) {
+  timer_finish(arg);
+  if (arg->high_priority) {
+    thread_ready_head(arg->th);
+  } else {
+    thread_ready(arg->th);
+  }
+}
+
 }  // namespace nu

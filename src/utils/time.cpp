@@ -6,7 +6,7 @@
 
 namespace nu {
 
-void Time::timer_callback(unsigned long arg_addr) {
+void Time::timer_callback(unsigned long arg_addr, thread_t **waketh, bool *hp) {
   auto *arg = reinterpret_cast<TimerCallbackArg *>(arg_addr);
   auto *proclet_header = arg->proclet_header;
   auto &time = proclet_header->time;
@@ -19,21 +19,12 @@ retry:
             !get_runtime()->proclet_manager()->stash_timer_callback(arg))) {
       goto retry;
     }
-    return;
-  }
-  get_runtime()->detach();
-  time.timer_finish(arg);
-}
-
-void Time::timer_finish(TimerCallbackArg *arg) {
-  {
-    ScopedLock lock(&spin_);
-    entries_.erase(arg->iter);
-  }
-  if (arg->high_priority) {
-    get_runtime()->caladan()->thread_ready_head(arg->th);
+    *waketh = NULL;
   } else {
-    get_runtime()->caladan()->thread_ready(arg->th);
+    get_runtime()->detach();
+    time.timer_finish(arg);
+    *waketh = arg->th;
+    *hp = arg->high_priority;
   }
 }
 

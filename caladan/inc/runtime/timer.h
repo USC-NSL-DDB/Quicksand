@@ -7,8 +7,9 @@
 #include <asm/atomic.h>
 #include <asm/ops.h>
 #include <base/stddef.h>
+#include <runtime/thread.h>
 
-typedef void (*timer_fn_t)(unsigned long arg);
+typedef void (*timer_fn_t)(unsigned long arg, thread_t **waketh, bool *hp);
 
 struct kthread;
 

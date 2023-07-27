@@ -205,16 +205,17 @@ bool __timer_cancel(struct timer_entry *e)
 	return true;
 }
 
-static void timer_finish_sleep(unsigned long arg)
+static void timer_finish_sleep(unsigned long arg, thread_t **waketh, bool *hp)
 {
-	thread_t *th = (thread_t *)arg;
-	thread_ready(th);
+	*waketh = (thread_t *)arg;
+	*hp = false;
 }
 
-static void timer_finish_sleep_hp(unsigned long arg)
+static void timer_finish_sleep_hp(unsigned long arg, thread_t **waketh,
+				  bool *hp)
 {
-	thread_t *th = (thread_t *)arg;
-	thread_ready_head(th);
+	*waketh = (thread_t *)arg;
+	*hp = true;
 }
 
 static void __timer_sleep(uint64_t deadline_us, bool hp)
@@ -282,6 +283,8 @@ static void timer_softirq_one(struct kthread *k)
 	struct timer_entry *e;
 	uint64_t now_us;
 	int i;
+	thread_t *waketh;
+	bool hp;
 
 	spin_lock(&k->timer_lock);
 	assert_timer_heap_is_valid(k);
@@ -302,8 +305,14 @@ static void timer_softirq_one(struct kthread *k)
 		spin_unlock(&k->timer_lock);
 
 		/* execute the timer handler */
-		e->fn(e->arg);
+		e->fn(e->arg, &waketh, &hp);
 		store_release(&e->executing, false);
+		if (waketh) {
+			if (hp)
+				thread_ready_head(waketh);
+			else
+				thread_ready(waketh);
+		}
 		spin_lock(&k->timer_lock);
 		now_us = microtime();
 	}
