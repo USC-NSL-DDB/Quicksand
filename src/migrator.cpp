@@ -457,8 +457,8 @@ void Migrator::transmit(rt::TcpConn *c, ProcletHeader *proclet_header,
 
   transmit_mutexes(c, mutexes);
   transmit_condvars(c, condvars);
-  transmit_time(c, &proclet_header->time);
   transmit_threads(c, ready_threads);
+  transmit_time(c, &proclet_header->time);
 
   update_proclet_location(c, proclet_header);
 }
@@ -934,9 +934,9 @@ void Migrator::load(rt::TcpConn *c) {
 
     load_mutexes(c, proclet_header);
     load_condvars(c, proclet_header);
-    load_time_and_mark_proclet_present(c, proclet_header);
     load_threads(c, proclet_header);
-
+    // Now all stacks have been loaded, safe to resume threads.
+    load_time_and_mark_proclet_present(c, proclet_header);
     for (auto *th : threads_to_wakeup_) {
       thread_ready(th);
     }
