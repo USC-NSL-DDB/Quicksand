@@ -1,4 +1,4 @@
-NU_PATH=../../
+NU_PATH=../../../
 CALADAN_PATH=$(NU_PATH)/caladan
 
 ROOT_PATH=$(CALADAN_PATH)

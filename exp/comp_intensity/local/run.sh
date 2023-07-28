@@ -1,15 +1,13 @@
 #!/bin/bash
 
-source ../shared.sh
+source ../../shared.sh
 
 ELEM_SIZES=( 100 1000 10000 )
 DELAYS=( 0 1 2 3 4 5 6 7 8 9 10 20 30 40 50 )
 LPID=1
 CTL_IDX=1
-SRV0_IDX=2
-SRV1_IDX=3
-KS0=6
-KS1=20
+SRV_IDX=2
+KS=26
 
 make clean
 
@@ -21,21 +19,16 @@ do
 	sed "s/\(constexpr uint64_t kDelayUs = \).*/\1$delay;/g" -i main.cpp
 	make
 
-	distribute main $SRV0_IDX
-	distribute main $SRV1_IDX
+	distribute main $SRV_IDX
 
 	start_iokerneld $CTL_IDX
-	start_iokerneld $SRV0_IDX
-	start_iokerneld $SRV1_IDX
+	start_iokerneld $SRV_IDX
 	sleep 5
 
 	start_ctrl $CTL_IDX
 	sleep 5
 
-	start_server main $SRV0_IDX $LPID $KS0 1>logs/$elem_size.$delay.0 2>&1 &
-	sleep 5
-
-	start_main_server main $SRV1_IDX $LPID $KS1 1>logs/$elem_size.$delay.1 2>&1
+	start_main_server main $SRV_IDX $LPID $KS 1>logs/$elem_size.$delay 2>&1
 
 	cleanup
 	sleep 5
