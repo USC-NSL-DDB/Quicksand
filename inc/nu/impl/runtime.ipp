@@ -101,15 +101,13 @@ inline T *Runtime::get_current_root_obj() {
   if (!proclet_header) {
     return nullptr;
   }
-  return reinterpret_cast<T *>(
-      reinterpret_cast<uintptr_t>(proclet_header->slab.get_base()));
+  return reinterpret_cast<T *>(proclet_header->root_obj);
 }
 
 template <typename T>
 inline T *Runtime::get_root_obj(ProcletID id) {
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(to_proclet_base(id));
-  return reinterpret_cast<T *>(
-      reinterpret_cast<uintptr_t>(proclet_header->slab.get_base()));
+  return reinterpret_cast<T *>(proclet_header->root_obj);
 }
 
 template <typename Cls, typename... A0s, typename... A1s>
@@ -158,16 +156,6 @@ Runtime::run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
 template <typename T>
 inline WeakProclet<T> Runtime::get_current_weak_proclet() {
   return WeakProclet<T>(to_proclet_id(get_current_proclet_header()));
-}
-
-template <typename T>
-inline WeakProclet<T> Runtime::to_weak_proclet(T *root_obj) {
-  return WeakProclet<T>(to_proclet_id(to_proclet_header(root_obj)));
-}
-
-template <typename T>
-inline ProcletHeader *Runtime::to_proclet_header(T *root_obj) {
-  return reinterpret_cast<ProcletHeader *>(root_obj) - 1;
 }
 
 inline bool Runtime::attach(ProcletHeader *new_header) {

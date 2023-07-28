@@ -217,6 +217,7 @@ class GeneralShard {
   bool deleted_;
   bool service_;
   bool cofounder_;
+  WeakProclet<GeneralShard> self_;
   Thread compute_monitor_th_;
 
   friend class ContainerHandle<Container>;

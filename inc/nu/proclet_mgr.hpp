@@ -62,14 +62,19 @@ struct ProcletHeader {
 
   // Migration related.
   std::atomic<int8_t> pending_load_cnt;
-  BlockedSyncer blocked_syncer;
   bool migratable;
+
+  //--- Fields below will be automatically copied during migration. ---/
+  uint8_t copy_start[0];
+
+  // Root object.
+  void *root_obj;
 
   // Logical timer.
   Time time;
 
-  //--- Fields below will be automatically copied during migration. ---/
-  uint8_t copy_start[0];
+  // Record mutexes and condvars that have blocked waiters.
+  BlockedSyncer blocked_syncer;
 
   // For disabling migration.
   RCULock rcu_lock;

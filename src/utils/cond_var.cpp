@@ -8,7 +8,6 @@
 namespace nu {
 
 void CondVar::__wait_and_unlock(auto *l) {
-
   Caladan::spin_lock_np(&cv_.waiter_lock);
   l->unlock();
 

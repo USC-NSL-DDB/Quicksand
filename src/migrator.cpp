@@ -743,13 +743,11 @@ void Migrator::load_mutexes(rt::TcpConn *c, ProcletHeader *proclet_header) {
                        /* poll = */ true) <= 0);
 
     for (size_t i = 0; i < num_mutexes; i++) {
-      auto *mutex = mutexes[i];
-      proclet_header->blocked_syncer.add(mutex, BlockedSyncer::kMutex);
-
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
                          /* poll = */ true) <= 0);
 
+      auto *mutex = mutexes[i];
       auto *waiters = mutex->get_waiters();
       list_head_init(waiters);
       for (size_t j = 0; j < num_threads; j++) {
@@ -774,13 +772,11 @@ void Migrator::load_condvars(rt::TcpConn *c, ProcletHeader *proclet_header) {
                        /* poll = */ true) <= 0);
 
     for (size_t i = 0; i < num_condvars; i++) {
-      auto *condvar = condvars[i];
-      proclet_header->blocked_syncer.add(condvar, BlockedSyncer::kCondVar);
-
       size_t num_threads;
       BUG_ON(c->ReadFull(&num_threads, sizeof(num_threads), /* nt = */ false,
                          /* poll = */ true) <= 0);
 
+      auto *condvar = condvars[i];
       auto *waiters = condvar->get_waiters();
       list_head_init(waiters);
       for (size_t j = 0; j < num_threads; j++) {
@@ -819,11 +815,6 @@ void Migrator::load_time_and_mark_proclet_present(
       auto *arg = reinterpret_cast<TimerCallbackArg *>(entry->arg);
       auto *th = load_one_thread(c, proclet_header);
       arg->th = th;
-      {
-        ScopedLock lock(&time.spin_);
-        time.entries_.push_back(entry);
-        arg->iter = --time.entries_.end();
-      }
       entry->armed = false;
       timer_start(entry, time.to_physical_us(arg->logical_deadline_us));
     }

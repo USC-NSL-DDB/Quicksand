@@ -81,6 +81,17 @@ void Time::sleep(uint64_t duration_us, bool high_priority) {
 }
 
 void Time::proclet_env_sleep_until(uint64_t deadline_us, bool high_priority) {
+  Caladan::PreemptGuard pg;
+  auto *proclet_header = get_runtime()->get_current_proclet_header();
+  ProcletSlabGuard sg(&proclet_header->slab);
+
+  pg.enable_for([&] {
+    __proclet_env_sleep_until(proclet_header, deadline_us, high_priority);
+  });
+}
+
+void Time::__proclet_env_sleep_until(ProcletHeader *proclet_header,
+                                     uint64_t deadline_us, bool high_priority) {
   auto *e = new timer_entry();
   std::unique_ptr<timer_entry> e_gc(e);
   auto physical_us = to_physical_us(deadline_us);
@@ -89,10 +100,7 @@ void Time::proclet_env_sleep_until(uint64_t deadline_us, bool high_priority) {
 
   arg->high_priority = high_priority;
   arg->th = Caladan::thread_self();
-  {
-    Caladan::PreemptGuard g;
-    arg->proclet_header = get_runtime()->get_current_proclet_header();
-  }
+  arg->proclet_header = proclet_header;
   arg->logical_deadline_us = deadline_us;
   BUG_ON(!arg->proclet_header);
   Caladan::timer_init(e, Time::timer_callback,

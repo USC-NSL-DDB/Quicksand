@@ -21,7 +21,7 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
                                         RPCReturner returner) {
   auto *callee_header = callee_guard->header();
   auto &callee_slab = callee_header->slab;
-  auto obj_space = callee_slab.yield(sizeof(Cls));
+  callee_header->root_obj = callee_slab.yield(sizeof(Cls));
 
   {
     ProcletSlabGuard slab_guard(&callee_slab);
@@ -34,7 +34,9 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
 
     callee_guard->enable_for([&] {
       std::apply(
-          [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
+          [&](auto &&...args) {
+            new (callee_header->root_obj) Cls(std::move(args)...);
+          },
           *args);
       std::destroy_at(args);
     });
@@ -79,7 +81,7 @@ void ProcletServer::construct_proclet_locally(MigrationGuard &&caller_guard,
   auto *callee_header = reinterpret_cast<ProcletHeader *>(base);
   callee_header->status() = kPresent;
   auto &callee_slab = callee_header->slab;
-  auto obj_space = callee_slab.yield(sizeof(Cls));
+  callee_header->root_obj = callee_slab.yield(sizeof(Cls));
 
   auto *caller_header = get_runtime()->get_current_proclet_header();
   auto optional_callee_guard = get_runtime()->reattach_and_disable_migration(
@@ -106,7 +108,9 @@ void ProcletServer::construct_proclet_locally(MigrationGuard &&caller_guard,
 
     callee_guard.enable_for([&] {
       std::apply(
-          [&](auto &&... args) { new (obj_space) Cls(std::move(args)...); },
+          [&](auto &&...args) {
+            new (callee_header->root_obj) Cls(std::move(args)...);
+          },
           *copied_args);
       std::destroy_at(copied_args);
     });

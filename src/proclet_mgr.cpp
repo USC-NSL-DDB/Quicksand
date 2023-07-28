@@ -49,9 +49,6 @@ void ProcletManager::cleanup(void *proclet_base, bool for_migration) {
     }
   }
 
-  std::destroy_at(&proclet_header->time);
-  std::destroy_at(&proclet_header->blocked_syncer);
-
   // Deregister its slab ID.
   std::destroy_at(&proclet_header->slab);
 
@@ -78,24 +75,26 @@ void ProcletManager::depopulate(void *proclet_base, uint64_t size, bool defer) {
 
 void ProcletManager::setup(void *proclet_base, uint64_t capacity,
                            bool migratable, bool from_migration) {
-  RuntimeSlabGuard guard;
+  RuntimeSlabGuard rg;
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
 
   proclet_header->capacity = capacity;
   std::construct_at(&proclet_header->cpu_load);
   std::construct_at(&proclet_header->spin_lock);
   std::construct_at(&proclet_header->cond_var);
-  std::construct_at(&proclet_header->blocked_syncer);
-  std::construct_at(&proclet_header->time);
   proclet_header->migratable = migratable;
 
   if (!from_migration) {
-    proclet_header->ref_cnt = 1;
-    std::construct_at(&proclet_header->rcu_lock);
-    std::construct_at(&proclet_header->slab_ref_cnt);
     auto slab_region_size = capacity - sizeof(ProcletHeader);
     std::construct_at(&proclet_header->slab, to_slab_id(proclet_header),
                       proclet_header + 1, slab_region_size);
+    ProcletSlabGuard pg(&proclet_header->slab);
+
+    std::construct_at(&proclet_header->blocked_syncer);
+    std::construct_at(&proclet_header->time);
+    std::construct_at(&proclet_header->rcu_lock);
+    proclet_header->ref_cnt = 1;
+    std::construct_at(&proclet_header->slab_ref_cnt);
   }
 }
 

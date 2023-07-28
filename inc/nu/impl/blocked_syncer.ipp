@@ -4,10 +4,6 @@ extern "C" {
 
 namespace nu {
 
-inline void BlockedSyncer::add(void *syncer, Type type) {
-  sync_map_.put(syncer, type);
-}
-
 inline void BlockedSyncer::remove(void *syncer) {
   BUG_ON(!sync_map_.remove(syncer));
 }

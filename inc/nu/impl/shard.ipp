@@ -78,7 +78,13 @@ inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       deleted_(true),
       service_(service),
       cofounder_(false) {
-  auto *proclet_header = Runtime::to_proclet_header(this);
+  ProcletHeader *proclet_header;
+  {
+    Caladan::PreemptGuard g;
+    auto *runtime = get_runtime();
+    proclet_header = runtime->get_current_proclet_header();
+    self_ = runtime->get_current_weak_proclet<GeneralShard>();
+  }
   slab_ = &proclet_header->slab;
   cpu_load_ = &proclet_header->cpu_load;
 }
@@ -99,7 +105,13 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       deleted_(false),
       service_(service),
       cofounder_(true) {
-  auto *proclet_header = Runtime::to_proclet_header(this);
+  ProcletHeader *proclet_header;
+  {
+    Caladan::PreemptGuard g;
+    auto *runtime = get_runtime();
+    proclet_header = runtime->get_current_proclet_header();
+    self_ = runtime->get_current_weak_proclet<GeneralShard>();
+  }
   slab_ = &proclet_header->slab;
   cpu_load_ = &proclet_header->cpu_load;
 
@@ -295,8 +307,7 @@ void GeneralShard<Container>::try_delete_self_with_reader_lock(
   rw_lock_.reader_unlock();
   rw_lock_.writer_lock();
   if (container_.empty() && !deleted_) {
-    auto self = Runtime::to_weak_proclet(this);
-    if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self,
+    if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self_,
                             merge_left, Caladan::get_ip()))) {
       // Recycle heap space.
       container_ = Container();
@@ -310,8 +321,7 @@ template <class Container>
 bool GeneralShard<Container>::try_compute_delete_self() {
   bool succeed = false;
   rw_lock_.writer_lock();
-  auto self = Runtime::to_weak_proclet(this);
-  if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self,
+  if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self_,
                           /* merge_left = */ true, Caladan::get_ip()))) {
     succeed = deleted_ = true;
   }
