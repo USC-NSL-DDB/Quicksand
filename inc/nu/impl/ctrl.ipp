@@ -9,7 +9,7 @@ inline NodeStatus::NodeStatus(bool _isol) {
 }
 
 inline bool NodeStatus::has_enough_cpu_resource(Resource resource) const {
-  return free_resource.cores >= resource.cores;
+  return free_resource.cores >= resource.cores + 1;
 }
 
 inline bool NodeStatus::has_enough_mem_resource(Resource resource) const {
