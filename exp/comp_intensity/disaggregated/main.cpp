@@ -1,16 +1,16 @@
 #include <iostream>
 #include <vector>
 
+#include "nu/dis_executor.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sealed_ds.hpp"
 #include "nu/sharded_vector.hpp"
+#include "nu/utils/time.hpp"
 
 constexpr uint64_t kTotalMemUsage = 15ULL * 1024 * 1024 * 1024;
-constexpr uint64_t kNumComputeThreads = 26;
 constexpr uint64_t kElementSize = 100;
-constexpr uint64_t kNumElements =
-    kTotalMemUsage / kNumComputeThreads / kElementSize;
-constexpr uint64_t kDelayUs = 7;
+constexpr uint64_t kNumElements = kTotalMemUsage / kElementSize;
+constexpr uint64_t kDelayUs = 1;
 
 struct Element {
   Element() = default;
@@ -22,70 +22,37 @@ void compute_on(const Element &e) {
   for (const auto &d : e.data) {
     ACCESS_ONCE(d);
   }
-  {
-    nu::Caladan::PreemptGuard g;
-
-    unsigned long start = rdtsc();
-    auto delay_cycles = kDelayUs * cycles_per_us;
-    while (rdtsc() - start < delay_cycles) {
-      cpu_relax();
-    }
+  unsigned long start = nu::Time::rdtsc();
+  auto delay_cycles = kDelayUs * cycles_per_us;
+  while (nu::Time::rdtsc() - start < delay_cycles) {
+    cpu_relax();
   }
 }
 
-struct Worker {
-  Worker(ShardedVec sv)
-      : sharded_vec(std::move(sv)),
-        sealed_vec(nu::to_sealed_ds(std::move(sharded_vec))) {}
-
-  void work() {
-    for (const auto &element : sealed_vec) {
-      compute_on(element);
-    }
-  }
-
-  ShardedVec sharded_vec;
-  nu::SealedDS<ShardedVec> sealed_vec;
-};
-
 void run() {
-  ShardedVec sharded_vecs[kNumComputeThreads];
-  for (uint64_t i = 0; i < kNumComputeThreads; i++) {
-    sharded_vecs[i] = nu::make_sharded_vector<Element, std::false_type>();
+  auto sharded_vec = nu::make_sharded_vector<Element, std::false_type>();
+  for (uint64_t i = 0; i < kNumElements; i++) {
+    sharded_vec.push_back(Element());
   }
-
-  {
-    std::vector<nu::Thread> threads;
-    for (uint64_t i = 0; i < kNumComputeThreads; i++) {
-      threads.emplace_back(nu::Thread([sharded_vec_ptr = &sharded_vecs[i]] {
-        for (uint64_t i = 0; i < kNumElements; i++) {
-          sharded_vec_ptr->push_back(Element());
+  auto sealed_vec = nu::to_sealed_ds(std::move(sharded_vec));
+  auto cont_ds_range = nu::make_contiguous_ds_range(sealed_vec);
+  auto dis_exec = nu::make_distributed_executor(
+      +[](decltype(cont_ds_range) &task_range) {
+        while (true) {
+          auto popped = task_range.pop();
+          if (!popped) {
+            break;
+          }
+          compute_on(*popped);
         }
-      }));
-    }
-    for (auto &thread : threads) {
-      thread.join();
-    }
-  }
-
-  std::vector<nu::Proclet<Worker>> computers;
-  for (uint64_t i = 0; i < kNumComputeThreads; i++) {
-    computers.emplace_back(
-        nu::make_proclet<Worker>(std::make_tuple(std::move(sharded_vecs[i]))));
-  }
-
-  std::vector<nu::Future<void>> futures;
-  for (auto &computer : computers) {
-    futures.emplace_back(computer.run_async(&Worker::work));
-  }
+      },
+      cont_ds_range);
 
   barrier();
   auto t0 = microtime();
   barrier();
 
-  for (auto &future : futures) {
-    future.get();
-  }
+  dis_exec.get();
 
   barrier();
   auto t1 = microtime();
