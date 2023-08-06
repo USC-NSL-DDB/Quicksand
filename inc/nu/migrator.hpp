@@ -62,6 +62,7 @@ struct ProcletMigrationTask {
   ProcletHeader *header;
   uint64_t capacity;
   uint64_t size;
+  float cores;
 };
 
 class MigratorConnManager;

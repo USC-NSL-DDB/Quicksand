@@ -2,7 +2,6 @@ extern "C" {
 #include <runtime/timer.h>
 }
 
-#include <runtime.h>
 #include <sync.h>
 
 #include "nu/runtime.hpp"
@@ -41,9 +40,8 @@ ResourceReporter::~ResourceReporter() {
 
 void ResourceReporter::report_resource() {
   Resource resource;
-  resource.cores = std::min(rt::RuntimeGlobalIdleCores(),
-                            rt::RuntimeMaxCores() - rt::RuntimeActiveCores());
-  resource.mem_mbs = rt::RuntimeFreeMemMbs();
+  resource.cores = get_free_cores();
+  resource.mem_mbs = get_free_mem_mbs();
   auto global_free_resources =
       get_runtime()->controller_client()->report_free_resource(resource);
   {

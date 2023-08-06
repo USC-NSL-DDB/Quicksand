@@ -12,6 +12,8 @@ class ResourceReporter {
  public:
   ResourceReporter();
   ~ResourceReporter();
+  float get_free_cores() const;
+  float get_free_mem_mbs() const;
   std::vector<std::pair<NodeIP, Resource>> get_global_free_resources();
 
  private:
@@ -24,3 +26,5 @@ class ResourceReporter {
 };
 
 }  // namespace nu
+
+#include "nu/impl/resource_reporter.ipp"

@@ -248,11 +248,17 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
     if (likely(optional)) {
       auto &[migratable, capacity, heap_size, mem_size, cpu_load] = *optional;
       if (likely(migratable && !dedupper.contains(header))) {
-        dedupper.insert(header);
-        ProcletMigrationTask task(header, capacity, heap_size);
         auto mem_mbs = mem_size / static_cast<float>(kOneMB);
+        // If the node is currently under cpu congestion, proclets' cpu loads
+        // are very likely to be under estimated. Thus, let's assume it's 1.
+        if (min_num_proclets) {
+	  cpu_load = std::max(cpu_load, 1.0f);
+	}
+
         Resource resource(cpu_load, mem_mbs);
+        ProcletMigrationTask task(header, capacity, heap_size, cpu_load);
         picked_tasks.emplace_back(std::move(task), std::move(resource));
+        dedupper.insert(header);
         total_mem_mbs += mem_mbs;
         done = ((total_mem_mbs >= min_mem_mbs) &&
                 (picked_tasks.size() >= min_num_proclets));

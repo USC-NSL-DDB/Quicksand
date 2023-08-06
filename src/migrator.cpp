@@ -21,6 +21,7 @@ extern "C" {
 #include "nu/ctrl_client.hpp"
 #include "nu/migrator.hpp"
 #include "nu/runtime.hpp"
+#include "nu/resource_reporter.hpp"
 #include "nu/pressure_handler.hpp"
 #include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
@@ -31,7 +32,7 @@ extern "C" {
 
 namespace nu {
 
-constexpr static bool kEnableLogging = false;
+constexpr static bool kEnableLogging = true;
 constexpr static auto kMigrationDSCP = IPTOS_DSCP_CS0;
 
 MigratorConn::MigratorConn() : tcp_conn_(nullptr), ip_(0), manager_(nullptr) {}
@@ -853,7 +854,7 @@ Migrator::load_proclet_migration_tasks(rt::TcpConn *c) {
 }
 
 void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
-  for (auto &[header, _, size] : tasks) {
+  for (auto &[header, _0, size, _1] : tasks) {
     ScopedLock l(&header->migration_spin());
 
     if (unlikely(header->status() == kCleaning)) {
@@ -864,7 +865,7 @@ void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
   }
 
   rt::Spawn([tasks] {
-    for (auto &[header, _, size] : tasks) {
+    for (auto &[header, _0, size, _1] : tasks) {
       if (load_acquire(&header->status()) == kPopulating) {
         ScopedLock l(&header->migration_spin());
 
@@ -901,6 +902,7 @@ void Migrator::load(rt::TcpConn *c) {
   auto [has_mem_pressure, tasks] = load_proclet_migration_tasks(c);
   populate_proclets(tasks);
 
+  auto free_cores = get_runtime()->resource_reporter()->get_free_cores();
   bool approval = true;
   for (auto it = tasks.begin(); it != tasks.end(); ++it) {
     if (unlikely(!approval)) {
@@ -911,13 +913,18 @@ void Migrator::load(rt::TcpConn *c) {
     }
 
     if (it != tasks.end() - 1) {
-      approval = has_mem_pressure
-                     ? !get_runtime()->pressure_handler()->has_mem_pressure()
-                     : !get_runtime()->pressure_handler()->has_real_pressure();
+      approval =
+          has_mem_pressure
+              ? !get_runtime()->pressure_handler()->has_mem_pressure()
+              : (!get_runtime()->pressure_handler()->has_real_pressure() &&
+                 free_cores >= it->cores);
+      if (approval) {
+        free_cores -= it->cores;
+      }
       issue_approval(c, approval);
     }
 
-    auto &[proclet_header, capacity, _] = *it;
+    auto &[proclet_header, capacity, _0, _1] = *it;
     if (unlikely(!load_proclet(c, proclet_header, capacity))) {
       depopulate_proclet(proclet_header);
       continue;
