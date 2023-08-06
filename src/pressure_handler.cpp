@@ -252,8 +252,8 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
         // If the node is currently under cpu congestion, proclets' cpu loads
         // are very likely to be under estimated. Thus, let's assume it's 1.
         if (min_num_proclets) {
-	  cpu_load = std::max(cpu_load, 1.0f);
-	}
+          cpu_load = std::max(cpu_load, 1.0f);
+        }
 
         Resource resource(cpu_load, mem_mbs);
         ProcletMigrationTask task(header, capacity, heap_size, cpu_load);
@@ -281,12 +281,12 @@ PressureHandler::pick_tasks(uint32_t min_num_proclets, uint32_t min_mem_mbs) {
     }
   };
 
-  bool cpu_pressure = min_num_proclets;
+  bool mem_pressure = min_mem_mbs;
   assert_preempt_disabled();
-  if (cpu_pressure) {
-    traverse_fn(std::atomic_load(&cpu_pressure_sorted_proclets_));
-  } else {
+  if (mem_pressure) {
     traverse_fn(std::atomic_load(&mem_pressure_sorted_proclets_));
+  } else {
+    traverse_fn(std::atomic_load(&cpu_pressure_sorted_proclets_));
   }
 
   if (unlikely(!done)) {

@@ -5,7 +5,7 @@ include $(CALADAN_PATH)/build/shared.mk
 
 NCORES = $(shell nproc)
 
-INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/
+INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH) -I/usr/include/libnl3/
 
 override CXXFLAGS += -DNCORES=$(NCORES) -ftemplate-backtrace-limit=0
 override LDFLAGS += -lcrypto -lpthread -lboost_program_options -lnuma -Wno-stringop-overread \

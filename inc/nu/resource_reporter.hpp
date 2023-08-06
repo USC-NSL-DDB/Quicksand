@@ -14,6 +14,7 @@ class ResourceReporter {
   ~ResourceReporter();
   float get_free_cores() const;
   float get_free_mem_mbs() const;
+  float get_usable_mem_mbs() const;
   std::vector<std::pair<NodeIP, Resource>> get_global_free_resources();
 
  private:

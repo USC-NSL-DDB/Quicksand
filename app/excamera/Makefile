@@ -11,7 +11,7 @@ ALFALA_PATH=alfalfa
 NCORES = $(shell nproc)
 
 ALFALFA_INC = -I$(ALFALA_PATH)/src/encoder -I$(ALFALA_PATH)/src/decoder -I$(ALFALA_PATH)/src/input -I$(ALFALA_PATH)/src/util -I$(ALFALA_PATH)/src/display
-INC += $(ALFALFA_INC) -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched -I/usr/include/libnl3/
+INC += $(ALFALFA_INC) -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH) -I/usr/include/libnl3/
 
 override CXXFLAGS += -DNCORES=$(NCORES)
 override LDFLAGS += -ljpeg -lx264 -ldl -lboost_program_options -lcrypto -lpthread -lnuma

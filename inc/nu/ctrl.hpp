@@ -12,6 +12,7 @@ extern "C" {
 #include <runtime/tcp.h>
 }
 #include <net.h>
+#include <iokernel/ias_constant.h>
 
 #include "nu/commons.hpp"
 #include "nu/rpc_client_mgr.hpp"
@@ -24,8 +25,7 @@ namespace nu {
 // This is a logical node instead of a physical node.
 struct NodeStatus {
   constexpr static float kEWMAWeight = 0.25;
-  // Should be consistent with iokernel's IAS_PS_MEM_LOW_MB.
-  constexpr static uint32_t kMemLowWaterMarkMBs = 1024;
+  constexpr static uint32_t kMemLowWaterMarkMBs = IAS_PS_MEM_LOW_MB;
 
   NodeStatus(bool isol);
 

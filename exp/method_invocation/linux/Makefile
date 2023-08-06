@@ -6,7 +6,7 @@ include $(CALADAN_PATH)/build/shared.mk
 
 NCORES = $(shell nproc)
 
-INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH)/ksched \
+INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH) \
        -I/usr/include/libnl3/
 
 override CXXFLAGS += -Wno-subobject-linkage -Wno-array-bounds -Wno-invalid-offsetof \

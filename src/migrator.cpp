@@ -32,7 +32,7 @@ extern "C" {
 
 namespace nu {
 
-constexpr static bool kEnableLogging = true;
+constexpr static bool kEnableLogging = false;
 constexpr static auto kMigrationDSCP = IPTOS_DSCP_CS0;
 
 MigratorConn::MigratorConn() : tcp_conn_(nullptr), ip_(0), manager_(nullptr) {}
@@ -873,7 +873,9 @@ void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
           if (unlikely(get_runtime()->pressure_handler()->has_mem_pressure())) {
             break;
           }
-          get_runtime()->proclet_manager()->madvise_populate(header, size);
+          if (get_runtime()->resource_reporter()->get_usable_mem_mbs() > size) {
+            get_runtime()->proclet_manager()->madvise_populate(header, size);
+          }
         }
       }
     }
@@ -899,10 +901,10 @@ void Migrator::depopulate_proclet(ProcletHeader *proclet_header) {
 }
 
 void Migrator::load(rt::TcpConn *c) {
-  auto [has_mem_pressure, tasks] = load_proclet_migration_tasks(c);
+  auto [remote_mem_pressure, tasks] = load_proclet_migration_tasks(c);
   populate_proclets(tasks);
 
-  auto free_cores = get_runtime()->resource_reporter()->get_free_cores();
+  auto local_free_cores = get_runtime()->resource_reporter()->get_free_cores();
   bool approval = true;
   for (auto it = tasks.begin(); it != tasks.end(); ++it) {
     if (unlikely(!approval)) {
@@ -913,13 +915,16 @@ void Migrator::load(rt::TcpConn *c) {
     }
 
     if (it != tasks.end() - 1) {
-      approval =
-          has_mem_pressure
-              ? !get_runtime()->pressure_handler()->has_mem_pressure()
-              : (!get_runtime()->pressure_handler()->has_real_pressure() &&
-                 free_cores >= it->cores);
+      auto local_mem_pressure =
+          get_runtime()->resource_reporter()->get_usable_mem_mbs() < it->size;
+      auto local_cpu_pressure =
+          get_runtime()->pressure_handler()->has_cpu_pressure() ||
+          (local_free_cores <= it->cores);
+      approval = remote_mem_pressure
+                     ? (!local_mem_pressure)
+                     : (!local_mem_pressure && !local_cpu_pressure);
       if (approval) {
-        free_cores -= it->cores;
+        local_free_cores -= it->cores;
       }
       issue_approval(c, approval);
     }
