@@ -116,7 +116,7 @@ class GeneralSealedDSConstIterator {
     void serialize(Archive &ar);
   };
 
-  constexpr static uint32_t kMaxNumInflightPrefetches = 8;
+  constexpr static uint32_t kMaxNumInflightPrefetches = 1;
   constexpr static uint32_t kPrefetchBytesPerThread = (64 << 10);
 
   std::shared_ptr<ShardsVec> shards_;
