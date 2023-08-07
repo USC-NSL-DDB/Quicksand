@@ -62,4 +62,8 @@ inline bool CPULoad::is_monitoring() const {
 
 inline void CPULoad::zero() { cpu_load_ = 0; }
 
+inline void CPULoad::halve() { cpu_load_ /= 2; }
+
+inline void CPULoad::twice() { cpu_load_ *= 2; }
+
 }  // namespace nu

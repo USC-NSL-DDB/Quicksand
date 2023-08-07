@@ -17,6 +17,8 @@ class CPULoad {
   bool is_monitoring() const;
   float get_load() const;
   void zero();
+  void halve();
+  void twice();
   static void end_monitor();
   static void flush_all();
 
@@ -41,4 +43,3 @@ class CPULoad {
 }  // namespace nu
 
 #include "nu/impl/cpu_load.ipp"
-

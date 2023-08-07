@@ -297,7 +297,7 @@ template <class Container>
 void GeneralShard<Container>::compute_split() {
   rw_lock_.writer_lock();
   split();
-  cpu_load_->zero();
+  cpu_load_->halve();
   rw_lock_.writer_unlock();
 }
 
@@ -1015,6 +1015,8 @@ bool GeneralShard<Container>::try_update_key(bool update_left,
     r_key_ = new_key;
   }
   rw_lock_.reader_unlock();
+
+  cpu_load_->twice();
 
   return true;
 }
