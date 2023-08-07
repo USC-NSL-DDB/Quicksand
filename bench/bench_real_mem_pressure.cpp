@@ -13,6 +13,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -21,8 +22,6 @@
 constexpr uint32_t kMallocGranularityMB = 32;
 constexpr uint32_t kNumCores = 3;
 constexpr uint32_t kLoggingIntervalUs = 1000;
-constexpr uint32_t kFreeMemMBTarget0 = 10000;
-constexpr uint32_t kFreeMemMBTarget1 = 900;
 
 struct AllocMemTrace {
   uint64_t time_us;
@@ -36,6 +35,8 @@ struct AvailMemTrace {
 
 bool done = false;
 bool signalled = false;
+uint32_t free_mem_mbs_target0;
+uint32_t free_mem_mbs_target1;
 
 void alloc_thread_fn(std::atomic<uint32_t> *alloc_times,
                      std::vector<AllocMemTrace> *traces, uint32_t times_target,
@@ -120,19 +121,18 @@ void do_work() {
   std::cout << "clearing linux cache..." << std::endl;
   clear_linux_cache();
 
-  std::vector<AvailMemTrace> avail_mem_traces;
-  auto logging_thread =
-      rt::Thread([&avail_mem_traces] { logging(&avail_mem_traces); });
-
   std::cout << "working towards target 0..." << std::endl;
-  alloc_until(0, kFreeMemMBTarget0);
+  alloc_until(0, free_mem_mbs_target0);
   std::cout << "waiting for signal..." << std::endl;
 
   wait_for_signal();
 
   std::cout << "working towards target 1..." << std::endl;
 
-  auto alloc_mem_traces = alloc_until(0, kFreeMemMBTarget1);
+  std::vector<AvailMemTrace> avail_mem_traces;
+  auto logging_thread =
+      rt::Thread([&avail_mem_traces] { logging(&avail_mem_traces); });
+  auto alloc_mem_traces = alloc_until(0, free_mem_mbs_target1);
 
   std::cout << "waiting for signal..." << std::endl;
   wait_for_signal();
@@ -159,6 +159,13 @@ void do_work() {
 void signal_handler(int signum) { rt::access_once(signalled) = true; }
 
 int main(int argc, char **argv) {
+  if (argc != 4) {
+    std::cout << "usage: ./bin conf target0 target1 " << std::endl;
+    return -EINVAL;
+  }
+
+  free_mem_mbs_target0 = std::stoi(std::string(argv[2]));
+  free_mem_mbs_target1 = std::stoi(std::string(argv[3]));
   mlockall(MCL_CURRENT | MCL_FUTURE);
   signal(SIGHUP, signal_handler);
 

@@ -90,7 +90,7 @@ sleep 5
 mem_antagonist=$NU_DIR/bin/bench_real_mem_pressure
 distribute $mem_antagonist $VICTIM_IDX
 antagonist_log=$DIR/logs/antagonist
-run_program $mem_antagonist $VICTIM_IDX $DIR/conf/antagonist.conf >$antagonist_log &
+run_program $mem_antagonist $VICTIM_IDX $DIR/conf/antagonist.conf 10000 900 >$antagonist_log &
 antagonist_pid=$!
 ( tail -f -n0 $antagonist_log & ) | grep -q "waiting for signal"
 
