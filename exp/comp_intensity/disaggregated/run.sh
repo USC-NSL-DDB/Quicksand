@@ -10,6 +10,8 @@ SRV0_IDX=2
 SRV1_IDX=3
 KS0=6
 KS1=20
+SRV1_APP_MEM=1024
+NU_LOW_MEM=1024
 
 make clean
 
@@ -23,6 +25,9 @@ do
 
 	distribute main $SRV0_IDX
 	distribute main $SRV1_IDX
+	distribute main $SRV1_IDX
+	mem_antagonist=$NU_DIR/bin/bench_real_mem_pressure
+	distribute $mem_antagonist $SRV1_IDX
 
 	start_iokerneld $CTL_IDX
 	start_iokerneld $SRV0_IDX
@@ -35,6 +40,10 @@ do
 	start_server main $SRV0_IDX $LPID $KS0 1>logs/$elem_size.$delay.0 2>&1 &
 	sleep 5
 
+	mem_target=$(expr $SRV1_APP_MEM + $NU_LOW_MEM)
+	antagonist_log=logs/antagonist
+	run_program $mem_antagonist $SRV1_IDX antagonist.conf $mem_target 0 >$antagonist_log &
+	( tail -f -n0 $antagonist_log & ) | grep -q "waiting for signal"
 	start_main_server main $SRV1_IDX $LPID $KS1 1>logs/$elem_size.$delay.1 2>&1
 
 	cleanup
