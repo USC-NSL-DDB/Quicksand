@@ -11,6 +11,7 @@
 #include "nu/migrator.hpp"
 #include "nu/pressure_handler.hpp"
 #include "nu/utils/caladan.hpp"
+#include "nu/utils/cpu_load.hpp"
 
 constexpr static bool kEnableLogging = false;
 
@@ -22,8 +23,16 @@ PressureHandler::PressureHandler()
 
   update_th_ = rt::Thread([&] {
     while (!rt::access_once(done_)) {
-      timer_sleep_hp(kSortedProcletsUpdateIntervalMs * kOneMilliSecond);
+      timer_sleep_hp(kSortedProcletsUpdateIntervalUs);
       update_sorted_proclets();
+    }
+  });
+
+  flush_th_ = rt::Thread([&] {
+    while (!rt::access_once(done_)) {
+      timer_sleep_hp(
+          std::min(kSortedProcletsUpdateIntervalUs, CPULoad::kDecayIntervalUs));
+      CPULoad::flush_all();
     }
   });
 }
@@ -33,6 +42,7 @@ PressureHandler::~PressureHandler() {
   remove_all_resource_pressure_handlers();
   mb();
   update_th_.Join();
+  flush_th_.Join();
   while (
       unlikely(rt::access_once(resource_pressure_info->status) == HANDLING)) {
     rt::Yield();
@@ -51,8 +61,6 @@ Utility::Utility(ProcletHeader *proclet_header, uint64_t mem_size,
 }
 
 void PressureHandler::update_sorted_proclets() {
-  CPULoad::flush_all();
-
   auto new_mem_pressure_sorted_proclets =
       std::make_shared<decltype(mem_pressure_sorted_proclets_)::element_type>();
   auto new_cpu_pressure_sorted_proclets =

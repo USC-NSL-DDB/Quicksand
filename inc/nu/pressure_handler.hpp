@@ -38,7 +38,8 @@ class PressureHandler {
  public:
   constexpr static uint32_t kNumAuxHandlers =
       Migrator::kTransmitProcletNumThreads - 1;
-  constexpr static uint32_t kSortedProcletsUpdateIntervalMs = 50;
+  constexpr static uint32_t kSortedProcletsUpdateIntervalUs =
+      50 * kOneMilliSecond;
   constexpr static uint32_t kUpdateBudget = 200;
   constexpr static uint32_t kMinNumProcletsOnCPUPressure = 32;
 
@@ -73,6 +74,7 @@ class PressureHandler {
   std::shared_ptr<std::multiset<Utility, CmpCpuUtil>>
       cpu_pressure_sorted_proclets_;
   rt::Thread update_th_;
+  rt::Thread flush_th_;
   std::atomic<int> active_handlers_;
   AuxHandlerState aux_handler_states_[kNumAuxHandlers];
   bool mock_;
