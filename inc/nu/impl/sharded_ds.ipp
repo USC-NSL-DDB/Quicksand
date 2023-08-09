@@ -548,7 +548,8 @@ inline RetT ShardedDataStructure<Container, LL>::compute_on(
   rw_lock_->reader_unlock();
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
   auto optional_ret =
-      shard.template run</* MigrEn = */ true, /* CPUSamp = */ false>(
+      shard.template run</* MigrEn = */ true, /* CPUMon = */ true,
+                         /* CPUSamp = */ false>(
           &Shard::template try_compute_on<RetT, S0s...>, k, fn_addr, states...);
 
   if (unlikely(!optional_ret)) {
