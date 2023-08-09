@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <fstream>
 
 #include "nu/runtime.hpp"
 #include "nu/sharded_service.hpp"
@@ -9,17 +10,15 @@
 constexpr auto kClientIP = MAKE_IP_ADDR(18, 18, 1, 100);
 constexpr auto kDelayUs = 50;
 constexpr auto kNumThreads = 200;
-constexpr auto kTargetMops = 1;
+constexpr auto kTargetMops = 0.4;
 constexpr auto kNumSeconds = 8;
+constexpr auto kTimeWindowUs = 10000;
+constexpr auto kDumpPercentile = 99;
 
 struct Obj {
   using Key = uint64_t;
 
-  void work() {
-    // preempt_disable();
-    delay_us(kDelayUs);
-    // preempt_enable();
-  }
+  void work() { nu::Time::delay_us(kDelayUs); }
 
   bool empty() const { return false; }
   std::size_t size() const { return 1; }
@@ -74,6 +73,12 @@ struct Client {
               << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
               << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
               << perf.get_nth_lat(99.9) << std::endl;
+    auto timeseries_vec =
+        perf.get_timeseries_nth_lats(kTimeWindowUs, kDumpPercentile);
+    std::ofstream ofs("timeseries");
+    for (auto [_, us, lat] : timeseries_vec) {
+      ofs << us << " " << lat << std::endl;
+    }
   }
 
   nu::ShardedStatelessService<Obj> service;
