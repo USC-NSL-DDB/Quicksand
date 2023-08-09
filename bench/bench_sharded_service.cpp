@@ -16,13 +16,7 @@ constexpr auto kTimeWindowUs = 10000;
 constexpr auto kDumpPercentile = 99;
 
 struct Obj {
-  using Key = uint64_t;
-
   void work() { nu::Time::delay_us(kDelayUs); }
-
-  bool empty() const { return false; }
-  std::size_t size() const { return 1; }
-  void split(Key *mid_k, Obj *latter_half) {}
 };
 
 struct BenchPerfThreadState : public nu::PerfThreadState {

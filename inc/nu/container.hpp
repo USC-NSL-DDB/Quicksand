@@ -345,9 +345,10 @@ class GeneralContainerBase {
   void load(Archive &ar) {
     ar(impl_);
   }
-  template <typename RetT, typename... Ss>
-  RetT compute(RetT (*fn)(Impl &impl, Ss...), Ss... states) {
-    return synchronized<RetT>([&] { return fn(impl_, std::move(states)...); });
+  template <typename RetT, typename... S0s, typename... S1s>
+  RetT compute(RetT (*fn)(Impl &impl, S0s...), S1s &&...states) {
+    return synchronized<RetT>(
+        [&] { return fn(impl_, std::forward<S1s>(states)...); });
   }
 
  private:
