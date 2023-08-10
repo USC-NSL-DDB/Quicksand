@@ -8,6 +8,7 @@
 
 #include "nu/container.hpp"
 #include "nu/rem_unique_ptr.hpp"
+#include "nu/type_traits.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/read_skewed_lock.hpp"
@@ -23,35 +24,10 @@ template <GeneralContainerBased Container>
 class GeneralShard;
 
 template <GeneralContainerBased Container>
-class ContainerHandle {
- public:
-  ContainerHandle(Container *c, GeneralShard<Container> *shard);
-  ~ContainerHandle();
-  Container *operator->();
-  Container &operator*();
-
- private:
-  Container *c_;
-  GeneralShard<Container> *shard_;
-};
+class ContainerHandle;
 
 template <class Container>
-struct ContainerAndMetadata {
-  Container container;
-  std::size_t capacity = 0;
-  uint64_t container_bucket_size = 0;
-
-  ContainerAndMetadata() = default;
-  ContainerAndMetadata(const ContainerAndMetadata &);
-  ContainerAndMetadata(ContainerAndMetadata &&) = default;
-  ContainerAndMetadata &operator=(ContainerAndMetadata &&) = default;
-
-  template <class Archive>
-  void save(Archive &ar) const;
-
-  template <class Archive>
-  void load(Archive &ar);
-};
+struct ContainerAndMetadata;
 
 template <GeneralContainerBased Container>
 class GeneralShard;
@@ -60,6 +36,9 @@ template <class T>
 concept GeneralShardBased = requires {
   requires is_base_of_template_v<T, GeneralShard>;
 };
+
+template <typename T, BoolIntegral Stateful>
+class Service;
 
 template <GeneralContainerBased Container>
 class GeneralShard {
@@ -73,6 +52,7 @@ class GeneralShard {
   using ContainerImpl = Container::Implementation;
   using ConstIterator = Container::ConstIterator;
   using ConstReverseIterator = Container::ConstReverseIterator;
+  constexpr static bool kIsService = is_specialization_of_v<Container, Service>;
 
   struct ReqBatch {
     uint64_t mapping_seq;
@@ -86,12 +66,10 @@ class GeneralShard {
     void serialize(Archive &ar);
   };
 
-  GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes,
-               bool service);
+  GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes);
   template <typename... As>
   GeneralShard(WeakProclet<ShardMapping> mapping, uint32_t max_shard_bytes,
-               std::optional<Key> l_key, std::optional<Key> r_key, bool service,
-               As... args);
+               std::optional<Key> l_key, std::optional<Key> r_key, As... args);
   ~GeneralShard();
   void init_range_and_data(
       std::optional<Key> l_key, std::optional<Key> r_key,
@@ -215,7 +193,6 @@ class GeneralShard {
   Mutex empty_mutex_;
   CondVar empty_cv_;
   bool deleted_;
-  bool service_;
   bool cofounder_;
   WeakProclet<GeneralShard> self_;
   Thread compute_monitor_th_;
@@ -242,6 +219,37 @@ class GeneralShard {
       ConstReverseIterator prev_iter,
       uint32_t block_size) requires ConstReverseIterable<Container>;
   void start_compute_monitor_th();
+};
+
+template <GeneralContainerBased Container>
+class ContainerHandle {
+ public:
+  ContainerHandle(Container *c, GeneralShard<Container> *shard);
+  ~ContainerHandle();
+  Container *operator->();
+  Container &operator*();
+
+ private:
+  Container *c_;
+  GeneralShard<Container> *shard_;
+};
+
+template <class Container>
+struct ContainerAndMetadata {
+  Container container;
+  std::size_t capacity = 0;
+  uint64_t container_bucket_size = 0;
+
+  ContainerAndMetadata() = default;
+  ContainerAndMetadata(const ContainerAndMetadata &);
+  ContainerAndMetadata(ContainerAndMetadata &&) = default;
+  ContainerAndMetadata &operator=(ContainerAndMetadata &&) = default;
+
+  template <class Archive>
+  void save(Archive &ar) const;
+
+  template <class Archive>
+  void load(Archive &ar);
 };
 
 }  // namespace nu

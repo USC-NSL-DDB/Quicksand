@@ -70,13 +70,11 @@ inline void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
 
 template <class Container>
 inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
-                                             uint32_t max_shard_bytes,
-                                             bool service)
+                                             uint32_t max_shard_bytes)
     : max_shard_bytes_(max_shard_bytes),
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
       deleted_(true),
-      service_(service),
       cofounder_(false) {
   ProcletHeader *proclet_header;
   {
@@ -94,8 +92,7 @@ template <typename... As>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
                                       uint32_t max_shard_bytes,
                                       std::optional<Key> l_key,
-                                      std::optional<Key> r_key, bool service,
-                                      As... args)
+                                      std::optional<Key> r_key, As... args)
     : max_shard_bytes_(max_shard_bytes),
       real_max_shard_bytes_(max_shard_bytes / kAlmostFullThresh),
       mapping_(std::move(mapping)),
@@ -103,7 +100,6 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       r_key_(r_key),
       container_(std::move(args)...),
       deleted_(false),
-      service_(service),
       cofounder_(true) {
   ProcletHeader *proclet_header;
   {
@@ -130,7 +126,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
     size_thresh_ = kAlmostFullThresh * reserve_size;
   }
 
-  if (service_) {
+  if constexpr (kIsService) {
     start_compute_monitor_th();
   }
 }
@@ -160,7 +156,7 @@ void GeneralShard<Container>::init_range_and_data(
   deleted_ = false;
   rw_lock_.writer_unlock();
 
-  if (service_) {
+  if constexpr (kIsService) {
     start_compute_monitor_th();
   }
 }
@@ -203,16 +199,22 @@ void GeneralShard<Container>::split() {
     {
       RuntimeSlabGuard slab_guard;
 
-      latter_half_container.reset(new Container());
       BUG_ON(container_.empty());
-      if (service_) {
-        if constexpr (std::is_arithmetic_v<Key>) {
-          mid_k = l_key_.value_or(std::numeric_limits<Key>::min()) / 2 +
-                  r_key_.value_or(std::numeric_limits<Key>::max()) / 2;
-          *latter_half_container = container_;
-        } else {
-          BUG();
+      latter_half_container.reset(new Container());
+
+      constexpr bool kIsStatelessService = [] {
+        if constexpr (kIsService) {
+          if constexpr (!Container::Stateful) {
+            return true;
+          }
         }
+        return false;
+      }();
+
+      if constexpr (kIsStatelessService) {
+        mid_k = l_key_.value_or(std::numeric_limits<Key>::min()) / 2 +
+                r_key_.value_or(std::numeric_limits<Key>::max()) / 2;
+        *latter_half_container = container_;
       } else {
         container_.split(&mid_k, latter_half_container.get());
       }

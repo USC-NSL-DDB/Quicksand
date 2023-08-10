@@ -108,8 +108,8 @@ template <typename T>
 template <typename... As>
 inline ShardedService<T>::ShardedService(
     std::optional<typename Base::ShardingHint> sharding_hint, As &&...args)
-    : Base(sharding_hint, std::nullopt, /* service = */ true,
-           ServicePassThrough(), std::forward<As>(args)...) {}
+    : Base(sharding_hint, std::nullopt, ServicePassThrough(),
+           std::forward<As>(args)...) {}
 
 template <typename T, typename... As>
 inline ShardedService<T> make_sharded_service(As &&...args) {
@@ -121,8 +121,8 @@ template <typename T>
 template <typename... As>
 inline ShardedStatelessService<T>::ShardedStatelessService(
     std::optional<typename Base::ShardingHint> sharding_hint, As &&...args)
-    : Base(sharding_hint, std::nullopt, /* service = */ true,
-           ServicePassThrough(), std::forward<As>(args)...) {}
+    : Base(sharding_hint, std::nullopt, ServicePassThrough(),
+           std::forward<As>(args)...) {}
 
 template <typename T, typename... As>
 inline ShardedStatelessService<T> make_sharded_stateless_service(As &&...args) {

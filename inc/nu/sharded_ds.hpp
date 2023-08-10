@@ -111,8 +111,7 @@ class ShardedDataStructure {
   ShardedDataStructure();
   template <typename... As>
   ShardedDataStructure(std::optional<ShardingHint> sharding_hint,
-                       std::optional<std::size_t> size_bound,
-                       bool service = false, As &&...args);
+                       std::optional<std::size_t> size_bound, As &&...args);
   ShardedDataStructure(const ShardedDataStructure &);
   ShardedDataStructure &operator=(const ShardedDataStructure &);
   ShardedDataStructure(ShardedDataStructure &&) noexcept;
