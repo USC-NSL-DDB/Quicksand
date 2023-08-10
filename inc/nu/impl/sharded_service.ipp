@@ -19,9 +19,9 @@ RetT ShardedService<T>::run(Key k, RetT (*fn)(T &, S0s...), S1s &&...states)
 
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
   auto *proxy_fn =
-      +[](StatefulService<T> &service, uintptr_t fn_addr, S1s... states) {
+      +[](StatefulService<T> &service, uintptr_t fn_addr, S0s... states) {
         return service.compute(reinterpret_cast<decltype(fn)>(fn_addr),
-                               std::forward<S1s>(states)...);
+                               std::move(states)...);
       };
   return this->compute_on(k, proxy_fn, fn_addr, std::forward<S1s>(states)...);
 }
@@ -37,8 +37,8 @@ RetT ShardedService<T>::run(Key k, RetT (T::*md)(A0s...), A1s &&...args)
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
   auto *proxy_fn = +[](StatefulService<T> &service,
-                       decltype(method_ptr) method_ptr, A1s... args) {
-    return service.compute(method_ptr.ptr, std::forward<A1s>(args)...);
+                       decltype(method_ptr) method_ptr, A0s... args) {
+    return service.compute(method_ptr.ptr, std::move(args)...);
   };
   return this->compute_on(k, proxy_fn, method_ptr, std::forward<A1s>(args)...);
 }
@@ -72,9 +72,9 @@ RetT ShardedStatelessService<T>::run(RetT (*fn)(T &, S0s...), S1s &&...states)
 
   auto fn_addr = reinterpret_cast<uintptr_t>(fn);
   auto *proxy_fn =
-      +[](StatelessService<T> &service, uintptr_t fn_addr, S1s... states) {
+      +[](StatelessService<T> &service, uintptr_t fn_addr, S0s... states) {
         return service.compute(reinterpret_cast<decltype(fn)>(fn_addr),
-                               std::forward<S1s>(states)...);
+                               std::move(states)...);
       };
   return this->compute_on(split_mix64_.next(), proxy_fn, fn_addr,
                           std::forward<S1s>(states)...);
@@ -91,8 +91,8 @@ RetT ShardedStatelessService<T>::run(RetT (T::*md)(A0s...), A1s &&...args)
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
   auto *proxy_fn = +[](StatelessService<T> &service,
-                       decltype(method_ptr) method_ptr, A1s... args) {
-    return service.compute(method_ptr.ptr, std::forward<A1s>(args)...);
+                       decltype(method_ptr) method_ptr, A0s... args) {
+    return service.compute(method_ptr.ptr, std::move(args)...);
   };
   return this->compute_on(split_mix64_.next(), proxy_fn, method_ptr,
                           std::forward<A1s>(args)...);

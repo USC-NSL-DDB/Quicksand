@@ -41,11 +41,6 @@ class BackEndService {
   std::string GetMedia(std::string filename);
   void RemovePosts(int64_t user_id, int start, int stop);
 
-  // boilerplate...
-  using Key = uint64_t;
-  bool empty() const { return false; }
-  std::size_t size() const { return 1; }
-  void split(Key *, BackEndService *) {}
   template <class Archive>
   void serialize(Archive &ar) {
     ar(states_);

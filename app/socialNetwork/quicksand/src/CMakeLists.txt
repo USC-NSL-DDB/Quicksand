@@ -22,6 +22,7 @@ target_include_directories(
     main PRIVATE
     ../third_party
     ${NU_DIR}/inc
+    ${CALADAN_DIR}
     ${CALADAN_DIR}/inc
     ${CALADAN_DIR}/bindings/cc
 )

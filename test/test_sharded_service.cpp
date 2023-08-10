@@ -23,11 +23,13 @@ struct Counter {
 
 bool run_sharded_service() {
   auto service = make_sharded_service<::Counter>(3);
-  auto ret0 = service.run(0, &::Counter::add, 2);
+  int delta = 2;
+  auto ret0 =
+      service.run(0, &::Counter::add, delta);  // Pass a variable argument.
   if (ret0 != 5) {
     return false;
   }
-  auto ret1 = service.run(0, &::Counter::add, 2);
+  auto ret1 = service.run(0, &::Counter::add, 2); // Pass a literal argument.
   if (ret1 != 7) {
     return false;
   }
