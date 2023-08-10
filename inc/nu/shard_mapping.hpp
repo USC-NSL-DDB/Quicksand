@@ -5,6 +5,7 @@
 #include <optional>
 #include <stack>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -59,7 +60,7 @@ class GeneralShardMapping {
   template <typename... As>
   WeakProclet<Shard> create_new_shard(std::optional<Key> l_key,
                                       std::optional<Key> r_key, As... args);
-  WeakProclet<Shard> create_or_reuse_new_shard_for_init(
+  std::pair<bool, WeakProclet<Shard>> create_or_reuse_new_shard_for_init(
       std::optional<Key> l_key, NodeIP ip);
   bool delete_shard(std::optional<Key> l_key, WeakProclet<Shard> shard,
                     bool merge_left, NodeIP ip);

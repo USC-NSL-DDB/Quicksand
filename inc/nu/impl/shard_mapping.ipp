@@ -204,10 +204,11 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
 }
 
 template <class Shard>
-WeakProclet<Shard>
+std::pair<bool, WeakProclet<Shard>>
 GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
     std::optional<Key> l_key, NodeIP ip) {
   Proclet<Shard> new_shard;
+  bool reuse = false;
 
   {
     ScopedLock lock(&mutex_);
@@ -222,6 +223,7 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
     if (!deleted_shards.empty()) {
       new_shard = std::move(deleted_shards.top());
       deleted_shards.pop();
+      reuse = true;
     }
   }
 
@@ -246,7 +248,7 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
     pending_creations_--;
   }
 
-  return new_weak_shard;
+  return std::make_pair(reuse, new_weak_shard);
 }
 
 template <class Shard>

@@ -141,6 +141,20 @@ inline GeneralShard<Container>::~GeneralShard() {
 }
 
 template <class Container>
+void GeneralShard<Container>::init_range(std::optional<Key> l_key,
+                                         std::optional<Key> r_key) {
+  rw_lock_.writer_lock();
+  l_key_ = l_key;
+  r_key_ = r_key;
+  deleted_ = false;
+  rw_lock_.writer_unlock();
+
+  if constexpr (kIsService) {
+    start_compute_monitor_th();
+  }
+}
+
+template <class Container>
 void GeneralShard<Container>::init_range_and_data(
     std::optional<Key> l_key, std::optional<Key> r_key,
     ContainerAndMetadata<Container> container_and_metadata) {
@@ -196,45 +210,50 @@ void GeneralShard<Container>::split() {
   {
     MigrationGuard migration_guard;
     std::unique_ptr<Container> latter_half_container;
-    {
-      RuntimeSlabGuard slab_guard;
 
-      BUG_ON(container_.empty());
-      latter_half_container.reset(new Container());
-
-      constexpr bool kIsStatelessService = [] {
-        if constexpr (kIsService) {
-          if constexpr (!Container::Stateful) {
-            return true;
-          }
+    constexpr bool kIsStatelessService = [] {
+      if constexpr (kIsService) {
+        if constexpr (!Container::Stateful) {
+          return true;
         }
-        return false;
-      }();
-
-      if constexpr (kIsStatelessService) {
-        mid_k = l_key_.value_or(std::numeric_limits<Key>::min()) / 2 +
-                r_key_.value_or(std::numeric_limits<Key>::max()) / 2;
-        *latter_half_container = container_;
-      } else {
-        container_.split(&mid_k, latter_half_container.get());
       }
+      return false;
+    }();
+
+    BUG_ON(container_.empty());
+
+    if constexpr (kIsStatelessService) {
+      mid_k = l_key_.value_or(std::numeric_limits<Key>::min()) / 2 +
+              r_key_.value_or(std::numeric_limits<Key>::max()) / 2;
+    } else {
+      RuntimeSlabGuard slab_guard;
+      latter_half_container.reset(new Container());
+      container_.split(&mid_k, latter_half_container.get());
     }
 
     // The if below avoids creating an illegal empty new shard, which could
     // happen, e.g.,, when splitting a non-edge queue shard.
     if (likely(mid_k != r_key_ || mid_k == l_key_)) {
-      auto new_shard =
+      auto [reuse, new_shard] =
           mapping_.run(&ShardMapping::create_or_reuse_new_shard_for_init, mid_k,
                        nu::get_runtime()->caladan()->get_ip());
-      ContainerAndMetadata<Container> container_and_metadata;
-      container_and_metadata.container = std::move(*latter_half_container);
-      std::size_t min_capacity =
-          latter_half_container->size() / kAlmostFullThresh + 1;
-      container_and_metadata.capacity =
-          std::max(new_container_capacity, min_capacity);
-      container_and_metadata.container_bucket_size = container_bucket_size_;
-      new_shard.run(&GeneralShard::init_range_and_data, mid_k, r_key_,
-                    container_and_metadata);
+      if (reuse && kIsStatelessService) {
+        new_shard.run(&GeneralShard::init_range, mid_k, r_key_);
+      } else {
+        if constexpr (kIsStatelessService) {
+          RuntimeSlabGuard slab_guard;
+          latter_half_container.reset(new Container(container_));
+        }
+        ContainerAndMetadata<Container> container_and_metadata;
+        container_and_metadata.container = std::move(*latter_half_container);
+        std::size_t min_capacity =
+            latter_half_container->size() / kAlmostFullThresh + 1;
+        container_and_metadata.capacity =
+            std::max(new_container_capacity, min_capacity);
+        container_and_metadata.container_bucket_size = container_bucket_size_;
+        new_shard.run(&GeneralShard::init_range_and_data, mid_k, r_key_,
+                      container_and_metadata);
+      }
       r_key_ = mid_k;
     }
   }
