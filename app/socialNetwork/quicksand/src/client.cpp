@@ -25,6 +25,8 @@ Client::Client(States states)
 void Client::bench() {
   std::cout << "benching..." << std::endl;
 
+  nu::RuntimeSlabGuard g;
+
   nu::Perf perf(*this);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
   auto warmup_us = duration_us;
