@@ -52,7 +52,8 @@ class GeneralShard {
   using ContainerImpl = Container::Implementation;
   using ConstIterator = Container::ConstIterator;
   using ConstReverseIterator = Container::ConstReverseIterator;
-  constexpr static bool kIsService = is_specialization_of_v<Container, Service>;
+  constexpr static bool kIsService =
+      is_specialization_of_v<ContainerImpl, Service>;
 
   struct ReqBatch {
     uint64_t mapping_seq;

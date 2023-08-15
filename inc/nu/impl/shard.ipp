@@ -213,7 +213,7 @@ void GeneralShard<Container>::split() {
 
     constexpr bool kIsStatelessService = [] {
       if constexpr (kIsService) {
-        if constexpr (!Container::Stateful) {
+        if constexpr (!ContainerImpl::Stateful) {
           return true;
         }
       }
