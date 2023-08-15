@@ -22,11 +22,7 @@ void compute_on(const Element &e) {
   for (const auto &d : e.data) {
     ACCESS_ONCE(d);
   }
-  unsigned long start = nu::Time::rdtsc();
-  auto delay_cycles = kDelayUs * cycles_per_us;
-  while (nu::Time::rdtsc() - start < delay_cycles) {
-    cpu_relax();
-  }
+  nu::Time::delay_us(kDelayUs);
 }
 
 void run() {
