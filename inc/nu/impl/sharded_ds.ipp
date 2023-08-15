@@ -700,7 +700,8 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
         if (it != key_to_shards_.begin()) {
           move_append_vector(insert_reqs, (--it)->second.insert_reqs);
         }
-      } else if (entry.op == LogEntry<Shard>::kDelete) {
+      } else if (entry.op == LogEntry<Shard>::kMergeLeft ||
+                 entry.op == LogEntry<Shard>::kMergeRight) {
         auto [begin_it, end_it] = key_to_shards_.equal_range(entry.l_key);
         auto it = begin_it;
         for (; it != end_it; ++it) {
@@ -711,7 +712,14 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
         BUG_ON(it == end_it);
 
         move_append_vector(insert_reqs, it->second.insert_reqs);
-        key_to_shards_.erase(it);
+        if (entry.op == LogEntry<Shard>::kMergeLeft) {
+          key_to_shards_.erase(it);
+        } else {
+          auto next_it = std::next(it);
+          BUG_ON(next_it == key_to_shards_.end());
+          it->second = std::move(next_it->second.shard);
+          key_to_shards_.erase(next_it);
+        }
       } else {
         BUG();
       }

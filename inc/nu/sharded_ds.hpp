@@ -131,6 +131,7 @@ class ShardedDataStructure {
     ShardAndReqs(WeakProclet<Shard> s);
     ShardAndReqs(const ShardAndReqs &);
     ShardAndReqs(ShardAndReqs &&) = default;
+    ShardAndReqs &operator=(ShardAndReqs &&) = default;
 
     template <class Archive>
     void save(Archive &ar) const;

@@ -17,7 +17,7 @@ namespace nu {
 
 template <class Shard>
 struct LogEntry {
-  enum { kDelete, kInsert };
+  enum { kMergeLeft, kMergeRight, kInsert };
   uint8_t op;
   std::optional<typename Shard::Key> l_key;
   WeakProclet<Shard> shard;

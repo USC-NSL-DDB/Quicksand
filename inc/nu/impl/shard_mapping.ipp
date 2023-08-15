@@ -288,7 +288,9 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
     mapping_.insert(std::move(next_node));
   }
 
-  log_.append(LogEntry<Shard>::kDelete, it->first, shard);
+  log_.append(
+      merge_left ? LogEntry<Shard>::kMergeLeft : LogEntry<Shard>::kMergeRight,
+      it->first, shard);
   deleted_shards_[ip].emplace(std::move(it->second));
   mapping_.erase(it);
   oos_cv_.signal();
