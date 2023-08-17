@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <ranges>
 
+#include "nu/utils/time.hpp"
+
 namespace nu {
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -194,21 +196,25 @@ DistributedExecutor<RetT, TR, States...>::run(RetT (*fn)(TR &, States...),
   uint64_t last_add_workers_us = last_check_workers_us;
   while (true) {
     auto now_us = Time::microtime();
+
     if (now_us - last_check_workers_us >= kCheckWorkersIntervalUs) {
       last_check_workers_us = now_us;
       check_workers();
-
-      if (now_us - last_add_workers_us >= kAddWorkersIntervalUs) {
-        last_add_workers_us = now_us;
-        add_workers(states...);
-      }
     }
+    auto sleep_us = kCheckWorkersIntervalUs - (now_us - last_check_workers_us);
+
+    if (now_us - last_add_workers_us >= kAddWorkersIntervalUs) {
+      last_add_workers_us = now_us;
+      add_workers(states...);
+    }
+    sleep_us = std::min(sleep_us,
+                        kAddWorkersIntervalUs - (now_us - last_add_workers_us));
 
     if (unlikely(!check_futures_and_redispatch())) {
       break;
     }
 
-    rt::Yield();
+    Time::sleep(sleep_us);
   }
 
   return concat_results();
@@ -237,7 +243,7 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
 
   std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
   for (auto &[ip, resource] : global_free_resources) {
-    auto num_workers = static_cast<uint32_t>(resource.cores / 2);
+    auto num_workers = static_cast<uint32_t>(resource.cores);
     for (uint32_t i = 0; i < num_workers; i++) {
       worker_futures.emplace_back(
           nu::make_proclet_async<ComputeProclet<TR, States...>>(
@@ -422,6 +428,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
       last_check_worker_us = now_us;
       check_workers();
     }
+    auto sleep_us = kCheckWorkersIntervalUs - (now_us - last_check_worker_us);
 
     if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
       last_check_queue_us = now_us;
@@ -450,7 +457,11 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
         prev_queue_len = queue_len;
       }
     }
-    rt::Yield();
+    sleep_us = std::min(sleep_us,
+                        kCheckQueueIntervalUs - (now_us - last_check_queue_us));
+
+
+    Time::sleep(sleep_us);
   }
 
   return concat_results();
