@@ -166,15 +166,8 @@ ShardedQueue<T, LL>::consume(ConsumeFn consume_fn, States... states) {
 }
 
 template <typename T, typename LL>
-inline ShardedQueue<T, LL> make_sharded_queue(std::optional<NodeIP> pinned_ip) {
-  auto hint = std::nullopt;
-  auto size_bound = std::nullopt;
-  return ShardedQueue<T, LL>(hint, size_bound, pinned_ip);
-}
-
-template <typename T, typename LL>
-inline ShardedQueue<T, LL> make_sharded_queue(std::size_t size_bound,
-                                              std::optional<NodeIP> pinned_ip) {
+inline ShardedQueue<T, LL> make_sharded_queue(
+    std::optional<std::size_t> size_bound, std::optional<NodeIP> pinned_ip) {
   auto hint = std::nullopt;
   return ShardedQueue<T, LL>(hint, size_bound, pinned_ip);
 }
