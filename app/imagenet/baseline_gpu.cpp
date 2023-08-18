@@ -11,7 +11,7 @@
 
 #include "image.hpp"
 #include "gpu.hpp"
-#include "baseline_gpu.hpp"
+#include "dataloader.hpp"
 
 using namespace imagenet;
 
@@ -51,8 +51,8 @@ void tcp_server_fn(rt::TcpConn *conn) {
 }
 
 rt::TcpConn *start_tcp_server() {
-  BUG_ON(get_cfg_ip() != kBaselineGPUIP);
-  netaddr laddr{.ip = 0, .port = kBaselineGPUPort};
+  BUG_ON(get_cfg_ip() != BaselineDataLoader::kGPUIP);
+  netaddr laddr{.ip = 0, .port = BaselineDataLoader::kGPUPort};
   auto *tcp_queue = rt::TcpQueue::Listen(laddr, kTCPListenBackLog);
   BUG_ON(!tcp_queue);
   auto *main_conn = tcp_queue->Accept();
@@ -90,7 +90,7 @@ void gpu_fn() {
 }
 
 void start_gpus() {
-  for (uint32_t i = 0; i < kNumGPUs; i++) {
+  for (uint32_t i = 0; i < BaselineDataLoader::kNumGPUs; i++) {
     gpu_ths.emplace_back([] { gpu_fn(); });
   }
 }

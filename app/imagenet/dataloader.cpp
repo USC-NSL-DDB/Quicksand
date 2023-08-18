@@ -11,7 +11,6 @@
 #include <sstream>
 #include <string>
 
-#include "baseline_gpu.hpp"
 #include "gpu.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
@@ -20,7 +19,8 @@ using namespace imagenet;
 
 DataLoader::DataLoader(std::string path)
     : imgs_{nu::make_sharded_vector<RawImage, std::false_type>()},
-      queue_{nu::make_sharded_queue<Image, std::true_type>()} {
+      queue_{
+          nu::make_sharded_queue<Image, std::true_type>(std::nullopt, kGPUIP)} {
   int image_count = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
@@ -148,7 +148,7 @@ BaselineDataLoader::BaselineDataLoader(std::string path, int nthreads)
 
 rt::TcpConn *BaselineDataLoader::dial_gpu_server() {
   netaddr laddr{.ip = 0, .port = 0};
-  netaddr raddr{.ip = kBaselineGPUIP, .port = kBaselineGPUPort};
+  netaddr raddr{.ip = kGPUIP, .port = kGPUPort};
   auto *conn = rt::TcpConn::Dial(laddr, raddr);
   BUG_ON(!conn);
   return conn;
