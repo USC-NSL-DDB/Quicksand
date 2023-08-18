@@ -19,12 +19,9 @@ using shard_vec_type = nu::ShardedVector<RawImage, std::false_type>;
 using sealed_shard_vec_type = nu::SealedDS<shard_vec_type>;
 using shard_queue_type = nu::ShardedQueue<Image, std::true_type>;
 
-template <typename Elem>
-class MockGPU;
-
 class DataLoader {
  public:
-  using GPU = MockPipelinedGPU<Image>;
+  using GPU = MockGPU<Image>;
   using TraceVec = std::vector<std::vector<std::pair<uint64_t, uint64_t>>>;
 
   static constexpr uint32_t kMaxNumGPUs = 10;

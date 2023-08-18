@@ -68,7 +68,7 @@ uint64_t DataLoader::process_all() {
   barrier();
 
   auto all_traces = gpu_orchestrator.get();
-  process_traces(std::move(all_traces));
+  // process_traces(std::move(all_traces));
 
   imgs_ = nu::to_unsealed_ds(std::move(sealed_imgs));
 
