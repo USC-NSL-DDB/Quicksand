@@ -19,7 +19,8 @@ template <class Container, class LL>
 template <typename... As>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<ShardingHint> sharding_hint,
-    std::optional<std::size_t> size_bound, As &&...args)
+    std::optional<std::size_t> size_bound, std::optional<NodeIP> pinned_ip,
+    As &&...args)
     : num_pending_flushes_(0),
       max_num_vals_(0),
       max_num_data_entries_(0),
@@ -34,8 +35,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
                         size_bound, static_cast<std::size_t>(kMaxShardBytes)));
   });
 
-  mapping_ =
-      make_proclet<ShardMapping>(std::tuple(kMaxShardBytes, max_shard_count));
+  mapping_ = make_proclet<ShardMapping>(
+      std::tuple(kMaxShardBytes, max_shard_count, pinned_ip));
 
   std::vector<std::optional<Key>> keys;
   std::vector<Future<WeakProclet<Shard>>> shard_futures;

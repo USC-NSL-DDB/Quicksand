@@ -63,7 +63,8 @@ inline void GeneralTSUMap<K, V, H>::load(Archive &ar) {
 template <typename K, typename V, typename H>
 inline ShardedTSUMap<K, V, H>::ShardedTSUMap(
     std::optional<typename Base::ShardingHint> sharding_hint)
-    : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
+    : Base(sharding_hint, /* size_bound = */ std::nullopt,
+           /* pinned_ip = */ std::nullopt) {}
 
 template <typename K, typename V, typename H>
 template <typename RetT, typename... S0s, typename... S1s>

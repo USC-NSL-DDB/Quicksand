@@ -122,7 +122,8 @@ inline void GeneralUnorderedSet<T, M>::load(Archive &ar) {
 template <typename T, typename M, typename LL>
 inline GeneralShardedUnorderedSet<T, M, LL>::GeneralShardedUnorderedSet(
     std::optional<typename Base::ShardingHint> sharding_hint)
-    : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
+    : Base(sharding_hint, /* size_bound = */ std::nullopt,
+           /* pinned_ip = */ std::nullopt) {}
 
 template <typename T, typename LL>
 inline ShardedUnorderedSet<T, LL> make_sharded_unordered_set() {

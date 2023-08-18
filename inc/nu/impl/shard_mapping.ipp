@@ -48,10 +48,12 @@ void Log<Shard>::append(uint8_t op, std::optional<typename Shard::Key> l_key,
 
 template <class Shard>
 GeneralShardMapping<Shard>::GeneralShardMapping(
-    uint32_t max_shard_bytes, std::optional<uint32_t> max_shard_cnt)
+    uint32_t max_shard_bytes, std::optional<uint32_t> max_shard_cnt,
+    std::optional<NodeIP> pinned_ip)
     : max_shard_bytes_(max_shard_bytes),
       proclet_capacity_(max_shard_bytes_ * kProcletOverprovisionFactor),
       max_shard_cnt_(max_shard_cnt),
+      pinned_ip_(pinned_ip),
       pending_creations_(0),
       ref_cnt_(1),
       log_(kLogSize) {
@@ -187,10 +189,10 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
     pending_creations_++;
   }
 
-  auto new_shard =
-      make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_, l_key,
-                                                r_key, std::move(args)...),
-                          false, proclet_capacity_);
+  auto new_shard = make_proclet<Shard>(
+      std::forward_as_tuple(self_, max_shard_bytes_, l_key, r_key,
+                            std::move(args)...),
+      pinned_ip_.has_value(), proclet_capacity_, pinned_ip_);
   auto new_weak_shard = new_shard.get_weak();
 
   {
@@ -230,13 +232,13 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
   if (!new_shard) {
     // Useful for improving the locality of sorter.
     if (mapping_.size() >= kCreateLocalShardThresh || Shard::kIsService) {
-      new_shard =
-          make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
-                              false, proclet_capacity_, ip);
+      new_shard = make_proclet<Shard>(
+          std::forward_as_tuple(self_, max_shard_bytes_),
+          pinned_ip_.has_value(), proclet_capacity_, pinned_ip_);
     } else {
-      new_shard =
-          make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
-                              false, proclet_capacity_);
+      new_shard = make_proclet<Shard>(
+          std::forward_as_tuple(self_, max_shard_bytes_),
+          pinned_ip_.has_value(), proclet_capacity_, pinned_ip_);
     }
   }
 

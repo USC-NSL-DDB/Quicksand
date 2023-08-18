@@ -94,7 +94,8 @@ inline ShardedStack<T, LL>::ShardedStack() {}
 template <typename T, typename LL>
 inline ShardedStack<T, LL>::ShardedStack(
     std::optional<typename Base::ShardingHint> sharding_hint)
-    : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
+    : Base(sharding_hint, /* size_bound = */ std::nullopt,
+           /* pinned_ip = */ std::nullopt) {}
 
 template <typename T, typename LL>
 inline void ShardedStack<T, LL>::push(const T &value) {

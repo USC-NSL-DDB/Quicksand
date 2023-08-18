@@ -206,7 +206,8 @@ inline void ShardedVector<T, LL>::set(std::size_t index, T value) {
 template <typename T, typename LL>
 inline ShardedVector<T, LL>::ShardedVector(
     std::optional<typename Base::ShardingHint> sharding_hint)
-    : Base(sharding_hint, /* size_bound = */ std::nullopt) {}
+    : Base(sharding_hint, /* size_bound = */ std::nullopt,
+           /* pinned_ip = */ std::nullopt) {}
 
 template <typename T, typename LL>
 inline ShardedVector<T, LL> make_sharded_vector() {
