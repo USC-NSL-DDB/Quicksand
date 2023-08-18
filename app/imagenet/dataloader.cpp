@@ -19,8 +19,8 @@ using namespace imagenet;
 
 DataLoader::DataLoader(std::string path)
     : imgs_{nu::make_sharded_vector<RawImage, std::false_type>()},
-      queue_{
-          nu::make_sharded_queue<Image, std::true_type>(std::nullopt, kGPUIP)} {
+      queue_{nu::make_sharded_queue<Image, std::false_type>(std::nullopt,
+                                                            kGPUIP)} {
   int image_count = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
@@ -48,15 +48,13 @@ uint64_t DataLoader::process_all() {
   auto start = high_resolution_clock::now();
   auto producers = nu::make_distributed_executor(
       +[](decltype(imgs_range) &imgs_range, decltype(queue_) queue) {
-        nu::Future<void> fut;
         while (true) {
           auto img = imgs_range.pop();
           if (!img) {
             break;
           }
-          fut = nu::async([&, processed = kernel(std::move(*img))] {
-            queue.push(std::move(processed));
-          });
+          auto processed = kernel(std::move(*img));
+          queue.push(std::move(processed));
         }
       },
       imgs_range, queue_);

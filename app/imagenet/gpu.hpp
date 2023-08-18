@@ -23,7 +23,7 @@ class MockGPU {
   static constexpr uint32_t kMaxNumImages = 300'000;
 
   MockGPU() = default;
-  MockGPU(nu::ShardedQueue<Item, std::true_type> queue, std::size_t max_gpus)
+  MockGPU(nu::ShardedQueue<Item, std::false_type> queue, std::size_t max_gpus)
       : num_gpus_(max_gpus) {
     all_traces_.resize(max_gpus);
     num_traces_.resize(max_gpus);
@@ -40,7 +40,7 @@ class MockGPU {
   }
 
   void fetcher_fn(std::size_t id,
-                  nu::ShardedQueue<Item, std::true_type> remote_queue) {
+                  nu::ShardedQueue<Item, std::false_type> remote_queue) {
     auto &spin = spins_[id];
     auto &local_queue = queues_[id];
 
