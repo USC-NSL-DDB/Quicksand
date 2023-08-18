@@ -48,13 +48,15 @@ uint64_t DataLoader::process_all() {
   auto start = high_resolution_clock::now();
   auto producers = nu::make_distributed_executor(
       +[](decltype(imgs_range) &imgs_range, decltype(queue_) queue) {
+        nu::Future<void> fut;
         while (true) {
           auto img = imgs_range.pop();
           if (!img) {
             break;
           }
-          auto processed = kernel(std::move(*img));
-          queue.push(std::move(processed));
+          fut = nu::async([&, processed = kernel(std::move(*img))] {
+            queue.push(std::move(processed));
+          });
         }
       },
       imgs_range, queue_);
@@ -74,14 +76,14 @@ uint64_t DataLoader::process_all() {
 }
 
 DataLoader::TraceVec DataLoader::run_gpus() {
-  auto gpu = nu::make_proclet<GPU>(std::forward_as_tuple(queue_, kNumGPUs),
+  auto gpu = nu::make_proclet<GPU>(std::forward_as_tuple(queue_, kMaxNumGPUs),
                                    true, std::nullopt, kGPUIP);
+  gpu.run(&GPU::set_num_gpus, kMaxNumGPUs);
 
   while (!load_acquire(&processed_)) {
     gpu.run(&GPU::set_num_gpus, kNumScaleDownGPUs);
     nu::Time::sleep(kScaleDownDurationUs);
-
-    gpu.run(&GPU::set_num_gpus, kNumGPUs);
+    gpu.run(&GPU::set_num_gpus, kMaxNumGPUs);
     nu::Time::sleep(kScaleUpDurationUs);
   }
 

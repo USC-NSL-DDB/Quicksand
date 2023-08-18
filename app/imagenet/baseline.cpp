@@ -8,7 +8,7 @@ using namespace std::chrono;
 using namespace imagenet;
 
 std::string datapath = "train_t3";
-constexpr auto kNumThreads = 1000;
+constexpr auto kNumThreads = 26;
 
 void do_work() {
   auto start = high_resolution_clock::now();

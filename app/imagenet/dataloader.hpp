@@ -9,6 +9,7 @@
 #include <nu/sharded_vector.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "gpu.hpp"
 #include "image.hpp"
 
 namespace imagenet {
@@ -23,11 +24,11 @@ class MockGPU;
 
 class DataLoader {
  public:
-  using GPU = MockGPU<Image>;
+  using GPU = MockPipelinedGPU<Image>;
   using TraceVec = std::vector<std::vector<std::pair<uint64_t, uint64_t>>>;
 
-  static constexpr uint32_t kMaxNumGPUs = 8;
-  static constexpr auto kGPUIP = MAKE_IP_ADDR(18, 18, 1, 10);
+  static constexpr uint32_t kMaxNumGPUs = 10;
+  static constexpr auto kGPUIP = MAKE_IP_ADDR(18, 18, 1, 100);
   static constexpr uint64_t kNumScaleDownGPUs = kMaxNumGPUs / 2;
   static constexpr uint64_t kScaleUpDurationUs = nu::kOneMilliSecond * 500;
   static constexpr uint64_t kScaleDownDurationUs = nu::kOneMilliSecond * 500;

@@ -6,7 +6,7 @@ extern "C" {
 #include <net.h>
 #include <runtime.h>
 
-constexpr uint32_t kServerIP = MAKE_IP_ADDR(18, 18, 1, 11);
+constexpr uint32_t kServerIP = MAKE_IP_ADDR(18, 18, 1, 101);
 constexpr uint32_t kServerPort = 8888;
 constexpr uint32_t kWarmupTimes = 1000;
 constexpr uint32_t kMeasureTimes = 10000;

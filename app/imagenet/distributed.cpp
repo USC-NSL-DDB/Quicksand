@@ -5,7 +5,7 @@
 using namespace std::chrono;
 using namespace imagenet;
 
-std::string datapath = "train_t3";
+std::string datapath = "train_images";
 
 void do_work() {
   auto start = high_resolution_clock::now();
@@ -17,9 +17,8 @@ void do_work() {
 
   auto ms = dataloader.process_all();
   auto throughput = (1000 * dataloader.size()) / ms;
-  // std::cout << "DataLoader: Image pre-processing takes " << ms
-  //           << "ms; throughput: " << throughput << " images/s" << std::endl;
-  printf("ms %lld, tput %d", (long long)ms, (int)throughput);
+  std::cout << "DataLoader: Image pre-processing takes " << ms
+            << "ms; throughput: " << throughput << " images/s" << std::endl;
 }
 
 int main(int argc, char **argv) {
