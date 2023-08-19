@@ -603,15 +603,15 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
   shard_and_reqs.insert_reqs.clear();
   std::tie(batch.l_key, batch.r_key) = get_key_range(iter);
 
-  if (unlikely(!shard_and_reqs.flush_executor)) {
-    shard_and_reqs.flush_executor = shard_and_reqs.shard.run(+[](Shard &s) {
-      return make_rem_unique<RobExecutor<ReqBatch, std::optional<ReqBatch>>>(
-          [&](ReqBatch &&batch) { return s.try_handle_batch(batch); },
-          kMaxNumInflightFlushes + 1);
-    });
-  }
-
   if (!batch.empty()) {
+    if (unlikely(!shard_and_reqs.flush_executor)) {
+      shard_and_reqs.flush_executor = shard_and_reqs.shard.run(+[](Shard &s) {
+        return make_rem_unique<RobExecutor<ReqBatch, std::optional<ReqBatch>>>(
+            [&](ReqBatch &&batch) { return s.try_handle_batch(batch); },
+            kMaxNumInflightFlushes + 1);
+      });
+    }
+
     shard_and_reqs.flush_futures.emplace_back(
         shard_and_reqs.flush_executor.run_async(
             +[](RobExecutor<ReqBatch, std::optional<ReqBatch>> &rob_executor,
