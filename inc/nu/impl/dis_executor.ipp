@@ -268,8 +268,8 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
   if (target < workers_size_) {
     auto futures = std::vector<nu::Future<void>>{};
     for (std::size_t i = target; i < workers_size_; i++) {
-      futures.push_back(std::move(
-          workers_[i].cp.run_async(&ComputeProclet<TR, States...>::suspend)));
+      futures.push_back(
+          workers_[i].cp.run_async(&ComputeProclet<TR, States...>::suspend));
     }
     for (auto &f : futures) {
       f.get();
@@ -302,14 +302,13 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
       std::vector<Future<Proclet<ComputeProclet<TR, States...>>>>
           worker_futures;
       for (auto &[ip, resource] : global_free_resources) {
-        auto num_workers = static_cast<uint32_t>(resource.cores);
+        auto num_workers =
+            std::min(gap, static_cast<std::size_t>(resource.cores));
+        gap -= num_workers;
         for (uint32_t i = 0; i < num_workers; i++) {
           worker_futures.emplace_back(
               nu::make_proclet_async<ComputeProclet<TR, States...>>(
                   std::forward_as_tuple(states...), false, std::nullopt, ip));
-          if (worker_futures.size() == gap) {
-            break;
-          }
         }
       }
 
