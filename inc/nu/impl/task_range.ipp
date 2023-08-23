@@ -57,23 +57,25 @@ TaskRange<Impl>::~TaskRange() {
 
 template <class Impl>
 std::optional<typename Impl::Task> TaskRange<Impl>::pop() {
-  if (unlikely(rt::access_once(suspended_))) {
-    ScopedLock lock(&mutex_);
-    while (rt::access_once(suspended_)) {
-      suspend_cv_.wait(&mutex_);
-    }
-  }
-
   if (empty()) {
     return std::nullopt;
   }
 
-  if (unlikely(rt::access_once(pending_steal_))) {
-    steal_size_ = size_ / 2;
-    size_ -= steal_size_;
-    pending_steal_ = false;
-    barrier();
-    cv_.signal();
+  if (unlikely(rt::access_once(pending_steal_) ||
+               rt::access_once(suspended_))) {
+    if (pending_steal_) {
+      steal_size_ = size_ / 2;
+      size_ -= steal_size_;
+      pending_steal_ = false;
+      barrier();
+      cv_.signal();
+    }
+    if (suspended_) {
+      ScopedLock lock(&mutex_);
+      while (rt::access_once(suspended_)) {
+        suspend_cv_.wait(&mutex_);
+      }
+    }
   }
 
   auto ret = impl_.pop();
@@ -99,6 +101,11 @@ void TaskRange<Impl>::suspend() {
 template <class Impl>
 void TaskRange<Impl>::resume() {
   ScopedLock lock(&mutex_);
+  __resume();
+}
+
+template <class Impl>
+void TaskRange<Impl>::__resume() {
   suspended_ = false;
   barrier();
   suspend_cv_.signal();
@@ -129,6 +136,9 @@ TaskRange<Impl> TaskRange<Impl>::steal() {
   if (suspended_) {
     auto steal_size = size_ < 2 ? size_ : size_ / 2;
     size_ -= steal_size;
+    if (!size_) {
+      __resume();
+    }
     return impl_.split(steal_size);
   }
 

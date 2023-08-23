@@ -77,6 +77,7 @@ class TaskRange {
   friend class ComputeProclet;
 
   void cleanup_steal();
+  void __resume();
 };
 
 template <class Impl>
