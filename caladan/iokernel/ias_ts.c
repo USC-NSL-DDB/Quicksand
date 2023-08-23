@@ -32,7 +32,8 @@ void ias_ts_poll(void)
 			continue;
 
 		m = &th->metrics;
-		if (!th->preemptor->th || m->uthread_elapsed_us < sd->quantum_us)
+		if ((!m->work_pending && !th->preemptor->th) ||
+		    m->uthread_elapsed_us < sd->quantum_us)
 			continue;
 
 		ias_ts_yield_count++;
