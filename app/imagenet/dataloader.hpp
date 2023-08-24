@@ -15,17 +15,17 @@
 namespace imagenet {
 
 using Batch = std::vector<RawImage>;
-using shard_vec_type = nu::ShardedVector<RawImage, std::false_type>;
+using shard_vec_type = nu::ShardedVector<RawImage, std::true_type>;
 using sealed_shard_vec_type = nu::SealedDS<shard_vec_type>;
-using shard_queue_type = nu::ShardedQueue<Image, std::false_type>;
+using shard_queue_type = nu::ShardedQueue<Image, std::true_type>;
 
 class DataLoader {
  public:
   using GPU = MockGPU<Image>;
   using TraceVec = std::vector<std::vector<std::pair<uint64_t, uint64_t>>>;
 
-  static constexpr uint32_t kMaxNumGPUs = 10;
   static constexpr auto kGPUIP = MAKE_IP_ADDR(18, 18, 1, 100);
+  static constexpr uint32_t kMaxNumGPUs = 10;
   static constexpr uint64_t kNumScaleDownGPUs = kMaxNumGPUs / 2;
   static constexpr uint64_t kScaleUpDurationUs = nu::kOneMilliSecond * 500;
   static constexpr uint64_t kScaleDownDurationUs = nu::kOneMilliSecond * 500;

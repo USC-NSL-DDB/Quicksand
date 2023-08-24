@@ -85,7 +85,7 @@ void gpu_fn() {
       images.pop();
     }
 
-    MockGPU<Image>::process(std::move(image));
+    MockGPU<Image>::process(image);
   }
 }
 

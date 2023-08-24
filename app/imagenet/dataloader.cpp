@@ -18,9 +18,9 @@ using namespace std::chrono;
 using namespace imagenet;
 
 DataLoader::DataLoader(std::string path)
-    : imgs_{nu::make_sharded_vector<RawImage, std::false_type>()},
-      queue_{nu::make_sharded_queue<Image, std::false_type>(std::nullopt,
-                                                            kGPUIP)} {
+    : imgs_{nu::make_sharded_vector<RawImage, std::true_type>()},
+      queue_{
+          nu::make_sharded_queue<Image, std::true_type>(std::nullopt, kGPUIP)} {
   int image_count = 0;
   for (const auto &file_ : directory_iterator(path)) {
     if (file_.is_regular_file()) {
