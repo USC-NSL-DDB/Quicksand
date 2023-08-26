@@ -57,10 +57,6 @@ TaskRange<Impl>::~TaskRange() {
 
 template <class Impl>
 std::optional<typename Impl::Task> TaskRange<Impl>::pop() {
-  if (empty()) {
-    return std::nullopt;
-  }
-
   if (unlikely(rt::access_once(pending_steal_) ||
                rt::access_once(suspended_))) {
     if (pending_steal_) {
@@ -76,6 +72,10 @@ std::optional<typename Impl::Task> TaskRange<Impl>::pop() {
         suspend_cv_.wait(&mutex_);
       }
     }
+  }
+
+  if (empty()) {
+    return std::nullopt;
   }
 
   auto ret = impl_.pop();
