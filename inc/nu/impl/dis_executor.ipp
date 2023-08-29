@@ -32,8 +32,7 @@ void DistributedExecutor<RetT, TR, States...>::Worker::steal_and_compute_async(
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-DistributedExecutor<RetT, TR, States...>::DistributedExecutor()
-    : almost_done_(false) {}
+DistributedExecutor<RetT, TR, States...>::DistributedExecutor() {}
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::MovedResult
@@ -43,14 +42,6 @@ DistributedExecutor<RetT, TR, States...>::get() {
   } else {
     return std::move(future_.get());
   }
-}
-
-template <typename RetT, TaskRangeBased TR, typename... States>
-DistributedExecutor<RetT, TR, States...>::MovedResult
-DistributedExecutor<RetT, TR, States...>::drain_and_join() {
-  static_assert(QueueRangeBased<typename TR::Implementation>);
-  almost_done_ = true;
-  return get();
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -68,10 +59,6 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_workers(
 template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::add_workers(S1s &... states) {
-  if (unlikely(almost_done_)) {
-    return;
-  }
-
   std::vector<std::pair<NodeIP, Resource>> global_free_resources;
   {
     Caladan::PreemptGuard g;
@@ -132,8 +119,6 @@ void DistributedExecutor<RetT, TR, States...>::check_workers() {
     worker.remaining_size = size;
     if (size) {
       victims_.push(&worker);
-    } else {
-      almost_done_ = true;
     }
   }
 }
@@ -203,12 +188,12 @@ DistributedExecutor<RetT, TR, States...>::run(RetT (*fn)(TR &, States...),
     }
     auto sleep_us = kCheckWorkersIntervalUs - (now_us - last_check_workers_us);
 
-    if (now_us - last_add_workers_us >= kAddWorkersIntervalUs) {
+    if (now_us - last_add_workers_us >= kAdjustNumWorkersIntervalUs) {
       last_add_workers_us = now_us;
       add_workers(states...);
     }
-    sleep_us = std::min(sleep_us,
-                        kAddWorkersIntervalUs - (now_us - last_add_workers_us));
+    sleep_us = std::min(
+        sleep_us, kAdjustNumWorkersIntervalUs - (now_us - last_add_workers_us));
 
     if (unlikely(!check_futures_and_redispatch())) {
       break;
@@ -255,7 +240,7 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
                          [](auto &worker_future) {
                            return Worker(std::move(worker_future.get()));
                          });
-  workers_size_ = workers_.size();
+  num_active_workers_ = workers_.size();
   make_initial_dispatch(fn_, std::move(task_range));
 }
 
@@ -265,22 +250,22 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
     std::size_t target, TR task_range, S1s &... states) {
   target = std::max(target, static_cast<std::size_t>(1));
 
-  if (target < workers_size_) {
+  if (target < num_active_workers_) {
     auto futures = std::vector<nu::Future<void>>{};
-    for (std::size_t i = target; i < workers_size_; i++) {
+    for (std::size_t i = target; i < num_active_workers_; i++) {
       futures.push_back(
           workers_[i].cp.run_async(&ComputeProclet<TR, States...>::suspend));
     }
     for (auto &f : futures) {
       f.get();
     }
-    workers_size_ = target;
-  } else if (target > workers_size_) {
-    if (workers_size_ < workers_.size()) {
+    num_active_workers_ = target;
+  } else if (target > num_active_workers_) {
+    if (num_active_workers_ < workers_.size()) {
       std::size_t scale_up_target = std::min(workers_.size(), target);
 
       auto futures = std::vector<nu::Future<void>>{};
-      for (std::size_t i = workers_size_; i < scale_up_target; i++) {
+      for (std::size_t i = num_active_workers_; i < scale_up_target; i++) {
         futures.push_back(std::move(
             workers_[i].cp.run_async(&ComputeProclet<TR, States...>::resume)));
       }
@@ -288,9 +273,9 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
       for (auto &f : futures) {
         f.get();
       }
-      workers_size_ = scale_up_target;
+      num_active_workers_ = scale_up_target;
     }
-    if (target > workers_size_) {
+    if (target > num_active_workers_) {
       std::vector<std::pair<NodeIP, Resource>> global_free_resources;
       {
         Caladan::PreemptGuard g;
@@ -316,7 +301,7 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
         auto w = Worker(std::move(f.get()));
         workers_.push_back(std::move(w));
       }
-      workers_size_ = workers_.size();
+      num_active_workers_ = workers_.size();
     }
   }
 }
@@ -357,108 +342,45 @@ float DistributedExecutor<RetT, TR, States...>::check_queue_workers() {
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-template <BoolIntegral IsProducer, ShardedQueueBased Q, typename... S1s>
+template <ShardedQueueBased Q, typename... S1s>
 DistributedExecutor<RetT, TR, States...>::Result
 DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
                                                     TR task_range, Q queue,
-                                                    S1s &&... states) {
-  constexpr double kEWMAWeight = 0.1;
-  constexpr double kJitterToleranceFactor = 0.01;
-  constexpr std::size_t kQueueLenTargetMin = 100;
-  constexpr std::size_t kQueueLenTargetMax = 200;
-
+                                                    S1s &&...states) {
   fn_ = fn;
 
-  uint64_t last_check_queue_us = Time::microtime();
-  uint64_t last_check_worker_us = last_check_queue_us;
-  uint64_t last_add_worker_us = last_check_queue_us;
-  double queue_len = 0;
-  double prev_queue_len = 0;
-
-  auto calc_num_workers = [&](std::size_t curr_worker_count) -> std::size_t {
-    constexpr int32_t kIncQueueLenBigStepSize = IsProducer::value ? 3 : -3;
-    constexpr int32_t kIncQueueLenMidStepSize = IsProducer::value ? 2 : -2;
-    constexpr int32_t kIncQueueLenSmallStepSize = IsProducer::value ? 1 : -1;
-    constexpr int32_t kDecQueueLenBigStepSize = -kIncQueueLenBigStepSize;
-    constexpr int32_t kDecQueueLenMidStepSize = -kIncQueueLenMidStepSize;
-    constexpr int32_t kDecQueueLenSmallStepSize = -kIncQueueLenSmallStepSize;
-
-    int32_t delta = 0;
-    if (queue_len > kQueueLenTargetMax) {
-      if (queue_len > prev_queue_len * (1 + kJitterToleranceFactor)) {
-        if (queue_len - prev_queue_len > 10) {
-          delta = kDecQueueLenBigStepSize;
-        } else if (queue_len - prev_queue_len > 5) {
-          delta = kDecQueueLenMidStepSize;
-        } else {
-          delta = kDecQueueLenSmallStepSize;
-        }
-      }
-    } else if (queue_len < kQueueLenTargetMin) {
-      if (queue_len < prev_queue_len * (1 - kJitterToleranceFactor)) {
-        if (queue_len - prev_queue_len > 10) {
-          delta = kIncQueueLenBigStepSize;
-        } else if (queue_len - prev_queue_len > 5) {
-          delta = kIncQueueLenMidStepSize;
-        } else {
-          delta = kIncQueueLenSmallStepSize;
-        }
-      }
-    } else {
-      auto queue_len_delta = abs(queue_len - prev_queue_len);
-      if (queue_len_delta > 10) {
-        delta = queue_len > prev_queue_len ? kDecQueueLenMidStepSize
-                                           : kIncQueueLenMidStepSize;
-      } else if (queue_len_delta > 5) {
-        delta = queue_len > prev_queue_len ? kDecQueueLenSmallStepSize
-                                           : kIncQueueLenSmallStepSize;
-      }
-    }
-
-    return curr_worker_count + delta;
-  };
+  uint64_t last_check_workers_us = microtime();
+  uint64_t last_adjust_num_workers_us = last_check_workers_us;
+  int64_t prev_queue_len = 0;
 
   spawn_initial_queue_workers(task_range, states...);
 
   while (true) {
     auto now_us = Time::microtime();
 
-    if (now_us - last_check_worker_us >= kCheckWorkersIntervalUs) {
-      last_check_worker_us = now_us;
+    if (now_us - last_check_workers_us >= kCheckWorkersIntervalUs) {
       check_workers();
+      last_check_workers_us = now_us;
     }
-    auto sleep_us = kCheckWorkersIntervalUs - (now_us - last_check_worker_us);
+    auto sleep_us = kCheckWorkersIntervalUs - (now_us - last_check_workers_us);
 
-    if (now_us - last_check_queue_us >= kCheckQueueIntervalUs) {
-      last_check_queue_us = now_us;
+    if (now_us - last_adjust_num_workers_us >= kAdjustNumWorkersIntervalUs) {
+      int64_t curr_queue_len = queue.size();
+      auto diff_queue_len = curr_queue_len - prev_queue_len;
+      auto delta_num_active_workers = -0.4 * diff_queue_len;
+      auto new_num_active_workers = std::max(
+          0, static_cast<int>(num_active_workers_ + delta_num_active_workers));
+      adjust_queue_workers(new_num_active_workers, task_range, states...);
 
-      auto curr_len = queue.size();
-      if constexpr (!IsProducer::value) {
-        if (unlikely(almost_done_ && curr_len == 0)) {
-          abort_workers();
-          break;
-        }
-      }
-      ewma(kEWMAWeight, &queue_len, static_cast<double>(curr_len));
-
-      if (now_us - last_add_worker_us >= kAddQueueWorkersIntervalUs) {
-        last_add_worker_us = now_us;
-
-        if (auto next_worker_count = calc_num_workers(workers_size_);
-            next_worker_count != workers_size_) {
-          adjust_queue_workers(next_worker_count, task_range, states...);
-        }
-
-        if (unlikely(!check_futures_and_redispatch())) {
-          break;
-        }
-
-        prev_queue_len = queue_len;
-      }
+      prev_queue_len = curr_queue_len;
+      last_adjust_num_workers_us = now_us;
     }
-    sleep_us = std::min(sleep_us,
-                        kCheckQueueIntervalUs - (now_us - last_check_queue_us));
+    sleep_us = std::min(sleep_us, kAdjustNumWorkersIntervalUs -
+                                      (now_us - last_adjust_num_workers_us));
 
+    if (unlikely(!check_futures_and_redispatch())) {
+      break;
+    }
 
     Time::sleep(sleep_us);
   }
@@ -467,15 +389,14 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-template <BoolIntegral IsProducer, ShardedQueueBased Q, typename... S1s>
+template <ShardedQueueBased Q, typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::start_queue_async(
-    RetT (*fn)(TR &, States...), TR task_range, Q queue, S1s &&... states) {
+    RetT (*fn)(TR &, States...), TR task_range, Q queue, S1s &&...states) {
   future_ = nu::async([&, fn, task_range = std::move(task_range),
                        queue = std::move(queue),
                        ... states = std::forward<S1s>(states)]() mutable {
-    return run_queue<IsProducer, Q, S1s...>(fn, std::move(task_range),
-                                            std::move(queue),
-                                            std::forward<S1s>(states)...);
+    return run_queue<Q, S1s...>(fn, std::move(task_range), std::move(queue),
+                                std::forward<S1s>(states)...);
   });
 }
 
@@ -493,23 +414,10 @@ DistributedExecutor<RetT, TR, Q, S0s...> make_distributed_executor(
     RetT (*fn)(TR &, Q, S0s...), TR task_range, Q queue, S1s &&... states) {
   DistributedExecutor<RetT, TR, Q, S0s...> dis_exec;
   Q queue_cp_arg = queue;
-  dis_exec.template start_queue_async</* IsProducer = */ std::true_type, Q, Q,
-                                      S1s...>(
+  dis_exec.template start_queue_async<Q, Q, S1s...>(
       fn, std::move(task_range), std::move(queue), std::move(queue_cp_arg),
       std::forward<S1s>(states)...);
   return dis_exec;
 }
 
-template <typename RetT, QueueRangeBased QR, typename... S0s, typename... S1s>
-DistributedExecutor<RetT, TaskRange<QR>, S0s...> make_distributed_executor(
-    RetT (*fn)(TaskRange<QR> &, S0s...), TaskRange<QR> queue_range,
-    S1s &&... states) {
-  DistributedExecutor<RetT, TaskRange<QR>, S0s...> dis_exec;
-  auto queue = queue_range.impl().queue();
-  dis_exec.template start_queue_async</* IsProducer = */ typename QR::Writeable,
-                                      decltype(queue), S1s...>(
-      fn, std::move(queue_range), std::move(queue),
-      std::forward<S1s>(states)...);
-  return dis_exec;
-}
 }  // namespace nu
