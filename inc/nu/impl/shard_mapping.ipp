@@ -234,7 +234,7 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
     if (mapping_.size() >= kCreateLocalShardThresh || Shard::kIsService) {
       new_shard = make_proclet<Shard>(
           std::forward_as_tuple(self_, max_shard_bytes_),
-          pinned_ip_.has_value(), proclet_capacity_, pinned_ip_);
+          pinned_ip_.has_value(), proclet_capacity_, ip);
     } else {
       new_shard = make_proclet<Shard>(
           std::forward_as_tuple(self_, max_shard_bytes_),
