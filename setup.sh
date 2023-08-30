@@ -32,10 +32,10 @@ function setup_pfc {
     sudo ethtool -A $nic_dev rx off tx off
     sudo mlnx_qos -i $nic_dev -f 1,1,1,1,1,1,1,1 \
 	                       -p 0,1,2,3,4,5,6,7 \
-	                       --prio2buffer 0,1,1,1,1,1,1,1 \
+	                       --prio2buffer 0,0,0,0,0,0,0,0 \
 			       -s strict,strict,strict,strict,strict,strict,strict,strict
+    sudo mlnx_qos -i $nic_dev --buffer_size=524160,0,0,0,0,0,0,0
 }
-
 
 trap -- '' INT TERM
 
