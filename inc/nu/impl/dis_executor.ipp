@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <ranges>
+#include <syncstream>
 
 #include "nu/utils/caladan.hpp"
 #include "nu/utils/time.hpp"
@@ -198,7 +199,8 @@ DistributedExecutor<RetT, TR, States...>::run(RetT (*fn)(TR &, States...),
       if constexpr (kEnableLogging) {
         Caladan::PreemptGuard g;
 
-        std::cout << microtime() << " " << workers_.size() << std::endl;
+        std::osyncstream synced_out(std::cout);
+        synced_out << microtime() << " " << workers_.size() << std::endl;
       }
     }
     sleep_us = std::min(
@@ -358,6 +360,10 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
                                                     S1s &&...states) {
   fn_ = fn;
 
+  constexpr auto kSlowStartQueueLen = 100;
+  constexpr auto kSlowStartStep = 10;
+  constexpr auto kDiffQueueLenMultiplier = -0.4;
+
   uint64_t last_check_workers_us = microtime();
   uint64_t last_adjust_num_workers_us = last_check_workers_us;
   int64_t prev_queue_len = 0;
@@ -376,7 +382,10 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
     if (now_us - last_adjust_num_workers_us >= kAdjustNumWorkersIntervalUs) {
       int64_t curr_queue_len = queue.size();
       auto diff_queue_len = curr_queue_len - prev_queue_len;
-      auto delta_num_active_workers = -0.4 * diff_queue_len;
+      auto delta_num_active_workers =
+          curr_queue_len < kSlowStartQueueLen
+              ? kSlowStartStep
+              : kDiffQueueLenMultiplier * diff_queue_len;
       auto new_num_active_workers = std::max(
           0, static_cast<int>(num_active_workers_ + delta_num_active_workers));
       adjust_queue_workers(new_num_active_workers, task_range, states...);
@@ -384,8 +393,9 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
       if constexpr (kEnableLogging) {
         Caladan::PreemptGuard g;
 
-        std::cout << microtime() << " " << curr_queue_len << " "
-                  << new_num_active_workers << std::endl;
+        std::osyncstream synced_out(std::cout);
+        synced_out << microtime() << " " << curr_queue_len << " "
+                   << new_num_active_workers << std::endl;
       }
 
       prev_queue_len = curr_queue_len;
