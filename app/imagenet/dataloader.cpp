@@ -18,7 +18,7 @@ using namespace std::chrono;
 using namespace imagenet;
 
 DataLoader::DataLoader(std::string path)
-    : imgs_{nu::make_sharded_vector<RawImage, std::true_type>()},
+    : imgs_{nu::make_sharded_vector<RawImage, std::false_type>()},
       queue_{
           nu::make_sharded_queue<Image, std::true_type>(std::nullopt, kGPUIP)} {
   int image_count = 0;
@@ -64,35 +64,34 @@ uint64_t DataLoader::process_all() {
 
   processed_ = true;
   barrier();
-
-  auto all_traces = gpu_orchestrator.get();
-  // process_traces(std::move(all_traces));
+  process_traces(std::move(gpu_orchestrator.get()));
 
   imgs_ = nu::to_unsealed_ds(std::move(sealed_imgs));
 
   return duration.count();
 }
 
-DataLoader::TraceVec DataLoader::run_gpus() {
+DataLoader::GPUTraces DataLoader::run_gpus() {
   auto gpu = nu::make_proclet<GPU>(std::forward_as_tuple(queue_, kMaxNumGPUs),
-                                   true, std::nullopt, kGPUIP);
+                                   true, nu::kMaxProcletHeapSize, kGPUIP);
   gpu.run(&GPU::set_num_gpus, kMaxNumGPUs);
 
   while (!load_acquire(&processed_)) {
-    gpu.run(&GPU::set_num_gpus, kNumScaleDownGPUs);
     nu::Time::sleep(kScaleDownDurationUs);
-    gpu.run(&GPU::set_num_gpus, kMaxNumGPUs);
+    gpu.run(&GPU::set_num_gpus, kNumScaleDownGPUs);
     nu::Time::sleep(kScaleUpDurationUs);
+    gpu.run(&GPU::set_num_gpus, kMaxNumGPUs);
   }
 
   return gpu.run(&GPU::drain_and_stop);
 }
 
-void DataLoader::process_traces(TraceVec &&all_traces) {
+void DataLoader::process_traces(GPUTraces &&all_traces) {
   auto min_us = std::numeric_limits<uint64_t>::max();
   auto max_us = std::numeric_limits<uint64_t>::min();
 
   for (auto &traces : all_traces) {
+    if (traces.empty()) continue;
     min_us = std::min(min_us, traces.front().first);
     max_us = std::max(max_us, traces.back().second);
   }
@@ -125,8 +124,9 @@ void DataLoader::process_traces(TraceVec &&all_traces) {
     }
   }
 
+  std::cout << "GPU usage timeseries:" << std::endl;
   for (auto &[us, utilization] : total_utilizations) {
-    printf("%lld %lf\n", (long long)us, utilization);
+    std::cout << us << " " << utilization << std::endl;
   }
 }
 

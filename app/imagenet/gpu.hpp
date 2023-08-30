@@ -9,30 +9,30 @@
 
 namespace imagenet {
 
-enum GPUStatus { kRunning = 0, kDrain, kPause };
-
 using GPUStatusType = uint8_t;
 
 template <typename Item>
 class MockGPU {
  public:
-  static constexpr uint32_t kImageProcessTimeUs = 100;
+  using Traces = std::vector<std::vector<std::pair<uint64_t, uint64_t>>>;
+  static constexpr uint32_t kImageProcessTimeUs = 200;
   static constexpr uint32_t kMaxNumImages = 300'000;
 
   MockGPU(nu::ShardedQueue<Item, std::true_type> queue, std::size_t max_gpus)
-      : num_gpus_(max_gpus) {
-    // all_traces_.resize(max_gpus);
-    // num_traces_.resize(max_gpus);
-
+      : done_(false), num_gpus_(max_gpus) {
+    all_traces_.reserve(max_gpus);
     for (std::size_t i = 0; i < max_gpus; ++i) {
+      all_traces_.emplace_back();
+      all_traces_.back().reserve(kMaxNumImages);
       ths_.emplace_back([this, queue, id = i] { gpu_fn(id, queue); });
     }
   }
 
   void gpu_fn(std::size_t id,
               nu::ShardedQueue<Item, std::true_type> remote_queue) {
-    nu::Future<void> fut;
-    while (true) {
+    auto &traces = all_traces_[id];
+
+    while (!nu::Caladan::access_once(done_)) {
       if (unlikely(id >= nu::Caladan::access_once(num_gpus_))) {
         nu::ScopedLock g(&spin_);
         while (id >= nu::Caladan::access_once(num_gpus_)) {
@@ -42,31 +42,29 @@ class MockGPU {
 
       auto popped = remote_queue.try_pop(1);
       if (!popped.empty()) {
-        if (fut) fut.get();
-        fut = nu::async(
-            [img = std::move(popped.front())]() mutable { process(img); });
-      } else {
-        auto status = load_acquire(&status_);
-        if (unlikely(status == GPUStatus::kDrain)) {
-          break;
+	auto cur_us = microtime();
+        auto last_done_us = traces.size() ? traces.back().second : 0;
+        uint64_t start_us;
+        if (cur_us >= last_done_us) {
+          start_us = cur_us;
+        } else {
+          delay_us(last_done_us - cur_us);
+          start_us = last_done_us;
         }
-        nu::Time::sleep(100);
+        traces.emplace_back(start_us, start_us + kImageProcessTimeUs);
       }
     }
   }
 
-  std::vector<std::vector<std::pair<uint64_t, uint64_t>>> drain_and_stop() {
-    status_ = GPUStatus::kDrain;
+  Traces drain_and_stop() {
+    done_ = true;
+    barrier();
+    set_num_gpus(ths_.size());
     barrier();
     for (auto &th : ths_) {
       th.Join();
     }
-    std::vector<std::vector<std::pair<uint64_t, uint64_t>>> all_traces;
-    // for (auto [traces, size] : std::views::zip(all_traces_, num_traces_)) {
-    //   all_traces.emplace_back(
-    //       std::vector(traces.begin(), traces.begin() + size));
-    // }
-    return all_traces;
+    return all_traces_;
   }
 
   void set_num_gpus(std::size_t num_gpus) {
@@ -78,11 +76,9 @@ class MockGPU {
   static void process(Item &item) { nu::Time::sleep(kImageProcessTimeUs); }
 
  private:
-  GPUStatusType status_ = GPUStatus::kRunning;
+  bool done_;
   std::vector<rt::Thread> ths_;
-  // std::vector<std::array<std::pair<uint64_t, uint64_t>, kMaxNumImages>>
-  //     all_traces_;
-  // std::vector<std::size_t> num_traces_;
+  Traces all_traces_;
   nu::SpinLock spin_;
   nu::CondVar cv_;
   std::size_t num_gpus_;
