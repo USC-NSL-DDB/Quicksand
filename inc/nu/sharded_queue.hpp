@@ -74,12 +74,6 @@ class ShardedQueue
   T back() const;
   T pop();
   std::vector<T> try_pop(std::size_t num);
-  template <typename ProduceFn, typename... States>
-  DistributedExecutor<void, WriteableQueueRange<T, LL>, ProduceFn, States...>
-  produce(ProduceFn produce_fn, States... states);
-  template <typename ConsumeFn, typename... States>
-  DistributedExecutor<void, QueueRange<T, LL>, ConsumeFn, States...> consume(
-      ConsumeFn consume_fn, States... states);
 
  private:
   using Base = ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL>;

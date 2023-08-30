@@ -130,42 +130,6 @@ inline std::vector<T> ShardedQueue<T, LL>::try_pop(std::size_t num) {
 }
 
 template <typename T, typename LL>
-template <typename ProduceFn, typename... States>
-DistributedExecutor<void, WriteableQueueRange<T, LL>, ProduceFn, States...>
-ShardedQueue<T, LL>::produce(ProduceFn produce_fn, States... states) {
-  auto produce_rng = nu::make_writeable_queue_range(*this);
-  return nu::make_distributed_executor(
-      +[](decltype(produce_rng) &rng, ProduceFn produce_fn, States... args) {
-        while (true) {
-          auto inserter = rng.pop();
-          if (unlikely(!inserter)) {
-            break;
-          }
-          *inserter = produce_fn(args...);
-        }
-      },
-      std::move(produce_rng), std::move(produce_fn), std::move(states)...);
-}
-
-template <typename T, typename LL>
-template <typename ConsumeFn, typename... States>
-DistributedExecutor<void, QueueRange<T, LL>, ConsumeFn, States...>
-ShardedQueue<T, LL>::consume(ConsumeFn consume_fn, States... states) {
-  auto consume_rng = nu::make_queue_range(*this);
-  return nu::make_distributed_executor(
-      +[](decltype(consume_rng) &rng, ConsumeFn consume_fn, States... args) {
-        while (true) {
-          auto elem = rng.pop();
-          if (unlikely(!elem)) {
-            break;
-          }
-          consume_fn(std::move(*elem), args...);
-        }
-      },
-      consume_rng, std::move(consume_fn), std::move(states)...);
-}
-
-template <typename T, typename LL>
 inline ShardedQueue<T, LL> make_sharded_queue(
     std::optional<std::size_t> size_bound, std::optional<NodeIP> pinned_ip) {
   auto hint = std::nullopt;
