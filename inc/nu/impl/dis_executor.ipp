@@ -2,9 +2,12 @@
 #include <cstdint>
 #include <ranges>
 
+#include "nu/utils/caladan.hpp"
 #include "nu/utils/time.hpp"
 
 namespace nu {
+
+constexpr static bool kEnableLogging = false;
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::Worker::Worker() {}
@@ -191,6 +194,12 @@ DistributedExecutor<RetT, TR, States...>::run(RetT (*fn)(TR &, States...),
     if (now_us - last_add_workers_us >= kAdjustNumWorkersIntervalUs) {
       last_add_workers_us = now_us;
       add_workers(states...);
+
+      if constexpr (kEnableLogging) {
+        Caladan::PreemptGuard g;
+
+        std::cout << microtime() << " " << workers_.size() << std::endl;
+      }
     }
     sleep_us = std::min(
         sleep_us, kAdjustNumWorkersIntervalUs - (now_us - last_add_workers_us));
@@ -371,6 +380,13 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
       auto new_num_active_workers = std::max(
           0, static_cast<int>(num_active_workers_ + delta_num_active_workers));
       adjust_queue_workers(new_num_active_workers, task_range, states...);
+
+      if constexpr (kEnableLogging) {
+        Caladan::PreemptGuard g;
+
+        std::cout << microtime() << " " << curr_queue_len << " "
+                  << new_num_active_workers << std::endl;
+      }
 
       prev_queue_len = curr_queue_len;
       last_adjust_num_workers_us = now_us;
