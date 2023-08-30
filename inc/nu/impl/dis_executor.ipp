@@ -411,6 +411,10 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
     Time::sleep(sleep_us);
   }
 
+  while (queue.size()) {
+    Time::sleep(kCheckWorkersIntervalUs);
+  }
+
   return concat_results();
 }
 
