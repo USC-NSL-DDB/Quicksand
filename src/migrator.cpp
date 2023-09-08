@@ -873,7 +873,8 @@ void Migrator::populate_proclets(std::vector<ProcletMigrationTask> &tasks) {
           if (unlikely(get_runtime()->pressure_handler()->has_mem_pressure())) {
             break;
           }
-          if (get_runtime()->resource_reporter()->get_usable_mem_mbs() > size) {
+          if (get_runtime()->resource_reporter()->get_usable_mem_mbs() >
+              size / kOneMB) {
             get_runtime()->proclet_manager()->madvise_populate(header, size);
           }
         }
@@ -916,7 +917,8 @@ void Migrator::load(rt::TcpConn *c) {
 
     if (it != tasks.end() - 1) {
       auto local_mem_pressure =
-          get_runtime()->resource_reporter()->get_usable_mem_mbs() < it->size;
+          get_runtime()->resource_reporter()->get_usable_mem_mbs() <
+          it->size / kOneMB;
       auto local_cpu_pressure =
           get_runtime()->pressure_handler()->has_cpu_pressure() ||
           (local_free_cores <= it->cores);
