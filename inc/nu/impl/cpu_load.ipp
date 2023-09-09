@@ -66,4 +66,6 @@ inline void CPULoad::halve() { cpu_load_ /= 2; }
 
 inline void CPULoad::twice() { cpu_load_ *= 2; }
 
+inline void CPULoad::inc(float delta) { cpu_load_ += delta; }
+
 }  // namespace nu

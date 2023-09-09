@@ -256,7 +256,8 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
 template <class Shard>
 bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
                                               WeakProclet<Shard> shard,
-                                              bool merge_left, NodeIP ip) {
+                                              bool merge_left, NodeIP ip,
+                                              std::optional<float> cpu_load) {
   ScopedLock<Mutex> lock(&mutex_);
 
   auto [begin_it, end_it] = mapping_.equal_range(l_key);
@@ -275,14 +276,16 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
     BUG_ON(it == mapping_.begin());
     std::optional<Key> r_key =
         next_it != mapping_.end() ? next_it->first : std::nullopt;
-    if (unlikely(!prev_it->second.run(&Shard::try_update_key,
-                                      /* update_left = */ false, r_key))) {
+    if (unlikely(!prev_it->second.run(&Shard::try_merge,
+                                      /* merge_left = */ false, r_key,
+                                      cpu_load))) {
       return false;
     }
   } else {
     BUG_ON(next_it == mapping_.end());
-    if (unlikely(!next_it->second.run(&Shard::try_update_key,
-                                      /* update_left = */ true, l_key))) {
+    if (unlikely(!next_it->second.run(&Shard::try_merge,
+                                      /* merge_left = */ true, l_key,
+                                      cpu_load))) {
       return false;
     }
     auto next_node = mapping_.extract(next_it);

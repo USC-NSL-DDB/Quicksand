@@ -19,6 +19,7 @@ class CPULoad {
   void zero();
   void halve();
   void twice();
+  void inc(float delta);
   static void end_monitor();
   static void flush_all();
 

@@ -172,7 +172,8 @@ class GeneralShard {
   template <typename RetT, typename... S0s>
   std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
   try_compute_on(Key k, uintptr_t fn_addr, S0s... states);
-  bool try_update_key(bool update_left, std::optional<Key> new_key);
+  bool try_merge(bool merge_left, std::optional<Key> new_key,
+                 std::optional<float> cpu_load);
   std::optional<bool> try_erase(Key k) requires EraseAble<Container>;
   template <typename RetT, typename... S0s>
   std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>> try_run(
@@ -215,7 +216,7 @@ class GeneralShard {
   bool should_split(std::size_t size) const;
   void split_with_reader_lock();
   void try_delete_self_with_reader_lock(bool merge_left);
-  bool try_compute_delete_self();
+  bool try_compute_delete_self(float cpu_load);
   void compute_split();
   bool should_reject(const std::optional<Key> &l_key,
                      const std::optional<Key> &r_key);

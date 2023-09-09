@@ -330,7 +330,8 @@ void GeneralShard<Container>::try_delete_self_with_reader_lock(
   rw_lock_.writer_lock();
   if (container_.empty() && !deleted_) {
     if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self_,
-                            merge_left, Caladan::get_ip()))) {
+                            merge_left, Caladan::get_ip(),
+                            std::optional<float>()))) {
       // Recycle heap space.
       container_ = Container();
       deleted_ = true;
@@ -340,14 +341,15 @@ void GeneralShard<Container>::try_delete_self_with_reader_lock(
 }
 
 template <class Container>
-bool GeneralShard<Container>::try_compute_delete_self() {
+bool GeneralShard<Container>::try_compute_delete_self(float cpu_load) {
   bool succeed = false;
 
   if constexpr (kIsStatefulService) {
     rw_lock_.writer_lock();
   }
   if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self_,
-                          /* merge_left = */ true, Caladan::get_ip()))) {
+                          /* merge_left = */ true, Caladan::get_ip(),
+                          cpu_load))) {
     succeed = deleted_ = true;
   }
   if constexpr (kIsStatefulService) {
@@ -1028,23 +1030,26 @@ GeneralShard<Container>::try_compute_on(Key k, uintptr_t fn_addr,
 }
 
 template <class Container>
-bool GeneralShard<Container>::try_update_key(bool update_left,
-                                             std::optional<Key> new_key) {
+bool GeneralShard<Container>::try_merge(bool merge_left,
+                                        std::optional<Key> new_key,
+                                        std::optional<float> cpu_load) {
   if (unlikely(!rw_lock_.reader_try_lock())) {
     return false;
   }
-  if (unlikely(deleted_)) {
+  bool oversized = cpu_load.has_value() &&
+                   *cpu_load + cpu_load_->get_load() > kComputeLoadHighThresh;
+  if (unlikely(deleted_ || oversized)) {
     rw_lock_.reader_unlock();
     return false;
   }
-  if (update_left) {
+  if (merge_left) {
     l_key_ = new_key;
   } else {
     r_key_ = new_key;
   }
   rw_lock_.reader_unlock();
 
-  cpu_load_->twice();
+  cpu_load_->inc(cpu_load.value_or(0));
 
   return true;
 }
@@ -1062,7 +1067,7 @@ void GeneralShard<Container>::start_compute_monitor_th() {
       if (cpu_load > kComputeLoadHighThresh) {
         compute_split();
       } else if (cpu_load < kComputeLoadLowThresh) {
-        if (!cofounder_ && try_compute_delete_self()) {
+        if (!cofounder_ && try_compute_delete_self(cpu_load)) {
           break;
         }
       }
