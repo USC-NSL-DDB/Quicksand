@@ -34,6 +34,9 @@ inline unsigned int RuntimeGuaranteedCores() {
   return runtime_guaranteed_cores();
 }
 
+// Gets the number of cores busy polling for work.
+inline unsigned int RuntimeBurningCores() { return runtime_burning_cores(); }
+
 inline unsigned int RuntimeFreeMemMbs() { return runtime_free_mem_mbs(); }
 
 inline unsigned int RuntimeGlobalIdleCores() {

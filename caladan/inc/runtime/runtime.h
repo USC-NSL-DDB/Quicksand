@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <asm/cpu.h>
 #include <base/stddef.h>
 #include <base/time.h>
 #include <runtime/thread.h>
-
 
 /* main initialization */
 typedef int (*initializer_fn_t)(void);
@@ -58,6 +58,19 @@ static inline int runtime_max_cores(void)
 {
 	extern unsigned int maxks;
 	return maxks;
+}
+
+/**
+ * runtime_burning_cores - returns the number of cores busy polling for work.
+ *
+ */
+static inline int runtime_burning_cores(void)
+{
+	extern int burning_cores[NCPU] __attribute__((aligned(CACHE_LINE_SIZE)));
+	int sum = 0;
+	for (int i = 0; i < runtime_max_cores(); i++)
+		sum += burning_cores[i];
+	return sum;
 }
 
 /**

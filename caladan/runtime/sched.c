@@ -56,6 +56,9 @@ static bool global_pause_req_mask = false;
 static void *global_prioritized_rcu = NULL;
 LIST_HEAD(all_migrating_ths);
 
+/* used to track number of cores busy polling for work */
+int burning_cores[NCPU] __attribute__((aligned(CACHE_LINE_SIZE)));
+
 /**
  * In inc/runtime/thread.h, this function is declared inline (rather than static
  * inline) so that it is accessible to the Rust bindings. As a result, it must
@@ -558,6 +561,18 @@ static __noinline bool do_watchdog(struct kthread *l)
 	return work;
 }
 
+static inline void inc_burning_cores_accounting(void)
+{
+	assert_preempt_disabled();
+	burning_cores[read_cpu()]++;
+}
+
+static inline void dec_burning_cores_accounting(void)
+{
+	assert_preempt_disabled();
+	burning_cores[read_cpu()]--;
+}
+
 /* the main scheduler routine, decides what to run next */
 static __noreturn __noinline void schedule(void)
 {
@@ -635,24 +650,26 @@ static __noreturn __noinline void schedule(void)
 	/* reset the local runqueue since it's empty */
 	l->rq_head = l->rq_tail = 0;
 
+	inc_burning_cores_accounting();
 again:
+
 	prioritize_local_rcu_readers_locked();
 	pause_local_migrating_threads_locked();
 	if (handle_preemptor()) {
-		goto done;
+		goto update_accounting_and_done;
 	}
 
 	/* then check for local softirqs */
 	if (softirq_run_locked(l)) {
 		STAT(SOFTIRQS_LOCAL)++;
-		goto done;
+		goto update_accounting_and_done;
 	}
 
 	/* then try to steal from a sibling kthread */
 	sibling = cpu_map[l->curr_cpu].sibling_core;
 	r = cpu_map[sibling].recent_kthread;
 	if (r && r != l && steal_work(l, r)) {
-		goto done;
+		goto update_accounting_and_done;
 	}
 
 	/* try to steal from every kthread */
@@ -660,22 +677,22 @@ again:
 	for (i = 0; i < maxks; i++) {
 		int idx = (start_idx + i) % maxks;
 		if (ks[idx] != l && steal_work(l, ks[idx])) {
-			goto done;
+			goto update_accounting_and_done;
 		}
 		if (r && r != l && steal_work(l, r)) {
-			goto done;
+			goto update_accounting_and_done;
 		}
 	}
 
 	if (unlikely(!list_empty(&l->rq_deprioritized))) {
 		pop_deprioritized_threads_locked(l);
-		goto done;
+		goto update_accounting_and_done;
 	}
 
 	/* recheck for local softirqs one last time */
 	if (softirq_run_locked(l)) {
 		STAT(SOFTIRQS_LOCAL)++;
-		goto done;
+		goto update_accounting_and_done;
 	}
 
 #ifdef GC
@@ -698,7 +715,10 @@ again:
 	/* did not find anything to run, park this kthread */
 	STAT(SCHED_CYCLES) += last_tsc - start_tsc;
 	/* we may have got a preempt signal before voluntarily yielding */
+
+	dec_burning_cores_accounting();
 	kthread_park(!preempt_cede_needed(l));
+	inc_burning_cores_accounting();
 	start_tsc = rdtsc();
 	iters = 0;
 
@@ -706,6 +726,8 @@ again:
 	l->parked = false;
 	goto again;
 
+update_accounting_and_done:
+	dec_burning_cores_accounting();
 done:
 	/* pop off a thread and run it */
 	assert(l->rq_head != l->rq_tail);
