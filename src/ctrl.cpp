@@ -370,8 +370,13 @@ std::vector<std::pair<NodeIP, Resource>> Controller::report_free_resource(
 }
 
 void NodeStatus::update_free_resource(Resource resource) {
-  ewma(kEWMAWeight, &free_resource.cores, resource.cores);
-  ewma(kEWMAWeight, &free_resource.mem_mbs, resource.mem_mbs);
+  series.push_back(resource);
+  Resource moving_min = series.front();
+  for (auto it = std::next(series.begin()); it != series.end(); ++it) {
+    moving_min.cores = std::min(moving_min.cores, it->cores);
+    moving_min.mem_mbs = std::min(moving_min.mem_mbs, it->mem_mbs);
+  }
+  free_resource = moving_min;
 }
 
 }  // namespace nu

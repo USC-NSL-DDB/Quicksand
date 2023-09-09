@@ -1,10 +1,11 @@
 #pragma once
 
+#include <boost/circular_buffer.hpp>
 #include <cstdint>
 #include <list>
+#include <map>
 #include <set>
 #include <stack>
-#include <map>
 #include <utility>
 
 extern "C" {
@@ -24,7 +25,9 @@ namespace nu {
 
 // This is a logical node instead of a physical node.
 struct NodeStatus {
-  constexpr static float kEWMAWeight = 0.25;
+  constexpr static uint32_t kMovingMinWinTimeUs = kOneMilliSecond;
+  constexpr static uint32_t kMovingMinWinSize =
+      kMovingMinWinTimeUs / IAS_RP_INTERVAL_US;
   constexpr static uint32_t kMemLowWaterMarkMBs = IAS_PS_MEM_LOW_MB;
 
   NodeStatus(bool isol);
@@ -33,6 +36,7 @@ struct NodeStatus {
   bool acquired;
   Resource free_resource;
   CondVar cv;
+  boost::circular_buffer<Resource> series;
 
   bool has_enough_cpu_resource(Resource resource) const;
   bool has_enough_mem_resource(Resource resource) const;
