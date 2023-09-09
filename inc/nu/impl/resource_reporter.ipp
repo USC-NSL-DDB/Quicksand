@@ -6,8 +6,9 @@
 namespace nu {
 
 inline float ResourceReporter::get_free_cores() const {
-  return std::min(rt::RuntimeGlobalIdleCores(),
-                  rt::RuntimeMaxCores() - rt::RuntimeActiveCores());
+  return std::min(rt::RuntimeGlobalIdleCores(), rt::RuntimeMaxCores() -
+                                                    rt::RuntimeActiveCores() +
+                                                    rt::RuntimeBurningCores());
 }
 
 inline float ResourceReporter::get_free_mem_mbs() const {
