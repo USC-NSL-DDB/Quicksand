@@ -17,8 +17,7 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
 
   auto optional_migration_guard =
       get_runtime()->attach_and_disable_migration(dest_header);
-  if (unlikely(!optional_migration_guard &&
-               !caladan->thread_is_rcu_held(th, &dest_header->rcu_lock))) {
+  if (unlikely(!optional_migration_guard)) {
     caladan->thread_free(th);
     return kErrWrongClient;
   }
