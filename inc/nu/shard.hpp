@@ -54,6 +54,14 @@ class GeneralShard {
   using ConstReverseIterator = Container::ConstReverseIterator;
   constexpr static bool kIsService =
       is_specialization_of_v<ContainerImpl, Service>;
+  constexpr static bool kIsStatefulService = [] {
+    if constexpr (kIsService) {
+      if constexpr (ContainerImpl::Stateful) {
+        return true;
+      }
+    }
+    return false;
+  }();
 
   struct ReqBatch {
     uint64_t mapping_seq;

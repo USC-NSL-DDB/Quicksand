@@ -313,10 +313,14 @@ void GeneralShard<Container>::split_with_reader_lock() {
 
 template <class Container>
 void GeneralShard<Container>::compute_split() {
-  rw_lock_.writer_lock();
+  if constexpr (kIsStatefulService) {
+    rw_lock_.writer_lock();
+  }
   split();
   cpu_load_->halve();
-  rw_lock_.writer_unlock();
+  if constexpr (kIsStatefulService) {
+    rw_lock_.writer_unlock();
+  }
 }
 
 template <class Container>
@@ -338,12 +342,18 @@ void GeneralShard<Container>::try_delete_self_with_reader_lock(
 template <class Container>
 bool GeneralShard<Container>::try_compute_delete_self() {
   bool succeed = false;
-  rw_lock_.writer_lock();
+
+  if constexpr (kIsStatefulService) {
+    rw_lock_.writer_lock();
+  }
   if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self_,
                           /* merge_left = */ true, Caladan::get_ip()))) {
     succeed = deleted_ = true;
   }
-  rw_lock_.writer_unlock();
+  if constexpr (kIsStatefulService) {
+    rw_lock_.writer_unlock();
+  }
+
   return succeed;
 }
 
