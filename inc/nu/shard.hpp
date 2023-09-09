@@ -54,9 +54,9 @@ class GeneralShard {
   using ConstReverseIterator = Container::ConstReverseIterator;
   constexpr static bool kIsService =
       is_specialization_of_v<ContainerImpl, Service>;
-  constexpr static bool kIsStatefulService = [] {
+  constexpr static bool kIsStatelessService = [] {
     if constexpr (kIsService) {
-      if constexpr (ContainerImpl::Stateful) {
+      if constexpr (!ContainerImpl::Stateful) {
         return true;
       }
     }
@@ -203,6 +203,7 @@ class GeneralShard {
   std::size_t size_thresh_;
   Mutex empty_mutex_;
   CondVar empty_cv_;
+  Mutex split_merge_mutex_;
   bool deleted_;
   bool cofounder_;
   WeakProclet<GeneralShard> self_;

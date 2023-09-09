@@ -211,17 +211,7 @@ void GeneralShard<Container>::split() {
     MigrationGuard migration_guard;
     std::unique_ptr<Container> latter_half_container;
 
-    constexpr bool kIsStatelessService = [] {
-      if constexpr (kIsService) {
-        if constexpr (!ContainerImpl::Stateful) {
-          return true;
-        }
-      }
-      return false;
-    }();
-
     BUG_ON(container_.empty());
-
     if constexpr (kIsStatelessService) {
       mid_k = l_key_.value_or(std::numeric_limits<Key>::min()) / 2 +
               r_key_.value_or(std::numeric_limits<Key>::max()) / 2;
@@ -313,12 +303,18 @@ void GeneralShard<Container>::split_with_reader_lock() {
 
 template <class Container>
 void GeneralShard<Container>::compute_split() {
-  if constexpr (kIsStatefulService) {
+  if constexpr (kIsStatelessService) {
+    split_merge_mutex_.lock();
+  } else {
     rw_lock_.writer_lock();
   }
+
   split();
   cpu_load_->halve();
-  if constexpr (kIsStatefulService) {
+
+  if constexpr (kIsStatelessService) {
+    split_merge_mutex_.unlock();
+  } else {
     rw_lock_.writer_unlock();
   }
 }
@@ -344,15 +340,21 @@ template <class Container>
 bool GeneralShard<Container>::try_compute_delete_self(float cpu_load) {
   bool succeed = false;
 
-  if constexpr (kIsStatefulService) {
+  if constexpr (kIsStatelessService) {
+    split_merge_mutex_.lock();
+  } else {
     rw_lock_.writer_lock();
   }
+
   if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self_,
                           /* merge_left = */ true, Caladan::get_ip(),
                           cpu_load))) {
     succeed = deleted_ = true;
   }
-  if constexpr (kIsStatefulService) {
+
+  if constexpr (kIsStatelessService) {
+    split_merge_mutex_.unlock();
+  } else {
     rw_lock_.writer_unlock();
   }
 
@@ -1033,25 +1035,37 @@ template <class Container>
 bool GeneralShard<Container>::try_merge(bool merge_left,
                                         std::optional<Key> new_key,
                                         std::optional<float> cpu_load) {
-  if (unlikely(!rw_lock_.reader_try_lock())) {
+  bool succeed;
+  if constexpr (kIsStatelessService) {
+    succeed = split_merge_mutex_.try_lock();
+  } else {
+    succeed = rw_lock_.reader_try_lock();
+  }
+  if (unlikely(!succeed)) {
     return false;
   }
+
   bool oversized = cpu_load.has_value() &&
                    *cpu_load + cpu_load_->get_load() > kComputeLoadHighThresh;
-  if (unlikely(deleted_ || oversized)) {
-    rw_lock_.reader_unlock();
-    return false;
-  }
-  if (merge_left) {
-    l_key_ = new_key;
+  if (likely(!deleted_ && !oversized)) {
+    if (merge_left) {
+      l_key_ = new_key;
+    } else {
+      r_key_ = new_key;
+    }
+
+    cpu_load_->inc(cpu_load.value_or(0));
   } else {
-    r_key_ = new_key;
+    succeed = false;
   }
-  rw_lock_.reader_unlock();
 
-  cpu_load_->inc(cpu_load.value_or(0));
+  if constexpr (kIsStatelessService) {
+    split_merge_mutex_.unlock();
+  } else {
+    rw_lock_.reader_unlock();
+  }
 
-  return true;
+  return succeed;
 }
 
 template <class Container>
