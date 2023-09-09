@@ -84,10 +84,10 @@ void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid, bool isol) {
   controller_client_ =
       new ControllerClient(remote_ctrl_ip, kServer, lpid, isol);
   proclet_manager_ = new ProcletManager();
-  pressure_handler_ = new PressureHandler();
-  resource_reporter_ = new ResourceReporter();
   stack_manager_ = new StackManager(controller_client_->get_stack_cluster());
   archive_pool_ = new ArchivePool<>();
+  pressure_handler_ = new PressureHandler();
+  resource_reporter_ = new ResourceReporter();
 }
 
 void Runtime::init_base() {
@@ -138,9 +138,9 @@ void Runtime::shutdown(RPCReturner *returner) {
 }
 
 void Runtime::destroy() {
-  delete stack_manager_;
   delete resource_reporter_;
   delete pressure_handler_;
+  delete stack_manager_;
   delete proclet_manager_;
   delete migrator_;
   delete proclet_server_;
