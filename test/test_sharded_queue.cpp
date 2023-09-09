@@ -231,39 +231,6 @@ bool test_enqueue_dequeue() {
                               /* LL = */ std::true_type>();
 }
 
-bool test_rate_matching() {
-  // TODO: check correctness
-
-  auto queue = nu::make_sharded_queue<int, std::true_type>();
-
-  auto produce_rng = nu::make_writeable_queue_range(queue);
-  auto consume_rng = nu::make_queue_range(queue);
-
-  auto producers = nu::make_distributed_executor(
-      +[](decltype(produce_rng) &rng) {
-        while (true) {
-          auto inserter = *rng.pop();
-          inserter = 33;
-          busy_spin(100);
-        }
-      },
-      produce_rng);
-
-  auto consumers = nu::make_distributed_executor(
-      +[](decltype(consume_rng) &rng) {
-        while (true) {
-          rng.pop();
-          busy_spin(1000);
-        }
-      },
-      consume_rng);
-
-  consumers.get();
-  producers.get();
-
-  return true;
-}
-
 bool run_test() {
   return test_push_and_pop() && test_size_and_empty() && test_batched_queue() &&
          test_enqueue_dequeue();
