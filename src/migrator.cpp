@@ -616,7 +616,7 @@ uint32_t Migrator::__migrate(const NodeGuard &dest_guard, bool mem_pressure,
   auto it = tasks.begin();
   for (; it != tasks.end(); ++it) {
     auto *proclet_header = it->header;
-    if (unlikely(it != tasks.begin() && !receive_approval(conn))) {
+    if (unlikely(!receive_approval(conn))) {
       break;
     }
 
@@ -908,27 +908,25 @@ void Migrator::load(rt::TcpConn *c) {
   auto local_free_cores = get_runtime()->resource_reporter()->get_free_cores();
   bool approval = true;
   for (auto it = tasks.begin(); it != tasks.end(); ++it) {
+    auto local_mem_pressure =
+        get_runtime()->resource_reporter()->get_usable_mem_mbs() <
+        it->size / kOneMB;
+    auto local_cpu_pressure =
+        get_runtime()->pressure_handler()->has_cpu_pressure() ||
+        (local_free_cores <= it->cores);
+    approval = remote_mem_pressure
+                   ? (!local_mem_pressure)
+                   : (!local_mem_pressure && !local_cpu_pressure);
+    if (approval) {
+      local_free_cores -= it->cores;
+    }
+    issue_approval(c, approval);
+
     if (unlikely(!approval)) {
       for (; it != tasks.end(); ++it) {
         depopulate_proclet(it->header);
       }
       break;
-    }
-
-    if (it != tasks.end() - 1) {
-      auto local_mem_pressure =
-          get_runtime()->resource_reporter()->get_usable_mem_mbs() <
-          it->size / kOneMB;
-      auto local_cpu_pressure =
-          get_runtime()->pressure_handler()->has_cpu_pressure() ||
-          (local_free_cores <= it->cores);
-      approval = remote_mem_pressure
-                     ? (!local_mem_pressure)
-                     : (!local_mem_pressure && !local_cpu_pressure);
-      if (approval) {
-        local_free_cores -= it->cores;
-      }
-      issue_approval(c, approval);
     }
 
     auto &[proclet_header, capacity, _0, _1] = *it;
