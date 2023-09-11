@@ -143,11 +143,21 @@ inline GeneralShard<Container>::~GeneralShard() {
 template <class Container>
 void GeneralShard<Container>::init_range(std::optional<Key> l_key,
                                          std::optional<Key> r_key) {
-  rw_lock_.writer_lock();
+  if constexpr (kIsStatelessService) {
+    split_merge_mutex_.lock();
+  } else {
+    rw_lock_.writer_lock();
+  }
+
   l_key_ = l_key;
   r_key_ = r_key;
   deleted_ = false;
-  rw_lock_.writer_unlock();
+
+  if constexpr (kIsStatelessService) {
+    split_merge_mutex_.unlock();
+  } else {
+    rw_lock_.writer_unlock();
+  }
 
   if constexpr (kIsService) {
     start_compute_monitor_th();
@@ -158,7 +168,12 @@ template <class Container>
 void GeneralShard<Container>::init_range_and_data(
     std::optional<Key> l_key, std::optional<Key> r_key,
     ContainerAndMetadata<Container> container_and_metadata) {
-  rw_lock_.writer_lock();
+  if constexpr (kIsStatelessService) {
+    split_merge_mutex_.lock();
+  } else {
+    rw_lock_.writer_lock();
+  }
+
   l_key_ = l_key;
   r_key_ = r_key;
   container_ = std::move(container_and_metadata.container);
@@ -168,7 +183,12 @@ void GeneralShard<Container>::init_range_and_data(
   real_max_shard_bytes_ = max_shard_bytes_ / kAlmostFullThresh;
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
   deleted_ = false;
-  rw_lock_.writer_unlock();
+
+  if constexpr (kIsStatelessService) {
+    split_merge_mutex_.unlock();
+  } else {
+    rw_lock_.writer_unlock();
+  }
 
   if constexpr (kIsService) {
     start_compute_monitor_th();
