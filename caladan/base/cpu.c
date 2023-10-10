@@ -32,7 +32,7 @@ static int cpu_scan_topology(void)
 	int i;
 
 	/* How many NUMA nodes? */
-	if (sysfs_parse_bitlist("/sys/devices/system/node/online",
+	if (sysfs_parse_bitlist("/sys/devices/system/node/has_memory",
 			        numa_mask, NNUMA))
 		return -EIO;
 	bitmap_for_each_set(numa_mask, NNUMA, i) {
