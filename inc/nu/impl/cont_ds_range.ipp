@@ -3,7 +3,7 @@
 
 namespace nu {
 
-template <class Shard>
+template <GeneralShardBased Shard>
 inline ContiguousDSRangeImpl<Shard> ContiguousDSRangeImpl<Shard>::deep_copy() {
   ContiguousDSRangeImpl impl;
 
@@ -15,11 +15,11 @@ inline ContiguousDSRangeImpl<Shard> ContiguousDSRangeImpl<Shard>::deep_copy() {
   return impl;
 }
 
-template <class Shard>
+template <GeneralShardBased Shard>
 inline ContiguousDSRangeImpl<Shard>::ContiguousDSRangeImpl()
     : l_key_(0), r_key_(0) {}
 
-template <class Shard>
+template <GeneralShardBased Shard>
 inline ContiguousDSRangeImpl<Shard>::ContiguousDSRangeImpl(
     std::shared_ptr<std::vector<WeakProclet<Shard>>> &shards,
     std::vector<std::size_t> all_shard_keys, std::size_t size)
@@ -28,14 +28,14 @@ inline ContiguousDSRangeImpl<Shard>::ContiguousDSRangeImpl(
       l_key_(0),
       r_key_(size) {}
 
-template <class Shard>
+template <GeneralShardBased Shard>
 inline Shard::IterVal ContiguousDSRangeImpl<Shard>::pop() {
   auto ret = cur_.move_deref();
   ++cur_;
   return ret;
 }
 
-template <class Shard>
+template <GeneralShardBased Shard>
 inline ContiguousDSRangeImpl<Shard> ContiguousDSRangeImpl<Shard>::split(
     uint64_t last_n_elems) {
   ContiguousDSRangeImpl r_range;
@@ -55,24 +55,24 @@ inline ContiguousDSRangeImpl<Shard> ContiguousDSRangeImpl<Shard>::split(
   return r_range;
 }
 
-template <class Shard>
+template <GeneralShardBased Shard>
 template <class Archive>
 inline void ContiguousDSRangeImpl<Shard>::save(Archive &ar) const {
   ar(cur_, all_shard_keys_, l_key_, r_key_);
 }
 
-template <class Shard>
+template <GeneralShardBased Shard>
 template <class Archive>
 inline void ContiguousDSRangeImpl<Shard>::load(Archive &ar) {
   ar(cur_, all_shard_keys_, l_key_, r_key_);
 }
 
-template <class Shard>
+template <GeneralShardBased Shard>
 inline std::size_t ContiguousDSRangeImpl<Shard>::l_key() const {
   return l_key_;
 }
 
-template <class Shard>
+template <GeneralShardBased Shard>
 inline std::size_t ContiguousDSRangeImpl<Shard>::initial_size() const {
   return r_key_ - l_key_;
 }

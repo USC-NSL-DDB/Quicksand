@@ -28,37 +28,37 @@ inline MapConstReverseIterator<Map>::MapConstReverseIterator(
   Map::const_reverse_iterator::operator=(std::move(iter));
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline GeneralMap<K, V, M>::GeneralMap(Map initial_state)
     : map_(std::move(initial_state)) {}
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline std::size_t GeneralMap<K, V, M>::size() const {
   return map_.size();
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline bool GeneralMap<K, V, M>::empty() const {
   return map_.empty();
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline void GeneralMap<K, V, M>::clear() {
   map_.clear();
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline std::size_t GeneralMap<K, V, M>::insert(Key k, Val v) {
   map_.emplace(std::move(k), std::move(v));
   return map_.size();
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline void GeneralMap<K, V, M>::merge(GeneralMap m) {
   map_.merge(std::move(m.map_));
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 template <typename... S0s, typename... S1s>
 inline void GeneralMap<K, V, M>::for_all(void (*fn)(const Key &key, Val &val,
                                                     S0s...),
@@ -68,12 +68,12 @@ inline void GeneralMap<K, V, M>::for_all(void (*fn)(const Key &key, Val &val,
   }
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::find(K k) const {
   return map_.find(std::move(k));
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 void GeneralMap<K, V, M>::split(Key *mid_k, GeneralMap *latter_half) {
   auto mid = map_.size() / 2;
   auto split_it = map_.begin();
@@ -85,41 +85,41 @@ void GeneralMap<K, V, M>::split(Key *mid_k, GeneralMap *latter_half) {
   map_.erase(split_it, map_.end());
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::cbegin() const {
   return map_.cbegin();
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline GeneralMap<K, V, M>::ConstIterator GeneralMap<K, V, M>::cend() const {
   return map_.cend();
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline GeneralMap<K, V, M>::ConstReverseIterator GeneralMap<K, V, M>::crbegin()
     const {
   return map_.crbegin();
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 inline GeneralMap<K, V, M>::ConstReverseIterator GeneralMap<K, V, M>::crend()
     const {
   return map_.crend();
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 template <class Archive>
 inline void GeneralMap<K, V, M>::save(Archive &ar) const {
   ar(map_);
 }
 
-template <typename K, typename V, typename M>
+template <typename K, typename V, BoolIntegral M>
 template <class Archive>
 inline void GeneralMap<K, V, M>::load(Archive &ar) {
   ar(map_);
 }
 
-template <typename K, typename V, typename M, typename LL>
+template <typename K, typename V, BoolIntegral M, typename LL>
 inline GeneralShardedMap<K, V, M, LL>::GeneralShardedMap(
     std::optional<typename Base::ShardingHint> sharding_hint)
     : Base(sharding_hint, /* size_bound = */ std::nullopt,

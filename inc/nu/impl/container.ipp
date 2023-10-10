@@ -3,7 +3,7 @@
 
 namespace nu {
 
-template <class Impl, class Synchronized>
+template <class Impl, BoolIntegral Synchronized>
 template <typename RetT, typename F>
 inline RetT GeneralContainerBase<Impl, Synchronized>::synchronized(
     F &&f) const {
@@ -15,10 +15,11 @@ inline RetT GeneralContainerBase<Impl, Synchronized>::synchronized(
   }
 }
 
-template <class Impl, class Synchronized>
+template <class Impl, BoolIntegral Synchronized>
 inline bool GeneralContainerBase<Impl, Synchronized>::insert_batch_if(
-    std::function<bool(std::size_t)> cond,
-    std::vector<DataEntry> &reqs) requires InsertAble<Impl> {
+    std::function<bool(std::size_t)> cond, std::vector<DataEntry> &reqs)
+  requires InsertAble<Impl>
+{
   return synchronized<std::size_t>([&] {
     if (cond(impl_.size())) {
       for (auto &req : reqs) {
@@ -35,7 +36,7 @@ inline bool GeneralContainerBase<Impl, Synchronized>::insert_batch_if(
   });
 }
 
-template <class Impl, class Synchronized>
+template <class Impl, BoolIntegral Synchronized>
 inline std::pair<bool, bool>
 GeneralContainerBase<Impl, Synchronized>::push_back_batch_if(
     std::function<bool(std::size_t)> cond,

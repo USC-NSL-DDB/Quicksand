@@ -9,11 +9,11 @@
 
 namespace nu {
 
-template <class TR, typename... States>
+template <TaskRangeBased TR, typename... States>
 inline ComputeProclet<TR, States...>::ComputeProclet(States... states)
     : states_(std::move(states)...) {}
 
-template <class TR, typename... States>
+template <TaskRangeBased TR, typename... States>
 template <typename RetT>
 inline std::optional<compute_proclet_result<TR, RetT>>
 ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
@@ -28,7 +28,7 @@ ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
   auto l_key = task_range_.l_key();
 
   if constexpr (std::is_void_v<RetT>) {
-    std::apply([&](auto &... states) { fn(task_range_, states...); }, states_);
+    std::apply([&](auto &...states) { fn(task_range_, states...); }, states_);
     BUG_ON(!task_range_.empty());
     task_range_.cleanup_steal();
 
@@ -36,7 +36,7 @@ ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
 
   } else {
     RetT ret;
-    std::apply([&](auto &... states) { ret = fn(task_range_, states...); },
+    std::apply([&](auto &...states) { ret = fn(task_range_, states...); },
                states_);
     BUG_ON(!task_range_.empty());
     task_range_.cleanup_steal();
@@ -45,7 +45,7 @@ ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
   }
 }
 
-template <class TR, typename... States>
+template <TaskRangeBased TR, typename... States>
 template <typename RetT>
 inline std::optional<compute_proclet_result<TR, RetT>>
 ComputeProclet<TR, States...>::steal_and_compute(
@@ -54,7 +54,7 @@ ComputeProclet<TR, States...>::steal_and_compute(
   return compute(fn, std::move(task_range));
 }
 
-template <class TR, typename... States>
+template <TaskRangeBased TR, typename... States>
 inline TR ComputeProclet<TR, States...>::steal_tasks() {
   if (unlikely(!mutex_.try_lock())) {
     return TR();
@@ -64,31 +64,31 @@ inline TR ComputeProclet<TR, States...>::steal_tasks() {
   return ret;
 }
 
-template <class TR, typename... States>
+template <TaskRangeBased TR, typename... States>
 void ComputeProclet<TR, States...>::abort() {
   ScopedLock g(&mutex_);
   task_range_.clear();
 }
 
-template <class TR, typename... States>
+template <TaskRangeBased TR, typename... States>
 void ComputeProclet<TR, States...>::suspend() {
   ScopedLock g(&mutex_);
   task_range_.suspend();
 }
 
-template <class TR, typename... States>
+template <TaskRangeBased TR, typename... States>
 void ComputeProclet<TR, States...>::resume() {
   ScopedLock g(&mutex_);
   task_range_.resume();
 }
 
-template <class TR, typename... States>
+template <TaskRangeBased TR, typename... States>
 inline std::size_t ComputeProclet<TR, States...>::remaining_size() {
   ScopedLock g(&mutex_);
   return task_range_.size();
 }
 
-template <class TR, typename... States>
+template <TaskRangeBased TR, typename... States>
 inline std::size_t ComputeProclet<TR, States...>::processed_size() {
   ScopedLock g(&mutex_);
   return task_range_.processed_size();

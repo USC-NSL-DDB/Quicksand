@@ -9,24 +9,24 @@
 
 namespace nu {
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline ContainerHandle<Container>::ContainerHandle(
     Container *c, GeneralShard<Container> *shard)
     : c_(c), shard_(shard) {
   shard_->rw_lock_.reader_lock();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline ContainerHandle<Container>::~ContainerHandle() {
   shard_->rw_lock_.reader_unlock();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline Container *ContainerHandle<Container>::operator->() {
   return c_;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline Container &ContainerHandle<Container>::operator*() {
   return *c_;
 }
@@ -57,18 +57,18 @@ inline ContainerAndMetadata<Container>::ContainerAndMetadata(
   container = o.container;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline bool GeneralShard<Container>::ReqBatch::empty() const {
   return push_back_reqs.empty() && insert_reqs.empty();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 template <class Archive>
 inline void GeneralShard<Container>::ReqBatch::serialize(Archive &ar) {
   ar(mapping_seq, l_key, r_key, push_back_reqs, insert_reqs);
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
                                              uint32_t max_shard_bytes)
     : max_shard_bytes_(max_shard_bytes),
@@ -87,7 +87,7 @@ inline GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
   cpu_load_ = &proclet_header->cpu_load;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 template <typename... As>
 GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
                                       uint32_t max_shard_bytes,
@@ -131,7 +131,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
   }
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline GeneralShard<Container>::~GeneralShard() {
   deleted_ = true;
   barrier();
@@ -140,7 +140,7 @@ inline GeneralShard<Container>::~GeneralShard() {
   }
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 void GeneralShard<Container>::init_range(std::optional<Key> l_key,
                                          std::optional<Key> r_key) {
   if constexpr (kIsStatelessService) {
@@ -164,7 +164,7 @@ void GeneralShard<Container>::init_range(std::optional<Key> l_key,
   }
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 void GeneralShard<Container>::init_range_and_data(
     std::optional<Key> l_key, std::optional<Key> r_key,
     ContainerAndMetadata<Container> container_and_metadata) {
@@ -195,7 +195,7 @@ void GeneralShard<Container>::init_range_and_data(
   }
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline Container GeneralShard<Container>::get_container_copy() {
   rw_lock_.reader_lock();
 
@@ -207,13 +207,13 @@ inline Container GeneralShard<Container>::get_container_copy() {
   return c;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline ContainerHandle<Container>
 GeneralShard<Container>::get_container_handle() {
   return ContainerHandle<Container>(&container_, this);
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 void GeneralShard<Container>::split() {
   Key mid_k;
   std::size_t new_container_capacity = 0;
@@ -279,20 +279,20 @@ void GeneralShard<Container>::split() {
   }
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline bool GeneralShard<Container>::should_reject(
     const std::optional<Key> &l_key, const std::optional<Key> &r_key) {
   return deleted_ || (l_key < l_key_) || (r_key_ && (r_key > r_key_ || !r_key));
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline bool GeneralShard<Container>::should_reject(
     const std::optional<Key> &k) {
   assert(k.has_value());
   return deleted_ || (k < l_key_) || (r_key_ && k > r_key_);
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline bool GeneralShard<Container>::should_split(std::size_t size) const {
   // This is possible when there's a burst of ongoing insertions.
   if (unlikely(!size)) {
@@ -311,7 +311,7 @@ inline bool GeneralShard<Container>::should_split(std::size_t size) const {
   return over_container_size || over_slab_size;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 void GeneralShard<Container>::split_with_reader_lock() {
   rw_lock_.reader_unlock();
   if (rw_lock_.writer_lock_if(
@@ -321,7 +321,7 @@ void GeneralShard<Container>::split_with_reader_lock() {
   }
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 void GeneralShard<Container>::compute_split() {
   if constexpr (kIsStatelessService) {
     split_merge_mutex_.lock();
@@ -339,7 +339,7 @@ void GeneralShard<Container>::compute_split() {
   }
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 void GeneralShard<Container>::try_delete_self_with_reader_lock(
     bool merge_left) {
   rw_lock_.reader_unlock();
@@ -356,7 +356,7 @@ void GeneralShard<Container>::try_delete_self_with_reader_lock(
   rw_lock_.writer_unlock();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 bool GeneralShard<Container>::try_compute_delete_self(float cpu_load) {
   bool succeed = false;
 
@@ -381,7 +381,7 @@ bool GeneralShard<Container>::try_compute_delete_self(float cpu_load) {
   return succeed;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline bool GeneralShard<Container>::try_insert(DataEntry entry)
   requires InsertAble<Container> {
   rw_lock_.reader_lock();
@@ -415,7 +415,7 @@ inline bool GeneralShard<Container>::try_insert(DataEntry entry)
   return true;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline bool GeneralShard<Container>::try_push_back(
     std::optional<Key> l_key, std::optional<Key> r_key,
     Val v) requires PushBackAble<Container> {
@@ -444,7 +444,7 @@ inline bool GeneralShard<Container>::try_push_back(
   return true;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline bool GeneralShard<Container>::try_push_front(
     std::optional<Key> l_key, std::optional<Key> r_key,
     Val v) requires PushFrontAble<Container> {
@@ -471,7 +471,7 @@ inline bool GeneralShard<Container>::try_push_front(
   return true;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::optional<typename Container::Val>
 GeneralShard<Container>::try_front(
     std::optional<Key> l_key,
@@ -487,7 +487,7 @@ GeneralShard<Container>::try_front(
   return v;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::optional<typename Container::Val>
 GeneralShard<Container>::try_pop_front(
     std::optional<Key> l_key,
@@ -520,7 +520,7 @@ retry:
   return front.front();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::optional<std::vector<typename Container::Val>>
 GeneralShard<Container>::try_pop_front_nb(
     std::optional<Key> l_key, std::optional<Key> r_key,
@@ -542,7 +542,7 @@ GeneralShard<Container>::try_pop_front_nb(
   return front_elems;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::optional<typename Container::Val> GeneralShard<Container>::try_back(
     std::optional<Key> l_key,
     std::optional<Key> r_key) requires HasBack<Container> {
@@ -557,7 +557,7 @@ inline std::optional<typename Container::Val> GeneralShard<Container>::try_back(
   return v;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::optional<typename Container::Val>
 GeneralShard<Container>::try_pop_back(
     std::optional<Key> l_key,
@@ -590,7 +590,7 @@ retry:
   return back.front();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::optional<std::vector<typename Container::Val>>
 GeneralShard<Container>::try_pop_back_nb(
     std::optional<Key> l_key, std::optional<Key> r_key,
@@ -612,7 +612,7 @@ GeneralShard<Container>::try_pop_back_nb(
   return back_elems;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::optional<typename GeneralShard<Container>::ReqBatch>
 GeneralShard<Container>::try_handle_batch(ReqBatch &batch) {
   rw_lock_.reader_lock();
@@ -651,7 +651,7 @@ GeneralShard<Container>::try_handle_batch(ReqBatch &batch) {
   return std::nullopt;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::pair<bool, std::optional<typename Container::IterVal>>
 GeneralShard<Container>::find_data(Key k) requires FindDataAble<Container> {
   rw_lock_.reader_lock();
@@ -667,7 +667,7 @@ GeneralShard<Container>::find_data(Key k) requires FindDataAble<Container> {
   return std::make_pair(true, std::move(iter_val));
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::pair<typename Container::IterVal, typename Container::ConstIterator>
 GeneralShard<Container>::find(Key k) requires FindAble<Container> {
   // Currently, the invocation happens only after sealing the DS. Thus we can
@@ -676,7 +676,7 @@ GeneralShard<Container>::find(Key k) requires FindAble<Container> {
   return std::make_pair(*iter, std::move(iter));
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::optional<typename Container::IterVal>
 GeneralShard<Container>::find_data_by_order(
     std::size_t order) requires FindAbleByOrder<Container> {
@@ -689,7 +689,7 @@ GeneralShard<Container>::find_data_by_order(
   return *iter;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<
     std::pair<typename Container::IterVal, typename Container::ConstIterator>>
 GeneralShard<Container>::get_next_block_with_iters(
@@ -702,7 +702,7 @@ GeneralShard<Container>::get_next_block_with_iters(
   return block;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<typename Container::IterVal>
 GeneralShard<Container>::get_next_block(
     ConstIterator prev_iter,
@@ -717,7 +717,7 @@ GeneralShard<Container>::get_next_block(
                               std::to_address(end_iter));
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 uint32_t GeneralShard<Container>::__get_next_block_with_iters(
     std::vector<std::pair<IterVal, ConstIterator>>::iterator block_iter,
     ConstIterator prev_iter,
@@ -735,7 +735,7 @@ uint32_t GeneralShard<Container>::__get_next_block_with_iters(
   return i;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<
     std::pair<typename Container::IterVal, typename Container::ConstIterator>>
 GeneralShard<Container>::get_prev_block_with_iters(
@@ -758,7 +758,7 @@ GeneralShard<Container>::get_prev_block_with_iters(
   return block;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<typename Container::IterVal>
 GeneralShard<Container>::get_prev_block(
     ConstIterator succ_iter,
@@ -773,7 +773,7 @@ GeneralShard<Container>::get_prev_block(
                               std::to_address(succ_iter));
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<std::pair<typename Container::IterVal,
                       typename Container::ConstReverseIterator>>
 GeneralShard<Container>::get_next_rblock_with_iters(
@@ -787,7 +787,7 @@ GeneralShard<Container>::get_next_rblock_with_iters(
   return block;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<typename Container::IterVal>
 GeneralShard<Container>::get_next_rblock(
     ConstReverseIterator prev_iter,
@@ -803,7 +803,7 @@ GeneralShard<Container>::get_next_rblock(
   return std::vector<IterVal>(span.rbegin(), span.rend());
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 uint32_t GeneralShard<Container>::__get_next_rblock_with_iters(
     std::vector<std::pair<IterVal, ConstReverseIterator>>::iterator block_iter,
     ConstReverseIterator prev_iter,
@@ -821,7 +821,7 @@ uint32_t GeneralShard<Container>::__get_next_rblock_with_iters(
   return i;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<std::pair<typename Container::IterVal,
                       typename Container::ConstReverseIterator>>
 GeneralShard<Container>::get_prev_rblock_with_iters(
@@ -844,7 +844,7 @@ GeneralShard<Container>::get_prev_rblock_with_iters(
   return block;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<typename Container::IterVal>
 GeneralShard<Container>::get_prev_rblock(
     ConstReverseIterator succ_iter,
@@ -860,7 +860,7 @@ GeneralShard<Container>::get_prev_rblock(
   return std::vector<IterVal>(span.rbegin(), span.rend());
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<
     std::pair<typename Container::IterVal, typename Container::ConstIterator>>
 GeneralShard<Container>::get_front_block_with_iters(
@@ -874,7 +874,7 @@ GeneralShard<Container>::get_front_block_with_iters(
   return block;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::pair<std::vector<typename Container::IterVal>,
           typename Container::ConstIterator>
 GeneralShard<Container>::get_front_block(
@@ -891,7 +891,7 @@ GeneralShard<Container>::get_front_block(
       container_.cbegin());
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<std::pair<typename Container::IterVal,
                       typename Container::ConstReverseIterator>>
 GeneralShard<Container>::get_rfront_block_with_iters(
@@ -905,7 +905,7 @@ GeneralShard<Container>::get_rfront_block_with_iters(
   return block;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::pair<std::vector<typename Container::IterVal>,
           typename Container::ConstReverseIterator>
 GeneralShard<Container>::get_rfront_block(
@@ -922,7 +922,7 @@ GeneralShard<Container>::get_rfront_block(
                         container_.crbegin());
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<
     std::pair<typename Container::IterVal, typename Container::ConstIterator>>
 GeneralShard<Container>::get_back_block_with_iters(
@@ -930,7 +930,7 @@ GeneralShard<Container>::get_back_block_with_iters(
   return get_prev_block_with_iters(container_.cend(), block_size);
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::pair<std::vector<typename Container::IterVal>,
           typename Container::ConstIterator>
 GeneralShard<Container>::get_back_block(
@@ -939,7 +939,7 @@ GeneralShard<Container>::get_back_block(
   return std::make_pair(std::move(data), container_.cend() - data.size());
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::vector<std::pair<typename Container::IterVal,
                       typename Container::ConstReverseIterator>>
 GeneralShard<Container>::get_rback_block_with_iters(
@@ -947,7 +947,7 @@ GeneralShard<Container>::get_rback_block_with_iters(
   return get_prev_rblock_with_iters(container_.crend(), block_size);
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::pair<std::vector<typename Container::IterVal>,
           typename Container::ConstReverseIterator>
 GeneralShard<Container>::get_rback_block(
@@ -956,53 +956,53 @@ GeneralShard<Container>::get_rback_block(
   return std::make_pair(std::move(data), container_.crend() - data.size());
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::cbegin() requires ConstIterable<Container> {
   return container_.cbegin();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::clast() requires ConstIterable<Container> {
   return --container_.cend();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::cend() requires ConstIterable<Container> {
   return container_.cend();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline typename GeneralShard<Container>::ConstReverseIterator
 GeneralShard<Container>::crbegin() requires ConstReverseIterable<Container> {
   return container_.crbegin();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline typename GeneralShard<Container>::ConstReverseIterator
 GeneralShard<Container>::crlast() requires ConstReverseIterable<Container> {
   return --container_.crend();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline typename GeneralShard<Container>::ConstReverseIterator
 GeneralShard<Container>::crend() requires ConstReverseIterable<Container> {
   return container_.crend();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline bool GeneralShard<Container>::empty() {
   return container_.empty();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline std::size_t GeneralShard<Container>::size() {
   return container_.size();
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline Container::Key GeneralShard<
     Container>::split_at_end() requires GeneralContainer::kContiguousIterator {
   if (r_key_) {
@@ -1013,7 +1013,7 @@ inline Container::Key GeneralShard<
   return *r_key_;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 inline Container::Key GeneralShard<Container>::rebase(
     Key new_l_key) requires GeneralContainer::kContiguousIterator {
   l_key_ = new_l_key;
@@ -1024,7 +1024,7 @@ inline Container::Key GeneralShard<Container>::rebase(
   return new_r_key;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 template <typename RetT, typename... S0s>
 std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
 GeneralShard<Container>::try_compute_on(Key k, uintptr_t fn_addr,
@@ -1051,7 +1051,7 @@ GeneralShard<Container>::try_compute_on(Key k, uintptr_t fn_addr,
   }
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 bool GeneralShard<Container>::try_merge(bool merge_left,
                                         std::optional<Key> new_key,
                                         std::optional<float> cpu_load) {
@@ -1088,7 +1088,7 @@ bool GeneralShard<Container>::try_merge(bool merge_left,
   return succeed;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 void GeneralShard<Container>::start_compute_monitor_th() {
   if (compute_monitor_th_.joinable()) {
     compute_monitor_th_.join();
@@ -1109,7 +1109,7 @@ void GeneralShard<Container>::start_compute_monitor_th() {
   });
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 std::optional<bool> GeneralShard<Container>::try_erase(Key k)
   requires EraseAble<Container> {
   rw_lock_.reader_lock();
@@ -1126,7 +1126,7 @@ std::optional<bool> GeneralShard<Container>::try_erase(Key k)
   return erased;
 }
 
-template <class Container>
+template <GeneralContainerBased Container>
 template <typename RetT, typename... S0s>
 std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
 GeneralShard<Container>::try_run(Key k, uintptr_t fn_addr, S0s... states) {

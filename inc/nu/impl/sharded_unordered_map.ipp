@@ -18,47 +18,47 @@ inline UnorderedMapConstIterator<UMap>::UnorderedMapConstIterator(
   UMap::const_iterator::operator=(std::move(iter));
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline GeneralUnorderedMap<K, V, H, M>::GeneralUnorderedMap(UMap initial_state)
     : map_(std::move(initial_state)) {}
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline std::size_t GeneralUnorderedMap<K, V, H, M>::size() const {
   return map_.size();
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline void GeneralUnorderedMap<K, V, H, M>::reserve(std::size_t size) {
   return map_.reserve(size);
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline bool GeneralUnorderedMap<K, V, H, M>::empty() const {
   return map_.empty();
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline void GeneralUnorderedMap<K, V, H, M>::clear() {
   map_.clear();
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline std::size_t GeneralUnorderedMap<K, V, H, M>::insert(Key k, Val v) {
   map_.emplace(std::move(k), std::move(v));
   return map_.size();
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline bool GeneralUnorderedMap<K, V, H, M>::erase(Key k) {
   return map_.erase(k);
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline void GeneralUnorderedMap<K, V, H, M>::merge(GeneralUnorderedMap m) {
   map_.merge(std::move(m.map_));
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 template <typename... S0s, typename... S1s>
 inline void GeneralUnorderedMap<K, V, H, M>::for_all(
     void (*fn)(const Key &key, Val &val, S0s...), S1s &&...states) {
@@ -67,25 +67,25 @@ inline void GeneralUnorderedMap<K, V, H, M>::for_all(
   }
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline GeneralUnorderedMap<K, V, H, M>::ConstIterator
 GeneralUnorderedMap<K, V, H, M>::find(K k) const {
   return map_.find(std::move(k));
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline std::optional<std::pair<K, V>>
 GeneralUnorderedMap<K, V, H, M>::find_data(K k) const {
   auto iter = map_.find(std::move(k));
   return iter != map_.end() ? std::make_optional(*iter) : std::nullopt;
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline V &GeneralUnorderedMap<K, V, H, M>::operator[](K k) {
   return map_[k];
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 void GeneralUnorderedMap<K, V, H, M>::split(Key *mid_k,
                                             GeneralUnorderedMap *latter_half) {
   using Pair = std::pair<K, typename UMap::iterator>;
@@ -106,25 +106,25 @@ void GeneralUnorderedMap<K, V, H, M>::split(Key *mid_k,
   }
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline GeneralUnorderedMap<K, V, H, M>::ConstIterator
 GeneralUnorderedMap<K, V, H, M>::cbegin() const {
   return map_.cbegin();
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 inline GeneralUnorderedMap<K, V, H, M>::ConstIterator
 GeneralUnorderedMap<K, V, H, M>::cend() const {
   return map_.cend();
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 template <class Archive>
 inline void GeneralUnorderedMap<K, V, H, M>::save(Archive &ar) const {
   ar(map_);
 }
 
-template <typename K, typename V, typename H, typename M>
+template <typename K, typename V, typename H, BoolIntegral M>
 template <class Archive>
 inline void GeneralUnorderedMap<K, V, H, M>::load(Archive &ar) {
   ar(map_);

@@ -19,44 +19,44 @@ inline UnorderedSetConstIterator<USet>::UnorderedSetConstIterator(
   USet::const_iterator::operator=(std::move(iter));
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline std::size_t GeneralUnorderedSet<T, M>::size() const {
   return set_.size();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline void GeneralUnorderedSet<T, M>::reserve(std::size_t size) {
   return set_.reserve(size);
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline bool GeneralUnorderedSet<T, M>::empty() const {
   return set_.empty();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline void GeneralUnorderedSet<T, M>::clear() {
   set_.clear();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline std::size_t GeneralUnorderedSet<T, M>::insert(Key k) {
   set_.insert(std::move(k));
   return set_.size();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralUnorderedSet<T, M>::ConstIterator GeneralUnorderedSet<T, M>::find(
     Key k) const {
   return set_.find(std::move(k));
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline void GeneralUnorderedSet<T, M>::merge(GeneralUnorderedSet s) {
   set_.merge(std::move(s.set_));
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 template <typename... S0s, typename... S1s>
 inline void GeneralUnorderedSet<T, M>::for_all(void (*fn)(const Key &key,
                                                           S0s...),
@@ -65,11 +65,11 @@ inline void GeneralUnorderedSet<T, M>::for_all(void (*fn)(const Key &key,
   BUG();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralUnorderedSet<T, M>::GeneralUnorderedSet(USet initial_state)
     : set_(std::move(initial_state)) {}
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 void GeneralUnorderedSet<T, M>::split(Key *mid_k,
                                       GeneralUnorderedSet *latter_half) {
   using Pair = std::pair<T, typename USet::iterator>;
@@ -90,36 +90,36 @@ void GeneralUnorderedSet<T, M>::split(Key *mid_k,
   }
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralUnorderedSet<T, M>::USet &GeneralUnorderedSet<T, M>::data() {
   return set_;
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralUnorderedSet<T, M>::ConstIterator
 GeneralUnorderedSet<T, M>::cbegin() const {
   return set_.cbegin();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralUnorderedSet<T, M>::ConstIterator
 GeneralUnorderedSet<T, M>::cend() const {
   return set_.cend();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 template <class Archive>
 inline void GeneralUnorderedSet<T, M>::save(Archive &ar) const {
   ar(set_);
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 template <class Archive>
 inline void GeneralUnorderedSet<T, M>::load(Archive &ar) {
   ar(set_);
 }
 
-template <typename T, typename M, typename LL>
+template <typename T, BoolIntegral M, typename LL>
 inline GeneralShardedUnorderedSet<T, M, LL>::GeneralShardedUnorderedSet(
     std::optional<typename Base::ShardingHint> sharding_hint)
     : Base(sharding_hint, /* size_bound = */ std::nullopt,

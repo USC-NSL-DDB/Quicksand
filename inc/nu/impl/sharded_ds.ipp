@@ -8,14 +8,14 @@
 
 namespace nu {
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
     : num_pending_flushes_(0),
       max_num_vals_(0),
       max_num_data_entries_(0),
       rw_lock_(std::make_unique<ReadSkewedLock>()) {}
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename... As>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<ShardingHint> sharding_hint,
@@ -77,7 +77,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   mapping_seq_ = shard_futures.size() - 1;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
     const ShardedDataStructure &o)
     : mapping_(o.mapping_),
@@ -90,7 +90,7 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
   mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 ShardedDataStructure<Container, LL> &
 ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   reset();
@@ -108,7 +108,7 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   return *this;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     ShardedDataStructure &&o) noexcept
     : mapping_(std::move(o.mapping_)),
@@ -121,7 +121,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       max_num_data_entries_(o.max_num_data_entries_),
       rw_lock_(std::make_unique<ReadSkewedLock>()) {}
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 ShardedDataStructure<Container, LL>
     &ShardedDataStructure<Container, LL>::operator=(
         ShardedDataStructure &&o) noexcept {
@@ -139,7 +139,7 @@ ShardedDataStructure<Container, LL>
   return *this;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 void ShardedDataStructure<Container, LL>::reset() {
   if (mapping_) {
     flush();
@@ -148,44 +148,44 @@ void ShardedDataStructure<Container, LL>::reset() {
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
   reset();
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 void ShardedDataStructure<Container, LL>::update_max_num_data_entries(
     KeyToShardsMapping::iterator iter) {
   max_num_data_entries_ = kBatchingMaxBatchBytes /
                           cereal::get_size(iter->second.insert_reqs.back());
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 void ShardedDataStructure<Container, LL>::update_max_num_vals() {
   max_num_vals_ =
       kBatchingMaxBatchBytes / cereal::get_size(push_back_reqs_.back());
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename K, typename V>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::insert(
     K &&k, V &&v) requires(HasVal<Container> && InsertAble<Container>) {
   insert({std::forward<K>(k), std::forward<V>(v)});
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::insert(
     const DataEntry &entry) requires InsertAble<Container> {
   __insert(const_cast<DataEntry &>(entry));
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 [[gnu::always_inline]] inline void ShardedDataStructure<Container, LL>::insert(
     DataEntry &&entry) requires InsertAble<Container> {
   __insert(std::move(entry));
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <bool Flush, typename D>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::__insert(
@@ -226,21 +226,21 @@ ShardedDataStructure<Container, LL>::__insert(
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 [[gnu::always_inline]] inline bool
 ShardedDataStructure<Container, LL>::erase(
     const Key &k) requires EraseAble<Container> {
   return __erase(const_cast<Key &>(k));
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 [[gnu::always_inline]] inline bool
 ShardedDataStructure<Container, LL>::erase(
     Key &&k) requires EraseAble<Container> {
   return __erase(std::move(k));
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename K>
 [[gnu::always_inline]] inline bool ShardedDataStructure<Container, LL>::__erase(
     K &&k) requires EraseAble<Container> {
@@ -259,21 +259,21 @@ template <typename K>
   return *optional_erased;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::push_back(
     const Val &v) requires PushBackAble<Container> {
   __push_back(const_cast<Val &>(v));
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::push_back(
     Val &&v) requires PushBackAble<Container> {
   __push_back(std::move(v));
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <bool Flush, typename V>
 [[gnu::always_inline]] inline void
 ShardedDataStructure<Container, LL>::__push_back(
@@ -294,7 +294,7 @@ ShardedDataStructure<Container, LL>::__push_back(
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <bool Front, typename RetT, typename F, typename... As>
 RetT ShardedDataStructure<Container, LL>::run_at_border(F f, As &&... args) {
 retry:
@@ -328,31 +328,31 @@ retry:
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline Container::Val ShardedDataStructure<Container, LL>::front() const
     requires HasFront<Container> {
   return const_cast<ShardedDataStructure *>(this)->__front();
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline Container::Val
 ShardedDataStructure<Container, LL>::__front() requires HasFront<Container> {
   return run_at_border<true, Val>(&Shard::try_front);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline void ShardedDataStructure<Container, LL>::push_front(
     const Val &v) requires PushFrontAble<Container> {
   __push_front(const_cast<Val &>(v));
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline void ShardedDataStructure<Container, LL>::push_front(
     Val &&v) requires PushFrontAble<Container> {
   __push_front(std::move(v));
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename V>
 inline void ShardedDataStructure<Container, LL>::__push_front(
     V &&v) requires PushFrontAble<Container> {
@@ -365,45 +365,45 @@ inline void ShardedDataStructure<Container, LL>::__push_front(
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline Container::Val ShardedDataStructure<
     Container, LL>::pop_front() requires TryPopFrontAble<Container> {
   return run_at_border<true, Val>(&Shard::try_pop_front);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline std::vector<typename Container::Val>
 ShardedDataStructure<Container, LL>::try_pop_front(
     std::size_t num) requires TryPopFrontAble<Container> {
   return run_at_border<true, std::vector<Val>>(&Shard::try_pop_front_nb, num);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline Container::Val ShardedDataStructure<Container, LL>::back() const
     requires HasBack<Container> {
   return const_cast<ShardedDataStructure *>(this)->__back();
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline Container::Val
 ShardedDataStructure<Container, LL>::__back() requires HasBack<Container> {
   return run_at_border<false, Val>(&Shard::try_back);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline Container::Val ShardedDataStructure<
     Container, LL>::pop_back() requires TryPopBackAble<Container> {
   return run_at_border<false, Val>(&Shard::try_pop_back);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline std::vector<typename Container::Val>
 ShardedDataStructure<Container, LL>::try_pop_back(
     std::size_t num) requires TryPopBackAble<Container> {
   return run_at_border<true, std::vector<Val>>(&Shard::try_pop_back_nb, num);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
 ShardedDataStructure<Container, LL>::__find_data(
     Key k) requires FindDataAble<Container> {
@@ -424,14 +424,14 @@ retry:
   return val;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline std::optional<typename ShardedDataStructure<Container, LL>::IterVal>
 ShardedDataStructure<Container, LL>::find_data(Key k) const
   requires FindDataAble<Container> {
   return const_cast<ShardedDataStructure *>(this)->__find_data(k);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline void ShardedDataStructure<Container, LL>::concat(
     ShardedDataStructure &&tail) requires Container::kContiguousIterator {
   flush();
@@ -440,7 +440,7 @@ inline void ShardedDataStructure<Container, LL>::concat(
   tail.key_to_shards_.clear();
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline std::pair<
     std::optional<typename ShardedDataStructure<Container, LL>::Key>,
     std::optional<typename ShardedDataStructure<Container, LL>::Key>>
@@ -452,24 +452,24 @@ ShardedDataStructure<Container, LL>::get_key_range(
   return std::make_pair(l_key, r_key);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
     WeakProclet<Shard> s)
     : shard(s), seq(0) {}
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline ShardedDataStructure<Container, LL>::ShardAndReqs::ShardAndReqs(
     const ShardAndReqs &o)
     : shard(o.shard), seq(0) {}
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::ShardAndReqs::save(
     Archive &ar) const {
   ar(shard);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::ShardAndReqs::load(
     Archive &ar) {
@@ -477,7 +477,7 @@ inline void ShardedDataStructure<Container, LL>::ShardAndReqs::load(
   seq = 0;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 bool ShardedDataStructure<Container, LL>::pop_flush_future(
     std::deque<Future<std::optional<ReqBatch>>> *flush_futures,
     std::vector<ReqBatch> *rejected_batches) {
@@ -495,7 +495,7 @@ bool ShardedDataStructure<Container, LL>::pop_flush_future(
   return rejected;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 std::vector<typename GeneralShard<Container>::ReqBatch>
 ShardedDataStructure<Container, LL>::wait_for_pending_flushes(bool drain) {
   BUG_ON(num_pending_flushes_ > kMaxNumInflightFlushes + 1);
@@ -538,7 +538,7 @@ ShardedDataStructure<Container, LL>::wait_for_pending_flushes(bool drain) {
   return rejected_batches;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename RetT, typename... S0s, typename... S1s>
 inline RetT ShardedDataStructure<Container, LL>::compute_on(
     Key k, RetT (*fn)(ContainerImpl &container, S0s...), S1s &&...states) {
@@ -563,7 +563,7 @@ inline RetT ShardedDataStructure<Container, LL>::compute_on(
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename RetT, typename... S0s, typename... S1s>
 inline RetT ShardedDataStructure<Container, LL>::run(
     Key k, RetT (*fn)(ContainerImpl &container, Key k, S0s...),
@@ -587,7 +587,7 @@ inline RetT ShardedDataStructure<Container, LL>::run(
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 bool ShardedDataStructure<Container, LL>::flush_one_batch(
     KeyToShardsMapping::iterator iter, bool drain) {
   ReqBatch batch;
@@ -633,7 +633,7 @@ bool ShardedDataStructure<Container, LL>::flush_one_batch(
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 void ShardedDataStructure<Container, LL>::reroute_reqs(
     std::vector<DataEntry> insert_reqs, std::vector<Val> push_back_reqs) {
   if constexpr (InsertAble<Container>) {
@@ -648,7 +648,7 @@ void ShardedDataStructure<Container, LL>::reroute_reqs(
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 void ShardedDataStructure<Container, LL>::handle_rejected_flush_batches(
     std::vector<ReqBatch> batches) {
   auto [last_insert_reqs, last_push_back_reqs] =
@@ -659,7 +659,7 @@ void ShardedDataStructure<Container, LL>::handle_rejected_flush_batches(
   reroute_reqs(std::move(last_insert_reqs), std::move(last_push_back_reqs));
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 void ShardedDataStructure<Container, LL>::flush() {
   if constexpr (!LL::value) {
   again:
@@ -682,7 +682,7 @@ void ShardedDataStructure<Container, LL>::flush() {
 #endif
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 std::pair<std::vector<typename ShardedDataStructure<Container, LL>::DataEntry>,
           std::vector<typename ShardedDataStructure<Container, LL>::Val>>
 ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
@@ -765,7 +765,7 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 void ShardedDataStructure<Container, LL>::flush_and_sync_mapping() {
   flush();
 
@@ -776,7 +776,7 @@ void ShardedDataStructure<Container, LL>::flush_and_sync_mapping() {
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename... S1s>
 void ShardedDataStructure<Container, LL>::__for_all(auto *fn,
                                                     S1s &&... states) {
@@ -791,7 +791,7 @@ void ShardedDataStructure<Container, LL>::__for_all(auto *fn,
       raw_fn, std::forward<S1s>(states)...);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename... S0s, typename... S1s>
 void ShardedDataStructure<Container, LL>::for_all(
     void (*fn)(const Key &key, Val &val, S0s...),
@@ -799,7 +799,7 @@ void ShardedDataStructure<Container, LL>::for_all(
   __for_all(fn, std::forward<S1s>(states)...);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename... S0s, typename... S1s>
 void ShardedDataStructure<Container, LL>::for_all(
     void (*fn)(const Key &key, S0s...),
@@ -807,7 +807,7 @@ void ShardedDataStructure<Container, LL>::for_all(
   __for_all(fn, std::forward<S1s>(states)...);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename... S0s, typename... S1s>
 void ShardedDataStructure<Container, LL>::for_all_shards(
     void (*fn)(ContainerImpl &container_impl, S0s...), S1s &&... states) {
@@ -845,7 +845,7 @@ void ShardedDataStructure<Container, LL>::for_all_shards(
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 Container ShardedDataStructure<Container, LL>::collect() {
   flush_and_sync_mapping();
 
@@ -874,7 +874,7 @@ Container ShardedDataStructure<Container, LL>::collect() {
   return all;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 std::size_t ShardedDataStructure<Container, LL>::__size() {
   flush_and_sync_mapping();
 
@@ -894,17 +894,17 @@ std::size_t ShardedDataStructure<Container, LL>::__size() {
   return size;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline std::size_t ShardedDataStructure<Container, LL>::size() const {
   return const_cast<ShardedDataStructure *>(this)->__size();
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline bool ShardedDataStructure<Container, LL>::empty() const {
   return !size();
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 void ShardedDataStructure<Container,
                           LL>::clear() requires ClearAble<Container> {
   flush_and_sync_mapping();
@@ -922,7 +922,7 @@ void ShardedDataStructure<Container,
   }
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::__save(Archive &ar) {
   flush();
@@ -931,13 +931,13 @@ inline void ShardedDataStructure<Container, LL>::__save(Archive &ar) {
   mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::save(Archive &ar) const {
   const_cast<ShardedDataStructure *>(this)->__save(ar);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::save_move(Archive &ar) {
   flush();
@@ -946,14 +946,14 @@ inline void ShardedDataStructure<Container, LL>::save_move(Archive &ar) {
   key_to_shards_.clear();
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::load(Archive &ar) {
   ar(mapping_, mapping_seq_, key_to_shards_, max_num_vals_,
      max_num_data_entries_);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 std::vector<std::tuple<
     std::optional<typename ShardedDataStructure<Container, LL>::Key>,
     std::size_t,
@@ -984,12 +984,12 @@ ShardedDataStructure<Container, LL>::get_all_shards_info() {
   return ret;
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline void ShardedDataStructure<Container, LL>::seal() {
   mapping_.run(&ShardMapping::seal);
 }
 
-template <class Container, class LL>
+template <GeneralContainerBased Container, BoolIntegral LL>
 inline void ShardedDataStructure<Container, LL>::unseal() {
   mapping_.run(&ShardMapping::unseal);
 }

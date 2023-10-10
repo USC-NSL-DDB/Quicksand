@@ -21,41 +21,41 @@ inline SetConstReverseIterator<Set>::SetConstReverseIterator(
   Set::const_reverse_iterator::operator=(std::move(iter));
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralSet<T, M>::GeneralSet() {}
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline std::size_t GeneralSet<T, M>::size() const {
   return set_.size();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline bool GeneralSet<T, M>::empty() const {
   return set_.empty();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline void GeneralSet<T, M>::clear() {
   set_.clear();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline std::size_t GeneralSet<T, M>::insert(Key k) {
   set_.insert(std::move(k));
   return set_.size();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralSet<T, M>::ConstIterator GeneralSet<T, M>::find(Key k) const {
   return set_.find(std::move(k));
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline void GeneralSet<T, M>::merge(GeneralSet s) {
   set_.merge(std::move(s.set_));
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 template <typename... S0s, typename... S1s>
 inline void GeneralSet<T, M>::for_all(void (*fn)(const Key &key, S0s...),
                                       S1s &&... states) {
@@ -63,12 +63,12 @@ inline void GeneralSet<T, M>::for_all(void (*fn)(const Key &key, S0s...),
   BUG();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralSet<T, M>::GeneralSet(Set initial_state) {
   set_ = std::move(initial_state);
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 void GeneralSet<T, M>::split(Key *mid_k, GeneralSet *latter_half) {
   auto mid = set_.size() / 2;
 
@@ -81,45 +81,45 @@ void GeneralSet<T, M>::split(Key *mid_k, GeneralSet *latter_half) {
   set_.erase(latter_half_begin_itr, set_.end());
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralSet<T, M>::Set &GeneralSet<T, M>::data() {
   return set_;
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralSet<T, M>::ConstIterator GeneralSet<T, M>::cbegin() const {
   return set_.cbegin();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralSet<T, M>::ConstIterator GeneralSet<T, M>::cend() const {
   return set_.cend();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralSet<T, M>::ConstReverseIterator GeneralSet<T, M>::crbegin()
     const {
   return set_.crbegin();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 inline GeneralSet<T, M>::ConstReverseIterator GeneralSet<T, M>::crend() const {
   return set_.crend();
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 template <class Archive>
 inline void GeneralSet<T, M>::save(Archive &ar) const {
   ar(set_);
 }
 
-template <typename T, typename M>
+template <typename T, BoolIntegral M>
 template <class Archive>
 inline void GeneralSet<T, M>::load(Archive &ar) {
   ar(set_);
 }
 
-template <typename T, typename M, typename LL>
+template <typename T, BoolIntegral M, typename LL>
 inline GeneralShardedSet<T, M, LL>::GeneralShardedSet(
     std::optional<typename Base::ShardingHint> sharding_hint)
     : Base(sharding_hint, /* size_bound = */ std::nullopt,
