@@ -37,17 +37,17 @@ class DistributedMemPool {
   DistributedMemPool &operator=(DistributedMemPool &&);
   ~DistributedMemPool();
   template <typename T, typename... As>
-  RemRawPtr<T> allocate_raw(As &&... args);
+  RemRawPtr<T> allocate_raw(As &&...args);
   template <typename T, typename... As>
-  Future<RemRawPtr<T>> allocate_raw_async(As &&... args);
+  Future<RemRawPtr<T>> allocate_raw_async(As &&...args);
   template <typename T, typename... As>
-  RemUniquePtr<T> allocate_unique(As &&... args);
+  RemUniquePtr<T> allocate_unique(As &&...args);
   template <typename T, typename... As>
-  Future<RemUniquePtr<T>> allocate_unique_async(As &&... args);
+  Future<RemUniquePtr<T>> allocate_unique_async(As &&...args);
   template <typename T, typename... As>
-  RemSharedPtr<T> allocate_shared(As &&... args);
+  RemSharedPtr<T> allocate_shared(As &&...args);
   template <typename T, typename... As>
-  Future<RemSharedPtr<T>> allocate_shared_async(As &&... args);
+  Future<RemSharedPtr<T>> allocate_shared_async(As &&...args);
   template <typename T>
   void free_raw(const RemRawPtr<T> &ptr);
   template <typename T>
@@ -120,7 +120,7 @@ class DistributedMemPool {
   friend class RemUniquePtr;
 
   template <typename T, typename AllocFn, typename... As>
-  auto __allocate(AllocFn &&alloc_fn, As &&... args);
+  auto __allocate(AllocFn &&alloc_fn, As &&...args);
   void __handle_local_free_shard_full();
   void __handle_no_local_free_shard();
   void check_probing();

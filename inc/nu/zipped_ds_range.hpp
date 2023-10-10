@@ -39,9 +39,9 @@ template <ShardedDataStructureBased T>
 class SealedDS;
 
 template <ShardedDataStructureBased... Ts>
-ZippedDSRange<typename Ts::Shard...>
-make_zipped_ds_range(const SealedDS<Ts> &... sealed_dses) requires(
-    ((SealedDS<Ts>::ConstIterator::kContiguous) && ...));
+ZippedDSRange<typename Ts::Shard...> make_zipped_ds_range(
+    const SealedDS<Ts> &...sealed_dses)
+  requires(((SealedDS<Ts>::ConstIterator::kContiguous) && ...));
 
 }  // namespace nu
 

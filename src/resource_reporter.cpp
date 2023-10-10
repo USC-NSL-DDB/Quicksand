@@ -4,10 +4,10 @@ extern "C" {
 
 #include <sync.h>
 
-#include "nu/runtime.hpp"
 #include "nu/commons.hpp"
 #include "nu/ctrl_client.hpp"
 #include "nu/resource_reporter.hpp"
+#include "nu/runtime.hpp"
 
 namespace nu {
 

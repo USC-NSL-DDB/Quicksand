@@ -8,8 +8,8 @@ extern "C" {
 #include <sync.h>
 #include <timer.h>
 
-#include "nu/runtime.hpp"
 #include "nu/ctrl_server.hpp"
+#include "nu/runtime.hpp"
 
 namespace nu {
 
@@ -165,8 +165,7 @@ ControllerServer::handle_allocate_proclet(const RPCReqAllocateProclet &req) {
   return resp;
 }
 
-void ControllerServer::handle_destroy_proclet(
-    const RPCReqDestroyProclet &req) {
+void ControllerServer::handle_destroy_proclet(const RPCReqDestroyProclet &req) {
   if constexpr (kEnableLogging) {
     num_destroy_proclet_++;
   }

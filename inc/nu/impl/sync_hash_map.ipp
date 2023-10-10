@@ -12,9 +12,9 @@ inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
-inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>
-    &SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::operator=(
-        const SyncHashMap &o) noexcept {
+inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock> &
+SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::operator=(
+    const SyncHashMap &o) noexcept {
   Allocator allocator;
   BucketNodeAllocator bucket_node_allocator;
 
@@ -71,9 +71,9 @@ inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
-inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>
-    &SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::operator=(
-        SyncHashMap &&o) noexcept {
+inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock> &
+SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::operator=(
+    SyncHashMap &&o) noexcept {
   bucket_heads_ = o.bucket_heads_;
   o.bucket_heads_ = nullptr;
   return *this;
@@ -462,7 +462,8 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
 inline std::vector<std::pair<K, V>>
 SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::get_all_pairs() {
   return associative_reduce(
-      /* clear = */ false, /* init_val = */ std::vector<std::pair<K, V>>(),
+      /* clear = */
+      false, /* init_val = */ std::vector<std::pair<K, V>>(),
       /* reduce_fn = */
       +[](std::vector<std::pair<K, V>> &reduced_val,
           std::pair<const K, V> &pair) { reduced_val.push_back(pair); });

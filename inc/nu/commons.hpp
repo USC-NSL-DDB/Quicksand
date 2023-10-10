@@ -122,7 +122,7 @@ void move_append_vector(std::vector<T> &dest, std::vector<T> &src);
 template <class T>
 concept BoolIntegral = requires {
   requires std::is_same_v<T, std::bool_constant<false>> ||
-      std::is_same_v<T, std::bool_constant<true>>;
+               std::is_same_v<T, std::bool_constant<true>>;
 };
 
 #define Aligned(type, alignment)            \

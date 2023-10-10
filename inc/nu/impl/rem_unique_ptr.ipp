@@ -70,7 +70,7 @@ inline Future<void> RemUniquePtr<T>::reset_async() {
 }
 
 template <typename T, typename... Args>
-inline RemUniquePtr<T> make_rem_unique(Args &&... args) {
+inline RemUniquePtr<T> make_rem_unique(Args &&...args) {
   auto *raw_ptr = new (std::nothrow) T(std::forward<Args>(args)...);
   if (unlikely(!raw_ptr)) {
     return RemUniquePtr<T>();

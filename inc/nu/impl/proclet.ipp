@@ -25,7 +25,7 @@ namespace nu {
 struct ProcletHeader;
 
 template <typename... S1s>
-inline void serialize(auto *oa_sstream, S1s &&... states) {
+inline void serialize(auto *oa_sstream, S1s &&...states) {
   auto &ss = oa_sstream->ss;
   auto *rpc_type = const_cast<RPCReqType *>(
       reinterpret_cast<const RPCReqType *>(ss.view().data()));
@@ -39,7 +39,7 @@ inline void serialize(auto *oa_sstream, S1s &&... states) {
 template <typename T>
 template <typename... S1s>
 void Proclet<T>::invoke_remote(MigrationGuard &&caller_guard, ProcletID id,
-                               S1s &&... states) {
+                               S1s &&...states) {
   std::optional<MigrationGuard> optional_caller_guard;
   RuntimeSlabGuard slab_guard;
 
@@ -78,7 +78,7 @@ retry:
 template <typename T>
 template <typename RetT, typename... S1s>
 RetT Proclet<T>::invoke_remote_with_ret(MigrationGuard &&caller_guard,
-                                        ProcletID id, S1s &&... states) {
+                                        ProcletID id, S1s &&...states) {
   RetT ret;
   std::optional<MigrationGuard> optional_caller_guard;
   RuntimeSlabGuard slab_guard;
@@ -139,8 +139,7 @@ inline Proclet<T>::~Proclet() {
 }
 
 template <typename T>
-Proclet<T>::Proclet(const Proclet<T> &o)
-    : id_(o.id_) {
+Proclet<T>::Proclet(const Proclet<T> &o) : id_(o.id_) {
   if (id_ != kNullProcletID) {
     auto inc_ref_optional = update_ref_cnt(id_, 1);
     if (inc_ref_optional) {
@@ -178,7 +177,7 @@ inline Proclet<T> &Proclet<T>::operator=(Proclet<T> &&o) noexcept {
 template <typename T>
 template <typename... As>
 Proclet<T> Proclet<T>::__create(bool pinned, uint64_t capacity, NodeIP ip_hint,
-                                As &&... args) {
+                                As &&...args) {
   uint32_t server_ip;
   ProcletID callee_id;
   Proclet<T> callee_proclet;
@@ -251,9 +250,10 @@ inline ProcletID Proclet<T>::get_id() const {
 template <typename T>
 template <bool MigrEn, bool CPUMon, bool CPUSamp, typename RetT,
           typename... S0s, typename... S1s>
-inline Future<RetT> Proclet<T>::run_async(
-    RetT (*fn)(T &, S0s...),
-    S1s &&... states) requires ValidInvocationTypes<RetT, S0s...> {
+inline Future<RetT> Proclet<T>::run_async(RetT (*fn)(T &, S0s...),
+                                          S1s &&...states)
+  requires ValidInvocationTypes<RetT, S0s...>
+{
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::forward<S1s>(states)...));
 
@@ -264,7 +264,7 @@ template <typename T>
 template <bool MigrEn, bool CPUMon, bool CPUSamp, typename RetT,
           typename... S0s, typename... S1s>
 inline Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...),
-                                            S1s &&... states) {
+                                            S1s &&...states) {
   return nu::async([&, fn, ... states = std::forward<S1s>(states)]() mutable {
     return __run<MigrEn, CPUMon, CPUSamp>(fn, std::forward<S1s>(states)...);
   });
@@ -273,9 +273,9 @@ inline Future<RetT> Proclet<T>::__run_async(RetT (*fn)(T &, S0s...),
 template <typename T>
 template <bool MigrEn, bool CPUMon, bool CPUSamp, typename RetT,
           typename... S0s, typename... S1s>
-inline RetT Proclet<T>::run(
-    RetT (*fn)(T &, S0s...),
-    S1s &&... states) requires ValidInvocationTypes<RetT, S0s...> {
+inline RetT Proclet<T>::run(RetT (*fn)(T &, S0s...), S1s &&...states)
+  requires ValidInvocationTypes<RetT, S0s...>
+{
   using fn_states_checker [[maybe_unused]] =
       decltype(fn(std::declval<T &>(), std::move(states)...));
 
@@ -285,7 +285,7 @@ inline RetT Proclet<T>::run(
 template <typename T>
 template <bool MigrEn, bool CPUMon, bool CPUSamp, typename RetT,
           typename... S0s, typename... S1s>
-RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
+RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&...states) {
   MigrationGuard caller_migration_guard;
 
   auto *caller_header = caller_migration_guard.header();
@@ -351,9 +351,9 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&... states) {
 template <typename T>
 template <bool MigrEn, bool CPUMon, bool CPUSamp, typename RetT,
           typename... A0s, typename... A1s>
-inline Future<RetT> Proclet<T>::run_async(
-    RetT (T::*md)(A0s...),
-    A1s &&... args) requires ValidInvocationTypes<RetT, A0s...> {
+inline Future<RetT> Proclet<T>::run_async(RetT (T::*md)(A0s...), A1s &&...args)
+  requires ValidInvocationTypes<RetT, A0s...>
+{
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::move(args)...));
 
@@ -364,7 +364,7 @@ template <typename T>
 template <bool MigrEn, bool CPUMon, bool CPUSamp, typename RetT,
           typename... A0s, typename... A1s>
 inline Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...),
-                                            A1s &&... args) {
+                                            A1s &&...args) {
   return nu::async([&, md, ... args = std::forward<A1s>(args)]() mutable {
     return __run<MigrEn, CPUMon, CPUSamp>(md, std::forward<A1s>(args)...);
   });
@@ -373,9 +373,9 @@ inline Future<RetT> Proclet<T>::__run_async(RetT (T::*md)(A0s...),
 template <typename T>
 template <bool MigrEn, bool CPUMon, bool CPUSamp, typename RetT,
           typename... A0s, typename... A1s>
-inline RetT Proclet<T>::run(
-    RetT (T::*md)(A0s...),
-    A1s &&... args) requires ValidInvocationTypes<RetT, A0s...> {
+inline RetT Proclet<T>::run(RetT (T::*md)(A0s...), A1s &&...args)
+  requires ValidInvocationTypes<RetT, A0s...>
+{
   using md_args_checker [[maybe_unused]] =
       decltype((std::declval<T>().*(md))(std::forward<A1s>(args)...));
 
@@ -385,7 +385,7 @@ inline RetT Proclet<T>::run(
 template <typename T>
 template <bool MigrEn, bool CPUMon, bool CPUSamp, typename RetT,
           typename... A0s, typename... A1s>
-inline RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&... args) {
+inline RetT Proclet<T>::__run(RetT (T::*md)(A0s...), A1s &&...args) {
   MethodPtr<decltype(md)> method_ptr;
   method_ptr.ptr = md;
   return __run<MigrEn, CPUMon, CPUSamp>(

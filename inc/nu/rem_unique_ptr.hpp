@@ -29,11 +29,11 @@ class RemUniquePtr : public RemPtr<T> {
   RemUniquePtr(T *raw_ptr);
 
   template <typename U, typename... Args>
-  friend RemUniquePtr<U> make_rem_unique(Args &&... args);
+  friend RemUniquePtr<U> make_rem_unique(Args &&...args);
 };
 
 template <typename T, typename... Args>
-RemUniquePtr<T> make_rem_unique(Args &&... args);
+RemUniquePtr<T> make_rem_unique(Args &&...args);
 
 }  // namespace nu
 

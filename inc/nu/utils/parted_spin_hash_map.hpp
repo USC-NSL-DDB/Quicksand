@@ -22,7 +22,7 @@ class PartitionedSpinHashMap {
   template <typename K1, typename V1>
   void put(K1 &&k, V1 &&v);
   template <typename K1, typename... Args>
-  V &get_or_emplace(K1 &&k, Args &&... args);
+  V &get_or_emplace(K1 &&k, Args &&...args);
   template <typename K1>
   bool remove(K1 &&k);
   template <typename K1>

@@ -19,12 +19,16 @@ inline consteval bool is_safe_to_move() {
 }
 
 template <typename T>
-inline T &&pass_across_proclet(T &&t) requires(is_safe_to_move<T &&>()) {
+inline T &&pass_across_proclet(T &&t)
+  requires(is_safe_to_move<T &&>())
+{
   return std::move(t);
 }
 
 template <typename T>
-inline std::decay_t<T> pass_across_proclet(T &&t) requires DeepCopyAble<T> {
+inline std::decay_t<T> pass_across_proclet(T &&t)
+  requires DeepCopyAble<T>
+{
   if constexpr (std::is_rvalue_reference_v<T &&>) {
     T tmp = std::move(t);
     return tmp.deep_copy();

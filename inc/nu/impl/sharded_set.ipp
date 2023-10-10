@@ -58,7 +58,7 @@ inline void GeneralSet<T, M>::merge(GeneralSet s) {
 template <typename T, BoolIntegral M>
 template <typename... S0s, typename... S1s>
 inline void GeneralSet<T, M>::for_all(void (*fn)(const Key &key, S0s...),
-                                      S1s &&... states) {
+                                      S1s &&...states) {
   // Not implemented.
   BUG();
 }

@@ -12,8 +12,8 @@ extern "C" {
 #include <runtime/net.h>
 #include <runtime/tcp.h>
 }
-#include <net.h>
 #include <iokernel/ias_constant.h>
+#include <net.h>
 
 #include "nu/commons.hpp"
 #include "nu/rpc_client_mgr.hpp"

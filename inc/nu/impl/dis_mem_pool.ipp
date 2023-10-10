@@ -83,14 +83,14 @@ inline void DistributedMemPool::halt_probing() {
 }
 
 template <typename T, typename... As>
-inline RemRawPtr<T> DistributedMemPool::allocate_raw(As &&... args) {
+inline RemRawPtr<T> DistributedMemPool::allocate_raw(As &&...args) {
   return __allocate<T>(&Heap::allocate_raw<T, std::decay_t<As>...>,
                        std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
 inline Future<RemRawPtr<T>> DistributedMemPool::allocate_raw_async(
-    As &&... args) {
+    As &&...args) {
   return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_raw(std::forward<As>(args)...);
   });
@@ -142,35 +142,35 @@ void DistributedMemPool::load(Archive &ar) {
 }
 
 template <typename T, typename... As>
-inline RemUniquePtr<T> DistributedMemPool::allocate_unique(As &&... args) {
+inline RemUniquePtr<T> DistributedMemPool::allocate_unique(As &&...args) {
   return __allocate<T>(&Heap::allocate_unique<T, std::decay_t<As>...>,
                        std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
 inline Future<RemUniquePtr<T>> DistributedMemPool::allocate_unique_async(
-    As &&... args) {
+    As &&...args) {
   return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_unique(std::forward<As>(args)...);
   });
 }
 
 template <typename T, typename... As>
-inline RemSharedPtr<T> DistributedMemPool::allocate_shared(As &&... args) {
+inline RemSharedPtr<T> DistributedMemPool::allocate_shared(As &&...args) {
   return __allocate<T>(&Heap::allocate_shared<T, std::decay_t<As>...>,
                        std::forward<As>(args)...);
 }
 
 template <typename T, typename... As>
 inline Future<RemSharedPtr<T>> DistributedMemPool::allocate_shared_async(
-    As &&... args) {
+    As &&...args) {
   return nu::async([&, ... args = std::forward<As>(args)] {
     return allocate_shared(std::forward<As>(args)...);
   });
 }
 
 template <typename T, typename AllocFn, typename... As>
-auto DistributedMemPool::__allocate(AllocFn &&alloc_fn, As &&... args) {
+auto DistributedMemPool::__allocate(AllocFn &&alloc_fn, As &&...args) {
 retry:
   auto cpu = get_cpu();
   auto &free_shard_optional = local_free_shards_[cpu].shard;

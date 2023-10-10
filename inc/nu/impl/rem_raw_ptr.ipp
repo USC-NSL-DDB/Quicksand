@@ -28,7 +28,7 @@ inline RemRawPtr<T> &RemRawPtr<T>::operator=(RemRawPtr<T> &&o) {
 }
 
 template <typename T, typename... Args>
-inline RemRawPtr<T> make_rem_raw(Args &&... args) {
+inline RemRawPtr<T> make_rem_raw(Args &&...args) {
   return RemRawPtr<T>(new T(std::forward<Args>(args)...));
 }
 

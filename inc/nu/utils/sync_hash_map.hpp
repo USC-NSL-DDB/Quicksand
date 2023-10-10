@@ -47,11 +47,11 @@ class SyncHashMap {
   bool remove_with_hash(K1 &&k, uint64_t key_hash);
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
   RetT apply(K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...),
-             A1s &&... args);
+             A1s &&...args);
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
   RetT apply_with_hash(K1 &&k, uint64_t key_hash,
                        RetT (*fn)(std::pair<const K, V> &, A0s...),
-                       A1s &&... args);
+                       A1s &&...args);
   template <typename RetT, typename... A0s, typename... A1s>
   RetT associative_reduce(bool clear, RetT init_val,
                           void (*reduce_fn)(RetT &, std::pair<const K, V> &,

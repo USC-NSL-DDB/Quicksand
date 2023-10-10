@@ -78,28 +78,29 @@ using get_nth_t = typename get_nth<N, Args...>::type;
 
 template <class T>
 concept PreIncrementable = requires(T t) {
-  {++t};
+  { ++t };
 };
 
 template <class T>
 concept PreDecrementable = requires(T t) {
-  {--t};
+  { --t };
 };
 
 template <class T>
 concept DeepCopyAble = requires(T t) {
-  { t.deep_copy() }
-  ->std::same_as<T>;
+  { t.deep_copy() } -> std::same_as<T>;
 };
 
 template <class T>
 consteval bool is_safe_to_move();
 
 template <typename T>
-T &&pass_across_proclet(T &&t) requires(is_safe_to_move<T &&>());
+T &&pass_across_proclet(T &&t)
+  requires(is_safe_to_move<T &&>());
 
 template <typename T>
-std::decay_t<T> pass_across_proclet(T &&t) requires DeepCopyAble<T>;
+std::decay_t<T> pass_across_proclet(T &&t)
+  requires DeepCopyAble<T>;
 
 template <typename T>
 std::decay_t<T> pass_across_proclet(T &&t);

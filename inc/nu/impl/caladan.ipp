@@ -82,9 +82,7 @@ inline thread_t *Caladan::thread_restore(void *nu_state) {
   return ::thread_restore(nu_state);
 }
 
-inline void Caladan::thread_free(thread_t *th) {
-  return ::thread_free(th);
-}
+inline void Caladan::thread_free(thread_t *th) { return ::thread_free(th); }
 
 inline ProcletHeader *Caladan::thread_unset_owner_proclet(thread_t *th,
                                                           bool update_monitor) {
@@ -217,21 +215,15 @@ inline void Caladan::spin_unlock_np(spinlock_t *spin) {
   ::spin_unlock_np(spin);
 }
 
-inline void Caladan::spin_unlock(spinlock_t *spin) {
-  ::spin_unlock(spin);
-}
+inline void Caladan::spin_unlock(spinlock_t *spin) { ::spin_unlock(spin); }
 
 inline bool Caladan::spin_lock_held(spinlock_t *spin) {
   return ::spin_lock_held(spin);
 }
 
-inline void Caladan::mutex_init(mutex_t *mutex) {
-  ::mutex_init(mutex);
-}
+inline void Caladan::mutex_init(mutex_t *mutex) { ::mutex_init(mutex); }
 
-inline bool Caladan::mutex_held(mutex_t *mutex) {
-  return ::mutex_held(mutex);
-}
+inline bool Caladan::mutex_held(mutex_t *mutex) { return ::mutex_held(mutex); }
 
 inline bool Caladan::mutex_try_lock(mutex_t *mutex) {
   return ::mutex_try_lock(mutex);
@@ -274,4 +266,3 @@ inline void Caladan::timer_sleep(uint64_t duration_us, bool high_priority) {
 inline uint32_t Caladan::get_ip() { return ::get_cfg_ip(); }
 
 }  // namespace nu
-

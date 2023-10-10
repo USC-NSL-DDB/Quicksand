@@ -44,7 +44,7 @@ class GeneralMap {
   void clear();
   std::size_t insert(Key k, Val v);
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&...states);
   ConstIterator find(Key k) const;
   void split(Key *mid_k, GeneralMap *latter_half);
   void merge(GeneralMap m);

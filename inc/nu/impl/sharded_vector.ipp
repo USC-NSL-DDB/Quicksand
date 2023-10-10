@@ -144,7 +144,7 @@ void Vector<T>::split(Key *mid_k, Vector *latter_half) {
 template <typename T>
 template <typename... S0s, typename... S1s>
 inline void Vector<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
-                               S1s &&... states) {
+                               S1s &&...states) {
   for (std::size_t i = 0; i < data_.size(); i++) {
     auto idx = l_key_ + i;
     fn(idx, data_[i], states...);

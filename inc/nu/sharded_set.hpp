@@ -41,7 +41,7 @@ class GeneralSet {
   std::size_t insert(Key k);
   ConstIterator find(Key k) const;
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, S0s...), S1s &&... states);
+  void for_all(void (*fn)(const Key &key, S0s...), S1s &&...states);
   void split(Key *mid_k, GeneralSet *latter_half);
   void merge(GeneralSet s);
   ConstIterator cbegin() const;

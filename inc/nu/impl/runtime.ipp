@@ -26,9 +26,7 @@ inline RPCClientMgr *Runtime::rpc_client_mgr() { return rpc_client_mgr_; }
 
 inline RPCServer *Runtime::rpc_server() { return rpc_server_; }
 
-inline ProcletManager *Runtime::proclet_manager() {
-  return proclet_manager_;
-}
+inline ProcletManager *Runtime::proclet_manager() { return proclet_manager_; }
 
 inline PressureHandler *Runtime::pressure_handler() {
   return pressure_handler_;
@@ -38,9 +36,7 @@ inline ControllerClient *Runtime::controller_client() {
   return controller_client_;
 }
 
-inline ProcletServer *Runtime::proclet_server() {
-  return proclet_server_;
-}
+inline ProcletServer *Runtime::proclet_server() { return proclet_server_; }
 
 inline ResourceReporter *Runtime::resource_reporter() {
   return resource_reporter_;
@@ -114,7 +110,7 @@ template <typename Cls, typename... A0s, typename... A1s>
 __attribute__((noinline))
 __attribute__((optimize("no-omit-frame-pointer"))) bool
 Runtime::__run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
-                                  A1s &&... args) {
+                                  A1s &&...args) {
   auto *proclet_header = reinterpret_cast<ProcletHeader *>(proclet_base);
   auto optional_migration_guard = attach_and_disable_migration(proclet_header);
   if (unlikely(!optional_migration_guard)) {
@@ -141,7 +137,7 @@ Runtime::__run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
 template <typename Cls, typename... A0s, typename... A1s>
 __attribute__((optimize("no-omit-frame-pointer"))) bool
 Runtime::run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
-                                A1s &&... args) {
+                                A1s &&...args) {
   bool ret;
   auto *proclet_stack = stack_manager_->get();
   assert(reinterpret_cast<uintptr_t>(proclet_stack) % kStackAlignment == 0);

@@ -104,7 +104,7 @@ inline Future<void> RemSharedPtr<T>::reset_async() {
 }
 
 template <typename T, typename... Args>
-inline RemSharedPtr<T> make_rem_shared(Args &&... args) {
+inline RemSharedPtr<T> make_rem_shared(Args &&...args) {
   auto *raw_ptr = new (std::nothrow) T(std::forward<Args>(args)...);
   if (unlikely(!raw_ptr)) {
     return RemSharedPtr<T>();

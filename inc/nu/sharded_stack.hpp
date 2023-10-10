@@ -25,7 +25,7 @@ class Stack {
   std::size_t push_back_batch(std::vector<Val> vec);
   std::vector<Val> try_pop_back(std::size_t num);
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&...states);
   void split(Key *mid_k, Stack *latter_half);
   void merge(Stack stack);
   template <class Archive>

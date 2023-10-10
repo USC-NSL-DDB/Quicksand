@@ -2,10 +2,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <utility>
 #include <vector>
-#include <optional>
 
 extern "C" {
 #include <runtime/net.h>

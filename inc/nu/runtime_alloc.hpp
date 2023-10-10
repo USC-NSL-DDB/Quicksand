@@ -38,7 +38,7 @@ class RuntimeAllocator {
   void deallocate(value_type *p, std::size_t n) noexcept;
   value_type *allocate(std::size_t n, const_void_pointer);
   template <typename U, typename... Args>
-  void construct(U *p, Args &&... args);
+  void construct(U *p, Args &&...args);
   template <typename U>
   void destroy(U *p) noexcept;
   std::size_t max_size() const noexcept;

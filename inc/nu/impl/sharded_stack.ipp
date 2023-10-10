@@ -52,7 +52,7 @@ inline std::vector<T> Stack<T>::try_pop_back(std::size_t num) {
 template <typename T>
 template <typename... S0s, typename... S1s>
 inline void Stack<T>::for_all(void (*fn)(const Key &key, Val &val, S0s...),
-                              S1s &&... states) {
+                              S1s &&...states) {
   BUG();
 }
 

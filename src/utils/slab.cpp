@@ -1,6 +1,7 @@
+#include "nu/utils/slab.hpp"
+
 #include <algorithm>
 
-#include "nu/utils/slab.hpp"
 #include "nu/utils/scoped_lock.hpp"
 
 namespace nu {

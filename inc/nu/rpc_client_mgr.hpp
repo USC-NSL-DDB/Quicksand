@@ -1,11 +1,11 @@
 #pragma once
 
+#include <sync.h>
+
 #include <limits>
 #include <memory>
 #include <unordered_map>
 #include <utility>
-
-#include <sync.h>
 
 #include "nu/runtime_alloc.hpp"
 #include "nu/utils/rcu_hash_map.hpp"

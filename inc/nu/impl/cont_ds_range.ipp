@@ -78,9 +78,10 @@ inline std::size_t ContiguousDSRangeImpl<Shard>::initial_size() const {
 }
 
 template <ShardedDataStructureBased T>
-inline ContiguousDSRange<typename T::Shard>
-make_contiguous_ds_range(const SealedDS<T> &sealed_ds) requires(
-    SealedDS<T>::ConstIterator::kContiguous) {
+inline ContiguousDSRange<typename T::Shard> make_contiguous_ds_range(
+    const SealedDS<T> &sealed_ds)
+  requires(SealedDS<T>::ConstIterator::kContiguous)
+{
   std::vector<std::size_t> all_shard_keys;
   std::ranges::transform(
       sealed_ds.keys_, std::back_inserter(all_shard_keys),

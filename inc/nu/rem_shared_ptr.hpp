@@ -32,11 +32,11 @@ class RemSharedPtr : public RemPtr<T> {
   RemSharedPtr(std::shared_ptr<T> *shared_ptr);
 
   template <typename U, typename... Args>
-  friend RemSharedPtr<U> make_rem_shared(Args &&... args);
+  friend RemSharedPtr<U> make_rem_shared(Args &&...args);
 };
 
 template <typename T, typename... Args>
-RemSharedPtr<T> make_rem_shared(Args &&... args);
+RemSharedPtr<T> make_rem_shared(Args &&...args);
 
 }  // namespace nu
 

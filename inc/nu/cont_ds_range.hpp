@@ -55,9 +55,9 @@ template <ShardedDataStructureBased T>
 class SealedDS;
 
 template <ShardedDataStructureBased T>
-ContiguousDSRange<typename T::Shard>
-make_contiguous_ds_range(const SealedDS<T> &sealed_ds) requires(
-    SealedDS<T>::ConstIterator::kContiguous);
+ContiguousDSRange<typename T::Shard> make_contiguous_ds_range(
+    const SealedDS<T> &sealed_ds)
+  requires(SealedDS<T>::ConstIterator::kContiguous);
 
 }  // namespace nu
 

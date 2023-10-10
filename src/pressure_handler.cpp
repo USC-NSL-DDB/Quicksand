@@ -1,15 +1,16 @@
-#include <iostream>
-#include <limits>
-#include <type_traits>
+#include "nu/pressure_handler.hpp"
 
 #include <sync.h>
 #include <thread.h>
 
+#include <iostream>
+#include <limits>
+#include <type_traits>
+
 #include "nu/commons.hpp"
 #include "nu/ctrl_client.hpp"
-#include "nu/runtime.hpp"
 #include "nu/migrator.hpp"
-#include "nu/pressure_handler.hpp"
+#include "nu/runtime.hpp"
 #include "nu/utils/caladan.hpp"
 #include "nu/utils/cpu_load.hpp"
 
@@ -143,7 +144,7 @@ void PressureHandler::__main_handler() {
         break;
       }
     } else {
-      if (mock_)  {
+      if (mock_) {
         mock_clear_pressure();
       }
       break;

@@ -43,10 +43,10 @@ class GeneralSealedDSConstIterator {
       GeneralSealedDSConstIterator &&) noexcept;
   GeneralSealedDSConstIterator deep_copy();
   bool operator==(const GeneralSealedDSConstIterator &) const;
-  GeneralSealedDSConstIterator &
-  operator++() requires PreIncrementable<ContainerIter>;
-  GeneralSealedDSConstIterator &
-  operator--() requires PreDecrementable<ContainerIter>;
+  GeneralSealedDSConstIterator &operator++()
+    requires PreIncrementable<ContainerIter>;
+  GeneralSealedDSConstIterator &operator--()
+    requires PreDecrementable<ContainerIter>;
   GeneralSealedDSConstIterator operator++(int) = delete;
   GeneralSealedDSConstIterator operator--(int) = delete;
   const IterVal &operator*() const;
@@ -175,26 +175,30 @@ class SealedDS {
   SealedDS(const SealedDS &) = delete;
   SealedDS &operator=(const SealedDS &) = delete;
   ~SealedDS();
-  const ConstIterator &cbegin() const requires ConstIterable<typename T::Shard>;
-  const ConstIterator &cend() const requires ConstIterable<typename T::Shard>;
+  const ConstIterator &cbegin() const
+    requires ConstIterable<typename T::Shard>;
+  const ConstIterator &cend() const
+    requires ConstIterable<typename T::Shard>;
   const ConstReverseIterator &rbegin() const
-      requires ConstReverseIterable<typename T::Shard>;
+    requires ConstReverseIterable<typename T::Shard>;
   const ConstReverseIterator &rend() const
-      requires ConstReverseIterable<typename T::Shard>;
+    requires ConstReverseIterable<typename T::Shard>;
   // Useful for implementing range-based for loop.
-  const ConstIterator &begin() const requires ConstIterable<typename T::Shard>;
-  const ConstIterator &end() const requires ConstIterable<typename T::Shard>;
+  const ConstIterator &begin() const
+    requires ConstIterable<typename T::Shard>;
+  const ConstIterator &end() const
+    requires ConstIterable<typename T::Shard>;
   const ConstReverseIterator &crbegin() const
-      requires ConstReverseIterable<typename T::Shard>;
+    requires ConstReverseIterable<typename T::Shard>;
   const ConstReverseIterator &crend() const
-      requires ConstReverseIterable<typename T::Shard>;
+    requires ConstReverseIterable<typename T::Shard>;
 
   bool empty() const;
   std::size_t size() const;
   ConstIterator find_iter(T::Key k) const
-      requires FindAble<typename T::ContainerImpl>;
-  std::optional<typename T::IterVal> find_data_by_order(
-      std::size_t order) requires FindAbleByOrder<typename T::ContainerImpl>;
+    requires FindAble<typename T::ContainerImpl>;
+  std::optional<typename T::IterVal> find_data_by_order(std::size_t order)
+    requires FindAbleByOrder<typename T::ContainerImpl>;
 
  private:
   using Shard = T::Shard;
@@ -210,8 +214,8 @@ class SealedDS {
   ConstReverseIterator crend_;
 
   SealedDS(T &&t);
-  ConstIterator __find_iter(
-      T::Key k) requires FindAble<typename T::ContainerImpl>;
+  ConstIterator __find_iter(T::Key k)
+    requires FindAble<typename T::ContainerImpl>;
   T &&unseal();
   ShardsVec::iterator search_shard(T::Key k);
   template <typename U>
@@ -222,9 +226,9 @@ class SealedDS {
   friend ShardedDSRange<typename U::Shard> make_sharded_ds_range(
       const SealedDS<U> &sealed_ds);
   template <ShardedDataStructureBased U>
-  ContiguousDSRange<typename U::Shard>
-  friend make_contiguous_ds_range(const SealedDS<U> &sealed_ds) requires(
-    SealedDS<U>::ConstIterator::kContiguous);
+  ContiguousDSRange<typename U::Shard> friend make_contiguous_ds_range(
+      const SealedDS<U> &sealed_ds)
+    requires(SealedDS<U>::ConstIterator::kContiguous);
 };
 
 template <typename T>

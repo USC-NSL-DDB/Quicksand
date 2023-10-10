@@ -11,25 +11,29 @@ inline ShardRange<Shard>::ShardRange(WeakProclet<Shard> shard_proclet)
 
 template <GeneralShardBased Shard>
 inline const ShardRange<Shard>::ConstIterator &ShardRange<Shard>::cbegin() const
-    requires ConstIterable<Shard> {
+  requires ConstIterable<Shard>
+{
   return begin_;
 }
 
 template <GeneralShardBased Shard>
 inline const ShardRange<Shard>::ConstIterator &ShardRange<Shard>::cend() const
-    requires ConstIterable<Shard> {
+  requires ConstIterable<Shard>
+{
   return end_;
 }
 
 template <GeneralShardBased Shard>
 inline const ShardRange<Shard>::ConstIterator &ShardRange<Shard>::begin() const
-    requires ConstIterable<Shard> {
+  requires ConstIterable<Shard>
+{
   return begin_;
 }
 
 template <GeneralShardBased Shard>
 inline const ShardRange<Shard>::ConstIterator &ShardRange<Shard>::end() const
-    requires ConstIterable<Shard> {
+  requires ConstIterable<Shard>
+{
   return end_;
 }
 

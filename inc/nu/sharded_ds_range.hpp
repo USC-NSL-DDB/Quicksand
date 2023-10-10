@@ -18,10 +18,14 @@ class ShardRange {
   using ConstIterator = GeneralSealedDSConstIterator<Shard, true>;
 
   ShardRange(WeakProclet<Shard> shard_proclet);
-  const ConstIterator &cbegin() const requires ConstIterable<Shard>;
-  const ConstIterator &cend() const requires ConstIterable<Shard>;
-  const ConstIterator &begin() const requires ConstIterable<Shard>;
-  const ConstIterator &end() const requires ConstIterable<Shard>;
+  const ConstIterator &cbegin() const
+    requires ConstIterable<Shard>;
+  const ConstIterator &cend() const
+    requires ConstIterable<Shard>;
+  const ConstIterator &begin() const
+    requires ConstIterable<Shard>;
+  const ConstIterator &end() const
+    requires ConstIterable<Shard>;
 
  private:
   std::shared_ptr<std::vector<WeakProclet<Shard>>> shard_proclet_;

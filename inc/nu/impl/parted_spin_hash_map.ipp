@@ -36,7 +36,7 @@ inline void ThreadSafeHashMap<K, V, Allocator, NPartitions>::put(K1 &&k,
 template <typename K, typename V, typename Allocator, size_t NPartitions>
 template <typename K1, typename... Args>
 inline V &ThreadSafeHashMap<K, V, Allocator, NPartitions>::get_or_emplace(
-    K1 &&k, Args &&... args) {
+    K1 &&k, Args &&...args) {
   auto idx = partitioner(std::forward<K1>(k));
   ScopedLock<Spin> lock(&spins_[idx].spin);
   auto iter = maps_[idx].find(std::forward<K1>(k));

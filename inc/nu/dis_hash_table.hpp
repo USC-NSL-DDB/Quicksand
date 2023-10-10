@@ -41,7 +41,7 @@ class DistributedHashTable {
   bool remove(K1 &&k);
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
   RetT apply(K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...),
-             A1s &&... args);
+             A1s &&...args);
   template <typename K1>
   Future<std::optional<V>> get_async(K1 &&k);
   template <typename K1, typename V1>
@@ -50,17 +50,17 @@ class DistributedHashTable {
   Future<bool> remove_async(K1 &&k);
   template <typename K1, typename RetT, typename... A0s, typename... A1s>
   Future<RetT> apply_async(K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...),
-                           A1s &&... args);
+                           A1s &&...args);
   template <typename RetT, typename... A0s, typename... A1s>
   RetT associative_reduce(
       bool clear, RetT init_val,
       void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
-      void (*merge_fn)(RetT &result, RetT &partition, A0s...), A1s &&... args);
+      void (*merge_fn)(RetT &result, RetT &partition, A0s...), A1s &&...args);
   template <typename RetT, typename... A0s, typename... A1s>
   std::vector<RetT> associative_reduce(
       bool clear, RetT init_val,
       void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
-      A1s &&... args);
+      A1s &&...args);
   std::vector<std::pair<K, V>> get_all_pairs();
   template <typename K1>
   static uint32_t get_shard_idx(K1 &&k, uint32_t power_num_shards);

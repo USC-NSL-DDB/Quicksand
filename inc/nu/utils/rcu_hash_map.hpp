@@ -24,7 +24,7 @@ class RCUHashMap {
   template <typename K1, typename V1>
   void put_if_not_exists(K1 &&k, V1 &&v);
   template <typename K1, typename... Args>
-  void emplace_if_not_exists(K1 &&k, Args &&... args);
+  void emplace_if_not_exists(K1 &&k, Args &&...args);
   template <typename K1, typename V1, typename V2>
   bool update_if_equals(K1 &&k, V1 &&old_v, V2 &&new_v);
   template <typename K1>

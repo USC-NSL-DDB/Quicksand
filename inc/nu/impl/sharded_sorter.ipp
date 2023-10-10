@@ -5,20 +5,23 @@ inline ShardedSorter<K, V>::ShardedSorter(ShardedPartitioner<K, V> &&sharded_pn)
     : sharded_pn_(std::move(sharded_pn)) {}
 
 template <typename K, typename V>
-inline void ShardedSorter<K, V>::insert(
-    K k) requires std::is_same_v<V, ErasedType> {
+inline void ShardedSorter<K, V>::insert(K k)
+  requires std::is_same_v<V, ErasedType>
+{
   sharded_pn_.insert(std::move(k));
 }
 
 template <typename K, typename V>
-inline void ShardedSorter<K, V>::insert(K k, V v) requires(
-    !std::is_same_v<V, ErasedType>) {
+inline void ShardedSorter<K, V>::insert(K k, V v)
+  requires(!std::is_same_v<V, ErasedType>)
+{
   sharded_pn_.insert(std::move(k), std::move(v));
 }
 
 template <typename K, typename V>
-inline void ShardedSorter<K, V>::insert(std::pair<K, V> p) requires(
-    !std::is_same_v<V, ErasedType>) {
+inline void ShardedSorter<K, V>::insert(std::pair<K, V> p)
+  requires(!std::is_same_v<V, ErasedType>)
+{
   sharded_pn_.insert(std::move(p));
 }
 

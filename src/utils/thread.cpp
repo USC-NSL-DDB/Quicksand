@@ -1,6 +1,7 @@
+#include "nu/utils/thread.hpp"
+
 #include "nu/runtime.hpp"
 #include "nu/utils/cpu_load.hpp"
-#include "nu/utils/thread.hpp"
 
 namespace nu {
 

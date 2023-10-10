@@ -1884,12 +1884,11 @@ namespace NAMESPACE_FOR_HASH_FUNCTIONS {
 // May change from time to time, may differ on different platforms, may differ
 // depending on NDEBUG.
 uint32_t Hash32(const char *s, size_t len) {
-  return DebugTweak((can_use_sse41 & x86_64)
-                        ? farmhashnt::Hash32(s, len)
-                        : (can_use_sse42 & can_use_aesni)
-                              ? farmhashsu::Hash32(s, len)
-                              : can_use_sse42 ? farmhashsa::Hash32(s, len)
-                                              : farmhashmk::Hash32(s, len));
+  return DebugTweak((can_use_sse41 & x86_64) ? farmhashnt::Hash32(s, len)
+                    : (can_use_sse42 & can_use_aesni)
+                        ? farmhashsu::Hash32(s, len)
+                    : can_use_sse42 ? farmhashsa::Hash32(s, len)
+                                    : farmhashmk::Hash32(s, len));
 }
 
 // Hash function for a byte array.  For convenience, a 32-bit seed is also
@@ -1899,10 +1898,9 @@ uint32_t Hash32(const char *s, size_t len) {
 uint32_t Hash32WithSeed(const char *s, size_t len, uint32_t seed) {
   return DebugTweak((can_use_sse41 & x86_64)
                         ? farmhashnt::Hash32WithSeed(s, len, seed)
-                        : (can_use_sse42 & can_use_aesni)
-                              ? farmhashsu::Hash32WithSeed(s, len, seed)
-                              : can_use_sse42
-                                    ? farmhashsa::Hash32WithSeed(s, len, seed)
+                    : (can_use_sse42 & can_use_aesni)
+                        ? farmhashsu::Hash32WithSeed(s, len, seed)
+                    : can_use_sse42 ? farmhashsa::Hash32WithSeed(s, len, seed)
                                     : farmhashmk::Hash32WithSeed(s, len, seed));
 }
 

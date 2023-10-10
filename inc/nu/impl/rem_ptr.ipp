@@ -72,11 +72,11 @@ inline T RemPtr<T>::operator*() {
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
 inline Future<RetT> RemPtr<T>::run_async(RetT (*fn)(T &, S0s...),
-                                         S1s &&... states) {
+                                         S1s &&...states) {
   auto raw_ptr_addr = reinterpret_cast<uintptr_t>(raw_ptr_);
   return proclet_.__run_async(
       +[](ErasedType &, uintptr_t raw_ptr_addr, RetT (*fn)(T &, S0s...),
-          S1s &&... states) {
+          S1s &&...states) {
         auto *raw_ptr = reinterpret_cast<T *>(raw_ptr_addr);
         return fn(*raw_ptr, std::forward<S1s>(states)...);
       },
@@ -85,7 +85,7 @@ inline Future<RetT> RemPtr<T>::run_async(RetT (*fn)(T &, S0s...),
 
 template <typename T>
 template <typename RetT, typename... S0s, typename... S1s>
-inline RetT RemPtr<T>::run(RetT (*fn)(T &, S0s...), S1s &&... states) {
+inline RetT RemPtr<T>::run(RetT (*fn)(T &, S0s...), S1s &&...states) {
   auto raw_ptr_addr = reinterpret_cast<uintptr_t>(raw_ptr_);
   return proclet_.__run(
       +[](ErasedType &, uintptr_t raw_ptr_addr, RetT (*fn)(T &, S0s...),

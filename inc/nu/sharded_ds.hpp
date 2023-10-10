@@ -5,13 +5,13 @@
 #include <functional>
 #include <list>
 #include <map>
+#include <memory>
 #include <optional>
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include <memory>
 
 #include "nu/commons.hpp"
 #include "nu/container.hpp"
@@ -29,9 +29,8 @@ template <GeneralContainerBased Container, BoolIntegral LL>
 class ShardedDataStructure;
 
 template <class T>
-concept ShardedDataStructureBased = requires {
-  requires is_base_of_template_v<T, ShardedDataStructure>;
-};
+concept ShardedDataStructureBased =
+    requires { requires is_base_of_template_v<T, ShardedDataStructure>; };
 
 template <GeneralContainerBased Container, BoolIntegral LL>
 class ShardedDataStructure {
@@ -60,39 +59,52 @@ class ShardedDataStructure {
   template <typename K, typename V>
   void insert(K &&k, V &&v)
     requires(HasVal<Container> && InsertAble<Container>);
-  void insert(const DataEntry &entry) requires InsertAble<Container>;
-  void insert(DataEntry &&entry) requires InsertAble<Container>;
-  bool erase(const Key &k) requires EraseAble<Container>;
-  bool erase(Key &&k) requires EraseAble<Container>;
-  void push_front(const Val &v) requires PushFrontAble<Container>;
-  void push_front(Val &&v) requires PushFrontAble<Container>;
-  void push_back(const Val &v) requires PushBackAble<Container>;
-  void push_back(Val &&v) requires PushBackAble<Container>;
-  Val front() const requires HasFront<Container>;
-  Val pop_front() requires TryPopFrontAble<Container>;
-  std::vector<Val> try_pop_front(
-      std::size_t elems) requires TryPopFrontAble<Container>;
-  Val back() const requires HasBack<Container>;
-  Val pop_back() requires TryPopBackAble<Container>;
-  std::vector<Val> try_pop_back(
-      std::size_t elems) requires TryPopBackAble<Container>;
+  void insert(const DataEntry &entry)
+    requires InsertAble<Container>;
+  void insert(DataEntry &&entry)
+    requires InsertAble<Container>;
+  bool erase(const Key &k)
+    requires EraseAble<Container>;
+  bool erase(Key &&k)
+    requires EraseAble<Container>;
+  void push_front(const Val &v)
+    requires PushFrontAble<Container>;
+  void push_front(Val &&v)
+    requires PushFrontAble<Container>;
+  void push_back(const Val &v)
+    requires PushBackAble<Container>;
+  void push_back(Val &&v)
+    requires PushBackAble<Container>;
+  Val front() const
+    requires HasFront<Container>;
+  Val pop_front()
+    requires TryPopFrontAble<Container>;
+  std::vector<Val> try_pop_front(std::size_t elems)
+    requires TryPopFrontAble<Container>;
+  Val back() const
+    requires HasBack<Container>;
+  Val pop_back()
+    requires TryPopBackAble<Container>;
+  std::vector<Val> try_pop_back(std::size_t elems)
+    requires TryPopBackAble<Container>;
   std::optional<IterVal> find_data(Key k) const
     requires FindDataAble<Container>;
-  void concat(
-      ShardedDataStructure &&tail) requires Container::kContiguousIterator;
+  void concat(ShardedDataStructure &&tail)
+    requires Container::kContiguousIterator;
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...),
-               S1s &&... states) requires HasVal<Container>;
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&...states)
+    requires HasVal<Container>;
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, S0s...),
-               S1s &&... states) requires(!HasVal<Container>);
+  void for_all(void (*fn)(const Key &key, S0s...), S1s &&...states)
+    requires(!HasVal<Container>);
   template <typename... S0s, typename... S1s>
   void for_all_shards(void (*fn)(ContainerImpl &container_impl, S0s...),
-                      S1s &&... states);
+                      S1s &&...states);
   Container collect();
   bool empty() const;
   std::size_t size() const;
-  void clear() requires ClearAble<Container>;
+  void clear()
+    requires ClearAble<Container>;
   void flush();
   template <typename RetT, typename... S0s, typename... S1s>
   RetT compute_on(Key k, RetT (*fn)(ContainerImpl &container, S0s...),
@@ -154,19 +166,26 @@ class ShardedDataStructure {
   friend class SealedDS;
 
   std::size_t __size();
-  Val __front() requires HasFront<Container>;
-  Val __back() requires HasBack<Container>;
+  Val __front()
+    requires HasFront<Container>;
+  Val __back()
+    requires HasBack<Container>;
   template <bool Flush = true, typename D>
-  void __insert(D &&entry) requires InsertAble<Container>;
+  void __insert(D &&entry)
+    requires InsertAble<Container>;
   template <typename K>
-  bool __erase(K &&k) requires EraseAble<Container>;
+  bool __erase(K &&k)
+    requires EraseAble<Container>;
   template <typename V>
-  void __push_front(V &&v) requires PushFrontAble<Container>;
+  void __push_front(V &&v)
+    requires PushFrontAble<Container>;
   template <bool Flush = true, typename V>
-  void __push_back(V &&v) requires PushBackAble<Container>;
+  void __push_back(V &&v)
+    requires PushBackAble<Container>;
   template <bool Front, typename RetT, typename F, typename... As>
-  RetT run_at_border(F f, As &&... args);
-  std::optional<IterVal> __find_data(Key k) requires FindDataAble<Container>;
+  RetT run_at_border(F f, As &&...args);
+  std::optional<IterVal> __find_data(Key k)
+    requires FindDataAble<Container>;
   void reset();
   void set_shard_and_batch_size(uint32_t *max_shard_bytes,
                                 uint32_t *max_shard_size,
@@ -185,7 +204,7 @@ class ShardedDataStructure {
   void reroute_reqs(std::vector<DataEntry> insert_reqs,
                     std::vector<Val> push_back_reqs);
   template <typename... S1s>
-  void __for_all(auto *fn, S1s &&... states);
+  void __for_all(auto *fn, S1s &&...states);
   template <class Archive>
   void __save(Archive &ar);
   void update_max_num_data_entries(KeyToShardsMapping::iterator iter);

@@ -37,4 +37,3 @@ class StackManager {
 };
 
 }  // namespace nu
-

@@ -1,4 +1,5 @@
 #include "nu/rpc_client_mgr.hpp"
+
 #include "nu/ctrl_client.hpp"
 
 namespace nu {
@@ -82,7 +83,8 @@ NodeIP RPCClientMgr::get_ip_by_proclet_id(ProcletID proclet_id) {
   return get_info(proclet_id).ip;
 }
 
-void RPCClientMgr::invalidate_cache(ProcletID proclet_id, RPCClient *old_client) {
+void RPCClientMgr::invalidate_cache(ProcletID proclet_id,
+                                    RPCClient *old_client) {
   auto slab_id = to_slab_id(proclet_id);
   auto &info_ref = rem_id_to_node_info_[slab_id];
   if (info_ref.raw) {

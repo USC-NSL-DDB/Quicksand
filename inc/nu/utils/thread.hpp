@@ -1,7 +1,7 @@
 #pragma once
 
-#include <memory>
 #include <functional>
+#include <memory>
 
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/spin_lock.hpp"

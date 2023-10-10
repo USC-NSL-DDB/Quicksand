@@ -37,16 +37,18 @@ class Partitioner {
   void reserve(std::size_t capacity);
   bool empty() const;
   void clear();
-  std::size_t insert(K k, V v) requires HasVal<Partitioner>;
-  std::size_t insert(K k) requires(!HasVal<Partitioner>);
+  std::size_t insert(K k, V v)
+    requires HasVal<Partitioner>;
+  std::size_t insert(K k)
+    requires(!HasVal<Partitioner>);
   void split(K *mid_k, Partitioner *latter_half);
   void merge(Partitioner partitioner);
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const K &key, V &val, S0s...),
-               S1s &&... states) requires HasVal<Partitioner>;
+  void for_all(void (*fn)(const K &key, V &val, S0s...), S1s &&...states)
+    requires HasVal<Partitioner>;
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const K &key, S0s...),
-               S1s &&... states) requires(!HasVal<Partitioner>);
+  void for_all(void (*fn)(const K &key, S0s...), S1s &&...states)
+    requires(!HasVal<Partitioner>);
   ConstIterator find_by_order(std::size_t order);
   ConstIterator cbegin() const;
   ConstIterator cend() const;

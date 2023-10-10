@@ -44,8 +44,8 @@ inline void RCUHashMap<K, V, Allocator>::put_if_not_exists(K1 &&k, V1 &&v) {
 
 template <typename K, typename V, typename Allocator>
 template <typename K1, typename... Args>
-inline void RCUHashMap<K, V, Allocator>::emplace_if_not_exists(
-    K1 &&k, Args &&... args) {
+inline void RCUHashMap<K, V, Allocator>::emplace_if_not_exists(K1 &&k,
+                                                               Args &&...args) {
   lock_.writer_lock();
   map_.try_emplace(std::forward<K1>(k), std::forward<Args>(args)...);
   lock_.writer_unlock();

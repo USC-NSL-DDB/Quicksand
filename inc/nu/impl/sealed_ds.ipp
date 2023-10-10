@@ -264,9 +264,9 @@ inline GeneralSealedDSConstIterator<Shard, Fwd>::GeneralSealedDSConstIterator(
 }
 
 template <GeneralShardBased Shard, bool Fwd>
-inline GeneralSealedDSConstIterator<Shard, Fwd>
-    &GeneralSealedDSConstIterator<Shard, Fwd>::operator=(
-        const GeneralSealedDSConstIterator &o) {
+inline GeneralSealedDSConstIterator<Shard, Fwd> &
+GeneralSealedDSConstIterator<Shard, Fwd>::operator=(
+    const GeneralSealedDSConstIterator &o) {
   shards_ = o.shards_;
   shards_iter_ = o.shards_iter_;
   block_ = o.block_;
@@ -284,9 +284,9 @@ inline GeneralSealedDSConstIterator<Shard, Fwd>::GeneralSealedDSConstIterator(
 }
 
 template <GeneralShardBased Shard, bool Fwd>
-GeneralSealedDSConstIterator<Shard, Fwd>
-    &GeneralSealedDSConstIterator<Shard, Fwd>::operator=(
-        GeneralSealedDSConstIterator &&o) noexcept {
+GeneralSealedDSConstIterator<Shard, Fwd> &
+GeneralSealedDSConstIterator<Shard, Fwd>::operator=(
+    GeneralSealedDSConstIterator &&o) noexcept {
   shards_ = std::move(o.shards_);
   shards_iter_ = std::move(o.shards_iter_);
   block_ = std::move(o.block_);
@@ -480,9 +480,10 @@ GeneralSealedDSConstIterator<Shard, Fwd>::submit_prefetch_req(
 }
 
 template <GeneralShardBased Shard, bool Fwd>
-[[gnu::always_inline]] inline GeneralSealedDSConstIterator<Shard, Fwd>
-    &GeneralSealedDSConstIterator<
-        Shard, Fwd>::operator++() requires PreIncrementable<ContainerIter> {
+[[gnu::always_inline]] inline GeneralSealedDSConstIterator<Shard, Fwd> &
+GeneralSealedDSConstIterator<Shard, Fwd>::operator++()
+  requires PreIncrementable<ContainerIter>
+{
   if (unlikely(++block_iter_ == block_.cend())) {
     inc_slow_path();
   }
@@ -528,9 +529,10 @@ void GeneralSealedDSConstIterator<Shard, Fwd>::inc_slow_path() {
 }
 
 template <GeneralShardBased Shard, bool Fwd>
-[[gnu::always_inline]] inline GeneralSealedDSConstIterator<Shard, Fwd>
-    &GeneralSealedDSConstIterator<
-        Shard, Fwd>::operator--() requires PreDecrementable<ContainerIter> {
+[[gnu::always_inline]] inline GeneralSealedDSConstIterator<Shard, Fwd> &
+GeneralSealedDSConstIterator<Shard, Fwd>::operator--()
+  requires PreDecrementable<ContainerIter>
+{
   if (unlikely(block_iter_ == block_.cbegin())) {
     dec_slow_path();
   } else {
@@ -612,9 +614,9 @@ GeneralSealedDSConstIterator<Shard, Fwd>::operator->() const {
 }
 
 template <GeneralShardBased Shard, bool Fwd>
-[[gnu::always_inline]] inline GeneralSealedDSConstIterator<Shard, Fwd>::IterVal
-    &&
-    GeneralSealedDSConstIterator<Shard, Fwd>::move_deref() {
+[[gnu::always_inline]] inline GeneralSealedDSConstIterator<Shard,
+                                                           Fwd>::IterVal &&
+GeneralSealedDSConstIterator<Shard, Fwd>::move_deref() {
   if constexpr (kContiguous) {
     return std::move(const_cast<IterVal &>(*std::to_address(block_iter_)));
   } else {
@@ -707,49 +709,57 @@ inline T &&SealedDS<T>::unseal() {
 
 template <ShardedDataStructureBased T>
 inline const SealedDS<T>::ConstIterator &SealedDS<T>::begin() const
-    requires ConstIterable<typename T::Shard> {
+  requires ConstIterable<typename T::Shard>
+{
   return cbegin_;
 }
 
 template <ShardedDataStructureBased T>
 inline const SealedDS<T>::ConstIterator &SealedDS<T>::cbegin() const
-    requires ConstIterable<typename T::Shard> {
+  requires ConstIterable<typename T::Shard>
+{
   return cbegin_;
 }
 
 template <ShardedDataStructureBased T>
 inline const SealedDS<T>::ConstIterator &SealedDS<T>::end() const
-    requires ConstIterable<typename T::Shard> {
+  requires ConstIterable<typename T::Shard>
+{
   return cend_;
 }
 
 template <ShardedDataStructureBased T>
 inline const SealedDS<T>::ConstIterator &SealedDS<T>::cend() const
-    requires ConstIterable<typename T::Shard> {
+  requires ConstIterable<typename T::Shard>
+{
   return cend_;
 }
 
 template <ShardedDataStructureBased T>
 inline const SealedDS<T>::ConstReverseIterator &SealedDS<T>::rbegin() const
-    requires ConstReverseIterable<typename T::Shard> {
+  requires ConstReverseIterable<typename T::Shard>
+{
   return crbegin_;
 }
 
 template <ShardedDataStructureBased T>
 inline const SealedDS<T>::ConstReverseIterator &SealedDS<T>::crbegin() const
-    requires ConstReverseIterable<typename T::Shard> {
+  requires ConstReverseIterable<typename T::Shard>
+{
   return crbegin_;
 }
 
 template <ShardedDataStructureBased T>
 inline const SealedDS<T>::ConstReverseIterator &SealedDS<T>::rend() const
-    requires ConstReverseIterable<typename T::Shard> {
+  requires ConstReverseIterable<typename T::Shard>
+{
   return crend_;
 }
 
 template <ShardedDataStructureBased T>
 inline const SealedDS<T>::ConstReverseIterator &SealedDS<T>::crend() const
-    requires ConstReverseIterable<typename T::Shard> {
+  requires ConstReverseIterable<typename T::Shard>
+{
   return crend_;
 }
 
@@ -765,13 +775,16 @@ inline std::size_t SealedDS<T>::size() const {
 
 template <ShardedDataStructureBased T>
 inline SealedDS<T>::ConstIterator SealedDS<T>::find_iter(T::Key k) const
-    requires FindAble<typename T::ContainerImpl> {
+  requires FindAble<typename T::ContainerImpl>
+{
   return const_cast<SealedDS *>(this)->__find_iter(std::move(k));
 }
 
 template <ShardedDataStructureBased T>
 std::optional<typename T::IterVal> SealedDS<T>::find_data_by_order(
-    std::size_t order) requires FindAbleByOrder<typename T::ContainerImpl> {
+    std::size_t order)
+  requires FindAbleByOrder<typename T::ContainerImpl>
+{
   auto iter = std::ranges::upper_bound(prefix_sum_sizes_, order);
 
   if (iter == prefix_sum_sizes_.end()) {
@@ -793,8 +806,9 @@ inline SealedDS<T>::ShardsVec::iterator SealedDS<T>::search_shard(T::Key k) {
 }
 
 template <ShardedDataStructureBased T>
-inline SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(
-    T::Key k) requires FindAble<typename T::ContainerImpl> {
+inline SealedDS<T>::ConstIterator SealedDS<T>::__find_iter(T::Key k)
+  requires FindAble<typename T::ContainerImpl>
+{
   auto shard_iter = search_shard(k);
   auto p = shard_iter->run(&Shard::find, k);
   return ConstIterator(shards_, shard_iter, std::move(p.first),

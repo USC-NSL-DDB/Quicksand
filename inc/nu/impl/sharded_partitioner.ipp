@@ -129,8 +129,9 @@ void Partitioner<K, V>::reserve(std::size_t capacity) {
 }
 
 template <typename K, typename V>
-inline std::size_t Partitioner<K, V>::insert(K k,
-                                             V v) requires HasVal<Partitioner> {
+inline std::size_t Partitioner<K, V>::insert(K k, V v)
+  requires HasVal<Partitioner>
+{
   if (unlikely(size_ == capacity_)) {
     reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));
   }
@@ -144,8 +145,9 @@ inline std::size_t Partitioner<K, V>::insert(K k,
 }
 
 template <typename K, typename V>
-inline std::size_t Partitioner<K, V>::insert(K k) requires(
-    !HasVal<Partitioner>) {
+inline std::size_t Partitioner<K, V>::insert(K k)
+  requires(!HasVal<Partitioner>)
+{
   if (unlikely(size_ == capacity_)) {
     reserve(std::max(static_cast<std::size_t>(1), 2 * capacity_));
   }
@@ -187,9 +189,10 @@ void Partitioner<K, V>::split(K *mid_k, Partitioner<K, V> *latter_half) {
 
 template <typename K, typename V>
 template <typename... S0s, typename... S1s>
-inline void Partitioner<K, V>::for_all(
-    void (*fn)(const K &key, V &val, S0s...),
-    S1s &&... states) requires HasVal<Partitioner> {
+inline void Partitioner<K, V>::for_all(void (*fn)(const K &key, V &val, S0s...),
+                                       S1s &&...states)
+  requires HasVal<Partitioner>
+{
   for (std::size_t i = 0; i < size_; i++) {
     fn(data_[i].first, data_[i].second, states...);
   }
@@ -197,9 +200,10 @@ inline void Partitioner<K, V>::for_all(
 
 template <typename K, typename V>
 template <typename... S0s, typename... S1s>
-inline void Partitioner<K, V>::for_all(
-    void (*fn)(const K &key, S0s...),
-    S1s &&... states) requires(!HasVal<Partitioner>) {
+inline void Partitioner<K, V>::for_all(void (*fn)(const K &key, S0s...),
+                                       S1s &&...states)
+  requires(!HasVal<Partitioner>)
+{
   for (std::size_t i = 0; i < size_; i++) {
     fn(data_[i], states...);
   }

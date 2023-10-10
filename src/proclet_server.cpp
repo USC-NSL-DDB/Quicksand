@@ -11,11 +11,11 @@ extern "C" {
 #include <thread.h>
 
 #include "nu/commons.hpp"
-#include "nu/runtime.hpp"
 #include "nu/ctrl_client.hpp"
 #include "nu/migrator.hpp"
 #include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
+#include "nu/runtime.hpp"
 
 constexpr static bool kEnableLogging = false;
 constexpr static uint32_t kPrintLoggingIntervalUs = 200 * 1000;

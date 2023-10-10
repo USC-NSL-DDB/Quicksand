@@ -1,10 +1,10 @@
 #pragma once
 
-#include <vector>
-
 #include <sync.h>
 #include <thread.h>
 #include <timer.h>
+
+#include <vector>
 
 #include "nu/utils/scoped_lock.hpp"
 

@@ -5,7 +5,6 @@ extern "C" {
 #include "nu/runtime.hpp"
 #include "nu/utils/blocked_syncer.hpp"
 #include "nu/utils/caladan.hpp"
-#include "nu/proclet_mgr.hpp"
 
 namespace nu {
 

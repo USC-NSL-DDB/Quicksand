@@ -69,7 +69,7 @@ class Runtime {
   void init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid, bool isol);
   template <typename Cls, typename... A0s, typename... A1s>
   bool run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
-                              A1s &&... args);
+                              A1s &&...args);
   SlabAllocator *switch_slab(SlabAllocator *slab);
   SlabAllocator *switch_to_runtime_slab();
   void *switch_stack(void *new_rsp);
@@ -125,7 +125,7 @@ class Runtime {
   Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid, bool isol);
   template <typename Cls, typename... A0s, typename... A1s>
   bool __run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
-                                       A1s &&... args);
+                                A1s &&...args);
   std::optional<MigrationGuard> __reattach_and_disable_migration(
       ProcletHeader *proclet_header);
   void destroy();

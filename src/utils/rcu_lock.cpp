@@ -63,7 +63,7 @@ retry:
     } else {
       if (likely(microtime() < start_us + kWriterWaitFastPathMaxUs)) {
         // Fast path.
-	Caladan::PreemptGuard g;
+        Caladan::PreemptGuard g;
         get_runtime()->caladan()->thread_yield(g);
       } else {
         // Slow path.

@@ -147,7 +147,7 @@ inline RetT GeneralShardedUnorderedMap<K, V, H, M, LL>::apply_on(
       +[](GeneralUnorderedMap<K, V, H, M> &map, K k, uintptr_t fn_addr,
           S0s... states) {
         auto *fn = reinterpret_cast<Fn>(fn_addr);
-	auto iter = map.find(k);
+        auto iter = map.find(k);
         auto *ptr = const_cast<V *>(&iter->second);
         return fn(ptr, states...);
       },

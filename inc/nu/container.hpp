@@ -18,121 +18,117 @@ template <class Impl, BoolIntegral Synchronized>
 class GeneralContainerBase;
 
 template <class T>
-concept GeneralContainerBased = requires {
-  requires is_base_of_template_v<T, GeneralContainerBase>;
-};
+concept GeneralContainerBased =
+    requires { requires is_base_of_template_v<T, GeneralContainerBase>; };
 
 template <class T>
 concept PushFrontAble = requires(T t) {
-  { t.push_front(std::declval<typename T::Val>()) }
-  ->std::same_as<std::size_t>;
+  {
+    t.push_front(std::declval<typename T::Val>())
+  } -> std::same_as<std::size_t>;
 };
 
 template <class T>
 concept PushBackAble = requires(T t) {
-  { t.push_back(std::declval<typename T::Val>()) }
-  ->std::same_as<std::size_t>;
+  { t.push_back(std::declval<typename T::Val>()) } -> std::same_as<std::size_t>;
 };
 
 template <class T>
 concept InsertAbleByPair = requires(T t) {
-  { t.insert(std::declval<typename T::Key>(), std::declval<typename T::Val>()) }
-  ->std::same_as<std::size_t>;
+  {
+    t.insert(std::declval<typename T::Key>(), std::declval<typename T::Val>())
+  } -> std::same_as<std::size_t>;
 };
 
 template <class T>
 concept InsertAbleByKey = requires(T t) {
-  { t.insert(std::declval<typename T::Key>()) }
-  ->std::same_as<std::size_t>;
+  { t.insert(std::declval<typename T::Key>()) } -> std::same_as<std::size_t>;
 };
 
 template <class T>
-concept InsertAble = requires(T t) {
-  requires(InsertAbleByPair<T> || InsertAbleByKey<T>);
-};
+concept InsertAble =
+    requires(T t) { requires(InsertAbleByPair<T> || InsertAbleByKey<T>); };
 
 template <class T, typename... Args>
 concept SubscriptAble = requires(T t) {
-  { t[std::declval<typename T::Key>()] }
-  ->std::same_as<typename T::Val &>;
+  { t[std::declval<typename T::Key>()] } -> std::same_as<typename T::Val &>;
 };
 
 template <class T>
 concept EraseAble = requires(T t) {
-  { t.erase(std::declval<typename T::Key>()) }
-  ->std::same_as<bool>;
+  { t.erase(std::declval<typename T::Key>()) } -> std::same_as<bool>;
 };
 
 template <class T>
-concept HasVal = requires {
-  requires !std::is_same_v<typename T::Val, ErasedType>;
-};
+concept HasVal =
+    requires { requires !std::is_same_v<typename T::Val, ErasedType>; };
 
 template <class T>
 concept HasFront = requires(T t) {
-  { t.front() }
-  ->std::same_as<typename T::Val>;
+  { t.front() } -> std::same_as<typename T::Val>;
 };
 
 template <class T>
 concept TryPopFrontAble = requires(T t) {
-  { t.try_pop_front(std::declval<std::size_t>()) }
-  ->std::same_as<std::vector<typename T::Val>>;
+  {
+    t.try_pop_front(std::declval<std::size_t>())
+  } -> std::same_as<std::vector<typename T::Val>>;
 };
 
 template <class T>
 concept HasBack = requires(T t) {
-  { t.back() }
-  ->std::same_as<typename T::Val>;
+  { t.back() } -> std::same_as<typename T::Val>;
 };
 
 template <class T>
 concept TryPopBackAble = requires(T t) {
-  { t.try_pop_back(std::declval<std::size_t>()) }
-  ->std::same_as<std::vector<typename T::Val>>;
+  {
+    t.try_pop_back(std::declval<std::size_t>())
+  } -> std::same_as<std::vector<typename T::Val>>;
 };
 
 template <class T>
 concept ClearAble = requires(T t) {
-  { t.clear() }
-  ->std::same_as<void>;
+  { t.clear() } -> std::same_as<void>;
 };
 
 template <class T>
 concept FindAble = requires(T t) {
-  { t.find(std::declval<typename T::Key>()) }
-  ->std::same_as<typename T::ConstIterator>;
+  {
+    t.find(std::declval<typename T::Key>())
+  } -> std::same_as<typename T::ConstIterator>;
 };
 
 template <class T>
 concept FindDataAble = requires(T t) {
-  { t.find_data(std::declval<typename T::Key>()) }
-  ->std::same_as<std::optional<DeepDecay_t<
-  decltype(*std::declval<typename T::ConstIterator>())>>>;
+  {
+    t.find_data(std::declval<typename T::Key>())
+  } -> std::same_as<std::optional<
+      DeepDecay_t<decltype(*std::declval<typename T::ConstIterator>())>>>;
 };
 
 template <class T>
 concept FindAbleByOrder = requires(T t) {
-  { t.find_by_order(std::declval<std::size_t>()) }
-  ->std::same_as<typename T::ConstIterator>;
+  {
+    t.find_by_order(std::declval<std::size_t>())
+  } -> std::same_as<typename T::ConstIterator>;
 };
 
 template <class T>
 concept HasCapacity = requires(T t) {
-  { t.capacity() }
-  ->std::same_as<std::size_t>;
+  { t.capacity() } -> std::same_as<std::size_t>;
 };
 
 template <class T>
 concept Reservable = requires(T t) {
-  { t.reserve(std::declval<std::size_t>()) }
-  ->std::same_as<void>;
+  { t.reserve(std::declval<std::size_t>()) } -> std::same_as<void>;
 };
 
 template <class T>
 concept RebaseAble = requires(T t) {
-  { t.rebase(std::declval<typename T::Key>()) }
-  ->std::same_as<typename T::Key>;
+  {
+    t.rebase(std::declval<typename T::Key>())
+  } -> std::same_as<typename T::Key>;
 };
 
 template <class T>
@@ -144,19 +140,15 @@ concept UInt64Convertable = requires(T t) {
 template <class T>
 concept ConstIterable = requires(T t) {
   requires UInt64Convertable<typename T::ConstIterator>;
-  { t.cbegin() }
-  ->std::same_as<typename T::ConstIterator>;
-  { t.cend() }
-  ->std::same_as<typename T::ConstIterator>;
+  { t.cbegin() } -> std::same_as<typename T::ConstIterator>;
+  { t.cend() } -> std::same_as<typename T::ConstIterator>;
 };
 
 template <class T>
 concept ConstReverseIterable = requires(T t) {
   requires UInt64Convertable<typename T::ConstReverseIterator>;
-  { t.crbegin() }
-  ->std::same_as<typename T::ConstReverseIterator>;
-  { t.crend() }
-  ->std::same_as<typename T::ConstReverseIterator>;
+  { t.crbegin() } -> std::same_as<typename T::ConstReverseIterator>;
+  { t.crend() } -> std::same_as<typename T::ConstReverseIterator>;
 };
 
 template <class Impl>
@@ -231,62 +223,89 @@ class GeneralContainerBase {
   std::size_t size() const {
     return synchronized<std::size_t>([&] { return impl_.size(); });
   }
-  std::size_t capacity() const requires HasCapacity<Impl> {
+  std::size_t capacity() const
+    requires HasCapacity<Impl>
+  {
     return synchronized<std::size_t>([&] { return impl_.capacity(); });
   }
-  void reserve(std::size_t size) requires Reservable<Impl> {
+  void reserve(std::size_t size)
+    requires Reservable<Impl>
+  {
     synchronized<void>([&] { impl_.reserve(size); });
   }
   bool empty() const {
     return synchronized<bool>([&] { return impl_.empty(); });
   };
-  void clear() requires ClearAble<Impl> {
+  void clear()
+    requires ClearAble<Impl>
+  {
     return synchronized<void>([&] { return impl_.clear(); });
   };
-  std::size_t insert(Key k, Val v) requires(HasVal<Impl> && InsertAble<Impl>) {
+  std::size_t insert(Key k, Val v)
+    requires(HasVal<Impl> && InsertAble<Impl>)
+  {
     return synchronized<std::size_t>(
         [&] { return impl_.insert(std::move(k), std::move(v)); });
   }
-  std::size_t insert(Key k) requires(!HasVal<Impl> && InsertAble<Impl>) {
+  std::size_t insert(Key k)
+    requires(!HasVal<Impl> && InsertAble<Impl>)
+  {
     return synchronized<std::size_t>(
         [&] { return impl_.insert(std::move(k)); });
   }
-  bool erase(Key k) requires EraseAble<Impl> {
+  bool erase(Key k)
+    requires EraseAble<Impl>
+  {
     return synchronized<bool>([&] { return impl_.erase(k); });
   }
-  std::size_t push_front(Val v) requires PushFrontAble<Impl> {
+  std::size_t push_front(Val v)
+    requires PushFrontAble<Impl>
+  {
     return synchronized<std::size_t>([&] { return impl_.push_front(v); });
   }
-  std::size_t push_back(Val v) requires PushBackAble<Impl> {
+  std::size_t push_back(Val v)
+    requires PushBackAble<Impl>
+  {
     return synchronized<std::size_t>(
         [&] { return impl_.push_back(std::move(v)); });
   }
-  ConstIterator find(Key k) const requires FindAble<Impl> {
+  ConstIterator find(Key k) const
+    requires FindAble<Impl>
+  {
     return synchronized<ConstIterator>(
         [&] { return impl_.find(std::move(k)); });
   }
   std::optional<IterVal> find_data(Key k) const
-    requires FindDataAble<Impl> {
+    requires FindDataAble<Impl>
+  {
     return synchronized<std::optional<IterVal>>(
         [&] { return impl_.find_data(std::move(k)); });
   }
-  ConstIterator find_by_order(
-      std::size_t order) requires FindAbleByOrder<Impl> {
+  ConstIterator find_by_order(std::size_t order)
+    requires FindAbleByOrder<Impl>
+  {
     return synchronized<ConstIterator>(
         [&] { return impl_.find_by_order(order); });
   }
-  Val front() const requires HasFront<Impl> {
+  Val front() const
+    requires HasFront<Impl>
+  {
     return synchronized<Val>([&] { return impl_.front(); });
   }
-  std::vector<Val> try_pop_front(
-      std::size_t num) requires TryPopFrontAble<Impl> {
+  std::vector<Val> try_pop_front(std::size_t num)
+    requires TryPopFrontAble<Impl>
+  {
     return synchronized<std::vector<Val>>(
         [&] { return impl_.try_pop_front(num); });
   }
-  Val back() const requires HasBack<Impl> {
+  Val back() const
+    requires HasBack<Impl>
+  {
     return synchronized<Val>([&] { return impl_.back(); });
   }
-  std::vector<Val> try_pop_back(std::size_t num) requires TryPopBackAble<Impl> {
+  std::vector<Val> try_pop_back(std::size_t num)
+    requires TryPopBackAble<Impl>
+  {
     return synchronized<std::vector<Val>>(
         [&] { return impl_.try_pop_back(num); });
   }
@@ -297,31 +316,43 @@ class GeneralContainerBase {
     synchronized<void>([&] { impl_.merge(std::move(c.impl_)); });
   }
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...),
-               S1s &&... states) requires HasVal<Impl> {
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&...states)
+    requires HasVal<Impl>
+  {
     synchronized<void>(
         [&] { impl_.for_all(fn, std::forward<S1s>(states)...); });
   }
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, S0s...),
-               S1s &&... states) requires(!HasVal<Impl>) {
+  void for_all(void (*fn)(const Key &key, S0s...), S1s &&...states)
+    requires(!HasVal<Impl>)
+  {
     synchronized<void>(
         [&] { impl_.for_all(fn, std::forward<S1s>(states)...); });
   }
   Impl &unwrap() { return impl_; }
-  ConstIterator cbegin() const requires ConstIterable<Impl> {
+  ConstIterator cbegin() const
+    requires ConstIterable<Impl>
+  {
     return impl_.cbegin();
   }
-  ConstIterator cend() const requires ConstIterable<Impl> {
+  ConstIterator cend() const
+    requires ConstIterable<Impl>
+  {
     return impl_.cend();
   }
-  ConstReverseIterator crbegin() const requires ConstReverseIterable<Impl> {
+  ConstReverseIterator crbegin() const
+    requires ConstReverseIterable<Impl>
+  {
     return impl_.crbegin();
   }
-  ConstReverseIterator crend() const requires ConstReverseIterable<Impl> {
+  ConstReverseIterator crend() const
+    requires ConstReverseIterable<Impl>
+  {
     return impl_.crend();
   }
-  Key rebase(Key new_l_key) requires RebaseAble<Impl> {
+  Key rebase(Key new_l_key)
+    requires RebaseAble<Impl>
+  {
     return impl_.rebase(new_l_key);
   }
   template <typename RetT, typename... S0s, typename... S1s>
@@ -360,10 +391,11 @@ class GeneralContainerBase {
   template <typename RetT, typename F>
   RetT synchronized(F &&f) const;
   bool insert_batch_if(std::function<bool(std::size_t)> cond,
-                       std::vector<DataEntry> &reqs) requires InsertAble<Impl>;
+                       std::vector<DataEntry> &reqs)
+    requires InsertAble<Impl>;
   std::pair<bool, bool> push_back_batch_if(
-      std::function<bool(std::size_t)> cond,
-      std::vector<Val> &reqs) requires PushBackAble<Impl>;
+      std::function<bool(std::size_t)> cond, std::vector<Val> &reqs)
+    requires PushBackAble<Impl>;
 };
 
 }  // namespace nu

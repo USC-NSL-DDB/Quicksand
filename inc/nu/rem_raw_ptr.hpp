@@ -16,11 +16,11 @@ class RemRawPtr : public RemPtr<T> {
 
  private:
   template <typename U, typename... Args>
-  friend RemRawPtr<U> make_rem_raw(Args &&... args);
+  friend RemRawPtr<U> make_rem_raw(Args &&...args);
 };
 
 template <typename T, typename... Args>
-RemRawPtr<T> make_rem_raw(Args &&... args);
+RemRawPtr<T> make_rem_raw(Args &&...args);
 
 }  // namespace nu
 

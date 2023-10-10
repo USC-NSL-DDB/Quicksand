@@ -1,7 +1,8 @@
+#include "nu/utils/cpu_load.hpp"
+
 #include <sync.h>
 
 #include "nu/commons.hpp"
-#include "nu/utils/cpu_load.hpp"
 #include "nu/runtime.hpp"
 
 namespace nu {

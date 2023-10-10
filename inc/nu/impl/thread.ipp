@@ -63,9 +63,7 @@ inline void Thread::create_in_runtime_env(F &&f) {
 
 inline bool Thread::joinable() { return join_data_; }
 
-inline uint64_t Thread::get_id() {
-  return id_;
-}
+inline uint64_t Thread::get_id() { return id_; }
 
 inline uint64_t Thread::get_current_id() {
   auto *proclet_header = get_runtime()->get_current_proclet_header();

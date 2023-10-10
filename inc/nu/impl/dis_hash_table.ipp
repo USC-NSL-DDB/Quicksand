@@ -11,9 +11,9 @@ inline DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-inline DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
-    &DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
-        const DistributedHashTable &o) {
+inline DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets> &
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
+    const DistributedHashTable &o) {
   power_num_shards_ = o.power_num_shards_;
   num_shards_ = o.num_shards_;
   ref_cnter_ = o.ref_cnter_;
@@ -30,9 +30,9 @@ inline DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::
 
 template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
-DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>
-    &DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
-        DistributedHashTable &&o) {
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets> &
+DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::operator=(
+    DistributedHashTable &&o) {
   power_num_shards_ = o.power_num_shards_;
   num_shards_ = o.num_shards_;
   ref_cnter_ = std::move(o.ref_cnter_);
@@ -148,7 +148,7 @@ template <typename K, typename V, typename Hash, typename KeyEqual,
           uint64_t NumBuckets>
 template <typename K1, typename RetT, typename... A0s, typename... A1s>
 inline RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::apply(
-    K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
+    K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&...args) {
   auto hash = Hash();
   auto key_hash = hash(std::forward<K1>(k));
   auto shard_idx = get_shard_idx(key_hash);
@@ -192,7 +192,7 @@ template <typename K, typename V, typename Hash, typename KeyEqual,
 template <typename K1, typename RetT, typename... A0s, typename... A1s>
 inline Future<RetT>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::apply_async(
-    K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&... args) {
+    K1 &&k, RetT (*fn)(std::pair<const K, V> &, A0s...), A1s &&...args) {
   return nu::async([&, k, fn, ... args = std::forward<A1s>(args)]() mutable {
     return apply(std::move(k), fn, std::move(args)...);
   });
@@ -221,7 +221,7 @@ template <typename RetT, typename... A0s, typename... A1s>
 RetT DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::associative_reduce(
     bool clear, RetT init_val,
     void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
-    void (*merge_fn)(RetT &, RetT &, A0s...), A1s &&... args) {
+    void (*merge_fn)(RetT &, RetT &, A0s...), A1s &&...args) {
   RetT reduced_val(std::move(init_val));
   std::vector<Future<RetT>> futures;
 
@@ -244,8 +244,7 @@ template <typename RetT, typename... A0s, typename... A1s>
 std::vector<RetT>
 DistributedHashTable<K, V, Hash, KeyEqual, NumBuckets>::associative_reduce(
     bool clear, RetT init_val,
-    void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...),
-    A1s &&... args) {
+    void (*reduce_fn)(RetT &, std::pair<const K, V> &, A0s...), A1s &&...args) {
   RetT reduced_val(std::move(init_val));
   std::vector<Future<RetT>> futures;
 

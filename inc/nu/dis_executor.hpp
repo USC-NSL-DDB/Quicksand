@@ -62,18 +62,17 @@ class DistributedExecutor {
   template <typename R, TaskRangeBased T, ShardedQueueBased Q, typename... S0s,
             typename... S1s>
   friend DistributedExecutor<R, T, Q, S0s...> make_distributed_executor(
-      R (*fn)(T &, Q, S0s...), T task_range, Q queue, S1s &&... states);
+      R (*fn)(T &, Q, S0s...), T task_range, Q queue, S1s &&...states);
   template <typename R, QueueRangeBased QR, typename... S0s, typename... S1s>
   friend DistributedExecutor<R, TaskRange<QR>, S0s...>
   make_distributed_executor(R (*fn)(TaskRange<QR> &, S0s...),
-                            TaskRange<QR> queue_range, S1s &&... states);
+                            TaskRange<QR> queue_range, S1s &&...states);
 
   DistributedExecutor();
   template <typename... S1s>
-  Result run(RetT (*fn)(TR &, States...), TR task_range, S1s &&... states);
+  Result run(RetT (*fn)(TR &, States...), TR task_range, S1s &&...states);
   template <typename... S1s>
-  void start_async(RetT (*fn)(TR &, States...), TR task_range,
-                   S1s &&... states);
+  void start_async(RetT (*fn)(TR &, States...), TR task_range, S1s &&...states);
   template <ShardedQueueBased Q, typename... S1s>
   Result run_queue(RetT (*fn)(TR &, States...), TR task_range, Q queue,
                    S1s &&...states);
@@ -81,13 +80,13 @@ class DistributedExecutor {
   void start_queue_async(RetT (*fn)(TR &, States...), TR task_range, Q queue,
                          S1s &&...states);
   template <typename... S1s>
-  void spawn_initial_workers(S1s &... states);
+  void spawn_initial_workers(S1s &...states);
   template <typename... S1s>
-  void spawn_initial_queue_workers(TR task_range, S1s &... states);
+  void spawn_initial_queue_workers(TR task_range, S1s &...states);
   template <typename... S1s>
-  void add_workers(S1s &... states);
+  void add_workers(S1s &...states);
   template <typename... S1s>
-  void adjust_queue_workers(std::size_t target, TR task_range, S1s &... states);
+  void adjust_queue_workers(std::size_t target, TR task_range, S1s &...states);
   void make_initial_dispatch(RetT (*fn)(TR &, States...), TR task_range);
   void check_workers();
   void abort_workers();
@@ -98,12 +97,12 @@ class DistributedExecutor {
 
 template <typename RetT, TaskRangeBased TR, typename... S0s, typename... S1s>
 DistributedExecutor<RetT, TR, S0s...> make_distributed_executor(
-    RetT (*fn)(TR &, S0s...), TR task_range, S1s &&... states);
+    RetT (*fn)(TR &, S0s...), TR task_range, S1s &&...states);
 
 template <typename RetT, TaskRangeBased TR, ShardedQueueBased Q,
           typename... S0s, typename... S1s>
 DistributedExecutor<RetT, TR, Q, S0s...> make_distributed_executor(
-    RetT (*fn)(TR &, Q, S0s...), TR task_range, Q queue, S1s &&... states);
+    RetT (*fn)(TR &, Q, S0s...), TR task_range, Q queue, S1s &&...states);
 
 }  // namespace nu
 

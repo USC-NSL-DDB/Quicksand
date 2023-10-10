@@ -6,8 +6,8 @@ extern "C" {
 }
 #include <runtime.h>
 
-#include "nu/utils/rpc.hpp"
 #include "nu/runtime.hpp"
+#include "nu/utils/rpc.hpp"
 
 namespace nu {
 

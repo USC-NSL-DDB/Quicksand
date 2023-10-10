@@ -16,14 +16,13 @@ template <typename T, typename LL>
 class ShardedQueue;
 
 template <class Q>
-concept ShardedQueueBased = requires {
-  requires is_base_of_template_v<Q, ShardedQueue>;
-};
+concept ShardedQueueBased =
+    requires { requires is_base_of_template_v<Q, ShardedQueue>; };
 
 template <typename RetT, QueueRangeBased QR, typename... S0s, typename... S1s>
 DistributedExecutor<RetT, TaskRange<QR>, S0s...> make_distributed_executor(
     RetT (*fn)(TaskRange<QR> &, S0s...), TaskRange<QR> queue_range,
-    S1s &&... states);
+    S1s &&...states);
 
 template <typename T>
 class Queue {
@@ -45,7 +44,7 @@ class Queue {
   Val back() const;
   std::vector<Val> try_pop_front(std::size_t num);
   template <typename... S0s, typename... S1s>
-  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&... states);
+  void for_all(void (*fn)(const Key &key, Val &val, S0s...), S1s &&...states);
   void split(Key *mid_k, Queue *latter_half);
   void merge(Queue queue);
   template <class Archive>

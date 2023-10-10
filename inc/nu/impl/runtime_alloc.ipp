@@ -51,7 +51,7 @@ inline T *RuntimeAllocator<T>::allocate(std::size_t n, const_void_pointer) {
 
 template <typename T>
 template <typename U, typename... Args>
-inline void RuntimeAllocator<T>::construct(U *p, Args &&... args) {
+inline void RuntimeAllocator<T>::construct(U *p, Args &&...args) {
   ::new (p) U(std::forward<Args>(args)...);
 }
 

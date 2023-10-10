@@ -36,7 +36,7 @@ class ProcletServer {
   template <typename Cls, typename... As>
   static void construct_proclet_locally(MigrationGuard &&caller_guard,
                                         void *base, uint64_t size, bool pinned,
-                                        As &&... args);
+                                        As &&...args);
   template <bool MigrEn, bool CPUMon, bool CPUSamp, typename Cls, typename RetT,
             typename FnPtr, typename... S1s>
   static void run_closure(ArchivePool<>::IASStream *ia_sstream,

@@ -39,8 +39,9 @@ inline bool GeneralContainerBase<Impl, Synchronized>::insert_batch_if(
 template <class Impl, BoolIntegral Synchronized>
 inline std::pair<bool, bool>
 GeneralContainerBase<Impl, Synchronized>::push_back_batch_if(
-    std::function<bool(std::size_t)> cond,
-    std::vector<Val> &reqs) requires PushBackAble<Impl> {
+    std::function<bool(std::size_t)> cond, std::vector<Val> &reqs)
+  requires PushBackAble<Impl>
+{
   return synchronized<std::pair<bool, bool>>([&] {
     auto prev_size = impl_.size();
     if (cond(prev_size)) {

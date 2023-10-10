@@ -1,8 +1,9 @@
+#include "nu/utils/time.hpp"
+
 #include <memory>
 
 #include "nu/runtime.hpp"
 #include "nu/utils/scoped_lock.hpp"
-#include "nu/utils/time.hpp"
 
 namespace nu {
 

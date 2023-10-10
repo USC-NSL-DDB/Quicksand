@@ -1,10 +1,12 @@
+#include "nu/stack_manager.hpp"
+
 #include <sys/mman.h>
+
 #include <algorithm>
 #include <cstring>
 
-#include "nu/stack_manager.hpp"
-#include "nu/runtime.hpp"
 #include "nu/rpc_client_mgr.hpp"
+#include "nu/runtime.hpp"
 
 namespace nu {
 

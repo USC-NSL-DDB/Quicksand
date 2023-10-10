@@ -21,9 +21,12 @@ class ShardedSorter {
   ShardedSorter &operator=(const ShardedSorter &) = default;
   ShardedSorter(ShardedSorter &&) = default;
   ShardedSorter &operator=(ShardedSorter &&) = default;
-  void insert(K k) requires std::is_same_v<V, ErasedType>;
-  void insert(K k, V v) requires(!std::is_same_v<V, ErasedType>);
-  void insert(std::pair<K, V> p) requires(!std::is_same_v<V, ErasedType>);
+  void insert(K k)
+    requires std::is_same_v<V, ErasedType>;
+  void insert(K k, V v)
+    requires(!std::is_same_v<V, ErasedType>);
+  void insert(std::pair<K, V> p)
+    requires(!std::is_same_v<V, ErasedType>);
   ShardedSorted<K, V> sort();
   template <typename Archive>
   void serialize(Archive &ar);

@@ -48,18 +48,18 @@ template <typename... Its>
 ZippedIterator<Its...>::ZippedIterator() {}
 
 template <typename... Its>
-ZippedIterator<Its...>::ZippedIterator(Its &&... iters)
+ZippedIterator<Its...>::ZippedIterator(Its &&...iters)
     : iters_(std::forward<Its>(iters)...) {}
 
 template <typename... Its>
 const ZippedIterator<Its...>::IterVal ZippedIterator<Its...>::operator*() {
-  return std::apply([](auto &&... iters) { return std::tie(*iters...); },
+  return std::apply([](auto &&...iters) { return std::tie(*iters...); },
                     iters_);
 }
 
 template <typename... Its>
 ZippedIterator<Its...> &ZippedIterator<Its...>::operator++() {
-  std::apply([](auto &&... iter) { ((++iter), ...); }, iters_);
+  std::apply([](auto &&...iter) { ((++iter), ...); }, iters_);
   return *this;
 }
 
@@ -84,7 +84,7 @@ template <typename... Rs>
 Zip<Rs...>::Zip() {}
 
 template <typename... Rs>
-Zip<Rs...>::Zip(const Rs &... ranges)
+Zip<Rs...>::Zip(const Rs &...ranges)
     : begin_((ranges.begin())...), end_((ranges.end())...) {}
 
 template <typename... Rs>
@@ -111,7 +111,7 @@ void Zip<Rs...>::load(Archive &ar) {
 
 template <typename... Ts>
 Zip<Range<GeneralSealedDSConstIterator<Ts, true>>...> zip(
-    const SealedDS<Ts> &... sealed_ds) {
+    const SealedDS<Ts> &...sealed_ds) {
   return Zip(range(sealed_ds)...);
 }
 }  // namespace nu

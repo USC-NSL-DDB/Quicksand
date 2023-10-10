@@ -25,17 +25,17 @@ namespace cereal {
 
 template <class Archive, class T>
 concept HasBuiltinSerialize = requires(Archive ar, T t) {
-    { t.serialize(ar) };
+  { t.serialize(ar) };
 };
 
 template <class Archive, class T>
 concept HasBuiltinSave = requires(Archive ar, const T &t) {
-    { t.save(ar) };
+  { t.save(ar) };
 };
 
 template <class Archive, class T>
 concept HasBuiltinLoad = requires(Archive ar, T t) {
-    { t.load(ar) };
+  { t.load(ar) };
 };
 
 template <class T>
@@ -44,64 +44,59 @@ consteval bool is_memcpy_safe();
 template <class Archive, typename T,
           traits::EnableIf<cereal::traits::is_same_archive<
               Archive, cereal::BinaryOutputArchive>::value> = traits::sfinae>
-void save(Archive &ar, T const &t) requires(
-    is_memcpy_safe<T>() &&
-    !HasBuiltinSerialize<Archive, T> &&
-    !HasBuiltinSave<Archive, T> &&
-    !HasBuiltinLoad<Archive, T> &&
-    !cereal::common_detail::is_enum<T>::value &&
-    !nu::is_specialization_of_v<T, cereal::BinaryData> &&
-    !nu::is_specialization_of_v<T, std::tuple>);
+void save(Archive &ar, T const &t)
+  requires(is_memcpy_safe<T>() && !HasBuiltinSerialize<Archive, T> &&
+           !HasBuiltinSave<Archive, T> && !HasBuiltinLoad<Archive, T> &&
+           !cereal::common_detail::is_enum<T>::value &&
+           !nu::is_specialization_of_v<T, cereal::BinaryData> &&
+           !nu::is_specialization_of_v<T, std::tuple>);
 
 template <class Archive, typename T,
           traits::EnableIf<cereal::traits::is_same_archive<
               Archive, cereal::BinaryOutputArchive>::value> = traits::sfinae>
-void save_move(Archive &ar, T &&t) requires(
-    is_memcpy_safe<T>() &&
-    !HasBuiltinSerialize<Archive, T> &&
-    !HasBuiltinSave<Archive, T> &&
-    !HasBuiltinLoad<Archive, T> &&
-    !cereal::common_detail::is_enum<T>::value &&
-    !nu::is_specialization_of_v<T, cereal::BinaryData> &&
-    !nu::is_specialization_of_v<T, std::tuple>);
+void save_move(Archive &ar, T &&t)
+  requires(is_memcpy_safe<T>() && !HasBuiltinSerialize<Archive, T> &&
+           !HasBuiltinSave<Archive, T> && !HasBuiltinLoad<Archive, T> &&
+           !cereal::common_detail::is_enum<T>::value &&
+           !nu::is_specialization_of_v<T, cereal::BinaryData> &&
+           !nu::is_specialization_of_v<T, std::tuple>);
 
 template <class Archive, typename T,
           traits::EnableIf<cereal::traits::is_same_archive<
               Archive, cereal::BinaryInputArchive>::value> = traits::sfinae>
-void load(Archive &ar, T &t) requires(
-    is_memcpy_safe<T>() &&
-    !HasBuiltinSerialize<Archive, T> &&
-    !HasBuiltinSave<Archive, T> &&
-    !HasBuiltinLoad<Archive, T> &&
-    !cereal::common_detail::is_enum<T>::value &&
-    !nu::is_specialization_of_v<T, cereal::BinaryData> &&
-    !nu::is_specialization_of_v<T, std::tuple>);
+void load(Archive &ar, T &t)
+  requires(is_memcpy_safe<T>() && !HasBuiltinSerialize<Archive, T> &&
+           !HasBuiltinSave<Archive, T> && !HasBuiltinLoad<Archive, T> &&
+           !cereal::common_detail::is_enum<T>::value &&
+           !nu::is_specialization_of_v<T, cereal::BinaryData> &&
+           !nu::is_specialization_of_v<T, std::tuple>);
 
 template <typename... Types>
-void serialize(cereal::BinaryOutputArchive &ar, std::tuple<Types...> &t) requires(
-    is_memcpy_safe<std::tuple<Types...>>());
+void serialize(cereal::BinaryOutputArchive &ar, std::tuple<Types...> &t)
+  requires(is_memcpy_safe<std::tuple<Types...>>());
 
 template <typename... Types>
-void serialize(cereal::BinaryInputArchive &ar, std::tuple<Types...> &t) requires(
-    is_memcpy_safe<std::tuple<Types...>>());
+void serialize(cereal::BinaryInputArchive &ar, std::tuple<Types...> &t)
+  requires(is_memcpy_safe<std::tuple<Types...>>());
 
 template <class Archive, typename P, typename A>
-void save(Archive &ar, std::vector<P, A> const &v) requires(
-    is_memcpy_safe<P>());
+void save(Archive &ar, std::vector<P, A> const &v)
+  requires(is_memcpy_safe<P>());
 
 template <class Archive, typename P, typename A>
-void save_move(Archive &ar, std::vector<P, A> &&v) requires(
-    is_memcpy_safe<P>());
+void save_move(Archive &ar, std::vector<P, A> &&v)
+  requires(is_memcpy_safe<P>());
 
 template <class Archive, typename P, typename A>
-void load(Archive &ar, std::vector<P, A> &v) requires(
-    is_memcpy_safe<P>());
+void load(Archive &ar, std::vector<P, A> &v)
+  requires(is_memcpy_safe<P>());
 
 struct SizeArchive {
   template <typename T>
   void operator()(const T &t);
   template <typename... Ts>
-  void operator()(const Ts &...ts) requires(sizeof...(Ts) > 1);
+  void operator()(const Ts &...ts)
+    requires(sizeof...(Ts) > 1);
 
   uint64_t size = 0;
 };

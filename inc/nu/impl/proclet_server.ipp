@@ -1,16 +1,16 @@
+#include <alloca.h>
+#include <net.h>
+
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
-#include <optional>
-#include <alloca.h>
-
-#include <net.h>
 
 #include "nu/ctrl.hpp"
 #include "nu/ctrl_client.hpp"
 #include "nu/migrator.hpp"
-#include "nu/runtime.hpp"
 #include "nu/proclet_mgr.hpp"
+#include "nu/runtime.hpp"
 #include "nu/type_traits.hpp"
 
 namespace nu {
@@ -29,8 +29,7 @@ void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
     using ArgsTuple = std::tuple<std::decay_t<As>...>;
     auto *args = reinterpret_cast<ArgsTuple *>(alloca(sizeof(ArgsTuple)));
     new (args) ArgsTuple();
-    std::apply([&](auto &&... args) { ((ia_sstream->ia >> args), ...); },
-               *args);
+    std::apply([&](auto &&...args) { ((ia_sstream->ia >> args), ...); }, *args);
 
     callee_guard->enable_for([&] {
       std::apply(
@@ -71,7 +70,7 @@ void ProcletServer::construct_proclet(ArchivePool<>::IASStream *ia_sstream,
 template <typename Cls, typename... As>
 void ProcletServer::construct_proclet_locally(MigrationGuard &&caller_guard,
                                               void *base, uint64_t size,
-                                              bool pinned, As &&... args) {
+                                              bool pinned, As &&...args) {
   std::optional<MigrationGuard> optional_caller_guard;
   RuntimeSlabGuard slab_guard;
   get_runtime()->proclet_manager()->setup(base, size,
@@ -258,11 +257,11 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
   ia_sstream->ia >> fn;
 
   std::tuple<std::decay_t<S1s>...> states;
-  std::apply([&](auto &&... states) { ((ia_sstream->ia >> states), ...); },
+  std::apply([&](auto &&...states) { ((ia_sstream->ia >> states), ...); },
              states);
   auto apply_fn = [&] {
     std::apply(
-        [&](auto &&... states) {
+        [&](auto &&...states) {
           if constexpr (kNonVoidRetT) {
             ret = fn(*obj, std::move(states)...);
           } else {

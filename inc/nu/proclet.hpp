@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
 #include <functional>
+#include <optional>
 
 #include "nu/commons.hpp"
 #include "nu/task_range.hpp"
@@ -40,22 +40,20 @@ class Proclet {
   ProcletID get_id() const;
   template <bool MigrEn = true, bool CPUMon = true, bool CPUSamp = true,
             typename RetT, typename... S0s, typename... S1s>
-  Future<RetT> run_async(
-      RetT (*fn)(T &, S0s...),
-      S1s &&... states) requires ValidInvocationTypes<RetT, S0s...>;
+  Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&...states)
+    requires ValidInvocationTypes<RetT, S0s...>;
   template <bool MigrEn = true, bool CPUMon = true, bool CPUSamp = true,
             typename RetT, typename... S0s, typename... S1s>
-  RetT run(RetT (*fn)(T &, S0s...),
-           S1s &&... states) requires ValidInvocationTypes<RetT, S0s...>;
+  RetT run(RetT (*fn)(T &, S0s...), S1s &&...states)
+    requires ValidInvocationTypes<RetT, S0s...>;
   template <bool MigrEn = true, bool CPUMon = true, bool CPUSamp = true,
             typename RetT, typename... A0s, typename... A1s>
-  Future<RetT> run_async(
-      RetT (T::*md)(A0s...),
-      A1s &&... args) requires ValidInvocationTypes<RetT, A0s...>;
+  Future<RetT> run_async(RetT (T::*md)(A0s...), A1s &&...args)
+    requires ValidInvocationTypes<RetT, A0s...>;
   template <bool MigrEn = true, bool CPUMon = true, bool CPUSamp = true,
             typename RetT, typename... A0s, typename... A1s>
-  RetT run(RetT (T::*md)(A0s...),
-           A1s &&... args) requires ValidInvocationTypes<RetT, A0s...>;
+  RetT run(RetT (T::*md)(A0s...), A1s &&...args)
+    requires ValidInvocationTypes<RetT, A0s...>;
   void reset();
   std::optional<Future<void>> reset_async();
   WeakProclet<T> get_weak() const;
@@ -94,19 +92,19 @@ class Proclet {
                                      ProcletID id, S1s &&...states);
   template <typename... As>
   static Proclet __create(bool pinned, uint64_t capacity, NodeIP ip_hint,
-                          As &&... args);
+                          As &&...args);
   template <bool MigrEn = true, bool CPUMon = true, bool CPUSamp = true,
             typename RetT, typename... S0s, typename... S1s>
-  Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
+  Future<RetT> __run_async(RetT (*fn)(T &, S0s...), S1s &&...states);
   template <bool MigrEn = true, bool CPUMon = true, bool CPUSamp = true,
             typename RetT, typename... S0s, typename... S1s>
-  RetT __run(RetT (*fn)(T &, S0s...), S1s &&... states);
+  RetT __run(RetT (*fn)(T &, S0s...), S1s &&...states);
   template <bool MigrEn = true, bool CPUMon = true, bool CPUSamp = true,
             typename RetT, typename... A0s, typename... A1s>
-  Future<RetT> __run_async(RetT (T::*md)(A0s...), A1s &&... args);
+  Future<RetT> __run_async(RetT (T::*md)(A0s...), A1s &&...args);
   template <bool MigrEn = true, bool CPUMon = true, bool CPUSamp = true,
             typename RetT, typename... A0s, typename... A1s>
-  RetT __run(RetT (T::*md)(A0s...), A1s &&... args);
+  RetT __run(RetT (T::*md)(A0s...), A1s &&...args);
 
   template <typename U, typename... As>
   friend Proclet<U> make_proclet(std::tuple<As...>, bool,

@@ -1,6 +1,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
@@ -14,17 +15,17 @@ extern "C" {
 #include <runtime/membarrier.h>
 #include <runtime/timer.h>
 }
-#include <thread.h>
 #include <runtime.h>
+#include <thread.h>
 
 #include "nu/commons.hpp"
 #include "nu/ctrl_client.hpp"
 #include "nu/migrator.hpp"
-#include "nu/runtime.hpp"
-#include "nu/resource_reporter.hpp"
 #include "nu/pressure_handler.hpp"
 #include "nu/proclet_mgr.hpp"
 #include "nu/proclet_server.hpp"
+#include "nu/resource_reporter.hpp"
+#include "nu/runtime.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"
 #include "nu/utils/scoped_lock.hpp"

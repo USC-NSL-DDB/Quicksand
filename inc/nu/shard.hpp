@@ -33,9 +33,8 @@ template <GeneralContainerBased Container>
 class GeneralShard;
 
 template <class T>
-concept GeneralShardBased = requires {
-  requires is_base_of_template_v<T, GeneralShard>;
-};
+concept GeneralShardBased =
+    requires { requires is_base_of_template_v<T, GeneralShard>; };
 
 template <typename T, BoolIntegral Stateful>
 class Service;
@@ -84,97 +83,116 @@ class GeneralShard {
   void init_range_and_data(
       std::optional<Key> l_key, std::optional<Key> r_key,
       ContainerAndMetadata<Container> container_and_metadata);
-  bool try_insert(DataEntry entry) requires InsertAble<Container>;
-  bool try_push_back(std::optional<Key> l_key, std::optional<Key> r_key,
-                     Val v) requires PushBackAble<Container>;
-  std::optional<Val> try_front(
-      std::optional<Key> l_key,
-      std::optional<Key> r_key) requires HasFront<Container>;
-  bool try_push_front(std::optional<Key> l_key, std::optional<Key> r_key,
-                      Val v) requires PushFrontAble<Container>;
-  std::optional<Val> try_pop_front(
-      std::optional<Key> l_key,
-      std::optional<Key> r_key) requires TryPopFrontAble<Container>;
-  std::optional<std::vector<Val>> try_pop_front_nb(
-      std::optional<Key> l_key, std::optional<Key> r_key,
-      std::size_t num) requires TryPopFrontAble<Container>;
-  std::optional<Val> try_back(
-      std::optional<Key> l_key,
-      std::optional<Key> r_key) requires HasBack<Container>;
-  std::optional<Val> try_pop_back(
-      std::optional<Key> l_key,
-      std::optional<Key> r_key) requires TryPopBackAble<Container>;
-  std::optional<std::vector<Val>> try_pop_back_nb(
-      std::optional<Key> l_key, std::optional<Key> r_key,
-      std::size_t num) requires TryPopBackAble<Container>;
+  bool try_insert(DataEntry entry)
+    requires InsertAble<Container>;
+  bool try_push_back(std::optional<Key> l_key, std::optional<Key> r_key, Val v)
+    requires PushBackAble<Container>;
+  std::optional<Val> try_front(std::optional<Key> l_key,
+                               std::optional<Key> r_key)
+    requires HasFront<Container>;
+  bool try_push_front(std::optional<Key> l_key, std::optional<Key> r_key, Val v)
+    requires PushFrontAble<Container>;
+  std::optional<Val> try_pop_front(std::optional<Key> l_key,
+                                   std::optional<Key> r_key)
+    requires TryPopFrontAble<Container>;
+  std::optional<std::vector<Val>> try_pop_front_nb(std::optional<Key> l_key,
+                                                   std::optional<Key> r_key,
+                                                   std::size_t num)
+    requires TryPopFrontAble<Container>;
+  std::optional<Val> try_back(std::optional<Key> l_key,
+                              std::optional<Key> r_key)
+    requires HasBack<Container>;
+  std::optional<Val> try_pop_back(std::optional<Key> l_key,
+                                  std::optional<Key> r_key)
+    requires TryPopBackAble<Container>;
+  std::optional<std::vector<Val>> try_pop_back_nb(std::optional<Key> l_key,
+                                                  std::optional<Key> r_key,
+                                                  std::size_t num)
+    requires TryPopBackAble<Container>;
   std::optional<ReqBatch> try_handle_batch(ReqBatch &batch);
-  std::pair<bool, std::optional<IterVal>> find_data(
-      Key k) requires FindDataAble<Container>;
-  std::pair<IterVal, ConstIterator> find(Key k) requires FindAble<Container>;
+  std::pair<bool, std::optional<IterVal>> find_data(Key k)
+    requires FindDataAble<Container>;
+  std::pair<IterVal, ConstIterator> find(Key k)
+    requires FindAble<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_front_block_with_iters(
-      uint32_t block_size) requires ConstIterable<Container>;
+      uint32_t block_size)
+    requires ConstIterable<Container>;
   std::pair<std::vector<IterVal>, ConstIterator> get_front_block(
-      uint32_t block_size) requires ConstIterable<Container>;
+      uint32_t block_size)
+    requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>>
-  get_rfront_block_with_iters(
-      uint32_t block_size) requires ConstReverseIterable<Container>;
+  get_rfront_block_with_iters(uint32_t block_size)
+    requires ConstReverseIterable<Container>;
   std::pair<std::vector<IterVal>, ConstReverseIterator> get_rfront_block(
-      uint32_t block_size) requires ConstReverseIterable<Container>;
+      uint32_t block_size)
+    requires ConstReverseIterable<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_back_block_with_iters(
-      uint32_t block_size) requires ConstIterable<Container>;
+      uint32_t block_size)
+    requires ConstIterable<Container>;
   std::pair<std::vector<IterVal>, ConstIterator> get_back_block(
-      uint32_t block_size) requires ConstIterable<Container>;
+      uint32_t block_size)
+    requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>>
-  get_rback_block_with_iters(
-      uint32_t block_size) requires ConstReverseIterable<Container>;
+  get_rback_block_with_iters(uint32_t block_size)
+    requires ConstReverseIterable<Container>;
   std::pair<std::vector<IterVal>, ConstReverseIterator> get_rback_block(
-      uint32_t block_size) requires ConstReverseIterable<Container>;
+      uint32_t block_size)
+    requires ConstReverseIterable<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_next_block_with_iters(
-      ConstIterator prev_iter,
-      uint32_t block_size) requires ConstIterable<Container>;
-  std::vector<IterVal> get_next_block(
-      ConstIterator prev_iter,
-      uint32_t block_size) requires ConstIterable<Container>;
+      ConstIterator prev_iter, uint32_t block_size)
+    requires ConstIterable<Container>;
+  std::vector<IterVal> get_next_block(ConstIterator prev_iter,
+                                      uint32_t block_size)
+    requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstIterator>> get_prev_block_with_iters(
-      ConstIterator succ_iter,
-      uint32_t block_size) requires ConstIterable<Container>;
-  std::vector<IterVal> get_prev_block(
-      ConstIterator succ_iter,
-      uint32_t block_size) requires ConstIterable<Container>;
+      ConstIterator succ_iter, uint32_t block_size)
+    requires ConstIterable<Container>;
+  std::vector<IterVal> get_prev_block(ConstIterator succ_iter,
+                                      uint32_t block_size)
+    requires ConstIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>>
-  get_next_rblock_with_iters(
-      ConstReverseIterator prev_iter,
-      uint32_t block_size) requires ConstReverseIterable<Container>;
-  std::vector<IterVal> get_next_rblock(
-      ConstReverseIterator prev_iter,
-      uint32_t block_size) requires ConstReverseIterable<Container>;
+  get_next_rblock_with_iters(ConstReverseIterator prev_iter,
+                             uint32_t block_size)
+    requires ConstReverseIterable<Container>;
+  std::vector<IterVal> get_next_rblock(ConstReverseIterator prev_iter,
+                                       uint32_t block_size)
+    requires ConstReverseIterable<Container>;
   std::vector<std::pair<IterVal, ConstReverseIterator>>
-  get_prev_rblock_with_iters(
-      ConstReverseIterator succ_iter,
-      uint32_t block_size) requires ConstReverseIterable<Container>;
-  std::vector<IterVal> get_prev_rblock(
-      ConstReverseIterator succ_iter,
-      uint32_t block_size) requires ConstReverseIterable<Container>;
-  ConstIterator cbegin() requires ConstIterable<Container>;
-  ConstIterator clast() requires ConstIterable<Container>;
-  ConstIterator cend() requires ConstIterable<Container>;
-  ConstReverseIterator crbegin() requires ConstReverseIterable<Container>;
-  ConstReverseIterator crlast() requires ConstReverseIterable<Container>;
-  ConstReverseIterator crend() requires ConstReverseIterable<Container>;
+  get_prev_rblock_with_iters(ConstReverseIterator succ_iter,
+                             uint32_t block_size)
+    requires ConstReverseIterable<Container>;
+  std::vector<IterVal> get_prev_rblock(ConstReverseIterator succ_iter,
+                                       uint32_t block_size)
+    requires ConstReverseIterable<Container>;
+  ConstIterator cbegin()
+    requires ConstIterable<Container>;
+  ConstIterator clast()
+    requires ConstIterable<Container>;
+  ConstIterator cend()
+    requires ConstIterable<Container>;
+  ConstReverseIterator crbegin()
+    requires ConstReverseIterable<Container>;
+  ConstReverseIterator crlast()
+    requires ConstReverseIterable<Container>;
+  ConstReverseIterator crend()
+    requires ConstReverseIterable<Container>;
   bool empty();
   std::size_t size();
-  std::optional<IterVal> find_data_by_order(
-      std::size_t order) requires FindAbleByOrder<Container>;
+  std::optional<IterVal> find_data_by_order(std::size_t order)
+    requires FindAbleByOrder<Container>;
   Container get_container_copy();
   ContainerHandle<Container> get_container_handle();
-  Key split_at_end() requires GeneralContainer::kContiguousIterator;
-  Key rebase(Key new_l_key) requires GeneralContainer::kContiguousIterator;
+  Key split_at_end()
+    requires GeneralContainer::kContiguousIterator;
+  Key rebase(Key new_l_key)
+    requires GeneralContainer::kContiguousIterator;
   template <typename RetT, typename... S0s>
   std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
   try_compute_on(Key k, uintptr_t fn_addr, S0s... states);
   bool try_merge(bool merge_left, std::optional<Key> new_key,
                  std::optional<float> cpu_load);
-  std::optional<bool> try_erase(Key k) requires EraseAble<Container>;
+  std::optional<bool> try_erase(Key k)
+    requires EraseAble<Container>;
   template <typename RetT, typename... S0s>
   std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>> try_run(
       Key k, uintptr_t fn_addr, S0s... states);
@@ -224,12 +242,12 @@ class GeneralShard {
   bool should_reject(const std::optional<Key> &k);
   uint32_t __get_next_block_with_iters(
       std::vector<std::pair<IterVal, ConstIterator>>::iterator block_iter,
-      ConstIterator prev_iter,
-      uint32_t block_size) requires ConstIterable<Container>;
+      ConstIterator prev_iter, uint32_t block_size)
+    requires ConstIterable<Container>;
   uint32_t __get_next_rblock_with_iters(
       std::vector<std::pair<IterVal, ConstReverseIterator>>::iterator block_it,
-      ConstReverseIterator prev_iter,
-      uint32_t block_size) requires ConstReverseIterable<Container>;
+      ConstReverseIterator prev_iter, uint32_t block_size)
+    requires ConstReverseIterable<Container>;
   void start_compute_monitor_th();
 };
 

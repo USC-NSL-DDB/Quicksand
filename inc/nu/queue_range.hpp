@@ -10,9 +10,8 @@ template <typename T, BoolIntegral LL, BoolIntegral Insertable>
 class QueueTaskRangeImpl;
 
 template <class T>
-concept QueueRangeBased = requires {
-  requires is_base_of_template_v<T, QueueTaskRangeImpl>;
-};
+concept QueueRangeBased =
+    requires { requires is_base_of_template_v<T, QueueTaskRangeImpl>; };
 
 template <typename T, typename LL>
 class ShardedQueue;

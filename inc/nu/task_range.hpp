@@ -15,9 +15,8 @@ template <class Impl>
 class TaskRange;
 
 template <class T>
-concept TaskRangeBased = requires {
-  requires is_base_of_template_v<T, TaskRange>;
-};
+concept TaskRangeBased =
+    requires { requires is_base_of_template_v<T, TaskRange>; };
 
 template <class Impl>
 class TaskRangeIterator;

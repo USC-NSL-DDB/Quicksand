@@ -19,9 +19,9 @@ class RemPtr {
   T operator*();
   T *get();
   template <typename RetT, typename... S0s, typename... S1s>
-  Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&... states);
+  Future<RetT> run_async(RetT (*fn)(T &, S0s...), S1s &&...states);
   template <typename RetT, typename... S0s, typename... S1s>
-  RetT run(RetT (*fn)(T &, S0s...), S1s &&... states);
+  RetT run(RetT (*fn)(T &, S0s...), S1s &&...states);
 
   template <class Archive>
   void save(Archive &ar) const;
