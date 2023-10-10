@@ -72,8 +72,8 @@ constexpr static uint64_t kStackRedZoneSize = 128;
 constexpr static uint64_t kStackSize = 128ULL << 10;
 constexpr static uint64_t kPageSize = 4096;
 constexpr static ProcletID kNullProcletID = 0;
-constexpr static uint64_t kMinProcletHeapVAddr = 0x300000000000ULL;
-constexpr static uint64_t kMaxProcletHeapVAddr = 0x400000000000ULL;
+constexpr static uint64_t kMinProcletHeapVAddr = 0x200000000000ULL;
+constexpr static uint64_t kMaxProcletHeapVAddr = 0x300000000000ULL;
 constexpr static uint64_t kMinProcletHeapSize = 1ULL << 25;
 constexpr static uint64_t kDefaultProcletHeapSize = 1ULL << 27;
 constexpr static uint64_t kMaxProcletHeapSize = 1ULL << 36;
@@ -83,7 +83,7 @@ constexpr static uint64_t kMaxNumProclets =
         kMinProcletHeapSize +
     1;
 constexpr static uint64_t kMinStackClusterVAddr = kMaxProcletHeapVAddr;
-constexpr static uint64_t kMaxStackClusterVAddr = 0x600000000000ULL;
+constexpr static uint64_t kMaxStackClusterVAddr = 0x500000000000ULL;
 constexpr static uint64_t kStackClusterSize = 1ULL << 31;
 constexpr static uint64_t kMaxNumStacksPerCluster =
     kStackClusterSize / kStackSize;
