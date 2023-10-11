@@ -42,6 +42,12 @@
 
 #define YIELD_SIGNAL                       SIGUSR2
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
+#define PF__HOLE__40000000 0x40000000
+#endif
+
+#define PF_KSCHED_PARKED PF__HOLE__40000000
+
 /* the character device that provides the ksched IOCTL interface */
 static struct cdev ksched_cdev;
 
@@ -59,27 +65,19 @@ struct ksched_percpu {
 /* per-cpu data to coordinate context switching and signal delivery */
 static DEFINE_PER_CPU(struct ksched_percpu, kp);
 
-enum {
-	PARKED = 0,
-	UNPARKED
-};
-
 void mark_task_parked(struct task_struct *tsk)
 {
-	/* borrow the trace field here which is origally used by Ftrace */
-	tsk->trace = PARKED;
+	tsk->flags |= PF_KSCHED_PARKED;
 }
 
-bool try_mark_task_unparked_locked(struct task_struct *tsk) {
-	bool success = false;
-
-	lockdep_assert_held(&tsk->pi_lock);
-	if (tsk->trace == PARKED) {
-		success = true;
-		tsk->trace = UNPARKED;
+bool try_mark_task_unparked(struct task_struct *tsk)
+{
+	if ((tsk->flags & PF_KSCHED_PARKED) > 0) {
+		tsk->flags &= ~PF_KSCHED_PARKED;
+		return true;
 	}
 
-	return success;
+	return false;
 }
 
 /**
@@ -142,10 +140,10 @@ static void ksched_next_tid(struct ksched_percpu *kp, int cpu, pid_t tid)
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,14,0)
         already_running = p->on_cpu || p->state == TASK_WAKING ||
-                          p->state == TASK_RUNNING || !try_mark_task_unparked_locked(p);
+                          p->state == TASK_RUNNING || !try_mark_task_unparked(p);
 #else
         already_running = p->on_cpu || p->__state == TASK_WAKING ||
-                          task_is_running(p) || !try_mark_task_unparked_locked(p);
+                          task_is_running(p) || !try_mark_task_unparked(p);
 #endif
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 	if (unlikely(already_running)) {
