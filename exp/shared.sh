@@ -3,18 +3,18 @@
 EXP_SHARED_SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 NU_DIR=$EXP_SHARED_SCRIPT_DIR/..
 CALADAN_DIR=$NU_DIR/caladan
+SSH_IP_PREFIX=zg0
+SSH_IP_SUFFIX_STARTING=1
 
 source $EXP_SHARED_SCRIPT_DIR/../setup.sh
 
+function my_ssh() {
+    ssh -oStrictHostKeyChecking=no $@
+}
+
 function ssh_ip() {
-    if [ -z "$ssh_ip_prefix" ]
-    then
-        ssh_ip_prefix=`ifconfig | grep "10\.10\." -B 1 --no-group-separator |
-                                  sed 'N;s/\n/ /' | grep -v $nic_dev |
-                                  awk '{print $6}' | head -c -2`
-    fi
-    srv_idx=$1
-    echo $ssh_ip_prefix$srv_idx
+    ssh_ip_suffix=$(expr $1 + $SSH_IP_SUFFIX_STARTING - 1)
+    echo $SSH_IP_PREFIX$ssh_ip_suffix
 }
 
 function caladan_srv_ip() {
@@ -26,13 +26,12 @@ function probe_num_nodes() {
     num_nodes=1
     while true
     do
-    	next_node=$(($num_nodes + 1))
-	ping -c 1 $(ssh_ip $next_node) 1>/dev/null 2>&1
+	ping -c 1 $(ssh_ip $(expr $num_nodes + 1)) 1>/dev/null 2>&1
     	if [ $? != 0 ]
     	then
     	    break
     	fi
-    	num_nodes=$next_node
+	num_nodes=$(expr $num_nodes + 1)
     done
 }
 
@@ -47,12 +46,12 @@ function executable_file_path() {
 
 function start_iokerneld() {
     srv_idx=$1
-    ssh $(ssh_ip $srv_idx) "sudo $CALADAN_DIR/iokerneld" &
+    my_ssh $(ssh_ip $srv_idx) "sudo $CALADAN_DIR/iokerneld" &
 }
 
 function start_ctrl() {
     srv_idx=$1
-    ssh $(ssh_ip $srv_idx) "sudo stdbuf -o0 $NU_DIR/bin/ctrl_main" &
+    my_ssh $(ssh_ip $srv_idx) "sudo stdbuf -o0 $NU_DIR/bin/ctrl_main" &
 }
 
 function __start_server() {
@@ -83,15 +82,15 @@ function __start_server() {
     rm -rf .nu_libs_tmp
     mkdir .nu_libs_tmp
     cp `ldd $file_path | grep "=>" | awk  '{print $3}' | xargs` .nu_libs_tmp
-    ssh $(ssh_ip $srv_idx) "rm -rf $nu_libs_name"
+    my_ssh $(ssh_ip $srv_idx) "rm -rf $nu_libs_name"
     scp -r .nu_libs_tmp $(ssh_ip $srv_idx):`pwd`/$nu_libs_name
 
     if [[ $main -eq 0 ]]
     then
-	ssh $(ssh_ip $srv_idx) "cd `pwd`;
+	my_ssh $(ssh_ip $srv_idx) "cd `pwd`;
                                 sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd"
     else
-	ssh $(ssh_ip $srv_idx) "cd `pwd`;
+	my_ssh $(ssh_ip $srv_idx) "cd `pwd`;
                                 sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -m -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd"
     fi
 }
@@ -112,13 +111,13 @@ function run_program() {
     file_path=$(executable_file_path $1)
     srv_idx=$2
     args=${@:3}
-    ssh $(ssh_ip $srv_idx) "cd `pwd`; sudo $file_path $args"
+    my_ssh $(ssh_ip $srv_idx) "cd `pwd`; sudo $file_path $args"
 }
 
 function run_cmd() {
     srv_idx=$1
     cmd=${@:2}
-    ssh $(ssh_ip $srv_idx) "cd `pwd`; $cmd"
+    my_ssh $(ssh_ip $srv_idx) "cd `pwd`; $cmd"
 }
 
 function distribute() {
@@ -136,9 +135,9 @@ function prepare() {
     sleep 5
     for i in `seq 1 $num_nodes`
     do
-	ssh $(ssh_ip $i) "cd $NU_DIR; sudo ./setup.sh" &
+	my_ssh $(ssh_ip $i) "cd $NU_DIR; sudo ./setup.sh" &
     done
-    wait
+    wait $(jobs -p)
 }
 
 function rebuild_caladan_and_nu() {
@@ -176,38 +175,44 @@ function caladan_use_default_rto() {
 function disable_kernel_bg_prezero() {
     for i in `seq 1 $num_nodes`
     do
-	ssh $(ssh_ip $i) "sudo bash -c \"echo 1000000 > /sys/kernel/mm/zero_page/delay_millisecs\""
+	my_ssh $(ssh_ip $i) "sudo bash -c \"echo 1000000 > /sys/kernel/mm/zero_page/delay_millisecs\""
     done
 }
 
 function enable_kernel_bg_prezero() {
     for i in `seq 1 $num_nodes`
     do
-	ssh $(ssh_ip $i) "sudo bash -c \"echo 1000 > /sys/kernel/mm/zero_page/delay_millisecs\""
+	my_ssh $(ssh_ip $i) "sudo bash -c \"echo 1000 > /sys/kernel/mm/zero_page/delay_millisecs\""
     done
 }
 
+function cleanup_server() {
+    my_ssh $(ssh_ip $1) "sudo pkill -9 iokerneld;
+                         sudo pkill -9 ctrl_main;
+                         sudo pkill -9 main;
+                         sudo pkill -9 client;
+                         sudo pkill -9 server;
+                         sudo pkill -9 synthetic;
+                         sudo pkill -9 memcached;
+                         sudo pkill -9 kmeans;
+                         sudo pkill -9 python3;
+                         sudo pkill -9 BackEndService;
+                         sudo pkill -9 bench;"
+    if [ -n "$nic_dev" ]
+    then
+        my_ssh $(ssh_ip $1) "sudo bridge fdb | grep $nic_dev | awk '{print $1}' | \
+                             xargs -I {} bash -c \"sudo bridge fdb delete {} dev $nic_dev\""
+    fi
+    my_ssh $(ssh_ip $1) "cd `pwd`; rm -rf .nu_libs*"
+}
+
 function cleanup() {
+    wait $(jobs -p)
     for i in `seq 1 $num_nodes`
     do
-	ssh $(ssh_ip $i) "sudo pkill -9 iokerneld;
-                          sudo pkill -9 ctrl_main;
-                          sudo pkill -9 main;
-                          sudo pkill -9 client;
-                          sudo pkill -9 server;
-                          sudo pkill -9 synthetic;
-                          sudo pkill -9 memcached;
-                          sudo pkill -9 kmeans;
-                          sudo pkill -9 python3;
-                          sudo pkill -9 BackEndService;
-                          sudo pkill -9 bench;"
-	if [ -n "$nic_dev" ]
-	then
-            ssh $(ssh_ip $i) "sudo bridge fdb | grep $nic_dev | awk '{print $1}' | \
-                                   xargs -I {} bash -c \"sudo bridge fdb delete {} dev $nic_dev\""
-	fi
-	ssh $(ssh_ip $i) "cd `pwd`; rm -rf .nu_libs*"
+	cleanup_server $i &
     done
+    wait $(jobs -p)
 }
 
 function force_cleanup() {
@@ -217,10 +222,11 @@ function force_cleanup() {
     do
 	if [ -n "$nic_dev" ]
 	then
-            ssh $(ssh_ip $i) "sudo ip addr show $nic_dev | grep \"inet \" | grep -v \"10\.10\.1\.\" | \
-                                   awk '{print \$2}' | xargs -I {} sudo ip addr delete {} dev $nic_dev"
+            my_ssh $(ssh_ip $i) "sudo ip addr show $nic_dev | grep \"inet \" | grep -v \"10\.10\.1\.\" | \
+                                   awk '{print \$2}' | xargs -I {} sudo ip addr delete {} dev $nic_dev" &
 	fi
     done
+    wait $(jobs -p)
     sudo pkill -9 run.sh
     exit 1
 }
