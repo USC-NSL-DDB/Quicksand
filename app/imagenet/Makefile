@@ -6,7 +6,6 @@ include $(CALADAN_PATH)/build/shared.mk
 
 OPENCV_PATH=opencv/install
 
-NCORES = $(shell nproc)
 
 INC += -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH) -I/usr/include/libnl3/ \
        -I$(OPENCV_PATH)/include/opencv4

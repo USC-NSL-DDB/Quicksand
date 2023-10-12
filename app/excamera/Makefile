@@ -8,7 +8,6 @@ include $(CALADAN_PATH)/build/shared.mk
 
 ALFALA_PATH=alfalfa
 
-NCORES = $(shell nproc)
 
 ALFALFA_INC = -I$(ALFALA_PATH)/src/encoder -I$(ALFALA_PATH)/src/decoder -I$(ALFALA_PATH)/src/input -I$(ALFALA_PATH)/src/util -I$(ALFALA_PATH)/src/display
 INC += $(ALFALFA_INC) -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH) -I/usr/include/libnl3/

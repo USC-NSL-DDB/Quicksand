@@ -4,6 +4,9 @@ ifndef ROOT_PATH
 $(error ROOT_PATH is not set)
 endif
 
+# detect the number of cores of the first socket (i.e., the default socket used by caladan)
+NCORES = $(shell lscpu | grep node0 | awk -F ':' '{print $2}' | awk -F ',' '{print NF}')
+
 # load configuration parameters
 include $(ROOT_PATH)/build/config
 
