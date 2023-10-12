@@ -1,10 +1,30 @@
-#include "nu/command_line.hpp"
-
 #include <numa.h>
-
+#include <sched.h>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+
+extern "C" {
+#include <base/assert.h>
+}
+
+#include "nu/command_line.hpp"
+
+namespace {
+
+inline unsigned int get_num_cores_of_current_numa() {
+  unsigned int numa_node;
+
+  BUG_ON(getcpu(nullptr, &numa_node) != 0);
+  auto bitmask = numa_allocate_cpumask();
+  BUG_ON(!bitmask);
+  BUG_ON(numa_node_to_cpus(numa_node, bitmask) != 0);
+  auto num_cores_of_current_numa = numa_bitmask_weight(bitmask);
+  numa_bitmask_free(bitmask);
+  return num_cores_of_current_numa;
+}
+
+}  // namespace
 
 namespace nu {
 
@@ -70,9 +90,7 @@ CaladanOptionsDesc::CaladanOptionsDesc(int default_guaranteed,
                                        std::optional<std::string> default_ip,
                                        bool help)
     : OptionsDesc("Caladan arguments", help) {
-  auto num_cores_per_numa_node =
-      numa_num_configured_cpus() / numa_num_configured_nodes();
-  auto max_num_kthreads = num_cores_per_numa_node - 2;
+  auto max_num_kthreads = get_num_cores_of_current_numa() - 2;
   auto ip_opt =
       default_ip
           ? boost::program_options::value(&ip)->default_value(*default_ip)
