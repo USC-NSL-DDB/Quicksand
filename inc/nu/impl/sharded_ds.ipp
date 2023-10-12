@@ -717,72 +717,72 @@ std::pair<std::vector<typename ShardedDataStructure<Container, LL>::DataEntry>,
 ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
   std::vector<DataEntry> insert_reqs;
   std::vector<Val> push_back_reqs;
-  uint64_t latest_seq = 0;
+  uint64_t old_seq = mapping_seq_;
 
-  auto v = mapping_.run(&ShardMapping::get_updates, mapping_seq_ + 1);
-
-  typename ShardMapping::LogUpdates *updates;
-  if (likely(updates = std::get_if<typename ShardMapping::LogUpdates>(&v))) {
-    rw_lock_->writer_lock();
-    for (auto &entry : *updates) {
-      if (entry.op == LogEntry<Shard>::kInsert) {
-        auto it = key_to_shards_.emplace(entry.l_key, entry.shard);
-        if (it != key_to_shards_.begin()) {
-          move_append_vector(insert_reqs, (--it)->second.insert_reqs);
-        }
-      } else if (entry.op == LogEntry<Shard>::kMergeLeft ||
-                 entry.op == LogEntry<Shard>::kMergeRight) {
-        auto [begin_it, end_it] = key_to_shards_.equal_range(entry.l_key);
-        auto it = begin_it;
-        for (; it != end_it; ++it) {
-          if (it->second.shard == entry.shard) {
-            break;
+  rw_lock_->writer_lock();
+  if (old_seq == mapping_seq_) {
+    auto v = mapping_.run(&ShardMapping::get_updates, mapping_seq_ + 1);
+    typename ShardMapping::LogUpdates *updates;
+    if (likely(updates = std::get_if<typename ShardMapping::LogUpdates>(&v))) {
+      for (auto &entry : *updates) {
+        if (entry.op == LogEntry<Shard>::kInsert) {
+          auto it = key_to_shards_.emplace(entry.l_key, entry.shard);
+          if (it != key_to_shards_.begin()) {
+            move_append_vector(insert_reqs, (--it)->second.insert_reqs);
           }
-        }
-        BUG_ON(it == end_it);
+        } else if (entry.op == LogEntry<Shard>::kMergeLeft ||
+                   entry.op == LogEntry<Shard>::kMergeRight) {
+          auto [begin_it, end_it] = key_to_shards_.equal_range(entry.l_key);
+          auto it = begin_it;
+          for (; it != end_it; ++it) {
+            if (it->second.shard == entry.shard) {
+              break;
+            }
+          }
+          BUG_ON(it == end_it);
 
-        move_append_vector(insert_reqs, it->second.insert_reqs);
-        if (entry.op == LogEntry<Shard>::kMergeLeft) {
-          key_to_shards_.erase(it);
+          move_append_vector(insert_reqs, it->second.insert_reqs);
+          if (entry.op == LogEntry<Shard>::kMergeLeft) {
+            key_to_shards_.erase(it);
+          } else {
+            auto next_it = std::next(it);
+            BUG_ON(next_it == key_to_shards_.end());
+            it->second = std::move(next_it->second.shard);
+            key_to_shards_.erase(next_it);
+          }
         } else {
-          auto next_it = std::next(it);
-          BUG_ON(next_it == key_to_shards_.end());
-          it->second = std::move(next_it->second.shard);
-          key_to_shards_.erase(next_it);
+          BUG();
         }
-      } else {
-        BUG();
       }
-    }
-    rw_lock_->writer_unlock();
 
-    if (!updates->empty()) {
-      latest_seq = updates->back().seq;
+      if (!updates->empty()) {
+        BUG_ON(mapping_seq_ >= updates->back().seq);
+        mapping_seq_ = updates->back().seq;
+      }
+    } else {
+      auto rejected_batches = wait_for_pending_flushes(/* drain = */ true);
+      for (auto &batch : rejected_batches) {
+        move_append_vector(insert_reqs, batch.insert_reqs);
+        move_append_vector(push_back_reqs, batch.push_back_reqs);
+      }
+
+      auto &snapshot = std::get<typename ShardMapping::Snapshot>(v);
+      for (auto &[k, s] : key_to_shards_) {
+        move_append_vector(insert_reqs, s.insert_reqs);
+      }
+      key_to_shards_.clear();
+      for (auto &[k, s] : snapshot.second) {
+        key_to_shards_.emplace(k, std::move(s));
+      }
+
+      BUG_ON(mapping_seq_ >= snapshot.first);
+      mapping_seq_ = snapshot.first;
     }
   } else {
-    auto rejected_batches = wait_for_pending_flushes(/* drain = */ true);
-    for (auto &batch : rejected_batches) {
-      move_append_vector(insert_reqs, batch.insert_reqs);
-      move_append_vector(push_back_reqs, batch.push_back_reqs);
-    }
-
-    auto &snapshot = std::get<typename ShardMapping::Snapshot>(v);
-    rw_lock_->writer_lock();
-    for (auto &[k, s] : key_to_shards_) {
-      move_append_vector(insert_reqs, s.insert_reqs);
-    }
-    key_to_shards_.clear();
-    for (auto &[k, s] : snapshot.second) {
-      key_to_shards_.emplace(k, std::move(s));
-    }
-    rw_lock_->writer_unlock();
-    latest_seq = snapshot.first;
+    BUG_ON(old_seq > mapping_seq_);
   }
+  rw_lock_->writer_unlock();
 
-  if (latest_seq) {
-    BUG_ON(mapping_seq_ > latest_seq);
-    mapping_seq_ = latest_seq;
-  }
   move_append_vector(push_back_reqs, push_back_reqs_);
   push_back_reqs_.clear();
 
