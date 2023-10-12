@@ -207,7 +207,6 @@ function cleanup_server() {
 }
 
 function cleanup() {
-    wait $(jobs -p)
     for i in `seq 1 $num_nodes`
     do
 	cleanup_server $i &
