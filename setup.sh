@@ -45,3 +45,4 @@ setup_jumbo_frame
 setup_trust_dscp
 setup_pfc
 setup_dropless_rq
+sleep 1 # wait for the NIC to be up
