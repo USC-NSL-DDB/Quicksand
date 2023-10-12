@@ -222,8 +222,8 @@ function force_cleanup() {
     do
 	if [ -n "$nic_dev" ]
 	then
-            my_ssh $(ssh_ip $i) "sudo ip addr show $nic_dev | grep \"inet \" | grep -v \"10\.10\.1\.\" | \
-                                   awk '{print \$2}' | xargs -I {} sudo ip addr delete {} dev $nic_dev" &
+            my_ssh $(ssh_ip $i) "sudo ip addr show $nic_dev | grep \"inet \" | tail -n +2 | \
+                                 awk '{print \$2}' | xargs -I {} sudo ip addr delete {} dev $nic_dev" &
 	fi
     done
     wait $(jobs -p)
