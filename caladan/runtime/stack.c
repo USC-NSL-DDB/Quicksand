@@ -13,7 +13,7 @@
 
 #include "defs.h"
 
-#define STACK_BASE_ADDR	0x200000000000UL
+#define STACK_BASE_ADDR	0x100000000000UL
 
 struct tcache *stack_tcache;
 DEFINE_PERTHREAD(struct tcache_perthread, stack_pt);
