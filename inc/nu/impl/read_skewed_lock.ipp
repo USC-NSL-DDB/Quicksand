@@ -30,12 +30,16 @@ inline void ReadSkewedLock::writer_lock() {
   rcu_lock_.writer_sync();
 }
 
-inline bool ReadSkewedLock::writer_lock_if(std::function<bool()> f) {
+inline bool ReadSkewedLock::writer_lock_if(std::function<bool()> cond) {
   writer_mutex_.lock();
-  bool ret = f();
+  bool ret = cond();  // The first check to handle concurrent writers.
   if (ret) {
     Caladan::access_once(writer_barrier_) = true;
     rcu_lock_.writer_sync();
+    ret = cond(); // The second check to handle concurrent reader/writer.
+    if (unlikely(!ret)) {
+      writer_unlock();
+    }
   } else {
     writer_mutex_.unlock();
   }
