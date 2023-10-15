@@ -162,7 +162,7 @@ inline bool Runtime::attach(ProcletHeader *new_header) {
   caladan_->thread_set_owner_proclet(caladan_->thread_self(), new_header,
                                      false);
   barrier();
-  return new_header->status() >= kPresent;
+  return new_header->is_local();
 }
 
 inline void Runtime::detach() {
@@ -178,9 +178,9 @@ inline std::optional<MigrationGuard> Runtime::__reattach_and_disable_migration(
   barrier();
   if (!new_header) {
     return MigrationGuard(nullptr);
-  } else if (new_header->status() >= kPresent) {
+  } else if (new_header->is_local()) {
     new_header->rcu_lock.reader_lock(g);
-    if (likely(new_header->status() >= kPresent)) {
+    if (likely(new_header->is_local())) {
       return MigrationGuard(new_header);
     }
     new_header->rcu_lock.reader_unlock(g);
@@ -233,9 +233,9 @@ inline MigrationGuard::MigrationGuard() {
   if (header_) {
   retry:
     auto nesting_cnt = header_->rcu_lock.reader_lock(g);
-    if (unlikely(header_->status() < kPresent && nesting_cnt == 1)) {
+    if (unlikely(!header_->is_local() && nesting_cnt == 1)) {
       header_->rcu_lock.reader_unlock(g);
-      g.enable_for([&] { ProcletManager::wait_until(header_, kPresent); });
+      g.enable_for([&] { ProcletManager::wait_until_being_local(header_); });
       goto retry;
     }
   }
@@ -270,9 +270,9 @@ inline auto MigrationGuard::enable_for(F &&f) {
   auto cleaner = std::experimental::scope_exit([&] {
     retry:
       auto nesting_cnt = header_->rcu_lock.reader_lock();
-      if (unlikely(header_->status() < kPresent && nesting_cnt == 1)) {
+      if (unlikely(!header_->is_local() && nesting_cnt == 1)) {
         header_->rcu_lock.reader_unlock();
-        ProcletManager::wait_until(header_, kPresent);
+        ProcletManager::wait_until_being_local(header_);
         goto retry;
       }
   });

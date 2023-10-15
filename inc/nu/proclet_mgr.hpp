@@ -92,6 +92,7 @@ struct ProcletHeader {
   uint64_t stack_size() const;
   uint8_t &status();
   uint8_t status() const;
+  bool is_local() const;
   SpinLock &migration_spin();
   VAddrRange range() const;
 };
@@ -105,7 +106,7 @@ class ProcletManager {
   void cleanup(void *proclet_base, bool for_migration);
   static void madvise_populate(void *proclet_base, uint64_t populate_len);
   static void depopulate(void *proclet_base, uint64_t size, bool defer);
-  static void wait_until(ProcletHeader *proclet_header, ProcletStatus status);
+  static void wait_until_being_local(ProcletHeader *proclet_header);
   void insert(void *proclet_base);
   void undo_remove(void *proclet_base);
   bool remove_for_migration(void *proclet_base);

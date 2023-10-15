@@ -32,6 +32,8 @@ inline uint8_t ProcletHeader::status() const {
   return proclet_statuses[global_idx()];
 }
 
+inline bool ProcletHeader::is_local() const { return status() >= kPresent; }
+
 inline SpinLock &ProcletHeader::migration_spin() {
   return proclet_migration_spin[global_idx()];
 }
@@ -42,10 +44,10 @@ inline VAddrRange ProcletHeader::range() const {
   return VAddrRange{start_addr, end_addr};
 }
 
-inline void ProcletManager::wait_until(ProcletHeader *proclet_header,
-                                       ProcletStatus status) {
+inline void ProcletManager::wait_until_being_local(
+    ProcletHeader *proclet_header) {
   ScopedLock lock(&proclet_header->spin_lock);
-  while (Caladan::access_once(proclet_header->status()) != status) {
+  while (Caladan::access_once(proclet_header->status()) < kPresent) {
     proclet_header->cond_var.wait(&proclet_header->spin_lock);
   }
 }

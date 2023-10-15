@@ -474,7 +474,7 @@ inline WeakProclet<T> Proclet<T>::get_weak() const {
 
 template <typename T>
 inline bool Proclet<T>::is_local() const {
-  return to_proclet_header(id_)->status() == kPresent;
+  return to_proclet_header(id_)->is_local();
 }
 
 template <typename T>

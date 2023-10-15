@@ -77,7 +77,7 @@ RPCClient *RPCClientMgr::get_by_proclet_id(ProcletID proclet_id) {
 }
 
 NodeIP RPCClientMgr::get_ip_by_proclet_id(ProcletID proclet_id) {
-  if (to_proclet_header(proclet_id)->status() == kPresent) {
+  if (to_proclet_header(proclet_id)->is_local()) {
     return Caladan::get_ip();
   }
   return get_info(proclet_id).ip;
