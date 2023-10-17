@@ -83,10 +83,6 @@ class Runtime {
   T *get_root_obj(ProcletID id);
   template <typename T>
   WeakProclet<T> get_current_weak_proclet();
-  // Attach the current thread to the specified proclet.
-  bool attach(ProcletHeader *proclet_header);
-  // Detach the current thread from the current proclet.
-  void detach();
   // Attach the current thread to the specified proclet and disable migration.
   // Return std::nullopt if failed, or MigrationGuard if succeeded.
   // No migration will happen during its invocation.
@@ -97,6 +93,8 @@ class Runtime {
   // new proclet if succeeded. No migration will happen during its invocation.
   std::optional<MigrationGuard> reattach_and_disable_migration(
       ProcletHeader *new_header, const MigrationGuard &old_guard);
+  // Detach the current thread from the current proclet.
+  void detach();
   void send_rpc_resp_ok(ArchivePool<>::OASStream *oa_sstream,
                         ArchivePool<>::IASStream *ia_sstream,
                         RPCReturner *returner);
@@ -126,8 +124,8 @@ class Runtime {
   template <typename Cls, typename... A0s, typename... A1s>
   bool __run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                                 A1s &&...args);
-  std::optional<MigrationGuard> __reattach_and_disable_migration(
-      ProcletHeader *proclet_header);
+  std::optional<MigrationGuard> __attach_and_disable_migration(
+      ProcletHeader *proclet_header, const Caladan::PreemptGuard &g);
   void destroy();
   void destroy_base();
 };

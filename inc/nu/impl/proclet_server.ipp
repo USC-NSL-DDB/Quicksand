@@ -248,7 +248,6 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
       callee_header->cpu_load.start_monitor_no_sampling();
     }
   }
-  callee_header->thread_cnt.inc_unsafe();
 
   constexpr auto kNonVoidRetT = !std::is_same<RetT, void>::value;
   std::conditional_t<kNonVoidRetT, RetT, ErasedType> ret;
@@ -285,7 +284,6 @@ void ProcletServer::__run_closure(MigrationGuard *callee_guard, Cls *obj,
   }
   get_runtime()->send_rpc_resp_ok(oa_sstream, ia_sstream, &returner);
 
-  callee_header->thread_cnt.dec_unsafe();
   if constexpr (CPUMon) {
     callee_header->cpu_load.end_monitor();
   }
@@ -329,7 +327,6 @@ void ProcletServer::run_closure_locally(
       callee_header->cpu_load.start_monitor_no_sampling();
     }
   }
-  callee_header->thread_cnt.inc_unsafe();
 
   auto *obj = get_runtime()->get_root_obj<Cls>(to_proclet_id(callee_header));
 
@@ -346,7 +343,6 @@ void ProcletServer::run_closure_locally(
         },
         std::move(*states));
     std::destroy_at(states);
-    callee_header->thread_cnt.dec_unsafe();
     if constexpr (CPUMon) {
       callee_header->cpu_load.end_monitor();
     }
@@ -392,7 +388,6 @@ void ProcletServer::run_closure_locally(
         },
         std::move(*states));
     std::destroy_at(states);
-    callee_header->thread_cnt.dec_unsafe();
     if constexpr (CPUMon) {
       callee_header->cpu_load.end_monitor();
     }

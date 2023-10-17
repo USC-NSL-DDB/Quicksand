@@ -118,10 +118,8 @@ retry:
     auto return_span = return_buf.get_mut_buf();
     ret_ss.span(
         {reinterpret_cast<char *>(return_span.data()), return_span.size()});
-    if (caller_header) {
+    {
       ProcletSlabGuard slab_guard(&caller_header->slab);
-      ia >> ret;
-    } else {
       ia >> ret;
     }
     get_runtime()->archive_pool()->put_ia_sstream(ia_sstream);
@@ -289,49 +287,44 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&...states) {
   MigrationGuard caller_migration_guard;
 
   auto *caller_header = caller_migration_guard.header();
-  if (caller_header) {
-    auto callee_header = to_proclet_header(id_);
-    auto optional_callee_migration_guard =
-        get_runtime()->reattach_and_disable_migration(callee_header,
-                                                      caller_migration_guard);
-    if (optional_callee_migration_guard) {
-      // Fast path: the callee proclet is actually local, use function call.
+  auto callee_header = to_proclet_header(id_);
+  auto optional_callee_migration_guard =
+      get_runtime()->reattach_and_disable_migration(callee_header,
+                                                    caller_migration_guard);
+  if (optional_callee_migration_guard) {
+    // Fast path: the callee proclet is actually local, use function call.
 
-      constexpr auto kHasRetVal = !std::is_same_v<RetT, void>;
-      std::conditional_t<kHasRetVal, RetT, ErasedType> ret;
+    constexpr auto kHasRetVal = !std::is_same_v<RetT, void>;
+    std::conditional_t<kHasRetVal, RetT, ErasedType> ret;
 
-      {
-        ProcletSlabGuard slab_guard(&callee_header->slab);
-        using StatesTuple = std::tuple<std::decay_t<S1s>...>;
-        // Do copy for the most cases and only do move when we are sure it's
-        // safe. For copy, we assume the type implements "deep copy".
-        auto copied_states =
-            reinterpret_cast<StatesTuple *>(alloca(sizeof(StatesTuple)));
-        new (copied_states)
-            StatesTuple(pass_across_proclet(std::forward<S1s>(states))...);
-
-        if constexpr (kHasRetVal) {
-          ProcletServer::run_closure_locally<MigrEn, CPUMon, CPUSamp, T, RetT,
-                                             decltype(fn),
-                                             std::decay_t<S1s>...>(
-              &caller_migration_guard, &(*optional_callee_migration_guard),
-              slab_guard, &ret, caller_header, callee_header, fn,
-              copied_states);
-        } else {
-          ProcletServer::run_closure_locally<MigrEn, CPUMon, CPUSamp, T, RetT,
-                                             decltype(fn),
-                                             std::decay_t<S1s>...>(
-              &caller_migration_guard, &(*optional_callee_migration_guard),
-              slab_guard, nullptr, caller_header, callee_header, fn,
-              copied_states);
-        }
-      }
+    {
+      ProcletSlabGuard slab_guard(&callee_header->slab);
+      using StatesTuple = std::tuple<std::decay_t<S1s>...>;
+      // Do copy for the most cases and only do move when we are sure it's
+      // safe. For copy, we assume the type implements "deep copy".
+      auto copied_states =
+          reinterpret_cast<StatesTuple *>(alloca(sizeof(StatesTuple)));
+      new (copied_states)
+          StatesTuple(pass_across_proclet(std::forward<S1s>(states))...);
 
       if constexpr (kHasRetVal) {
-        return ret;
+        ProcletServer::run_closure_locally<MigrEn, CPUMon, CPUSamp, T, RetT,
+                                           decltype(fn), std::decay_t<S1s>...>(
+            &caller_migration_guard, &(*optional_callee_migration_guard),
+            slab_guard, &ret, caller_header, callee_header, fn, copied_states);
       } else {
-        return;
+        ProcletServer::run_closure_locally<MigrEn, CPUMon, CPUSamp, T, RetT,
+                                           decltype(fn), std::decay_t<S1s>...>(
+            &caller_migration_guard, &(*optional_callee_migration_guard),
+            slab_guard, nullptr, caller_header, callee_header, fn,
+            copied_states);
       }
+    }
+
+    if constexpr (kHasRetVal) {
+      return ret;
+    } else {
+      return;
     }
   }
 
@@ -400,21 +393,19 @@ std::optional<Future<void>> Proclet<T>::update_ref_cnt(ProcletID id,
                                                        int delta) {
   {
     MigrationGuard caller_migration_guard;
-    auto *caller_header = caller_migration_guard.header();
 
-    if (caller_header) {
-      auto *callee_header = to_proclet_header(id);
-      auto optional_callee_migration_guard =
-          get_runtime()->reattach_and_disable_migration(callee_header,
-                                                        caller_migration_guard);
-      caller_migration_guard.reset();
-      if (optional_callee_migration_guard) {
-        // Fast path: the proclet is actually local, use function call.
-        ProcletServer::update_ref_cnt_locally<T>(
-            &(*optional_callee_migration_guard), caller_header, callee_header,
-            delta);
-        return std::nullopt;
-      }
+    auto *caller_header = caller_migration_guard.header();
+    auto *callee_header = to_proclet_header(id);
+    auto optional_callee_migration_guard =
+        get_runtime()->reattach_and_disable_migration(callee_header,
+                                                      caller_migration_guard);
+    caller_migration_guard.reset();
+    if (optional_callee_migration_guard) {
+      // Fast path: the proclet is actually local, use function call.
+      ProcletServer::update_ref_cnt_locally<T>(
+          &(*optional_callee_migration_guard), caller_header, callee_header,
+          delta);
+      return std::nullopt;
     }
   }
 

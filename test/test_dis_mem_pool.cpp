@@ -48,8 +48,8 @@ bool run_single_thread() {
 
 bool run_multi_thread() {
   DistributedMemPool dis_mem_pool;
-  std::vector<rt::Thread> alloc_threads;
-  std::vector<rt::Thread> check_threads;
+  std::vector<nu::Thread> alloc_threads;
+  std::vector<nu::Thread> check_threads;
   std::vector<RemUniquePtr<std::pair<uint64_t, uint64_t>>>
       unique_ptrs[kNumThreads];
 
@@ -63,7 +63,7 @@ bool run_multi_thread() {
     });
   }
   for (auto &alloc_thread : alloc_threads) {
-    alloc_thread.Join();
+    alloc_thread.join();
   }
 
   bool match = true;
@@ -79,7 +79,7 @@ bool run_multi_thread() {
     });
   }
   for (auto &check_thread : check_threads) {
-    check_thread.Join();
+    check_thread.join();
   }
 
   return ACCESS_ONCE(match);

@@ -41,6 +41,9 @@ Controller::Controller() {
   for (uint64_t start_addr = kMinProcletHeapVAddr;
        start_addr + kMaxProcletHeapSize <= kMaxProcletHeapVAddr;
        start_addr += kMaxProcletHeapSize) {
+    if (start_addr == kMainProcletHeapVAddr) {
+      continue;
+    }
     VAddrRange range = {.start = start_addr,
                         .end = start_addr + kMaxProcletHeapSize};
     highest_bucket.push({range, 0});

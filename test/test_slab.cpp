@@ -26,7 +26,7 @@ bool run_with_size(uint64_t obj_size, uint64_t class_size) {
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 
-  auto slab = std::make_unique<SlabAllocator>(slab_id++, buf, kBufSize);
+  auto slab = std::make_unique<SlabAllocator>(slab_id, buf, kBufSize);
   uint64_t count = kBufSize / class_size;
   if (slab->get_base() != buf) {
     return false;
@@ -68,7 +68,7 @@ bool run_more_than_buf_size() {
   auto *buf = new uint8_t[kBufSize];
   std::unique_ptr<uint8_t[]> buf_gc(buf);
 
-  auto slab = std::make_unique<SlabAllocator>(slab_id++, buf, kBufSize);
+  auto slab = std::make_unique<SlabAllocator>(slab_id, buf, kBufSize);
   if (slab->allocate(kBufSize - sizeof(PtrHeader) + 1) != nullptr) {
     return false;
   }
@@ -76,6 +76,12 @@ bool run_more_than_buf_size() {
 }
 
 bool run() {
+  // Pick an unused slab id.
+  slab_id = kRuntimeSlabId + 1;
+  if (slab_id == to_slab_id(kMainProcletHeapVAddr)) {
+    slab_id++;
+  }
+
   return run_min_size() & run_mid_size() & run_max_size() &
          run_more_than_buf_size();
 }

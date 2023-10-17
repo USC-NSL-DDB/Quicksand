@@ -159,6 +159,20 @@ void Runtime::destroy_base() {
   store_release(&runtime_slab_, nullptr);
 }
 
+namespace {
+
+void setup_main_proclet(Runtime *runtime) {
+  auto *main_header = reinterpret_cast<ProcletHeader *>(kMainProcletHeapVAddr);
+  runtime->proclet_manager()->setup(main_header, kMainProcletHeapSize,
+                                    /* migratable = */ false,
+                                    /* from_migration = */ false);
+  main_header->status() = kPresent;
+  runtime->caladan()->thread_set_owner_proclet(Caladan::thread_self(),
+                                               main_header, false);
+}
+
+}  // namespace
+
 int runtime_main_init(int argc, char **argv,
                       std::function<void(int argc, char **argv)> main_func) {
   AllOptionsDesc all_options_desc;
@@ -187,17 +201,10 @@ int runtime_main_init(int argc, char **argv,
         break;
       }
     }
-    new (get_runtime_nocheck()) Runtime(ctrl_ip, mode, lpid, isol);
-    {
-      auto main_proclet = make_proclet<ErasedType>(
-          true, kMainProcletHeapSize, get_runtime()->caladan()->get_ip());
-      main_proclet.__run</* MigrEn = */ false, /* CPUMon = */ false>(
-          +[](ErasedType &_, int *argc_p, char ***argv_p,
-              std::function<void(int argc, char **argv)> *main_func_p) {
-            (*main_func_p)(*argc_p, *argv_p);
-          },
-          &argc, &argv, &main_func);
-    }
+    auto *runtime = get_runtime_nocheck();
+    new (runtime) Runtime(ctrl_ip, mode, lpid, isol);
+    setup_main_proclet(runtime);
+    main_func(argc, argv);
     get_runtime()->controller_client()->destroy_lp();
     std::destroy_at(get_runtime());
   });
