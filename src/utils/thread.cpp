@@ -17,6 +17,17 @@ Thread::trampoline_in_proclet_env(void *args) {
 
   auto *d = reinterpret_cast<join_data *>(args);
   d->func();
+
+  {
+    Caladan::PreemptGuard g;
+
+    CPULoad::end_monitor();
+    // At this point, it's safe to access proclet_header since the object is
+    // guaranteed to be alive.
+    proclet_header->slab_ref_cnt.dec(g);
+    proclet_header->thread_cnt.dec(g);
+  }
+
   d->lock.lock();
   if (d->done) {
     d->cv.signal();
@@ -31,10 +42,10 @@ Thread::trampoline_in_proclet_env(void *args) {
   {
     Caladan::PreemptGuard g;
 
-    CPULoad::end_monitor();
-    proclet_header->slab_ref_cnt.dec(g);
     get_runtime()->caladan()->thread_unset_owner_proclet(Caladan::thread_self(),
                                                          true);
+    // After this point, it's safe to migrate the proclet without migrating this
+    // thread.
   }
 
   auto runtime_stack_base =

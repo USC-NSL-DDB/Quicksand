@@ -716,8 +716,6 @@ bool Migrator::load_proclet(rt::TcpConn *c, ProcletHeader *proclet_header,
 
 thread_t *Migrator::load_one_thread(rt::TcpConn *c,
                                     ProcletHeader *proclet_header) {
-  proclet_header->thread_cnt.inc_unsafe();
-
   size_t nu_state_size;
   thread_get_nu_state(thread_self(), &nu_state_size);
   auto nu_state = std::make_unique<uint8_t[]>(nu_state_size);

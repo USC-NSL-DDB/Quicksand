@@ -163,9 +163,9 @@ inline void Runtime::detach() {
 
 inline std::optional<MigrationGuard> Runtime::__attach_and_disable_migration(
     ProcletHeader *new_header, const Caladan::PreemptGuard &g) {
-  auto *old_header = caladan_->thread_set_owner_proclet(caladan_->thread_self(),
-                                                        new_header, true);
+  caladan_->thread_set_owner_proclet(caladan_->thread_self(), new_header, true);
   barrier();
+
   if (new_header->is_local()) {
     new_header->rcu_lock.reader_lock(g);
     if (likely(new_header->is_local())) {
@@ -183,8 +183,6 @@ inline std::optional<MigrationGuard> Runtime::__attach_and_disable_migration(
     return MigrationGuard(new_header);
   }
 
-  caladan_->thread_set_owner_proclet(caladan_->thread_self(), old_header,
-                                     false);
   return std::nullopt;
 }
 
@@ -200,9 +198,16 @@ inline std::optional<MigrationGuard> Runtime::reattach_and_disable_migration(
     ProcletHeader *new_header, const MigrationGuard &old_guard) {
   Caladan::PreemptGuard g;
 
-  old_guard.header()->thread_cnt.dec(g);
-  assert(caladan_->thread_get_owner_proclet() == old_guard.header());
-  return __attach_and_disable_migration(new_header, g);
+  auto *old_header = old_guard.header();
+  old_header->thread_cnt.dec(g);
+  assert(caladan_->thread_get_owner_proclet() == old_header);
+  auto guard = __attach_and_disable_migration(new_header, g);
+  if (unlikely(!guard)) {
+    caladan_->thread_set_owner_proclet(caladan_->thread_self(), old_header,
+                                       false);
+    old_header->thread_cnt.inc(g);
+  }
+  return guard;
 }
 
 inline RuntimeSlabGuard::RuntimeSlabGuard() {

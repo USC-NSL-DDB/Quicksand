@@ -39,6 +39,10 @@ RPCReturnCode Migrator::load_thread_and_ret_val(ProcletHeader *dest_header,
   }
   get_runtime()->archive_pool()->put_ia_sstream(ia_sstream);
 
+  {
+    Caladan::PreemptGuard g;
+    dest_header->thread_cnt.inc(g);
+  }
   caladan->thread_ready(th);
   return kOk;
 }

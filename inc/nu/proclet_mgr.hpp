@@ -57,15 +57,15 @@ struct ProcletHeader {
   SpinLock spin_lock;
   CondVar cond_var;
 
-  // Used for monitoring active threads count.
-  Counter thread_cnt;
-
   // Migration related.
   std::atomic<int8_t> pending_load_cnt;
   bool migratable;
 
   //--- Fields below will be automatically copied during migration. ---/
   uint8_t copy_start[0];
+
+  // Used for monitoring active threads count.
+  Counter thread_cnt;
 
   // Root object.
   void *root_obj;

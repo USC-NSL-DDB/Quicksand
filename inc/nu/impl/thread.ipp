@@ -47,6 +47,7 @@ void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
   auto *th = get_runtime()->caladan()->thread_nu_create_with_args(
       proclet_stack, kStackSize, trampoline_in_proclet_env, join_data_);
   BUG_ON(!th);
+  header->thread_cnt.inc(g);
   get_runtime()->caladan()->thread_ready(th);
 }
 
