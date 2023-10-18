@@ -211,7 +211,7 @@ class GeneralShard {
   WeakProclet<ShardMapping> mapping_;
   std::optional<Key> l_key_;
   std::optional<Key> r_key_;
-  Container container_;
+  std::unique_ptr<Container> container_;
   ReadSkewedLock rw_lock_;
   SlabAllocator *slab_;
   CPULoad *cpu_load_;
@@ -266,7 +266,7 @@ class ContainerHandle {
 
 template <class Container>
 struct ContainerAndMetadata {
-  Container container;
+  std::unique_ptr<Container> container;
   std::size_t capacity = 0;
   uint64_t container_bucket_size = 0;
 
@@ -276,7 +276,7 @@ struct ContainerAndMetadata {
   ContainerAndMetadata &operator=(ContainerAndMetadata &&) = default;
 
   template <class Archive>
-  void save(Archive &ar) const;
+  void save_move(Archive &ar);
 
   template <class Archive>
   void load(Archive &ar);

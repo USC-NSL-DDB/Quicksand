@@ -33,28 +33,27 @@ inline Container &ContainerHandle<Container>::operator*() {
 
 template <class Container>
 template <class Archive>
-inline void ContainerAndMetadata<Container>::save(Archive &ar) const {
-  ar(capacity, container, container_bucket_size);
+inline void ContainerAndMetadata<Container>::save_move(Archive &ar) {
+  ar(capacity, *container, container_bucket_size);
+  container.reset();
 }
 
 template <class Container>
 template <class Archive>
 inline void ContainerAndMetadata<Container>::load(Archive &ar) {
   ar(capacity);
+  container = std::make_unique<Container>();
   if constexpr (Reservable<Container>) {
-    container.reserve(capacity);
+    container->reserve(capacity);
   }
-  ar(container, container_bucket_size);
+  ar(*container, container_bucket_size);
 }
 
 template <class Container>
 inline ContainerAndMetadata<Container>::ContainerAndMetadata(
     const ContainerAndMetadata &o)
     : capacity(o.capacity), container_bucket_size(o.container_bucket_size) {
-  if constexpr (Reservable<Container>) {
-    container.reserve(capacity);
-  }
-  container = o.container;
+  container = std::make_unique<Container>(*o.container);
 }
 
 template <GeneralContainerBased Container>
@@ -98,7 +97,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
       mapping_(std::move(mapping)),
       l_key_(l_key),
       r_key_(r_key),
-      container_(std::move(args)...),
+      container_(std::make_unique<Container>(std::move(args)...)),
       deleted_(false),
       cofounder_(true) {
   ProcletHeader *proclet_header;
@@ -113,14 +112,14 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
 
   if constexpr (Reservable<Container>) {
     auto old_slab_usage = slab_->get_cur_usage();
-    container_.reserve(kReserveProbeSize);
+    container_->reserve(kReserveProbeSize);
     auto new_slab_usage = slab_->get_cur_usage();
     container_bucket_size_ =
         std::ceil(static_cast<float>(new_slab_usage - old_slab_usage) /
                   kReserveProbeSize);
     auto reserve_size =
         max_shard_bytes * kReserveContainerSizeRatio / container_bucket_size_;
-    container_.reserve(reserve_size);
+    container_->reserve(reserve_size);
     initial_slab_usage_ = slab_->get_cur_usage();
     initial_size_ = 0;
     size_thresh_ = kAlmostFullThresh * reserve_size;
@@ -178,7 +177,7 @@ void GeneralShard<Container>::init_range_and_data(
   r_key_ = r_key;
   container_ = std::move(container_and_metadata.container);
   initial_slab_usage_ = slab_->get_cur_usage();
-  initial_size_ = container_.size();
+  initial_size_ = container_->size();
   container_bucket_size_ = container_and_metadata.container_bucket_size;
   real_max_shard_bytes_ = max_shard_bytes_ / kAlmostFullThresh;
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
@@ -201,7 +200,7 @@ inline Container GeneralShard<Container>::get_container_copy() {
 
   RuntimeSlabGuard slab_guard;
 
-  Container c = container_;
+  Container c = *container_;
   rw_lock_.reader_unlock();
 
   return c;
@@ -210,7 +209,7 @@ inline Container GeneralShard<Container>::get_container_copy() {
 template <GeneralContainerBased Container>
 inline ContainerHandle<Container>
 GeneralShard<Container>::get_container_handle() {
-  return ContainerHandle<Container>(&container_, this);
+  return ContainerHandle<Container>(container_.get(), this);
 }
 
 template <GeneralContainerBased Container>
@@ -221,7 +220,7 @@ void GeneralShard<Container>::split() {
 
   if constexpr (Reservable<Container>) {
     auto diff_data_size = cur_slab_usage - initial_slab_usage_;
-    auto diff_size = container_.size() - initial_size_;
+    auto diff_size = container_->size() - initial_size_;
     auto data_size = static_cast<float>(diff_data_size) / diff_size;
     new_container_capacity =
         max_shard_bytes_ / (data_size + container_bucket_size_);
@@ -231,14 +230,14 @@ void GeneralShard<Container>::split() {
     MigrationGuard migration_guard;
     std::unique_ptr<Container> latter_half_container;
 
-    BUG_ON(container_.empty());
+    BUG_ON(container_->empty());
     if constexpr (kIsStatelessService) {
       mid_k = l_key_.value_or(std::numeric_limits<Key>::min()) / 2 +
               r_key_.value_or(std::numeric_limits<Key>::max()) / 2;
     } else {
       RuntimeSlabGuard slab_guard;
       latter_half_container.reset(new Container());
-      container_.split(&mid_k, latter_half_container.get());
+      container_->split(&mid_k, latter_half_container.get());
     }
 
     // The if below avoids creating an illegal empty new shard, which could
@@ -252,17 +251,17 @@ void GeneralShard<Container>::split() {
       } else {
         if constexpr (kIsStatelessService) {
           RuntimeSlabGuard slab_guard;
-          latter_half_container.reset(new Container(container_));
+          latter_half_container.reset(new Container(*container_));
         }
         ContainerAndMetadata<Container> container_and_metadata;
-        container_and_metadata.container = std::move(*latter_half_container);
         std::size_t min_capacity =
             latter_half_container->size() / kAlmostFullThresh + 1;
         container_and_metadata.capacity =
             std::max(new_container_capacity, min_capacity);
+        container_and_metadata.container = std::move(latter_half_container);
         container_and_metadata.container_bucket_size = container_bucket_size_;
         new_shard.run(&GeneralShard::init_range_and_data, mid_k, r_key_,
-                      container_and_metadata);
+                      std::move(container_and_metadata));
       }
       r_key_ = mid_k;
     }
@@ -275,7 +274,7 @@ void GeneralShard<Container>::split() {
     real_max_shard_bytes_ = new_slab_usage + kSlabFragmentationHeadroom;
   }
   if constexpr (Reservable<Container>) {
-    size_thresh_ = std::max(size_thresh_, container_.size());
+    size_thresh_ = std::max(size_thresh_, container_->size());
   }
 }
 
@@ -315,7 +314,7 @@ template <GeneralContainerBased Container>
 void GeneralShard<Container>::split_with_reader_lock() {
   rw_lock_.reader_unlock();
   if (rw_lock_.writer_lock_if(
-          [&] { return should_split(container_.size()); })) {
+          [&] { return should_split(container_->size()); })) {
     split();
     rw_lock_.writer_unlock();
   }
@@ -344,12 +343,10 @@ void GeneralShard<Container>::try_delete_self_with_reader_lock(
     bool merge_left) {
   rw_lock_.reader_unlock();
   rw_lock_.writer_lock();
-  if (container_.empty() && !deleted_) {
+  if (container_->empty() && !deleted_) {
     if (likely(mapping_.run(&ShardMapping::delete_shard, l_key_, self_,
                             merge_left, Caladan::get_ip(),
                             std::optional<float>()))) {
-      // Recycle heap space.
-      container_ = Container();
       deleted_ = true;
     }
   }
@@ -401,9 +398,9 @@ inline bool GeneralShard<Container>::try_insert(DataEntry entry)
 
   std::size_t size;
   if constexpr (HasVal<Container>) {
-    size = container_.insert(std::move(entry.first), std::move(entry.second));
+    size = container_->insert(std::move(entry.first), std::move(entry.second));
   } else {
-    size = container_.insert(std::move(entry));
+    size = container_->insert(std::move(entry));
   }
 
   if (unlikely(should_split(size))) {
@@ -429,7 +426,7 @@ inline bool GeneralShard<Container>::try_push_back(std::optional<Key> l_key,
     return false;
   }
 
-  auto size = container_.push_back(std::move(v));
+  auto size = container_->push_back(std::move(v));
 
   if (unlikely(size == 1)) {
     ScopedLock lock(&empty_mutex_);
@@ -459,7 +456,7 @@ inline bool GeneralShard<Container>::try_push_front(std::optional<Key> l_key,
     return false;
   }
 
-  auto size = container_.push_front(std::move(v));
+  auto size = container_->push_front(std::move(v));
 
   if (unlikely(size == 1)) {
     ScopedLock lock(&empty_mutex_);
@@ -488,7 +485,7 @@ GeneralShard<Container>::try_front(std::optional<Key> l_key,
     return std::nullopt;
   }
 
-  Val v = container_.front();
+  Val v = container_->front();
   rw_lock_.reader_unlock();
   return v;
 }
@@ -507,7 +504,7 @@ retry:
     return std::nullopt;
   }
 
-  auto front = container_.try_pop_front(1);
+  auto front = container_->try_pop_front(1);
   if (unlikely(front.empty())) {
     if (r_key_) {
       try_delete_self_with_reader_lock(/* merge_left = */ false);
@@ -515,7 +512,7 @@ retry:
     } else {
       ScopedLock lock(&empty_mutex_);
 
-      while (container_.empty()) {
+      while (container_->empty()) {
         empty_cv_.wait(&empty_mutex_);
       }
       goto retry;
@@ -541,7 +538,7 @@ GeneralShard<Container>::try_pop_front_nb(std::optional<Key> l_key,
     return std::nullopt;
   }
 
-  auto front_elems = container_.try_pop_front(num);
+  auto front_elems = container_->try_pop_front(num);
   if (unlikely(front_elems.size() < num && r_key_)) {
     try_delete_self_with_reader_lock(/* merge_left = */ false);
   } else {
@@ -562,7 +559,7 @@ inline std::optional<typename Container::Val> GeneralShard<Container>::try_back(
     return std::nullopt;
   }
 
-  Val v = container_.back();
+  Val v = container_->back();
   rw_lock_.reader_unlock();
   return v;
 }
@@ -581,7 +578,7 @@ retry:
     return std::nullopt;
   }
 
-  auto back = container_.try_pop_back(1);
+  auto back = container_->try_pop_back(1);
   if (unlikely(back.empty())) {
     if (l_key_) {
       try_delete_self_with_reader_lock(/* merge_left = */ true);
@@ -589,7 +586,7 @@ retry:
     } else {
       ScopedLock lock(&empty_mutex_);
 
-      while (container_.empty()) {
+      while (container_->empty()) {
         empty_cv_.wait(&empty_mutex_);
       }
       goto retry;
@@ -615,7 +612,7 @@ GeneralShard<Container>::try_pop_back_nb(std::optional<Key> l_key,
     return std::nullopt;
   }
 
-  auto back_elems = container_.try_pop_back(num);
+  auto back_elems = container_->try_pop_back(num);
   if (unlikely(back_elems.size() < num && l_key_)) {
     try_delete_self_with_reader_lock(/* merge_left = */ true);
   } else {
@@ -639,7 +636,7 @@ GeneralShard<Container>::try_handle_batch(ReqBatch &batch) {
   if constexpr (PushBackAble<Container>) {
     if (!batch.push_back_reqs.empty()) {
       auto [succeed, prev_empty] =
-          container_.push_back_batch_if(cond, batch.push_back_reqs);
+          container_->push_back_batch_if(cond, batch.push_back_reqs);
       if (unlikely(!succeed)) {
         split_with_reader_lock();
         return std::move(batch);
@@ -653,7 +650,7 @@ GeneralShard<Container>::try_handle_batch(ReqBatch &batch) {
 
   if constexpr (InsertAble<Container>) {
     if (!batch.insert_reqs.empty()) {
-      if (unlikely(!container_.insert_batch_if(cond, batch.insert_reqs))) {
+      if (unlikely(!container_->insert_batch_if(cond, batch.insert_reqs))) {
         split_with_reader_lock();
         return std::move(batch);
       }
@@ -676,7 +673,7 @@ GeneralShard<Container>::find_data(Key k)
     return std::make_pair(false, std::nullopt);
   }
 
-  auto iter_val = container_.find_data(std::move(k));
+  auto iter_val = container_->find_data(std::move(k));
 
   rw_lock_.reader_unlock();
   return std::make_pair(true, std::move(iter_val));
@@ -689,7 +686,7 @@ GeneralShard<Container>::find(Key k)
 {
   // Currently, the invocation happens only after sealing the DS. Thus we can
   // bypass all the redundant checks.
-  auto iter = container_.find(std::move(k));
+  auto iter = container_->find(std::move(k));
   return std::make_pair(*iter, std::move(iter));
 }
 
@@ -700,8 +697,8 @@ GeneralShard<Container>::find_data_by_order(std::size_t order)
 {
   // Currently, the invocation happens only after sealing the DS. Thus we can
   // bypass all the redundant checks.
-  auto iter = container_.find_by_order(order);
-  if (unlikely(iter == container_.cend())) {
+  auto iter = container_->find_by_order(order);
+  if (unlikely(iter == container_->cend())) {
     return std::nullopt;
   }
   return *iter;
@@ -728,10 +725,10 @@ GeneralShard<Container>::get_next_block(ConstIterator prev_iter,
   requires ConstIterable<Container>
 {
   ConstIterator end_iter;
-  if (likely(container_.cend() - prev_iter > block_size + 1)) {
+  if (likely(container_->cend() - prev_iter > block_size + 1)) {
     end_iter = prev_iter + block_size + 1;
   } else {
-    end_iter = container_.cend();
+    end_iter = container_->cend();
   }
   return std::vector<IterVal>(std::to_address(prev_iter + 1),
                               std::to_address(end_iter));
@@ -747,7 +744,7 @@ uint32_t GeneralShard<Container>::__get_next_block_with_iters(
 
   uint32_t i;
   for (i = 0; i < block_size; ++i, ++block_iter) {
-    if (unlikely(++iter == container_.cend())) {
+    if (unlikely(++iter == container_->cend())) {
       break;
     }
     *block_iter = std::pair(*iter, iter);
@@ -769,7 +766,7 @@ GeneralShard<Container>::get_prev_block_with_iters(ConstIterator succ_iter,
 
   uint32_t i;
   for (i = 0; i < block_size; i++) {
-    if (unlikely(iter-- == container_.cbegin())) {
+    if (unlikely(iter-- == container_->cbegin())) {
       break;
     }
     block[i] = std::pair(*iter, iter);
@@ -787,10 +784,10 @@ GeneralShard<Container>::get_prev_block(ConstIterator succ_iter,
   requires ConstIterable<Container>
 {
   ConstIterator begin_iter;
-  if (likely(succ_iter - container_.cbegin() > block_size)) {
+  if (likely(succ_iter - container_->cbegin() > block_size)) {
     begin_iter = succ_iter - block_size;
   } else {
-    begin_iter = container_.cbegin();
+    begin_iter = container_->cbegin();
   }
   return std::vector<IterVal>(std::to_address(begin_iter),
                               std::to_address(succ_iter));
@@ -818,10 +815,10 @@ GeneralShard<Container>::get_next_rblock(ConstReverseIterator prev_iter,
   requires ConstReverseIterable<Container>
 {
   ConstReverseIterator end_iter;
-  if (likely(container_.crend() - prev_iter > block_size + 1)) {
+  if (likely(container_->crend() - prev_iter > block_size + 1)) {
     end_iter = prev_iter + block_size + 1;
   } else {
-    end_iter = container_.crend();
+    end_iter = container_->crend();
   }
   auto span =
       std::span(std::to_address(end_iter - 1), std::to_address(prev_iter));
@@ -838,7 +835,7 @@ uint32_t GeneralShard<Container>::__get_next_rblock_with_iters(
 
   uint32_t i;
   for (i = 0; i < block_size; ++i, ++block_iter) {
-    if (unlikely(++iter == container_.crend())) {
+    if (unlikely(++iter == container_->crend())) {
       break;
     }
     *block_iter = std::pair(*iter, iter);
@@ -860,7 +857,7 @@ GeneralShard<Container>::get_prev_rblock_with_iters(
 
   uint32_t i;
   for (i = 0; i < block_size; i++) {
-    if (unlikely(iter-- == container_.crbegin())) {
+    if (unlikely(iter-- == container_->crbegin())) {
       break;
     }
     block[i] = std::pair(*iter, iter);
@@ -878,10 +875,10 @@ GeneralShard<Container>::get_prev_rblock(ConstReverseIterator succ_iter,
   requires ConstReverseIterable<Container>
 {
   ConstReverseIterator begin_iter;
-  if (likely(succ_iter - container_.crbegin() > block_size)) {
+  if (likely(succ_iter - container_->crbegin() > block_size)) {
     begin_iter = succ_iter - block_size;
   } else {
-    begin_iter = container_.crbegin();
+    begin_iter = container_->crbegin();
   }
   auto span = std::span(std::to_address(succ_iter - 1),
                         std::to_address(begin_iter - 1));
@@ -896,8 +893,8 @@ GeneralShard<Container>::get_front_block_with_iters(uint32_t block_size)
 {
   std::vector<std::pair<IterVal, ConstIterator>> block;
   block.resize(block_size + 1);
-  block[0] = std::pair(*container_.cbegin(), container_.cbegin());
-  auto size = __get_next_block_with_iters(++block.begin(), container_.cbegin(),
+  block[0] = std::pair(*container_->cbegin(), container_->cbegin());
+  auto size = __get_next_block_with_iters(++block.begin(), container_->cbegin(),
                                           block_size);
   block.resize(size + 1);
   return block;
@@ -910,15 +907,15 @@ GeneralShard<Container>::get_front_block(uint32_t block_size)
   requires ConstIterable<Container>
 {
   ConstIterator end_iter;
-  if (likely(container_.cend() - container_.cbegin() > block_size)) {
-    end_iter = container_.cbegin() + block_size;
+  if (likely(container_->cend() - container_->cbegin() > block_size)) {
+    end_iter = container_->cbegin() + block_size;
   } else {
-    end_iter = container_.cend();
+    end_iter = container_->cend();
   }
   return std::make_pair(
-      std::vector<IterVal>(std::to_address(container_.cbegin()),
+      std::vector<IterVal>(std::to_address(container_->cbegin()),
                            std::to_address(end_iter)),
-      container_.cbegin());
+      container_->cbegin());
 }
 
 template <GeneralContainerBased Container>
@@ -929,9 +926,9 @@ GeneralShard<Container>::get_rfront_block_with_iters(uint32_t block_size)
 {
   std::vector<std::pair<IterVal, ConstReverseIterator>> block;
   block.resize(block_size + 1);
-  block[0] = std::pair(*container_.crbegin(), container_.crbegin());
+  block[0] = std::pair(*container_->crbegin(), container_->crbegin());
   auto size = __get_next_rblock_with_iters(++block.begin(),
-                                           container_.crbegin(), block_size);
+                                           container_->crbegin(), block_size);
   block.resize(size + 1);
   return block;
 }
@@ -943,15 +940,15 @@ GeneralShard<Container>::get_rfront_block(uint32_t block_size)
   requires ConstReverseIterable<Container>
 {
   ConstReverseIterator end_iter;
-  if (likely(container_.crend() - container_.crbegin() > block_size)) {
-    end_iter = container_.crbegin() + block_size;
+  if (likely(container_->crend() - container_->crbegin() > block_size)) {
+    end_iter = container_->crbegin() + block_size;
   } else {
-    end_iter = container_.crend();
+    end_iter = container_->crend();
   }
   auto span = std::span(std::to_address(end_iter - 1),
-                        std::to_address(container_.crbegin() - 1));
+                        std::to_address(container_->crbegin() - 1));
   return std::make_pair(std::vector<IterVal>(span.rbegin(), span.rend()),
-                        container_.crbegin());
+                        container_->crbegin());
 }
 
 template <GeneralContainerBased Container>
@@ -960,7 +957,7 @@ std::vector<
 GeneralShard<Container>::get_back_block_with_iters(uint32_t block_size)
   requires ConstIterable<Container>
 {
-  return get_prev_block_with_iters(container_.cend(), block_size);
+  return get_prev_block_with_iters(container_->cend(), block_size);
 }
 
 template <GeneralContainerBased Container>
@@ -969,8 +966,8 @@ std::pair<std::vector<typename Container::IterVal>,
 GeneralShard<Container>::get_back_block(uint32_t block_size)
   requires ConstIterable<Container>
 {
-  auto data = get_prev_block(container_.cend(), block_size);
-  return std::make_pair(std::move(data), container_.cend() - data.size());
+  auto data = get_prev_block(container_->cend(), block_size);
+  return std::make_pair(std::move(data), container_->cend() - data.size());
 }
 
 template <GeneralContainerBased Container>
@@ -979,7 +976,7 @@ std::vector<std::pair<typename Container::IterVal,
 GeneralShard<Container>::get_rback_block_with_iters(uint32_t block_size)
   requires ConstReverseIterable<Container>
 {
-  return get_prev_rblock_with_iters(container_.crend(), block_size);
+  return get_prev_rblock_with_iters(container_->crend(), block_size);
 }
 
 template <GeneralContainerBased Container>
@@ -988,8 +985,8 @@ std::pair<std::vector<typename Container::IterVal>,
 GeneralShard<Container>::get_rback_block(uint32_t block_size)
   requires ConstReverseIterable<Container>
 {
-  auto data = get_prev_rblock(container_.crend(), block_size);
-  return std::make_pair(std::move(data), container_.crend() - data.size());
+  auto data = get_prev_rblock(container_->crend(), block_size);
+  return std::make_pair(std::move(data), container_->crend() - data.size());
 }
 
 template <GeneralContainerBased Container>
@@ -997,7 +994,7 @@ inline typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::cbegin()
   requires ConstIterable<Container>
 {
-  return container_.cbegin();
+  return container_->cbegin();
 }
 
 template <GeneralContainerBased Container>
@@ -1005,7 +1002,7 @@ inline typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::clast()
   requires ConstIterable<Container>
 {
-  return --container_.cend();
+  return --container_->cend();
 }
 
 template <GeneralContainerBased Container>
@@ -1013,7 +1010,7 @@ inline typename GeneralShard<Container>::ConstIterator
 GeneralShard<Container>::cend()
   requires ConstIterable<Container>
 {
-  return container_.cend();
+  return container_->cend();
 }
 
 template <GeneralContainerBased Container>
@@ -1021,7 +1018,7 @@ inline typename GeneralShard<Container>::ConstReverseIterator
 GeneralShard<Container>::crbegin()
   requires ConstReverseIterable<Container>
 {
-  return container_.crbegin();
+  return container_->crbegin();
 }
 
 template <GeneralContainerBased Container>
@@ -1029,7 +1026,7 @@ inline typename GeneralShard<Container>::ConstReverseIterator
 GeneralShard<Container>::crlast()
   requires ConstReverseIterable<Container>
 {
-  return --container_.crend();
+  return --container_->crend();
 }
 
 template <GeneralContainerBased Container>
@@ -1037,17 +1034,17 @@ inline typename GeneralShard<Container>::ConstReverseIterator
 GeneralShard<Container>::crend()
   requires ConstReverseIterable<Container>
 {
-  return container_.crend();
+  return container_->crend();
 }
 
 template <GeneralContainerBased Container>
 inline bool GeneralShard<Container>::empty() {
-  return container_.empty();
+  return container_->empty();
 }
 
 template <GeneralContainerBased Container>
 inline std::size_t GeneralShard<Container>::size() {
-  return container_.size();
+  return container_->size();
 }
 
 template <GeneralContainerBased Container>
@@ -1058,7 +1055,7 @@ inline Container::Key GeneralShard<Container>::split_at_end()
     return *r_key_;
   }
 
-  r_key_ = l_key_.value_or(0) + container_.size();
+  r_key_ = l_key_.value_or(0) + container_->size();
   return *r_key_;
 }
 
@@ -1067,7 +1064,7 @@ inline Container::Key GeneralShard<Container>::rebase(Key new_l_key)
   requires GeneralContainer::kContiguousIterator
 {
   l_key_ = new_l_key;
-  auto new_r_key = container_.rebase(new_l_key);
+  auto new_r_key = container_->rebase(new_l_key);
   if (r_key_) {
     r_key_ = new_r_key;
   }
@@ -1094,10 +1091,10 @@ GeneralShard<Container>::try_compute_on(Key k, uintptr_t fn_addr,
   }
 
   if constexpr (std::is_void_v<RetT>) {
-    container_.compute(fn, std::move(states)...);
+    container_->compute(fn, std::move(states)...);
     return true;
   } else {
-    return container_.compute(fn, std::move(states)...);
+    return container_->compute(fn, std::move(states)...);
   }
 }
 
@@ -1170,7 +1167,7 @@ std::optional<bool> GeneralShard<Container>::try_erase(Key k)
     return std::nullopt;
   }
 
-  auto erased = container_.erase(k);
+  auto erased = container_->erase(k);
 
   rw_lock_.reader_unlock();
 
@@ -1202,10 +1199,10 @@ GeneralShard<Container>::try_run(Key k, uintptr_t fn_addr, S0s... states) {
   }
 
   if constexpr (std::is_void_v<RetT>) {
-    size = container_.pass_through(fn, std::move(k), std::move(states)...);
+    size = container_->pass_through(fn, std::move(k), std::move(states)...);
     return true;
   } else {
-    auto p = container_.pass_through(fn, std::move(k), std::move(states)...);
+    auto p = container_->pass_through(fn, std::move(k), std::move(states)...);
     size = p.second;
     return p.first;
   }
