@@ -3,6 +3,7 @@
 #include <boost/circular_buffer.hpp>
 #include <map>
 #include <optional>
+#include <set>
 #include <stack>
 #include <unordered_map>
 #include <utility>
@@ -54,7 +55,8 @@ class GeneralShardMapping {
                       std::optional<uint32_t> max_shard_cnt,
                       std::optional<NodeIP> pinned_ip);
   ~GeneralShardMapping();
-  std::variant<LogUpdates, Snapshot> get_updates(uint64_t start_seq);
+  std::variant<LogUpdates, Snapshot> get_updates(uint64_t client_last_seq,
+                                                 uint64_t client_cur_seq);
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_all_keys_and_shards();
   WeakProclet<Shard> get_shard_for_key(std::optional<Key> key);
@@ -67,33 +69,45 @@ class GeneralShardMapping {
                     bool merge_left, NodeIP ip, std::optional<float> cpu_load);
   void concat(WeakProclet<GeneralShardMapping> tail)
     requires(Shard::GeneralContainer::kContiguousIterator);
-  void inc_ref_cnt();
-  void dec_ref_cnt();
   void seal();
   void unseal();
+  void client_register(uint64_t seq);
+  void client_unregister(uint64_t seq);
 
  private:
   constexpr static double kProcletOverprovisionFactor = 3;
   constexpr static uint32_t kLogSize = 256;
   constexpr static uint32_t kCreateLocalShardThresh = 256;
+  constexpr static uint32_t kGCIntervalUs = 100 * kOneMilliSecond;
+
+  struct ShardWithLifetime {
+    Proclet<Shard> shard;
+    uint64_t start_seq;
+    uint64_t end_seq;
+  };
 
   WeakProclet<GeneralShardMapping> self_;
   uint32_t max_shard_bytes_;
   uint32_t proclet_capacity_;
   std::optional<uint32_t> max_shard_cnt_;
   std::optional<NodeIP> pinned_ip_;
-  std::multimap<std::optional<Key>, Proclet<Shard>> mapping_;
+  std::multimap<std::optional<Key>, ShardWithLifetime> mapping_;
+  std::multiset<uint64_t> client_seqs_;
   uint32_t pending_creations_;
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;
   CondVar oos_cv_;
-  std::unordered_map<NodeIP, std::stack<Proclet<Shard>>> deleted_shards_;
+  std::list<ShardWithLifetime> shards_to_gc_;
   Log<Shard> log_;
+  uint64_t last_gc_us_;
+  Future<void> shard_destruction_;
   Mutex mutex_;
 
   bool out_of_shards();
   std::vector<Proclet<Shard>> move_all_shards();
   Snapshot get_snapshot(const ScopedLock<Mutex> &lock);
+  void check_gc_locked();
+  void gc();
 };
 
 }  // namespace nu

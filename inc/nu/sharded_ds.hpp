@@ -154,6 +154,7 @@ class ShardedDataStructure {
   using KeyToShardsMapping = std::multimap<std::optional<Key>, ShardAndReqs>;
 
   Proclet<ShardMapping> mapping_;
+  uint64_t last_mapping_seq_;
   uint64_t mapping_seq_;
   KeyToShardsMapping key_to_shards_;
   std::vector<Val> push_back_reqs_;

@@ -1,5 +1,6 @@
 #include "nu/utils/caladan.hpp"
 #include "nu/utils/scoped_lock.hpp"
+#include "nu/utils/time.hpp"
 
 namespace nu {
 
@@ -10,7 +11,7 @@ void LogEntry<Shard>::serialize(Archive &ar) {
 }
 
 template <class Shard>
-Log<Shard>::Log(uint32_t size) : seq_(0), cb_(size) {}
+Log<Shard>::Log(uint32_t size) : seq_(1), cb_(size) {}
 
 template <class Shard>
 std::optional<std::vector<LogEntry<Shard>>> Log<Shard>::from(
@@ -56,9 +57,13 @@ GeneralShardMapping<Shard>::GeneralShardMapping(
       pinned_ip_(pinned_ip),
       pending_creations_(0),
       ref_cnt_(1),
-      log_(kLogSize) {
-  Caladan::PreemptGuard g;
-  self_ = get_runtime()->get_current_weak_proclet<GeneralShardMapping>();
+      log_(kLogSize),
+      last_gc_us_(0) {
+  {
+    Caladan::PreemptGuard g;
+    self_ = get_runtime()->get_current_weak_proclet<GeneralShardMapping>();
+  }
+  client_seqs_.emplace(0);
 }
 
 template <class Shard>
@@ -88,8 +93,10 @@ void GeneralShardMapping<Shard>::unseal() {
 }
 
 template <class Shard>
-void GeneralShardMapping<Shard>::inc_ref_cnt() {
+void GeneralShardMapping<Shard>::client_register(uint64_t seq) {
   ScopedLock lock(&mutex_);
+
+  client_seqs_.emplace(seq);
 
   while (!Caladan::access_once(ref_cnt_)) {
     // Wait until it is unsealed.
@@ -100,21 +107,33 @@ void GeneralShardMapping<Shard>::inc_ref_cnt() {
 }
 
 template <class Shard>
-void GeneralShardMapping<Shard>::dec_ref_cnt() {
+void GeneralShardMapping<Shard>::client_unregister(uint64_t seq) {
   ScopedLock lock(&mutex_);
 
   BUG_ON(!ref_cnt_);
   ref_cnt_--;
   ref_cnt_cv_.signal();  // unblock seal().
+
+  auto iter = client_seqs_.find(seq);
+  BUG_ON(iter == client_seqs_.end());
+  client_seqs_.erase(iter);
 }
 
 template <class Shard>
 std::variant<typename GeneralShardMapping<Shard>::LogUpdates,
              typename GeneralShardMapping<Shard>::Snapshot>
-GeneralShardMapping<Shard>::get_updates(uint64_t start_seq) {
+GeneralShardMapping<Shard>::get_updates(uint64_t client_last_seq,
+                                        uint64_t client_cur_seq) {
   ScopedLock lock(&mutex_);
 
-  auto optional_log_updates = log_.from(start_seq);
+  check_gc_locked();
+
+  auto iter = client_seqs_.find(client_last_seq);
+  BUG_ON(iter == client_seqs_.end());
+  client_seqs_.erase(iter);
+  client_seqs_.emplace(client_cur_seq);
+
+  auto optional_log_updates = log_.from(client_cur_seq + 1);
   if (likely(optional_log_updates)) {
     return *optional_log_updates;
   } else {
@@ -128,8 +147,8 @@ GeneralShardMapping<Shard>::get_snapshot(const ScopedLock<Mutex> &lock) {
   Snapshot snapshot;
 
   snapshot.first = log_.last_seq();
-  for (auto &[k, p] : mapping_) {
-    snapshot.second.emplace(k, p.get_weak());
+  for (auto &[k, sl] : mapping_) {
+    snapshot.second.emplace(k, sl.shard.get_weak());
   }
 
   return snapshot;
@@ -144,8 +163,8 @@ GeneralShardMapping<Shard>::get_all_keys_and_shards() {
   {
     ScopedLock lock(&mutex_);
 
-    for (auto &[k, s] : mapping_) {
-      keys_and_shards.emplace_back(k, s.get_weak());
+    for (auto &[k, sl] : mapping_) {
+      keys_and_shards.emplace_back(k, sl.shard.get_weak());
     }
   }
 
@@ -158,7 +177,7 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::get_shard_for_key(
   ScopedLock lock(&mutex_);
 
   auto iter = --mapping_.upper_bound(key);
-  auto shard = iter->second.get_weak();
+  auto shard = iter->second.shard.get_weak();
   return shard;
 }
 
@@ -168,8 +187,8 @@ std::vector<Proclet<Shard>> GeneralShardMapping<Shard>::move_all_shards() {
 
   {
     ScopedLock lock(&mutex_);
-    for (auto &[k, s] : mapping_) {
-      shards.emplace_back(std::move(s));
+    for (auto &[k, sl] : mapping_) {
+      shards.emplace_back(std::move(sl.shard));
     }
   }
 
@@ -199,7 +218,8 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
     ScopedLock lock(&mutex_);
 
     log_.append(LogEntry<Shard>::kInsert, l_key, new_weak_shard);
-    mapping_.emplace(l_key, std::move(new_shard));
+    mapping_.emplace(l_key,
+                     ShardWithLifetime{std::move(new_shard), log_.last_seq()});
     pending_creations_--;
   }
   return new_weak_shard;
@@ -221,12 +241,12 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
     pending_creations_++;
 
     // Try to reuse deleted shards, useful for DSes like queue & stack.
-    auto &deleted_shards = deleted_shards_[ip];
-    if (!deleted_shards.empty()) {
-      new_shard = std::move(deleted_shards.top());
-      deleted_shards.pop();
-      reuse = true;
-    }
+    // auto &deleted_shards = shards_to_gc_[ip];
+    // if (!deleted_shards.empty()) {
+    //   new_shard = std::move(deleted_shards.top());
+    //   deleted_shards.pop();
+    //   reuse = true;
+    // }
   }
 
   if (!new_shard) {
@@ -246,7 +266,8 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
   {
     ScopedLock lock(&mutex_);
     log_.append(LogEntry<Shard>::kInsert, l_key, new_weak_shard);
-    mapping_.emplace(std::move(l_key), std::move(new_shard));
+    mapping_.emplace(std::move(l_key),
+                     ShardWithLifetime{std::move(new_shard), log_.last_seq()});
     pending_creations_--;
   }
 
@@ -260,11 +281,15 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
                                               std::optional<float> cpu_load) {
   ScopedLock<Mutex> lock(&mutex_);
 
+  printf("DEL\n");
+
+  check_gc_locked();
+
   auto [begin_it, end_it] = mapping_.equal_range(l_key);
 
   decltype(begin_it) it;
   for (it = begin_it; it != end_it; ++it) {
-    if (it->second == shard) {
+    if (it->second.shard == shard) {
       break;
     }
   }
@@ -276,16 +301,16 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
     BUG_ON(it == mapping_.begin());
     std::optional<Key> r_key =
         next_it != mapping_.end() ? next_it->first : std::nullopt;
-    if (unlikely(!prev_it->second.run(&Shard::try_merge,
-                                      /* merge_left = */ false, r_key,
-                                      cpu_load))) {
+    if (unlikely(!prev_it->second.shard.run(&Shard::try_merge,
+                                            /* merge_left = */ false, r_key,
+                                            cpu_load))) {
       return false;
     }
   } else {
     BUG_ON(next_it == mapping_.end());
-    if (unlikely(!next_it->second.run(&Shard::try_merge,
-                                      /* merge_left = */ true, l_key,
-                                      cpu_load))) {
+    if (unlikely(!next_it->second.shard.run(&Shard::try_merge,
+                                            /* merge_left = */ true, l_key,
+                                            cpu_load))) {
       return false;
     }
     auto next_node = mapping_.extract(next_it);
@@ -296,7 +321,8 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
   log_.append(
       merge_left ? LogEntry<Shard>::kMergeLeft : LogEntry<Shard>::kMergeRight,
       it->first, shard);
-  deleted_shards_[ip].emplace(std::move(it->second));
+  it->second.end_seq = log_.last_seq();
+  shards_to_gc_.emplace_back(std::move(it->second));
   mapping_.erase(it);
   oos_cv_.signal();
   return true;
@@ -307,12 +333,13 @@ void GeneralShardMapping<Shard>::concat(WeakProclet<GeneralShardMapping> tail)
   requires(Shard::GeneralContainer::kContiguousIterator)
 {
   auto all_tail_shards = tail.run_async(&GeneralShardMapping::move_all_shards);
-  auto end_key = (--mapping_.end())->second.run(&Shard::split_at_end);
+  auto end_key = (--mapping_.end())->second.shard.run(&Shard::split_at_end);
 
   for (auto &tail_shard : all_tail_shards.get()) {
     log_.append(LogEntry<Shard>::kInsert, end_key, tail_shard.get_weak());
-    auto iter = mapping_.emplace(end_key, std::move(tail_shard));
-    end_key = iter->second.run(&Shard::rebase, end_key);
+    auto iter = mapping_.emplace(
+        end_key, ShardWithLifetime{std::move(tail_shard), log_.last_seq()});
+    end_key = iter->second.shard.run(&Shard::rebase, end_key);
   }
 }
 
@@ -325,6 +352,33 @@ inline bool GeneralShardMapping<Shard>::out_of_shards() {
   }
 
   return false;
+}
+
+template <class Shard>
+inline void GeneralShardMapping<Shard>::check_gc_locked() {
+  std::vector<Proclet<Shard>> gc;
+
+  auto cur_us = Time::microtime();
+  if (cur_us < last_gc_us_ + kGCIntervalUs) {
+    return;
+  }
+
+  last_gc_us_ = cur_us;
+  for (auto it = shards_to_gc_.begin(); it != shards_to_gc_.end();) {
+    auto client_iter = client_seqs_.lower_bound(it->end_seq);
+    if (client_iter == client_seqs_.begin() ||
+        *std::prev(client_iter) < it->start_seq) {
+      gc.emplace_back(std::move(it->shard));
+      it = shards_to_gc_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
+  // Destruct shards asynchronously.
+  if (!gc.empty()) {
+    shard_destruction_ = nu::async([gc = std::move(gc)] {});
+  }
 }
 
 }  // namespace nu

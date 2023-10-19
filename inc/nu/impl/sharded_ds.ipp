@@ -74,20 +74,22 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     auto &key = keys[i];
     key_to_shards_.emplace(key, ShardAndReqs(weak_shard));
   }
-  mapping_seq_ = shard_futures.size() - 1;
+  last_mapping_seq_ = 0;
+  mapping_seq_ = shard_futures.size();
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
 inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
     const ShardedDataStructure &o)
     : mapping_(o.mapping_),
+      last_mapping_seq_(o.last_mapping_seq_),
       mapping_seq_(o.mapping_seq_),
       key_to_shards_(o.key_to_shards_),
       num_pending_flushes_(0),
       max_num_vals_(o.max_num_vals_),
       max_num_data_entries_(o.max_num_data_entries_),
       rw_lock_(std::make_unique<ReadSkewedLock>()) {
-  mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
+  mapping_.run(&GeneralShardMapping<Shard>::client_register, last_mapping_seq_);
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
@@ -97,13 +99,14 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   const_cast<ShardedDataStructure &>(o).flush();
 
   mapping_ = o.mapping_;
+  last_mapping_seq_ = o.last_mapping_seq_;
   mapping_seq_ = o.mapping_seq_;
   key_to_shards_ = o.key_to_shards_;
   num_pending_flushes_ = 0;
   max_num_vals_ = o.max_num_vals_;
   max_num_data_entries_ = o.max_num_data_entries_;
 
-  mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
+  mapping_.run(&GeneralShardMapping<Shard>::client_register, last_mapping_seq_);
 
   return *this;
 }
@@ -112,6 +115,7 @@ template <GeneralContainerBased Container, BoolIntegral LL>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
     ShardedDataStructure &&o) noexcept
     : mapping_(std::move(o.mapping_)),
+      last_mapping_seq_(o.last_mapping_seq_),
       mapping_seq_(o.mapping_seq_),
       key_to_shards_(std::move(o.key_to_shards_)),
       push_back_reqs_(std::move(o.push_back_reqs_)),
@@ -128,6 +132,7 @@ ShardedDataStructure<Container, LL>::operator=(
   reset();
 
   mapping_ = std::move(o.mapping_);
+  last_mapping_seq_ = o.last_mapping_seq_;
   mapping_seq_ = o.mapping_seq_;
   key_to_shards_ = std::move(o.key_to_shards_);
   push_back_reqs_ = std::move(o.push_back_reqs_);
@@ -144,7 +149,8 @@ void ShardedDataStructure<Container, LL>::reset() {
   if (mapping_) {
     flush();
     key_to_shards_.clear();
-    mapping_.run(&GeneralShardMapping<Shard>::dec_ref_cnt);
+    mapping_.run(&GeneralShardMapping<Shard>::client_unregister,
+                 last_mapping_seq_);
   }
 }
 
@@ -721,7 +727,9 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
 
   rw_lock_->writer_lock();
   if (old_seq == mapping_seq_) {
-    auto v = mapping_.run(&ShardMapping::get_updates, mapping_seq_ + 1);
+    auto v = mapping_.run(&ShardMapping::get_updates, last_mapping_seq_,
+                          mapping_seq_);
+    last_mapping_seq_ = mapping_seq_;
     typename ShardMapping::LogUpdates *updates;
     if (likely(updates = std::get_if<typename ShardMapping::LogUpdates>(&v))) {
       for (auto &entry : *updates) {
@@ -959,9 +967,9 @@ template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::__save(Archive &ar) {
   flush();
-  ar(mapping_, mapping_seq_, key_to_shards_, max_num_vals_,
+  ar(mapping_, last_mapping_seq_, mapping_seq_, key_to_shards_, max_num_vals_,
      max_num_data_entries_);
-  mapping_.run(&GeneralShardMapping<Shard>::inc_ref_cnt);
+  mapping_.run(&GeneralShardMapping<Shard>::client_register, last_mapping_seq_);
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
@@ -974,15 +982,15 @@ template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::save_move(Archive &ar) {
   flush();
-  ar(std::move(mapping_), mapping_seq_, key_to_shards_, max_num_vals_,
-     max_num_data_entries_);
+  ar(std::move(mapping_), last_mapping_seq_, mapping_seq_, key_to_shards_,
+     max_num_vals_, max_num_data_entries_);
   key_to_shards_.clear();
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::load(Archive &ar) {
-  ar(mapping_, mapping_seq_, key_to_shards_, max_num_vals_,
+  ar(mapping_, last_mapping_seq_, mapping_seq_, key_to_shards_, max_num_vals_,
      max_num_data_entries_);
 }
 
