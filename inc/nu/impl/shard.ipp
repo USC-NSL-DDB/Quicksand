@@ -52,8 +52,13 @@ inline void ContainerAndMetadata<Container>::load(Archive &ar) {
 template <class Container>
 inline ContainerAndMetadata<Container>::ContainerAndMetadata(
     const ContainerAndMetadata &o)
-    : capacity(o.capacity), container_bucket_size(o.container_bucket_size) {
-  container = std::make_unique<Container>(*o.container);
+    : container(std::make_unique<Container>()),
+      capacity(o.capacity),
+      container_bucket_size(o.container_bucket_size) {
+  if constexpr (Reservable<Container>) {
+    container->reserve(capacity);
+  }
+  *container = *o.container;
 }
 
 template <GeneralContainerBased Container>
