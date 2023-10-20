@@ -240,13 +240,13 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
     }
     pending_creations_++;
 
-    // Try to reuse deleted shards, useful for DSes like queue & stack.
-    // auto &deleted_shards = shards_to_gc_[ip];
-    // if (!deleted_shards.empty()) {
-    //   new_shard = std::move(deleted_shards.top());
-    //   deleted_shards.pop();
-    //   reuse = true;
-    // }
+    // Try to reuse deleted shards, useful for services.
+    auto &shards = shards_to_reuse_[ip];
+    if (!shards.empty()) {
+      new_shard = std::move(shards.top());
+      shards.pop();
+      reuse = true;
+    }
   }
 
   if (!new_shard) {
@@ -280,8 +280,6 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
                                               bool merge_left, NodeIP ip,
                                               std::optional<float> cpu_load) {
   ScopedLock<Mutex> lock(&mutex_);
-
-  printf("DEL\n");
 
   check_gc_locked();
 
@@ -322,7 +320,11 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
       merge_left ? LogEntry<Shard>::kMergeLeft : LogEntry<Shard>::kMergeRight,
       it->first, shard);
   it->second.end_seq = log_.last_seq();
-  shards_to_gc_.emplace_back(std::move(it->second));
+  if constexpr (Shard::kIsService) {
+    shards_to_reuse_[ip].emplace(std::move(it->second.shard));
+  } else {
+    shards_to_gc_.emplace_back(std::move(it->second));
+  }
   mapping_.erase(it);
   oos_cv_.signal();
   return true;

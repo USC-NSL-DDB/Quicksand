@@ -97,6 +97,7 @@ class GeneralShardMapping {
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;
   CondVar oos_cv_;
+  std::unordered_map<NodeIP, std::stack<Proclet<Shard>>> shards_to_reuse_;
   std::list<ShardWithLifetime> shards_to_gc_;
   Log<Shard> log_;
   uint64_t last_gc_us_;
