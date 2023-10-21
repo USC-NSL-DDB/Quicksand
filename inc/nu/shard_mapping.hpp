@@ -55,8 +55,7 @@ class GeneralShardMapping {
                       std::optional<uint32_t> max_shard_cnt,
                       std::optional<NodeIP> pinned_ip);
   ~GeneralShardMapping();
-  std::variant<LogUpdates, Snapshot> get_updates(uint64_t client_last_seq,
-                                                 uint64_t client_cur_seq);
+  std::variant<LogUpdates, Snapshot> get_updates(uint64_t client_seq);
   std::vector<std::pair<std::optional<Key>, WeakProclet<Shard>>>
   get_all_keys_and_shards();
   WeakProclet<Shard> get_shard_for_key(std::optional<Key> key);

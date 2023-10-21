@@ -21,7 +21,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     std::optional<ShardingHint> sharding_hint,
     std::optional<std::size_t> size_bound, std::optional<NodeIP> pinned_ip,
     As &&...args)
-    : num_pending_flushes_(0),
+    : mapping_seq_(0),
+      num_pending_flushes_(0),
       max_num_vals_(0),
       max_num_data_entries_(0),
       rw_lock_(std::make_unique<ReadSkewedLock>()) {
@@ -39,7 +40,6 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       std::tuple(kMaxShardBytes, max_shard_count, pinned_ip));
 
   std::vector<std::optional<Key>> keys;
-  std::vector<Future<WeakProclet<Shard>>> shard_futures;
 
   keys.push_back(std::nullopt);
   if (sharding_hint) {
@@ -51,31 +51,29 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
     }
   }
 
-  for (auto it = keys.begin(); it != keys.end(); it++) {
-    auto curr_key = *it;
-    auto next_key = (it + 1) == keys.end() ? std::optional<Key>() : *(it + 1);
+  {
+    std::vector<Future<WeakProclet<Shard>>> shard_futures;
 
-    if constexpr (PushBackAble<Container>) {
-      if (!curr_key) {
+    for (auto it = keys.begin(); it != keys.end(); it++) {
+      auto curr_key = *it;
+      auto next_key = (it + 1) == keys.end() ? std::optional<Key>() : *(it + 1);
+
+      if constexpr (PushBackAble<Container>) {
+        if (!curr_key) {
+          shard_futures.emplace_back(mapping_.run_async(
+              &ShardMapping::template create_new_shard<std::decay_t<As>...>,
+              std::move(curr_key), std::optional<Key>(), args...));
+          shard_futures.back().get();
+        }
+      } else {
         shard_futures.emplace_back(mapping_.run_async(
             &ShardMapping::template create_new_shard<std::decay_t<As>...>,
-            std::move(curr_key), std::optional<Key>(), args...));
-        shard_futures.back().get();
+            std::move(curr_key), std::move(next_key), args...));
       }
-    } else {
-      shard_futures.emplace_back(mapping_.run_async(
-          &ShardMapping::template create_new_shard<std::decay_t<As>...>,
-          std::move(curr_key), std::move(next_key), args...));
     }
   }
 
-  for (std::size_t i = 0; i < shard_futures.size(); i++) {
-    auto &weak_shard = shard_futures[i].get();
-    auto &key = keys[i];
-    key_to_shards_.emplace(key, ShardAndReqs(weak_shard));
-  }
-  last_mapping_seq_ = 0;
-  mapping_seq_ = shard_futures.size();
+  sync_mapping();
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
@@ -89,7 +87,7 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
       max_num_vals_(o.max_num_vals_),
       max_num_data_entries_(o.max_num_data_entries_),
       rw_lock_(std::make_unique<ReadSkewedLock>()) {
-  mapping_.run(&GeneralShardMapping<Shard>::client_register, last_mapping_seq_);
+  mapping_.run(&GeneralShardMapping<Shard>::client_register, mapping_seq_);
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
@@ -106,7 +104,7 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   max_num_vals_ = o.max_num_vals_;
   max_num_data_entries_ = o.max_num_data_entries_;
 
-  mapping_.run(&GeneralShardMapping<Shard>::client_register, last_mapping_seq_);
+  mapping_.run(&GeneralShardMapping<Shard>::client_register, mapping_seq_);
 
   return *this;
 }
@@ -149,8 +147,7 @@ void ShardedDataStructure<Container, LL>::reset() {
   if (mapping_) {
     flush();
     key_to_shards_.clear();
-    mapping_.run(&GeneralShardMapping<Shard>::client_unregister,
-                 last_mapping_seq_);
+    mapping_.run(&GeneralShardMapping<Shard>::client_unregister, mapping_seq_);
   }
 }
 
@@ -727,9 +724,7 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
 
   rw_lock_->writer_lock();
   if (old_seq == mapping_seq_) {
-    auto v = mapping_.run(&ShardMapping::get_updates, last_mapping_seq_,
-                          mapping_seq_);
-    last_mapping_seq_ = mapping_seq_;
+    auto v = mapping_.run(&ShardMapping::get_updates, mapping_seq_);
     typename ShardMapping::LogUpdates *updates;
     if (likely(updates = std::get_if<typename ShardMapping::LogUpdates>(&v))) {
       for (auto &entry : *updates) {
@@ -751,11 +746,13 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
 
           move_append_vector(insert_reqs, it->second.insert_reqs);
           if (entry.op == LogEntry<Shard>::kMergeLeft) {
+            it->second.flush_executor.release();
             key_to_shards_.erase(it);
           } else {
             auto next_it = std::next(it);
             BUG_ON(next_it == key_to_shards_.end());
             it->second = std::move(next_it->second.shard);
+            next_it->second.flush_executor.release();
             key_to_shards_.erase(next_it);
           }
         } else {
@@ -778,9 +775,22 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
       for (auto &[k, s] : key_to_shards_) {
         move_append_vector(insert_reqs, s.insert_reqs);
       }
+
+      auto old_key_to_shards = std::move(key_to_shards_);
       key_to_shards_.clear();
       for (auto &[k, s] : snapshot.second) {
-        key_to_shards_.emplace(k, std::move(s));
+        auto new_it = key_to_shards_.emplace(k, std::move(s));
+        auto old_it = old_key_to_shards.find(k);
+        if (old_it != old_key_to_shards.end() &&
+            new_it->second.shard == old_it->second.shard) {
+          new_it->second.seq = old_it->second.seq;
+          new_it->second.flush_executor =
+              std::move(old_it->second.flush_executor);
+        }
+      }
+
+      for (auto &[_, s] : old_key_to_shards) {
+        s.flush_executor.release();
       }
 
       BUG_ON(mapping_seq_ >= snapshot.first);
@@ -969,7 +979,7 @@ inline void ShardedDataStructure<Container, LL>::__save(Archive &ar) {
   flush();
   ar(mapping_, last_mapping_seq_, mapping_seq_, key_to_shards_, max_num_vals_,
      max_num_data_entries_);
-  mapping_.run(&GeneralShardMapping<Shard>::client_register, last_mapping_seq_);
+  mapping_.run(&GeneralShardMapping<Shard>::client_register, mapping_seq_);
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>

@@ -11,7 +11,10 @@ void LogEntry<Shard>::serialize(Archive &ar) {
 }
 
 template <class Shard>
-Log<Shard>::Log(uint32_t size) : seq_(1), cb_(size) {}
+Log<Shard>::Log(uint32_t size) : seq_(0), cb_(size) {
+  cb_.push_back();
+  cb_.front().seq = 0;
+}
 
 template <class Shard>
 std::optional<std::vector<LogEntry<Shard>>> Log<Shard>::from(
@@ -38,13 +41,13 @@ std::optional<std::vector<LogEntry<Shard>>> Log<Shard>::from(
 
 template <class Shard>
 uint64_t Log<Shard>::last_seq() const {
-  return seq_ - 1;
+  return seq_;
 }
 
 template <class Shard>
 void Log<Shard>::append(uint8_t op, std::optional<typename Shard::Key> l_key,
                         WeakProclet<Shard> shard) {
-  cb_.push_back(LogEntry<Shard>{op, std::move(l_key), shard, seq_++});
+  cb_.push_back(LogEntry<Shard>{op, std::move(l_key), shard, ++seq_});
 }
 
 template <class Shard>
@@ -63,6 +66,7 @@ GeneralShardMapping<Shard>::GeneralShardMapping(
     Caladan::PreemptGuard g;
     self_ = get_runtime()->get_current_weak_proclet<GeneralShardMapping>();
   }
+
   client_seqs_.emplace(0);
 }
 
@@ -122,18 +126,17 @@ void GeneralShardMapping<Shard>::client_unregister(uint64_t seq) {
 template <class Shard>
 std::variant<typename GeneralShardMapping<Shard>::LogUpdates,
              typename GeneralShardMapping<Shard>::Snapshot>
-GeneralShardMapping<Shard>::get_updates(uint64_t client_last_seq,
-                                        uint64_t client_cur_seq) {
+GeneralShardMapping<Shard>::get_updates(uint64_t client_seq) {
   ScopedLock lock(&mutex_);
 
   check_gc_locked();
 
-  auto iter = client_seqs_.find(client_last_seq);
+  auto iter = client_seqs_.find(client_seq);
   BUG_ON(iter == client_seqs_.end());
   client_seqs_.erase(iter);
-  client_seqs_.emplace(client_cur_seq);
+  client_seqs_.emplace(log_.last_seq());
 
-  auto optional_log_updates = log_.from(client_cur_seq + 1);
+  auto optional_log_updates = log_.from(client_seq + 1);
   if (likely(optional_log_updates)) {
     return *optional_log_updates;
   } else {
