@@ -34,6 +34,8 @@ static unsigned int iface_idx;
 #define MLX5_SEND_BUF_SIZE 32768
 /* Receive buffer size for the Netlink socket */
 #define MLX5_RECV_BUF_SIZE 32768
+/* Maximum number of simultaneous MAC addresses. */
+#define MLX5_MAX_MAC_ADDRESSES 256
 
 #define MLX5_NL_CMD_GET_IB_NAME (1 << 0)
 #define MLX5_NL_CMD_GET_IB_INDEX (1 << 1)
@@ -50,6 +52,23 @@ struct mlx5_nl_ifindex_data {
 	uint32_t ibindex; /**< IB device index (out). */
 	uint32_t ifindex; /**< Network interface index (out). */
 	uint32_t portnum; /**< IB device max port number (out). */
+};
+
+/*
+ * Define NDA_RTA as defined in iproute2 sources.
+ *
+ * see in iproute2 sources file include/libnetlink.h
+ */
+#ifndef MLX5_NDA_RTA
+#define MLX5_NDA_RTA(r) \
+	((struct rtattr *)(((char *)(r)) + NLMSG_ALIGN(sizeof(struct ndmsg))))
+#endif
+
+/* Add/remove MAC address through Netlink */
+struct mlx5_nl_mac_addr {
+	struct rte_ether_addr (*mac)[];
+	/**< MAC address handled by the device. */
+	int mac_n; /**< Number of addresses in the array. */
 };
 
 static uint32_t atomic_sn;
@@ -125,6 +144,54 @@ error:
 	rte_errno = EINVAL;
 	return -rte_errno;
 }
+
+/**
+ * Send a request message to the kernel on the Netlink socket.
+ *
+ * @param[in] nlsk_fd
+ *   Netlink socket file descriptor.
+ * @param[in] nh
+ *   The Netlink message send to the kernel.
+ * @param[in] ssn
+ *   Sequence number.
+ * @param[in] req
+ *   Pointer to the request structure.
+ * @param[in] len
+ *   Length of the request in bytes.
+ *
+ * @return
+ *   The number of sent bytes on success, a negative errno value otherwise and
+ *   rte_errno is set.
+ */
+static int
+mlx5_nl_request(int nlsk_fd, struct nlmsghdr *nh, uint32_t sn, void *req,
+		int len)
+{
+	struct sockaddr_nl sa = {
+		.nl_family = AF_NETLINK,
+	};
+	struct iovec iov[2] = {
+		{ .iov_base = nh, .iov_len = sizeof(*nh), },
+		{ .iov_base = req, .iov_len = len, },
+	};
+	struct msghdr msg = {
+		.msg_name = &sa,
+		.msg_namelen = sizeof(sa),
+		.msg_iov = iov,
+		.msg_iovlen = 2,
+	};
+	int send_bytes;
+
+	nh->nlmsg_pid = 0; /* communication with the kernel uses pid 0 */
+	nh->nlmsg_seq = sn;
+	send_bytes = sendmsg(nlsk_fd, &msg, 0);
+	if (send_bytes < 0) {
+		rte_errno = errno;
+		return -rte_errno;
+	}
+	return send_bytes;
+}
+
 
 /**
  * Send a message to the kernel on the Netlink socket.
@@ -429,6 +496,98 @@ error:
 	return -rte_errno;
 }
 
+/**
+ * Parse Netlink message to retrieve the bridge MAC address.
+ *
+ * @param nh
+ *   Pointer to Netlink Message Header.
+ * @param arg
+ *   PMD data register with this callback.
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+static int
+mlx5_nl_mac_addr_cb(struct nlmsghdr *nh, void *arg)
+{
+	struct mlx5_nl_mac_addr *data = arg;
+	struct ndmsg *r = NLMSG_DATA(nh);
+	struct rtattr *attribute;
+	int len;
+
+	len = nh->nlmsg_len - NLMSG_LENGTH(sizeof(*r));
+	for (attribute = MLX5_NDA_RTA(r);
+	     RTA_OK(attribute, len);
+	     attribute = RTA_NEXT(attribute, len)) {
+		if (attribute->rta_type == NDA_LLADDR) {
+			if (data->mac_n == MLX5_MAX_MAC_ADDRESSES) {
+				rte_errno = ENOMEM;
+				return -rte_errno;
+			}
+			memcpy(&(*data->mac)[data->mac_n++],
+			       RTA_DATA(attribute), RTE_ETHER_ADDR_LEN);
+		}
+	}
+	return 0;
+}
+
+/**
+ * Get bridge MAC addresses.
+ *
+ * @param[in] nlsk_fd
+ *   Netlink socket file descriptor.
+ * @param[in] iface_idx
+ *   Net device interface index.
+ * @param mac[out]
+ *   Pointer to the array table of MAC addresses to fill.
+ *   Its size should be of MLX5_MAX_MAC_ADDRESSES.
+ * @param mac_n[out]
+ *   Number of entries filled in MAC array.
+ *
+ * @return
+ *   0 on success, a negative errno value otherwise and rte_errno is set.
+ */
+static int
+mlx5_nl_mac_addr_list(int nlsk_fd, unsigned int iface_idx,
+                      struct rte_ether_addr (*mac)[],
+		      int *mac_n)
+{
+	struct {
+		struct nlmsghdr	hdr;
+		struct ifinfomsg ifm;
+	} req = {
+		.hdr = {
+			.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg)),
+			.nlmsg_type = RTM_GETNEIGH,
+			.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+		},
+		.ifm = {
+			.ifi_family = PF_BRIDGE,
+			.ifi_index = iface_idx,
+		},
+	};
+	struct mlx5_nl_mac_addr data = {
+		.mac = mac,
+		.mac_n = 0,
+	};
+	int ret;
+	uint32_t sn = MLX5_NL_SN_GENERATE;
+
+	if (nlsk_fd == -1)
+		return -ENODEV;
+	ret = mlx5_nl_request(nlsk_fd, &req.hdr, sn, &req.ifm,
+			      sizeof(struct ifinfomsg));
+	if (ret < 0)
+		goto error;
+	ret = mlx5_nl_recv(nlsk_fd, sn, mlx5_nl_mac_addr_cb, &data);
+	if (ret < 0)
+		goto error;
+	*mac_n = data.mac_n;
+	return 0;
+error:
+	return -rte_errno;
+}
+
 int nl_init(void)
 {
 	int nl_rdma_fd;
@@ -446,6 +605,14 @@ int nl_init(void)
 	nl_route_fd = mlx5_nl_init(NETLINK_ROUTE);
 	if (nl_route_fd < 0)
 		return errno ? -errno : -1;
+
+	struct rte_ether_addr macs[MLX5_MAX_MAC_ADDRESSES];
+	int mac_n;
+	if (mlx5_nl_mac_addr_list(nl_route_fd, iface_idx, &macs, &mac_n) < 0)
+		return rte_errno ? rte_errno : -1;
+
+	for (int i = 0; i < mac_n; i++)
+		nl_remove_mac_address(&macs[i]);
 
 	return 0;
 }
