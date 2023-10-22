@@ -37,7 +37,8 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   });
 
   mapping_ = make_proclet<ShardMapping>(
-      std::tuple(kMaxShardBytes, max_shard_count, pinned_ip));
+      std::tuple(kMaxShardBytes, max_shard_count, pinned_ip),
+      pinned_ip.has_value(), std::nullopt, pinned_ip);
 
   std::vector<std::optional<Key>> keys;
 
