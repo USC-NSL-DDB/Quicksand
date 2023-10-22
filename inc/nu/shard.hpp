@@ -256,6 +256,7 @@ class ContainerHandle {
  public:
   ContainerHandle(Container *c, GeneralShard<Container> *shard);
   ~ContainerHandle();
+  operator bool() const;
   Container *operator->();
   Container &operator*();
 

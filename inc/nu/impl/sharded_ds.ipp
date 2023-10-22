@@ -924,6 +924,7 @@ Container ShardedDataStructure<Container, LL>::collect() {
   return all;
 }
 
+// Designed to be thread-safe.
 template <GeneralContainerBased Container, BoolIntegral LL>
 std::size_t ShardedDataStructure<Container, LL>::__size() {
   flush_and_sync_mapping();
@@ -931,8 +932,11 @@ std::size_t ShardedDataStructure<Container, LL>::__size() {
   std::vector<Future<std::size_t>> futures;
   rw_lock_->reader_lock();
   for (auto &[_, shard_and_reqs] : key_to_shards_) {
-    futures.emplace_back(shard_and_reqs.shard.run_async(
-        +[](Shard &s) { return s.get_container_handle()->size(); }));
+    futures.emplace_back(shard_and_reqs.shard.run_async(+[](Shard &s) {
+      auto handle = s.get_container_handle();
+      // The shard may be at the creation stage.
+      return handle ? handle->size() : 0;
+    }));
   }
   rw_lock_->reader_unlock();
 

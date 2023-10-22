@@ -22,6 +22,11 @@ inline ContainerHandle<Container>::~ContainerHandle() {
 }
 
 template <GeneralContainerBased Container>
+inline ContainerHandle<Container>::operator bool() const {
+  return c_;
+}
+
+template <GeneralContainerBased Container>
 inline Container *ContainerHandle<Container>::operator->() {
   return c_;
 }
