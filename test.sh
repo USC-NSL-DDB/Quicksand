@@ -24,6 +24,7 @@ function prepare {
     sleep 5
     source setup.sh >/dev/null 2>&1
     sudo sync; sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
+    rm -f .log*
 }
 
 function run_main_server {
@@ -37,15 +38,16 @@ function run_server {
 function run_test {
     BIN="$SHARED_SCRIPT_DIR/bin/$1"
 
-    run_controller 1>/dev/null 2>&1 &
+    run_controller 1>.log.$1.ctrl 2>&1 &
     disown -r
     sleep 3
 
-    run_server $BIN 1>/dev/null 2>&1 &
+    run_server $BIN 1>.log.$1.srv 2>&1 &
     disown -r
     sleep 3
 
-    run_main_server $BIN 2>/dev/null | grep -q "Passed"
+    run_main_server $BIN 1>.log.$1.main 2>&1 &
+    ( tail -f -n0 .log.$1.main & ) | grep -q "Passed"
     ret=$?
 
     kill_process test_
