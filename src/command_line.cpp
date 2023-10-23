@@ -82,7 +82,9 @@ NuOptionsDesc::NuOptionsDesc(bool help) : OptionsDesc("Nu arguments", help) {
                        boost::program_options::value(&lpid)->required(),
                        "logical process id (receive a free id if passing 0)")(
       "nomemps", "don't react to memory pressure")(
-      "nocpups", "don't react to CPU pressure")("isol", "as an isolated node");
+      "nocpups", "don't react to CPU pressure")(
+      "isol", "as an isolated node (which also implies nomemps and nocpups")(
+      "dump,d", "print the configuration file to screen");
 }
 
 CaladanOptionsDesc::CaladanOptionsDesc(int default_guaranteed,
@@ -124,12 +126,21 @@ CaladanOptionsDesc::CaladanOptionsDesc(int default_guaranteed,
 
 void write_options_to_file(std::string path, const AllOptionsDesc &desc) {
   write_options_to_file(path, desc.caladan);
-  std::ofstream ofs(path, std::ios_base::app);
-  if (!desc.vm.count("nomemps")) {
-    ofs << "runtime_react_mem_pressure 1" << std::endl;
+
+  {
+    std::ofstream ofs(path, std::ios_base::app);
+    if (!desc.vm.count("nomemps") && !desc.vm.count("isol")) {
+      ofs << "runtime_react_mem_pressure 1" << std::endl;
+    }
+    if (!desc.vm.count("nocpups") && !desc.vm.count("isol")) {
+      ofs << "runtime_react_cpu_pressure 1" << std::endl;
+    }
   }
-  if (!desc.vm.count("nocpups")) {
-    ofs << "runtime_react_cpu_pressure 1" << std::endl;
+
+  if (desc.vm.count("dump")) {
+    std::cout << "----------caladan conf file----------" << std::endl;
+    std::ifstream ifs(path);
+    std::cout << ifs.rdbuf() << std::endl;
   }
 }
 
