@@ -46,7 +46,8 @@ function executable_file_path() {
 
 function start_iokerneld() {
     srv_idx=$1
-    my_ssh $(ssh_ip $srv_idx) "sudo $CALADAN_DIR/iokerneld" &
+    args=${@:2}
+    my_ssh $(ssh_ip $srv_idx) "sudo $CALADAN_DIR/iokerneld $args" &
 }
 
 function start_ctrl() {
@@ -254,3 +255,4 @@ sleep 5
 rm -rf logs.bak
 [ -d logs ] && mv logs logs.bak
 mkdir logs
+

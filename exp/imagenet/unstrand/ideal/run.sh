@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../../shared.sh
+source ../../../shared.sh
 
 LPID=1
 CTL_IDX=8
