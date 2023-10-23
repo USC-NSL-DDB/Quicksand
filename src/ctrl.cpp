@@ -66,7 +66,7 @@ Controller::~Controller() {
 }
 
 std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
-    NodeIP ip, lpid_t lpid, MD5Val md5, bool isol) {
+    NodeIP ip, lpid_t lpid, MD5Val md5, bool main, bool isol) {
   ScopedLock lock(&mutex_);
 
   if (lpid) {
@@ -123,8 +123,18 @@ std::optional<std::pair<lpid_t, VAddrRange>> Controller::register_node(
     BUG_ON(client->Call(to_span(req), &return_buf) != kOk);
   }
 
-  auto [iter, success] = node_statuses.try_emplace(ip, isol);
-  BUG_ON(!success);
+  auto [_, success] = node_statuses.try_emplace(ip, isol);
+  if (!success) {
+    return std::nullopt;
+  }
+
+  if (main) {
+    auto [_, success] = proclet_id_to_ip_.emplace(kMainProcletHeapVAddr, ip);
+    if (!success) {
+      return std::nullopt;
+    }
+  }
+
   return std::make_pair(lpid, stack_cluster);
 }
 

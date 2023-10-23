@@ -40,10 +40,10 @@ class NodeGuard {
 
 class ControllerClient {
  public:
-  ControllerClient(NodeIP ctrl_server_ip, Runtime::Mode mode, lpid_t lpid,
-                   bool isol);
+  ControllerClient(NodeIP ctrl_server_ip, lpid_t lpid, bool main, bool isol);
   std::optional<std::pair<lpid_t, VAddrRange>> register_node(NodeIP ip,
                                                              MD5Val md5,
+                                                             bool main,
                                                              bool isol);
   std::optional<std::pair<ProcletID, NodeIP>> allocate_proclet(
       uint64_t capacity, NodeIP ip_hint);

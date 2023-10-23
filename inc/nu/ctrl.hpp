@@ -68,10 +68,8 @@ class Controller {
 
   Controller();
   ~Controller();
-  std::optional<std::pair<lpid_t, VAddrRange>> register_node(NodeIP ip,
-                                                             lpid_t lpid,
-                                                             MD5Val md5,
-                                                             bool isol);
+  std::optional<std::pair<lpid_t, VAddrRange>> register_node(
+      NodeIP ip, lpid_t lpid, MD5Val md5, bool main, bool isol);
   void destroy_lp(lpid_t lpid, NodeIP requestor_ip);
   std::optional<std::pair<ProcletID, NodeIP>> allocate_proclet(
       uint64_t capacity, lpid_t lpid, NodeIP ip_hint);

@@ -36,16 +36,17 @@ namespace nu {
 
 Runtime::Runtime() {}
 
-Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid, bool isol) {
+Runtime::Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid,
+                 bool isol) {
   init_base();
 
   if (mode == kMainServer) {
-    init_as_server(remote_ctrl_ip, lpid, isol);
+    init_as_server(remote_ctrl_ip, lpid, /* main = */ true, isol);
   } else {
     if (mode == kController) {
       init_as_controller();
     } else if (mode == kServer) {
-      init_as_server(remote_ctrl_ip, lpid, isol);
+      init_as_server(remote_ctrl_ip, lpid, /* main = */ false, isol);
     } else {
       BUG();
     }
@@ -79,11 +80,11 @@ void Runtime::init_as_controller() {
   controller_server_ = new ControllerServer();
 }
 
-void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid, bool isol) {
+void Runtime::init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid, bool main,
+                             bool isol) {
   proclet_server_ = new ProcletServer();
   migrator_ = new Migrator();
-  controller_client_ =
-      new ControllerClient(remote_ctrl_ip, kServer, lpid, isol);
+  controller_client_ = new ControllerClient(remote_ctrl_ip, lpid, main, isol);
   proclet_manager_ = new ProcletManager();
   stack_manager_ = new StackManager(controller_client_->get_stack_cluster());
   archive_pool_ = new ArchivePool<>();

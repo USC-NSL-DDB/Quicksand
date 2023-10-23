@@ -12,8 +12,8 @@ extern "C" {
 
 namespace nu {
 
-ControllerClient::ControllerClient(NodeIP ctrl_server_ip, Runtime::Mode mode,
-                                   lpid_t lpid, bool isol)
+ControllerClient::ControllerClient(NodeIP ctrl_server_ip, lpid_t lpid,
+                                   bool main, bool isol)
     : lpid_(lpid),
       rpc_client_(get_runtime()->rpc_client_mgr()->get_by_ip(ctrl_server_ip)) {
   netaddr laddr{.ip = 0, .port = 0};
@@ -22,7 +22,7 @@ ControllerClient::ControllerClient(NodeIP ctrl_server_ip, Runtime::Mode mode,
   BUG_ON(!tcp_conn_);
 
   auto md5 = get_self_md5();
-  auto optional = register_node(get_cfg_ip(), md5, isol);
+  auto optional = register_node(get_cfg_ip(), md5, main, isol);
   BUG_ON(!optional);
   BUG_ON(lpid_ && lpid_ != optional->first);
   std::tie(lpid_, stack_cluster_) = *optional;
@@ -30,11 +30,12 @@ ControllerClient::ControllerClient(NodeIP ctrl_server_ip, Runtime::Mode mode,
 }
 
 std::optional<std::pair<lpid_t, VAddrRange>> ControllerClient::register_node(
-    NodeIP ip, MD5Val md5, bool isol) {
+    NodeIP ip, MD5Val md5, bool main, bool isol) {
   RPCReqRegisterNode req;
   req.ip = ip;
   req.lpid = lpid_;
   req.md5 = md5;
+  req.main = main;
   req.isol = isol;
   RPCReturnBuffer return_buf;
   auto rc = rpc_client_->Call(to_span(req), &return_buf);

@@ -66,7 +66,8 @@ class Runtime {
   void init_base();
   void init_runtime_heap();
   void init_as_controller();
-  void init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid, bool isol);
+  void init_as_server(uint32_t remote_ctrl_ip, lpid_t lpid, bool main,
+                      bool isol);
   template <typename Cls, typename... A0s, typename... A1s>
   bool run_within_proclet_env(void *proclet_base, void (*fn)(A0s...),
                               A1s &&...args);

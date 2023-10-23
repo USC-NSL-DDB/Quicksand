@@ -135,8 +135,9 @@ std::unique_ptr<RPCRespRegisterNode> ControllerServer::handle_register_node(
   auto ip = req.ip;
   auto lpid = req.lpid;
   auto md5 = req.md5;
+  auto main = req.main;
   auto isol = req.isol;
-  auto optional = ctrl_.register_node(ip, lpid, md5, isol);
+  auto optional = ctrl_.register_node(ip, lpid, md5, main, isol);
   if (optional) {
     resp->empty = false;
     resp->lpid = optional->first;

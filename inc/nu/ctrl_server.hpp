@@ -23,6 +23,7 @@ struct RPCReqRegisterNode {
   NodeIP ip;
   lpid_t lpid;
   MD5Val md5;
+  bool main;
   bool isol;
 } __attribute__((packed));
 
