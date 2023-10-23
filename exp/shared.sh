@@ -77,7 +77,12 @@ function __start_server() {
     else
 	isol_cmd="--isol"
     fi
-    ip=$(caladan_srv_ip $srv_idx)
+    if [[ -z $8 ]]
+    then
+	ip=$(caladan_srv_ip $srv_idx)
+    else
+	ip=$8
+    fi
     nu_libs_name=".nu_libs_$BASHPID"
     rm -rf .nu_libs_tmp
     mkdir .nu_libs_tmp
@@ -88,23 +93,31 @@ function __start_server() {
     if [[ $main -eq 0 ]]
     then
 	my_ssh $(ssh_ip $srv_idx) "cd `pwd`;
-                                sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd"
+                                sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd -d"
     else
 	my_ssh $(ssh_ip $srv_idx) "cd `pwd`;
-                                sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -m -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd"
+                                sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -m -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd -d"
     fi
 }
 
 function start_server() {
-    __start_server $1 $2 $3 0 $4 $5 $6 0
+    __start_server $1 $2 $3 0 $4 $5 0
+}
+
+function start_server_isol() {
+    __start_server $1 $2 $3 0 $4 $5 1
+}
+
+function start_server_isol_with_ip() {
+    __start_server $1 $2 $3 0 $4 $5 1 $6
 }
 
 function start_main_server() {
-    __start_server $1 $2 $3 1 $4 $5 $6 0
+    __start_server $1 $2 $3 1 $4 $5 0
 }
 
 function start_main_server_isol() {
-    __start_server $1 $2 $3 1 $4 $5 $6 1
+    __start_server $1 $2 $3 1 $4 $5 1
 }
 
 function run_program() {
@@ -197,7 +210,9 @@ function cleanup_server() {
                          sudo pkill -9 kmeans;
                          sudo pkill -9 python3;
                          sudo pkill -9 BackEndService;
-                         sudo pkill -9 bench;"
+                         sudo pkill -9 bench;
+                         sudo pkill -9 distributed;"
+
     if [ -n "$nic_dev" ]
     then
         my_ssh $(ssh_ip $1) "sudo bridge fdb | grep $nic_dev | awk '{print $1}' | \
