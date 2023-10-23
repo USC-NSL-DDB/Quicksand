@@ -46,8 +46,8 @@ function run_test {
     disown -r
     sleep 3
 
-    run_main_server $BIN 1>.log.$1.main 2>&1 &
-    ( tail -f -n0 .log.$1.main & ) | grep -q "Passed"
+    run_main_server $BIN 1>.log.$1.main 2>&1
+    cat .log.$1.main | grep -q "Passed"
     ret=$?
 
     kill_process test_
