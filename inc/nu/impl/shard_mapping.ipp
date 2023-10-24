@@ -51,14 +51,11 @@ void Log<Shard>::append(uint8_t op, std::optional<typename Shard::Key> l_key,
 }
 
 template <class Shard>
-GeneralShardMapping<Shard>::GeneralShardMapping(
-    uint32_t max_shard_bytes, std::optional<uint32_t> max_shard_cnt,
-    std::optional<NodeIP> pinned_ip)
+GeneralShardMapping<Shard>::GeneralShardMapping(uint32_t max_shard_bytes,
+                                                std::optional<NodeIP> pinned_ip)
     : max_shard_bytes_(max_shard_bytes),
       proclet_capacity_(max_shard_bytes_ * kProcletOverprovisionFactor),
-      max_shard_cnt_(max_shard_cnt),
       pinned_ip_(pinned_ip),
-      pending_creations_(0),
       ref_cnt_(1),
       log_(kLogSize),
       last_gc_us_(0) {
@@ -202,15 +199,6 @@ template <class Shard>
 template <typename... As>
 WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
     std::optional<Key> l_key, std::optional<Key> r_key, As... args) {
-  {
-    ScopedLock lock(&mutex_);
-
-    while (out_of_shards()) {
-      oos_cv_.wait(&mutex_);
-    }
-    pending_creations_++;
-  }
-
   auto new_shard = make_proclet<Shard>(
       std::forward_as_tuple(self_, max_shard_bytes_, l_key, r_key,
                             std::move(args)...),
@@ -223,7 +211,6 @@ WeakProclet<Shard> GeneralShardMapping<Shard>::create_new_shard(
     log_.append(LogEntry<Shard>::kInsert, l_key, new_weak_shard);
     mapping_.emplace(l_key,
                      ShardWithLifetime{std::move(new_shard), log_.last_seq()});
-    pending_creations_--;
   }
   return new_weak_shard;
 }
@@ -237,11 +224,6 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
 
   {
     ScopedLock lock(&mutex_);
-
-    while (out_of_shards()) {
-      oos_cv_.wait(&mutex_);
-    }
-    pending_creations_++;
 
     // Try to reuse deleted shards, useful for services.
     auto &shards = shards_to_reuse_[ip];
@@ -271,7 +253,6 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
     log_.append(LogEntry<Shard>::kInsert, l_key, new_weak_shard);
     mapping_.emplace(std::move(l_key),
                      ShardWithLifetime{std::move(new_shard), log_.last_seq()});
-    pending_creations_--;
   }
 
   return std::make_pair(reuse, new_weak_shard);
@@ -329,7 +310,6 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
     shards_to_gc_.emplace_back(std::move(it->second));
   }
   mapping_.erase(it);
-  oos_cv_.signal();
   return true;
 }
 
@@ -346,17 +326,6 @@ void GeneralShardMapping<Shard>::concat(WeakProclet<GeneralShardMapping> tail)
         end_key, ShardWithLifetime{std::move(tail_shard), log_.last_seq()});
     end_key = iter->second.shard.run(&Shard::rebase, end_key);
   }
-}
-
-template <class Shard>
-inline bool GeneralShardMapping<Shard>::out_of_shards() {
-  if (max_shard_cnt_) {
-    auto curr_cnt = mapping_.size() + pending_creations_;
-    BUG_ON(curr_cnt > *max_shard_cnt_);
-    return curr_cnt == *max_shard_cnt_;
-  }
-
-  return false;
 }
 
 template <class Shard>

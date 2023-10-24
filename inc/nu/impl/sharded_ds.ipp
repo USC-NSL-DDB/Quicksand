@@ -18,8 +18,7 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
 template <GeneralContainerBased Container, BoolIntegral LL>
 template <typename... As>
 ShardedDataStructure<Container, LL>::ShardedDataStructure(
-    std::optional<ShardingHint> sharding_hint,
-    std::optional<std::size_t> size_bound, std::optional<NodeIP> pinned_ip,
+    std::optional<ShardingHint> sharding_hint, std::optional<NodeIP> pinned_ip,
     As &&...args)
     : mapping_seq_(0),
       num_pending_flushes_(0),
@@ -30,15 +29,9 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
   constexpr auto kMaxShardSize = kMaxShardBytes / sizeof(DataEntry);
 
-  auto max_shard_count = size_bound.transform([](auto size_bound) {
-    return std::max(2UL,  // Have to be at least 2 shards to avoid deadlock.
-                    div_round_up_unchecked(
-                        size_bound, static_cast<std::size_t>(kMaxShardBytes)));
-  });
-
-  mapping_ = make_proclet<ShardMapping>(
-      std::tuple(kMaxShardBytes, max_shard_count, pinned_ip),
-      pinned_ip.has_value(), std::nullopt, pinned_ip);
+  mapping_ = make_proclet<ShardMapping>(std::tuple(kMaxShardBytes, pinned_ip),
+                                        pinned_ip.has_value(), std::nullopt,
+                                        pinned_ip);
 
   std::vector<std::optional<Key>> keys;
 

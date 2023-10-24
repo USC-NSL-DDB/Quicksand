@@ -123,7 +123,6 @@ class ShardedDataStructure {
   ShardedDataStructure();
   template <typename... As>
   ShardedDataStructure(std::optional<ShardingHint> sharding_hint,
-                       std::optional<std::size_t> size_bound,
                        std::optional<NodeIP> pinned_ip, As &&...args);
   ShardedDataStructure(const ShardedDataStructure &);
   ShardedDataStructure &operator=(const ShardedDataStructure &);

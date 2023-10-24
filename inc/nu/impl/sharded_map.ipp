@@ -122,7 +122,7 @@ inline void GeneralMap<K, V, M>::load(Archive &ar) {
 template <typename K, typename V, BoolIntegral M, typename LL>
 inline GeneralShardedMap<K, V, M, LL>::GeneralShardedMap(
     std::optional<typename Base::ShardingHint> sharding_hint)
-    : Base(sharding_hint, /* size_bound = */ std::nullopt,
+    : Base(sharding_hint,
            /* pinned_ip = */ std::nullopt) {}
 
 template <typename K, typename V, typename LL>

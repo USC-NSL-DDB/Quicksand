@@ -52,7 +52,6 @@ class GeneralShardMapping {
                 std::multimap<std::optional<Key>, WeakProclet<Shard>>>;
 
   GeneralShardMapping(uint32_t max_shard_bytes,
-                      std::optional<uint32_t> max_shard_cnt,
                       std::optional<NodeIP> pinned_ip);
   ~GeneralShardMapping();
   std::variant<LogUpdates, Snapshot> get_updates(uint64_t client_seq);
@@ -88,14 +87,11 @@ class GeneralShardMapping {
   WeakProclet<GeneralShardMapping> self_;
   uint32_t max_shard_bytes_;
   uint32_t proclet_capacity_;
-  std::optional<uint32_t> max_shard_cnt_;
   std::optional<NodeIP> pinned_ip_;
   std::multimap<std::optional<Key>, ShardWithLifetime> mapping_;
   std::multiset<uint64_t> client_seqs_;
-  uint32_t pending_creations_;
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;
-  CondVar oos_cv_;
   std::unordered_map<NodeIP, std::stack<Proclet<Shard>>> shards_to_reuse_;
   std::list<ShardWithLifetime> shards_to_gc_;
   Log<Shard> log_;

@@ -96,8 +96,8 @@ inline ShardedQueue<T, LL>::ShardedQueue() {}
 template <typename T, typename LL>
 inline ShardedQueue<T, LL>::ShardedQueue(
     std::optional<typename Base::ShardingHint> sharding_hint,
-    std::optional<std::size_t> size_bound, std::optional<NodeIP> pinned_ip)
-    : Base(sharding_hint, size_bound, pinned_ip) {}
+    std::optional<NodeIP> pinned_ip)
+    : Base(sharding_hint, pinned_ip) {}
 
 template <typename T, typename LL>
 inline T ShardedQueue<T, LL>::front() const {
@@ -130,10 +130,9 @@ inline std::vector<T> ShardedQueue<T, LL>::try_pop(std::size_t num) {
 }
 
 template <typename T, typename LL>
-inline ShardedQueue<T, LL> make_sharded_queue(
-    std::optional<std::size_t> size_bound, std::optional<NodeIP> pinned_ip) {
+inline ShardedQueue<T, LL> make_sharded_queue(std::optional<NodeIP> pinned_ip) {
   auto hint = std::nullopt;
-  return ShardedQueue<T, LL>(hint, size_bound, pinned_ip);
+  return ShardedQueue<T, LL>(hint, pinned_ip);
 }
 
 }  // namespace nu

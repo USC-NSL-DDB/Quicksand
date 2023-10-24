@@ -108,7 +108,7 @@ template <typename T>
 template <typename... As>
 inline ShardedService<T>::ShardedService(
     std::optional<typename Base::ShardingHint> sharding_hint, As &&...args)
-    : Base(sharding_hint, /* size_bound = */ std::nullopt,
+    : Base(sharding_hint,
            /* pinned_ip = */ std::nullopt, ServicePassThrough(),
            std::forward<As>(args)...) {}
 
@@ -122,7 +122,7 @@ template <typename T>
 template <typename... As>
 inline ShardedStatelessService<T>::ShardedStatelessService(
     std::optional<typename Base::ShardingHint> sharding_hint, As &&...args)
-    : Base(sharding_hint, /* size_bound = */ std::nullopt,
+    : Base(sharding_hint,
            /* pinned_ip = */ std::nullopt, ServicePassThrough(),
            std::forward<As>(args)...) {}
 

@@ -78,21 +78,18 @@ class ShardedQueue
   using Base = ShardedDataStructure<GeneralLockedContainer<Queue<T>>, LL>;
 
   ShardedQueue(std::optional<typename Base::ShardingHint> sharding_hint,
-               std::optional<std::size_t> size_bound,
                std::optional<NodeIP> pinned_ip);
   friend class ProcletServer;
   template <typename T1, BoolIntegral LL1, BoolIntegral Insertable>
   friend class QueueTaskRangeImpl;
   template <typename T1, typename LL1>
-  friend ShardedQueue<T1, LL1> make_sharded_queue(std::optional<std::size_t>,
-                                                  std::optional<NodeIP>);
+  friend ShardedQueue<T1, LL1> make_sharded_queue(std::optional<NodeIP>);
   template <class... Types>
   friend class tuple;
 };
 
 template <typename T, typename LL>
 ShardedQueue<T, LL> make_sharded_queue(
-    std::optional<std::size_t> size_bound = std::nullopt,
     std::optional<NodeIP> pinned_ip = std::nullopt);
 
 }  // namespace nu
