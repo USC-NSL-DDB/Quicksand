@@ -201,19 +201,11 @@ function enable_kernel_bg_prezero() {
 }
 
 function cleanup_server() {
-    my_ssh $(ssh_ip $1) "sudo pkill -9 iokerneld;
-                         sudo pkill -9 ctrl_main;
-                         sudo pkill -9 main;
-                         sudo pkill -9 client;
-                         sudo pkill -9 server;
-                         sudo pkill -9 synthetic;
-                         sudo pkill -9 memcached;
-                         sudo pkill -9 kmeans;
-                         sudo pkill -9 python3;
-                         sudo pkill -9 BackEndService;
-                         sudo pkill -9 bench;
-                         sudo pkill -9 distributed;"
-
+    my_ssh $(ssh_ip $1) "pnames=( iokerneld ctrl_main main client server synthetic memcached \
+                                  kmeans python3 BackEndService bench distributed );
+                         for name in \${pnames[@]}; do
+                             sudo pkill -U 0 -9 \$name;
+                         done"
     if [ -n "$nic_dev" ]
     then
         my_ssh $(ssh_ip $1) "sudo bridge fdb | grep $nic_dev | awk '{print $1}' | \
