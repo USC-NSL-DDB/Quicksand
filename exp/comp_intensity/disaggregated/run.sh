@@ -43,7 +43,7 @@ do
 	mem_target=$(expr $SRV1_APP_MEM + $NU_LOW_MEM)
 	antagonist_log=logs/antagonist
 	run_program $mem_antagonist $SRV1_IDX antagonist.conf $mem_target 0 >$antagonist_log &
-	( tail -f -n0 $antagonist_log & ) | grep -q "waiting for signal"
+	( tail -f $antagonist_log & ) | grep -q "waiting for signal"
 	start_main_server main $SRV1_IDX $LPID $KS1 1>logs/$elem_size.$delay.1 2>&1
 
 	cleanup

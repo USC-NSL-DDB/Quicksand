@@ -79,7 +79,7 @@ sleep 5
 
 sudo stdbuf -o0 ./main conf/client1 CLT $CTRL_IP $LPID -- 4200 200000 200000 4200 1>logs/$NUM_WORKER_SERVERS 2>&1 &
 client_pid=$!
-( tail -f -n0 logs/$NUM_WORKER_SERVERS & ) | grep -q "waiting for signal"
+( tail -f logs/$NUM_WORKER_SERVERS & ) | grep -q "waiting for signal"
 
 ssh $BACKUP_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5

@@ -79,7 +79,7 @@ sleep 5
 
 sudo stdbuf -o0 ./main conf/client1 CLT $CTRL_IP $LPID -- 4200 200000 200000 4200 1>logs/$NUM_WORKER_SERVERS 2>&1 &
 client_pid=$!
-( tail -f -n0 logs/$NUM_WORKER_SERVERS & ) | grep -q "waiting for signal 1"
+( tail -f logs/$NUM_WORKER_SERVERS & ) | grep -q "waiting for signal 1"
 
 ssh $BACKUP_SERVER_IP "sudo $NU_DIR/caladan/iokerneld" &
 sleep 5
@@ -88,11 +88,11 @@ ssh $BACKUP_SERVER_IP "cd `pwd`; sudo stdbuf -o0 ./main conf/server$NUM_WORKER_S
 sleep 5
 
 sudo pkill -x -SIGHUP main
-( tail -f -n0 logs/$NUM_WORKER_SERVERS & ) | grep -q "waiting for signal 2"
+( tail -f logs/$NUM_WORKER_SERVERS & ) | grep -q "waiting for signal 2"
 
 ssh $SRC_SERVER_IP "cd `pwd`; sudo ../../../bin/bench_real_mem_pressure conf/client0 10000 900" >logs/.pressure &
 pressure_pid=$!
-( tail -f -n0 logs/.pressure & ) | grep -q "waiting for signal"
+( tail -f logs/.pressure & ) | grep -q "waiting for signal"
 
 ssh $SRC_SERVER_IP "sudo pkill -SIGHUP bench"
 sudo pkill -x -SIGHUP main

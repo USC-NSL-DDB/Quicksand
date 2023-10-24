@@ -49,7 +49,7 @@ distribute $mem_antagonist $VICTIM_IDX
 antagonist_log=$DIR/logs/antagonist
 run_program $mem_antagonist $VICTIM_IDX $DIR/antagonist.conf 10000 900 >$antagonist_log &
 antagonist_pid=$!
-( tail -f -n0 $antagonist_log & ) | grep -q "waiting for signal"
+( tail -f $antagonist_log & ) | grep -q "waiting for signal"
 
 sleep 5
 distribute kmeans $CLT_IDX
@@ -57,17 +57,17 @@ start_main_server_isol kmeans $CLT_IDX $LPID $KS >$DIR/logs/$NUM_SRVS &
 
 clt_log=$DIR/logs/$NUM_SRVS
 standby_log=$DIR/logs/standby
-( tail -f -n0 $clt_log & ) | grep -q "Wait for Signal"
+( tail -f $clt_log & ) | grep -q "Wait for Signal"
 
 start_server kmeans $STANDBY_IDX $LPID $KS >$standby_log &
-( tail -f -n0 $standby_log & ) | grep -q "Init Finished"
+( tail -f $standby_log & ) | grep -q "Init Finished"
 
 run_cmd $CLT_IDX "sudo pkill -SIGHUP kmeans"
 
-( tail -f -n0 $clt_log & ) | grep -q "iter = 10"
+( tail -f $clt_log & ) | grep -q "iter = 10"
 run_cmd $VICTIM_IDX "sudo pkill -SIGHUP bench"
 
-( tail -f -n0 $clt_log & ) | grep -q "iter = 20"
+( tail -f $clt_log & ) | grep -q "iter = 20"
 run_cmd $VICTIM_IDX "sudo pkill -SIGHUP bench"
 wait $antagonist_pid
 

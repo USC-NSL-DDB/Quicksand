@@ -6,7 +6,7 @@ function get_nic_dev {
     sudo pkill -9 iokerneld
     sleep 3
     sudo bash -c "$SETUP_SCRIPT_DIR/caladan/iokerneld >.tmp 2>&1 &"
-    ( tail -f -n0 .tmp & ) | grep -q "MAC"
+    ( tail -f .tmp & ) | grep -q "MAC"
     sudo pkill -9 iokerneld
     mac=`cat .tmp | grep "MAC" | sed "s/.*MAC: \(.*\)/\1/g" | tr " " ":"`
     sudo rm .tmp

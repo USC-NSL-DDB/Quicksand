@@ -75,7 +75,7 @@ do
 	    start_main_server build/src/BackEndService $srv_idx $LPID >$DIR/logs/.tmp &
 	fi
     done
-    ( tail -f -n0 $DIR/logs/.tmp & ) | grep -q "Starting the back-end-service server"
+    ( tail -f $DIR/logs/.tmp & ) | grep -q "Starting the back-end-service server"
     sleep 5
 
     run_cmd $NGINX_SRV_IDX "cd $SOCIAL_NET_DIR; python3 scripts/init_social_graph.py"

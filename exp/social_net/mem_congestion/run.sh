@@ -81,7 +81,7 @@ do
 	start_main_server build/src/main $srv_idx $LPID >$DIR/logs/main &
     fi
 done
-( tail -f -n0 $DIR/logs/main & ) | grep -q "Starting the ThriftBackEndServer"
+( tail -f $DIR/logs/main & ) | grep -q "Starting the ThriftBackEndServer"
 sleep 5
 
 run_cmd $NGINX_SRV_IDX "cd $SOCIAL_NET_DIR; python3 scripts/init_social_graph.py"
@@ -92,7 +92,7 @@ distribute $mem_antagonist $VICTIM_IDX
 antagonist_log=$DIR/logs/antagonist
 run_program $mem_antagonist $VICTIM_IDX $DIR/conf/antagonist.conf 10000 900 >$antagonist_log &
 antagonist_pid=$!
-( tail -f -n0 $antagonist_log & ) | grep -q "waiting for signal"
+( tail -f $antagonist_log & ) | grep -q "waiting for signal"
 
 client_pids=
 for clt_idx in `seq $CLT_START_IDX $CLT_END_IDX`

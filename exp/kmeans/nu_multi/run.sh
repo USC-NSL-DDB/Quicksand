@@ -44,7 +44,7 @@ do
     sleep 5
     distribute kmeans $CLT_IDX
     start_main_server_isol kmeans $CLT_IDX $LPID $KS >$DIR/logs/$num_srvs &
-    ( tail -f -n0 $DIR/logs/$num_srvs & ) | grep -q "iter = 10"
+    ( tail -f $DIR/logs/$num_srvs & ) | grep -q "iter = 10"
 
     cleanup
     sleep 5

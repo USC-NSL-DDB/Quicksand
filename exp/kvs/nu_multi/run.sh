@@ -54,7 +54,7 @@ do
 	    start_main_server server $srv_idx $LPID $KS $KS >logs/.tmp &
 	fi
     done
-    ( tail -f -n0 logs/.tmp & ) | grep -q "finish initing"
+    ( tail -f logs/.tmp & ) | grep -q "finish initing"
     rm logs/.tmp
 
     for i in `seq 1 $num_clts`

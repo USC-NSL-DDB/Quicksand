@@ -33,7 +33,7 @@ do
     start_ctrl $CTL_IDX
     sleep 5
     start_main_server server $SRV_IDX $LPID $KS $KS >logs/.tmp &
-    ( tail -f -n0 logs/.tmp & ) | grep -q "finish initing"
+    ( tail -f logs/.tmp & ) | grep -q "finish initing"
     for i in `seq 1 $NUM_CLTS`
     do
 	clt_idx=$(get_clt_idx $i)

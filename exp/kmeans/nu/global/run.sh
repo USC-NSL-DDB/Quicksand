@@ -31,7 +31,7 @@ do
     sleep 5
 
     start_main_server kmeans $SRV_IDX $LPID 1>$DIR/logs/$num_threads 2>&1 &
-    ( tail -f -n0 $DIR/logs/$num_threads & ) | grep -q "iter = 10"
+    ( tail -f $DIR/logs/$num_threads & ) | grep -q "iter = 10"
 
     cleanup
     sleep 5

@@ -16,7 +16,7 @@ do
     export MR_NUMTHREADS=$num_threads
     ./kmeans 1>$DIR/logs/$num_threads 2>&1 &
     pid=$!
-    ( tail -f -n0 $DIR/logs/$num_threads & ) | grep -q "iter = 10"
+    ( tail -f $DIR/logs/$num_threads & ) | grep -q "iter = 10"
     kill -9 $pid
     sleep 5
 done

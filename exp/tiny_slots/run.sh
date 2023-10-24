@@ -32,7 +32,7 @@ do
     ssh $SERVER2_IP "cd `pwd`; sudo ./server conf/server1 SRV $CTRL_IP $LPID" &
     sleep 5
     sudo ./server conf/client1 CLT $CTRL_IP $LPID >logs/.tmp &
-    ( tail -f -n0 logs/.tmp & ) | grep -q "finish initing"     
+    ( tail -f logs/.tmp & ) | grep -q "finish initing"
     sudo ./client conf/client2 1>logs/$mop 2>&1
     sudo pkill -9 iokerneld
     sudo pkill -9 server
