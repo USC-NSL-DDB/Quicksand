@@ -62,7 +62,7 @@ class MockGPU {
     set_num_gpus(ths_.size());
     barrier();
     for (auto &th : ths_) {
-      th.Join();
+      th.join();
     }
     return all_traces_;
   }
@@ -77,7 +77,7 @@ class MockGPU {
 
  private:
   bool done_;
-  std::vector<rt::Thread> ths_;
+  std::vector<nu::Thread> ths_;
   Traces all_traces_;
   nu::SpinLock spin_;
   nu::CondVar cv_;
