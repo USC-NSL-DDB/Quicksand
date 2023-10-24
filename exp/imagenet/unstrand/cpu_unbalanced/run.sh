@@ -19,6 +19,7 @@ function get_srv_idx() {
 }
 
 source ../setup_opencv.sh
+sed "s/\(.*\)kNumScaleDownGPUs = .*/\1kNumScaleDownGPUs = 10;/g" -i dataloader.hpp
 make clean
 make -j
 

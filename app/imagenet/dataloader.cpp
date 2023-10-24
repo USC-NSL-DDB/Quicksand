@@ -71,15 +71,16 @@ uint64_t DataLoader::process_all() {
 }
 
 DataLoader::GPUTraces DataLoader::run_gpus() {
-  auto gpu = nu::make_proclet<GPU>(std::forward_as_tuple(queue_, kMaxNumGPUs),
-                                   true, nu::kMaxProcletHeapSize, kGPUIP);
-  gpu.run(&GPU::set_num_gpus, kMaxNumGPUs);
+  auto gpu =
+      nu::make_proclet<GPU>(std::forward_as_tuple(queue_, kNumScaleUpGPUs),
+                            true, nu::kMaxProcletHeapSize, kGPUIP);
+  gpu.run(&GPU::set_num_gpus, kNumScaleUpGPUs);
 
   while (!load_acquire(&processed_)) {
     nu::Time::sleep(kScaleDownDurationUs);
     gpu.run(&GPU::set_num_gpus, kNumScaleDownGPUs);
     nu::Time::sleep(kScaleUpDurationUs);
-    gpu.run(&GPU::set_num_gpus, kMaxNumGPUs);
+    gpu.run(&GPU::set_num_gpus, kNumScaleUpGPUs);
   }
 
   return gpu.run(&GPU::drain_and_stop);
