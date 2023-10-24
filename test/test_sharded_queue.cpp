@@ -11,12 +11,6 @@
 
 using namespace nu;
 
-void busy_spin(uint64_t duration_us) {
-  auto target = microtime() + duration_us;
-  while (microtime() < target)
-    ;
-}
-
 std::vector<char> make_byte_vec(std::size_t size) {
   std::vector<char> bytes;
   bytes.reserve(size);
