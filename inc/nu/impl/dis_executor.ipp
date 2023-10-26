@@ -113,13 +113,14 @@ void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
 template <typename RetT, TaskRangeBased TR, typename... States>
 void DistributedExecutor<RetT, TR, States...>::check_workers() {
   victims_ = decltype(victims_)();
-  auto futures = workers_ | std::views::transform([](auto &worker) {
-                   return worker.cp.run_async(
-                       &ComputeProclet<TR, States...>::remaining_size);
-                 });
-  for (auto t : std::views::zip(workers_, futures)) {
-    auto &worker = std::get<0>(t);
-    auto size = std::get<1>(t).get();
+  std::vector<nu::Future<std::size_t>> futures;
+  std::ranges::transform(workers_, std::back_inserter(futures),
+                         [](auto &worker) {
+                           return worker.cp.run_async(
+                               &ComputeProclet<TR, States...>::remaining_size);
+                         });
+  for (const auto &[worker, future] : std::views::zip(workers_, futures)) {
+    auto size = future.get();
     worker.remaining_size = size;
     if (size) {
       victims_.push(&worker);
