@@ -30,7 +30,6 @@ ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
   if constexpr (std::is_void_v<RetT>) {
     std::apply([&](auto &...states) { fn(task_range_, states...); }, states_);
     BUG_ON(!task_range_.empty());
-    task_range_.cleanup_steal();
 
     return std::move(l_key);
 
@@ -39,7 +38,6 @@ ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
     std::apply([&](auto &...states) { ret = fn(task_range_, states...); },
                states_);
     BUG_ON(!task_range_.empty());
-    task_range_.cleanup_steal();
 
     return std::make_pair(std::move(l_key), std::move(ret));
   }
@@ -62,12 +60,6 @@ inline TR ComputeProclet<TR, States...>::steal_tasks() {
   auto ret = task_range_.steal();
   mutex_.unlock();
   return ret;
-}
-
-template <TaskRangeBased TR, typename... States>
-void ComputeProclet<TR, States...>::abort() {
-  ScopedLock g(&mutex_);
-  task_range_.clear();
 }
 
 template <TaskRangeBased TR, typename... States>

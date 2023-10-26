@@ -318,41 +318,6 @@ void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
-void DistributedExecutor<RetT, TR, States...>::abort_workers() {
-  victims_ = decltype(victims_)();
-  auto futures = std::vector<nu::Future<void>>{};
-  for (auto &w : workers_) {
-    futures.push_back(
-        std::move(w.cp.run_async(&ComputeProclet<TR, States...>::abort)));
-  }
-  for (auto &f : futures) {
-    f.get();
-  }
-}
-
-template <typename RetT, TaskRangeBased TR, typename... States>
-float DistributedExecutor<RetT, TR, States...>::check_queue_workers() {
-  victims_ = decltype(victims_)();
-  auto processed_sizes = workers_ | std::views::transform([](auto &worker) {
-                           return worker.cp.run_async(
-                               &ComputeProclet<TR, States...>::processed_size);
-                         });
-  float total_tp_ms = 0;
-  auto time_now = Time::microtime();
-  for (auto t : std::views::zip(workers_, processed_sizes)) {
-    auto &worker = std::get<0>(t);
-    auto size = std::get<1>(t).get();
-    worker.processed_size = size;
-
-    float tp_ms = static_cast<float>(1000 * size) /
-                  static_cast<float>(time_now - worker.spawned_time);
-    total_tp_ms += tp_ms;
-  }
-  float avg_tp_ms = total_tp_ms / workers_.size();
-  return avg_tp_ms;
-}
-
-template <typename RetT, TaskRangeBased TR, typename... States>
 template <ShardedQueueBased Q, typename... S1s>
 DistributedExecutor<RetT, TR, States...>::Result
 DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
