@@ -1,9 +1,9 @@
 #pragma once
 
-#include <deque>
 #include <queue>
 #include <type_traits>
 #include <vector>
+#include <memory>
 
 #include "nu/compute_proclet.hpp"
 #include "nu/queue_range.hpp"
@@ -34,13 +34,15 @@ class DistributedExecutor {
     void compute_async(RetT (*fn)(TR &, States...), TR);
     void steal_and_compute_async(WeakProclet<ComputeProclet<TR, States...>>,
                                  RetT (*fn)(TR &, States...));
+    void update_remaining_size();
+    void suspend();
+    void resume_and_update_remaining_size();
 
     Proclet<ComputeProclet<TR, States...>> cp;
-    Future<std::optional<compute_proclet_result<TR, RetT>>> future;
+    Future<std::optional<compute_proclet_result<TR, RetT>>> compute_future;
     std::size_t remaining_size;
-    std::size_t processed_size;
-    uint64_t spawned_time;
   };
+
   struct VictimCmp {
     bool operator()(const Worker *a, const Worker *b) const {
       return a->remaining_size < b->remaining_size;
@@ -50,8 +52,8 @@ class DistributedExecutor {
   constexpr static uint64_t kCheckWorkersIntervalUs = 200;
   constexpr static uint64_t kAdjustNumWorkersIntervalUs = 2000;
   RetT (*fn_)(TR &, States...);
-  std::deque<Worker> workers_;
-  std::size_t num_active_workers_ = 0;
+  std::vector<std::unique_ptr<Worker>> active_workers_;
+  std::vector<std::unique_ptr<Worker>> suspended_workers_;
   Future<Result> future_;
   std::priority_queue<Worker *, std::vector<Worker *>, VictimCmp> victims_;
   std::vector<compute_proclet_result<TR, RetT>> all_pairs_;
@@ -86,7 +88,7 @@ class DistributedExecutor {
   template <typename... S1s>
   void add_workers(S1s &...states);
   template <typename... S1s>
-  void adjust_queue_workers(std::size_t target, TR task_range, S1s &...states);
+  void adjust_num_active_queue_workers(int delta, S1s &...states);
   void make_initial_dispatch(RetT (*fn)(TR &, States...), TR task_range);
   void check_workers();
   bool check_futures_and_redispatch();

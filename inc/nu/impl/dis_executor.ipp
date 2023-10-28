@@ -16,12 +16,12 @@ DistributedExecutor<RetT, TR, States...>::Worker::Worker() {}
 template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::Worker::Worker(
     Proclet<ComputeProclet<TR, States...>> cp)
-    : cp(std::move(cp)), spawned_time(Time::microtime()) {}
+    : cp(std::move(cp)) {}
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 void DistributedExecutor<RetT, TR, States...>::Worker::compute_async(
     RetT (*fn)(TR &, States...), TR tr) {
-  future =
+  compute_future =
       cp.__run_async(&ComputeProclet<TR, States...>::template compute<RetT>, fn,
                      std::move(tr));
 }
@@ -30,9 +30,28 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 void DistributedExecutor<RetT, TR, States...>::Worker::steal_and_compute_async(
     WeakProclet<ComputeProclet<TR, States...>> victim,
     RetT (*fn)(TR &, States...)) {
-  future = cp.__run_async(
+  compute_future = cp.__run_async(
       &ComputeProclet<TR, States...>::template steal_and_compute<RetT>, victim,
       fn);
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+void DistributedExecutor<RetT, TR, States...>::Worker::update_remaining_size() {
+  remaining_size = cp.run(&ComputeProclet<TR, States...>::remaining_size);
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+void DistributedExecutor<RetT, TR, States...>::Worker::suspend() {
+  cp.run(&ComputeProclet<TR, States...>::suspend);
+}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+void DistributedExecutor<
+    RetT, TR, States...>::Worker::resume_and_update_remaining_size() {
+  remaining_size = cp.run(+[](ComputeProclet<TR, States...> &cp) {
+    cp.resume();
+    return cp.remaining_size();
+  });
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -54,9 +73,11 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_workers(
     S1s &...states) {
   add_workers(states...);
 
-  if (unlikely(workers_.empty())) {
-    workers_.emplace_back(nu::make_proclet<ComputeProclet<TR, States...>>(
-        std::forward_as_tuple(states...)));
+  // We need at least one worker to get started.
+  if (unlikely(active_workers_.empty())) {
+    active_workers_.emplace_back(std::make_unique<Worker>(
+        nu::make_proclet<ComputeProclet<TR, States...>>(
+            std::forward_as_tuple(states...))));
   }
 }
 
@@ -70,20 +91,20 @@ void DistributedExecutor<RetT, TR, States...>::add_workers(S1s &...states) {
         get_runtime()->resource_reporter()->get_global_free_resources();
   }
 
-  std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
+  std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> futures;
   for (auto &[ip, resource] : global_free_resources) {
     auto num_workers = static_cast<uint32_t>(resource.cores);
     for (uint32_t i = 0; i < num_workers; i++) {
-      worker_futures.emplace_back(
+      futures.emplace_back(
           nu::make_proclet_async<ComputeProclet<TR, States...>>(
               std::forward_as_tuple(states...), false, std::nullopt, ip));
     }
   }
 
-  std::ranges::transform(worker_futures, std::back_inserter(workers_),
-                         [](auto &worker_future) {
-                           return Worker(std::move(worker_future.get()));
-                         });
+  for (auto &future : futures) {
+    active_workers_.emplace_back(
+        std::make_unique<Worker>(std::move(future.get())));
+  }
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -93,7 +114,7 @@ void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
   std::priority_queue<TR, std::vector<TR>, decltype(cmp)> q(cmp);
 
   q.emplace(std::move(task_range));
-  while (q.size() != workers_.size()) {
+  while (q.size() != active_workers_.size()) {
     auto biggest_tr = std::move(q.top());
     q.pop();
     auto new_tr = biggest_tr.split(biggest_tr.size() / 2);
@@ -101,29 +122,32 @@ void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
     q.emplace(std::move(new_tr));
   }
 
-  for (auto &worker : workers_) {
+  for (auto &worker : active_workers_) {
     auto tr = std::move(q.top());
     q.pop();
     if (!tr.empty()) {
-      worker.compute_async(fn, std::move(tr));
+      worker->compute_async(fn, std::move(tr));
     }
   }
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 void DistributedExecutor<RetT, TR, States...>::check_workers() {
+  std::vector<std::pair<Worker *, nu::Future<void>>> updaters;
+
+  auto fn = [](auto &worker_unique_ptr) {
+    auto *worker_ptr = worker_unique_ptr.get();
+    return std::make_pair(
+        worker_ptr, nu::async([=] { worker_ptr->update_remaining_size(); }));
+  };
+  std::ranges::transform(active_workers_, std::back_inserter(updaters), fn);
+  std::ranges::transform(suspended_workers_, std::back_inserter(updaters), fn);
+
   victims_ = decltype(victims_)();
-  std::vector<nu::Future<std::size_t>> futures;
-  std::ranges::transform(workers_, std::back_inserter(futures),
-                         [](auto &worker) {
-                           return worker.cp.run_async(
-                               &ComputeProclet<TR, States...>::remaining_size);
-                         });
-  for (const auto &[worker, future] : std::views::zip(workers_, futures)) {
-    auto size = future.get();
-    worker.remaining_size = size;
-    if (size) {
-      victims_.push(&worker);
+  for (auto &[worker_ptr, future] : updaters) {
+    future.get();
+    if (worker_ptr->remaining_size) {
+      victims_.push(worker_ptr);
     }
   }
 }
@@ -149,24 +173,27 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
   bool has_pending = false;
 
-  for (auto &worker : workers_) {
-    auto &future = worker.future;
-    if (future && !future.is_ready()) {
-      has_pending = true;
-    } else {
-      if (future) {
+  for (auto &worker_ptr : active_workers_) {
+    auto &future = worker_ptr->compute_future;
+    if (future) {
+      if (!future.is_ready()) {
+        has_pending = true;
+        continue;
+      } else {
         auto &optional_ret = future.get();
         if (optional_ret) {
           all_pairs_.emplace_back(std::move(*optional_ret));
         }
-        auto gc = std::move(future);
+        auto gc = std::move(future);  // Release mem ASAP.
       }
-      if (!victims_.empty()) {
-        auto *victim = victims_.top();
-        victims_.pop();
-        worker.steal_and_compute_async(victim->cp.get_weak(), fn_);
-        has_pending = true;
-      }
+    }
+
+    if (!victims_.empty()) {
+      // Steal from victims.
+      auto *victim = victims_.top();
+      victims_.pop();
+      worker_ptr->steal_and_compute_async(victim->cp.get_weak(), fn_);
+      has_pending = true;
     }
   }
 
@@ -201,7 +228,7 @@ DistributedExecutor<RetT, TR, States...>::run(RetT (*fn)(TR &, States...),
         Caladan::PreemptGuard g;
 
         std::osyncstream synced_out(std::cout);
-        synced_out << microtime() << " " << workers_.size() << std::endl;
+        synced_out << microtime() << " " << active_workers_.size() << std::endl;
       }
     }
     sleep_us = std::min(
@@ -238,82 +265,82 @@ void DistributedExecutor<RetT, TR, States...>::spawn_initial_queue_workers(
         get_runtime()->resource_reporter()->get_global_free_resources();
   }
 
-  std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> worker_futures;
+  std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> futures;
   for (auto &[ip, resource] : global_free_resources) {
     auto num_workers = static_cast<uint32_t>(resource.cores);
     for (uint32_t i = 0; i < num_workers; i++) {
-      worker_futures.emplace_back(
+      futures.emplace_back(
           nu::make_proclet_async<ComputeProclet<TR, States...>>(
               std::forward_as_tuple(states...), false, std::nullopt, ip));
     }
   }
 
-  std::ranges::transform(worker_futures, std::back_inserter(workers_),
-                         [](auto &worker_future) {
-                           return Worker(std::move(worker_future.get()));
-                         });
-  num_active_workers_ = workers_.size();
-  make_initial_dispatch(fn_, std::move(task_range));
+  std::ranges::transform(
+      futures, std::back_inserter(active_workers_), [](auto &future) {
+        return std::make_unique<Worker>(std::move(future.get()));
+      });
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 template <typename... S1s>
-void DistributedExecutor<RetT, TR, States...>::adjust_queue_workers(
-    std::size_t target, TR task_range, S1s &...states) {
-  target = std::max(target, static_cast<std::size_t>(1));
+void DistributedExecutor<RetT, TR, States...>::adjust_num_active_queue_workers(
+    int delta, S1s &...states) {
+  std::vector<std::pair<NodeIP, Resource>> global_free_resources;
+  {
+    Caladan::PreemptGuard g;
+    global_free_resources =
+        get_runtime()->resource_reporter()->get_global_free_resources();
+  }
+  int total_num_idle_cores = 0;
+  for (auto &[ip, res] : global_free_resources) {
+    total_num_idle_cores += res.cores;
+  }
 
-  if (target < num_active_workers_) {
-    auto futures = std::vector<nu::Future<void>>{};
-    for (std::size_t i = target; i < num_active_workers_; i++) {
-      futures.push_back(
-          workers_[i].cp.run_async(&ComputeProclet<TR, States...>::suspend));
+  delta = std::min(delta, total_num_idle_cores);
+  auto target = static_cast<std::size_t>(
+      std::max(1, delta + static_cast<int>(active_workers_.size())));
+
+  if (target < active_workers_.size()) {
+    // We should suspend workers.
+    std::vector<nu::Future<void>> futures;
+    while (active_workers_.size() != target) {
+      suspended_workers_.emplace_back(std::move(active_workers_.back()));
+      futures.emplace_back(
+          nu::async([worker_ptr = suspended_workers_.back().get()] {
+            worker_ptr->suspend();
+          }));
+      active_workers_.pop_back();
     }
-    for (auto &f : futures) {
-      f.get();
-    }
-    num_active_workers_ = target;
-  } else if (target > num_active_workers_) {
-    if (num_active_workers_ < workers_.size()) {
-      std::size_t scale_up_target = std::min(workers_.size(), target);
-
-      auto futures = std::vector<nu::Future<void>>{};
-      for (std::size_t i = num_active_workers_; i < scale_up_target; i++) {
-        futures.push_back(std::move(
-            workers_[i].cp.run_async(&ComputeProclet<TR, States...>::resume)));
+  } else {
+    // We should add workers.
+    if (!suspended_workers_.empty()) {
+      std::vector<nu::Future<void>> futures;
+      // Try to reuse the suspended workers.
+      while (active_workers_.size() != target && !suspended_workers_.empty()) {
+        active_workers_.emplace_back(std::move(suspended_workers_.back()));
+        futures.emplace_back(
+            nu::async([worker_ptr = active_workers_.back().get()] {
+              worker_ptr->resume_and_update_remaining_size();
+            }));
+        suspended_workers_.pop_back();
       }
-
-      for (auto &f : futures) {
-        f.get();
-      }
-      num_active_workers_ = scale_up_target;
-    }
-    if (target > num_active_workers_) {
-      std::vector<std::pair<NodeIP, Resource>> global_free_resources;
-      {
-        Caladan::PreemptGuard g;
-        global_free_resources =
-            get_runtime()->resource_reporter()->get_global_free_resources();
-      }
-
-      std::size_t gap = target - workers_.size();
-      std::vector<Future<Proclet<ComputeProclet<TR, States...>>>>
-          worker_futures;
+    } else {
+      // Create more workers.
+      std::vector<nu::Future<Proclet<ComputeProclet<TR, States...>>>> futures;
       for (auto &[ip, resource] : global_free_resources) {
-        auto num_workers =
-            std::min(gap, static_cast<std::size_t>(resource.cores));
-        gap -= num_workers;
-        for (uint32_t i = 0; i < num_workers; i++) {
-          worker_futures.emplace_back(
+        auto num = std::min(delta, static_cast<int>(resource.cores));
+        for (int i = 0; i < num; i++) {
+          futures.emplace_back(
               nu::make_proclet_async<ComputeProclet<TR, States...>>(
                   std::forward_as_tuple(states...), false, std::nullopt, ip));
         }
+        delta -= num;
       }
 
-      for (auto &f : worker_futures) {
-        auto w = Worker(std::move(f.get()));
-        workers_.push_back(std::move(w));
+      for (auto &future : futures) {
+        active_workers_.emplace_back(
+            std::make_unique<Worker>(std::move(future.get())));
       }
-      num_active_workers_ = workers_.size();
     }
   }
 }
@@ -327,46 +354,48 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   fn_ = fn;
 
   constexpr auto kSlowStartQueueLen = 100;
-  constexpr auto kSlowStartStep = 10;
-  constexpr auto kDiffQueueLenMultiplier = -0.4;
+  constexpr auto kSlowStartStep = 5;
+  constexpr auto kDiffQueueLenMultiplier = -0.5;
 
   uint64_t last_check_workers_us = microtime();
   uint64_t last_adjust_num_workers_us = last_check_workers_us;
   int64_t prev_queue_len = 0;
 
   spawn_initial_queue_workers(task_range, states...);
+  make_initial_dispatch(fn_, std::move(task_range));
 
   while (true) {
     auto now_us = Time::microtime();
 
     if (now_us - last_check_workers_us >= kCheckWorkersIntervalUs) {
       check_workers();
-      last_check_workers_us = now_us;
+      last_check_workers_us = now_us = Time::microtime();
     }
     auto sleep_us = kCheckWorkersIntervalUs - (now_us - last_check_workers_us);
 
     if (now_us - last_adjust_num_workers_us >= kAdjustNumWorkersIntervalUs) {
       int64_t curr_queue_len = queue.size();
       auto diff_queue_len = curr_queue_len - prev_queue_len;
-      auto delta_num_active_workers =
+      auto delta =
           curr_queue_len < kSlowStartQueueLen
               ? kSlowStartStep
-              : kDiffQueueLenMultiplier * diff_queue_len;
-      auto new_num_active_workers = std::max(
-          0, static_cast<int>(num_active_workers_ + delta_num_active_workers));
-      adjust_queue_workers(new_num_active_workers, task_range, states...);
+              : static_cast<int>(kDiffQueueLenMultiplier * diff_queue_len);
+      adjust_num_active_queue_workers(delta, states...);
 
       if constexpr (kEnableLogging) {
         Caladan::PreemptGuard g;
 
         std::osyncstream synced_out(std::cout);
         synced_out << microtime() << " " << curr_queue_len << " "
-                   << new_num_active_workers << std::endl;
+                   << diff_queue_len << " " << delta << " "
+                   << active_workers_.size() << " " << suspended_workers_.size()
+                   << std::endl;
       }
 
       prev_queue_len = curr_queue_len;
-      last_adjust_num_workers_us = now_us;
+      last_adjust_num_workers_us = now_us = Time::microtime();
     }
+
     sleep_us = std::min(sleep_us, kAdjustNumWorkersIntervalUs -
                                       (now_us - last_adjust_num_workers_us));
 
