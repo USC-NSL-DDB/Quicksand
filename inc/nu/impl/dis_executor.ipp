@@ -193,6 +193,8 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
       // Steal from victims.
       auto *victim = victims_.top();
       victims_.pop();
+      victim->remaining_size /= 2;
+      victims_.push(victim);
       worker_ptr->steal_and_compute_async(victim->cp.get_weak(), fn_);
       has_pending = true;
     }
@@ -403,7 +405,6 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
       prev_queue_len = curr_queue_len;
       last_adjust_num_workers_us = now_us = Time::microtime();
     }
-
     sleep_us = std::min(sleep_us, kAdjustNumWorkersIntervalUs -
                                       (now_us - last_adjust_num_workers_us));
 
@@ -414,10 +415,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
     Time::sleep(sleep_us);
   }
 
-  while (queue.size()) {
-    Time::sleep(kCheckWorkersIntervalUs);
-  }
-
+  active_workers_.clear(); // Wait for the inflight computation to finish.
   return concat_results();
 }
 
