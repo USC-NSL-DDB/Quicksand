@@ -9,6 +9,7 @@
 namespace nu {
 
 constexpr static bool kEnableLogging = false;
+constexpr static auto kStaticQueueWorkerTarget = 0;
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::Worker::Worker() {}
@@ -215,13 +216,12 @@ DistributedExecutor<RetT, TR, States...>::run(RetT (*fn)(TR &, States...),
     auto now_us = Time::microtime();
 
     if (now_us - last_check_workers_us >= kCheckWorkersIntervalUs) {
-      last_check_workers_us = now_us;
       check_workers();
+      last_check_workers_us = now_us = Time::microtime();
     }
     auto sleep_us = kCheckWorkersIntervalUs - (now_us - last_check_workers_us);
 
     if (now_us - last_add_workers_us >= kAdjustNumWorkersIntervalUs) {
-      last_add_workers_us = now_us;
       add_workers(states...);
 
       if constexpr (kEnableLogging) {
@@ -230,6 +230,8 @@ DistributedExecutor<RetT, TR, States...>::run(RetT (*fn)(TR &, States...),
         std::osyncstream synced_out(std::cout);
         synced_out << microtime() << " " << active_workers_.size() << std::endl;
       }
+
+      last_add_workers_us = now_us = Time::microtime();
     }
     sleep_us = std::min(
         sleep_us, kAdjustNumWorkersIntervalUs - (now_us - last_add_workers_us));
@@ -291,14 +293,20 @@ void DistributedExecutor<RetT, TR, States...>::adjust_num_active_queue_workers(
     global_free_resources =
         get_runtime()->resource_reporter()->get_global_free_resources();
   }
-  int total_num_idle_cores = 0;
-  for (auto &[ip, res] : global_free_resources) {
-    total_num_idle_cores += res.cores;
-  }
 
-  delta = std::min(delta, total_num_idle_cores);
-  auto target = static_cast<std::size_t>(
-      std::max(1, delta + static_cast<int>(active_workers_.size())));
+  std::size_t target;
+  if constexpr (kStaticQueueWorkerTarget) {
+    target = kStaticQueueWorkerTarget;
+  } else {
+    int total_num_idle_cores = 0;
+    for (auto &[ip, res] : global_free_resources) {
+      total_num_idle_cores += res.cores;
+    }
+
+    delta = std::min(delta, total_num_idle_cores);
+    target = static_cast<std::size_t>(
+        std::max(1, delta + static_cast<int>(active_workers_.size())));
+  }
 
   if (target < active_workers_.size()) {
     // We should suspend workers.
@@ -354,7 +362,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   fn_ = fn;
 
   constexpr auto kSlowStartQueueLen = 100;
-  constexpr auto kSlowStartStep = 5;
+  constexpr auto kSlowStartStep = 2;
   constexpr auto kDiffQueueLenMultiplier = -0.5;
 
   uint64_t last_check_workers_us = microtime();
