@@ -27,8 +27,8 @@ class DataLoader {
   static constexpr auto kGPUIP = MAKE_IP_ADDR(18, 18, 1, 100);
   static constexpr uint32_t kNumScaleUpGPUs = 10;
   static constexpr uint64_t kNumScaleDownGPUs = 5;
-  static constexpr uint64_t kScaleUpDurationUs = nu::kOneMilliSecond * 500;
-  static constexpr uint64_t kScaleDownDurationUs = nu::kOneMilliSecond * 500;
+  static constexpr uint64_t kScaleUpDurationUs = nu::kOneMilliSecond * 200;
+  static constexpr uint64_t kScaleDownDurationUs = nu::kOneMilliSecond * 200;
 
   DataLoader(std::string path);
   std::size_t size() const;

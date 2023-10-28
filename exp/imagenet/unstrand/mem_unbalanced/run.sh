@@ -20,12 +20,14 @@ function get_srv_idx() {
     echo $(expr $SRV_STARTING_IDX + $1 - 1)
 }
 
-source ../setup_opencv.sh
+source ../../setup_opencv.sh
+cp dataloader.hpp dataloader.hpp.bak
 sed "s/\(.*\)kNumScaleDownGPUs = .*/\1kNumScaleDownGPUs = 10;/g" -i dataloader.hpp
 make clean
 make -j
+mv dataloader.hpp.bak dataloader.hpp
 
-run_cmd $MAIN_SRV_IDX $DIR/../setup_images.sh
+run_cmd $MAIN_SRV_IDX $DIR/../../setup_images.sh
 
 start_iokerneld $CTL_IDX
 kses=()

@@ -1,9 +1,3 @@
-#include "dataloader.hpp"
-
-#include <runtime.h>
-#include <thread.h>
-
-#include <cereal/archives/binary.hpp>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
@@ -11,6 +5,12 @@
 #include <sstream>
 #include <string>
 
+#include <runtime.h>
+#include <thread.h>
+#include <cereal/archives/binary.hpp>
+#include <nu/utils/caladan.hpp>
+
+#include "dataloader.hpp"
 #include "gpu.hpp"
 
 using directory_iterator = std::filesystem::recursive_directory_iterator;
@@ -124,9 +124,13 @@ void DataLoader::process_traces(GPUTraces &&all_traces) {
     }
   }
 
-  std::cout << "GPU usage timeseries:" << std::endl;
-  for (auto &[us, utilization] : total_utilizations) {
-    std::cout << us << " " << utilization << std::endl;
+  {
+    nu::Caladan::PreemptGuard g;
+
+    std::cout << "GPU usage timeseries:" << std::endl;
+    for (auto &[us, utilization] : total_utilizations) {
+      std::cout << us << " " << utilization << std::endl;
+    }
   }
 }
 
