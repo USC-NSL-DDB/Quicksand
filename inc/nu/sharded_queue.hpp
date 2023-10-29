@@ -4,13 +4,9 @@
 #include <queue>
 
 #include "commons.hpp"
-#include "queue_range.hpp"
 #include "sharded_ds.hpp"
 
 namespace nu {
-
-template <typename RetT, TaskRangeBased TR, typename... States>
-class DistributedExecutor;
 
 template <typename T, typename LL>
 class ShardedQueue;
@@ -18,11 +14,6 @@ class ShardedQueue;
 template <class Q>
 concept ShardedQueueBased =
     requires { requires is_base_of_template_v<Q, ShardedQueue>; };
-
-template <typename RetT, QueueRangeBased QR, typename... S0s, typename... S1s>
-DistributedExecutor<RetT, TaskRange<QR>, S0s...> make_distributed_executor(
-    RetT (*fn)(TaskRange<QR> &, S0s...), TaskRange<QR> queue_range,
-    S1s &&...states);
 
 template <typename T>
 class Queue {
@@ -80,12 +71,8 @@ class ShardedQueue
   ShardedQueue(std::optional<typename Base::ShardingHint> sharding_hint,
                std::optional<NodeIP> pinned_ip);
   friend class ProcletServer;
-  template <typename T1, BoolIntegral LL1, BoolIntegral Insertable>
-  friend class QueueTaskRangeImpl;
   template <typename T1, typename LL1>
   friend ShardedQueue<T1, LL1> make_sharded_queue(std::optional<NodeIP>);
-  template <class... Types>
-  friend class tuple;
 };
 
 template <typename T, typename LL>

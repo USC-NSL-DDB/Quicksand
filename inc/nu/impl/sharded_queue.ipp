@@ -2,7 +2,6 @@
 #include <ranges>
 
 #include "nu/dis_executor.hpp"
-#include "nu/queue_range.hpp"
 
 namespace nu {
 

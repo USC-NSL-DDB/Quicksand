@@ -3,7 +3,6 @@
 #include <type_traits>
 
 #include "nu/dis_executor.hpp"
-#include "nu/queue_range.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sealed_ds.hpp"
 #include "nu/sharded_queue.hpp"

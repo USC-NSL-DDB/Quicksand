@@ -6,7 +6,6 @@
 #include <memory>
 
 #include "nu/compute_proclet.hpp"
-#include "nu/queue_range.hpp"
 #include "nu/sharded_queue.hpp"
 #include "nu/task_range.hpp"
 #include "nu/utils/future.hpp"
@@ -65,10 +64,6 @@ class DistributedExecutor {
             typename... S1s>
   friend DistributedExecutor<R, T, Q, S0s...> make_distributed_executor(
       R (*fn)(T &, Q, S0s...), T task_range, Q queue, S1s &&...states);
-  template <typename R, QueueRangeBased QR, typename... S0s, typename... S1s>
-  friend DistributedExecutor<R, TaskRange<QR>, S0s...>
-  make_distributed_executor(R (*fn)(TaskRange<QR> &, S0s...),
-                            TaskRange<QR> queue_range, S1s &&...states);
 
   DistributedExecutor();
   template <typename... S1s>
