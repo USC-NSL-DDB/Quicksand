@@ -1,3 +1,5 @@
+sudo apt-get -y install ffmpeg libx264-dev
+
 cd alfalfa
 
 ./autogen.sh
