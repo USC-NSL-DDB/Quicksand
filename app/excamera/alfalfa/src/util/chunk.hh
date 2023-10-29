@@ -34,6 +34,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <endian.h>
+#include <cstdint>
 
 class Chunk
 {
