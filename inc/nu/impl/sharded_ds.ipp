@@ -774,12 +774,14 @@ ShardedDataStructure<Container, LL>::sync_mapping(bool dont_reroute) {
       key_to_shards_.clear();
       for (auto &[k, s] : snapshot.second) {
         auto new_it = key_to_shards_.emplace(k, std::move(s));
-        auto old_it = old_key_to_shards.find(k);
-        if (old_it != old_key_to_shards.end() &&
-            new_it->second.shard == old_it->second.shard) {
-          new_it->second.seq = old_it->second.seq;
-          new_it->second.flush_executor =
-              std::move(old_it->second.flush_executor);
+        auto [old_it_begin, old_it_end] = old_key_to_shards.equal_range(k);
+        for (auto old_it = old_it_begin; old_it != old_it_end; ++old_it) {
+          if (new_it->second.shard == old_it->second.shard) {
+            new_it->second.seq = old_it->second.seq;
+            new_it->second.flush_executor =
+                std::move(old_it->second.flush_executor);
+            break;
+          }
         }
       }
 
