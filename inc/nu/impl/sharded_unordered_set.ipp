@@ -25,6 +25,11 @@ inline std::size_t GeneralUnorderedSet<T, M>::size() const {
 }
 
 template <typename T, BoolIntegral M>
+inline std::size_t GeneralUnorderedSet<T, M>::capacity() const {
+  return set_.bucket_count();
+}
+
+template <typename T, BoolIntegral M>
 inline void GeneralUnorderedSet<T, M>::reserve(std::size_t size) {
   return set_.reserve(size);
 }

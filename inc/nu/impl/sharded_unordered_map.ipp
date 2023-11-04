@@ -28,6 +28,11 @@ inline std::size_t GeneralUnorderedMap<K, V, H, M>::size() const {
 }
 
 template <typename K, typename V, typename H, BoolIntegral M>
+inline std::size_t GeneralUnorderedMap<K, V, H, M>::capacity() const {
+  return map_.bucket_count();
+}
+
+template <typename K, typename V, typename H, BoolIntegral M>
 inline void GeneralUnorderedMap<K, V, H, M>::reserve(std::size_t size) {
   return map_.reserve(size);
 }
