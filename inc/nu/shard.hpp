@@ -205,6 +205,7 @@ class GeneralShard {
   constexpr static uint32_t kSlabFragmentationHeadroom = 2 << 20;
   constexpr static float kComputeLoadHighThresh = 1.0;
   constexpr static float kComputeLoadLowThresh = 0.5;
+  constexpr static uint32_t kSplitHighConcurrencyThresh = 10;
 
   const uint32_t max_shard_bytes_;
   uint32_t real_max_shard_bytes_;
@@ -215,9 +216,10 @@ class GeneralShard {
   ReadSkewedLock rw_lock_;
   SlabAllocator *slab_;
   CPULoad *cpu_load_;
-  uint64_t container_bucket_size_;
-  uint64_t initial_slab_usage_;
-  std::size_t initial_size_;
+  int64_t container_bucket_size_;
+  int64_t initial_slab_usage_;
+  int64_t initial_size_;
+  int64_t initial_capacity_;
   std::size_t size_thresh_;
   Mutex empty_mutex_;
   CondVar empty_cv_;

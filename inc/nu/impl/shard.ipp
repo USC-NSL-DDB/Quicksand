@@ -132,6 +132,7 @@ GeneralShard<Container>::GeneralShard(WeakProclet<ShardMapping> mapping,
     container_->reserve(reserve_size);
     initial_slab_usage_ = slab_->get_cur_usage();
     initial_size_ = 0;
+    initial_capacity_ = container_->capacity();
     size_thresh_ = kAlmostFullThresh * reserve_size;
   }
 
@@ -188,6 +189,9 @@ void GeneralShard<Container>::init_range_and_data(
   container_ = std::move(container_and_metadata.container);
   initial_slab_usage_ = slab_->get_cur_usage();
   initial_size_ = container_->size();
+  if constexpr (HasCapacity<Container>) {
+    initial_capacity_ = container_->capacity();
+  }
   container_bucket_size_ = container_and_metadata.container_bucket_size;
   real_max_shard_bytes_ = max_shard_bytes_ / kAlmostFullThresh;
   size_thresh_ = kAlmostFullThresh * container_and_metadata.capacity;
@@ -226,14 +230,24 @@ template <GeneralContainerBased Container>
 void GeneralShard<Container>::split() {
   Key mid_k;
   std::size_t new_container_capacity = 0;
-  auto cur_slab_usage = slab_->get_cur_usage();
 
   if constexpr (Reservable<Container>) {
-    auto diff_data_size = cur_slab_usage - initial_slab_usage_;
-    auto diff_size = container_->size() - initial_size_;
-    auto data_size = static_cast<float>(diff_data_size) / diff_size;
-    new_container_capacity =
-        max_shard_bytes_ / (data_size + container_bucket_size_);
+    auto inflight_thread_cnts =
+        to_proclet_header(self_.get_id())->thread_cnt.get();
+    if (inflight_thread_cnts < kSplitHighConcurrencyThresh) {
+      auto diff_data_size =
+          static_cast<int64_t>(slab_->get_cur_usage()) - initial_slab_usage_;
+      auto diff_size = static_cast<int64_t>(container_->size()) - initial_size_;
+      auto data_size =
+          std::max(0.0f, static_cast<float>(diff_data_size) / diff_size);
+      new_container_capacity =
+          max_shard_bytes_ / (data_size + container_bucket_size_);
+    } else {
+      // Too many inflight threads now so that the mem usage might be heavily
+      // under-reported, resulting in a bad capacity estimation. Thus, let's
+      // just use the same capacity of the parent shard.
+      new_container_capacity = initial_capacity_;
+    }
   }
 
   {
@@ -264,10 +278,7 @@ void GeneralShard<Container>::split() {
           latter_half_container.reset(new Container(*container_));
         }
         ContainerAndMetadata<Container> container_and_metadata;
-        std::size_t min_capacity =
-            latter_half_container->size() / kAlmostFullThresh + 1;
-        container_and_metadata.capacity =
-            std::max(new_container_capacity, min_capacity);
+        container_and_metadata.capacity = new_container_capacity;
         container_and_metadata.container = std::move(latter_half_container);
         container_and_metadata.container_bucket_size = container_bucket_size_;
         new_shard.run(&GeneralShard::init_range_and_data, mid_k, r_key_,
