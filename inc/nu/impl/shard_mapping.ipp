@@ -235,8 +235,8 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
   }
 
   if (!new_shard) {
-    // Useful for improving the locality of sorter.
-    if (mapping_.size() >= kCreateLocalShardThresh || Shard::kIsService) {
+    // Useful for improving the data locality.
+    if (Shard::kIsService) {
       new_shard =
           make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
                               pinned_ip_.has_value(), proclet_capacity_, ip);
