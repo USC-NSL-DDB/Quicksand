@@ -44,7 +44,7 @@ class ShardedDataStructure {
   using ShardMapping = GeneralShardMapping<Shard>;
 
   constexpr static uint32_t kBatchingMaxShardBytes = 32 << 20;
-  constexpr static uint32_t kBatchingMaxBatchBytes = 64 << 10;
+  constexpr static uint32_t kBatchingMaxBatchBytes = 16 << 10;
   constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
   constexpr static uint32_t kMaxNumInflightFlushes = 8;
