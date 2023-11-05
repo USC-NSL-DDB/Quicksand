@@ -25,7 +25,7 @@ namespace nu {
 
 // This is a logical node instead of a physical node.
 struct NodeStatus {
-  constexpr static uint32_t kMovingMinWinTimeUs = kOneMilliSecond;
+  constexpr static uint32_t kMovingMinWinTimeUs = IAS_PS_CPU_THRESH_US;
   constexpr static uint32_t kMovingMinWinSize =
       kMovingMinWinTimeUs / IAS_RP_INTERVAL_US;
   constexpr static uint32_t kMemLowWaterMarkMBs = IAS_PS_MEM_LOW_MB;
