@@ -14,8 +14,8 @@
 using Key = uint64_t;
 constexpr uint64_t kNumElements = 400ULL << 20;
 constexpr uint32_t kValSize = 90;
-constexpr uint32_t kNumThreads = 34;
-constexpr uint32_t kNumNodes = 5;
+constexpr uint32_t kNumThreads = 26;
+constexpr uint32_t kNumNodes = 7;
 constexpr uint32_t kNumElementsPerThread =
     kNumElements / kNumNodes / kNumThreads;
 constexpr auto kNormalDistributionMean = std::numeric_limits<Key>::max() / 2.0;
@@ -26,7 +26,8 @@ constexpr bool kUseNormalDistribution = true;
 constexpr nu::NodeIP kNodeIPs[] = {
     MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 3),
     MAKE_IP_ADDR(18, 18, 1, 4), MAKE_IP_ADDR(18, 18, 1, 5),
-    MAKE_IP_ADDR(18, 18, 1, 6)};
+    MAKE_IP_ADDR(18, 18, 1, 6), MAKE_IP_ADDR(18, 18, 1, 7),
+    MAKE_IP_ADDR(18, 18, 1, 8)};
 
 struct Val {
   char data[kValSize];
@@ -48,8 +49,7 @@ struct InputGenerator {
 
     std::cout << "generate_input()..." << std::endl;
 
-    std::random_device rd{};
-    std::mt19937 gen{rd()};
+    std::mt19937 gen{0};
     std::normal_distribution<double> normal_d{kNormalDistributionMean,
                                               kNormalDistributionStdDev};
     std::uniform_int_distribution<uint64_t> uniform_d{kUniformDistributionMin,
