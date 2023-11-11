@@ -1,33 +1,25 @@
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <random>
 #include <ranges>
 #include <utility>
-#include <cstring>
-#include <memory>
 
 #include "nu/cereal.hpp"
+#include "nu/dis_executor.hpp"
 #include "nu/runtime.hpp"
 #include "nu/sharded_sorter.hpp"
 
 using Key = uint64_t;
 constexpr uint64_t kNumElements = 400ULL << 20;
 constexpr uint32_t kValSize = 90;
-constexpr uint32_t kNumThreads = 26;
-constexpr uint32_t kNumNodes = 7;
-constexpr uint32_t kNumElementsPerThread =
-    kNumElements / kNumNodes / kNumThreads;
 constexpr auto kNormalDistributionMean = std::numeric_limits<Key>::max() / 2.0;
 constexpr auto kNormalDistributionStdDev = kNumElements / 10;
 constexpr auto kUniformDistributionMin = 0;
 constexpr auto kUniformDistributionMax = std::numeric_limits<Key>::max();
 constexpr bool kUseNormalDistribution = true;
-constexpr nu::NodeIP kNodeIPs[] = {
-    MAKE_IP_ADDR(18, 18, 1, 2), MAKE_IP_ADDR(18, 18, 1, 3),
-    MAKE_IP_ADDR(18, 18, 1, 4), MAKE_IP_ADDR(18, 18, 1, 5),
-    MAKE_IP_ADDR(18, 18, 1, 6), MAKE_IP_ADDR(18, 18, 1, 7),
-    MAKE_IP_ADDR(18, 18, 1, 8)};
 
 struct Val {
   char data[kValSize];
@@ -40,101 +32,42 @@ struct Val {
   }
 };
 
-std::unique_ptr<Key[]> keys[kNumThreads];
-std::unique_ptr<Val[]> vals[kNumThreads];
-
-struct InputGenerator {
-  void work() {
-    nu::RuntimeSlabGuard g;
-
-    std::cout << "generate_input()..." << std::endl;
-
-    std::mt19937 gen{0};
-    std::normal_distribution<double> normal_d{kNormalDistributionMean,
-                                              kNormalDistributionStdDev};
-    std::uniform_int_distribution<uint64_t> uniform_d{kUniformDistributionMin,
-                                                      kUniformDistributionMax};
-
-    for (uint32_t i = 0; i < kNumThreads; i++) {
-      auto &ks = keys[i];
-      ks = std::make_unique_for_overwrite<Key[]>(kNumElementsPerThread);
-      auto &vs = vals[i];
-      vs = std::make_unique_for_overwrite<Val[]>(kNumElementsPerThread);
-      for (uint32_t j = 0; j < kNumElementsPerThread; j++) {
-        ks[j] = kUseNormalDistribution ? normal_d(gen) : uniform_d(gen);
-        vs[j] = Val(j);
-      }
-    }
-  }
-};
-
-struct Emplacer {
-  Emplacer(nu::ShardedSorter<Key, Val> sharded_sorter)
-      : sharded_sorter_(std::move(sharded_sorter)) {}
-
-  void work() {
-    nu::RuntimeSlabGuard g;
-
-    std::vector<nu::Thread> threads;
-    for (uint32_t i = 0; i < kNumThreads; i++) {
-      threads.emplace_back(
-          [&, tid = i,
-           ss_ptr = std::make_unique<nu::ShardedSorter<Key, Val>>(
-               sharded_sorter_)]() mutable {
-            auto &ks = keys[tid];
-            auto &vs = vals[tid];
-            for (uint32_t j = 0; j < kNumElementsPerThread; j++) {
-              ss_ptr->insert(ks[j], vs[j]);
-            }
-            ks.reset();
-            vs.reset();
-            ss_ptr.reset();
-          });
-    }
-    for (auto &thread : threads) {
-      thread.join();
-    }
-
-    std::cout
-        << "num proclets = "
-        << nu::get_runtime()->proclet_manager()->get_num_present_proclets()
-        << std::endl;
-  }
-
-  nu::ShardedSorter<Key, Val> sharded_sorter_;
-};
-
 void do_work() {
-  {
-    std::vector<nu::Proclet<InputGenerator>> generators;
-    std::vector<nu::Future<void>> futures;
-    generators.reserve(kNumNodes);
-
-    for (uint32_t i = 0; i < kNumNodes; i++) {
-      auto ip = kNodeIPs[i];
-      generators.emplace_back(
-          nu::make_proclet<InputGenerator>(true, std::nullopt, ip));
-      futures.emplace_back(generators.back().run_async(&InputGenerator::work));
-    }
-  }
-
   auto sharded_sorter = nu::make_sharded_sorter<Key, Val>();
+
+  constexpr uint64_t kBatchSize = 4 << 20;
+  auto range = std::views::repeat(kBatchSize, kNumElements / kBatchSize);
+  std::vector<int> tasks(range.begin(), range.end());
+  if (kNumElements % kBatchSize) {
+    tasks.emplace_back(kNumElements % kBatchSize);
+  }
 
   barrier();
   auto t0 = microtime();
   barrier();
 
   {
-    std::vector<nu::Proclet<Emplacer>> emplacers;
-    std::vector<nu::Future<void>> futures;
-    emplacers.reserve(kNumNodes);
+    auto dis_exec = nu::make_distributed_executor(
+        +[](nu::VectorTaskRange<int> &task_range,
+            decltype(sharded_sorter) sharded_sorter) {
+          std::mt19937 gen{0};
+          std::normal_distribution<double> normal_d{kNormalDistributionMean,
+                                                    kNormalDistributionStdDev};
+          std::uniform_int_distribution<uint64_t> uniform_d{
+              kUniformDistributionMin, kUniformDistributionMax};
 
-    for (uint32_t i = 0; i < kNumNodes; i++) {
-      auto ip = kNodeIPs[i];
-      emplacers.emplace_back(nu::make_proclet<Emplacer>(
-          std::tuple(sharded_sorter), true, std::nullopt, ip));
-      futures.emplace_back(emplacers.back().run_async(&Emplacer::work));
-    }
+          while (auto task = task_range.pop()) {
+	    auto upper = *task;
+            for (int i = 0; i < upper; i++) {
+              auto key =
+                  kUseNormalDistribution ? normal_d(gen) : uniform_d(gen);
+              auto val = Val(i);
+              sharded_sorter.insert(key, val);
+            }
+          }
+        },
+        nu::VectorTaskRange<int>(tasks), sharded_sorter);
+    dis_exec.get();
   }
 
   barrier();
