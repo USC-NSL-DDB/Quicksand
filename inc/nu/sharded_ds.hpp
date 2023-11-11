@@ -164,6 +164,8 @@ class ShardedDataStructure {
   std::unique_ptr<ReadSkewedLock> rw_lock_;
   template <ShardedDataStructureBased T>
   friend class SealedDS;
+  template <typename K, typename V>
+  friend class ShardedSorted;
 
   std::size_t __size();
   Val __front()

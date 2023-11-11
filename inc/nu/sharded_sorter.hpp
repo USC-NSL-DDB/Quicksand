@@ -11,7 +11,16 @@
 namespace nu {
 
 template <typename K, typename V = ErasedType>
-using ShardedSorted = SealedDS<ShardedPartitioner<K, V>>;
+class ShardedSorted : public ShardedPartitioner<K, V> {
+ public:
+  std::vector<std::pair<std::optional<K>, std::size_t>> get_all_shards_sizes();
+
+ private:
+  template <typename K1, typename V1>
+  friend class ShardedSorter;
+
+  ShardedSorted(ShardedPartitioner<K, V> &&);
+};
 
 template <typename K, typename V = ErasedType>
 class ShardedSorter {

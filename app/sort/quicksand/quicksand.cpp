@@ -57,8 +57,8 @@ void do_work() {
               kUniformDistributionMin, kUniformDistributionMax};
 
           while (auto task = task_range.pop()) {
-	    auto upper = *task;
-            for (int i = 0; i < upper; i++) {
+            auto num_elements = *task;
+            for (int i = 0; i < num_elements; i++) {
               auto key =
                   kUseNormalDistribution ? normal_d(gen) : uniform_d(gen);
               auto val = Val(i);
@@ -82,6 +82,15 @@ void do_work() {
 
   std::cout << "Shuffling takes " << t1 - t0 << " microseconds." << std::endl;
   std::cout << "Sorting takes " << t2 - t1 << " microseconds." << std::endl;
+
+  std::cout << "Dumping shard sizes..." << std::endl;
+  auto all_shards_sizes = sharded_sorted.get_all_shards_sizes();
+  std::cout << "total number of shards = " << all_shards_sizes.size()
+            << std::endl;
+  std::osyncstream synced_out(std::cout);
+  for (auto &[_, size] : all_shards_sizes) {
+    synced_out << size << std::endl;
+  }
 }
 
 int main(int argc, char **argv) {

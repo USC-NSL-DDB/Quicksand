@@ -1,6 +1,22 @@
 namespace nu {
 
 template <typename K, typename V>
+ShardedSorted<K, V>::ShardedSorted(ShardedPartitioner<K, V> &&sp)
+    : ShardedPartitioner<K, V>(std::move(sp)) {}
+
+template <typename K, typename V>
+std::vector<std::pair<std::optional<K>, std::size_t>>
+ShardedSorted<K, V>::get_all_shards_sizes() {
+  auto all_shards_info = ShardedPartitioner<K, V>::get_all_shards_info();
+  std::vector<std::pair<std::optional<K>, std::size_t>> ret;
+  for (auto &[k, size, _] : all_shards_info) {
+    ret.emplace_back(k, size);
+  }
+  std::ranges::sort(ret);
+  return ret;
+}
+
+template <typename K, typename V>
 inline ShardedSorter<K, V>::ShardedSorter(ShardedPartitioner<K, V> &&sharded_pn)
     : sharded_pn_(std::move(sharded_pn)) {}
 
@@ -28,7 +44,7 @@ inline void ShardedSorter<K, V>::insert(std::pair<K, V> p)
 template <typename K, typename V>
 ShardedSorted<K, V> ShardedSorter<K, V>::sort() {
   sharded_pn_.for_all_shards(+[](Partitioner<K, V> &pn) { pn.sort(); });
-  return nu::to_sealed_ds(std::move(sharded_pn_));
+  return std::move(sharded_pn_);
 }
 
 template <typename K, typename V>
