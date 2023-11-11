@@ -23,17 +23,21 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 void DistributedExecutor<RetT, TR, States...>::Worker::compute_async(
     RetT (*fn)(TR &, States...), TR tr) {
   compute_future =
-      cp.__run_async(&ComputeProclet<TR, States...>::template compute<RetT>, fn,
-                     std::move(tr));
+      cp.template __run_async</* MigrEn = */ true, /* CPUMon = */ true,
+                              /* CPUSample = */ false>(
+          &ComputeProclet<TR, States...>::template compute<RetT>, fn,
+          std::move(tr));
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 void DistributedExecutor<RetT, TR, States...>::Worker::steal_and_compute_async(
     WeakProclet<ComputeProclet<TR, States...>> victim,
     RetT (*fn)(TR &, States...)) {
-  compute_future = cp.__run_async(
-      &ComputeProclet<TR, States...>::template steal_and_compute<RetT>, victim,
-      fn);
+  compute_future =
+      cp.template __run_async</* MigrEn = */ true, /* CPUMon = */ true,
+                              /* CPUSample = */ false>(
+          &ComputeProclet<TR, States...>::template steal_and_compute<RetT>,
+          victim, fn);
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -57,6 +61,17 @@ void DistributedExecutor<
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::DistributedExecutor() {}
+
+template <typename RetT, TaskRangeBased TR, typename... States>
+DistributedExecutor<RetT, TR, States...>::~DistributedExecutor() {
+  std::vector<nu::Future<void>> futures;
+
+  auto fn = [](auto &worker_unique_ptr) {
+    return nu::async([&worker_unique_ptr] { worker_unique_ptr.reset(); });
+  };
+  std::ranges::transform(active_workers_, std::back_inserter(futures), fn);
+  std::ranges::transform(suspended_workers_, std::back_inserter(futures), fn);
+}
 
 template <typename RetT, TaskRangeBased TR, typename... States>
 DistributedExecutor<RetT, TR, States...>::MovedResult
@@ -92,14 +107,16 @@ void DistributedExecutor<RetT, TR, States...>::add_workers(S1s &...states) {
         get_runtime()->resource_reporter()->get_global_free_resources();
   }
 
+  uint64_t num_new_workers = 0;
+  for (auto &[_, resource] : global_free_resources) {
+    num_new_workers += resource.cores;
+  }
+  num_new_workers = std::min(num_new_workers, victims_.size());
+
   std::vector<Future<Proclet<ComputeProclet<TR, States...>>>> futures;
-  for (auto &[ip, resource] : global_free_resources) {
-    auto num_workers = static_cast<uint32_t>(resource.cores);
-    for (uint32_t i = 0; i < num_workers; i++) {
-      futures.emplace_back(
-          nu::make_proclet_async<ComputeProclet<TR, States...>>(
-              std::forward_as_tuple(states...), false, std::nullopt, ip));
-    }
+  for (uint64_t i = 0; i < num_new_workers; i++) {
+    futures.emplace_back(nu::make_proclet_async<ComputeProclet<TR, States...>>(
+        std::forward_as_tuple(states...)));
   }
 
   for (auto &future : futures) {
@@ -174,6 +191,7 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
   bool has_pending = false;
 
+  std::vector<Worker *> stash;
   for (auto &worker_ptr : active_workers_) {
     auto &future = worker_ptr->compute_future;
     if (future) {
@@ -194,10 +212,16 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
       auto *victim = victims_.top();
       victims_.pop();
       victim->remaining_size /= 2;
-      victims_.push(victim);
+      if (victim->remaining_size) {
+        victims_.push(victim);
+      }
       worker_ptr->steal_and_compute_async(victim->cp.get_weak(), fn_);
+      stash.emplace_back(worker_ptr.get());
       has_pending = true;
     }
+  }
+  for (auto *worker : stash) {
+    victims_.push(worker);
   }
 
   return has_pending;

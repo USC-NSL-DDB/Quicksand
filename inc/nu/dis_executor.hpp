@@ -20,6 +20,7 @@ class DistributedExecutor {
   using MovedResult =
       std::conditional_t<std::is_void_v<Result>, void, std::vector<RetT> &&>;
 
+  ~DistributedExecutor();
   DistributedExecutor(const DistributedExecutor &) = delete;
   DistributedExecutor &operator=(const DistributedExecutor &) = delete;
   DistributedExecutor(DistributedExecutor &&) = default;
