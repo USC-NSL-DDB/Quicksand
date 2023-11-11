@@ -862,10 +862,11 @@ void ShardedDataStructure<Container, LL>::for_all_shards(
   using Fn = decltype(fn);
   auto raw_fn = reinterpret_cast<uintptr_t>(fn);
 
-  std::vector<WeakProclet<Shard>> local_shards;
   std::vector<Future<void>> futures;
 
-  auto spawn_fn = [&](auto &shard) {
+  rw_lock_->reader_lock();
+  for (auto &[_, shard_and_reqs] : key_to_shards_) {
+    auto &shard = shard_and_reqs.shard;
     futures.emplace_back(shard.run_async(
         +[](Shard &shard, uintptr_t raw_fn, S0s... states) {
           auto *fn = reinterpret_cast<Fn>(raw_fn);
@@ -873,22 +874,8 @@ void ShardedDataStructure<Container, LL>::for_all_shards(
           container_ptr->pass_through(fn, states...);
         },
         raw_fn, states...));
-  };
-
-  rw_lock_->reader_lock();
-  for (auto &[_, shard_and_reqs] : key_to_shards_) {
-    auto &shard = shard_and_reqs.shard;
-    if (shard.is_local()) {
-      local_shards.emplace_back(shard);
-    } else {
-      spawn_fn(shard);
-    }
   }
   rw_lock_->reader_unlock();
-
-  for (auto &shard : local_shards) {
-    spawn_fn(shard);
-  }
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
