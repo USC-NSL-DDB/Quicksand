@@ -22,7 +22,6 @@
 #include <sync.h>
 #include "nu/runtime.hpp"
 #include "nu/sharded_vector.hpp"
-#include "nu/sharded_queue.hpp"
 #include "nu/dis_executor.hpp"
 #include "nu/sharded_ds_range.hpp"
 #include "nu/zipped_ds_range.hpp"

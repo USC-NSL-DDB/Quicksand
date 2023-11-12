@@ -13,7 +13,7 @@ ALFALFA_INC = -I$(ALFALA_PATH)/src/encoder -I$(ALFALA_PATH)/src/decoder -I$(ALFA
 INC += $(ALFALFA_INC) -I$(NU_PATH)/inc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH) -I/usr/include/libnl3/
 
 override CXXFLAGS += -DNCORES=$(NCORES)
-override LDFLAGS += -ljpeg -lx264 -ldl -lboost_program_options -lcrypto -lpthread -lnuma
+override LDFLAGS += -ljpeg -Wl,-Bstatic -lx264 -Wl,-Bdynamic -ldl -lboost_program_options -lcrypto -lpthread -lnuma
 
 librt_libs = $(CALADAN_PATH)/bindings/cc/librt++.a
 lib_nu = $(NU_PATH)/libnu.a
