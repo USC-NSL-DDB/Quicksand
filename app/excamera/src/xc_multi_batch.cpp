@@ -397,8 +397,8 @@ void do_work(int argc, char **argv) {
         << std::endl;
     return;
   }
-  string prefix = string(argv[argc - 1]);
-  string fname = string(argv[argc - 2]);
+  string prefix = string(argv[argc - 2]);
+  string fname = string(argv[argc - 1]);
 
   auto s = make_shared<xc_t>();
 

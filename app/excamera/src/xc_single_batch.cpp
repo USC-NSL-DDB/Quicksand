@@ -356,8 +356,8 @@ void do_work(int argc, char **argv) {
         << std::endl;
     return;
   }
-  string folder = std::string(argv[argc - 1]);
-  string file_prefix = std::string(argv[argc - 2]);
+  string folder = std::string(argv[argc - 2]);
+  string file_prefix = std::string(argv[argc - 1]);
   auto prefix = folder + "/" + file_prefix;
 
   auto s = make_shared<xc_t>();
