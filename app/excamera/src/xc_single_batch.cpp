@@ -73,10 +73,6 @@ typedef struct {
 
 vector<task_time> decode_time, enc_given_state_time, rebase_time;
 
-void usage(const string &program_name) {
-  cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
-}
-
 tuple<vector<RasterHandle>, uint16_t, uint16_t>
 read_raster(const BufferReader &buffer_reader) {
   YUV4MPEGBufferReader input_reader = YUV4MPEGBufferReader( buffer_reader );
@@ -354,9 +350,10 @@ void read_input(shared_ptr<xc_t> s, const string prefix) {
 
 void do_work(int argc, char **argv) {
   if (argc != 3) {
-    std::cout << "Usage: ./xc_qs <nu arguments> -- <path_to_input_folder> "
-                 "<prefix_of_input_files>"
-              << std::endl;
+    std::cout
+        << "Usage: ./xc_single_batch <nu arguments> -- <path_to_input_folder> "
+           "<prefix_of_input_files>"
+        << std::endl;
     return;
   }
   string folder = std::string(argv[argc - 1]);

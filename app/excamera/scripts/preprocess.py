@@ -10,9 +10,9 @@ frame, N = 6, 16
 batch = 48
 src = "bunny_480p"
 
-workspace = os.path.join("..", "samples", "workspace")
+workspace = os.path.join("..", "input", "workspace")
 prefix = "bunny{:02d}"
-src_dir = os.path.join("..", "samples", src)
+src_dir = os.path.join("..", "input", src)
 
 vpxenc_bin = os.path.join("..", "bin", "vpxenc")
 vp8dec_bin = "vp8decode"

@@ -391,9 +391,10 @@ void read_input(shared_ptr<xc_t> s, const string prefix, const string fname) {
 
 void do_work(int argc, char **argv) {
   if (argc != 3) {
-    std::cout << "Usage: ./xc_eval <nu arguments> -- <path_to_input_folder> "
-                 "<prefix_of_input_files>"
-              << std::endl;
+    std::cout
+        << "Usage: ./xc_multi_batch <nu arguments> -- <path_to_input_folder> "
+           "<prefix_of_input_files>"
+        << std::endl;
     return;
   }
   string prefix = string(argv[argc - 1]);
