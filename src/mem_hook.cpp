@@ -90,11 +90,18 @@ static inline void __delete(void *ptr) {
   nu::Caladan::PreemptGuard g;
 
   auto ptr_addr = reinterpret_cast<uintptr_t>(ptr);
-  if ((ptr_addr >= nu::kMinProcletHeapVAddr &&
-       ptr_addr < nu::kMaxProcletHeapVAddr) ||
-      (ptr_addr >= nu::kMinRuntimeHeapVaddr &&
-       ptr_addr < nu::kMaxRuntimeHeapVaddr)) {
-    nu::SlabAllocator::free(ptr);
+  auto nu_owned = (ptr_addr >= nu::kMinProcletHeapVAddr &&
+                   ptr_addr < nu::kMaxProcletHeapVAddr) ||
+                  (ptr_addr >= nu::kMinRuntimeHeapVaddr &&
+                   ptr_addr < nu::kMaxRuntimeHeapVaddr);
+  if (nu_owned) {
+    if (likely(!nu::Caladan::is_shutting_down())) {
+      nu::SlabAllocator::free(ptr);
+    } else {
+      // This only occurs when freeing memory of global/static variables, which
+      // happens after tearing down the caladan runtime. It's okay to do nothing
+      // now as the program is about to finish.
+    }
   } else {
     get_real_free()(ptr);
   }

@@ -265,4 +265,9 @@ inline void Caladan::timer_sleep(uint64_t duration_us, bool high_priority) {
 
 inline uint32_t Caladan::get_ip() { return ::get_cfg_ip(); }
 
+inline bool Caladan::is_shutting_down() {
+  extern bool caladan_shutting_down;
+  return caladan_shutting_down;
+}
+
 }  // namespace nu
