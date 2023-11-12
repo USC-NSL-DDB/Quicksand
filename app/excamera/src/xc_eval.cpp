@@ -65,10 +65,6 @@ typedef struct {
   DecoderBuffer state0[BATCH];
 } xc_t;
 
-void usage(const string &program_name) {
-  cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
-}
-
 tuple<vector<RasterHandle>, uint16_t, uint16_t>
 read_raster(const string prefix, const string fname, size_t batch, size_t idx) {
   ostringstream inputss;
@@ -394,7 +390,16 @@ void read_input(shared_ptr<xc_t> s, const string prefix, const string fname) {
   }
 }
 
-int do_work(const string prefix, const string fname) {
+void do_work(int argc, char **argv) {
+  if (argc != 3) {
+    std::cout << "Usage: ./xc_eval <nu arguments> -- <path_to_input_folder> "
+                 "<prefix_of_input_files>"
+              << std::endl;
+    return;
+  }
+  string prefix = string(argv[argc - 1]);
+  string fname = string(argv[argc - 2]);
+
   auto s = make_shared<xc_t>();
 
   s->vpx0_ivf = nu::make_sharded_vector<IVF_MEM, true_type>(BATCH * (N - 1));
@@ -416,13 +421,9 @@ int do_work(const string prefix, const string fname) {
   write_output(s, prefix, fname);
 
   cout << t1 - t0 << ", " << t3 - t1 << ", " << t4 - t3 << endl;
-
-  return 0;
 }
 
 int main(int argc, char *argv[]) {
-  // TODO: take file prefix to args
-  string prefix = string(argv[argc-1]);
-  string fname = string(argv[argc-2]);
-  return nu::runtime_main_init(argc, argv, [=](int, char **) { do_work(prefix, fname); });
+  return nu::runtime_main_init(
+      argc, argv, [](int argc, char **argv) { do_work(argc, argv); });
 }

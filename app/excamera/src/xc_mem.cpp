@@ -49,10 +49,6 @@ typedef struct {
 
 vector<uint32_t> stage1_time, stage2_time, stage3_time;
 
-void usage(const string &program_name) {
-  cerr << "Usage: " << program_name << " [nu_args] [input_dir]" << endl;
-}
-
 bool decode(vector<DecoderBuffer> & output, vector<IVF_MEM> & ivfs, size_t index) {
   IVF_MEM ivf = ivfs[index];
 
@@ -278,11 +274,16 @@ void read_input(const std::string prefix, xc_t &s) {
   }
 }
 
-int do_work(const string & prefix) {
-  // if (argc != 2) {
-  //   usage(argv[0]);
-  //   return EXIT_FAILURE;
-  // }
+void do_work(int argc, char **argv) {
+  if (argc != 3) {
+    std::cout << "Usage: ./xc_mem <nu arguments> -- <path_to_input_folder> "
+                 "<prefix_of_input_files>"
+              << std::endl;
+    return;
+  }
+  string folder = std::string(argv[argc - 1]);
+  string file_prefix = std::string(argv[argc - 2]);
+  auto prefix = folder + "/" + file_prefix;
 
   xc_t s;
 
@@ -331,12 +332,9 @@ int do_work(const string & prefix) {
     cout << t << ", ";
   }
   cout << "}" << endl;
-
-  return 0;
 }
 
 int main(int argc, char *argv[]) {
-  // TODO: take file prefix to args
-  string prefix = std::string(argv[argc-1]) + "/sintel01_";
-  return nu::runtime_main_init(argc, argv, [=](int, char **) { do_work(prefix); });
+  return nu::runtime_main_init(
+      argc, argv, [](int argc, char **argv) { do_work(argc, argv); });
 }

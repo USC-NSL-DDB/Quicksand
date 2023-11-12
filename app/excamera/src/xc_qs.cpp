@@ -352,7 +352,17 @@ void read_input(shared_ptr<xc_t> s, const string prefix) {
   }
 }
 
-int do_work(const string prefix) {
+void do_work(int argc, char **argv) {
+  if (argc != 3) {
+    std::cout << "Usage: ./xc_qs <nu arguments> -- <path_to_input_folder> "
+                 "<prefix_of_input_files>"
+              << std::endl;
+    return;
+  }
+  string folder = std::string(argv[argc - 1]);
+  string file_prefix = std::string(argv[argc - 2]);
+  auto prefix = folder + "/" + file_prefix;
+
   auto s = make_shared<xc_t>();
 
   s->vpx0_ivf = nu::make_sharded_vector<IVF_MEM, false_type>(N-1);
@@ -404,12 +414,9 @@ int do_work(const string prefix) {
     cout << t.end - t0 << ", ";
   }
   cout << endl;
-
-  return 0;
 }
 
 int main(int argc, char *argv[]) {
-  // TODO: take file prefix to args
-  string prefix = string(argv[argc-1]) + "/" + string(argv[argc-2]) + "01_";
-  return nu::runtime_main_init(argc, argv, [=](int, char **) { do_work(prefix); });
+  return nu::runtime_main_init(
+      argc, argv, [](int argc, char **argv) { do_work(argc, argv); });
 }
