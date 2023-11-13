@@ -7,8 +7,8 @@ import time
 
 # ExCamera[6,16]
 frame, N = 6, 16
-batch = 48
-src = "bunny_480p"
+batch = 1
+src = "bunny_720p"
 
 workspace = os.path.join("..", "input", "workspace")
 prefix = "bunny{:02d}"
