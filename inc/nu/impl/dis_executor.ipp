@@ -216,6 +216,7 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
         victims_.push(victim);
       }
       worker_ptr->steal_and_compute_async(victim->cp.get_weak(), fn_);
+      worker_ptr->remaining_size = victim->remaining_size;
       stash.emplace_back(worker_ptr.get());
       has_pending = true;
     }
