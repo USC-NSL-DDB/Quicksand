@@ -76,7 +76,6 @@ void ComputeProclet<TR, States...>::resume() {
 
 template <TaskRangeBased TR, typename... States>
 inline std::size_t ComputeProclet<TR, States...>::remaining_size() {
-  ScopedLock g(&mutex_);
   return task_range_.size();
 }
 
