@@ -15,7 +15,8 @@ bool run_sort_kv_pairs() {
   auto sharded_sorted = sharded_sorter.sort();
 
   int idx = 0;
-  for (const auto &[k, v] : sharded_sorted) {
+  auto sealed = nu::to_sealed_ds(std::move(sharded_sorted));
+  for (const auto &[k, v] : sealed) {
     if (k != idx || v != idx) {
       return false;
     }
@@ -34,7 +35,8 @@ bool run_sort_keys() {
   auto sharded_sorted = sharded_sorter.sort();
 
   int idx = 0;
-  for (const auto &k : sharded_sorted) {
+  auto sealed = nu::to_sealed_ds(std::move(sharded_sorted));
+  for (const auto &k : sealed) {
     if (k != idx) {
       return false;
     }
