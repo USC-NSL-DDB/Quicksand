@@ -78,12 +78,13 @@ function __start_server() {
     else
 	isol_cmd="--isol"
     fi
-    if [[ -z $8 ]]
+    if [[ $8 -eq 0 ]]
     then
 	ip=$(caladan_srv_ip $srv_idx)
     else
 	ip=$8
     fi
+    app_args="${@:9}"
     nu_libs_name=".nu_libs_$BASHPID"
     rm -rf .nu_libs_tmp
     mkdir .nu_libs_tmp
@@ -94,31 +95,31 @@ function __start_server() {
     if [[ $main -eq 0 ]]
     then
 	my_ssh $(ssh_ip $srv_idx) "cd `pwd`;
-                                sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd -d"
+                                sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd -d $app_args"
     else
 	my_ssh $(ssh_ip $srv_idx) "cd `pwd`;
-                                sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -m -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd -d"
+                                sudo LD_LIBRARY_PATH=$nu_libs_name stdbuf -o0 $file_path -m -l $lpid -i $ip $ks_cmd -p $spin_ks $isol_cmd -d $app_args"
     fi
 }
 
 function start_server() {
-    __start_server $1 $2 $3 0 $4 $5 0
+    __start_server $1 $2 $3 0 $4 $5 0 0 ${@:6}
 }
 
 function start_server_isol() {
-    __start_server $1 $2 $3 0 $4 $5 1
+    __start_server $1 $2 $3 0 $4 $5 1 0 ${@:6}
 }
 
 function start_server_isol_with_ip() {
-    __start_server $1 $2 $3 0 $4 $5 1 $6
+    __start_server $1 $2 $3 0 $4 $5 1 $6 ${@:7}
 }
 
 function start_main_server() {
-    __start_server $1 $2 $3 1 $4 $5 0
+    __start_server $1 $2 $3 1 $4 $5 0 0 ${@:6}
 }
 
 function start_main_server_isol() {
-    __start_server $1 $2 $3 1 $4 $5 1
+    __start_server $1 $2 $3 1 $4 $5 1 0 ${@:6}
 }
 
 function run_program() {
@@ -138,8 +139,8 @@ function distribute() {
     file_path=$1
     file_full_path=$(readlink -f $file_path)
     src_idx=$2
-    cp $file_full_path .distribute
-    scp .distribute $(ssh_ip $src_idx):$file_full_path
+    cp -r $file_full_path .distribute
+    scp -r .distribute $(ssh_ip $src_idx):$file_full_path
     rm -rf .distribute
 }
 
@@ -202,7 +203,7 @@ function enable_kernel_bg_prezero() {
 
 function cleanup_server() {
     my_ssh $(ssh_ip $1) "pnames=( iokerneld ctrl_main main client server synthetic memcached \
-                                  kmeans python3 BackEndService bench distributed );
+                                  kmeans python3 BackEndService bench distributed quicksand xc_ );
                          for name in \${pnames[@]}; do
                              sudo pkill -U 0 -9 \$name;
                          done"
@@ -247,4 +248,3 @@ sleep 5
 rm -rf logs.bak
 [ -d logs ] && mv logs logs.bak
 mkdir logs
-
