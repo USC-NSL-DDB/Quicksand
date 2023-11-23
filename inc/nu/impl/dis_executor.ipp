@@ -135,7 +135,7 @@ void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
   while (q.size() != active_workers_.size()) {
     auto biggest_tr = std::move(q.top());
     q.pop();
-    auto new_tr = biggest_tr.split(biggest_tr.size() / 2);
+    auto &new_tr = biggest_tr.steal().get();
     q.emplace(std::move(biggest_tr));
     q.emplace(std::move(new_tr));
   }

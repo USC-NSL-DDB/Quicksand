@@ -226,7 +226,7 @@ inline GeneralSealedDSConstIterator<Shard, Fwd>::GeneralSealedDSConstIterator()
 
 template <GeneralShardBased Shard, bool Fwd>
 GeneralSealedDSConstIterator<Shard, Fwd>::GeneralSealedDSConstIterator(
-    std::shared_ptr<ShardsVec> &shards, bool is_begin)
+    std::shared_ptr<ShardsVec> shards, bool is_begin)
     : shards_(shards),
       prefetched_next_blocks_(kMaxNumInflightPrefetches),
       prefetched_prev_blocks_(kMaxNumInflightPrefetches) {
@@ -244,7 +244,7 @@ GeneralSealedDSConstIterator<Shard, Fwd>::GeneralSealedDSConstIterator(
 
 template <GeneralShardBased Shard, bool Fwd>
 GeneralSealedDSConstIterator<Shard, Fwd>::GeneralSealedDSConstIterator(
-    std::shared_ptr<ShardsVec> &shards, ShardsVecIter shards_iter, IterVal val,
+    std::shared_ptr<ShardsVec> shards, ShardsVecIter shards_iter, IterVal val,
     ContainerIter iter)
     : shards_(shards),
       shards_iter_(shards_iter),

@@ -18,7 +18,7 @@ inline T VectorTaskRangeImpl<T>::pop() {
 }
 
 template <typename T>
-inline VectorTaskRangeImpl<T> VectorTaskRangeImpl<T>::split(
+inline Lazy<VectorTaskRangeImpl<T>> VectorTaskRangeImpl<T>::split(
     uint64_t last_n_elems) {
   VectorTaskRangeImpl r_range;
   auto split_idx = tasks_.size() - last_n_elems;
@@ -27,7 +27,7 @@ inline VectorTaskRangeImpl<T> VectorTaskRangeImpl<T>::split(
   tasks_.resize(split_idx);
   r_range.cur_key_ = 0;
   r_range.l_key_ = l_key_ + split_idx;
-  return r_range;
+  return make_lazy(std::move(r_range));
 }
 
 template <typename T>

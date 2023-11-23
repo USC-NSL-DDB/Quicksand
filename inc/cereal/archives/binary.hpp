@@ -70,6 +70,8 @@ namespace cereal
           throw Exception("Failed to write " + std::to_string(size) + " bytes to output stream! Wrote " + std::to_string(writtenSize));
       }
 
+      std::ostream &get_ostream() { return itsStream; }
+
     private:
       std::ostream & itsStream;
   };

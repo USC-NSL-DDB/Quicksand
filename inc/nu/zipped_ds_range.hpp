@@ -3,6 +3,7 @@
 #include <tuple>
 
 #include "nu/cont_ds_range.hpp"
+#include "nu/utils/lazy.hpp"
 
 namespace nu {
 
@@ -20,7 +21,7 @@ class ZippedDSRangeImpl {
   ZippedDSRangeImpl &operator=(ZippedDSRangeImpl &&) = default;
   ZippedDSRangeImpl deep_copy();
   Task pop();
-  ZippedDSRangeImpl split(uint64_t last_n_elems);
+  Lazy<ZippedDSRangeImpl> split(uint64_t last_n_elems);
   Key l_key() const;
   std::size_t initial_size() const;
   template <class Archive>

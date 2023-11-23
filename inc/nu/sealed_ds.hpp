@@ -139,9 +139,9 @@ class GeneralSealedDSConstIterator {
   template <GeneralShardBased S>
   friend class ContiguousDSRangeImpl;
 
-  GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
+  GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> shards,
                                bool is_begin);
-  GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> &shards,
+  GeneralSealedDSConstIterator(std::shared_ptr<ShardsVec> shards,
                                ShardsVecIter shards_iter, IterVal val,
                                ContainerIter container_iter);
   auto to_gid() const;

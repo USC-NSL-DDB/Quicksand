@@ -57,9 +57,9 @@ inline TR ComputeProclet<TR, States...>::steal_tasks() {
   if (unlikely(!mutex_.try_lock())) {
     return TR();
   }
-  auto ret = task_range_.steal();
+  auto lazy = task_range_.steal();
   mutex_.unlock();
-  return ret;
+  return std::move(lazy.get());
 }
 
 template <TaskRangeBased TR, typename... States>

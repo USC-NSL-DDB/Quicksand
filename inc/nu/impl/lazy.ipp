@@ -19,16 +19,16 @@ Lazy<T>::Lazy(std::move_only_function<T()> &&fn) : fn_(std::move(fn)) {}
 template <typename T>
 Lazy<T>::Lazy(T &&t) : t_(std::move(t)) {}
 
-template <typename T, typename F>
-Lazy<T> make_lazy(F &&f)
-  requires(!std::is_same_v<T, F>)
+template <typename T>
+Lazy<T> make_lazy(T t)
+  requires(!std::invocable<T>)
 {
-  return Lazy<T>(std::forward<F>(f));
+  return Lazy<T>(std::move(t));
 }
 
-template <typename T>
-Lazy<T> make_lazy(T t) {
-  return Lazy<T>(std::move(t));
+template <typename F>
+auto make_lazy(F &&f) -> Lazy<std::result_of_t<F()>> {
+  return Lazy<std::result_of_t<F()>>(std::forward<F>(f));
 }
 
 template <typename T, typename F>

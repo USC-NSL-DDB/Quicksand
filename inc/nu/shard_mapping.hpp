@@ -12,6 +12,7 @@
 
 #include "nu/shard.hpp"
 #include "nu/utils/cond_var.hpp"
+#include "nu/utils/future.hpp"
 #include "nu/utils/mutex.hpp"
 
 namespace nu {

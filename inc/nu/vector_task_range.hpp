@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "nu/task_range.hpp"
+#include "nu/utils/lazy.hpp"
 
 namespace nu {
 
@@ -19,7 +20,7 @@ class VectorTaskRangeImpl {
   VectorTaskRangeImpl(VectorTaskRangeImpl &&) = default;
   VectorTaskRangeImpl &operator=(VectorTaskRangeImpl &&) = default;
   T pop();
-  VectorTaskRangeImpl split(uint64_t last_n_elems);
+  Lazy<VectorTaskRangeImpl> split(uint64_t last_n_elems);
   Key l_key() const;
   std::size_t initial_size() const;
   template <class Archive>

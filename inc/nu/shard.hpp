@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "nu/container.hpp"
-#include "nu/rem_unique_ptr.hpp"
 #include "nu/type_traits.hpp"
 #include "nu/utils/cond_var.hpp"
 #include "nu/utils/mutex.hpp"

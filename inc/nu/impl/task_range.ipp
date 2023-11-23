@@ -1,5 +1,6 @@
-#include "nu/utils/scoped_lock.hpp"
 #include "sync.h"
+
+#include "nu/utils/scoped_lock.hpp"
 
 namespace nu {
 
@@ -91,18 +92,19 @@ void TaskRange<Impl>::__resume() {
 }
 
 template <class Impl>
-TaskRange<Impl> TaskRange<Impl>::split(uint64_t last_n_elems) {
+Lazy<TaskRange<Impl>> TaskRange<Impl>::split(uint64_t last_n_elems) {
   if (unlikely(!last_n_elems)) {
-    return TaskRange();
+    return make_lazy(TaskRange());
   }
 
   BUG_ON(size_ < last_n_elems);
   size_ -= last_n_elems;
-  return impl_.split(last_n_elems);
+  return transform_lazy(impl_.split(last_n_elems),
+                        [](Impl impl) { return TaskRange(std::move(impl)); });
 }
 
 template <class Impl>
-TaskRange<Impl> TaskRange<Impl>::steal() {
+Lazy<TaskRange<Impl>> TaskRange<Impl>::steal() {
   ScopedLock lock(&mutex_);
 
   auto steal_size = size_ - size_ / 2;
@@ -112,7 +114,8 @@ TaskRange<Impl> TaskRange<Impl>::steal() {
     __resume();
   }
 
-  return impl_.split(steal_size);
+  return transform_lazy(impl_.split(steal_size),
+                        [](Impl impl) { return TaskRange(std::move(impl)); });
 }
 
 template <class Impl>

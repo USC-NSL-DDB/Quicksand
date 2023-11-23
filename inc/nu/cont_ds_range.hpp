@@ -7,6 +7,7 @@
 #include "nu/proclet.hpp"
 #include "nu/sharded_ds.hpp"
 #include "nu/task_range.hpp"
+#include "nu/utils/lazy.hpp"
 
 namespace nu {
 
@@ -31,7 +32,7 @@ class ContiguousDSRangeImpl {
   ContiguousDSRangeImpl &operator=(ContiguousDSRangeImpl &&) = default;
   ContiguousDSRangeImpl deep_copy();
   Task pop();
-  ContiguousDSRangeImpl split(uint64_t last_n_elems);
+  Lazy<ContiguousDSRangeImpl> split(uint64_t last_n_elems);
   Key l_key() const;
   std::size_t initial_size() const;
   template <class Archive>

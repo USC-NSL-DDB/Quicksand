@@ -36,23 +36,30 @@ inline Shard::IterVal ContiguousDSRangeImpl<Shard>::pop() {
 }
 
 template <GeneralShardBased Shard>
-inline ContiguousDSRangeImpl<Shard> ContiguousDSRangeImpl<Shard>::split(
+inline Lazy<ContiguousDSRangeImpl<Shard>> ContiguousDSRangeImpl<Shard>::split(
     uint64_t last_n_elems) {
-  ContiguousDSRangeImpl r_range;
   auto split_key = r_key_ - last_n_elems;
   auto split_shard_idx = std::upper_bound(all_shard_keys_.begin(),
                                           all_shard_keys_.end(), split_key) -
                          all_shard_keys_.begin() - 1;
   auto split_shard_iter = cur_.shards_->begin() + split_shard_idx;
-  auto find = split_shard_iter->run(&Shard::find, split_key);
-  r_range.cur_ =
-      ConstIterator(cur_.shards_, split_shard_iter, find.first, find.second);
-  r_range.all_shard_keys_ = all_shard_keys_;
-  r_range.l_key_ = split_key;
-  r_range.r_key_ = r_key_;
+  auto lazy = make_lazy([shards = cur_.shards_, split_shard_iter,
+                         all_shard_keys = all_shard_keys_, l_key = split_key,
+                         r_key = r_key_]() mutable -> ContiguousDSRangeImpl {
+    ContiguousDSRangeImpl r_range;
+
+    auto find = split_shard_iter->run(&Shard::find, l_key);
+    r_range.cur_ = ConstIterator(std::move(shards), std::move(split_shard_iter),
+                                 find.first, find.second);
+    r_range.all_shard_keys_ = std::move(all_shard_keys);
+    r_range.l_key_ = std::move(l_key);
+    r_range.r_key_ = std::move(r_key);
+
+    return r_range;
+  });
   r_key_ = split_key;
 
-  return r_range;
+  return lazy;
 }
 
 template <GeneralShardBased Shard>

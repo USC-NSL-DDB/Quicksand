@@ -5,8 +5,10 @@
 #include <optional>
 #include <utility>
 
+#include "nu/shard.hpp"
 #include "nu/type_traits.hpp"
 #include "nu/utils/cond_var.hpp"
+#include "nu/utils/lazy.hpp"
 #include "nu/utils/mutex.hpp"
 
 namespace nu {
@@ -45,8 +47,7 @@ class TaskRange {
   std::size_t size() const { return size_; }
   std::size_t processed_size() const { return processed_size_; }
   bool empty() const { return !size(); }
-  TaskRange split(uint64_t last_n_elems);
-  TaskRange steal();
+  Lazy<TaskRange> steal();
   Key l_key() const { return impl_.l_key(); }
   template <class Archive>
   void save(Archive &ar) const {
@@ -68,9 +69,10 @@ class TaskRange {
   bool suspended_ = false;
   CondVar suspend_cv_;
   Mutex mutex_;
-  template <TaskRangeBased TR, typename... States>
-  friend class ComputeProclet;
+  template <GeneralShardBased... Shards>
+  friend class ZippedDSRangeImpl;
 
+  Lazy<TaskRange> split(uint64_t last_n_elems);
   void __resume();
 };
 
