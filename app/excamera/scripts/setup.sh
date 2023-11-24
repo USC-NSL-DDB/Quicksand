@@ -28,12 +28,12 @@ make -j
 mkdir -p $PROJ_DIR/input
 cd $PROJ_DIR/input
 # Big Buck Bunny
-curl https://media.xiph.org/video/derf/y4m/big_buck_bunny_720p24.y4m.xz -o bunny_720p.y4m.xz
-xz -d bunny_720p.y4m.xz
-mkdir bunny_720p
+curl https://media.xiph.org/video/derf/y4m/big_buck_bunny_480p24.y4m.xz -o bunny_480p.y4m.xz
+xz -d bunny_480p.y4m.xz
+mkdir bunny_480p
 # Excamera [6, 16] requires 6 *16 = 96 frames per segment.
 # Thus, the segment time should be 96 / fps = 96 / 24 = 4.
-ffmpeg -i bunny_720p.y4m -f segment -segment_time 4 bunny_720p/bunny%2d.y4m
+ffmpeg -i bunny_480p.y4m -f segment -segment_time 4 bunny_480p/bunny%2d.y4m
 
 # Step 5: preprocess input
 cd $SCRIPT_DIR

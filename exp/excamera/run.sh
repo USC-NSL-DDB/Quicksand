@@ -8,7 +8,7 @@ SRV_IDX=1
 DIR=`pwd`
 KS=0
 SPIN_KS=0
-VIDEO_PREFIX="00"
+VIDEO_PREFIX="07"
 APP_ARGS="-- ../input/workspace/$VIDEO_PREFIX bunny${VIDEO_PREFIX}_"
 
 cd ../../app/excamera/
@@ -23,6 +23,7 @@ sleep 5
 
 distribute input/workspace/$VIDEO_PREFIX $SRV_IDX
 cd bin
+sync
 start_main_server xc_single_batch $SRV_IDX $LPID $KS $SPIN_KS $APP_ARGS \
 		  1>$DIR/logs/log 2>&1
 
