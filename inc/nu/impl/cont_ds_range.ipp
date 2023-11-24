@@ -43,6 +43,7 @@ inline Lazy<ContiguousDSRangeImpl<Shard>> ContiguousDSRangeImpl<Shard>::split(
                                           all_shard_keys_.end(), split_key) -
                          all_shard_keys_.begin() - 1;
   auto split_shard_iter = cur_.shards_->begin() + split_shard_idx;
+
   auto lazy = make_lazy([shards = cur_.shards_, split_shard_iter,
                          all_shard_keys = all_shard_keys_, l_key = split_key,
                          r_key = r_key_]() mutable -> ContiguousDSRangeImpl {
@@ -57,6 +58,7 @@ inline Lazy<ContiguousDSRangeImpl<Shard>> ContiguousDSRangeImpl<Shard>::split(
 
     return r_range;
   });
+
   r_key_ = split_key;
 
   return lazy;

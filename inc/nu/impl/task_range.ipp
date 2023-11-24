@@ -50,24 +50,25 @@ TaskRange<Impl>::~TaskRange() {}
 
 template <class Impl>
 std::optional<typename Impl::Task> TaskRange<Impl>::pop() {
-  ScopedLock lock(&mutex_);
+  {
+    ScopedLock lock(&mutex_);
 
-  if (unlikely(suspended_ || empty())) {
-    if (suspended_) {
-      while (rt::access_once(suspended_)) {
-        suspend_cv_.wait(&mutex_);
+    if (unlikely(suspended_ || empty())) {
+      if (suspended_) {
+        while (rt::access_once(suspended_)) {
+          suspend_cv_.wait(&mutex_);
+        }
+      }
+      if (empty()) {
+        return std::nullopt;
       }
     }
-    if (empty()) {
-      return std::nullopt;
-    }
+
+    size_--;
+    processed_size_++;
   }
 
-  auto ret = impl_.pop();
-  size_--;
-  processed_size_++;
-
-  return ret;
+  return impl_.pop();
 }
 
 template <class Impl>

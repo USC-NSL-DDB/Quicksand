@@ -39,11 +39,18 @@ ZippedDSRangeImpl<Shards...>::pop() {
 template <GeneralShardBased... Shards>
 inline Lazy<ZippedDSRangeImpl<Shards...>> ZippedDSRangeImpl<Shards...>::split(
     uint64_t last_n_elems) {
-  return make_lazy(ZippedDSRangeImpl(std::apply(
+  auto tuple_of_lazys = std::apply(
       [&](auto &...cols) {
-        return std::make_tuple(std::move(cols.split(last_n_elems).get())...);
+        return std::make_tuple(cols.split(last_n_elems)...);
       },
-      cont_ds_ranges_)));
+      cont_ds_ranges_);
+  return make_lazy([tuple_of_lazys = std::move(tuple_of_lazys)]() mutable {
+    return std::apply(
+        [&](auto &...lazy) {
+          return ZippedDSRangeImpl(std::make_tuple(std::move(lazy.get())...));
+        },
+        tuple_of_lazys);
+  });
 }
 
 template <GeneralShardBased... Shards>

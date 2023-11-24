@@ -191,7 +191,6 @@ template <typename RetT, TaskRangeBased TR, typename... States>
 bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
   bool has_pending = false;
 
-  std::vector<Worker *> stash;
   for (auto &worker_ptr : active_workers_) {
     auto &future = worker_ptr->compute_future;
     if (future) {
@@ -216,13 +215,8 @@ bool DistributedExecutor<RetT, TR, States...>::check_futures_and_redispatch() {
         victims_.push(victim);
       }
       worker_ptr->steal_and_compute_async(victim->cp.get_weak(), fn_);
-      worker_ptr->remaining_size = victim->remaining_size;
-      stash.emplace_back(worker_ptr.get());
       has_pending = true;
     }
-  }
-  for (auto *worker : stash) {
-    victims_.push(worker);
   }
 
   return has_pending;

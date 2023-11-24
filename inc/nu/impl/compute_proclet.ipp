@@ -23,6 +23,7 @@ ComputeProclet<TR, States...>::compute(RetT (*fn)(TR &, States...),
   }
   {
     ScopedLock g(&mutex_);
+
     task_range_ = std::move(task_range);
   }
   auto l_key = task_range_.l_key();
@@ -54,23 +55,25 @@ ComputeProclet<TR, States...>::steal_and_compute(
 
 template <TaskRangeBased TR, typename... States>
 inline TR ComputeProclet<TR, States...>::steal_tasks() {
-  if (unlikely(!mutex_.try_lock())) {
-    return TR();
-  }
+  ScopedLock g(&mutex_);
+
   auto lazy = task_range_.steal();
-  mutex_.unlock();
+  g.reset();
+
   return std::move(lazy.get());
 }
 
 template <TaskRangeBased TR, typename... States>
 void ComputeProclet<TR, States...>::suspend() {
   ScopedLock g(&mutex_);
+
   task_range_.suspend();
 }
 
 template <TaskRangeBased TR, typename... States>
 void ComputeProclet<TR, States...>::resume() {
   ScopedLock g(&mutex_);
+
   task_range_.resume();
 }
 
@@ -82,6 +85,7 @@ inline std::size_t ComputeProclet<TR, States...>::remaining_size() {
 template <TaskRangeBased TR, typename... States>
 inline std::size_t ComputeProclet<TR, States...>::processed_size() {
   ScopedLock g(&mutex_);
+
   return task_range_.processed_size();
 }
 
