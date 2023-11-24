@@ -88,13 +88,6 @@ template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::spawn_initial_workers(
     S1s &...states) {
   add_workers(states...);
-
-  // We need at least one worker to get started.
-  if (unlikely(active_workers_.empty())) {
-    active_workers_.emplace_back(std::make_unique<Worker>(
-        nu::make_proclet<ComputeProclet<TR, States...>>(
-            std::forward_as_tuple(states...))));
-  }
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
@@ -126,8 +119,16 @@ void DistributedExecutor<RetT, TR, States...>::add_workers(S1s &...states) {
 }
 
 template <typename RetT, TaskRangeBased TR, typename... States>
+template <typename... S1s>
 void DistributedExecutor<RetT, TR, States...>::make_initial_dispatch(
-    RetT (*fn)(TR &, States...), TR task_range) {
+    RetT (*fn)(TR &, States...), TR task_range, S1s &&...states) {
+  // We need at least one worker to get started.
+  if (unlikely(active_workers_.empty())) {
+    active_workers_.emplace_back(std::make_unique<Worker>(
+        nu::make_proclet<ComputeProclet<TR, States...>>(
+            std::forward_as_tuple(states...))));
+  }
+
   auto cmp = [](const TR &a, const TR &b) { return a.size() < b.size(); };
   std::priority_queue<TR, std::vector<TR>, decltype(cmp)> q(cmp);
 
@@ -229,7 +230,7 @@ DistributedExecutor<RetT, TR, States...>::run(RetT (*fn)(TR &, States...),
                                               TR task_range, S1s &&...states) {
   fn_ = fn;
   spawn_initial_workers(states...);
-  make_initial_dispatch(fn, std::move(task_range));
+  make_initial_dispatch(fn, std::move(task_range), states...);
 
   uint64_t last_check_workers_us = Time::microtime();
   uint64_t last_add_workers_us = last_check_workers_us;
@@ -391,8 +392,7 @@ DistributedExecutor<RetT, TR, States...>::run_queue(RetT (*fn)(TR &, States...),
   int64_t prev_queue_len = 0;
 
   spawn_initial_queue_workers(task_range, states...);
-  make_initial_dispatch(fn_, std::move(task_range));
-
+  make_initial_dispatch(fn_, std::move(task_range), states...);
   while (true) {
     auto now_us = Time::microtime();
 
