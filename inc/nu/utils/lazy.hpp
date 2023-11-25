@@ -9,12 +9,14 @@ namespace nu {
 template <typename T>
 class Lazy {
  public:
-  T &get();
+  T &get() &;
+  T get() &&;
   bool is_evaluated() const;
 
  private:
   Lazy(std::move_only_function<T()> &&fn);
   Lazy(T &&t);
+  void evaluate();
   template <typename U>
   friend Lazy<U> make_lazy(U)
     requires(!std::invocable<U>);
