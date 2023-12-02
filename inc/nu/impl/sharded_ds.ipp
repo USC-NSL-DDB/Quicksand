@@ -13,6 +13,7 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure()
     : num_pending_flushes_(0),
       max_num_vals_(0),
       max_num_data_entries_(0),
+      scaled_max_inflight_flushes_(kMaxNumInflightFlushes),
       rw_lock_(std::make_unique<ReadSkewedLock>()) {}
 
 template <GeneralContainerBased Container, BoolIntegral LL>
@@ -24,6 +25,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       num_pending_flushes_(0),
       max_num_vals_(0),
       max_num_data_entries_(0),
+      scaled_max_inflight_flushes_(kMaxNumInflightFlushes),
       rw_lock_(std::make_unique<ReadSkewedLock>()) {
   constexpr auto kMaxShardBytes =
       LL::value ? kLowLatencyMaxShardBytes : kBatchingMaxShardBytes;
@@ -80,6 +82,7 @@ inline ShardedDataStructure<Container, LL>::ShardedDataStructure(
       num_pending_flushes_(0),
       max_num_vals_(o.max_num_vals_),
       max_num_data_entries_(o.max_num_data_entries_),
+      scaled_max_inflight_flushes_(o.scaled_max_inflight_flushes_),
       rw_lock_(std::make_unique<ReadSkewedLock>()) {
   mapping_.run(&GeneralShardMapping<Shard>::client_register, mapping_seq_);
 }
@@ -97,6 +100,7 @@ ShardedDataStructure<Container, LL>::operator=(const ShardedDataStructure &o) {
   num_pending_flushes_ = 0;
   max_num_vals_ = o.max_num_vals_;
   max_num_data_entries_ = o.max_num_data_entries_;
+  scaled_max_inflight_flushes_ = o.scaled_max_inflight_flushes_;
 
   mapping_.run(&GeneralShardMapping<Shard>::client_register, mapping_seq_);
 
@@ -115,6 +119,7 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
       num_pending_flushes_(o.num_pending_flushes_),
       max_num_vals_(o.max_num_vals_),
       max_num_data_entries_(o.max_num_data_entries_),
+      scaled_max_inflight_flushes_(o.scaled_max_inflight_flushes_),
       rw_lock_(std::make_unique<ReadSkewedLock>()) {}
 
 template <GeneralContainerBased Container, BoolIntegral LL>
@@ -132,6 +137,7 @@ ShardedDataStructure<Container, LL>::operator=(
   num_pending_flushes_ = o.num_pending_flushes_;
   max_num_vals_ = o.max_num_vals_;
   max_num_data_entries_ = o.max_num_data_entries_;
+  scaled_max_inflight_flushes_ = o.scaled_max_inflight_flushes_;
 
   return *this;
 }
@@ -151,16 +157,27 @@ ShardedDataStructure<Container, LL>::~ShardedDataStructure() {
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
-void ShardedDataStructure<Container, LL>::update_max_num_data_entries(
+inline void ShardedDataStructure<Container, LL>::update_max_num_data_entries(
     KeyToShardsMapping::iterator iter) {
   max_num_data_entries_ = kBatchingMaxBatchBytes /
                           cereal::get_size(iter->second.insert_reqs.back());
+  update_scaled_max_inflight_flushes(max_num_data_entries_);
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
-void ShardedDataStructure<Container, LL>::update_max_num_vals() {
+inline void ShardedDataStructure<Container, LL>::update_max_num_vals() {
   max_num_vals_ =
       kBatchingMaxBatchBytes / cereal::get_size(push_back_reqs_.back());
+  update_scaled_max_inflight_flushes(max_num_vals_);
+}
+
+template <GeneralContainerBased Container, BoolIntegral LL>
+inline void
+ShardedDataStructure<Container, LL>::update_scaled_max_inflight_flushes(
+    std::size_t item_size) {
+  scaled_max_inflight_flushes_ =
+      std::min((kMaxNumInflightFlushes * kBatchingMaxBatchBytes) / item_size,
+               static_cast<std::size_t>(kMaxNumInflightFlushes));
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>
@@ -526,39 +543,35 @@ std::vector<typename GeneralShard<Container>::ReqBatch>
 ShardedDataStructure<Container, LL>::wait_for_pending_flushes(bool drain) {
   BUG_ON(num_pending_flushes_ > kMaxNumInflightFlushes + 1);
   std::vector<ReqBatch> rejected_batches;
+  int num_to_pop = drain ? num_pending_flushes_
+                         : num_pending_flushes_ - scaled_max_inflight_flushes_;
 
-  if (num_pending_flushes_ == kMaxNumInflightFlushes + 1 ||
-      (drain && num_pending_flushes_)) {
-    bool popped = false;
-
-  again:
+again:
+  if (num_to_pop > 0) {
     for (auto it = pending_flushes_links_.begin();
          it != pending_flushes_links_.end();) {
       auto &flush_futures = (*it)->flush_futures;
       BUG_ON(flush_futures.empty());
 
-      auto &front = flush_futures.front();
-      if (drain || front.is_ready()) {
-        popped = true;
-        bool rejected = pop_flush_future(&flush_futures, &rejected_batches);
-
-        if (unlikely(drain || rejected)) {
-          while (!flush_futures.empty()) {
-            pop_flush_future(&flush_futures, &rejected_batches);
-          }
-        }
-        if (flush_futures.empty()) {
-          it = pending_flushes_links_.erase(it);
-          continue;
-        }
+      bool drain_this = drain;
+      while (!flush_futures.empty() &&
+             (drain_this || flush_futures.front().is_ready())) {
+	num_to_pop--;
+	bool rejected = pop_flush_future(&flush_futures, &rejected_batches);
+        drain_this |= rejected;
       }
-      it++;
-    }
 
-    if (unlikely(!popped)) {
-      Time::sleep(kFlushFutureRecheckUs, /* high_priority = */ true);
-      goto again;
+      if (flush_futures.empty()) {
+        it = pending_flushes_links_.erase(it);
+      } else {
+        it++;
+      }
     }
+  }
+
+  if (unlikely(num_to_pop > 0)) {
+    Time::sleep(kFlushFutureRecheckUs, /* high_priority = */ true);
+    goto again;
   }
 
   return rejected_batches;
@@ -965,7 +978,7 @@ template <class Archive>
 inline void ShardedDataStructure<Container, LL>::__save(Archive &ar) {
   flush();
   ar(mapping_, last_mapping_seq_, mapping_seq_, key_to_shards_, max_num_vals_,
-     max_num_data_entries_);
+     max_num_data_entries_, scaled_max_inflight_flushes_);
   mapping_.run(&GeneralShardMapping<Shard>::client_register, mapping_seq_);
 }
 
@@ -980,7 +993,7 @@ template <class Archive>
 inline void ShardedDataStructure<Container, LL>::save_move(Archive &ar) {
   flush();
   ar(std::move(mapping_), last_mapping_seq_, mapping_seq_, key_to_shards_,
-     max_num_vals_, max_num_data_entries_);
+     max_num_vals_, max_num_data_entries_, scaled_max_inflight_flushes_);
   key_to_shards_.clear();
 }
 
@@ -988,7 +1001,7 @@ template <GeneralContainerBased Container, BoolIntegral LL>
 template <class Archive>
 inline void ShardedDataStructure<Container, LL>::load(Archive &ar) {
   ar(mapping_, last_mapping_seq_, mapping_seq_, key_to_shards_, max_num_vals_,
-     max_num_data_entries_);
+     max_num_data_entries_, scaled_max_inflight_flushes_);
 }
 
 template <GeneralContainerBased Container, BoolIntegral LL>

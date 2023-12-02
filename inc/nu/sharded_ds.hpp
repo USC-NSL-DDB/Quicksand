@@ -45,7 +45,7 @@ class ShardedDataStructure {
 
   constexpr static uint32_t kBatchingMaxShardBytes = 32 << 20;
   constexpr static uint32_t kBatchingMaxBatchBytes = 16 << 10;
-  constexpr static uint32_t kLowLatencyMaxShardBytes = 16 << 20;
+  constexpr static uint32_t kLowLatencyMaxShardBytes = 2 << 20;
   constexpr static uint32_t kLowLatencyMaxBatchBytes = 0;
   constexpr static uint32_t kMaxNumInflightFlushes = 8;
   constexpr static uint32_t kFlushFutureRecheckUs = 10;
@@ -161,6 +161,7 @@ class ShardedDataStructure {
   uint64_t num_pending_flushes_;
   uint64_t max_num_vals_;
   uint64_t max_num_data_entries_;
+  uint64_t scaled_max_inflight_flushes_;
   std::unique_ptr<ReadSkewedLock> rw_lock_;
   template <ShardedDataStructureBased T>
   friend class SealedDS;
@@ -211,6 +212,7 @@ class ShardedDataStructure {
   void __save(Archive &ar);
   void update_max_num_data_entries(KeyToShardsMapping::iterator iter);
   void update_max_num_vals();
+  void update_scaled_max_inflight_flushes(std::size_t item_size);
   bool pop_flush_future(
       std::deque<Future<std::optional<ReqBatch>>> *flush_futures,
       std::vector<ReqBatch> *rejected_batches);
