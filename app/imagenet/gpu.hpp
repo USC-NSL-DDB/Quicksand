@@ -18,7 +18,7 @@ class MockGPU {
   static constexpr uint32_t kImageProcessTimeUs = 200;
   static constexpr uint32_t kMaxNumImages = 300'000;
 
-  MockGPU(nu::ShardedQueue<Item, std::true_type> queue, std::size_t max_gpus)
+  MockGPU(nu::ShardedQueue<Item, std::false_type> queue, std::size_t max_gpus)
       : done_(false), num_gpus_(max_gpus) {
     all_traces_.reserve(max_gpus);
     for (std::size_t i = 0; i < max_gpus; ++i) {
@@ -29,7 +29,7 @@ class MockGPU {
   }
 
   void gpu_fn(std::size_t id,
-              nu::ShardedQueue<Item, std::true_type> remote_queue) {
+              nu::ShardedQueue<Item, std::false_type> remote_queue) {
     auto &traces = all_traces_[id];
 
     while (!nu::Caladan::access_once(done_)) {
