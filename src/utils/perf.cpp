@@ -1,9 +1,3 @@
-extern "C" {
-#include <runtime/timer.h>
-}
-
-#include <net.h>
-
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -11,7 +5,13 @@ extern "C" {
 #include <random>
 #include <vector>
 
+extern "C" {
+#include <runtime/timer.h>
+}
+#include <net.h>
+
 #include "nu/utils/perf.hpp"
+#include "nu/utils/thread.hpp"
 
 namespace nu {
 
@@ -28,7 +28,7 @@ void Perf::gen_reqs(
     std::vector<PerfRequestWithTime> *all_reqs,
     const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
     uint32_t num_threads, double target_mops, uint64_t duration_us) {
-  std::vector<rt::Thread> threads;
+  std::vector<nu::Thread> threads;
 
   for (uint32_t i = 0; i < num_threads; i++) {
     threads.emplace_back(
@@ -50,7 +50,7 @@ void Perf::gen_reqs(
   }
 
   for (auto &thread : threads) {
-    thread.Join();
+    thread.join();
   }
 }
 
@@ -58,7 +58,7 @@ std::vector<Trace> Perf::benchmark(
     std::vector<PerfRequestWithTime> *all_reqs,
     const std::vector<std::unique_ptr<PerfThreadState>> &thread_states,
     uint32_t num_threads, std::optional<uint64_t> miss_ddl_thresh_us) {
-  std::vector<rt::Thread> threads;
+  std::vector<nu::Thread> threads;
   std::vector<Trace> all_traces[num_threads];
 
   for (uint32_t i = 0; i < num_threads; i++) {
@@ -91,7 +91,7 @@ std::vector<Trace> Perf::benchmark(
   }
 
   for (auto &thread : threads) {
-    thread.Join();
+    thread.join();
   }
 
   std::vector<Trace> gathered_traces;
