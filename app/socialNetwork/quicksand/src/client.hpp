@@ -63,17 +63,17 @@ class Client : public nu::PerfAdapter {
     std::uniform_int_distribution<int64_t> dist_0_maxint64;
   };
 
-  constexpr static uint32_t kNumThreads = 50;
-  constexpr static double kTargetMops = 0.8;
+  constexpr static uint32_t kNumThreads = 200;
+  constexpr static double kTargetMops = 0.5;
   constexpr static double kTotalMops = 1;
-  constexpr static uint32_t kUserTimelinePercent = 60;
+  constexpr static uint32_t kUserTimelinePercent = 55;
   constexpr static uint32_t kHomeTimelinePercent = 30;
-  constexpr static uint32_t kComposePostPercent = 5;
-  constexpr static uint32_t kRemovePostsPercent = 5;
+  constexpr static uint32_t kComposePostPercent = 14;
+  constexpr static uint32_t kRemovePostsPercent = 1;
   constexpr static uint32_t kFollowPercent =
       100 - kUserTimelinePercent - kHomeTimelinePercent - kComposePostPercent -
       kRemovePostsPercent;
-  constexpr static uint32_t kNumUsers = 962;
+  constexpr static uint32_t kNumUsers = 536108;
   constexpr static char kCharSet[] =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "abcdefghijklmnopqrstuvwxyz";

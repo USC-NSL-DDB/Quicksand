@@ -18,7 +18,7 @@ class GeneralTSUMap {
   using Key = std::size_t;
   using Val = DIPair<K, V>;
   using TSUMap =
-      SyncHashMap</* NumBuckets = */ 32768, K, V, H, std::equal_to<K>,
+      SyncHashMap</* NumBuckets = */ 4096, K, V, H, std::equal_to<K>,
                   std::allocator<std::pair<const K, V>>, Mutex>;
   using ConstIterator = V *;
 

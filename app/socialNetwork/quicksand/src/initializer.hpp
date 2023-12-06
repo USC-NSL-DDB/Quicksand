@@ -13,7 +13,7 @@ class Initializer {
 
  private:
   const std::string kFilePath =
-      "datasets/social-graph/socfb-Princeton12/socfb-Princeton12.mtx";
+      "datasets/social-graph/soc-delicious/soc-delicious.mtx";
   constexpr static uint32_t kTextLen = 64;
   constexpr static uint32_t kUrlLen = 64;
   constexpr static uint32_t kMinNumPostsPerUser = 1;
