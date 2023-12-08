@@ -12,7 +12,7 @@ git clone https://github.com/nlohmann/json.git
 cd json
 mkdir build
 cd build
-cmake -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true ..
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true ..
 make -j
 sudo make install
 cd ../..
@@ -30,10 +30,10 @@ git clone https://github.com/arun11299/cpp-jwt
 cd cpp-jwt
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j
 sudo make install
 cd ../..
 
-cmake ..
+cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j

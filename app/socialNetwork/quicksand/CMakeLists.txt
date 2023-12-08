@@ -6,8 +6,6 @@ set(CMAKE_CXX_COMPILER g++-13)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-O3 -g -std=c++23 -flto=auto -march=native")
-#set(CMAKE_CXX_FLAGS "-Og -g -std=c++23 -march=native -fno-omit-frame-pointer")
-#set(CMAKE_CXX_FLAGS "-O0 -g -std=c++23")
 set(CMAKE_INSTALL_PREFIX /usr/local/bin)
 
 add_subdirectory(src)
