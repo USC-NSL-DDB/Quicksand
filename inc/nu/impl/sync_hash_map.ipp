@@ -97,6 +97,7 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
 inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                    Lock>::~SyncHashMap() {
   if (bucket_heads_) {
+    clear();
     BucketHeadAllocator bucket_head_allocator;
     for (size_t i = 0; i < NBuckets; i++) {
       auto &bucket_head = bucket_heads_[i];
@@ -535,6 +536,17 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
     }
   }
   return hashes_and_keys;
+}
+
+template <size_t NBuckets, typename K, typename V, typename Hash,
+          typename KeyEqual, typename Allocator, typename Lock>
+inline void
+SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::clear() {
+  associative_reduce(
+      /* clear = */
+      true, /* init_val = */ 0,
+      /* reduce_fn = */
+      +[](int &_, std::pair<const K, V> &pair) {});
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,

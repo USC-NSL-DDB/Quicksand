@@ -61,6 +61,7 @@ class SyncHashMap {
   std::optional<V> get_and_remove(K1 &&k);
   std::vector<std::pair<K, V>> get_all_pairs();
   std::vector<std::pair<uint64_t, K>> get_all_hashes_and_keys();
+  void clear();
   template <class Archive>
   void save(Archive &ar) const;
   template <class Archive>
