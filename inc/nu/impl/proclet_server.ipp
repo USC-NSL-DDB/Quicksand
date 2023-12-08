@@ -357,9 +357,9 @@ void ProcletServer::run_closure_locally(
       *caller_migration_guard = std::move(*optional_caller_guard);
       return;
     }
+    get_runtime()->detach();
 
     RuntimeSlabGuard slab_guard;
-
     auto *oa_sstream = get_runtime()->archive_pool()->get_oa_sstream();
     oa_sstream->oa << std::move(*ret);
     auto ss_view = oa_sstream->ss.view();
@@ -369,7 +369,6 @@ void ProcletServer::run_closure_locally(
     RPCReturnBuffer ret_val_buf(ret_val_span);
 
     std::destroy_at(ret);
-    get_runtime()->detach();
     callee_migration_guard->reset();
 
     *caller_migration_guard = Migrator::migrate_thread_and_ret_val<RetT>(
@@ -399,7 +398,6 @@ void ProcletServer::run_closure_locally(
       *caller_migration_guard = std::move(*optional_caller_guard);
       return;
     }
-
     get_runtime()->detach();
     callee_migration_guard->reset();
 

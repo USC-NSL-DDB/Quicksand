@@ -157,6 +157,7 @@ inline WeakProclet<T> Runtime::get_current_weak_proclet() {
 inline void Runtime::detach() {
   Caladan::PreemptGuard g;
 
+  assert(caladan_->thread_get_owner_proclet());
   get_current_proclet_header()->thread_cnt.dec(g);
   caladan_->thread_unset_owner_proclet(caladan_->thread_self(), true);
 }
@@ -191,7 +192,11 @@ inline std::optional<MigrationGuard> Runtime::attach_and_disable_migration(
   Caladan::PreemptGuard g;
 
   assert(!caladan_->thread_get_owner_proclet());
-  return __attach_and_disable_migration(proclet_header, g);
+  auto guard = __attach_and_disable_migration(proclet_header, g);
+  if (unlikely(!guard)) {
+    caladan_->thread_unset_owner_proclet(caladan_->thread_self(), false);
+  }
+  return guard;
 }
 
 inline std::optional<MigrationGuard> Runtime::reattach_and_disable_migration(
