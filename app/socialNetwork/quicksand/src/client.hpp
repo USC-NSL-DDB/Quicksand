@@ -43,12 +43,13 @@ struct FollowReq : nu::PerfRequest {
 
 class Client : public nu::PerfAdapter {
  public:
-  Client(States states);
+  Client(uint32_t num_nodes, States states);
   void bench();
 
  private:
   struct SocialNetPerfThreadState : nu::PerfThreadState {
     SocialNetPerfThreadState(
+        uint32_t num_nodes,
         const nu::ShardedStatelessService<BackEndService> &s);
 
     nu::ShardedStatelessService<BackEndService> service;
@@ -64,8 +65,8 @@ class Client : public nu::PerfAdapter {
   };
 
   constexpr static uint32_t kNumThreads = 200;
-  constexpr static double kTargetMops = 0.5;
-  constexpr static double kTotalMops = 1;
+  constexpr static double kTargetMops = 2;
+  constexpr static double kTotalMops = 80;
   constexpr static uint32_t kUserTimelinePercent = 55;
   constexpr static uint32_t kHomeTimelinePercent = 30;
   constexpr static uint32_t kComposePostPercent = 14;
@@ -73,7 +74,6 @@ class Client : public nu::PerfAdapter {
   constexpr static uint32_t kFollowPercent =
       100 - kUserTimelinePercent - kHomeTimelinePercent - kComposePostPercent -
       kRemovePostsPercent;
-  constexpr static uint32_t kNumUsers = 536108;
   constexpr static char kCharSet[] =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "abcdefghijklmnopqrstuvwxyz";
@@ -84,6 +84,7 @@ class Client : public nu::PerfAdapter {
   constexpr static uint32_t kMaxNumMediasPerText = 2;
   constexpr static uint64_t kTimeSeriesIntervalUs = 10 * 1000;
   friend class nu::PerfAdapter;
+  uint32_t num_nodes_;
   nu::ShardedStatelessService<BackEndService> service_;
 
   std::unique_ptr<nu::PerfThreadState> create_thread_state();

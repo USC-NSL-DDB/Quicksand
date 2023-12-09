@@ -8,7 +8,7 @@ namespace social_network {
 Initializer::Initializer(nu::Proclet<BackEndService> backend)
     : backend_(std::move(backend)) {}
 
-void Initializer::init() {
+uint32_t Initializer::init() {
   std::cout << "init graph..." << std::endl;
   std::ifstream ifs(kFilePath);
 
@@ -106,5 +106,6 @@ void Initializer::init() {
   }
 
   std::cout << "done" << std::endl;
+  return num_nodes;
 }
 }  // namespace social_network

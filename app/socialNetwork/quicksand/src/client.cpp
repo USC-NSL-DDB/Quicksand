@@ -6,20 +6,21 @@
 namespace social_network {
 
 Client::SocialNetPerfThreadState::SocialNetPerfThreadState(
-    const nu::ShardedStatelessService<BackEndService> &s)
+    uint32_t num_nodes, const nu::ShardedStatelessService<BackEndService> &s)
     : service(s),
       rd(),
       gen(rd()),
       dist_1_100(1, 100),
-      dist_1_numusers(1, kNumUsers),
+      dist_1_numusers(1, num_nodes),
       dist_0_charsetsize(0, std::size(kCharSet) - 2),
       dist_0_maxnummentions(0, kMaxNumMentionsPerText),
       dist_0_maxnumurls(0, kMaxNumUrlsPerText),
       dist_0_maxnummedias(0, kMaxNumMediasPerText),
       dist_0_maxint64(0, std::numeric_limits<int64_t>::max()) {}
 
-Client::Client(States states)
-    : service_(nu::make_sharded_stateless_service<BackEndService>(
+Client::Client(uint32_t num_nodes, States states)
+    : num_nodes_(num_nodes),
+      service_(nu::make_sharded_stateless_service<BackEndService>(
           std::move(states))) {}
 
 void Client::bench() {
@@ -29,7 +30,7 @@ void Client::bench() {
 
   nu::Perf perf(*this);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
-  auto warmup_us = duration_us;
+  auto warmup_us = 5 * nu::kOneSecond;
   perf.run(kNumThreads, kTargetMops, duration_us, warmup_us,
            50 * nu::kOneMilliSecond);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
@@ -47,7 +48,7 @@ void Client::bench() {
 }
 
 std::unique_ptr<nu::PerfThreadState> Client::create_thread_state() {
-  return std::make_unique<SocialNetPerfThreadState>(service_);
+  return std::make_unique<SocialNetPerfThreadState>(num_nodes_, service_);
 }
 
 std::unique_ptr<nu::PerfRequest> Client::gen_req(

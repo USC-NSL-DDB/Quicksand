@@ -17,13 +17,15 @@ void DoWork() {
   auto states = make_states();
   auto backend =
       nu::make_proclet<BackEndService>(std::forward_as_tuple(states));
+  uint32_t num_nodes;
   {
     auto initializer =
         nu::make_proclet<Initializer>(std::forward_as_tuple(backend));
-    initializer.run(&Initializer::init);
+    num_nodes = initializer.run(&Initializer::init);
   }
-  auto client = nu::make_proclet<Client>(std::forward_as_tuple(states), true,
-                                         std::nullopt, kClientIPs[0]);
+  auto client =
+      nu::make_proclet<Client>(std::forward_as_tuple(num_nodes, states), true,
+                               std::nullopt, kClientIPs[0]);
   client.run(&Client::bench);
 }
 

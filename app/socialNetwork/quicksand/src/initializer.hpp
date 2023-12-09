@@ -9,7 +9,7 @@ namespace social_network {
 class Initializer {
  public:
   Initializer(nu::Proclet<BackEndService> backend);
-  void init();
+  uint32_t init();
 
  private:
   const std::string kFilePath =
