@@ -1200,7 +1200,7 @@ template <typename RetT, typename... S0s>
 std::conditional_t<std::is_void_v<RetT>, bool, std::optional<RetT>>
 GeneralShard<Container>::try_run(Key k, uintptr_t fn_addr, S0s... states) {
   auto fn = reinterpret_cast<RetT (*)(ContainerImpl &, Key, S0s...)>(fn_addr);
-  std::size_t size;
+  std::size_t size = 0;
 
   rw_lock_.reader_lock();
   auto rw_unlocker = std::experimental::scope_exit([&] {
