@@ -27,7 +27,7 @@ struct join_data {
 class Thread {
  public:
   template <typename F>
-  Thread(F &&f);
+  Thread(F &&f, bool high_priority = false);
   Thread();
   ~Thread();
   Thread(const Thread &) = delete;
@@ -46,9 +46,9 @@ class Thread {
   friend class Migrator;
 
   template <typename F>
-  void create_in_proclet_env(F &&f, ProcletHeader *header);
+  void create_in_proclet_env(F &&f, ProcletHeader *header, bool head);
   template <typename F>
-  void create_in_runtime_env(F &&f);
+  void create_in_runtime_env(F &&f, bool head);
   static void trampoline_in_runtime_env(void *args);
   static void trampoline_in_proclet_env(void *args);
 };

@@ -19,7 +19,7 @@ inline Thread &Thread::operator=(Thread &&t) {
 }
 
 template <typename F>
-inline Thread::Thread(F &&f) {
+inline Thread::Thread(F &&f, bool high_priority) {
   ProcletHeader *proclet_header;
   {
     Caladan::PreemptGuard g;
@@ -28,14 +28,14 @@ inline Thread::Thread(F &&f) {
   }
 
   if (proclet_header) {
-    create_in_proclet_env(f, proclet_header);
+    create_in_proclet_env(f, proclet_header, high_priority);
   } else {
-    create_in_runtime_env(f);
+    create_in_runtime_env(f, high_priority);
   }
 }
 
 template <typename F>
-void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
+void Thread::create_in_proclet_env(F &&f, ProcletHeader *header, bool head) {
   Caladan::PreemptGuard g;
 
   auto *proclet_stack = get_runtime()->stack_manager()->get();
@@ -48,18 +48,28 @@ void Thread::create_in_proclet_env(F &&f, ProcletHeader *header) {
       proclet_stack, kStackSize, trampoline_in_proclet_env, join_data_);
   BUG_ON(!th);
   header->thread_cnt.inc(g);
-  get_runtime()->caladan()->thread_ready(th);
+  auto *caladan = get_runtime()->caladan();
+  if (head) {
+    caladan->thread_ready_head(th);
+  } else {
+    caladan->thread_ready(th);
+  }
 }
 
 template <typename F>
-inline void Thread::create_in_runtime_env(F &&f) {
+inline void Thread::create_in_runtime_env(F &&f, bool head) {
   auto *th = get_runtime()->caladan()->thread_create_with_buf(
       trampoline_in_runtime_env, reinterpret_cast<void **>(&join_data_),
       sizeof(*join_data_));
   id_ = get_runtime()->caladan()->get_thread_id(th);
   BUG_ON(!th);
   new (join_data_) join_data(std::forward<F>(f));
-  get_runtime()->caladan()->thread_ready(th);
+  auto *caladan = get_runtime()->caladan();
+  if (head) {
+    caladan->thread_ready_head(th);
+  } else {
+    caladan->thread_ready(th);
+  }
 }
 
 inline bool Thread::joinable() { return join_data_; }
