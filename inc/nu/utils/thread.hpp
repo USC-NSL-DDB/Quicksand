@@ -53,6 +53,9 @@ class Thread {
   static void trampoline_in_proclet_env(void *args);
 };
 
+template <typename T, typename F>
+void parallel_for(T begin_idx, T end_idx, F &&f);
+
 }  // namespace nu
 
 #include "nu/impl/thread.ipp"

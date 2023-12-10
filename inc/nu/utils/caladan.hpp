@@ -74,6 +74,7 @@ class Caladan {
   void timer_sleep_until(uint64_t deadline_us, bool high_priority = false);
   void timer_sleep(uint64_t deadline_us, bool high_priority = false);
   void timer_start(timer_entry *e, uint64_t deadline_us);
+  static uint32_t get_max_cores();
   static bool is_shutting_down();
   static uint32_t get_ip();
   static thread_t *thread_self();

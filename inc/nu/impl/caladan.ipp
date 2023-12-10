@@ -1,4 +1,5 @@
 #include <net.h>
+#include <runtime.h>
 
 namespace nu {
 
@@ -269,5 +270,7 @@ inline bool Caladan::is_shutting_down() {
   extern bool caladan_shutting_down;
   return caladan_shutting_down;
 }
+
+inline uint32_t Caladan::get_max_cores() { return rt::RuntimeMaxCores(); }
 
 }  // namespace nu
