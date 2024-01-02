@@ -51,7 +51,7 @@ class Thread {
 };
 
 template <typename T, typename F>
-void parallel_for(T begin_idx, T end_idx, F &&f);
+void parallel_for(T begin_idx, T end_idx, F &&f, bool head = false);
 
 }  // namespace nu
 
