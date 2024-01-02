@@ -78,7 +78,7 @@ function __start_server() {
     else
 	isol_cmd="--isol"
     fi
-    if [[ $8 -eq 0 ]]
+    if [[ -z "$8" ]]
     then
 	ip=$(caladan_srv_ip $srv_idx)
     else
