@@ -30,9 +30,8 @@ void Client::bench() {
 
   nu::Perf perf(*this);
   auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
-  auto warmup_us = 5 * nu::kOneSecond;
-  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us,
-           50 * nu::kOneMilliSecond);
+  auto warmup_us = nu::kOneSecond;
+  perf.run(kNumThreads, kTargetMops, duration_us, warmup_us, nu::kOneSecond);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
                "99.9th_lat"
             << std::endl;
