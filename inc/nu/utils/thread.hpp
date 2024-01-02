@@ -11,10 +11,9 @@ namespace nu {
 struct ProcletHeader;
 
 struct join_data {
-  template <typename F>
-  join_data(F &&f) : done(false), func(std::move(f)), header(nullptr) {}
-  template <typename F>
-  join_data(F &&f, ProcletHeader *hdr)
+  join_data(std::move_only_function<void()> f)
+      : done(false), func(std::move(f)), header(nullptr) {}
+  join_data(std::move_only_function<void()> f, ProcletHeader *hdr)
       : done(false), func(std::move(f)), header(hdr) {}
 
   bool done;
@@ -26,8 +25,7 @@ struct join_data {
 
 class Thread {
  public:
-  template <typename F>
-  Thread(F &&f, bool high_priority = false);
+  Thread(std::move_only_function<void()> f, bool high_priority = false);
   Thread();
   ~Thread();
   Thread(const Thread &) = delete;
@@ -45,10 +43,9 @@ class Thread {
   join_data *join_data_;
   friend class Migrator;
 
-  template <typename F>
-  void create_in_proclet_env(F &&f, ProcletHeader *header, bool head);
-  template <typename F>
-  void create_in_runtime_env(F &&f, bool head);
+  void create_in_proclet_env(std::move_only_function<void()> f,
+                             ProcletHeader *header, bool head);
+  void create_in_runtime_env(std::move_only_function<void()> f, bool head);
   static void trampoline_in_runtime_env(void *args);
   static void trampoline_in_proclet_env(void *args);
 };

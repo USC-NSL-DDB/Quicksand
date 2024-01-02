@@ -1,6 +1,5 @@
-#include "nu/utils/thread.hpp"
-
 #include "nu/runtime.hpp"
+#include "nu/utils/thread.hpp"
 #include "nu/utils/cpu_load.hpp"
 
 namespace nu {
@@ -107,6 +106,69 @@ void Thread::detach() {
   join_data_->done = true;
   join_data_->lock.unlock();
   join_data_ = nullptr;
+}
+
+Thread::Thread(std::move_only_function<void()> f, bool high_priority) {
+  ProcletHeader *proclet_header;
+  {
+    Caladan::PreemptGuard g;
+
+    proclet_header = get_runtime()->get_current_proclet_header();
+  }
+
+  if (proclet_header) {
+    create_in_proclet_env(std::move(f), proclet_header, high_priority);
+  } else {
+    create_in_runtime_env(std::move(f), high_priority);
+  }
+}
+
+void Thread::create_in_proclet_env(std::move_only_function<void()> f,
+                                   ProcletHeader *header, bool head) {
+  Caladan::PreemptGuard g;
+
+  auto *proclet_stack = get_runtime()->stack_manager()->get();
+  auto proclet_stack_addr = reinterpret_cast<uint64_t>(proclet_stack);
+  assert(proclet_stack_addr % kStackAlignment == 0);
+  id_ = proclet_stack_addr;
+  join_data_ = new join_data(std::move(f), header);
+  BUG_ON(!join_data_);
+  auto *th = get_runtime()->caladan()->thread_nu_create_with_args(
+      proclet_stack, kStackSize, trampoline_in_proclet_env, join_data_);
+  BUG_ON(!th);
+  header->thread_cnt.inc(g);
+  auto *caladan = get_runtime()->caladan();
+  if (head) {
+    caladan->thread_ready_head(th);
+  } else {
+    caladan->thread_ready(th);
+  }
+}
+
+void Thread::create_in_runtime_env(std::move_only_function<void()> f,
+                                   bool head) {
+  auto *th = get_runtime()->caladan()->thread_create_with_buf(
+      trampoline_in_runtime_env, reinterpret_cast<void **>(&join_data_),
+      sizeof(*join_data_));
+  id_ = get_runtime()->caladan()->get_thread_id(th);
+  BUG_ON(!th);
+  new (join_data_) join_data(std::move(f));
+  auto *caladan = get_runtime()->caladan();
+  if (head) {
+    caladan->thread_ready_head(th);
+  } else {
+    caladan->thread_ready(th);
+  }
+}
+
+uint64_t Thread::get_current_id() {
+  auto *proclet_header = get_runtime()->get_current_proclet_header();
+
+  if (proclet_header) {
+    return get_runtime()->get_proclet_stack_range(Caladan::thread_self()).end;
+  } else {
+    return get_runtime()->caladan()->get_current_thread_id();
+  }
 }
 
 }  // namespace nu
