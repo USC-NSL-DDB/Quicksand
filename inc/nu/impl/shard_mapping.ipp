@@ -235,16 +235,11 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
   }
 
   if (!new_shard) {
-    // Useful for improving the data locality.
-    if (Shard::kIsService) {
-      new_shard =
-          make_proclet<Shard>(std::forward_as_tuple(self_, max_shard_bytes_),
-                              pinned_ip_.has_value(), proclet_capacity_, ip);
-    } else {
-      new_shard = make_proclet<Shard>(
-          std::forward_as_tuple(self_, max_shard_bytes_),
-          pinned_ip_.has_value(), proclet_capacity_, pinned_ip_);
-    }
+    new_shard = make_proclet<Shard>(
+        std::forward_as_tuple(self_, max_shard_bytes_), pinned_ip_.has_value(),
+        proclet_capacity_,
+        pinned_ip_ ? pinned_ip_ : ip  // Useful for improving the data locality.
+    );
   }
 
   auto new_weak_shard = new_shard.get_weak();
