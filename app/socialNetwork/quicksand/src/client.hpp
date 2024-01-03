@@ -66,7 +66,7 @@ class Client : public nu::PerfAdapter {
 
   constexpr static uint32_t kNumThreads = 200;
   constexpr static double kTargetMops = 1.1;
-  constexpr static double kTotalMops = 30;
+  constexpr static double kDurationSeconds = 75;
   constexpr static uint32_t kUserTimelinePercent = 55;
   constexpr static uint32_t kHomeTimelinePercent = 30;
   constexpr static uint32_t kComposePostPercent = 14;

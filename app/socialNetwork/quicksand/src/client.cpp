@@ -29,7 +29,7 @@ void Client::bench() {
   nu::RuntimeSlabGuard g;
 
   nu::Perf perf(*this);
-  auto duration_us = kTotalMops / kTargetMops * 1000 * 1000;
+  auto duration_us = kDurationSeconds * nu::kOneSecond;
   auto warmup_us = nu::kOneSecond;
   perf.run(kNumThreads, kTargetMops, duration_us, warmup_us, nu::kOneSecond);
   std::cout << "real_mops, avg_lat, 50th_lat, 90th_lat, 95th_lat, 99th_lat, "
