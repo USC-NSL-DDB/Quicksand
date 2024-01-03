@@ -24,9 +24,11 @@ uint32_t Initializer::init() {
     std::string last_name = "last_name_" + std::to_string(user_id);
     std::string username = "username_" + std::to_string(user_id);
     std::string password = "password_" + std::to_string(user_id);
-    futures.emplace_back(backend_.run_async(&BackEndService::RegisterUserWithId,
-                                            first_name, last_name, username,
-                                            password, user_id));
+    futures.emplace_back(nu::async([this, first_name, last_name, username,
+                                    password, user_id] {
+      backend_.run(&BackEndService::RegisterUserWithId, first_name, last_name,
+                   username, password, user_id);
+    }));
     if (futures.size() > kConcurrency) {
       futures.clear();
     }
@@ -37,10 +39,12 @@ uint32_t Initializer::init() {
   for (uint32_t i = 0; i < num_edges; i++) {
     int64_t user_id_x, user_id_y;
     ifs >> user_id_x >> user_id_y;
-    futures.emplace_back(
-        backend_.run_async(&BackEndService::Follow, user_id_x, user_id_y));
-    futures.emplace_back(
-        backend_.run_async(&BackEndService::Follow, user_id_y, user_id_x));
+    futures.emplace_back(nu::async([this, user_id_x, user_id_y] {
+      backend_.run(&BackEndService::Follow, user_id_x, user_id_y);
+    }));
+    futures.emplace_back(nu::async([this, user_id_x, user_id_y] {
+      backend_.run(&BackEndService::Follow, user_id_y, user_id_x);
+    }));
     if (futures.size() > kConcurrency) {
       futures.clear();
     }
@@ -93,9 +97,11 @@ uint32_t Initializer::init() {
           media_types.emplace_back("png");
         }
         auto post_type = social_network::PostType::POST;
-        futures.emplace_back(
-            backend_.run_async(&BackEndService::ComposePost, username, user_id,
-                               text, media_ids, media_types, post_type));
+        futures.emplace_back(nu::async(
+            [this, username, user_id, text, media_ids, media_types, post_type] {
+              backend_.run(&BackEndService::ComposePost, username, user_id,
+                           text, media_ids, media_types, post_type);
+            }));
         if (futures.size() > kConcurrency) {
           futures.clear();
         }
