@@ -82,7 +82,7 @@ class Client : public nu::PerfAdapter {
   constexpr static uint32_t kMaxNumMentionsPerText = 2;
   constexpr static uint32_t kMaxNumUrlsPerText = 2;
   constexpr static uint32_t kMaxNumMediasPerText = 2;
-  constexpr static uint64_t kTimeSeriesIntervalUs = 10 * 1000;
+  constexpr static uint64_t kTimeSeriesIntervalUs = 50 * 1000;
   friend class nu::PerfAdapter;
   uint32_t num_nodes_;
   nu::ShardedStatelessService<BackEndService> service_;
