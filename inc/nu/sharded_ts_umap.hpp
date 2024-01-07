@@ -66,7 +66,6 @@ class ShardedTSUMap
   void insert(K1 &&k, V1 &&v);
 
  private:
-  constexpr static uint32_t kNumInitialShards = 1;
   using Base = ShardedDataStructure<GeneralContainer<GeneralTSUMap<K, V, H>>,
                                     std::true_type>;
   ShardedTSUMap(std::optional<typename Base::ShardingHint> sharding_hint);
@@ -74,11 +73,11 @@ class ShardedTSUMap
   H hasher_;
   friend class ProcletServer;
   template <typename K1, typename V1, typename H1>
-  friend ShardedTSUMap<K1, V1, H1> make_sharded_ts_umap();
+  friend ShardedTSUMap<K1, V1, H1> make_sharded_ts_umap(uint32_t num_shards);
 };
 
 template <typename K, typename V, typename H = std::hash<K>>
-ShardedTSUMap<K, V, H> make_sharded_ts_umap();
+ShardedTSUMap<K, V, H> make_sharded_ts_umap(uint32_t num_shards = 1);
 
 }  // namespace nu
 

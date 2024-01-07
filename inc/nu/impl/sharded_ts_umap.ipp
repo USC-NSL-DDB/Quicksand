@@ -122,14 +122,13 @@ inline void ShardedTSUMap<K, V, H>::insert(K1 &&k, V1 &&v) {
 }
 
 template <typename K, typename V, typename H>
-inline ShardedTSUMap<K, V, H> make_sharded_ts_umap() {
+inline ShardedTSUMap<K, V, H> make_sharded_ts_umap(uint32_t num_shards) {
   using Base = ShardedDataStructure<GeneralContainer<GeneralTSUMap<K, V, H>>,
                                     std::true_type>;
   typename Base::ShardingHint h;
-  h.num = ShardedTSUMap<K, V, H>::kNumInitialShards *
+  h.num = num_shards *
           (Base::kLowLatencyMaxShardBytes / sizeof(typename Base::DataEntry));
-  auto delta = std::numeric_limits<uint64_t>::max() /
-               ShardedTSUMap<K, V, H>::kNumInitialShards;
+  auto delta = std::numeric_limits<uint64_t>::max() / num_shards;
   h.estimated_min_key = 0;
   h.key_inc_fn =
       std::function([delta](uint64_t &k, uint64_t _) { k += delta; });
