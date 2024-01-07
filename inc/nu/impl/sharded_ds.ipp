@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <optional>
 #include <utility>
+#include <boost/circular_buffer.hpp>
 
 #include "nu/utils/thread.hpp"
 #include "nu/utils/time.hpp"
@@ -48,7 +49,9 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
   }
 
   {
-    std::vector<Future<WeakProclet<Shard>>> shard_futures;
+    constexpr auto kMaxConcurrency = 200;
+    boost::circular_buffer<Future<WeakProclet<Shard>>> shard_futures{
+        kMaxConcurrency};
 
     for (auto it = keys.begin(); it != keys.end(); it++) {
       auto curr_key = *it;
@@ -56,13 +59,13 @@ ShardedDataStructure<Container, LL>::ShardedDataStructure(
 
       if constexpr (PushBackAble<Container>) {
         if (!curr_key) {
-          shard_futures.emplace_back(mapping_.run_async(
+          shard_futures.push_back(mapping_.run_async(
               &ShardMapping::template create_new_shard<std::decay_t<As>...>,
               std::move(curr_key), std::optional<Key>(), args...));
           shard_futures.back().get();
         }
       } else {
-        shard_futures.emplace_back(mapping_.run_async(
+        shard_futures.push_back(mapping_.run_async(
             &ShardMapping::template create_new_shard<std::decay_t<As>...>,
             std::move(curr_key), std::move(next_key), args...));
       }
