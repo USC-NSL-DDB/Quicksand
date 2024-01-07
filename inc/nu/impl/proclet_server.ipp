@@ -1,10 +1,11 @@
 #include <alloca.h>
-#include <net.h>
-
 #include <memory>
 #include <optional>
 #include <type_traits>
 #include <utility>
+#include <syncstream>
+
+#include <net.h>
 
 #include "nu/ctrl.hpp"
 #include "nu/ctrl_client.hpp"
@@ -14,6 +15,8 @@
 #include "nu/type_traits.hpp"
 
 namespace nu {
+
+constexpr static bool kDumpProcletSizeOnDestruction = false;
 
 template <typename Cls, typename... As>
 void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
@@ -146,6 +149,14 @@ void ProcletServer::__update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
       callee_guard->enable_for([] {});
     }
 
+    if constexpr (kDumpProcletSizeOnDestruction) {
+      Caladan::PreemptGuard g;
+
+      std::osyncstream synced_out(std::cout);
+      synced_out << typeid(Cls).name() << " " << proclet_header << " "
+                 << proclet_header->total_mem_size() << std::endl;
+    }
+
     // Now won't be migrated.
     ProcletSlabGuard slab_guard(&proclet_header->slab);
     callee_guard->enable_for([&] { obj->~Cls(); });
@@ -173,6 +184,15 @@ void ProcletServer::update_ref_cnt(ArchivePool<>::IASStream *ia_sstream,
   if (destructed) {
     // Wait for other concurrent cnt updating threads to finish.
     proclet_header->rcu_lock.writer_sync();
+
+    if constexpr (kDumpProcletSizeOnDestruction) {
+      Caladan::PreemptGuard g;
+
+      std::osyncstream synced_out(std::cout);
+      synced_out << typeid(Cls).name() << " " << proclet_header << " "
+                 << proclet_header->total_mem_size() << std::endl;
+    }
+
     get_runtime()->proclet_manager()->cleanup(proclet_base,
                                               /* for_migration = */ false);
     get_runtime()->controller_client()->destroy_proclet(
