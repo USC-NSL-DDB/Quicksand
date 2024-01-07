@@ -50,8 +50,13 @@ class Thread {
   static void trampoline_in_proclet_env(void *args);
 };
 
+// f(idx), where begin_idx <= idx < end_idx.
 template <typename T, typename F>
 void parallel_for(T begin_idx, T end_idx, F &&f, bool head = false);
+
+// f(range), where range belongs to [begin_idx, end_idx)
+template <typename T, typename F>
+auto parallel_for_range(T begin_idx, T end_idx, F &&f, bool head = false);
 
 }  // namespace nu
 

@@ -1,3 +1,5 @@
+#include <type_traits>
+
 #include "nu/utils/caladan.hpp"
 
 namespace nu {
@@ -42,6 +44,43 @@ void parallel_for(T begin_idx, T end_idx, F &&f, bool head) {
   }
   for (auto &th : ths) {
     th.join();
+  }
+}
+
+template <typename T, typename F>
+auto parallel_for_range(T begin_idx, T end_idx, F &&f, bool head) {
+  using FRetT = std::invoke_result_t<F, T, T>;
+  constexpr bool FVoid = std::is_void_v<FRetT>;
+
+  std::vector<nu::Thread> ths;
+  std::vector<std::conditional_t<FVoid, ErasedType, FRetT>> all_rets;
+
+  auto num_ths = nu::Caladan::get_max_cores();
+  ths.reserve(num_ths);
+  all_rets.resize(num_ths);
+
+  auto chunk_size =
+      (static_cast<int64_t>(end_idx - begin_idx) - 1) / num_ths + 1;
+  for (uint32_t i = 0; i < num_ths; i++) {
+    ths.emplace_back(
+        [&, tid = i] {
+          auto &rets = all_rets[tid];
+          T chunk_begin = begin_idx + chunk_size * tid;
+          T chunk_end = chunk_begin + chunk_size;
+          chunk_end = std::min(chunk_end, end_idx);
+          if constexpr (!FVoid) {
+            rets = f(chunk_begin, chunk_end);
+          }
+        },
+        head);
+  }
+
+  for (auto &th : ths) {
+    th.join();
+  }
+
+  if constexpr (!FVoid) {
+    return all_rets;
   }
 }
 
