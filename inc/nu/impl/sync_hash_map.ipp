@@ -1,4 +1,5 @@
 #include "nu/cereal.hpp"
+#include "nu/utils/thread.hpp"
 
 namespace nu {
 
@@ -17,8 +18,7 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::operator=(
     const SyncHashMap &o) noexcept {
   Allocator allocator;
   BucketNodeAllocator bucket_node_allocator;
-
-  for (size_t i = 0; i < NBuckets; i++) {
+  parallel_for(0uz, NBuckets, [&](std::size_t i) {
     auto *bucket_node = &bucket_heads_[i].node;
     decltype(bucket_node) prev_bucket_node;
     auto *o_bucket_node = &o.bucket_heads_[i].node;
@@ -56,7 +56,7 @@ SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::operator=(
         } while (bucket_node);
       }
     }
-  }
+  }, true);
 
   return *this;
 }
@@ -85,11 +85,11 @@ inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                    Lock>::SyncHashMap() {
   BucketHeadAllocator bucket_head_allocator;
   bucket_heads_ = bucket_head_allocator.allocate(NBuckets);
-  for (size_t i = 0; i < NBuckets; i++) {
+  parallel_for(0uz, NBuckets, [&](std::size_t i) {
     auto &bucket_head = bucket_heads_[i];
     new (&bucket_head) BucketHead();
     bucket_head.node.pair = bucket_head.node.next = nullptr;
-  }
+  }, true);
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
@@ -522,20 +522,40 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
 inline std::vector<std::pair<uint64_t, K>>
 SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
             Lock>::get_all_hashes_and_keys() {
-  std::vector<std::pair<uint64_t, K>> hashes_and_keys;
+  auto all_rets = parallel_for_range(
+      0uz, NBuckets,
+      [&](std::size_t chunk_begin, std::size_t chunk_end) {
+	std::vector<std::pair<uint64_t, K>> hashes_and_keys;
 
-  for (size_t i = 0; i < NBuckets; i++) {
-    auto *bucket_node = &bucket_heads_[i].node;
-    if (bucket_node->pair) {
-      do {
-        hashes_and_keys.emplace_back(
-            bucket_node->key_hash,
-            reinterpret_cast<Pair *>(bucket_node->pair)->first);
-        bucket_node = bucket_node->next;
-      } while (bucket_node);
-    }
+        for (auto i = chunk_begin; i < chunk_end; ++i) {
+          auto *bucket_node = &bucket_heads_[i].node;
+          if (bucket_node->pair) {
+            do {
+              hashes_and_keys.emplace_back(
+                  bucket_node->key_hash,
+                  reinterpret_cast<Pair *>(bucket_node->pair)->first);
+              bucket_node = bucket_node->next;
+            } while (bucket_node);
+          }
+        }
+
+	return hashes_and_keys;
+      },
+      /* head = */ true);
+
+  int sum = 0;
+  for (auto &rets : all_rets) {
+    sum += rets.size();
   }
-  return hashes_and_keys;
+
+  std::vector<std::pair<uint64_t, K>> flat_rets;
+  flat_rets.reserve(sum);
+  for (auto &rets : all_rets) {
+    flat_rets.insert(flat_rets.end(), std::make_move_iterator(rets.begin()),
+                     std::make_move_iterator(rets.end()));
+  }
+
+  return flat_rets;
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,

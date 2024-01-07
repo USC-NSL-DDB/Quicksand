@@ -43,13 +43,16 @@ inline void GeneralTSUMap<K, V, H>::split(Key *mid_k,
   auto mid_idx = hashes_and_keys.size() / 2;
   auto mid_iter = hashes_and_keys.begin() + mid_idx;
   *mid_k = mid_iter->first;
-  parallel_for(mid_idx, hashes_and_keys.size(), [&](std::size_t idx) {
-    auto it = hashes_and_keys.begin() + idx;
-    auto v = map_.get_and_remove(it->second);
-    assert(v);
-    latter_half->map_.put_with_hash(std::move(it->second), std::move(*v),
-                                    it->first);
-  });
+  parallel_for(
+      mid_idx, hashes_and_keys.size(),
+      [&](std::size_t idx) {
+        auto it = hashes_and_keys.begin() + idx;
+        auto v = map_.get_and_remove(it->second);
+        assert(v);
+        latter_half->map_.put_with_hash(std::move(it->second), std::move(*v),
+                                        it->first);
+      },
+      true);
 }
 
 template <typename K, typename V, class H>
