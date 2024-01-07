@@ -68,7 +68,9 @@ auto parallel_for_range(T begin_idx, T end_idx, F &&f, bool head) {
           T chunk_begin = begin_idx + chunk_size * tid;
           T chunk_end = chunk_begin + chunk_size;
           chunk_end = std::min(chunk_end, end_idx);
-          if constexpr (!FVoid) {
+          if constexpr (FVoid) {
+            f(chunk_begin, chunk_end);
+          } else {
             rets = f(chunk_begin, chunk_end);
           }
         },
