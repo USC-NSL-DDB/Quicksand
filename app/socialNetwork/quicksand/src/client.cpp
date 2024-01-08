@@ -39,7 +39,7 @@ void Client::bench() {
             << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
             << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
             << perf.get_nth_lat(99.9) << std::endl;
-  auto timeseries_vec = perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99);
+  auto timeseries_vec = perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.9);
   std::ofstream ofs("timeseries");
   for (auto [_, us, lat] : timeseries_vec) {
     ofs << us << " " << lat << std::endl;
