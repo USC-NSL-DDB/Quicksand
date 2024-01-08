@@ -85,11 +85,14 @@ inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
                    Lock>::SyncHashMap() {
   BucketHeadAllocator bucket_head_allocator;
   bucket_heads_ = bucket_head_allocator.allocate(NBuckets);
-  parallel_for(0uz, NBuckets, [&](std::size_t i) {
-    auto &bucket_head = bucket_heads_[i];
-    new (&bucket_head) BucketHead();
-    bucket_head.node.pair = bucket_head.node.next = nullptr;
-  }, true);
+  parallel_for(
+      0uz, NBuckets,
+      [&](std::size_t i) {
+        auto &bucket_head = bucket_heads_[i];
+        new (&bucket_head) BucketHead();
+        bucket_head.node.pair = bucket_head.node.next = nullptr;
+      },
+      true);
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
@@ -99,10 +102,13 @@ inline SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
   if (bucket_heads_) {
     clear();
     BucketHeadAllocator bucket_head_allocator;
-    for (size_t i = 0; i < NBuckets; i++) {
-      auto &bucket_head = bucket_heads_[i];
-      std::destroy_at(&bucket_head);
-    }
+    parallel_for(
+        0uz, NBuckets,
+        [&](std::size_t i) {
+          auto &bucket_head = bucket_heads_[i];
+          std::destroy_at(&bucket_head);
+        },
+        true);
     bucket_head_allocator.deallocate(bucket_heads_, NBuckets);
   }
 }
@@ -209,7 +215,7 @@ void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
     if (key_hash == bucket_node->key_hash) {
       auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
       if (equaler(k, pair->first)) {
-        pair->second = std::forward<V1>(v);
+        pair->second = std::move(v);
         lock.unlock();
         return;
       }
@@ -562,11 +568,37 @@ template <size_t NBuckets, typename K, typename V, typename Hash,
           typename KeyEqual, typename Allocator, typename Lock>
 inline void
 SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator, Lock>::clear() {
-  associative_reduce(
-      /* clear = */
-      true, /* init_val = */ 0,
-      /* reduce_fn = */
-      +[](int &_, std::pair<const K, V> &pair) {});
+  Allocator allocator;
+  BucketNodeAllocator bucket_node_allocator;
+
+  parallel_for(
+      0uz, NBuckets,
+      [&](std::size_t i) {
+        auto &bucket_head = bucket_heads_[i];
+        auto *bucket_node = &bucket_head.node;
+        auto &lock = bucket_head.lock;
+        if (bucket_head.node.pair) {
+          lock.lock();
+          bool head = true;
+          while (bucket_node && bucket_node->pair) {
+            auto *pair = reinterpret_cast<Pair *>(bucket_node->pair);
+            auto *next = bucket_node->next;
+
+            std::destroy_at(pair);
+            allocator.deallocate(pair, 1);
+            if (head) {
+              head = false;
+              bucket_node->pair = bucket_node->next = nullptr;
+            } else {
+              bucket_node_allocator.deallocate(bucket_node, 1);
+            }
+
+            bucket_node = next;
+          }
+          lock.unlock();
+        }
+      },
+      true);
 }
 
 template <size_t NBuckets, typename K, typename V, typename Hash,
