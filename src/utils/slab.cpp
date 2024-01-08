@@ -26,7 +26,7 @@ void *SlabAllocator::FreePtrsLinkedList::pop() {
 void SlabAllocator::FreePtrsLinkedList::push(void *ptr) {
   size_++;
   if (unlikely(!head_)) {
-    head_ = reinterpret_cast<Batch *>(ptr);
+    tail_ = head_ = reinterpret_cast<Batch *>(ptr);
     std::fill(std::begin(head_->p), std::end(head_->p), nullptr);
     return;
   }
@@ -43,16 +43,27 @@ void SlabAllocator::FreePtrsLinkedList::push(void *ptr) {
   std::fill(std::begin(head_->p) + 1, std::end(head_->p), nullptr);
 }
 
+void SlabAllocator::FreePtrsLinkedList::splice(FreePtrsLinkedList &o) {
+  if (likely(size_)) {
+    size_ += o.size_;
+    BUG_ON(tail_->p[0]);
+    tail_->p[0] = o.head_;
+    tail_ = o.tail_;
+  } else {
+    *this = o;
+  }
+}
+
 // TODO: should be dynamic.
 inline uint32_t get_max_num_cache_entries(bool aggressive_caching,
                                           uint32_t slab_shift) {
   switch (slab_shift) {
     case 4:  // 32 B
-      return 256;
-    case 5:  // 64 B
-      return 128;
-    case 6:  // 128 B
       return 64;
+    case 5:  // 64 B
+      return 64;
+    case 6:  // 128 B
+      return 32;
     case 7:  // 256 B
       return 32;
     case 8:  // 512 B
@@ -72,15 +83,24 @@ inline uint32_t get_max_num_cache_entries(bool aggressive_caching,
 
 inline void SlabAllocator::drain_transferred_cache(
     const Caladan::PreemptGuard &g, uint32_t slab_shift) {
-  auto &transferred_cache = transferred_caches_[g.read_cpu()];
-  auto &list = transferred_cache.lists[slab_shift];
+  if constexpr (kEnableTransferCache) {
+    auto &transferred_cache = transferred_caches_[g.read_cpu()];
+    auto &list = transferred_cache.lists[slab_shift];
 
-  if (list.size()) {
-    ScopedLock l(&transferred_cache.spin);
+    if (list.size()) {
+      FreePtrsLinkedList tmp;
+      {
+        ScopedLock l(&transferred_cache.spin);
 
-    while (list.size()) {
-      auto *hdr = reinterpret_cast<PtrHeader *>(list.pop());
-      free_to_cache_list(g, hdr, slab_shift);
+        while (list.size()) {
+          tmp.push(list.pop());
+        }
+      }
+
+      while (tmp.size()) {
+        auto *hdr = reinterpret_cast<PtrHeader *>(tmp.pop());
+        free_to_cache_list(g, hdr, slab_shift);
+      }
     }
   }
 }
@@ -101,25 +121,31 @@ void *SlabAllocator::__allocate(size_t size) {
     }
 
     if (unlikely(!ret)) {
-      ScopedLock lock(&spin_);
       auto &slab_list = slab_lists_[slab_shift];
       auto max_num_cache_entries =
           std::max(static_cast<uint32_t>(1),
                    get_max_num_cache_entries(aggressive_caching_, slab_shift));
-      while (slab_list.size() && cache_list.size() < max_num_cache_entries) {
-        cache_list.push(slab_list.pop());
-        global_free_bytes_ -= get_slab_size(slab_shift);
-      }
+      auto slab_size = get_slab_size(slab_shift);
 
-      auto remaining = max_num_cache_entries - cache_list.size();
-      if (remaining) {
-        auto slab_size = get_slab_size(slab_shift);
-        remaining = std::min(remaining, (end_ - cur_) / slab_size);
-        cur_ += slab_size * remaining;
-        auto tmp = cur_;
-        for (uint32_t i = 0; i < remaining; i++) {
-          tmp -= slab_size;
-          cache_list.push(tmp);
+      {
+        ScopedLock lock(&spin_);
+
+        while (slab_list.size() && cache_list.size() < max_num_cache_entries) {
+          cache_list.push(slab_list.pop());
+          global_free_bytes_ -= get_slab_size(slab_shift);
+        }
+
+        auto remaining = max_num_cache_entries - cache_list.size();
+        if (remaining) {
+          remaining = std::min(remaining, (end_ - cur_) / slab_size);
+          cur_ += slab_size * remaining;
+          auto tmp = cur_;
+          lock.reset();
+
+          for (uint32_t i = 0; i < remaining; i++) {
+            tmp -= slab_size;
+            cache_list.push(tmp);
+          }
         }
       }
 
@@ -192,10 +218,14 @@ inline void SlabAllocator::__do_free(const Caladan::PreemptGuard &g,
                                      PtrHeader *hdr, uint32_t slab_shift) {
   drain_transferred_cache(g, slab_shift);
 
-  if (likely(g.read_cpu() == hdr->core_id)) {
-    free_to_cache_list(g, hdr, slab_shift);
+  if constexpr (kEnableTransferCache) {
+    if (likely(g.read_cpu() == hdr->core_id)) {
+      free_to_cache_list(g, hdr, slab_shift);
+    } else {
+      free_to_transferred_cache_list(hdr, slab_shift);
+    }
   } else {
-    free_to_transferred_cache_list(hdr, slab_shift);
+    free_to_cache_list(g, hdr, slab_shift);
   }
 }
 
@@ -207,12 +237,19 @@ void SlabAllocator::free_to_cache_list(const Caladan::PreemptGuard &g,
   cache_list.push(hdr);
 
   if (unlikely(cache_list.size() > max_num_cache_entries)) {
-    auto &slab_list = slab_lists_[slab_shift];
-    ScopedLock lock(&spin_);
-
+    FreePtrsLinkedList tmp;
     while (cache_list.size() > max_num_cache_entries / 2) {
-      slab_list.push(cache_list.pop());
-      global_free_bytes_ += get_slab_size(slab_shift);
+      tmp.push(cache_list.pop());
+    }
+
+    auto &slab_list = slab_lists_[slab_shift];
+    auto delta = tmp.size() * get_slab_size(slab_shift);
+
+    {
+      ScopedLock lock(&spin_);
+
+      global_free_bytes_ += delta;
+      slab_list.splice(tmp);
     }
   }
 }
@@ -225,19 +262,27 @@ void SlabAllocator::free_to_transferred_cache_list(PtrHeader *hdr,
   auto &transferred_cache_list = transferred_cache.lists[slab_shift];
   auto &cache_list = cache_lists_[hdr->core_id].lists[slab_shift];
 
-  ScopedLock lock(&transferred_cache.spin);
+  ScopedLock transferred_lock(&transferred_cache.spin);
   transferred_cache.lists[slab_shift].push(hdr);
 
   auto total_num = transferred_cache_list.size() + cache_list.size();
   if (unlikely(total_num > max_num_cache_entries)) {
+    FreePtrsLinkedList tmp;
     auto num_to_turn_in = std::min(transferred_cache_list.size(),
                                    total_num - max_num_cache_entries / 2);
-    auto &slab_list = slab_lists_[slab_shift];
-    ScopedLock lock(&spin_);
-
     while (num_to_turn_in--) {
-      slab_list.push(transferred_cache_list.pop());
-      global_free_bytes_ += get_slab_size(slab_shift);
+      tmp.push(transferred_cache_list.pop());
+    }
+    transferred_lock.reset();
+
+    auto &slab_list = slab_lists_[slab_shift];
+    auto delta = tmp.size() * get_slab_size(slab_shift);
+
+    {
+      ScopedLock lock(&spin_);
+
+      global_free_bytes_ += delta;
+      slab_list.splice(tmp);
     }
   }
 }

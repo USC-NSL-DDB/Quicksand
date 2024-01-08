@@ -28,8 +28,7 @@ class SlabAllocator {
  public:
   constexpr static uint64_t kMaxSlabClassShift = 35;  // 32 GB.
   constexpr static uint64_t kMinSlabClassShift = 5;   // 32 B.
-  constexpr static uint64_t kMaxNumCacheEntries = 32;
-  constexpr static uint64_t kCacheSizeCutoff = 1024;
+  constexpr static bool kEnableTransferCache = false;
   static_assert((1 << kMinSlabClassShift) % kAlignment == 0);
 
   SlabAllocator();
@@ -57,6 +56,7 @@ class SlabAllocator {
     void push(void *ptr);
     void *pop();
     uint64_t size();
+    void splice(FreePtrsLinkedList &o);
 
    private:
     constexpr static uint32_t kBatchSize =
@@ -66,6 +66,7 @@ class SlabAllocator {
     };
 
     Batch *head_ = nullptr;
+    Batch *tail_ = nullptr;
     uint64_t size_ = 0;
   };
 
