@@ -31,12 +31,11 @@ Thread::trampoline_in_proclet_env(void *args) {
   if (d->done) {
     d->cv.signal();
     d->lock.unlock();
+    delete d;
   } else {
     d->done = true;
-    d->cv.wait(&d->lock);
-    d->lock.unlock();
+    d->cv.wait_and_unlock(&d->lock);
   }
-  delete d;
 
   {
     Caladan::PreemptGuard g;
@@ -76,6 +75,11 @@ void Thread::trampoline_in_runtime_env(void *args) {
   std::destroy_at(&d->func);
 }
 
+inline bool is_in_proclet_env(join_data *join_data) {
+  auto addr = reinterpret_cast<uintptr_t>(join_data);
+  return addr >= kMinProcletHeapVAddr && addr < kMaxProcletHeapVAddr;
+}
+
 void Thread::join() {
   BUG_ON(!join_data_);
 
@@ -83,6 +87,9 @@ void Thread::join() {
   if (join_data_->done) {
     join_data_->cv.signal();
     join_data_->lock.unlock();
+    if (is_in_proclet_env(join_data_)) {
+      delete join_data_;
+    }
     join_data_ = nullptr;
     return;
   }
@@ -99,6 +106,9 @@ void Thread::detach() {
   if (join_data_->done) {
     join_data_->cv.signal();
     join_data_->lock.unlock();
+    if (is_in_proclet_env(join_data_)) {
+      delete join_data_;
+    }
     join_data_ = nullptr;
     return;
   }
