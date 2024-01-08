@@ -86,11 +86,21 @@ struct Post {
   }
 };
 
-using Timeline =
-    __gnu_pbds::tree<std::pair<int64_t, int64_t>, __gnu_pbds::null_type,
-                     std::greater<std::pair<int64_t, int64_t>>,
-                     __gnu_pbds::rb_tree_tag,
-                     __gnu_pbds::tree_order_statistics_node_update>;
+class Timeline
+    : public __gnu_pbds::tree<
+          std::pair<int64_t, int64_t>, __gnu_pbds::null_type,
+          std::greater<std::pair<int64_t, int64_t>>, __gnu_pbds::rb_tree_tag,
+          __gnu_pbds::tree_order_statistics_node_update> {
+public:
+  Timeline() = default;
+  Timeline(const Timeline &) = default;
+  Timeline &operator=(const Timeline &) = default;
+  Timeline(Timeline &&o) : Timeline() { this->swap(o); }
+  Timeline &operator=(Timeline &&o) {
+    this->swap(o);
+    return *this;
+  }
+};
 
 struct UserProfile {
   int64_t user_id;
