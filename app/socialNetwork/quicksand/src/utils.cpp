@@ -33,7 +33,7 @@ int LoadConfigFile(const std::string &file_name, json *config_json) {
 RandomStringGenerator::RandomStringGenerator() {
   for (uint32_t i = 0; i < nu::kNumCores; i++) {
     rds_.emplace_back();
-    gens_.emplace_back(rds_.back()());
+    gens_.emplace_back();
     dists_.emplace_back(0, sizeof(kAlphaNum) - 2);
   }
 }

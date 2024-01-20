@@ -53,7 +53,7 @@ uint32_t Initializer::init() {
   futures.clear();
 
   std::random_device rd;
-  std::mt19937 gen(rd());
+  std::mt19937 gen;
   std::uniform_int_distribution<> dist_num_posts(kMinNumPostsPerUser,
                                                  kMaxNumPostsPerUser);
   std::uniform_int_distribution<> dist_num_mentions(0, kMaxNumMentionsPerText);

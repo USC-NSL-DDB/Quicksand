@@ -9,7 +9,7 @@ Client::SocialNetPerfThreadState::SocialNetPerfThreadState(
     uint32_t num_nodes, const nu::ShardedStatelessService<BackEndService> &s)
     : service(s),
       rd(),
-      gen(rd()),
+      gen(),
       dist_1_100(1, 100),
       dist_1_numusers(1, num_nodes),
       dist_0_charsetsize(0, std::size(kCharSet) - 2),
