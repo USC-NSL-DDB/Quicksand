@@ -45,4 +45,25 @@ void CPULoad::decay(uint64_t now_tsc) {
   }
 }
 
+float CPULoad::get_avg_load() const {
+  uint64_t sum_cycles = 0;
+  uint64_t sum_invocation_cnts = 0;
+  uint64_t sum_sample_cnts = 0;
+
+  for (uint32_t i = 0; i < kNumCores; i++) {
+    sum_cycles += cycles_[i].c;
+    sum_invocation_cnts += cnts_[i].invocations;
+    sum_sample_cnts += cnts_[i].samples;
+  }
+
+  auto sample_ratio_inverse =
+      sum_sample_cnts
+          ? static_cast<float>(sum_invocation_cnts) / sum_sample_cnts
+          : 1.0f;
+  auto cycles_ratio = static_cast<float>(sum_cycles) / (rdtsc() - start_tsc_);
+  auto avg_cpu_load = sample_ratio_inverse * cycles_ratio;
+
+  return avg_cpu_load;
+}
+
 }  // namespace nu

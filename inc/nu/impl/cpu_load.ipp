@@ -8,6 +8,7 @@ namespace nu {
 inline CPULoad::CPULoad() {
   memset(cycles_, 0, sizeof(cycles_));
   memset(cnts_, 0, sizeof(cnts_));
+  start_tsc_ = rdtsc();
   last_sum_cycles_ = 0;
   last_sum_invocation_cnts_ = 0;
   last_sum_sample_cnts_ = 0;

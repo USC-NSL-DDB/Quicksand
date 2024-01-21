@@ -16,7 +16,7 @@
 
 namespace nu {
 
-constexpr static bool kDumpProcletSizeOnDestruction = false;
+constexpr static bool kDumpProcletInfoOnDestruction = false;
 
 template <typename Cls, typename... As>
 void ProcletServer::__construct_proclet(MigrationGuard *callee_guard, Cls *obj,
@@ -149,12 +149,14 @@ void ProcletServer::__update_ref_cnt(MigrationGuard *callee_guard, Cls *obj,
       callee_guard->enable_for([] {});
     }
 
-    if constexpr (kDumpProcletSizeOnDestruction) {
+    if constexpr (kDumpProcletInfoOnDestruction) {
       Caladan::PreemptGuard g;
 
       std::osyncstream synced_out(std::cout);
-      synced_out << typeid(Cls).name() << " " << proclet_header << " "
-                 << proclet_header->total_mem_size() << std::endl;
+      synced_out << "Info: " << typeid(Cls).name() << " "
+                 << proclet_header
+                 << " " << proclet_header->slab.get_cur_usage() << " "
+                 << proclet_header->cpu_load.get_avg_load() << std::endl;
     }
 
     // Now won't be migrated.
@@ -184,15 +186,6 @@ void ProcletServer::update_ref_cnt(ArchivePool<>::IASStream *ia_sstream,
   if (destructed) {
     // Wait for other concurrent cnt updating threads to finish.
     proclet_header->rcu_lock.writer_sync();
-
-    if constexpr (kDumpProcletSizeOnDestruction) {
-      Caladan::PreemptGuard g;
-
-      std::osyncstream synced_out(std::cout);
-      synced_out << typeid(Cls).name() << " " << proclet_header << " "
-                 << proclet_header->total_mem_size() << std::endl;
-    }
-
     get_runtime()->proclet_manager()->cleanup(proclet_base,
                                               /* for_migration = */ false);
     get_runtime()->controller_client()->destroy_proclet(
@@ -225,6 +218,16 @@ void ProcletServer::update_ref_cnt_locally(MigrationGuard *callee_guard,
     }
 
     // Now won't be migrated.
+    if constexpr (kDumpProcletInfoOnDestruction) {
+      Caladan::PreemptGuard g;
+
+      std::osyncstream synced_out(std::cout);
+      synced_out << "Info: " << typeid(Cls).name() << " "
+                 << callee_header
+                 << " " << callee_header->slab.get_cur_usage() << " "
+                 << callee_header->cpu_load.get_avg_load() << std::endl;
+    }
+
     auto *obj = get_runtime()->get_root_obj<Cls>(to_proclet_id(callee_header));
     {
       ProcletSlabGuard callee_slab_guard(&callee_header->slab);

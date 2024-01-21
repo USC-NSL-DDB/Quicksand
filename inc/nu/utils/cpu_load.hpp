@@ -16,6 +16,7 @@ class CPULoad {
   void start_monitor_no_sampling();
   bool is_monitoring() const;
   float get_load() const;
+  float get_avg_load() const;
   void zero();
   void halve();
   void twice();
@@ -29,6 +30,7 @@ class CPULoad {
     uint64_t invocations;
     uint64_t samples;
   } cnts_[kNumCores];
+  uint64_t start_tsc_;
   uint64_t last_sum_cycles_;
   uint64_t last_sum_invocation_cnts_;
   uint64_t last_sum_sample_cnts_;
