@@ -1,3 +1,4 @@
+#include <atomic>
 #include <fstream>
 #include <nu/sharded_service.hpp>
 
@@ -5,11 +6,12 @@
 
 namespace social_network {
 
+std::atomic<int> client_tids;
+
 Client::SocialNetPerfThreadState::SocialNetPerfThreadState(
     uint32_t num_nodes, const nu::ShardedStatelessService<BackEndService> &s)
     : service(s),
-      rd(),
-      gen(),
+      gen(++client_tids),
       dist_1_100(1, 100),
       dist_1_numusers(1, num_nodes),
       dist_0_charsetsize(0, std::size(kCharSet) - 2),
@@ -39,7 +41,7 @@ void Client::bench() {
             << perf.get_nth_lat(50) << " " << perf.get_nth_lat(90) << " "
             << perf.get_nth_lat(95) << " " << perf.get_nth_lat(99) << " "
             << perf.get_nth_lat(99.9) << std::endl;
-  auto timeseries_vec = perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99.9);
+  auto timeseries_vec = perf.get_timeseries_nth_lats(kTimeSeriesIntervalUs, 99);
   std::ofstream ofs("timeseries");
   for (auto [_, us, lat] : timeseries_vec) {
     ofs << us << " " << lat << std::endl;
@@ -185,7 +187,7 @@ std::unique_ptr<FollowReq> Client::gen_follow_req(
 std::string Client::random_string(uint32_t len,
                                   SocialNetPerfThreadState *state) {
   std::string str = "";
-  for (uint32_t i = 0; i < kTextLen; i++) {
+  for (uint32_t i = 0; i < len; i++) {
     str += kCharSet[(state->dist_0_charsetsize)(state->gen)];
   }
   return str;

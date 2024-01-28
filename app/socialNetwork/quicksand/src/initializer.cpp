@@ -42,9 +42,6 @@ uint32_t Initializer::init() {
     futures.emplace_back(nu::async([this, user_id_x, user_id_y] {
       backend_.run(&BackEndService::Follow, user_id_x, user_id_y);
     }));
-    futures.emplace_back(nu::async([this, user_id_x, user_id_y] {
-      backend_.run(&BackEndService::Follow, user_id_y, user_id_x);
-    }));
     if (futures.size() > kConcurrency) {
       futures.clear();
     }

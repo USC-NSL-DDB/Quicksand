@@ -53,7 +53,6 @@ class Client : public nu::PerfAdapter {
         const nu::ShardedStatelessService<BackEndService> &s);
 
     nu::ShardedStatelessService<BackEndService> service;
-    std::random_device rd;
     std::mt19937 gen;
     std::uniform_int_distribution<> dist_1_100;
     std::uniform_int_distribution<> dist_1_numusers;
@@ -65,8 +64,8 @@ class Client : public nu::PerfAdapter {
   };
 
   constexpr static uint32_t kNumThreads = 200;
-  constexpr static double kTargetMops = 1.1;
-  constexpr static double kDurationSeconds = 75;
+  constexpr static double kTargetMops = 1.5;
+  constexpr static double kDurationSeconds = 60;
   constexpr static uint32_t kUserTimelinePercent = 55;
   constexpr static uint32_t kHomeTimelinePercent = 30;
   constexpr static uint32_t kComposePostPercent = 14;
@@ -77,12 +76,12 @@ class Client : public nu::PerfAdapter {
   constexpr static char kCharSet[] =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "abcdefghijklmnopqrstuvwxyz";
-  constexpr static uint32_t kTextLen = 64;
+  constexpr static uint32_t kTextLen = 500;
   constexpr static uint32_t kUrlLen = 64;
   constexpr static uint32_t kMaxNumMentionsPerText = 2;
   constexpr static uint32_t kMaxNumUrlsPerText = 2;
   constexpr static uint32_t kMaxNumMediasPerText = 2;
-  constexpr static uint64_t kTimeSeriesIntervalUs = 50 * 1000;
+  constexpr static uint64_t kTimeSeriesIntervalUs = 20 * 1000;
   friend class nu::PerfAdapter;
   uint32_t num_nodes_;
   nu::ShardedStatelessService<BackEndService> service_;
