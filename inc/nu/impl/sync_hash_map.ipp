@@ -226,7 +226,7 @@ void SyncHashMap<NBuckets, K, V, Hash, KeyEqual, Allocator,
 
   auto allocator = Allocator();
   auto *pair = allocator.allocate(1);
-  new (pair) Pair(k, v);
+  new (pair) Pair(std::move(k), std::move(v));
 
   if (!prev_next) {
     bucket_node->key_hash = key_hash;
