@@ -133,12 +133,14 @@ GeneralShardMapping<Shard>::get_updates(uint64_t client_seq) {
   client_seqs_.erase(iter);
   client_seqs_.emplace(log_.last_seq());
 
-  auto optional_log_updates = log_.from(client_seq + 1);
-  if (likely(optional_log_updates)) {
-    return *optional_log_updates;
-  } else {
-    return get_snapshot(lock);
+  if (log_.last_seq() - client_seq < mapping_.size()) {
+    auto optional_log_updates = log_.from(client_seq + 1);
+    if (likely(optional_log_updates)) {
+      return *optional_log_updates;
+    }
   }
+
+  return get_snapshot(lock);
 }
 
 template <class Shard>
@@ -223,7 +225,7 @@ GeneralShardMapping<Shard>::create_or_reuse_new_shard_for_init(
   bool reuse = false;
 
   {
-    ScopedLock lock(&mutex_);
+    ScopedLock lock(&shards_to_reuse_spin_);
 
     // Try to reuse deleted shards, useful for services.
     auto &shards = shards_to_reuse_[ip];
@@ -300,6 +302,8 @@ bool GeneralShardMapping<Shard>::delete_shard(std::optional<Key> l_key,
       it->first, shard);
   it->second.end_seq = log_.last_seq();
   if constexpr (Shard::kIsService) {
+    ScopedLock lock(&shards_to_reuse_spin_);
+
     shards_to_reuse_[ip].emplace(std::move(it->second.shard));
   } else {
     shards_to_gc_.emplace_back(std::move(it->second));

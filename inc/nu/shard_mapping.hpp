@@ -75,7 +75,7 @@ class GeneralShardMapping {
 
  private:
   constexpr static double kProcletOverprovisionFactor = 3;
-  constexpr static uint32_t kLogSize = 256;
+  constexpr static uint32_t kLogSize = 1024;
   constexpr static uint32_t kGCIntervalUs = 100 * kOneMilliSecond;
 
   struct ShardWithLifetime {
@@ -93,6 +93,7 @@ class GeneralShardMapping {
   uint32_t ref_cnt_;
   CondVar ref_cnt_cv_;
   std::unordered_map<NodeIP, std::stack<Proclet<Shard>>> shards_to_reuse_;
+  SpinLock shards_to_reuse_spin_;
   std::list<ShardWithLifetime> shards_to_gc_;
   Log<Shard> log_;
   uint64_t last_gc_us_;
