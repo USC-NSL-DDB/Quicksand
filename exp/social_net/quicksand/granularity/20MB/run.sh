@@ -9,10 +9,10 @@ SRV_STARTING_IDX=1
 NUM_SRVS=6
 MAIN_SRV_IDX=$SRV_STARTING_IDX
 CLIENT_IDX=$(expr $SRV_STARTING_IDX + $NUM_SRVS)
-MOPS=0.7
+MOPS=1.5
 DIR=`pwd`
 SOCIAL_NET_DIR=$DIR/../../../../../app/socialNetwork/quicksand/
-APP_MEM=6144
+APP_MEM=11103
 NU_LOW_MEM=1024
 
 function get_srv_idx() {
