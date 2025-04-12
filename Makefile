@@ -5,6 +5,14 @@ include $(CALADAN_PATH)/build/shared.mk
 
 INC += -Iinc -I$(CALADAN_PATH)/bindings/cc -I$(CALADAN_PATH) -I/usr/include/libnl3/
 
+# load Nu configuration parameters
+include ./build/config
+
+ifeq ($(CONFIG_DDB),y)
+override CXXFLAGS += -DDDB_SUPPORT
+override LDFLAGS += -lpaho-mqtt3c
+endif
+
 override CXXFLAGS += -DNCORES=$(NCORES) -ftemplate-backtrace-limit=0
 override LDFLAGS += -lcrypto -lpthread -lboost_program_options -lnuma -Wno-stringop-overflow \
                     -Wno-alloc-size-larger-than -ldl

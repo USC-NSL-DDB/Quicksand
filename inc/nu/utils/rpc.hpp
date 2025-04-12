@@ -15,7 +15,16 @@
 #include "nu/commons.hpp"
 #include "nu/utils/counter.hpp"
 
+#ifdef DDB_SUPPORT
+#include "ddb/backtrace.hpp"
+#endif
+
 namespace nu {
+
+struct ConnAddrPair {
+  netaddr local_addr;
+  netaddr remote_addr;
+};
 
 // RPCReturnBuffer manages a return data buffer and its lifetime.
 class RPCReturnBuffer {
@@ -77,6 +86,13 @@ class RPCReturner {
   void Return(RPCReturnCode rc, std::span<const std::byte> buf,
               std::move_only_function<void()> deleter_fn = nullptr);
   void Return(RPCReturnCode rc);
+  
+  netaddr local_addr;
+  netaddr remote_addr;
+
+  ConnAddrPair GetRPCAddrPair();
+  netaddr GetLocalAddr();
+  netaddr GetRemoteAddr();
 
  private:
   void *rpc_server_;

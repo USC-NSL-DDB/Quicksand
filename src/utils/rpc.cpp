@@ -9,6 +9,10 @@ extern "C" {
 #include "nu/runtime.hpp"
 #include "nu/utils/rpc.hpp"
 
+#ifdef DDB_SUPPORT
+#include "ddb/backtrace.hpp"
+#endif
+
 namespace nu {
 
 namespace {
@@ -194,7 +198,21 @@ void RPCServerWorker::ReceiveWorker() {
     rt::Spawn(
         [this, completion_data, b = std::move(buf), len = hdr.len]() mutable {
           auto returner = RPCReturner(this, completion_data);
-          handler_(std::span<std::byte>{b.get(), len}, &returner);
+          // handler_(std::span<std::byte>{b.get(), len}, &returner);
+          auto args = std::span<std::byte>(b.get(), len);
+#ifdef DDB_SUPPORT
+          DDB::Backtrace::extraction(
+              [&args]() -> DDB::DDBTraceMeta {
+                auto &meta = from_span<DDB::DDBTraceMeta>(args);
+                BUG_ON(!meta.valid());
+                args = args.subspan(sizeof(DDB::DDBTraceMeta));
+                return meta;
+              },
+              [&args, &returner, this]() { this->handler_(args, &returner); }
+          );
+#else
+          handler_(args, &returner);
+#endif
           counter_.dec();
         });
   }

@@ -32,6 +32,10 @@ extern "C" {
 #include "nu/runtime.hpp"
 #include "nu/utils/slab.hpp"
 
+#ifdef DDB_SUPPORT
+#include "ddb/integration.hpp"
+#endif
+
 namespace nu {
 
 Runtime::Runtime() {}
@@ -189,6 +193,16 @@ int runtime_main_init(int argc, char **argv,
     conf_path = ".conf_" + std::to_string(getpid());
     write_options_to_file(conf_path, all_options_desc);
   }
+  
+#ifdef DDB_SUPPORT
+  auto enable_ddb = all_options_desc.vm.count("ddb");
+  auto ddb_addr = all_options_desc.nu.ddb_addr;
+  if (enable_ddb) {
+    auto ddb_config = DDB::Config::get_default(ddb_addr);
+    auto connector = DDB::DDBConnector(ddb_config);
+    connector.init();
+  }
+#endif
 
   auto ret = rt::RuntimeInit(conf_path, [&] {
     if (conf_path.starts_with(".conf_")) {

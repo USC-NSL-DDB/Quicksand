@@ -75,16 +75,18 @@ void OptionsDesc::add_either_constraint(std::string opt1, std::string opt2) {
 }
 
 NuOptionsDesc::NuOptionsDesc(bool help) : OptionsDesc("Nu arguments", help) {
-  desc.add_options()("main,m", "execute the main function")(
-      "controller,t",
-      boost::program_options::value(&ctrl_ip_str)->default_value("18.18.1.1"),
-      "controller ip")("lpid,l",
-                       boost::program_options::value(&lpid)->required(),
-                       "logical process id (receive a free id if passing 0)")(
-      "nomemps", "don't react to memory pressure")(
-      "nocpups", "don't react to CPU pressure")(
-      "isol", "as an isolated node (which also implies nomemps and nocpups")(
-      "dump,d", "print the configuration file to screen");
+  desc.add_options()
+    ("main,m", "execute the main function")
+    ("controller,t", boost::program_options::value(&ctrl_ip_str)->default_value("18.18.1.1"), "controller ip")
+    ("lpid,l", boost::program_options::value(&lpid)->required(), "logical process id (receive a free id if passing 0)")
+    ("nomemps", "don't react to memory pressure")
+    ("nocpups", "don't react to CPU pressure")
+    ("isol", "as an isolated node")
+#ifdef DDB_SUPPORT
+    ("ddb", "enable DDB")
+    ("ddb_addr", boost::program_options::value(&ddb_ip)->default_value("10.10.1.1"), "ddb ip capture at runtime initialization")
+#endif
+    ;
 }
 
 CaladanOptionsDesc::CaladanOptionsDesc(int default_guaranteed,
