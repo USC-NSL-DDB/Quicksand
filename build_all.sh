@@ -2,7 +2,7 @@
 
 function not_supported {
     echo 'Please set env var $NODE_TYPE, 
-supported list: [r650, r6525, c6525, d6515, xl170, xl170_uswitch, yinyang, zg]'
+supported list: [r650, r6525, c6525, d6515, xl170, xl170_uswitch, yinyang, zg, sapphire]'
     exit 1
 }
 
@@ -27,7 +27,7 @@ cd ..
 
 # Build Nu.
 make clean
-make -j
+make -j$(nproc)
 
 # Setup Nu.
 ./setup.sh
