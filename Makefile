@@ -11,6 +11,7 @@ include ./build/config
 ifeq ($(CONFIG_DDB),y)
 override CXXFLAGS += -DDDB_SUPPORT
 override LDFLAGS += -lpaho-mqtt3c
+override INC += -I$(HOME)/.local/include
 endif
 
 override CXXFLAGS += -DNCORES=$(NCORES) -ftemplate-backtrace-limit=0

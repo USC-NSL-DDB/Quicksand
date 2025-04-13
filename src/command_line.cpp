@@ -84,7 +84,7 @@ NuOptionsDesc::NuOptionsDesc(bool help) : OptionsDesc("Nu arguments", help) {
     ("isol", "as an isolated node")
 #ifdef DDB_SUPPORT
     ("ddb", "enable DDB")
-    ("ddb_addr", boost::program_options::value(&ddb_ip)->default_value("10.10.1.1"), "ddb ip capture at runtime initialization")
+    ("ddb_addr", boost::program_options::value(&ddb_addr)->default_value("10.10.1.1"), "ddb ip capture at runtime initialization")
 #endif
     ;
 }
