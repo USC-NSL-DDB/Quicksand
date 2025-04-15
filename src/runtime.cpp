@@ -33,7 +33,7 @@ extern "C" {
 #include "nu/utils/slab.hpp"
 
 #ifdef DDB_SUPPORT
-#include "ddb/integration.hpp"
+#include <ddb/integration.hpp>
 #endif
 
 namespace nu {

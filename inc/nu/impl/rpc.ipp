@@ -106,24 +106,7 @@ inline netaddr RPCReturner::GetRemoteAddr() {
 
 inline RPCReturnCode RPCClient::Call(std::span<const std::byte> args,
                                      RPCCallback &&callback) {
-#ifdef DDB_SUPPORT
-  DDB::DDBTraceMeta meta;
-  DDB::get_trace_meta(&meta);
-
-  auto ddb_span = to_span(meta);
-
-  std::vector<std::byte> args_with_ddb;
-  args_with_ddb.reserve(ddb_span.size() + args.size());
-  args_with_ddb.insert(args_with_ddb.end(), ddb_span.begin(), ddb_span.end());
-  args_with_ddb.insert(args_with_ddb.end(), args.begin(), args.end());
-
-  std::span<const std::byte> full_args(args_with_ddb);
-
-  auto out_meta = from_span<DDB::DDBTraceMeta>(full_args);
-  BUG_ON(!out_meta.valid());
-#else
   std::span<const std::byte> full_args = args;
-#endif
   RPCCompletion completion(std::move(callback));
   {
     rt::Preempt p;
@@ -139,24 +122,7 @@ inline RPCReturnCode RPCClient::Call(std::span<const std::byte> args,
 
 inline RPCReturnCode RPCClient::Call(std::span<const std::byte> args,
                                      RPCReturnBuffer *return_buf) {
-#ifdef DDB_SUPPORT
-  DDB::DDBTraceMeta meta;
-  DDB::get_trace_meta(&meta);
-
-  auto ddb_span = to_span(meta);
-
-  std::vector<std::byte> args_with_ddb;
-  args_with_ddb.reserve(ddb_span.size() + args.size());
-  args_with_ddb.insert(args_with_ddb.end(), ddb_span.begin(), ddb_span.end());
-  args_with_ddb.insert(args_with_ddb.end(), args.begin(), args.end());
-
-  std::span<const std::byte> full_args(args_with_ddb);
-
-  auto out_meta = from_span<DDB::DDBTraceMeta>(full_args);
-  BUG_ON(!out_meta.valid());
-#else
   std::span<const std::byte> full_args = args;
-#endif
 
   RPCCompletion completion(return_buf);
   {

@@ -32,7 +32,7 @@ extern "C" {
 #include "nu/utils/thread.hpp"
 
 #ifdef DDB_SUPPORT
-#include "ddb/backtrace.hpp"
+#include <ddb/backtrace.hpp>
 #endif
 
 namespace nu {
@@ -996,12 +996,12 @@ void Migrator::forward_to_client(RPCReqForward &req) {
   } else {
     req.returner.Return(req.rc);
   }
-#ifdef DDB_SUPPORT
-  delete (req.gc_ia_sstream->ss.span().data() - sizeof(RPCReqType) -
-          sizeof(DDB::DDBTraceMeta));
-#else
+// #ifdef DDB_SUPPORT
+//   delete (req.gc_ia_sstream->ss.span().data() - sizeof(RPCReqType) -
+//           sizeof(DDB::DDBTraceMeta));
+// #else
   delete (req.gc_ia_sstream->ss.span().data() - sizeof(RPCReqType));
-#endif
+// #endif
   get_runtime()->archive_pool()->put_ia_sstream(req.gc_ia_sstream);
   get_runtime()->rpc_server()->dec_ref_cnt();
   get_runtime()->proclet_server()->dec_ref_cnt();

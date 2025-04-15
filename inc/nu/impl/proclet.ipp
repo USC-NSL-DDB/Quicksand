@@ -1,4 +1,5 @@
 #include <unistd.h>
+
 #include <array>
 #include <concepts>
 #include <cstdint>
@@ -20,6 +21,10 @@ extern "C" {
 #include "nu/rpc_server.hpp"
 #include "nu/runtime.hpp"
 #include "nu/utils/future.hpp"
+
+#ifdef DDB_SUPPORT
+#include <ddb/backtrace.hpp>
+#endif
 
 namespace nu {
 
@@ -225,8 +230,17 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint64_t capacity, NodeIP ip_hint,
 
   // Cold path: use RPC.
   auto *handler = ProcletServer::construct_proclet<T, As...>;
+
+#ifdef DDB_SUPPORT
+  DDB::DDBTraceMeta meta;
+  DDB::get_trace_meta(&meta);
+#endif
+
   invoke_remote(std::move(*optional_caller_migration_guard), callee_id, handler,
                 to_proclet_base(callee_id), capacity, pinned,
+#ifdef DDB_SUPPORT
+                meta,
+#endif
                 std::forward<As>(args)...);
   return callee_proclet;
 }
@@ -332,12 +346,23 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&...states) {
   // Slow path: the callee proclet is actually remote, use RPC.
   auto *handler = ProcletServer::run_closure<MigrEn, CPUMon, CPUSamp, T, RetT,
                                              decltype(fn), S1s...>;
+#ifdef DDB_SUPPORT
+  DDB::DDBTraceMeta meta;
+  DDB::get_trace_meta(&meta);
+#endif
+
   if constexpr (!std::is_same<RetT, void>::value) {
     return invoke_remote_with_ret<RetT>(std::move(caller_migration_guard), id_,
                                         handler, id_, fn,
+#ifdef DDB_SUPPORT
+                                        meta,
+#endif
                                         std::forward<S1s>(states)...);
   } else {
     invoke_remote(std::move(caller_migration_guard), id_, handler, id_, fn,
+#ifdef DDB_SUPPORT
+                  meta,
+#endif
                   std::forward<S1s>(states)...);
   }
 }
@@ -414,7 +439,16 @@ std::optional<Future<void>> Proclet<T>::update_ref_cnt(ProcletID id,
   return nu::async([&, id, delta]() mutable {
     MigrationGuard caller_migration_guard;
     auto *handler = ProcletServer::update_ref_cnt<T>;
-    invoke_remote(std::move(caller_migration_guard), id, handler, id, delta);
+#ifdef DDB_SUPPORT
+    DDB::DDBTraceMeta meta;
+    DDB::get_trace_meta(&meta);
+#endif
+    invoke_remote(std::move(caller_migration_guard), id, handler, id, delta
+#ifdef DDB_SUPPORT
+                  ,
+                  meta
+#endif
+    );
   });
 }
 

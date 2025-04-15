@@ -15,10 +15,6 @@
 #include "nu/commons.hpp"
 #include "nu/utils/counter.hpp"
 
-#ifdef DDB_SUPPORT
-#include "ddb/backtrace.hpp"
-#endif
-
 namespace nu {
 
 struct ConnAddrPair {
