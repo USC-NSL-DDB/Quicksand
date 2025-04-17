@@ -11,6 +11,8 @@ extern "C" {
 #include "nu/ctrl_server.hpp"
 #include "nu/runtime.hpp"
 
+#include <syncstream>
+
 namespace nu {
 
 ControllerServer::ControllerServer()
@@ -163,6 +165,20 @@ ControllerServer::handle_allocate_proclet(const RPCReqAllocateProclet &req) {
   } else {
     resp->empty = true;
   }
+
+  if (kEnableHandlerTrace) {
+    char buf[IP_ADDR_STR_LEN];
+    auto ip_addr = std::string(ip_addr_to_str(resp->server_ip, buf));
+    std::osyncstream os(std::cout);
+    os << "allocate_proclet: lpid = " << req.lpid
+        << ", capacity = " << req.capacity
+        << ", ip_hint = " << req.ip_hint
+        << ", id = " << resp->id
+        << ", server_ip = " << ip_addr
+        << std::endl;
+    os.emit();
+  }
+
   return resp;
 }
 
