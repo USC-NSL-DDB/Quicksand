@@ -27,6 +27,12 @@ lib_obj = $(lib_src:.cpp=.o)
 src = $(lib_src)
 obj = $(src:.cpp=.o)
 dep = $(obj:.o=.d)
+	
+# test_multiproclets_src = test/test_multiproclets.cpp
+# test_multiproclets_obj = $(test_multiproclets_src:.cpp=.o)
+
+ctrl_proxy_src = ddb_helper/ctrl_proxy.cpp
+ctrl_proxy_obj = $(ctrl_proxy_src:.cpp=.o)
 
 test_proclet_src = test/test_proclet.cpp
 test_proclet_obj = $(test_proclet_src:.cpp=.o)
@@ -177,12 +183,22 @@ bin/test_sharded_sorter bin/bench_sharded_sorter bin/test_sharded_stack \
 bin/test_sharded_queue bin/test_dis_executor bin/test_continuous_migrate \
 bin/bench_sharded_queue bin/bench_dis_executor bin/bench_sharded_set \
 bin/bench_sharded_multi_set bin/bench_sharded_stack bin/test_sharded_service \
-bin/bench_sharded_service bin/test_sharded_ts_umap bin/bench_compute_intensity
+bin/bench_sharded_service bin/test_sharded_ts_umap bin/bench_compute_intensity \
+bin/ctrl_proxy
 
 %.d: %.cpp
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+	
+bin/ctrl_proxy: $(ctrl_proxy_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(ctrl_proxy_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+# bin/test_multiproclets: $(test_multiproclets_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+# 	$(LDXX) -o $@ $(test_multiproclets_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+
+.PHONY: ddb_helper
+ddb_helper: bin/ctrl_proxy
+	@echo "Built a controller proxy for DDB to query"
 
 bin/test_proclet: $(test_proclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_proclet_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
