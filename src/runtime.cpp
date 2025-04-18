@@ -34,6 +34,7 @@ extern "C" {
 
 #ifdef DDB_SUPPORT
 #include <ddb/integration.hpp>
+#include "ddb_helper/aux_thread.hpp"
 #endif
 
 namespace nu {
@@ -178,6 +179,14 @@ void setup_main_proclet(Runtime *runtime) {
 
 }  // namespace
 
+#ifdef DDB_SUPPORT
+void spawn_ddb_aux_thread() {
+  if (!DDB::start_ddb_aux_thread()) {
+    std::cerr << "Failed to start DDB auxiliary thread" << std::endl;
+  }
+}
+#endif
+
 int runtime_main_init(int argc, char **argv,
                       std::function<void(int argc, char **argv)> main_func) {
   AllOptionsDesc all_options_desc;
@@ -202,6 +211,11 @@ int runtime_main_init(int argc, char **argv,
     auto connector = DDB::DDBConnector(ddb_config);
     connector.init();
   }
+  
+  spawn_ddb_aux_thread();
+  // if (!DDB::start_ddb_aux_thread()) {
+  //   std::cerr << "Failed to start DDB auxiliary thread" << std::endl;
+  // }
 #endif
 
   auto ret = rt::RuntimeInit(conf_path, [&] {

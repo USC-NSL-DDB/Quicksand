@@ -30,6 +30,12 @@ namespace nu {
 
 struct ProcletHeader;
 
+#ifdef DDB_SUPPORT
+inline void embed_proclet_id(DDB::DDBTraceMeta &meta, ProcletID id) {
+  meta.meta.proclet_id = id;
+}
+#endif
+
 template <typename... S1s>
 inline void serialize(auto *oa_sstream, S1s &&...states) {
   auto &ss = oa_sstream->ss;
@@ -234,6 +240,7 @@ Proclet<T> Proclet<T>::__create(bool pinned, uint64_t capacity, NodeIP ip_hint,
 #ifdef DDB_SUPPORT
   DDB::DDBTraceMeta meta;
   DDB::get_trace_meta(&meta);
+  embed_proclet_id(meta, to_proclet_id(caller_header));
 #endif
 
   invoke_remote(std::move(*optional_caller_migration_guard), callee_id, handler,
@@ -349,6 +356,7 @@ RetT Proclet<T>::__run(RetT (*fn)(T &, S0s...), S1s &&...states) {
 #ifdef DDB_SUPPORT
   DDB::DDBTraceMeta meta;
   DDB::get_trace_meta(&meta);
+  embed_proclet_id(meta, to_proclet_id(caller_header));
 #endif
 
   if constexpr (!std::is_same<RetT, void>::value) {
@@ -442,6 +450,7 @@ std::optional<Future<void>> Proclet<T>::update_ref_cnt(ProcletID id,
 #ifdef DDB_SUPPORT
     DDB::DDBTraceMeta meta;
     DDB::get_trace_meta(&meta);
+    embed_proclet_id(meta, to_proclet_id(caller_migration_guard.header()));
 #endif
     invoke_remote(std::move(caller_migration_guard), id, handler, id, delta
 #ifdef DDB_SUPPORT
