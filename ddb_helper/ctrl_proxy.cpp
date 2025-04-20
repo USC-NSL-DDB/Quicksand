@@ -4,7 +4,6 @@
 #include <memory>
 #include <stdexcept>
 #include <syncstream>
-#include <vector>
 
 // --- Caladan Headers ---
 extern "C" {
@@ -33,70 +32,26 @@ extern "C" {
 
 #include <cstring>
 
+#include "ddb_helper/ctrl_proxy.hpp"
 #include "nu/command_line.hpp"
 #include "nu/ctrl_client.hpp"
 #include "nu/runtime.hpp"
 
 // --- Constants ---
 constexpr int kBacklog = 4096;
-constexpr int kBufferSize = 8192;
 constexpr int kCtrlServerIp = MAKE_IP_ADDR(18, 18, 1, 1);
 
 // --- Caladan/Nu Constants ---
 constexpr auto kDefaultNumGuaranteedCores = 2;
 constexpr auto kDefaultNumSpinningCores = 2;
 // IP address of the proxy server
-constexpr auto kProxyIP = "18.18.1.250"; 
-// lpid of the proxy server, should pick on that doesn't collide with any potential lpids.
-constexpr uint16_t kProxylpid = 20202; 
+constexpr auto kProxyIP = "18.18.1.250";
+// lpid of the proxy server, should pick on that doesn't collide with any
+// potential lpids.
+constexpr uint16_t kProxylpid = 20202;
 
 // --- Proxy Server Constants ---
 constexpr int kProxyServerPort = 20202;  // Port the proxy listens on
-
-// --- Request Context ---
-struct RequestContext {
-  int client_fd;
-  int completion_efd;
-  // std::vector<uint8_t> request_data;  // Data received from the client
-  nu::ProcletID req_proclet_id;     // ProcletID extracted from the request
-  std::vector<uint8_t> reply_data;  // Data received from the target server
-  std::atomic<bool> processing_complete;
-  std::atomic<bool> error_occurred;
-
-  RequestContext(int fd)
-      : client_fd(fd),
-        completion_efd(-1),
-        processing_complete(false),
-        error_occurred(false) {
-    // Create the eventfd for this specific request
-    // EFD_CLOEXEC: Close eventfd automatically on execve
-    // EFD_SEMAPHORE (optional): Provides semaphore-like semantics for read
-    // (value decreases by 1) We use the default behavior where read consumes
-    // the entire value if >= 1.
-    completion_efd = eventfd(0, EFD_CLOEXEC);
-    if (completion_efd == -1) {
-      perror("eventfd creation failed");
-      error_occurred = true;
-    }
-    std::osyncstream ss_ctor(std::cout);
-    ss_ctor << "[RequestContext Ctor]: Created context for fd " << client_fd
-            << " (efd=" << completion_efd << ")" << std::endl;
-    ss_ctor.emit();
-  }
-
-  ~RequestContext() {
-    if (completion_efd != -1) {
-      close(completion_efd);
-    }
-    std::osyncstream ss_dtor(std::cout);
-    ss_dtor << "[RequestContext Dtor]: Cleaned up context for fd " << client_fd
-            << " (efd=" << completion_efd << ")" << std::endl;
-    ss_dtor.emit();
-  }
-
-  RequestContext(const RequestContext&) = delete;
-  RequestContext& operator=(const RequestContext&) = delete;
-};
 
 // --- Global Queue ---
 moodycamel::ConcurrentQueue<RequestContext*> request_queue;
@@ -108,152 +63,98 @@ void* handle_client_connection(void* arg) {
   ss_start << "[KLT Handler " << client_fd << "]: Thread started." << std::endl;
   ss_start.emit();
 
-  std::unique_ptr<RequestContext> context_ptr =
-      std::make_unique<RequestContext>(client_fd);
-
-  // Check if eventfd creation failed in the constructor
-  if (context_ptr->completion_efd == -1) {
-    std::cerr << "[KLT Handler " << client_fd
-              << "]: Failed to create eventfd during context creation. Closing "
-                 "connection."
-              << std::endl;
-    close(client_fd);
-    return nullptr;
-  }
-
   while (true) {
-    std::vector<uint8_t> buffer(kBufferSize);
-    ssize_t bytes_read = -1;
+    auto req_ctx = std::make_unique<RequestContext>(client_fd);
+
+    // Check if eventfd creation failed in the constructor
+    if (req_ctx->completion_efd == -1) {
+      std::cerr
+          << "[KLT Handler " << client_fd
+          << "]: Failed to create eventfd during context creation. Closing "
+             "connection."
+          << std::endl;
+      close(client_fd);
+      return nullptr;
+    }
 
     try {
-      // --- Read Request from Client ---
-      bytes_read = read(client_fd, buffer.data(), buffer.size());
+      auto hdr = read_header(client_fd);
+      ssize_t payload_size = hdr.len;
+      auto payload = std::make_unique_for_overwrite<std::byte[]>(payload_size);
+      receive_exact(client_fd, payload.get(), payload_size);
+      req_ctx->req_hdr = std::move(hdr);
+      req_ctx->req_payload = std::move(payload);
 
-      if (bytes_read > 0) {
-        std::osyncstream ss_read(std::cout);
-        ss_read << "[KLT Handler " << client_fd << "]: Received " << bytes_read
-                << " bytes from client." << std::endl;
-        // std::string received_str(buffer.begin(), buffer.begin() +
-        // bytes_read); ss_read << "  Content (as string): \"" << received_str
-        // << "\""
-        //         << std::endl;
-        ss_read.emit();
+      // --- Enqueue for Processing by ULT ---
+      if (!request_queue.enqueue(req_ctx.get())) {
+        std::cerr
+            << "[KLT Handler " << client_fd
+            << "]: Failed to enqueue request! Queue might be full or blocked?"
+            << std::endl;
+        req_ctx->error_occurred = true;
+        throw std::runtime_error("Failed to enqueue request");
+      }
 
-        constexpr size_t kProcletIdSize = sizeof(nu::ProcletID);
+      std::osyncstream ss_enq(std::cout);
+      ss_enq << "[KLT Handler " << client_fd
+             << "]: Enqueued request for processing (efd="
+             << req_ctx->completion_efd << ")." << std::endl;
+      ss_enq << "[KLT Handler " << client_fd
+             << "]: Waiting for completion signal on eventfd "
+             << req_ctx->completion_efd << "." << std::endl;
+      ss_enq.emit();
 
-        if (static_cast<size_t>(bytes_read) >= kProcletIdSize) {
-          nu::ProcletID proclet_id = 0;
-          const uint8_t* data_ptr = buffer.data();
-          // follow network convention, assume big-endian here...
-          for (size_t i = 0; i < kProcletIdSize; ++i) {
-            proclet_id = (proclet_id << 8) | data_ptr[i];
-          }
+      uint64_t completion_signal_value;
+      ssize_t n = read(req_ctx->completion_efd, &completion_signal_value,
+                       sizeof(completion_signal_value));
 
-          std::osyncstream ss_proclet(std::cout);
-          ss_proclet << "[KLT Handler " << client_fd
-                     << "]: Extracted ProcletID: " << proclet_id
-                     << " from first " << kProcletIdSize << " bytes."
-                     << std::endl;
-          ss_proclet.emit();
-
-          context_ptr->req_proclet_id = proclet_id;
-        } else {
-          std::cerr << "[KLT Handler " << client_fd
-                    << "]: Warning: Received data (" << bytes_read
-                    << " bytes) is too short to contain a full ProcletID ("
-                    << kProcletIdSize << " bytes)." << std::endl;
-          continue;
-        }
-
-        // --- Enqueue for Processing by ULT ---
-        RequestContext* raw_context_ptr = context_ptr.get();
-        if (!request_queue.enqueue(raw_context_ptr)) {
-          std::cerr
-              << "[KLT Handler " << client_fd
-              << "]: Failed to enqueue request! Queue might be full or blocked?"
-              << std::endl;
-          context_ptr->error_occurred = true;  // Mark error
-          throw std::runtime_error(
-              "Failed to enqueue request");  // Throw to handle cleanup
-                                             // consistently
-        }
-
-        std::osyncstream ss_enq(std::cout);
-        ss_enq << "[KLT Handler " << client_fd
-               << "]: Enqueued request for processing (efd="
-               << raw_context_ptr->completion_efd << ")." << std::endl;
-        ss_enq << "[KLT Handler " << client_fd
-               << "]: Waiting for completion signal on eventfd "
-               << raw_context_ptr->completion_efd << "." << std::endl;
-        ss_enq.emit();
-
-        uint64_t completion_signal_value;
-        ssize_t n =
-            read(raw_context_ptr->completion_efd, &completion_signal_value,
-                 sizeof(completion_signal_value));
-
-        if (n != sizeof(completion_signal_value)) {
-          // Error reading from eventfd or unexpected signal
-          perror("read eventfd failed");
-          context_ptr->error_occurred = true;  // Mark context as errored
-          // Continue to process potential error reply, but log failure
-          std::cerr << "[KLT Handler " << client_fd
-                    << "]: Error waiting for completion signal." << std::endl;
-        } else {
-          std::osyncstream ss_sig(std::cout);
-          ss_sig << "[KLT Handler " << client_fd
-                 << "]: Received completion signal (value="
-                 << completion_signal_value << ")." << std::endl;
-        }
-
-        // --- Process Reply (Send back to Client) ---
-        if (!context_ptr->error_occurred && context_ptr->processing_complete) {
-          if (!context_ptr->reply_data.empty()) {
-            ssize_t bytes_sent =
-                send(client_fd, context_ptr->reply_data.data(),
-                     context_ptr->reply_data.size(), MSG_NOSIGNAL);
-            if (bytes_sent < 0) {
-              perror("send reply failed");
-              // Log error but continue to cleanup
-            } else if (static_cast<size_t>(bytes_sent) !=
-                       context_ptr->reply_data.size()) {
-              std::cerr << "[KLT Handler " << client_fd
-                        << "]: Warning: Sent partial reply (" << bytes_sent
-                        << "/" << context_ptr->reply_data.size() << " bytes)."
-                        << std::endl;
-            } else {
-              std::osyncstream ss_sent(std::cout);
-              ss_sent << "[KLT Handler " << client_fd << "]: Sent "
-                      << bytes_sent << " bytes reply to client." << std::endl;
-              ss_sent.emit();
-            }
-          } else {
-            std::osyncstream ss_noreply(std::cout);
-            ss_noreply << "[KLT Handler " << client_fd
-                       << "]: No reply data received from target server "
-                          "(processing complete)."
-                       << std::endl;
-            ss_noreply.emit();
-            // Send an empty reply or specific status code (e.g., HTTP 204 No
-            // Content) if appropriate send(client_fd, "", 0, MSG_NOSIGNAL);
-          }
-        } else {
-          std::cerr << "[KLT Handler " << client_fd
-                    << "]: Error occurred during processing." << std::endl;
-          const char* error_msg =
-              "502 Bad Gateway\r\nContent-Length: 0\r\n\r\n";
-          send(client_fd, error_msg, strlen(error_msg), MSG_NOSIGNAL);
-        }
-      } else if (bytes_read == 0) {
-        // Client disconnected gracefully before sending data
-        std::osyncstream ss_disc(std::cout);
-        ss_disc << "[KLT Handler " << client_fd
-                << "]: Client disconnected before request." << std::endl;
-        ss_disc.emit();
-        break;
+      if (n != sizeof(completion_signal_value)) {
+        // Error reading from eventfd or unexpected signal
+        perror("read eventfd failed");
+        req_ctx->error_occurred = true;
+        // Continue to process potential error reply, but log failure
+        std::cerr << "[KLT Handler " << client_fd
+                  << "]: Error waiting for completion signal." << std::endl;
       } else {
-        perror("read request failed");
-        throw std::runtime_error("Read request failed");
+        std::osyncstream ss_sig(std::cout);
+        ss_sig << "[KLT Handler " << client_fd
+               << "]: Received completion signal (value="
+               << completion_signal_value << ")." << std::endl;
+      }
+
+      // --- Process Reply (Send back to Client) ---
+      if (!req_ctx->error_occurred && req_ctx->processing_complete) {
+        auto reply_payload_size = req_ctx->reply_hdr.len;
+        if (reply_payload_size >= 0 && req_ctx->reply_payload != nullptr) {
+          ssize_t bytes_sent = send(client_fd, req_ctx->reply_payload.get(),
+                                    reply_payload_size, MSG_NOSIGNAL);
+          if (bytes_sent < 0) {
+            perror("send reply failed");
+          } else if (static_cast<size_t>(bytes_sent) != reply_payload_size) {
+            std::cerr << "[KLT Handler " << client_fd
+                      << "]: Warning: Sent partial reply (" << bytes_sent << "/"
+                      << reply_payload_size << " bytes)." << std::endl;
+          } else {
+            std::osyncstream ss_sent(std::cout);
+            ss_sent << "[KLT Handler " << client_fd << "]: Sent " << bytes_sent
+                    << " bytes reply to client." << std::endl;
+            ss_sent.emit();
+          }
+        } else {
+          std::osyncstream ss_noreply(std::cout);
+          ss_noreply << "[KLT Handler " << client_fd
+                     << "]: No reply data received from target server "
+                        "(processing complete)."
+                     << std::endl;
+          ss_noreply.emit();
+          // Send an empty reply or specific status code (e.g., HTTP 204 No
+          // Content) if appropriate send(client_fd, "", 0, MSG_NOSIGNAL);
+        }
+      } else {
+        std::cerr << "[KLT Handler " << client_fd
+                  << "]: Error occurred during processing." << std::endl;
+        const char* error_msg = "502 Bad Gateway\r\nContent-Length: 0\r\n\r\n";
+        send(client_fd, error_msg, strlen(error_msg), MSG_NOSIGNAL);
       }
     } catch (const std::exception& e) {
       std::cerr << "[KLT Handler " << client_fd << "]: Exception: " << e.what()
@@ -346,11 +247,11 @@ void* linux_thread_func(void* arg) {
       continue;
     }
 
-    std::osyncstream ss_accept(std::cout);
-    ss_accept << "[KLT Listener]: Accepted connection from "
-              << inet_ntoa(address.sin_addr) << ":" << ntohs(address.sin_port)
-              << " on fd " << new_socket << std::endl;
-    ss_accept.emit();
+    std::osyncstream ss(std::cout);
+    ss << "[KLT Listener]: Accepted connection from "
+       << inet_ntoa(address.sin_addr) << ":" << ntohs(address.sin_port)
+       << " on fd " << new_socket << std::endl;
+    ss.emit();
 
     // --- Spawn a Handler Thread for the New Client ---
     pthread_t client_tid;
@@ -361,10 +262,9 @@ void* linux_thread_func(void* arg) {
       close(new_socket);
     } else {
       pthread_detach(client_tid);
-      std::osyncstream ss_spawn(std::cout);
-      ss_spawn << "[KLT Listener]: Spawned handler thread " << client_tid
-               << " for fd " << new_socket << "." << std::endl;
-      ss_spawn.emit();
+      ss << "[KLT Listener]: Spawned handler thread " << client_tid
+         << " for fd " << new_socket << "." << std::endl;
+      ss.emit();
     }
   }
 
@@ -393,11 +293,95 @@ class CtrlProxy {
   std::unique_ptr<nu::ControllerClient> ctrl_client_;
 };
 
+void handle_request_in_caladan(std::shared_ptr<CtrlProxy> proxy,
+                               RequestContext* req_ctx) {
+  std::osyncstream ss(std::cout);
+  ss << "[Caladan ULT for " << req_ctx->client_fd << "]: Started processing."
+     << std::endl;
+  ss.emit();
+  auto cmd = req_ctx->req_hdr.cmd;
+
+  if (cmd == 1) {
+    // query the proclet
+    if (req_ctx->req_hdr.len != sizeof(uint64_t)) {
+      std::cerr << "[Caladan ULT for " << req_ctx->client_fd
+                << "]: Error: Invalid payload size for command 1. Expected "
+                << sizeof(uint64_t) << ", got " << req_ctx->req_hdr.len << "."
+                << std::endl;
+      req_ctx->error_occurred = true;
+    } else {
+      uint64_t proclet_id;
+      if (!req_ctx->req_payload) {
+        std::cerr << "[Caladan ULT for " << req_ctx->client_fd
+                  << "]: Error: Request payload is null for command 1."
+                  << std::endl;
+        req_ctx->error_occurred = true;
+      } else {
+        memcpy(&proclet_id, req_ctx->req_payload.get(), sizeof(uint64_t));
+        proclet_id = ntoh64(proclet_id);
+
+        ss << "[Caladan ULT for " << req_ctx->client_fd
+           << "]: Received ProcletID query for ID " << proclet_id << "."
+           << std::endl;
+        ss.emit();
+
+        auto node_ip = proxy->resolve_proclet(proclet_id);
+        char buf[IP_ADDR_STR_LEN];
+        auto ip_addr = std::string(ip_addr_to_str(node_ip, buf));
+        ss << "[Caladan ULT for " << req_ctx->client_fd
+           << "]: Resolved ProcletID " << proclet_id
+           << " to NodeIP: " << ip_addr << " (" << node_ip << ")" << std::endl;
+        ss.emit();
+
+        auto resp = ProcletQueryResp{proclet_id, node_ip};
+        auto reply_payload =
+            std::make_unique_for_overwrite<std::byte[]>(ProcletQueryResp::SIZE);
+        resp.serialize(
+            std::span<std::byte>{reply_payload.get(), ProcletQueryResp::SIZE});
+        req_ctx->reply_hdr = ProcletCtrlHdr::from_req_hdr(
+            req_ctx->req_hdr, ProcletQueryResp::SIZE);
+        req_ctx->reply_payload = std::move(reply_payload);
+      }
+    }
+  } else {
+    std::cerr << "[Caladan ULT for " << req_ctx->client_fd
+              << "]: Error: Unknown command " << cmd << "." << std::endl;
+    req_ctx->error_occurred = true;
+  }
+
+  // --- Signal Completion via eventfd ---
+  if (req_ctx->completion_efd != -1) {
+    uint64_t signal_value = 1;  // Value must be >= 1
+    ssize_t n =
+        write(req_ctx->completion_efd, &signal_value, sizeof(signal_value));
+    if (n != sizeof(signal_value)) {
+      perror("FATAL: write to eventfd failed in ULT");
+      req_ctx->error_occurred = true;
+    } else {
+      std::osyncstream ss_sig(std::cout);
+      ss_sig << "[Caladan ULT for " << req_ctx->client_fd
+             << "]: Signaled completion on eventfd " << req_ctx->completion_efd
+             << "." << std::endl;
+      ss_sig.emit();
+    }
+  } else {
+    std::cerr << "[Caladan ULT for " << req_ctx->client_fd
+              << "]: FATAL: Invalid completion_efd, cannot signal KLT!"
+              << std::endl;
+    req_ctx->error_occurred = true;  // Mark error anyway
+  }
+
+  std::osyncstream ss_ult_end(std::cout);
+  ss_ult_end << "[Caladan ULT for " << req_ctx->client_fd << "]: Finished."
+             << std::endl;
+  ss_ult_end.emit();
+}
+
 int ctrl_proxy_main(int argc, char** argv) {
   nu::CaladanOptionsDesc desc(kDefaultNumGuaranteedCores,
                               kDefaultNumSpinningCores, kProxyIP);
   desc.parse(argc, argv);
-  
+
   auto conf_path = desc.conf_path;
   if (conf_path.empty()) {
     conf_path = ".conf_" + std::to_string(getpid());
@@ -418,6 +402,9 @@ int ctrl_proxy_main(int argc, char** argv) {
         << std::endl;
 
     while (true) {
+      // The kernel thread owns the request context.
+      // Therefore, it takes care of the cleanup.
+      // No need to free the pointer here.
       RequestContext* req_ctx = nullptr;
       if (request_queue.try_dequeue(req_ctx)) {
         if (req_ctx->error_occurred) {
@@ -443,70 +430,12 @@ int ctrl_proxy_main(int argc, char** argv) {
 
         // --- Spawn a Caladan ULT to handle this request ---
         rt::Spawn([=] {
-          std::osyncstream ss_ult(std::cout);
-          ss_ult << "[Caladan ULT for " << req_ctx->client_fd
-                 << "]: Started processing." << std::endl;
-          ss_ult.emit();
-
-          try {
-            auto node_ip = proxy->resolve_proclet(req_ctx->req_proclet_id);
-            char buf[IP_ADDR_STR_LEN];
-            auto ip_addr = std::string(ip_addr_to_str(node_ip, buf));
-            std::osyncstream ss(std::cout);
-            ss << "[Caladan ULT for " << req_ctx->client_fd
-               << "]: Resolved ProcletID " << req_ctx->req_proclet_id
-               << " to NodeIP: " << ip_addr << " (" << node_ip << ")"
-               << std::endl;
-
-            req_ctx->reply_data.clear();
-            // assume big-endian.
-            constexpr size_t kNodeIpSize = sizeof(nu::NodeIP);
-            req_ctx->reply_data.resize(kNodeIpSize);
-            for (size_t i = 0; i < kNodeIpSize; ++i) {
-              req_ctx->reply_data[i] = static_cast<uint8_t>(
-                  (node_ip >> (8 * (kNodeIpSize - 1 - i))) & 0xFF);
-            }
-            req_ctx->processing_complete = true;
-          } catch (const std::exception& e) {
-            std::cerr << "[Caladan ULT for " << req_ctx->client_fd
-                      << "]: Exception: " << e.what() << std::endl;
-            req_ctx->error_occurred = true;
-          } catch (...) {
-            std::cerr << "[Caladan ULT for " << req_ctx->client_fd
-                      << "]: Unknown exception occurred." << std::endl;
-            req_ctx->error_occurred = true;
-          }
-
-          // --- Signal Completion via eventfd ---
-          if (req_ctx->completion_efd != -1) {
-            uint64_t signal_value = 1;  // Value must be >= 1
-            ssize_t n = write(req_ctx->completion_efd, &signal_value,
-                              sizeof(signal_value));
-            if (n != sizeof(signal_value)) {
-              perror("FATAL: write to eventfd failed in ULT");
-              req_ctx->error_occurred = true;
-            } else {
-              std::osyncstream ss_sig(std::cout);
-              ss_sig << "[Caladan ULT for " << req_ctx->client_fd
-                     << "]: Signaled completion on eventfd "
-                     << req_ctx->completion_efd << "." << std::endl;
-              ss_sig.emit();
-            }
-          } else {
-            // This should not happen if constructor succeeded and context
-            // wasn't corrupted
-            std::cerr << "[Caladan ULT for " << req_ctx->client_fd
-                      << "]: FATAL: Invalid completion_efd, cannot signal KLT!"
-                      << std::endl;
-            req_ctx->error_occurred = true;  // Mark error anyway
-          }
-
-          std::osyncstream ss_ult_end(std::cout);
-          ss_ult_end << "[Caladan ULT for " << req_ctx->client_fd
-                     << "]: Finished." << std::endl;
-          ss_ult_end.emit();
+          handle_request_in_caladan(proxy, req_ctx);
+          std::osyncstream ss_cleanup(std::cout);
+          ss_cleanup << "[Caladan]: Cleaned up context for fd "
+                     << req_ctx->client_fd << "." << std::endl;
+          ss_cleanup.emit();
         });
-
       } else {
         rt::Yield();
       }
