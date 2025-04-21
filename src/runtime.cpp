@@ -203,19 +203,23 @@ int runtime_main_init(int argc, char **argv,
     write_options_to_file(conf_path, all_options_desc);
   }
   
+  
 #ifdef DDB_SUPPORT
   auto enable_ddb = all_options_desc.vm.count("ddb");
   auto ddb_addr = all_options_desc.nu.ddb_addr;
   if (enable_ddb) {
     auto ddb_config = DDB::Config::get_default(ddb_addr);
+    auto caladan_ip = all_options_desc.caladan.ip;
+    std::map<std::string, std::string> user_data = {
+      {"caladan_ip", caladan_ip},
+      // {"lpid", std::to_string(lpid)},
+    };
+    ddb_config.with_user_data(user_data);
     auto connector = DDB::DDBConnector(ddb_config);
     connector.init();
   }
   
   spawn_ddb_aux_thread();
-  // if (!DDB::start_ddb_aux_thread()) {
-  //   std::cerr << "Failed to start DDB auxiliary thread" << std::endl;
-  // }
 #endif
 
   auto ret = rt::RuntimeInit(conf_path, [&] {
