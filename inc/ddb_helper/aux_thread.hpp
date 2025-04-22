@@ -9,7 +9,9 @@
 
 // Platform-specific includes for thread naming
 #ifdef __linux__
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <pthread.h>
 #elif defined(__APPLE__) || defined(__MACH__)
 #include <pthread.h>
