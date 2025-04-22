@@ -210,8 +210,13 @@ int runtime_main_init(int argc, char **argv,
   if (enable_ddb) {
     auto ddb_config = DDB::Config::get_default(ddb_addr);
     auto caladan_ip = all_options_desc.caladan.ip;
+    struct netaddr caladan_addr;
+    if (str_to_netaddr(caladan_ip.c_str(), &caladan_addr) != 0) {
+      std::cerr << "Invalid caladan ip address: " << caladan_ip << std::endl;
+      return -EINVAL;
+    }
     std::map<std::string, std::string> user_data = {
-      {"caladan_ip", caladan_ip},
+      {"caladan_ip", std::to_string(caladan_addr.ip)},
       // {"lpid", std::to_string(lpid)},
     };
     ddb_config.with_user_data(user_data);
