@@ -30,7 +30,7 @@ class Callee {
     std::cout << "Inside callee. Hello!" << std::endl;
     int sum = num1 + num2;
     // ensure the caller triggers migration.
-    delay_us(5 * 1000 * 1000);
+    delay_us(4 * 1000 * 1000);
     std::cout << "Inside callee. Ready to return." << std::endl << std::flush;
     //
     // // Set resource pressure using the mock interface
