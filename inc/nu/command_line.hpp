@@ -23,9 +23,10 @@ struct OptionsDesc {
 struct NuOptionsDesc : public OptionsDesc {
   std::string ctrl_ip_str;
   lpid_t lpid;
-  
+
 #ifdef DDB_SUPPORT
   std::string ddb_addr;
+  std::string ddb_sd_config_path;
 #endif
 
   NuOptionsDesc(bool help = true);
