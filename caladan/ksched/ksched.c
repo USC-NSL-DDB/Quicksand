@@ -46,6 +46,12 @@
 #define PF__HOLE__40000000 0x40000000
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)
+	#define TASK_STATE_FIELD(t) ((t)->__state)
+#else 
+	#define TASK_STATE_FIELD(t) ((t)->state)
+#endif
+
 #define PF_KSCHED_PARKED PF__HOLE__40000000
 
 /* the character device that provides the ksched IOCTL interface */
@@ -456,7 +462,6 @@ static long ksched_get_proc_state(void __user *arg)
     if (copy_from_user(&state, arg, sizeof(state)))
         return -EFAULT;
 
-    // Clear output fields
     state.is_stopped = 0;
     state.is_traced = 0;
 
@@ -468,8 +473,8 @@ static long ksched_get_proc_state(void __user *arg)
     }
 
     // Check if task is stopped (SIGSTOP, debugger breakpoint, etc.)
-    if (task->__state & (TASK_STOPPED | TASK_TRACED)) {
-        state.is_stopped = 1;
+    if (TASK_STATE_FIELD(task) & (TASK_STOPPED | TASK_TRACED)) {
+    	state.is_stopped = 1;
     }
 
     // Check if task is being traced (debugger attached)
