@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/smp.h>

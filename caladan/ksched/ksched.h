@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
+#include <linux/sched.h>
 
 /*
  * NOTE: normally character devices are dynamically allocated, but for
@@ -66,3 +67,7 @@ struct ksched_shm_cpu {
 #define KSCHED_IOC_INTR		_IOW(KSCHED_MAGIC, 3, struct ksched_intr_req)
 #define KSCHED_IOC_RUNTIME_INTR	_IOW(KSCHED_MAGIC, 4, struct ksched_intr_req)
 #define KSCHED_IOC_GET_PROC_STATE _IOWR(KSCHED_MAGIC, 10, struct ksched_proc_state)
+
+void mark_task_parked(struct task_struct *tsk);
+bool try_mark_task_unparked(struct task_struct *tsk);
+
