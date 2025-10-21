@@ -6,3 +6,7 @@ glibc
 bin/*
 *~
 .conf_*
+
+.ctrl_main.log
+.ctrl_proxy.log
+.iokernel.log
