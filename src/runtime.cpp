@@ -214,6 +214,8 @@ int runtime_main_init(int argc, char **argv,
               << ddb_sd_config_path << std::endl;
     auto ddb_config = DDB::Config::get_default(ddb_node_ip);
     ddb_config.with_ini_filepath(ddb_sd_config_path);
+    ddb_config.with_hash(DDB::get_binary_name());
+
     auto caladan_ip = all_options_desc.caladan.ip;
     struct netaddr caladan_addr;
     if (str_to_netaddr(caladan_ip.c_str(), &caladan_addr) != 0) {
