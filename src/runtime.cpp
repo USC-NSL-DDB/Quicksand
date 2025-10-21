@@ -206,12 +206,13 @@ int runtime_main_init(int argc, char **argv,
   
 #ifdef DDB_SUPPORT
   auto enable_ddb = all_options_desc.vm.count("ddb");
-  auto ddb_addr = all_options_desc.nu.ddb_addr;
+  auto ddb_node_ip = all_options_desc.nu.ddb_node_ip;
   auto ddb_sd_config_path = all_options_desc.nu.ddb_sd_config_path;
   if (enable_ddb) {
+    std::cout << "[DDB] Node IP for DDB connection: " << ddb_node_ip << std::endl;
     std::cout << "[DDB] Reading service discovery config from: "
               << ddb_sd_config_path << std::endl;
-    auto ddb_config = DDB::Config::get_default(ddb_addr);
+    auto ddb_config = DDB::Config::get_default(ddb_node_ip);
     ddb_config.with_ini_filepath(ddb_sd_config_path);
     auto caladan_ip = all_options_desc.caladan.ip;
     struct netaddr caladan_addr;
