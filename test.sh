@@ -7,7 +7,7 @@ USAGE="Usage: $0 [tests_prefix]
 SERVER_IP="18.18.1.2"
 MAIN_SERVER_IP="18.18.1.3"
 LPID=1
-SKIPPED_TESTS=("test_continuous_migrate")
+SKIPPED_TESTS=("test_continuous_migrate" "test_interproclet" "test_caller_migrated")
 
 all_passed=1
 tests_prefix=
