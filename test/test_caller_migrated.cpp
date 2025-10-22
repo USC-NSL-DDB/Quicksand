@@ -29,6 +29,8 @@ class Callee {
 
     std::cout << "Inside callee. Hello!" << std::endl;
     int sum = num1 + num2;
+    // ensure the caller triggers migration.
+    delay_us(4 * 1000 * 1000);
     std::cout << "Inside callee. Ready to return." << std::endl << std::flush;
     return sum;
   }
@@ -49,6 +51,15 @@ class Caller {
     data_vec.emplace_back(2);
     data_vec.emplace_back(3);
     
+    rt::Thread([&] {
+      // ensure the first request goes out before migration.
+      delay_us(2 * 1000 * 1000);
+      std::cout << "Inside caller. Triggering migration." << std::endl << std::flush;
+      rt::Preempt p;
+      rt::PreemptGuard g(&p);
+      get_runtime()->pressure_handler()->mock_set_pressure();
+    }).Detach();
+
     std::cout << "Inside caller. Before call callee." << std::endl;
     auto ret = callee.run(&Callee::say_hello);
     std::cout << "Inside caller. Callee returned: " << ret << std::endl << std::flush;
@@ -60,10 +71,10 @@ class Caller {
 int main(int argc, char **argv) {
   return runtime_main_init(argc, argv, [](int, char **) {
     auto caller_ip = MAKE_IP_ADDR(18, 18, 1, 2);
-    auto caller = make_proclet<Caller>(true, std::nullopt, caller_ip);
+    auto caller = make_proclet<Caller>(false, std::nullopt, caller_ip);
 
     auto callee_ip = MAKE_IP_ADDR(18, 18, 1, 3);
-    auto callee = make_proclet<Callee>(true, std::nullopt, callee_ip);
+    auto callee = make_proclet<Callee>(false, std::nullopt, callee_ip);
 
     bool passed = (caller.run(&Caller::call_callee, callee) == 3);
 
