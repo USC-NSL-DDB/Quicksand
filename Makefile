@@ -110,6 +110,8 @@ test_dis_executor_src = test/test_dis_executor.cpp
 test_dis_executor_obj = $(test_dis_executor_src:.cpp=.o)
 test_interproclet_src = test/test_interproclet.cpp
 test_interproclet_obj = $(test_interproclet_src:.cpp=.o)
+test_caller_migrated_src = test/test_caller_migrated.cpp
+test_caller_migrated_obj = $(test_caller_migrated_src:.cpp=.o)
 
 bench_rpc_tput_src = bench/bench_rpc_tput.cpp
 bench_rpc_tput_obj = $(bench_rpc_tput_src:.cpp=.o)
@@ -186,7 +188,7 @@ bin/test_sharded_queue bin/test_dis_executor bin/test_continuous_migrate \
 bin/bench_sharded_queue bin/bench_dis_executor bin/bench_sharded_set \
 bin/bench_sharded_multi_set bin/bench_sharded_stack bin/test_sharded_service \
 bin/bench_sharded_service bin/test_sharded_ts_umap bin/bench_compute_intensity \
-bin/test_interproclet \
+bin/test_interproclet bin/test_caller_migrated \
 bin/ctrl_proxy
 
 %.d: %.cpp
@@ -277,6 +279,8 @@ bin/test_dis_executor: $(test_dis_executor_obj) $(librt_libs) $(RUNTIME_DEPS) $(
 	$(LDXX) -o $@ $(test_dis_executor_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 bin/test_interproclet: $(test_interproclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_interproclet_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+bin/test_caller_migrated: $(test_caller_migrated_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(test_caller_migrated_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
 
 bin/bench_rpc_tput: $(bench_rpc_tput_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(bench_rpc_tput_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
@@ -343,4 +347,4 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f $(dep) src/*.o src/utils/*.o test/*.o bench/*.o bin/* lib*.a
+	rm -f $(dep) src/*.o src/utils/*.o test/*.o bench/*.o bin/* lib*.a 

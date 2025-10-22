@@ -11,8 +11,10 @@
 Framework: nu
 
 # PrerunGdbCommands:
-# - name: "enable script"
-#   command: "source ../gdb_ext/runtime-gdb-grpc.py"
+# - name: "specify log file"
+#   command: "set logging file /tmp/gdb.txt"
+# - name: "enable logging"
+#   command: "set logging on"
 # - name: "enable non-stop mode"
 #   command: "set non-stop off"
 
@@ -29,4 +31,4 @@ ServiceDiscovery:
 Conf:
   on_exit: kill
   sudo: true
-  support_migration: true 
+  support_migration: true
