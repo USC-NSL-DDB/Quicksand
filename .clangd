@@ -1,0 +1,11 @@
+CompileFlags:
+  Add: [
+    -std=gnu++23,
+    -isystem, /usr/local/lib/gcc/x86_64-linux-gnu/13.0.0/../../../../include/c++/13.0.0,
+    -isystem, /usr/local/lib/gcc/x86_64-linux-gnu/13.0.0/../../../../include/c++/13.0.0/x86_64-linux-gnu,
+    -isystem, /usr/local/lib/gcc/x86_64-linux-gnu/13.0.0/../../../../include/c++/13.0.0/backward
+  ]
+Diagnostics:
+  Suppress: [
+    "-Wmissing-template-arg-list-after-template-kw"
+  ]

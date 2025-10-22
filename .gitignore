@@ -10,3 +10,6 @@ bin/*
 .ctrl_main.log
 .ctrl_proxy.log
 .iokernel.log
+
+.cache/
+compile_commands.json
