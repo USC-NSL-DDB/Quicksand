@@ -1,5 +1,6 @@
 #!/bin/bash
 
+SKIP_CTRL=false
 for arg in "$@"; do
     if [ "$arg" = "-h" ] || [ "$arg" = "--help" ]; then
         echo "Usage: $0 [-nc|--no_ctrl] [-h|--help]"
@@ -7,14 +8,14 @@ for arg in "$@"; do
         echo "  -h, --help: Show this help message"
         exit 0
     fi
-done
 
-SKIP_CTRL=false
-for arg in "$@"; do
     if [ "$arg" = "-nc" ] || [ "$arg" = "--no_ctrl" ]; then
         SKIP_CTRL=true
         break
     fi
+done
+
+for arg in "$@"; do
 done
 
 # start iokerneld with DEBUGGER-aware mode
