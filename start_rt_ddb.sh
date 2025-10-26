@@ -15,9 +15,6 @@ for arg in "$@"; do
     fi
 done
 
-for arg in "$@"; do
-done
-
 # start iokerneld with DEBUGGER-aware mode
 echo "Starting IOKernel"
 sudo ./caladan/iokerneld ias dbg > .iokernel.log 2>&1  &
