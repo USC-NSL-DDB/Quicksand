@@ -13,5 +13,16 @@
 			// "debugger_args": [ "--file-level", "debug" ],
 			"valuesFormatting": "prettyPrinters",
 		}, 
+		{
+			"type": "ddb",
+			"request": "launch",
+			"name": "Attach DDB (Multi-Node)",
+			"ddbpath": "${env:HOME}/.cargo/bin/ddb",
+			"configFilePath":"${workspaceFolder}/.ddb/dbg_quicksand_multinode.yaml",
+			// "debugger_args": [ "--console-log", "--console-level", "debug" ],
+			"debugger_args": [ "--console-log", "--console-level", "error" ],
+			// "debugger_args": [ "--file-level", "debug" ],
+			"valuesFormatting": "prettyPrinters",
+		}, 
 	],
 }
