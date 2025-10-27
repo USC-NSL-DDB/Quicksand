@@ -1,0 +1,34 @@
+---
+# PreTasks:
+# - name: "Restart runtime"
+#   command: "./nu_scripts/start_rt.sh"
+
+# PostTasks:
+# - name: "Shutdown runtime"
+#   command: "./nu_scripts/stop_rt.sh"
+# Framework: serviceweaverkube
+
+Framework: nu
+
+# PrerunGdbCommands:
+# - name: "specify log file"
+#   command: "set logging file /tmp/gdb.txt"
+# - name: "enable logging"
+#   command: "set logging on"
+# - name: "enable non-stop mode"
+#   command: "set non-stop off"
+
+# SSH:
+#   user: ybyan
+#   port: 22
+
+ServiceDiscovery:
+  Broker:
+    hostname: 10.10.2.1
+    managed:
+      type: emqx
+
+Conf:
+  on_exit: kill
+  sudo: true
+  support_migration: true
